@@ -1,17 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { SantaConfigurationsPage } from "@/pages/santa/configurations/list";
-
-const searchSchema = z.object({
-  q: z.string().optional(),
-  page_index: z.coerce.number().int().min(0).optional(),
-  page_size: z.coerce.number().int().min(10).max(MAX_PAGE_SIZE).optional(),
-  sort: z.string().optional(),
-});
+import { tableSearchSchema } from "@/lib/pagination";
+import { ConfigurationListPage } from "@/pages/santa/configurations/list";
 
 export const Route = createFileRoute("/_authenticated/santa/configurations/")({
-  validateSearch: (search) => searchSchema.parse(search),
-  component: SantaConfigurationsPage,
+  validateSearch: (search) => tableSearchSchema.parse(search),
+  component: ConfigurationListPage,
 });

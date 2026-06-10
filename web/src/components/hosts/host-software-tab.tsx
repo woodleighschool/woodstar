@@ -1,22 +1,21 @@
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { Package } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import {
-  DataTable,
-  DataTableColumnHeader,
-  DataTableEmptyState,
-  DataTableFacetedFilter,
-  DataTableSearch,
-} from "@/components/data-table";
+import { DataTable, DataTableColumnHeader, DataTableFacetedFilter, DataTableSearch } from "@/components/data-table";
+import { EmptyPanel } from "@/components/empty-panel";
+import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import type { HostSoftwareInstalledVersion, PathSignatureInformation } from "@/lib/api";
-import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
+import {
+  expandSoftwareSourceFilters,
+  softwareSourceLabel,
+  SOURCE_FILTER_OPTIONS,
+  versionsSummaryLabel,
+} from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
@@ -71,16 +70,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         id: "version",
         accessorFn: (row) => row.installed_versions?.[0]?.version ?? "",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
-        cell: ({ row }) => {
-          const versions = row.original.installed_versions ?? [];
-          const label =
-            versions.length === 0
-              ? "-"
-              : versions.length === 1
-                ? versions[0].version || "-"
-                : `${versions.length} versions`;
-          return label;
-        },
+        cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions ?? []),
       },
       {
         id: "source",
@@ -103,12 +93,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         enableSorting: false,
         cell: ({ row }) => {
           const versions = row.original.installed_versions ?? [];
-          const versionLabel =
-            versions.length === 0
-              ? "-"
-              : versions.length === 1
-                ? versions[0].version || "-"
-                : `${versions.length} versions`;
+          const versionLabel = versionsSummaryLabel(versions);
           const paths = installedPathsFor(versions);
           const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
           return (
@@ -130,15 +115,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   );
 
   if (query.error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Failed to Load Software</AlertTitle>
-        <AlertDescription>{query.error.message}</AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-          Retry
-        </Button>
-      </Alert>
-    );
+    return <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />;
   }
 
   return (
@@ -184,17 +161,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
           {exportButton ? <div className="ml-auto">{exportButton}</div> : null}
         </div>
       )}
-      empty={
-        <DataTableEmptyState
-          icon={<Package />}
-          title={hasFilters ? "No Matches" : "No Software Inventory Yet"}
-          description={
-            hasFilters
-              ? "No software matched the current filters."
-              : "osquery will populate this on next detail refresh."
-          }
-        />
-      }
+      empty={<EmptyPanel>{hasFilters ? "No matching software" : "No software yet"}</EmptyPanel>}
     />
   );
 }

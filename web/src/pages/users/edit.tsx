@@ -1,17 +1,20 @@
+import { useForm } from "@tanstack/react-form";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { EnumBadge } from "@/components/enum-badge";
+import { FormField } from "@/components/form-field";
 import { PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
+import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
@@ -36,24 +39,13 @@ export function UserEditPage() {
   if (user.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load User</AlertTitle>
-          <AlertDescription>{user.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void user.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load user" error={user.error} onRetry={() => void user.refetch()} />
       </PageShell>
     );
   }
 
   if (!user.data) {
-    return (
-      <PageShell className="max-w-3xl gap-4">
-        <Skeleton className="h-36" />
-        <Skeleton className="h-28" />
-      </PageShell>
-    );
+    return null;
   }
 
   if (currentUser?.id === user.data.id) {
@@ -67,30 +59,35 @@ function UserEditForm({ user }: { user: User }) {
   const navigate = useNavigate();
   const update = useUpdateUser();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [name, setName] = useState(user.name);
-  const [role, setRole] = useState<UserAccessRole>(userAccessRole(user.role));
-  const [password, setPassword] = useState("");
   const isLocal = user.source === "local";
 
-  const passwordChanged = isLocal && password.trim() !== "";
-  const nameChanged = isLocal && name !== user.name;
-  const roleChanged = userMutationRole(role) !== user.role;
-  const changed = nameChanged || roleChanged || passwordChanged;
-
-  async function submit() {
-    if (!changed) return;
-    const saved = await update.mutateAsync({
-      id: user.id,
-      body: {
-        name: isLocal ? name.trim() : user.name,
-        role: userMutationRole(role),
-        password: passwordChanged ? password : undefined,
-      },
-    });
-    setPassword("");
-    toast.success("User updated");
-    void navigate({ to: "/directory/users/$userId/edit", params: { userId: String(saved.id) } });
-  }
+  const form = useForm({
+    defaultValues: {
+      name: user.name,
+      role: userAccessRole(user.role),
+      password: "",
+    },
+    validators: {
+      onSubmit: z.object({
+        name: z.string(),
+        role: z.enum(["admin", "viewer", "none"]),
+        password: z.string(),
+      }),
+    },
+    onSubmit: async ({ value }) => {
+      const saved = await update.mutateAsync({
+        id: user.id,
+        body: {
+          name: isLocal ? value.name.trim() : user.name,
+          role: userMutationRole(value.role),
+          password: isLocal && value.password.trim() !== "" ? value.password : undefined,
+        },
+      });
+      form.setFieldValue("password", "");
+      toast.success("User updated");
+      void navigate({ to: "/directory/users/$userId/edit", params: { userId: String(saved.id) } });
+    },
+  });
 
   return (
     <PageShell className="max-w-3xl gap-4">
@@ -103,71 +100,109 @@ function UserEditForm({ user }: { user: User }) {
           </CardDescription>
         </CardHeader>
         <form
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            void submit();
+            void form.handleSubmit();
           }}
         >
           <CardContent>
             <FieldGroup className="gap-4">
-              <Field data-disabled={!isLocal}>
-                <FieldLabel htmlFor="user-name">Display Name</FieldLabel>
-                <Input
-                  id="user-name"
-                  type="text"
-                  autoComplete="off"
-                  value={name}
-                  disabled={!isLocal}
-                  onChange={(event) => setName(event.target.value)}
-                />
-                {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(user.source)}.</FieldDescription> : null}
-              </Field>
+              <form.Field name="name">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="Display Name"
+                    htmlFor="user-name"
+                    description={!isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined}
+                  >
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="text"
+                        autoComplete="off"
+                        disabled={!isLocal}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
 
-              <Field>
-                <FieldLabel htmlFor="user-role">Role</FieldLabel>
-                <Select value={role} onValueChange={(value) => setRole(value as UserAccessRole)}>
-                  <SelectTrigger id="user-role" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {USER_ACCESS_ROLE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+              <form.Field name="role">
+                {(field) => (
+                  <FormField field={field} label="Role" htmlFor="user-role">
+                    {(control) => (
+                      <Select
+                        value={field.state.value}
+                        onValueChange={(value) => field.handleChange(value as UserAccessRole)}
+                      >
+                        <SelectTrigger {...control} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {USER_ACCESS_ROLE_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
 
-              <Field data-disabled={!isLocal}>
-                <FieldLabel htmlFor="user-password">Password</FieldLabel>
-                <Input
-                  id="user-password"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={12}
-                  value={password}
-                  disabled={!isLocal}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <FieldDescription>
-                  {isLocal
-                    ? "Set a new password."
-                    : `${directorySourceLabel(user.source)} users do not use local passwords.`}
-                </FieldDescription>
-              </Field>
+              <form.Field name="password">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="Password"
+                    htmlFor="user-password"
+                    description={
+                      isLocal
+                        ? "Set a new password."
+                        : `${directorySourceLabel(user.source)} users do not use local passwords.`
+                    }
+                  >
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={12}
+                        disabled={!isLocal}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex justify-between gap-3 pt-6">
             <p className="text-muted-foreground text-xs" title={new Date(user.updated_at).toLocaleString()}>
               Updated {formatRelative(user.updated_at)}
             </p>
-            <Button type="submit" size="sm" disabled={!changed || update.isPending}>
-              {update.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-              Save
-            </Button>
+            <form.Subscribe selector={(state) => state.values}>
+              {(values) => {
+                const changed =
+                  (isLocal && values.name !== user.name) ||
+                  userMutationRole(values.role) !== user.role ||
+                  (isLocal && values.password.trim() !== "");
+                return (
+                  <SubmitButton pending={update.isPending} disabled={!changed} size="sm">
+                    Save
+                  </SubmitButton>
+                );
+              }}
+            </form.Subscribe>
           </CardFooter>
         </form>
       </Card>
@@ -179,7 +214,7 @@ function UserEditForm({ user }: { user: User }) {
         <CardContent className="px-4">
           <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 data-icon="inline-start" />
-            Delete User
+            Delete
           </Button>
         </CardContent>
       </Card>

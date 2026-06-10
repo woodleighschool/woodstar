@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +32,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
     if (!user) return;
     await remove.mutateAsync(user.id);
     onOpenChange(false);
+    toast.success("User deleted");
     onDeleted?.();
   }
 

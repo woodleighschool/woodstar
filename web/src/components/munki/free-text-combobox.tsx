@@ -17,7 +17,7 @@ export function FreeTextCombobox({
   onBlur,
   onChange,
 }: {
-  id: string;
+  id?: string;
   name?: string;
   value: string;
   options: string[];

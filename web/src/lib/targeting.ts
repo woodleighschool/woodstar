@@ -19,20 +19,12 @@ export function normalizeLabelTargetSet(targets: LabelTargetSet | null | undefin
   };
 }
 
-export function targetSetFromFlatTargets(targets: FlatLabelTarget[] | null | undefined): LabelTargetSet {
+function targetSetFromFlatTargets(targets: FlatLabelTarget[] | null | undefined): LabelTargetSet {
   const rows = targets ?? [];
   return {
     include: rows.filter((target) => target.effect === "include").map(labelRefFromTarget),
     exclude: rows.filter((target) => target.effect === "exclude").map(labelRefFromTarget),
   };
-}
-
-export function flatTargetsFromTargetSet(targets: LabelTargetSet | null | undefined): FlatLabelTarget[] {
-  const targetSet = normalizeLabelTargetSet(targets);
-  return [
-    ...targetSet.include.map((target) => ({ ...target, effect: "include" as const })),
-    ...targetSet.exclude.map((target) => ({ ...target, effect: "exclude" as const })),
-  ];
 }
 
 export function targetLabelIDs(targets: TargetSummaryInput) {

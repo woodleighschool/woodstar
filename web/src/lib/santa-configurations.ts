@@ -1,4 +1,4 @@
-import type { SantaClientMode, SantaConfigurationMutation } from "@/hooks/use-santa";
+import type { SantaClientMode, SantaConfigurationMutation } from "@/hooks/use-santa-configurations";
 import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
 
 type StoredMediaAction = NonNullable<NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]>;
@@ -49,8 +49,4 @@ export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS);
 
 export function clientModeLabel(mode: string | null | undefined) {
   return enumLabel(CLIENT_MODES, mode);
-}
-
-export function mediaActionLabel(action: string | null | undefined) {
-  return enumLabel(MEDIA_ACTIONS, action);
 }

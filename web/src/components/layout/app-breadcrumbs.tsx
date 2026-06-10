@@ -10,14 +10,15 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMunkiPackage } from "@/hooks/munki/packages";
-import { useMunkiSoftwareDetail } from "@/hooks/munki/software";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
+import { useMunkiPackage } from "@/hooks/use-munki-packages";
+import { useMunkiSoftwareDetail } from "@/hooks/use-munki-software";
 import { useReport } from "@/hooks/use-reports";
-import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
-import { useObservedSoftware } from "@/hooks/use-software";
+import { useSantaConfiguration } from "@/hooks/use-santa-configurations";
+import { useSantaRule } from "@/hooks/use-santa-rules";
+import { useSoftwareTitle } from "@/hooks/use-software";
 import { useUser } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 
@@ -63,8 +64,6 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
 }
 
 function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[] {
-  if (sidebarRouteIDs.has(routeId)) return [];
-
   switch (routeId) {
     // Hosts
     case "/_authenticated/hosts/$hostId":
@@ -196,32 +195,16 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
   }
 }
 
-const sidebarRouteIDs = new Set([
-  "/_authenticated/account",
-  "/_authenticated/osquery/checks/",
-  "/_authenticated/enrollments",
-  "/_authenticated/enrollments/",
-  "/_authenticated/enrollments/orbit",
-  "/_authenticated/enrollments/santa",
-  "/_authenticated/hosts/",
-  "/_authenticated/labels/",
-  "/_authenticated/munki/software",
-  "/_authenticated/munki/software/",
-  "/_authenticated/osquery/reports/",
-  "/_authenticated/santa/configurations",
-  "/_authenticated/santa/configurations/",
-  "/_authenticated/santa/events",
-  "/_authenticated/santa/events/",
-  "/_authenticated/santa/events/file-access",
-  "/_authenticated/santa/events/file-access/",
-  "/_authenticated/santa/rules",
-  "/_authenticated/santa/rules/",
-  "/_authenticated/software/",
-  "/_authenticated/directory/groups",
-  "/_authenticated/directory/groups/",
-  "/_authenticated/directory/users",
-  "/_authenticated/directory/users/",
-]);
+function resourceCrumb<T>(
+  useDetail: (id: number) => { data?: T; isLoading: boolean },
+  label: (data: T, id: string) => ReactNode,
+): (props: { id: string }) => ReactNode {
+  return function ResourceCrumb({ id }: { id: string }) {
+    const { data, isLoading } = useDetail(Number(id));
+    if (isLoading || !data) return <CrumbSkeleton />;
+    return <span>{label(data, id)}</span>;
+  };
+}
 
 function HostCrumb({ id }: { id: string }) {
   const { data, isLoading } = useHost(Number(id));
@@ -229,58 +212,19 @@ function HostCrumb({ id }: { id: string }) {
   return <span title={data.hardware.uuid}>{data.display_name}</span>;
 }
 
-function SoftwareCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useObservedSoftware(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.display_name || data.name || id}</span>;
-}
-
-function MunkiSoftwareCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useMunkiSoftwareDetail(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || id}</span>;
-}
+const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d, id) => d.display_name || d.name || id);
+const MunkiSoftwareCrumb = resourceCrumb(useMunkiSoftwareDetail, (d, id) => d.name || id);
+const CheckCrumb = resourceCrumb(useCheck, (d, id) => d.name || id);
+const ReportCrumb = resourceCrumb(useReport, (d, id) => d.name || id);
+const SantaConfigurationCrumb = resourceCrumb(useSantaConfiguration, (d, id) => d.name || id);
+const SantaRuleCrumb = resourceCrumb(useSantaRule, (d, id) => d.name || d.identifier || id);
+const LabelCrumb = resourceCrumb(useLabel, (d, id) => d.name || id);
+const UserCrumb = resourceCrumb(useUser, (d, id) => d.name || d.email || id);
 
 function MunkiPackageCrumb({ id }: { id: string }) {
   const { data, isLoading } = useMunkiPackage(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{`${data.software_name} ${data.version}`}</span>;
-}
-
-function CheckCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useCheck(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || id}</span>;
-}
-
-function ReportCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useReport(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || id}</span>;
-}
-
-function SantaConfigurationCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSantaConfiguration(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || id}</span>;
-}
-
-function SantaRuleCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSantaRule(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || data.identifier || id}</span>;
-}
-
-function LabelCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useLabel(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || id}</span>;
-}
-
-function UserCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useUser(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.name || data.email || id}</span>;
 }
 
 function CrumbSkeleton() {

@@ -42,7 +42,7 @@ export function expandSoftwareSourceFilters(values: string[]): string[] {
   return Array.from(expanded);
 }
 
-export const EXTENSION_FOR_LABELS: Record<string, string> = {
+const EXTENSION_FOR_LABELS: Record<string, string> = {
   arc: "Arc",
   brave: "Brave",
   chrome: "Chrome",
@@ -75,9 +75,12 @@ export const EXTENSION_FOR_LABELS: Record<string, string> = {
 export function softwareSourceLabel(source: string, extensionFor?: string): string {
   if (!source) return "Unknown";
   const base = SOURCE_LABELS.get(source) ?? "Unknown";
-  if (extensionFor) {
-    const variant = EXTENSION_FOR_LABELS[extensionFor] ?? "Unknown";
-    if (variant) return `${base} (${variant})`;
-  }
-  return base;
+  const variant = extensionFor ? EXTENSION_FOR_LABELS[extensionFor] : undefined;
+  return variant ? `${base} (${variant})` : base;
+}
+
+export function versionsSummaryLabel(versions: ReadonlyArray<{ version: string }>): string {
+  if (versions.length === 0) return "-";
+  if (versions.length === 1) return versions[0].version || "-";
+  return `${versions.length} versions`;
 }

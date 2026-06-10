@@ -1,17 +1,18 @@
 import { useParams } from "@tanstack/react-router";
-import { Check, FileCode2, Loader2, X } from "lucide-react";
+import { Check, FileCode2, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa";
+import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa-events";
+import { formatDateTime } from "@/lib/utils";
 
-import { ExecutionDecisionBadge, HostLink, Timestamp } from "@/components/santa/events/event-ui";
-import { executableLabel, fileName } from "@/lib/santa-events";
+import { executableLabel, fileName } from "./decisions";
+import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
 interface Tile {
   label: string;
@@ -26,20 +27,11 @@ export function SantaEventDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Event</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load event" error={query.error} onRetry={() => void query.refetch()} />
       </PageShell>
     );
   }
-  if (query.isLoading || !query.data) {
-    return (
-      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </PageShell>
-    );
-  }
+  if (!query.data) return null;
 
   const event = query.data;
   const executable = event.executable;
@@ -67,7 +59,16 @@ export function SantaEventDetailPage() {
 
   return (
     <PageShell className="gap-6">
-      <EventHeader event={event} />
+      <PageHeader
+        leading={
+          <div className="bg-muted/40 flex size-12 items-center justify-center rounded-md border">
+            <FileCode2 className="text-muted-foreground size-6" />
+          </div>
+        }
+        title={executableLabel(event)}
+        description={event.file_path || event.executable.sha256}
+        context={<ExecutionDecisionBadge decision={event.decision} />}
+      />
 
       {hasTabs ? (
         <Tabs defaultValue="details">
@@ -98,27 +99,6 @@ export function SantaEventDetailPage() {
   );
 }
 
-function EventHeader({ event }: { event: SantaEvent }) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className="bg-muted/40 flex size-12 shrink-0 items-center justify-center rounded-md border">
-          <FileCode2 className="text-muted-foreground size-6" />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h1 className="text-foreground truncate text-xl font-semibold" title={executableLabel(event)}>
-              {executableLabel(event)}
-            </h1>
-            <ExecutionDecisionBadge decision={event.decision} />
-          </div>
-          <p className="text-muted-foreground truncate text-sm">{event.file_path || event.executable.sha256}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ExecutionCard({ event }: { event: SantaEvent }) {
   const tiles: Tile[] = [
     { label: "Host", value: <HostLink host={event.host} /> },
@@ -130,7 +110,7 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
       label: "Occurred",
       value: <Timestamp value={event.occurred_at} />,
     },
-    { label: "Ingested", value: <ValueText value={formatDate(event.ingested_at)} /> },
+    { label: "Ingested", value: <ValueText value={formatDateTime(event.ingested_at)} /> },
   ];
 
   return (
@@ -156,8 +136,8 @@ function BinaryCard({ event }: { event: SantaEvent }) {
     { label: "Team ID", value: <ValueText value={executable.team_id} /> },
     { label: "Signing Status", value: <ValueText value={formatEnumValue(executable.signing_status)} /> },
     { label: "CS Flags", value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} /> },
-    { label: "Secure Signing Time", value: <ValueText value={formatDate(executable.secure_signing_time)} /> },
-    { label: "Signing Time", value: <ValueText value={formatDate(executable.signing_time)} /> },
+    { label: "Secure Signing Time", value: <ValueText value={formatDateTime(executable.secure_signing_time)} /> },
+    { label: "Signing Time", value: <ValueText value={formatDateTime(executable.signing_time)} /> },
   ];
 
   return (
@@ -235,8 +215,8 @@ function SigningChainTable({ signingChain }: { signingChain: NonNullable<SantaEv
               <TableCell className="min-w-64 whitespace-normal">
                 <ValueText value={cert.sha256} />
               </TableCell>
-              <TableCell>{formatDate(cert.valid_from)}</TableCell>
-              <TableCell>{formatDate(cert.valid_until)}</TableCell>
+              <TableCell>{formatDateTime(cert.valid_from)}</TableCell>
+              <TableCell>{formatDateTime(cert.valid_until)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -315,10 +295,6 @@ function ValueBadges({ values }: { values: string[] }) {
       ))}
     </div>
   );
-}
-
-function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : "-";
 }
 
 function formatNumber(value?: number) {

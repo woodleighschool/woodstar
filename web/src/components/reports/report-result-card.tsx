@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 
+import { resultValue } from "@/components/reports/query-results";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HostReport } from "@/hooks/use-hosts";
-import { resultValue } from "@/lib/query-results";
 import { formatRelative } from "@/lib/utils";
 
 interface ReportResultCardProps {

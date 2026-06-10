@@ -1,7 +1,8 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileSliders, Loader2, Plus, Trash2 } from "lucide-react";
+import { FileSliders, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
   BulkDeleteDialog,
@@ -11,10 +12,12 @@ import {
   DataTableRowDragHandle,
   DataTableSearch,
 } from "@/components/data-table";
+import { EnumBadge } from "@/components/enum-badge";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { QueryError } from "@/components/query-error";
+import { SubmitButton } from "@/components/submit-button";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,14 +37,14 @@ import {
   useReorderSantaConfigurations,
   useSantaConfigurations,
   type SantaConfiguration,
-} from "@/hooks/use-santa";
+} from "@/hooks/use-santa-configurations";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { clientModeLabel } from "@/lib/santa-configurations";
+import { CLIENT_MODES } from "@/lib/santa-configurations";
 
-export function SantaConfigurationsPage() {
+export function ConfigurationListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -82,10 +85,12 @@ export function SantaConfigurationsPage() {
   }
 
   function deleteSelectedConfigurations() {
+    const count = selectedIDs.length;
     bulkDelete.mutate(selectedIDs, {
       onSuccess: () => {
         setSelectedConfigurationIds([]);
         setDeleteOpen(false);
+        toast.success(`Deleted ${count} ${count === 1 ? "configuration" : "configurations"}`);
       },
     });
   }
@@ -101,6 +106,7 @@ export function SantaConfigurationsPage() {
       {
         onSuccess: () => {
           setReorderEnabled(false);
+          toast.success("Saved order");
         },
         onError: () => setOrderedRows(serverRows),
       },
@@ -138,7 +144,7 @@ export function SantaConfigurationsPage() {
       accessorKey: "client_mode",
       header: "Client Mode",
       enableSorting: false,
-      cell: ({ row }) => clientModeLabel(row.original.client_mode),
+      cell: ({ row }) => <EnumBadge value={row.original.client_mode} metadata={CLIENT_MODES} />,
     },
     {
       id: "labels",
@@ -173,16 +179,15 @@ export function SantaConfigurationsPage() {
               </Button>
               {reorderEnabled ? (
                 <>
-                  <Button
+                  <SubmitButton
                     type="button"
-                    variant="destructive"
+                    pending={reorder.isPending}
                     size="sm"
-                    disabled={reorder.isPending || query.isLoading || reorderTruncated}
+                    disabled={query.isLoading || reorderTruncated}
                     onClick={saveOrder}
                   >
-                    {reorder.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
                     Save
-                  </Button>
+                  </SubmitButton>
                   <Button type="button" variant="outline" size="sm" onClick={() => setReorderEnabled(false)}>
                     Cancel
                   </Button>
@@ -202,10 +207,7 @@ export function SantaConfigurationsPage() {
       />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Configurations</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load configurations" error={query.error} onRetry={() => void query.refetch()} />
       ) : reorderEnabled ? (
         <DataTable
           columns={columns}

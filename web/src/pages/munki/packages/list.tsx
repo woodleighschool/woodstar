@@ -5,15 +5,15 @@ import { PackageCheck, Plus } from "lucide-react";
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
-import { useMunkiPackages, type MunkiPackage } from "@/hooks/munki/packages";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useMunkiPackages, type MunkiPackage } from "@/hooks/use-munki-packages";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { munkiInstallerTypeLabel } from "@/lib/munki-software";
 import { formatRelative } from "@/lib/utils";
+import { munkiInstallerTypeLabel } from "../software/munki-software";
 
-export function MunkiPackagesPage() {
+export function MunkiPackageListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -72,10 +72,7 @@ export function MunkiPackagesPage() {
         }
       />
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Packages</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load packages" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

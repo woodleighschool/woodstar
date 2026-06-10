@@ -72,4 +72,10 @@ export default tseslint.config([
       "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },
+  {
+    // fields.tsx deliberately co-locates a resource's form component with its
+    // schema/defaults/mappers, so the component-only fast-refresh rule does not apply.
+    files: ["src/pages/**/fields.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 ]);

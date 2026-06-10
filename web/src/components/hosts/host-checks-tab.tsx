@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
+import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { EmptyPanel } from "@/components/empty-panel";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { useHostChecks } from "@/hooks/use-hosts";
 import type { CheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
@@ -51,12 +51,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
   );
 
   if (query.error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Failed to Load Checks</AlertTitle>
-        <AlertDescription>{query.error.message}</AlertDescription>
-      </Alert>
-    );
+    return <QueryError title="Failed to load checks" error={query.error} onRetry={() => void query.refetch()} />;
   }
 
   return (
@@ -71,13 +66,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
       isLoading={query.isLoading}
       getRowId={(row) => `${row.check_id}-${row.host_id}`}
       rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.check_id) } })}
-      empty={
-        <DataTableEmptyState
-          icon={<ShieldCheck />}
-          title="No Checks"
-          description="Add an osquery check to view pass/fail status for this host."
-        />
-      }
+      empty={<EmptyPanel>No checks yet</EmptyPanel>}
     />
   );
 }

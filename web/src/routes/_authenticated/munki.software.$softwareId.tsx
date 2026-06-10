@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { MunkiSoftwareDetailPage } from "@/pages/munki/software/detail";
+import { MunkiSoftwareEditPage } from "@/pages/munki/software/edit";
 
 export const Route = createFileRoute("/_authenticated/munki/software/$softwareId")({
-  component: MunkiSoftwareDetailPage,
+  component: MunkiSoftwareEditPage,
 });

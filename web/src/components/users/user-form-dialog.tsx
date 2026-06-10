@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { z } from "zod";
 
+import { FormField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,201 +13,158 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
-import { directorySourceLabel } from "@/lib/directory";
-import {
-  USER_ACCESS_ROLE_OPTIONS,
-  USER_ROLE_OPTIONS,
-  userAccessRole,
-  userMutationRole,
-  type UserAccessRole,
-} from "@/lib/users";
+import { useCreateUser } from "@/hooks/use-users";
+import { USER_ROLE_OPTIONS, type UserRole } from "@/lib/users";
 
-interface BaseProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // canChangeRole gates the role select. False when editing self.
-  canChangeRole?: boolean;
 }
 
-interface CreateProps extends BaseProps {
-  mode: "create";
-}
-
-interface EditProps extends BaseProps {
-  mode: "edit";
-  user: User;
-}
-
-export type UserFormDialogProps = CreateProps | EditProps;
-
-export function UserFormDialog(props: UserFormDialogProps) {
-  // Body lives inside DialogContent and remounts on each open, so its state
-  // resets without an effect. Key on user.id covers the case of switching
-  // between edit targets without closing.
-  const bodyKey = props.mode === "create" ? "create" : `edit-${props.user.id}`;
-
+export function UserFormDialog({ open, onOpenChange }: Props) {
+  // Body remounts on each open, so its form state resets without an effect.
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        {props.open ? (
-          <UserFormBody
-            key={bodyKey}
-            mode={props.mode}
-            editing={props.mode === "edit" ? props.user : null}
-            canChangeRole={props.canChangeRole ?? true}
-            onClose={() => props.onOpenChange(false)}
-          />
-        ) : null}
+        {open ? <UserFormBody onClose={() => onOpenChange(false)} /> : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-interface UserFormBodyProps {
-  mode: "create" | "edit";
-  editing: User | null;
-  canChangeRole: boolean;
-  onClose: () => void;
-}
-
-function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyProps) {
+function UserFormBody({ onClose }: { onClose: () => void }) {
   const create = useCreateUser();
-  const update = useUpdateUser();
-  const pending = create.isPending || update.isPending;
-  const submitError = mode === "create" ? create.error : update.error;
 
-  const [email, setEmail] = useState(editing?.email ?? "");
-  const [name, setName] = useState(editing?.name ?? "");
-  const [role, setRole] = useState<UserAccessRole>(editing ? userAccessRole(editing.role) : "viewer");
-  const [password, setPassword] = useState("");
-  const isLocal = editing === null || editing.source === "local";
-
-  async function handleSubmit() {
-    if (mode === "create") {
-      const body: UserCreate = { email, name, role: role === "none" ? "viewer" : role, password };
-      await create.mutateAsync(body);
+  const form = useForm({
+    defaultValues: { email: "", name: "", role: "viewer" as UserRole, password: "" },
+    validators: {
+      onSubmit: z.object({
+        email: z.email("Enter a valid email."),
+        name: z.string().trim(),
+        role: z.enum(["admin", "viewer"]),
+        password: z.string().min(12, "Password must be at least 12 characters."),
+      }),
+    },
+    onSubmit: async ({ value }) => {
+      await create.mutateAsync({
+        email: value.email.trim(),
+        name: value.name.trim(),
+        role: value.role,
+        password: value.password,
+      });
       onClose();
-      return;
-    }
-
-    const user = editing;
-    if (!user) return;
-
-    const body: UserMutation = {
-      name: isLocal ? name : user.name,
-      role: canChangeRole ? userMutationRole(role) : user.role,
-    };
-    if (isLocal && password.trim() !== "") body.password = password;
-    await update.mutateAsync({ id: user.id, body });
-    onClose();
-  }
-
-  const title = mode === "create" ? "Add User" : "Edit User";
-  const description =
-    mode === "create"
-      ? "Create a new Woodstar user. Roles control whether the user can manage other users and enrollments."
-      : "Update name, role, or reset password. Email cannot change.";
+    },
+  });
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>Add User</DialogTitle>
+        <DialogDescription>Roles control whether the user can manage other users and enrollments.</DialogDescription>
       </DialogHeader>
 
       <form
+        noValidate
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
-          void handleSubmit();
+          void form.handleSubmit();
         }}
       >
         <FieldGroup className="gap-4">
-          <Field data-disabled={mode === "edit"}>
-            <FieldLabel htmlFor="user-email" required={mode === "create"}>
-              Email
-            </FieldLabel>
-            <Input
-              id="user-email"
-              type="email"
-              required
-              autoComplete="off"
-              value={email}
-              disabled={mode === "edit"}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </Field>
+          <form.Field name="email">
+            {(field) => (
+              <FormField field={field} label="Email" htmlFor="user-email" required>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="email"
+                    required
+                    autoComplete="off"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
 
-          <Field data-disabled={!isLocal}>
-            <FieldLabel htmlFor="user-name">Name</FieldLabel>
-            <Input
-              id="user-name"
-              type="text"
-              autoComplete="off"
-              value={name}
-              disabled={!isLocal}
-              onChange={(event) => setName(event.target.value)}
-            />
-            {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(editing.source)}.</FieldDescription> : null}
-          </Field>
+          <form.Field name="name">
+            {(field) => (
+              <FormField field={field} label="Name" htmlFor="user-name">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    autoComplete="off"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
 
-          <Field data-disabled={!canChangeRole}>
-            <FieldLabel htmlFor="user-role">Role</FieldLabel>
-            <Select value={role} onValueChange={(value) => setRole(value as UserAccessRole)} disabled={!canChangeRole}>
-              <SelectTrigger id="user-role" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {(mode === "create" ? USER_ROLE_OPTIONS : USER_ACCESS_ROLE_OPTIONS).map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {!canChangeRole ? <FieldDescription>Your own role is locked.</FieldDescription> : null}
-          </Field>
+          <form.Field name="role">
+            {(field) => (
+              <FormField field={field} label="Role" htmlFor="user-role">
+                {(control) => (
+                  <Select value={field.state.value} onValueChange={(value) => field.handleChange(value as UserRole)}>
+                    <SelectTrigger {...control} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {USER_ROLE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
+            )}
+          </form.Field>
 
-          <Field data-disabled={!isLocal}>
-            <FieldLabel htmlFor="user-password" required={mode === "create"}>
-              Password
-            </FieldLabel>
-            <Input
-              id="user-password"
-              type="password"
-              autoComplete="new-password"
-              required={mode === "create"}
-              minLength={mode === "create" ? 12 : undefined}
-              value={password}
-              disabled={!isLocal}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={mode === "create" ? "Min 12 characters" : ""}
-            />
-            {!isLocal ? (
-              <FieldDescription>
-                {directorySourceLabel(editing.source)} users do not use local passwords.
-              </FieldDescription>
-            ) : null}
-          </Field>
+          <form.Field name="password">
+            {(field) => (
+              <FormField field={field} label="Password" htmlFor="user-password" required>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    placeholder="Min 12 characters"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
         </FieldGroup>
 
-        <FieldError>{submitError?.message}</FieldError>
+        {create.error ? <FieldError>{create.error.message}</FieldError> : null}
 
         <DialogFooter className="pt-2">
           <DialogClose asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={pending}>
+            <Button type="button" variant="ghost" size="sm" disabled={create.isPending}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="submit" size="sm" disabled={pending}>
-            {mode === "create" ? "Create" : "Save"}
-          </Button>
+          <SubmitButton pending={create.isPending} size="sm">
+            Create
+          </SubmitButton>
         </DialogFooter>
       </form>
     </>

@@ -2,6 +2,7 @@ import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { PackageSearch, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   BulkDeleteDialog,
@@ -12,14 +13,14 @@ import {
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
-import { useBulkDeleteMunkiSoftware, useMunkiSoftware, type MunkiSoftware } from "@/hooks/munki/software";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useBulkDeleteMunkiSoftware, useMunkiSoftware, type MunkiSoftware } from "@/hooks/use-munki-software";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
 
-export function MunkiSoftwarePage() {
+export function MunkiSoftwareListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -36,10 +37,12 @@ export function MunkiSoftwarePage() {
   const selectedIDs = selectedSoftwareIds.map(Number);
 
   const deleteSelectedSoftware = () => {
+    const count = selectedIDs.length;
     bulkDelete.mutate(selectedIDs, {
       onSuccess: () => {
         setSelectedSoftwareIds([]);
         setDeleteOpen(false);
+        toast.success(`Deleted ${count} software`);
       },
     });
   };
@@ -94,10 +97,7 @@ export function MunkiSoftwarePage() {
       />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Software</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

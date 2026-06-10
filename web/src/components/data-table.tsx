@@ -130,7 +130,6 @@ interface DataTableProps<TData, TValue> {
   getRowId?: (row: TData) => string;
   toolbar?: ReactNode | ((table: TanStackTable<TData>, exportButton: ReactNode) => ReactNode);
   empty: ReactNode;
-  emptyClassName?: string;
   footer?: ReactNode;
   skeletonRows?: number;
   perPageOptions?: readonly number[];
@@ -165,7 +164,6 @@ export function DataTable<TData, TValue>({
   getRowId,
   toolbar,
   empty,
-  emptyClassName,
   footer,
   skeletonRows = 8,
   perPageOptions,
@@ -302,13 +300,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         )}
       </Table>
-      {showEmpty ? (
-        <div
-          className={cn("flex min-h-72 items-center justify-center whitespace-normal p-4 text-center", emptyClassName)}
-        >
-          {empty}
-        </div>
-      ) : null}
+      {showEmpty ? <div className="w-full">{empty}</div> : null}
     </div>
   );
 
@@ -848,7 +840,7 @@ interface DataTableEmptyStateProps {
 
 export function DataTableEmptyState({ icon, title, description, className }: DataTableEmptyStateProps) {
   return (
-    <Empty className={className}>
+    <Empty className={cn("min-h-72", className)}>
       <EmptyHeader>
         <EmptyMedia variant="icon">{icon}</EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>

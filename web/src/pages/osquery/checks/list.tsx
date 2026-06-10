@@ -11,13 +11,13 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
-export function ChecksPage() {
+export function CheckListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -97,10 +97,7 @@ export function ChecksPage() {
         }
       />
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Checks</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load checks" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

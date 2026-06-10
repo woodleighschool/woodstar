@@ -1,9 +1,13 @@
-import { Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useForm } from "@tanstack/react-form";
+import { Copy, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyPanel } from "@/components/empty-panel";
+import { FormField } from "@/components/form-field";
+import { QueryError } from "@/components/query-error";
+import { SubmitButton } from "@/components/submit-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +27,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useAgentSecrets,
@@ -103,7 +107,7 @@ export function AgentSecretsDialog({
           <SecretList
             rows={rows}
             isLoading={query.isLoading}
-            errorMessage={query.error?.message ?? null}
+            error={query.error}
             onRetry={() => void query.refetch()}
             deletingID={remove.variables ?? null}
             visibleSecrets={visibleSecrets}
@@ -113,12 +117,11 @@ export function AgentSecretsDialog({
             onCopy={(secret) => void copySecret(secret)}
             onEdit={setEditing}
             onDelete={setDeleting}
-            emptyTitle={`No ${integrationLabel(integration)} Secrets`}
-            emptyDescription={`Add a ${integrationLabel(integration)} enrollment secret before deploying new clients.`}
+            emptyTitle={`No ${integrationLabel(integration)} secrets yet`}
           />
 
           <DialogFooter>
-            <Button type="button" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>
@@ -197,7 +200,7 @@ export function AgentSecretsDialog({
 function SecretList({
   rows,
   isLoading,
-  errorMessage,
+  error,
   onRetry,
   deletingID,
   visibleSecrets,
@@ -206,11 +209,10 @@ function SecretList({
   onEdit,
   onDelete,
   emptyTitle,
-  emptyDescription,
 }: {
   rows: AgentSecret[];
   isLoading: boolean;
-  errorMessage: string | null;
+  error: { message?: string } | null;
   onRetry: () => void;
   deletingID: number | null;
   visibleSecrets: Record<number, boolean>;
@@ -219,43 +221,23 @@ function SecretList({
   onEdit: (secret: AgentSecret) => void;
   onDelete: (secret: AgentSecret) => void;
   emptyTitle: string;
-  emptyDescription: string;
 }) {
-  if (errorMessage) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Failed to Load Enrollment Secrets</AlertTitle>
-        <AlertDescription>{errorMessage}</AlertDescription>
-        <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 w-fit">
-          Retry
-        </Button>
-      </Alert>
-    );
+  if (error) {
+    return <QueryError title="Failed to load enrollment secrets" error={error} onRetry={onRetry} />;
   }
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-8 text-sm">
-        <Loader2 className="animate-spin" />
-        Loading Enrollment Secrets...
+      <div className="grid gap-2">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
       </div>
     );
   }
 
   if (rows.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <KeyRound />
-            </EmptyMedia>
-            <EmptyTitle>{emptyTitle}</EmptyTitle>
-            <EmptyDescription>{emptyDescription}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
+    return <EmptyPanel>{emptyTitle}</EmptyPanel>;
   }
 
   return (
@@ -337,7 +319,7 @@ function SecretAction({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <InputGroupButton size="icon-sm" disabled={disabled} onClick={onClick}>
+        <InputGroupButton size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick}>
           {children}
         </InputGroupButton>
       </TooltipTrigger>
@@ -365,56 +347,71 @@ function SecretValueDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (value: string) => Promise<void>;
 }) {
-  const [value, setValue] = useState(initialValue);
-  const secretValue = secretValueSchema.safeParse(value);
-  const message = secretValue.success ? null : secretValue.error.issues[0]?.message;
+  const form = useForm({
+    defaultValues: { value: initialValue },
+    validators: { onChange: z.object({ value: secretValueSchema }) },
+    onSubmit: async ({ value }) => {
+      await onSave(value.value.trim());
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+        <form
+          noValidate
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
 
-        <FieldGroup>
-          <Field data-invalid={Boolean(message)}>
-            <FieldLabel htmlFor="agent-secret-value" required>
-              Enrollment Secret
-            </FieldLabel>
-            <Input
-              id="agent-secret-value"
-              value={value}
-              required
-              minLength={MIN_SECRET_LENGTH}
-              aria-invalid={message ? true : undefined}
-              className="font-mono"
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(event) => setValue(event.target.value)}
-            />
-            <FieldDescription>Use a shared secret of at least {MIN_SECRET_LENGTH} characters.</FieldDescription>
-            {message ? <FieldError>{message}</FieldError> : null}
-          </Field>
-        </FieldGroup>
+          <FieldGroup>
+            <form.Field name="value">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Enrollment Secret"
+                  htmlFor="agent-secret-value"
+                  required
+                  description={`Use a shared secret of at least ${MIN_SECRET_LENGTH} characters.`}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      value={field.state.value}
+                      required
+                      minLength={MIN_SECRET_LENGTH}
+                      className="font-mono"
+                      autoComplete="off"
+                      spellCheck={false}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
+          </FieldGroup>
 
-        <DialogFooter>
-          <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending || !secretValue.success}
-            onClick={() => {
-              if (!secretValue.success) return;
-              void onSave(secretValue.data);
-            }}
-          >
-            {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-            {saveLabel}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <form.Subscribe selector={(state) => state.canSubmit}>
+              {(canSubmit) => (
+                <SubmitButton pending={pending} size="sm" disabled={!canSubmit}>
+                  {saveLabel}
+                </SubmitButton>
+              )}
+            </form.Subscribe>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -451,19 +448,18 @@ function SecretDeleteDialog({
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button
+            <SubmitButton
               type="button"
               variant="destructive"
               size="sm"
-              disabled={pending}
+              pending={pending}
               onClick={(event) => {
                 event.preventDefault();
                 void onConfirm();
               }}
             >
-              {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
               Delete
-            </Button>
+            </SubmitButton>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

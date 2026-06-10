@@ -1,10 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
 
 import { PageShell } from "@/components/layout/page-layout";
 import { LiveRunner } from "@/components/osquery/live-runner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useReport } from "@/hooks/use-reports";
 
 export function ReportLivePage() {
@@ -14,17 +14,15 @@ export function ReportLivePage() {
   if (report.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Report</AlertTitle>
-          <AlertDescription>{report.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load report" error={report.error} onRetry={() => void report.refetch()} />
       </PageShell>
     );
   }
   if (!report.data) {
     return (
-      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading Report...
+      <PageShell>
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full max-w-3xl" />
       </PageShell>
     );
   }
@@ -38,7 +36,7 @@ export function ReportLivePage() {
       editAction={
         <Button asChild variant="outline" size="sm">
           <Link to="/osquery/reports/$reportId" params={{ reportId }}>
-            Report
+            Edit Report
           </Link>
         </Button>
       }

@@ -1,6 +1,18 @@
 export const queryKeys = {
   session: ["auth", "session"] as const,
   account: ["account"] as const,
+  // Root prefixes for invalidation: a list factory key is ["users", params], so the
+  // bare prefix matches both the list and its detail/sub-resource keys.
+  usersAll: ["users"] as const,
+  groupsAll: ["groups"] as const,
+  hostsAll: ["hosts"] as const,
+  labelsAll: ["labels"] as const,
+  checksAll: ["checks"] as const,
+  reportsAll: ["reports"] as const,
+  munkiSoftwareAll: ["munki", "software"] as const,
+  munkiPackagesAll: ["munki", "packages"] as const,
+  santaConfigurationsAll: ["santa", "configurations"] as const,
+  santaRulesAll: ["santa", "rules"] as const,
   users: (params?: unknown) => ["users", params ?? {}] as const,
   user: (id: number | null) => ["users", id] as const,
   userDepartments: (params?: unknown) => ["users", "departments", params ?? {}] as const,
@@ -38,4 +50,8 @@ export const queryKeys = {
   santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
   santaRule: (id: number | null) => ["santa", "rules", id] as const,
   santaRuleReferences: (params?: unknown) => ["santa", "rule-references", params ?? {}] as const,
+  liveQueryTargetCount: (reportId: number | null, hosts: number[], labels: number[]) =>
+    ["live-query-target-count", reportId, hosts, labels] as const,
+  appledbManifest: ["appledb-image-manifest"] as const,
+  appledbDevice: (model: string | null | undefined) => ["appledb-device", model ?? null] as const,
 };

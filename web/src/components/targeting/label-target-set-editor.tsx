@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useRef } from "react";
 
+import { EmptyPanel } from "@/components/empty-panel";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import type { LabelRef } from "@/lib/api";
 import { normalizeLabelTargetSet, type LabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
-export type LabelTargetSetRow = LabelRef;
+type LabelTargetSetRow = LabelRef;
 export type LabelTargetSetDirection = keyof LabelTargetSet;
 
 interface LabelTargetSetEditorProps {
@@ -135,9 +136,7 @@ function LabelTargetSetColumn({
       }
     >
       {rows.length === 0 ? (
-        <div className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-sm">
-          {emptyStateMessage(direction)}
-        </div>
+        <EmptyPanel>{emptyStateMessage(direction)}</EmptyPanel>
       ) : (
         <div className="flex flex-col gap-2">
           {rows.map((row, index) => (
@@ -156,6 +155,7 @@ function LabelTargetSetColumn({
                 className="shrink-0"
                 variant="ghost"
                 size="icon"
+                aria-label="Remove label"
                 onClick={() => onRemove(direction, index)}
               >
                 <Trash2 />
@@ -169,8 +169,5 @@ function LabelTargetSetColumn({
 }
 
 function emptyStateMessage(direction: LabelTargetSetDirection) {
-  if (direction === "include") {
-    return "No Includes";
-  }
-  return "No Excludes";
+  return direction === "include" ? "No includes yet" : "No excludes yet";
 }

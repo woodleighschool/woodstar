@@ -13,7 +13,6 @@ export function LabelTargetRowsTable<T extends LabelTargetRow>({
   columnsBeforeLabel = [],
   columnsAfterLabel = [],
   empty,
-  emptyClassName,
   onChange,
   onLabelChange,
   renderActions,
@@ -24,7 +23,6 @@ export function LabelTargetRowsTable<T extends LabelTargetRow>({
   columnsBeforeLabel?: ColumnDef<T>[];
   columnsAfterLabel?: ColumnDef<T>[];
   empty: ReactNode;
-  emptyClassName?: string;
   onChange: (rows: T[]) => void;
   onLabelChange: (id: number, labelID: number | null) => void;
   renderActions?: (row: T) => ReactNode;
@@ -92,6 +90,10 @@ export function LabelTargetRowsTable<T extends LabelTargetRow>({
     [columnsAfterLabel, columnsBeforeLabel, excludeLabelIDs, labelErrors, onLabelChange, renderActions, rows],
   );
 
+  if (rows.length === 0) {
+    return <>{empty}</>;
+  }
+
   return (
     <DataTable
       columns={columns}
@@ -106,7 +108,6 @@ export function LabelTargetRowsTable<T extends LabelTargetRow>({
       rowReorderDisabled={rows.length <= 1}
       onRowReorder={onChange}
       empty={empty}
-      emptyClassName={emptyClassName}
     />
   );
 }

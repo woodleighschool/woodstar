@@ -63,8 +63,9 @@ export function useCreateCheck() {
   const queryClient = useQueryClient();
   return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/checks", { body })),
+    meta: { inlineError: true },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
   });
 }
@@ -79,8 +80,9 @@ export function useUpdateCheck(id: number | null) {
           body,
         }),
       ),
+    meta: { inlineError: true },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.checks() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.check(id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.checkHosts(id) });
     },
@@ -92,7 +94,7 @@ export function useDeleteCheck() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
   });
 }
@@ -102,7 +104,7 @@ export function useBulkDeleteChecks() {
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(apiClient.POST("/api/osquery/checks/bulk-delete", { body: { ids } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["checks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
   });
 }

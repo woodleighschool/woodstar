@@ -17,26 +17,27 @@ import { nonEmpty } from "@/lib/utils";
 
 export type { Host, HostDetail, HostReport };
 export type HostSoftware = HostSoftwareRow;
-export type HostListResult = Page<Host>;
-export type HostSoftwareListResult = Page<HostSoftwareRow>;
-export type HostReportsResult = HostReport[];
-export type HostChecksResult = CheckHostStatus[];
-export type HostSantaRulesResult = Page<RuleStatus>;
 export type HostSantaRule = RuleStatus;
-export type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
-export interface HostUserAffinityMutation {
+type HostListResult = Page<Host>;
+type HostSoftwareListResult = Page<HostSoftwareRow>;
+type HostReportsResult = HostReport[];
+type HostChecksResult = CheckHostStatus[];
+type HostSantaRulesResult = Page<RuleStatus>;
+type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
+
+interface HostUserAffinityMutation {
   email: string;
 }
 
-export interface ListParams {
+interface ListParams {
   q?: string;
   page_index?: number;
   page_size?: number;
   sort?: string;
 }
 
-export interface HostListParams extends ListParams {
+interface HostListParams extends ListParams {
   status?: string;
   label_id?: number;
   software_title_id?: number;
@@ -93,7 +94,7 @@ export function useDeleteHost() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}", { params: { path: { id } } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["hosts"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
   });
 }
@@ -103,7 +104,7 @@ export function useBulkDeleteHosts() {
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(apiClient.POST("/api/hosts/bulk-delete", { body: { ids } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["hosts"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
   });
 }
@@ -115,8 +116,9 @@ export function useSetHostUserAffinity() {
       unwrap(apiClient.PUT("/api/hosts/{id}/user-affinity", { params: { path: { id } }, body })),
     onSuccess: async (host) => {
       queryClient.setQueryData(queryKeys.host(host.id), host);
-      await queryClient.invalidateQueries({ queryKey: ["hosts"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
+    meta: { inlineError: true },
   });
 }
 
@@ -126,12 +128,13 @@ export function useClearHostUserAffinity() {
     mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
     onSuccess: async (host) => {
       queryClient.setQueryData(queryKeys.host(host.id), host);
-      await queryClient.invalidateQueries({ queryKey: ["hosts"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
+    meta: { inlineError: true },
   });
 }
 
-export interface HostSoftwareListParams extends ListParams {
+interface HostSoftwareListParams extends ListParams {
   source?: string[];
 }
 

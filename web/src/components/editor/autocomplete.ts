@@ -44,7 +44,7 @@ export function indexSchema(tables: OsqueryTable[]): SchemaIndex {
   };
 }
 
-// Returns table alias → table object for all FROM/JOIN references before the cursor.
+// Returns table alias to table object for all FROM/JOIN references before the cursor.
 function referencedTables(sql: string, index: SchemaIndex): Map<string, OsqueryTable> {
   const out = new Map<string, OsqueryTable>();
   const cleaned = sql.replace(/\s+/g, " ").toLowerCase();
@@ -75,7 +75,7 @@ function columnOptions(columns: OsqueryColumn[]) {
   return columns.map((column) => ({
     label: column.name,
     type: "property",
-    info: `${column.type}${column.description ? " — " + column.description : ""}`,
+    info: `${column.type}${column.description ? " - " + column.description : ""}`,
   }));
 }
 

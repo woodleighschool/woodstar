@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { EmptyPanel } from "@/components/empty-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -95,7 +96,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
               </TableBody>
             </Table>
           ) : (
-            <div className="text-muted-foreground text-sm">No managed items.</div>
+            <EmptyPanel>No managed items yet</EmptyPanel>
           )}
         </CardContent>
       </Card>

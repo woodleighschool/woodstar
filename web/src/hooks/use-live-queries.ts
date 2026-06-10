@@ -10,6 +10,7 @@ import type {
   LiveQueryTargetSelection,
 } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 
 export type LiveQueryHandle = Handle;
 export type LiveQueryResult = LiveQueryResultEvent;
@@ -71,7 +72,7 @@ export function useLiveQueryTargetCount(body: LiveQueryTargetSelection, enabled:
   const hosts = body.selected?.hosts ?? [];
   const labels = body.selected?.labels ?? [];
   return useQuery<LiveQueryTargetCount, ApiError>({
-    queryKey: ["live-query-target-count", body.report_id ?? null, hosts, labels],
+    queryKey: queryKeys.liveQueryTargetCount(body.report_id ?? null, hosts, labels),
     queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
     enabled,
   });
@@ -94,7 +95,7 @@ export function useLiveQueryStream(liveQueryId: number | null) {
         const parsed = JSON.parse(event.data) as LiveQueryResult;
         dispatch({ type: "result", result: parsed });
       } catch {
-        // server controls the schema — drop malformed payloads silently
+        // server controls the schema; drop malformed payloads silently
       }
     });
     source.addEventListener("completed", () => {

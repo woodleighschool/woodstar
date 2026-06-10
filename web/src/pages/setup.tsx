@@ -1,25 +1,33 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useForm } from "@tanstack/react-form";
+import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
-import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import type { ApiError, SetupInput, User } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
-import { formString } from "@/lib/utils";
+import { useSetup } from "@/hooks/use-auth";
+import { requiredString } from "@/lib/form-validation";
 
 export function SetupPage() {
-  const queryClient = useQueryClient();
-  const router = useRouter();
+  const setup = useSetup();
 
-  const setup = useMutation<User, ApiError, SetupInput>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/setup", { body })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
-      await router.navigate({ to: "/hosts" });
+  const form = useForm({
+    defaultValues: { email: "", name: "", password: "" },
+    validators: {
+      onSubmit: z.object({
+        email: z.email("Enter a valid email."),
+        name: requiredString("Display name"),
+        password: z.string().min(12, "Password must be at least 12 characters."),
+      }),
+    },
+    onSubmit: async ({ value }) => {
+      await setup.mutateAsync({
+        email: value.email.trim(),
+        name: value.name.trim(),
+        password: value.password,
+      });
     },
   });
 
@@ -33,58 +41,84 @@ export function SetupPage() {
         </CardHeader>
         <CardContent>
           <form
+            noValidate
             className="flex flex-col gap-4"
             onSubmit={(event) => {
               event.preventDefault();
-              const form = new FormData(event.currentTarget);
-              setup.mutate({
-                email: formString(form, "email").trim(),
-                name: formString(form, "name").trim(),
-                password: formString(form, "password"),
-              });
+              void form.handleSubmit();
             }}
           >
             <FieldGroup className="gap-4">
-              <Field>
-                <FieldLabel htmlFor="setup-email" required>
-                  Email
-                </FieldLabel>
-                <Input
-                  id="setup-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="admin@example.com"
-                  required
-                />
-                <FieldDescription>Break-glass identity.</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="setup-name" required>
-                  Display Name
-                </FieldLabel>
-                <Input id="setup-name" name="name" autoComplete="name" placeholder="Site administrator" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="setup-password" required>
-                  Password
-                </FieldLabel>
-                <Input
-                  id="setup-password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Min 12 characters"
-                  minLength={12}
-                  required
-                />
-                <FieldDescription>Cannot be deleted later.</FieldDescription>
-              </Field>
+              <form.Field name="email">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="Email"
+                    htmlFor="setup-email"
+                    required
+                    description="Break-glass identity."
+                  >
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="email"
+                        autoComplete="email"
+                        placeholder="admin@example.com"
+                        required
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+              <form.Field name="name">
+                {(field) => (
+                  <FormField field={field} label="Display Name" htmlFor="setup-name" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        autoComplete="name"
+                        placeholder="Site administrator"
+                        required
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+              <form.Field name="password">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="Password"
+                    htmlFor="setup-password"
+                    required
+                    description="Cannot be deleted later."
+                  >
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="Min 12 characters"
+                        minLength={12}
+                        required
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
 
               <Field>
-                <Button type="submit" disabled={setup.isPending}>
-                  {setup.isPending ? "Creating Account..." : "Create Account"}
-                </Button>
+                <SubmitButton pending={setup.isPending}>Create Account</SubmitButton>
+                {setup.error ? <FieldError>{setup.error.message}</FieldError> : null}
               </Field>
             </FieldGroup>
           </form>

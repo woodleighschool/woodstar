@@ -5,15 +5,14 @@ import { UsersRound } from "lucide-react";
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/query-error";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useGroups, type Group } from "@/hooks/use-groups";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { DIRECTORY_SOURCES } from "@/lib/directory";
 import { nonEmpty } from "@/lib/utils";
 
-export function GroupsPage() {
+export function GroupListPage() {
   const search = useSearch({ from: "/_authenticated/directory/groups/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -59,13 +58,7 @@ export function GroupsPage() {
       <PageHeader title="Groups" description="Browse directory groups." />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Groups</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load groups" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

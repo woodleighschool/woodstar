@@ -4,8 +4,6 @@ import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadat
 export type UserRole = NonNullable<User["role"]>;
 export type UserAccessRole = UserRole | "none";
 
-export const USER_ROLE_VALUES = ["admin", "viewer"] as const satisfies readonly UserRole[];
-
 export const USER_ROLES = {
   admin: {
     name: "Admin",

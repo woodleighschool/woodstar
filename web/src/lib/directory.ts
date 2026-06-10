@@ -16,8 +16,6 @@ export const DIRECTORY_SOURCES = {
   },
 } satisfies EnumMetadataMap<DirectorySource>;
 
-export const DIRECTORY_SOURCE_VALUES = ["local", "entra"] as const satisfies readonly DirectorySource[];
-
 export const DIRECTORY_SOURCE_OPTIONS = enumOptions(DIRECTORY_SOURCES);
 
 export function directorySourceLabel(source: string | null | undefined) {

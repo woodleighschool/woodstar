@@ -10,6 +10,7 @@ import {
   ComboboxList,
   ComboboxValue,
 } from "@/components/ui/combobox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
@@ -53,7 +54,7 @@ export function LabelPicker({
   const noLabelsMessage = emptyMessage ?? "No Labels Available.";
 
   if (labels.isLoading) {
-    return <p className="text-muted-foreground text-sm">Loading Labels...</p>;
+    return <Skeleton className="h-9 w-full" />;
   }
   if (labels.error) {
     return <p className="text-destructive text-sm">{labels.error.message}</p>;

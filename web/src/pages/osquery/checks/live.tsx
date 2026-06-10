@@ -1,10 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
 
 import { PageShell } from "@/components/layout/page-layout";
 import { LiveRunner } from "@/components/osquery/live-runner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
 
 export function CheckLivePage() {
@@ -14,17 +14,15 @@ export function CheckLivePage() {
   if (check.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Check</AlertTitle>
-          <AlertDescription>{check.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load check" error={check.error} onRetry={() => void check.refetch()} />
       </PageShell>
     );
   }
   if (!check.data) {
     return (
-      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading Check...
+      <PageShell>
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full max-w-3xl" />
       </PageShell>
     );
   }
@@ -38,7 +36,7 @@ export function CheckLivePage() {
       editAction={
         <Button asChild variant="outline" size="sm">
           <Link to="/osquery/checks/$checkId" params={{ checkId }}>
-            Check
+            Edit Check
           </Link>
         </Button>
       }

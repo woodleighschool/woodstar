@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { Activity, FolderLock, ShieldCheck } from "lucide-react";
+import { Activity, FolderLock } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { EmptyPanel } from "@/components/empty-panel";
+import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,10 +134,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
         </CardHeader>
         <CardContent>
           {rules.error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Failed to Load Rules</AlertTitle>
-              <AlertDescription>{rules.error.message}</AlertDescription>
-            </Alert>
+            <QueryError title="Failed to load rules" error={rules.error} onRetry={() => void rules.refetch()} />
           ) : (
             <DataTable
               columns={columns}
@@ -152,13 +150,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
                 to: "/santa/rules/$ruleId",
                 params: { ruleId: String(rule.rule_id) },
               })}
-              empty={
-                <DataTableEmptyState
-                  icon={<ShieldCheck />}
-                  title="No Rules"
-                  description="No Santa rules match this host."
-                />
-              }
+              empty={<EmptyPanel>No matching rules</EmptyPanel>}
             />
           )}
         </CardContent>

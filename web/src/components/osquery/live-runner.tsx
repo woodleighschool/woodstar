@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { DataTable, DataTableSearch } from "@/components/data-table";
+import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { ShowQueryButton } from "@/components/queries/query-ui";
@@ -19,7 +20,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
@@ -603,16 +603,7 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       clientSort
       showExport
       exportFilename="report-run-results.csv"
-      empty={
-        <RunEmptyState
-          title={running ? "Waiting for Results" : "No Rows Returned"}
-          description={
-            running
-              ? "Results will appear as online hosts respond."
-              : "The report ran successfully but did not return any rows."
-          }
-        />
-      }
+      empty={<RunEmptyState text={running ? "Waiting for results" : "No rows returned"} />}
     />
   );
 }
@@ -647,16 +638,7 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       clientSort
       showExport
       exportFilename="check-run-results.csv"
-      empty={
-        <RunEmptyState
-          title={running ? "Waiting for Hosts" : "No Host Results"}
-          description={
-            running
-              ? "Check results will appear as online hosts respond."
-              : "No hosts returned a check result for this run."
-          }
-        />
-      }
+      empty={<RunEmptyState text={running ? "Waiting for hosts" : "No host results yet"} />}
     />
   );
 }
@@ -687,20 +669,13 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       clientSort
       showExport
       exportFilename="live-query-errors.csv"
-      empty={<RunEmptyState title="No Errors" description="No host errors have been reported for this run." />}
+      empty={<RunEmptyState text="No errors yet" />}
     />
   );
 }
 
-function RunEmptyState({ title, description }: { title: string; description: string }) {
-  return (
-    <Empty className="border-0 p-0">
-      <EmptyHeader>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
+function RunEmptyState({ text }: { text: string }) {
+  return <EmptyPanel className="border-0">{text}</EmptyPanel>;
 }
 
 function groupLabels(labels: Label[]) {

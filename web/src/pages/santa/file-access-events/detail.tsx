@@ -1,15 +1,16 @@
 import { useParams } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
 
+import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { DetailSettings, SettingItem } from "@/components/queries/query-ui";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSantaFileAccessEvent } from "@/hooks/use-santa";
+import { useSantaFileAccessEvent } from "@/hooks/use-santa-events";
+import { formatDateTime } from "@/lib/utils";
 
-import { FileAccessDecisionBadge, HostLink, Timestamp } from "@/components/santa/events/event-ui";
-import { fileAccessEventLabel, fileName } from "@/lib/santa-events";
+import { fileAccessEventLabel, fileName } from "../events/decisions";
+import { FileAccessDecisionBadge, HostLink, Timestamp } from "../events/event-ui";
 
 export function SantaFileAccessEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/file-access/$eventId" });
@@ -19,20 +20,11 @@ export function SantaFileAccessEventDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load File Access Event</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load file access event" error={query.error} onRetry={() => void query.refetch()} />
       </PageShell>
     );
   }
-  if (query.isLoading || !query.data) {
-    return (
-      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </PageShell>
-    );
-  }
+  if (!query.data) return null;
 
   const event = query.data;
   const processChain = event.process_chain ?? [];
@@ -52,7 +44,7 @@ export function SantaFileAccessEventDetailPage() {
         <SettingItem label="Occurred">
           <Timestamp value={event.occurred_at} />
         </SettingItem>
-        <SettingItem label="Ingested">{formatDate(event.ingested_at)}</SettingItem>
+        <SettingItem label="Ingested">{formatDateTime(event.ingested_at)}</SettingItem>
       </DetailSettings>
 
       <Tabs defaultValue="overview">
@@ -78,27 +70,23 @@ export function SantaFileAccessEventDetailPage() {
         </TabsContent>
 
         <TabsContent value="process">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Process</TableHead>
-                  <TableHead>PID</TableHead>
-                  <TableHead>SHA-256</TableHead>
-                  <TableHead>Signing ID</TableHead>
-                  <TableHead>Team ID</TableHead>
-                  <TableHead>CDHash</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processChain.length === 0 ? (
+          {processChain.length === 0 ? (
+            <EmptyPanel>No process chain</EmptyPanel>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      No process chain was reported.
-                    </TableCell>
+                    <TableHead>Process</TableHead>
+                    <TableHead>PID</TableHead>
+                    <TableHead>SHA-256</TableHead>
+                    <TableHead>Signing ID</TableHead>
+                    <TableHead>Team ID</TableHead>
+                    <TableHead>CDHash</TableHead>
                   </TableRow>
-                ) : (
-                  processChain.map((process) => (
+                </TableHeader>
+                <TableBody>
+                  {processChain.map((process) => (
                     <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
                       <TableCell>{process.file_name || fileName(process.file_path) || "-"}</TableCell>
                       <TableCell>{process.pid || "-"}</TableCell>
@@ -107,11 +95,11 @@ export function SantaFileAccessEventDetailPage() {
                       <TableCell>{process.team_id || "-"}</TableCell>
                       <TableCell className="break-all">{process.cdhash || "-"}</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </PageShell>
@@ -125,8 +113,4 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
       <TableCell>{value ?? "-"}</TableCell>
     </TableRow>
   );
-}
-
-function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : "-";
 }

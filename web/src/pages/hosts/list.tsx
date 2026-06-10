@@ -2,6 +2,7 @@ import { useSearch } from "@tanstack/react-router";
 import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
 import { CircleAlert, CircleCheck, ServerCog, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import {
   BulkDeleteDialog,
@@ -12,9 +13,9 @@ import {
   DataTableFacetedFilter,
   DataTableSearch,
 } from "@/components/data-table";
-import { FilterChip, FilterSelect } from "@/components/filter-controls";
+import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCheck } from "@/hooks/use-checks";
@@ -36,7 +37,7 @@ const CHECK_RESPONSE_FILTERS = [
   { value: "fail", label: "Fail", icon: CircleAlert },
 ];
 
-export function HostsListPage() {
+export function HostListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q", { resetKeys: ["page_index"] });
@@ -190,8 +191,10 @@ export function HostsListPage() {
   const selectedIDs = selectedHostIds.map(Number);
 
   const deleteSelectedHosts = () => {
+    const count = selectedIDs.length;
     bulkDelete.mutate(selectedIDs, {
       onSuccess: () => {
+        toast.success(`Deleted ${count} ${count === 1 ? "host" : "hosts"}`);
         setSelectedHostIds([]);
         setDeleteOpen(false);
       },
@@ -224,13 +227,7 @@ export function HostsListPage() {
       />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Hosts</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load hosts" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={allColumns}
@@ -348,11 +345,12 @@ function HostsToolbar({
         singleSelect
       />
       {hasCheckFilter && checkResponse ? (
-        <FilterSelect
-          label="Result"
-          value={checkResponse}
+        <DataTableFacetedFilter
+          title="Result"
           options={CHECK_RESPONSE_FILTERS}
-          onChange={onCheckResponseChange}
+          selected={[checkResponse]}
+          onChange={(next) => onCheckResponseChange(next.at(0) ?? checkResponse)}
+          singleSelect
         />
       ) : null}
       {actions ? <div className="ml-auto">{actions}</div> : null}

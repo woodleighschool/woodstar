@@ -63,8 +63,9 @@ export function useCreateReport() {
   const queryClient = useQueryClient();
   return useMutation<Report, ApiError, ReportMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/reports", { body })),
+    meta: { inlineError: true },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }
@@ -79,8 +80,9 @@ export function useUpdateReport(id: number | null) {
           body,
         }),
       ),
+    meta: { inlineError: true },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reports() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.report(id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportResults(id) });
     },
@@ -92,7 +94,7 @@ export function useDeleteReport() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id } } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }
@@ -102,7 +104,7 @@ export function useBulkDeleteReports() {
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(apiClient.POST("/api/osquery/reports/bulk-delete", { body: { ids } })),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }

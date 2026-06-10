@@ -11,15 +11,19 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
+import {
+  expandSoftwareSourceFilters,
+  softwareSourceLabel,
+  SOURCE_FILTER_OPTIONS,
+  versionsSummaryLabel,
+} from "@/lib/software-source-labels";
 
-export function SoftwarePage() {
+export function SoftwareListPage() {
   const search = useSearch({ from: "/_authenticated/software/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -53,18 +57,9 @@ export function SoftwarePage() {
     },
     {
       id: "versions_count",
-      accessorFn: (row) => row.versions?.length ?? 0,
+      accessorFn: (row) => row.versions_count,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Versions" />,
-      cell: ({ row }) => {
-        const versions = row.original.versions ?? [];
-        const label =
-          versions.length === 0
-            ? "-"
-            : versions.length === 1
-              ? versions[0].version || "-"
-              : `${versions.length} versions`;
-        return label;
-      },
+      cell: ({ row }) => versionsSummaryLabel(row.original.versions ?? []),
     },
     {
       id: "source",
@@ -86,13 +81,7 @@ export function SoftwarePage() {
       <PageHeader title="Software" description="Manage software and search for installed software and OS inventory." />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Software</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

@@ -1,16 +1,16 @@
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { APIKeyCard } from "@/components/account/api-key-card";
 import { EnumBadge } from "@/components/enum-badge";
+import { FormField } from "@/components/form-field";
 import { PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/query-error";
+import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
@@ -22,24 +22,13 @@ export function AccountPage() {
   if (account.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Account</AlertTitle>
-          <AlertDescription>{account.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void account.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load account" error={account.error} onRetry={() => void account.refetch()} />
       </PageShell>
     );
   }
 
   if (!account.data) {
-    return (
-      <PageShell className="max-w-3xl gap-4">
-        <Skeleton className="h-32" />
-        <Skeleton className="h-28" />
-      </PageShell>
-    );
+    return null;
   }
 
   return (
@@ -53,23 +42,22 @@ export function AccountPage() {
 function AccountProfileCard({ account }: { account: Account }) {
   const user = account.user;
   const update = useUpdateAccount();
-  const [name, setName] = useState(user.name);
-  const [password, setPassword] = useState("");
   const isLocal = user.source === "local";
 
-  const passwordChanged = isLocal && password.trim() !== "";
-  const nameChanged = isLocal && name !== user.name;
-  const canSubmit = nameChanged || passwordChanged;
-
-  async function submit() {
-    if (!canSubmit) return;
-    await update.mutateAsync({
-      name: name.trim(),
-      password: passwordChanged ? password : undefined,
-    });
-    setPassword("");
-    toast.success("Account updated");
-  }
+  const form = useForm({
+    defaultValues: { name: user.name, password: "" },
+    validators: {
+      onSubmit: z.object({ name: z.string(), password: z.string() }),
+    },
+    onSubmit: async ({ value }) => {
+      await update.mutateAsync({
+        name: value.name.trim(),
+        password: value.password.trim() !== "" ? value.password : undefined,
+      });
+      form.setFieldValue("password", "");
+      toast.success("Account updated");
+    },
+  });
 
   return (
     <Card>
@@ -81,53 +69,80 @@ function AccountProfileCard({ account }: { account: Account }) {
         </CardDescription>
       </CardHeader>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void form.handleSubmit();
         }}
       >
         <CardContent>
           <FieldGroup className="gap-4">
-            <Field data-disabled={!isLocal}>
-              <FieldLabel htmlFor="account-name">Display Name</FieldLabel>
-              <Input
-                id="account-name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                disabled={!isLocal}
-                onChange={(event) => setName(event.target.value)}
-              />
-              {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(user.source)}.</FieldDescription> : null}
-            </Field>
+            <form.Field name="name">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Display Name"
+                  htmlFor="account-name"
+                  description={!isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      autoComplete="name"
+                      disabled={!isLocal}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
 
-            <Field data-disabled={!isLocal}>
-              <FieldLabel htmlFor="account-password">Password</FieldLabel>
-              <Input
-                id="account-password"
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                value={password}
-                disabled={!isLocal}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              <FieldDescription>
-                {isLocal
-                  ? "Set a new password."
-                  : `${directorySourceLabel(user.source)} accounts do not use local passwords.`}
-              </FieldDescription>
-            </Field>
+            <form.Field name="password">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Password"
+                  htmlFor="account-password"
+                  description={
+                    isLocal
+                      ? "Set a new password."
+                      : `${directorySourceLabel(user.source)} accounts do not use local passwords.`
+                  }
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={12}
+                      disabled={!isLocal}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex justify-between gap-3 pt-6">
           <p className="text-muted-foreground text-xs" title={new Date(user.updated_at).toLocaleString()}>
             Updated {formatRelative(user.updated_at)}
           </p>
-          <Button type="submit" size="sm" disabled={!canSubmit || update.isPending}>
-            {update.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-            Save
-          </Button>
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => {
+              const canSubmit = isLocal && (values.name !== user.name || values.password.trim() !== "");
+              return (
+                <SubmitButton pending={update.isPending} disabled={!canSubmit} size="sm">
+                  Save
+                </SubmitButton>
+              );
+            }}
+          </form.Subscribe>
         </CardFooter>
       </form>
     </Card>

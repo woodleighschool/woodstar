@@ -1,5 +1,4 @@
 import { useParams } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
 
 import { HostChecksTab } from "@/components/hosts/host-checks-tab";
 import {
@@ -15,8 +14,7 @@ import { HostReportsTab } from "@/components/hosts/host-reports-tab";
 import { HostSantaTab } from "@/components/hosts/host-santa-tab";
 import { HostSoftwareTab } from "@/components/hosts/host-software-tab";
 import { PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/query-error";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHost } from "@/hooks/use-hosts";
 
@@ -29,23 +27,13 @@ export function HostDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Host</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load host" error={query.error} onRetry={() => void query.refetch()} />
       </PageShell>
     );
   }
 
-  if (query.isLoading || !host) {
-    return (
-      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </PageShell>
-    );
+  if (!host) {
+    return null;
   }
 
   return (

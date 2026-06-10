@@ -1,14 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { UsersPage } from "@/pages/users";
+import { tableSearchSchema } from "@/lib/pagination";
+import { UserListPage } from "@/pages/users/list";
 
 const searchSchema = z.object({
-  q: z.string().optional(),
-  page_index: z.coerce.number().int().min(0).optional(),
-  page_size: z.coerce.number().int().min(10).max(MAX_PAGE_SIZE).optional(),
-  sort: z.string().optional(),
+  ...tableSearchSchema.shape,
   role: z.enum(["admin", "viewer", "none"]).optional(),
   source: z.enum(["local", "entra"]).optional(),
   group_id: z.coerce.number().int().positive().optional(),
@@ -16,5 +13,5 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_authenticated/directory/users/")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: UsersPage,
+  component: UserListPage,
 });

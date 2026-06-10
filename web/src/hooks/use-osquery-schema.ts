@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-// Vite resolves @schema → ../schema (see vite.config.ts) and rewrites the
+// Vite resolves @schema to ../schema (see vite.config.ts) and rewrites the
 // `?url` import to a hashed asset URL at build time.
 import schemaUrl from "@schema/osquery_fleet_schema.json?url";
 
@@ -18,7 +18,7 @@ export function useOsquerySchema() {
         throw new Error(`schema ${response.status}`);
       }
       const data = (await response.json()) as OsqueryTable[];
-      // Filter hidden tables once — the sidebar consumes this list directly.
+      // Filter hidden tables once; the sidebar consumes this list directly.
       return data.filter((table) => !table.hidden);
     },
     staleTime: Infinity,

@@ -1,36 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Download, FileCode2, Play } from "lucide-react";
+import { FileCode2, Play } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { targetSummary, type TargetSummaryInput } from "@/lib/targeting";
-import { cn, formatInterval } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const LazySQLEditor = lazy(() =>
   import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
 );
-
-export function TargetSummary({ targets }: { targets?: TargetSummaryInput }) {
-  return (
-    <span className="inline-flex min-w-0 items-center gap-2">
-      <span>{targetSummary(targets)}</span>
-    </span>
-  );
-}
-
-export function IntervalIndicator({ interval }: { interval?: number | null }) {
-  if (interval) return <span>Every {formatInterval(interval)}</span>;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="text-muted-foreground">Off</span>
-      </TooltipTrigger>
-      <TooltipContent>Runs only on demand.</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function DetailSettings({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -90,15 +68,6 @@ export function LiveRunButton({
         <Play data-icon="inline-start" />
         Run Live
       </Link>
-    </Button>
-  );
-}
-
-export function ExportButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
-  return (
-    <Button variant="outline" size="sm" disabled={disabled} onClick={onClick}>
-      <Download data-icon="inline-start" />
-      Export Results
     </Button>
   );
 }

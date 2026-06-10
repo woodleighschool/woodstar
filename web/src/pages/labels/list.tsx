@@ -2,6 +2,7 @@ import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   DataTable,
@@ -11,7 +12,7 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +37,7 @@ import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pa
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { formatRelative } from "@/lib/utils";
 
-export function LabelsPage() {
+export function LabelListPage() {
   const search = useSearch({ from: "/_authenticated/labels/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -102,13 +103,7 @@ export function LabelsPage() {
         }
       />
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Labels</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-            Retry
-          </Button>
-        </Alert>
+        <QueryError title="Failed to load labels" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}
@@ -135,7 +130,7 @@ export function LabelsPage() {
           empty={
             <DataTableEmptyState
               icon={<Tags />}
-              title={hasFilters ? "No Matches" : "No Host Groups"}
+              title={hasFilters ? "No Matches" : "No Labels"}
               description={hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
             />
           }
@@ -192,6 +187,7 @@ function LabelDeleteDialog({
     if (!label) return;
     await remove.mutateAsync(label.id);
     onOpenChange(false);
+    toast.success("Deleted label");
   }
 
   return (

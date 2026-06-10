@@ -2,6 +2,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
   BulkDeleteDialog,
@@ -13,19 +14,19 @@ import {
 } from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useLabels } from "@/hooks/use-labels";
-import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/use-santa";
+import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/use-santa-rules";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
 
-export function SantaRulesPage() {
+export function RuleListPage() {
   const search = useSearch({ from: "/_authenticated/santa/rules/" });
   const navigate = useNavigate();
   const { state, setters } = useTablePaginationParams();
@@ -53,10 +54,12 @@ export function SantaRulesPage() {
   );
 
   function deleteSelectedRules() {
+    const count = selectedIDs.length;
     bulkDelete.mutate(selectedIDs, {
       onSuccess: () => {
         setSelectedRuleIds([]);
         setDeleteOpen(false);
+        toast.success(`Deleted ${count} ${count === 1 ? "rule" : "rules"}`);
       },
     });
   }
@@ -110,10 +113,7 @@ export function SantaRulesPage() {
       />
 
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Rules</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load rules" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}

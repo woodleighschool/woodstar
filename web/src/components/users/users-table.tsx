@@ -11,7 +11,7 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { EnumBadge } from "@/components/enum-badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -98,15 +98,7 @@ export function UsersTable({
   ];
 
   if (query.error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Failed to Load Users</AlertTitle>
-        <AlertDescription>{query.error.message}</AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-          Retry
-        </Button>
-      </Alert>
-    );
+    return <QueryError title="Failed to load users" error={query.error} onRetry={() => void query.refetch()} />;
   }
 
   return (
@@ -174,7 +166,7 @@ function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolea
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" size="icon" variant="ghost">
+        <Button type="button" size="icon" variant="ghost" aria-label="User actions">
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>

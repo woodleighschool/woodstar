@@ -1,8 +1,9 @@
-import { Copy, KeyRound, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Copy, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
+import { SubmitButton } from "@/components/submit-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAccount, useRevokeAPIKey, useRotateAPIKey } from "@/hooks/use-account";
 import { formatRelative } from "@/lib/utils";
@@ -44,11 +45,13 @@ export function APIKeyCard() {
   async function handleRotate() {
     await rotate.mutateAsync();
     setConfirmRotate(false);
+    toast.success("API key rotated");
   }
 
   async function handleRevoke() {
     await revoke.mutateAsync();
     setConfirmRevoke(false);
+    toast.success("API key revoked");
   }
 
   return (
@@ -61,25 +64,17 @@ export function APIKeyCard() {
         <CardDescription>For CLI and automation access.</CardDescription>
         {!isLoading && !apiKey ? (
           <CardAction>
-            <Button type="button" size="sm" disabled={pending} onClick={() => void handleRotate()}>
+            <SubmitButton type="button" pending={pending} size="sm" onClick={() => void handleRotate()}>
               Generate
-            </Button>
+            </SubmitButton>
           </CardAction>
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-4">
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Failed to Load</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-            <Button variant="outline" size="sm" onClick={() => void refetch()} className="mt-2 w-fit">
-              Retry
-            </Button>
-          </Alert>
-        ) : null}
+        <QueryError title="Failed to load API key" error={error} onRetry={() => void refetch()} />
 
         {isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
+          <Skeleton className="h-9 w-full" />
         ) : apiKey ? (
           <>
             <InputGroup>
@@ -89,7 +84,7 @@ export function APIKeyCard() {
                   <div className="flex items-center gap-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton size="icon-xs" onClick={() => void handleCopy()}>
+                        <InputGroupButton size="icon-xs" aria-label="Copy" onClick={() => void handleCopy()}>
                           <Copy />
                         </InputGroupButton>
                       </TooltipTrigger>
@@ -97,7 +92,12 @@ export function APIKeyCard() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton size="icon-xs" disabled={pending} onClick={() => setConfirmRotate(true)}>
+                        <InputGroupButton
+                          size="icon-xs"
+                          aria-label="Rotate"
+                          disabled={pending}
+                          onClick={() => setConfirmRotate(true)}
+                        >
                           <RefreshCw />
                         </InputGroupButton>
                       </TooltipTrigger>
@@ -105,7 +105,12 @@ export function APIKeyCard() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton size="icon-xs" disabled={pending} onClick={() => setConfirmRevoke(true)}>
+                        <InputGroupButton
+                          size="icon-xs"
+                          aria-label="Revoke"
+                          disabled={pending}
+                          onClick={() => setConfirmRevoke(true)}
+                        >
                           <Trash2 />
                         </InputGroupButton>
                       </TooltipTrigger>

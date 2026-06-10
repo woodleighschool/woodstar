@@ -1,9 +1,16 @@
+import { useForm } from "@tanstack/react-form";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
-import { useMemo, useState, type ReactNode, type SyntheticEvent } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { z } from "zod";
 
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { EmptyPanel } from "@/components/empty-panel";
+import { FormField } from "@/components/form-field";
+import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
+import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
 import { LabelChips } from "@/components/labels/label-chips";
+import { SubmitButton } from "@/components/submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,14 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useClearHostUserAffinity, useSetHostUserAffinity, type Host, type HostDetail } from "@/hooks/use-hosts";
-import { manualUserAffinityMapping } from "@/lib/host-user-affinity";
-import { userAffinitySourceLabel } from "@/lib/user-affinity-source-labels";
+import { requiredString } from "@/lib/form-validation";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
 interface Tile {
@@ -148,7 +154,7 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
         <CardTitle>User Affinity</CardTitle>
         {canEdit ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-            {hasManualMapping ? <Pencil className="size-4" /> : <UserPlus className="size-4" />}
+            {hasManualMapping ? <Pencil /> : <UserPlus />}
             {hasManualMapping ? "Edit user" : "Set user"}
           </Button>
         ) : null}
@@ -196,31 +202,29 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
       <CardHeader>
         <CardTitle>Local User Accounts</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {users.length > 0 ? (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Directory</TableHead>
-                  <TableHead>Shell</TableHead>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Username</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Directory</TableHead>
+                <TableHead>Shell</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.uid || u.username}>
+                  <TableCell className="font-medium">{u.username}</TableCell>
+                  <TableCell>{u.type || "-"}</TableCell>
+                  <TableCell>{u.directory || "-"}</TableCell>
+                  <TableCell>{u.shell || "-"}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.uid || u.username}>
-                    <TableCell className="font-medium">{u.username}</TableCell>
-                    <TableCell>{u.type || "-"}</TableCell>
-                    <TableCell>{u.directory || "-"}</TableCell>
-                    <TableCell>{u.shell || "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        ) : null}
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -256,17 +260,19 @@ function displayValue(value: string | null | undefined) {
 
 function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpenChange: (open: boolean) => void }) {
   const manual = manualUserAffinityMapping(host.user_affinity.mappings);
-  const [email, setEmail] = useState(manual?.email ?? host.user_affinity.primary?.email ?? "");
   const setMapping = useSetHostUserAffinity();
   const clearMapping = useClearHostUserAffinity();
   const pending = setMapping.isPending || clearMapping.isPending;
-  const error = setMapping.error ?? clearMapping.error;
+  const submitError = setMapping.error ?? clearMapping.error;
 
-  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await setMapping.mutateAsync({ id: host.id, body: { email } });
-    onOpenChange(false);
-  }
+  const form = useForm({
+    defaultValues: { email: manual?.email ?? host.user_affinity.primary?.email ?? "" },
+    validators: { onSubmit: z.object({ email: requiredString("Email / UPN") }) },
+    onSubmit: async ({ value }) => {
+      await setMapping.mutateAsync({ id: host.id, body: { email: value.email } });
+      onOpenChange(false);
+    },
+  });
 
   async function handleClear() {
     await clearMapping.mutateAsync(host.id);
@@ -280,38 +286,48 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
           <DialogTitle>{manual ? "Edit User Affinity" : "Set User Affinity"}</DialogTitle>
           <DialogDescription>Set the email or UPN Woodstar should prefer for this host.</DialogDescription>
         </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
           <FieldGroup className="gap-4">
-            <Field>
-              <FieldLabel htmlFor="host-user-email" required>
-                Email / UPN
-              </FieldLabel>
-              <Input
-                id="host-user-email"
-                type="email"
-                required
-                autoComplete="off"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </Field>
+            <form.Field name="email">
+              {(field) => (
+                <FormField field={field} label="Email / UPN" htmlFor="host-user-email" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="email"
+                      autoComplete="off"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
           </FieldGroup>
 
-          <FieldError>{error?.message}</FieldError>
+          {submitError ? <FieldError>{submitError.message}</FieldError> : null}
 
           <DialogFooter className="pt-2">
             {manual ? (
               <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => void handleClear()}>
-                <Trash2 className="size-4" />
+                <Trash2 />
                 Clear
               </Button>
             ) : null}
             <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={pending}>
+            <SubmitButton pending={pending} size="sm">
               Save
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -342,7 +358,7 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
           onSortingChange={setSorting}
           onRowClick={setSelectedCertificate}
           getRowId={(certificate) => String(certificate.id)}
-          empty={<span className="text-muted-foreground text-sm">No Certificates</span>}
+          empty={<EmptyPanel>No certificates yet</EmptyPanel>}
         />
         <CertificateDetailsDialog certificate={selectedCertificate} onOpenChange={setSelectedCertificate} />
       </CardContent>

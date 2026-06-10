@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { queryKeys } from "@/lib/query-keys";
+
 interface ManifestEntry {
   key: string;
   count: number;
@@ -24,7 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function useAppleDbImage(hardwareModel: string | null | undefined): string | null {
   const { data: device } = useQuery<DeviceFile | null>({
-    queryKey: ["appledb-device", hardwareModel],
+    queryKey: queryKeys.appledbDevice(hardwareModel),
     queryFn: async ({ signal }) => {
       const r = await fetch(DEVICE_URL(hardwareModel!), { signal });
       if (r.status === 404) return null;
@@ -38,7 +40,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
   });
 
   const { data: manifest } = useQuery<ManifestEntry[]>({
-    queryKey: ["appledb-image-manifest"],
+    queryKey: queryKeys.appledbManifest,
     queryFn: async ({ signal }) => {
       const r = await fetch(MANIFEST_URL, { signal });
       if (!r.ok) throw new Error(`appledb manifest ${r.status}`);

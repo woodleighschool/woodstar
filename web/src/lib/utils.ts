@@ -35,6 +35,13 @@ export function formatRelative(input: string | number | Date | null | undefined)
   return formatDistanceToNow(date, { addSuffix: true });
 }
 
+export function formatDateTime(input: string | number | Date | null | undefined): string {
+  if (input === null || input === undefined) return "-";
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString();
+}
+
 export function formatInterval(seconds: number): string {
   if (seconds <= 0) return "never";
   const days = Math.floor(seconds / 86400);

@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ReportsPage } from "@/pages/osquery/reports/list";
+import { tableSearchSchema } from "@/lib/pagination";
+import { ReportListPage } from "@/pages/osquery/reports/list";
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/")({
-  component: ReportsPage,
+  validateSearch: (search) => tableSearchSchema.parse(search),
+  component: ReportListPage,
 });

@@ -1,10 +1,9 @@
 import { HostImage } from "@/components/hosts/host-image";
-import { statusFromHost } from "@/components/hosts/host-status";
 import type { Host } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
 export function HostHeader({ host }: { host: Host }) {
-  const isOnline = statusFromHost(host) === "online";
+  const isOnline = host.status === "online";
 
   return (
     <div className="flex items-center gap-4">

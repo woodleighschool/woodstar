@@ -12,8 +12,7 @@ import {
 } from "@/components/data-table";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "@/components/santa/events/event-ui";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useHost, type HostDetail } from "@/hooks/use-hosts";
@@ -23,14 +22,15 @@ import {
   type SantaEvent,
   type SantaFileAccessEvent,
   type SantaHostSummary,
-} from "@/hooks/use-santa";
+} from "@/hooks/use-santa-events";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "@/lib/santa-events";
 import { formatRelative } from "@/lib/utils";
+import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./decisions";
+import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
 
 type EventListKind = "execution" | "file-access";
 
-export function SantaEventsPage() {
+export function SantaEventListPage() {
   const search = useSearch({ from: "/_authenticated/santa/events/" });
   const { setters } = useTablePaginationParams();
   const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
@@ -56,7 +56,7 @@ export function SantaEventsPage() {
   );
 }
 
-export function SantaFileAccessEventsPage() {
+export function SantaFileAccessEventListPage() {
   const search = useSearch({ from: "/_authenticated/santa/events/file-access/" });
   const { setters } = useTablePaginationParams();
   const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
@@ -195,10 +195,7 @@ function ExecutionEventsTable() {
   return (
     <>
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Execution Events</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load execution events" error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <DataTable
           columns={columns}
@@ -301,10 +298,11 @@ function FileAccessEventsTable() {
   return (
     <>
       {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load File Access Events</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
+        <QueryError
+          title="Failed to load file access events"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : (
         <DataTable
           columns={columns}

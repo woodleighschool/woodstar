@@ -1,0 +1,24 @@
+import { useNavigate } from "@tanstack/react-router";
+
+import { useCreateLabel } from "@/hooks/use-labels";
+import { LabelForm, emptyLabel } from "@/pages/labels/fields";
+
+export function LabelCreatePage() {
+  const navigate = useNavigate();
+  const create = useCreateLabel();
+
+  return (
+    <LabelForm
+      initial={emptyLabel}
+      title="New Label"
+      submitLabel="Create"
+      pending={create.isPending}
+      error={create.error}
+      onCancel={() => void navigate({ to: "/labels" })}
+      onSubmit={async (body) => {
+        await create.mutateAsync(body);
+        void navigate({ to: "/labels" });
+      }}
+    />
+  );
+}

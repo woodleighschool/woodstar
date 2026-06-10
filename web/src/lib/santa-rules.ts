@@ -1,4 +1,4 @@
-import type { SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa";
+import type { SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa-rules";
 import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
 
 export const RULE_TYPE_VALUES = [

@@ -16,12 +16,12 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-  // Any mutation error that isn't handled by an explicit onError ends up here.
-  // Frontend validation should catch user-facing issues before submit, so a
-  // reaching this is a backend/transport surprise the admin should see.
+  // Unhandled mutation errors surface as a toast. Resource forms that render their
+  // submit error inline opt out with meta: { inlineError: true }; mutations with an
+  // explicit onError handle it themselves.
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
-      if (mutation.options.onError) return;
+      if (mutation.meta?.inlineError || mutation.options.onError) return;
       toast.error(error instanceof Error ? error.message : "Request failed");
     },
   }),

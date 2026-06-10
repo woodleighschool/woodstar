@@ -38,6 +38,7 @@ export function SchemaSidebar({
     <TooltipProvider delayDuration={150}>
       <button
         type="button"
+        aria-label={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         onClick={() => onOpenChange(!open)}
         className={cn(
@@ -106,7 +107,7 @@ function SchemaPanel({
 
       <div className="flex-1 overflow-y-auto">
         {schema.isLoading ? (
-          <div className="text-muted-foreground p-4 text-sm">Loading Schema…</div>
+          <div className="text-muted-foreground p-4 text-sm">Loading Schema...</div>
         ) : schema.error ? (
           <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
         ) : table ? (

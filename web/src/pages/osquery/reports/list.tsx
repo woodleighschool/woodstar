@@ -11,14 +11,14 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatInterval } from "@/lib/utils";
 
-export function ReportsPage() {
+export function ReportListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
@@ -75,10 +75,7 @@ export function ReportsPage() {
         }
       />
       {reports.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Reports</AlertTitle>
-          <AlertDescription>{reports.error.message}</AlertDescription>
-        </Alert>
+        <QueryError title="Failed to load reports" error={reports.error} onRetry={() => void reports.refetch()} />
       ) : (
         <DataTable
           columns={columns}

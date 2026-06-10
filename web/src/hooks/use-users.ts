@@ -86,8 +86,9 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
+    meta: { inlineError: true },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });
     },
   });
 }
@@ -105,8 +106,8 @@ export function useUpdateUser() {
     onSuccess: async (user, variables) => {
       queryClient.setQueryData(queryKeys.user(variables.id), user);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["users"] }),
-        queryClient.invalidateQueries({ queryKey: ["groups"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.usersAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groupsAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.session }),
       ]);
     },
@@ -125,8 +126,8 @@ export function useDeleteUser() {
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["users"] }),
-        queryClient.invalidateQueries({ queryKey: ["groups"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.usersAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groupsAll }),
       ]);
     },
   });

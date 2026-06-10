@@ -1,9 +1,9 @@
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { ServerCog, UsersRound } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableSearch } from "@/components/data-table";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { EmptyPanel } from "@/components/empty-panel";
+import { QueryError } from "@/components/query-error";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useGroups, type Group } from "@/hooks/use-groups";
 import { useHosts, type Host } from "@/hooks/use-hosts";
@@ -66,11 +66,7 @@ export function HostSelector({ value, onChange }: { value: number[]; onChange: (
       onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={(ids) => onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))}
       getRowId={(host) => String(host.id)}
-      emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts Found"}
-      emptyDescription={
-        showSelected ? "Selected hosts will appear here." : "Try another search term or enroll hosts first."
-      }
-      emptyIcon={<ServerCog className="size-5" />}
+      emptyTitle={showSelected ? "No selected hosts" : "No hosts found"}
     />
   );
 }
@@ -137,11 +133,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
-      emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
-      emptyDescription={
-        showSelected ? "Selected departments will appear here." : "Try another search term or sync users first."
-      }
-      emptyIcon={<UsersRound className="size-5" />}
+      emptyTitle={showSelected ? "No selected departments" : "No departments found"}
     />
   );
 }
@@ -194,11 +186,7 @@ function GroupSelector({ value, onChange }: { value: string[]; onChange: (value:
       onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
-      emptyTitle={showSelected ? "No Selected Groups" : "No Groups Found"}
-      emptyDescription={
-        showSelected ? "Selected groups will appear here." : "Try another search term or sync groups first."
-      }
-      emptyIcon={<UsersRound className="size-5" />}
+      emptyTitle={showSelected ? "No selected groups" : "No groups found"}
     />
   );
 }
@@ -251,11 +239,7 @@ function UserSelector({ value, onChange }: { value: string[]; onChange: (value: 
       onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => String(user.id)}
-      emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
-      emptyDescription={
-        showSelected ? "Selected users will appear here." : "Try another search term or sync users first."
-      }
-      emptyIcon={<UsersRound className="size-5" />}
+      emptyTitle={showSelected ? "No selected users" : "No users found"}
     />
   );
 }
@@ -313,8 +297,6 @@ interface SelectorTableProps<TData> {
   onSelectedRowIdsChange: (ids: string[]) => void;
   getRowId: (row: TData) => string;
   emptyTitle: string;
-  emptyDescription: string;
-  emptyIcon: ReactNode;
 }
 
 function SelectorTable<TData>({
@@ -337,11 +319,9 @@ function SelectorTable<TData>({
   onSelectedRowIdsChange,
   getRowId,
   emptyTitle,
-  emptyDescription,
-  emptyIcon,
 }: SelectorTableProps<TData>) {
   if (error) {
-    return <p className="text-destructive text-sm">{error}</p>;
+    return <QueryError title="Failed to load options" error={{ message: error }} />;
   }
 
   return (
@@ -381,15 +361,7 @@ function SelectorTable<TData>({
           </ToggleGroup>
         </div>
       }
-      empty={
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
-            <EmptyTitle>{emptyTitle}</EmptyTitle>
-            <EmptyDescription>{emptyDescription}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      }
+      empty={<EmptyPanel>{emptyTitle}</EmptyPanel>}
     />
   );
 }
