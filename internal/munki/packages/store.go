@@ -275,6 +275,7 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	params.UpdateFor = cleanReferences(params.UpdateFor)
 	params.PackagePath = strings.TrimSpace(params.PackagePath)
 	params.Notes = strings.TrimSpace(params.Notes)
+	params.InstallerChoicesXML = cleanInstallerChoices(params.InstallerChoicesXML)
 	params.InstallerEnvironment = cleanInstallerEnvironment(params.InstallerEnvironment)
 	params.Installs = cleanInstallItems(params.Installs)
 	params.Receipts = cleanReceipts(params.Receipts)
@@ -287,7 +288,21 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	return params
 }
 
+func cleanInstallerChoices(values []PackageInstallerChoice) []PackageInstallerChoice {
+	out := make([]PackageInstallerChoice, 0, len(values))
+	for _, value := range values {
+		value.ChoiceIdentifier = strings.TrimSpace(value.ChoiceIdentifier)
+		value.ChoiceAttribute = strings.TrimSpace(value.ChoiceAttribute)
+		out = append(out, value)
+	}
+	return out
+}
+
 func packageFromRecord(row packageRecord) (Package, error) {
+	installerChoices, err := decodePackageJSON[PackageInstallerChoice](row.InstallerChoicesXML)
+	if err != nil {
+		return Package{}, err
+	}
 	installerEnvironment, err := decodePackageJSON[PackageInstallerEnvironmentVariable](row.InstallerEnvironment)
 	if err != nil {
 		return Package{}, err
@@ -335,7 +350,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		ForceInstallAfterDate:       row.ForceInstallAfterDate,
 		InstalledSize:               row.InstalledSize,
 		PackagePath:                 row.PackagePath,
-		InstallerChoicesXML:         row.InstallerChoicesXML,
+		InstallerChoicesXML:         installerChoices,
 		InstallerEnvironment:        installerEnvironment,
 		Installs:                    installs,
 		Receipts:                    receipts,
@@ -446,6 +461,7 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 }
 
 type packageJSONFields struct {
+	InstallerChoicesXML  []byte
 	InstallerEnvironment []byte
 	Installs             []byte
 	Receipts             []byte
@@ -453,6 +469,10 @@ type packageJSONFields struct {
 }
 
 func packageJSONFromMutation(params PackageMutation) (packageJSONFields, error) {
+	installerChoices, err := marshalPackageJSON(params.InstallerChoicesXML)
+	if err != nil {
+		return packageJSONFields{}, err
+	}
 	installerEnvironment, err := marshalPackageJSON(params.InstallerEnvironment)
 	if err != nil {
 		return packageJSONFields{}, err
@@ -470,6 +490,7 @@ func packageJSONFromMutation(params PackageMutation) (packageJSONFields, error) 
 		return packageJSONFields{}, err
 	}
 	return packageJSONFields{
+		InstallerChoicesXML:  installerChoices,
 		InstallerEnvironment: installerEnvironment,
 		Installs:             installs,
 		Receipts:             receipts,
@@ -527,7 +548,7 @@ func createMunkiPackageParams(
 		ForceInstallAfterDate:              params.ForceInstallAfterDate,
 		InstalledSize:                      params.InstalledSize,
 		PackagePath:                        params.PackagePath,
-		InstallerChoicesXml:                params.InstallerChoicesXML,
+		InstallerChoicesXml:                fields.InstallerChoicesXML,
 		InstallerEnvironment:               fields.InstallerEnvironment,
 		Installs:                           fields.Installs,
 		Receipts:                           fields.Receipts,
@@ -585,7 +606,7 @@ func updateMunkiPackageParams(
 		ForceInstallAfterDate:              params.ForceInstallAfterDate,
 		InstalledSize:                      params.InstalledSize,
 		PackagePath:                        params.PackagePath,
-		InstallerChoicesXml:                params.InstallerChoicesXML,
+		InstallerChoicesXml:                fields.InstallerChoicesXML,
 		InstallerEnvironment:               fields.InstallerEnvironment,
 		Installs:                           fields.Installs,
 		Receipts:                           fields.Receipts,
@@ -645,7 +666,7 @@ type packageRecord struct {
 	ForceInstallAfterDate        *time.Time
 	InstalledSize                int64
 	PackagePath                  string
-	InstallerChoicesXML          string `db:"installer_choices_xml"`
+	InstallerChoicesXML          []byte `db:"installer_choices_xml"`
 	InstallerEnvironment         []byte
 	Installs                     []byte
 	Receipts                     []byte

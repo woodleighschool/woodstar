@@ -142,7 +142,7 @@ SELECT
     p.force_install_after_date,
     COALESCE(p.installed_size, 0)::bigint AS installed_size,
     COALESCE(p.package_path, '') AS package_path,
-    COALESCE(p.installer_choices_xml, '') AS installer_choices_xml,
+    COALESCE(p.installer_choices_xml, '[]'::jsonb) AS installer_choices_xml,
     COALESCE(p.installer_environment, '[]'::jsonb) AS installer_environment,
     COALESCE(p.installs, '[]'::jsonb) AS installs,
     COALESCE(p.receipts, '[]'::jsonb) AS receipts,

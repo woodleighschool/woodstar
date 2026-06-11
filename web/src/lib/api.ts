@@ -48,6 +48,7 @@ export type MunkiPackageCreateMutation = API.MunkiPackageCreateMutation;
 export type MunkiPackageMutation = API.MunkiPackageMutation;
 export type MunkiPackagePage = API.PageMunkiPackage;
 export type PackageAlert = API.MunkiPackageAlert;
+export type PackageInstallerChoice = API.MunkiPackageInstallerChoice;
 export type PackageInstallItem = API.MunkiPackageInstallItem;
 export type PackageInstallerEnvironmentVariable = API.MunkiPackageInstallerEnvironmentVariable;
 export type PackageItemToCopy = API.MunkiPackageItemToCopy;

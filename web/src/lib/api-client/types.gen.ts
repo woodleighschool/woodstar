@@ -471,7 +471,7 @@ export type MunkiPackage = {
     installed_size: number;
     installer_artifact_id?: number;
     installer_artifact_location?: string;
-    installer_choices_xml: string;
+    installer_choices_xml: Array<MunkiPackageInstallerChoice> | null;
     installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<MunkiPackageInstallItem> | null;
@@ -536,7 +536,7 @@ export type MunkiPackageCreateMutation = {
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
-    installer_choices_xml?: string;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
     installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<MunkiPackageInstallItem> | null;
@@ -584,6 +584,12 @@ export type MunkiPackageInstallItem = {
     version_comparison_key?: string;
 };
 
+export type MunkiPackageInstallerChoice = {
+    attribute_setting: number;
+    choice_attribute?: string;
+    choice_identifier?: string;
+};
+
 export type MunkiPackageInstallerEnvironmentVariable = {
     name: string;
     value: string;
@@ -614,7 +620,7 @@ export type MunkiPackageMutation = {
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
-    installer_choices_xml?: string;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
     installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<MunkiPackageInstallItem> | null;
@@ -1686,7 +1692,7 @@ export type MunkiPackageWritable = {
     installed_size: number;
     installer_artifact_id?: number;
     installer_artifact_location?: string;
-    installer_choices_xml: string;
+    installer_choices_xml: Array<MunkiPackageInstallerChoice> | null;
     installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<MunkiPackageInstallItem> | null;
@@ -1739,7 +1745,7 @@ export type MunkiPackageCreateMutationWritable = {
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
-    installer_choices_xml?: string;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
     installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<MunkiPackageInstallItem> | null;
@@ -1786,7 +1792,7 @@ export type MunkiPackageMutationWritable = {
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
-    installer_choices_xml?: string;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
     installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<MunkiPackageInstallItem> | null;

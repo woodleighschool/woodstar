@@ -53,7 +53,7 @@ type munkiPkginfo struct {
 	ForceInstallAfterDate    *time.Time                `json:"force_install_after_date,omitempty"`
 	InstalledSize            int64                     `json:"installed_size,omitempty"`
 	PackagePath              string                    `json:"package_path,omitempty"`
-	InstallerChoicesXML      string                    `json:"installer_choices_xml,omitempty"`
+	InstallerChoicesXML      []munkiPkginfoChoice      `json:"installer_choices_xml,omitempty"`
 	InstallerEnvironment     map[string]string         `json:"installer_environment,omitempty"`
 	Installs                 []munkiPkginfoInstallItem `json:"installs,omitempty"`
 	Receipts                 []munkiPkginfoReceipt     `json:"receipts,omitempty"`
@@ -101,6 +101,12 @@ type munkiPkginfoItemToCopy struct {
 	Mode            string `json:"mode,omitempty"`
 }
 
+type munkiPkginfoChoice struct {
+	ChoiceIdentifier string `json:"choiceIdentifier,omitempty"`
+	ChoiceAttribute  string `json:"choiceAttribute,omitempty"`
+	AttributeSetting int    `json:"attributeSetting"`
+}
+
 type munkiPkginfoAlert struct {
 	Title       string `json:"alert_title,omitempty"`
 	Detail      string `json:"alert_detail,omitempty"`
@@ -136,7 +142,7 @@ func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 		ForceInstallAfterDate:    pkg.ForceInstallAfterDate,
 		InstalledSize:            pkg.InstalledSize,
 		PackagePath:              pkg.PackagePath,
-		InstallerChoicesXML:      pkg.InstallerChoicesXML,
+		InstallerChoicesXML:      munkiInstallerChoices(pkg.InstallerChoicesXML),
 		InstallerEnvironment:     munkiInstallerEnvironment(pkg.InstallerEnvironment),
 		Installs:                 munkiInstallItems(pkg.Installs),
 		Receipts:                 munkiReceipts(pkg.Receipts),
@@ -279,6 +285,14 @@ func munkiItemsToCopy(values []PackageItemToCopy) []munkiPkginfoItemToCopy {
 	out := make([]munkiPkginfoItemToCopy, 0, len(values))
 	for _, value := range values {
 		out = append(out, munkiPkginfoItemToCopy(value))
+	}
+	return out
+}
+
+func munkiInstallerChoices(values []PackageInstallerChoice) []munkiPkginfoChoice {
+	out := make([]munkiPkginfoChoice, 0, len(values))
+	for _, value := range values {
+		out = append(out, munkiPkginfoChoice(value))
 	}
 	return out
 }

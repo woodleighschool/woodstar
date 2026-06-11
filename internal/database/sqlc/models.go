@@ -1061,7 +1061,7 @@ type MunkiPackage struct {
 	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
 	InstalledSize                      int64      `json:"installed_size"`
 	PackagePath                        string     `json:"package_path"`
-	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerChoicesXml                []byte     `json:"installer_choices_xml"`
 	InstallerEnvironment               []byte     `json:"installer_environment"`
 	Installs                           []byte     `json:"installs"`
 	Receipts                           []byte     `json:"receipts"`

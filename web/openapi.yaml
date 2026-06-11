@@ -1181,7 +1181,11 @@ components:
         installer_artifact_location:
           type: string
         installer_choices_xml:
-          type: string
+          items:
+            $ref: "#/components/schemas/MunkiPackageInstallerChoice"
+          type:
+            - array
+            - "null"
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"
@@ -1410,7 +1414,11 @@ components:
           format: int64
           type: integer
         installer_choices_xml:
-          type: string
+          items:
+            $ref: "#/components/schemas/MunkiPackageInstallerChoice"
+          type:
+            - array
+            - "null"
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"
@@ -1560,6 +1568,19 @@ components:
         - type
         - path
       type: object
+    MunkiPackageInstallerChoice:
+      additionalProperties: false
+      properties:
+        attribute_setting:
+          format: int64
+          type: integer
+        choice_attribute:
+          type: string
+        choice_identifier:
+          type: string
+      required:
+        - attribute_setting
+      type: object
     MunkiPackageInstallerEnvironmentVariable:
       additionalProperties: false
       properties:
@@ -1630,7 +1651,11 @@ components:
           format: int64
           type: integer
         installer_choices_xml:
-          type: string
+          items:
+            $ref: "#/components/schemas/MunkiPackageInstallerChoice"
+          type:
+            - array
+            - "null"
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"

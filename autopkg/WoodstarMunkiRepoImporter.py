@@ -53,8 +53,12 @@ class WoodstarMunkiRepoImporter(Processor):
 
         counts = import_counts()
 
-        for pkginfo_path in pkginfo_paths(munki_repo):
-            pkginfo = load_pkginfo(pkginfo_path)
+        entries, skipped_duplicates = pkginfo_entries(munki_repo)
+        counts["duplicate_pkginfos_skipped"] = skipped_duplicates
+        if skipped_duplicates:
+            self.output(f"Skipping {skipped_duplicates} duplicate Munki pkginfo item(s)")
+
+        for pkginfo_path, pkginfo in entries:
             self.import_pkginfo(client, munki_repo, pkginfo_path, pkginfo, force, artifacts, counts)
 
         self.env["woodstar_imported_pkginfo_count"] = counts["pkginfos"]
@@ -66,6 +70,7 @@ class WoodstarMunkiRepoImporter(Processor):
                     "software_created",
                     "packages_created",
                     "packages_updated",
+                    "duplicate_pkginfos_skipped",
                     "package_binaries_uploaded",
                 ],
                 "data": {
@@ -73,6 +78,7 @@ class WoodstarMunkiRepoImporter(Processor):
                     "software_created": str(counts["software_created"]),
                     "packages_created": str(counts["packages_created"]),
                     "packages_updated": str(counts["packages_updated"]),
+                    "duplicate_pkginfos_skipped": str(counts["duplicate_pkginfos_skipped"]),
                     "package_binaries_uploaded": str(counts["package_binaries_uploaded"]),
                 },
             }
@@ -179,7 +185,30 @@ class WoodstarMunkiRepoImporter(Processor):
         return client.post("/api/munki/software", body), True
 
 
-def pkginfo_paths(munki_repo):
+def pkginfo_entries(munki_repo):
+    entries = []
+    skipped = 0
+    selected = {}
+    for path in all_pkginfo_paths(munki_repo):
+        pkginfo = load_pkginfo(path)
+        key = pkginfo_key(pkginfo)
+        if not key:
+            entries.append((path, pkginfo))
+            continue
+        rank = pkginfo_rank(path, pkginfo)
+        current = selected.get(key)
+        if current and current[0] >= rank:
+            skipped += 1
+            continue
+        if current:
+            skipped += 1
+        selected[key] = (rank, path, pkginfo)
+    entries.extend((path, pkginfo) for _rank, path, pkginfo in selected.values())
+    entries.sort(key=lambda entry: entry[0])
+    return entries, skipped
+
+
+def all_pkginfo_paths(munki_repo):
     pkgsinfo_dir = os.path.join(munki_repo, "pkgsinfo")
     paths = []
     for root, _dirs, filenames in os.walk(pkgsinfo_dir):
@@ -188,6 +217,21 @@ def pkginfo_paths(munki_repo):
                 continue
             paths.append(os.path.join(root, filename))
     return sorted(paths)
+
+
+def pkginfo_key(pkginfo):
+    name = pkginfo.get("display_name") or pkginfo.get("name")
+    version = pkginfo.get("version")
+    if not name or not version:
+        return None
+    return str(name), str(version)
+
+
+def pkginfo_rank(path, pkginfo):
+    created_at = ((pkginfo.get("_metadata") or {}).get("creation_date") or "")
+    if hasattr(created_at, "isoformat"):
+        created_at = created_at.isoformat()
+    return str(created_at), os.path.getmtime(path), path
 
 
 def load_pkginfo(path):
@@ -227,6 +271,7 @@ def import_counts():
         "software_created": 0,
         "packages_created": 0,
         "packages_updated": 0,
+        "duplicate_pkginfos_skipped": 0,
         "package_binaries_uploaded": 0,
         "package_binaries_skipped": 0,
     }

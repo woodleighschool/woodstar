@@ -87,7 +87,7 @@ VALUES (
     $21::timestamptz,
     $22,
     $23,
-    $24,
+    $24::jsonb,
     $25::jsonb,
     $26::jsonb,
     $27::jsonb,
@@ -142,7 +142,7 @@ type CreateMunkiPackageParams struct {
 	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
 	InstalledSize                      int64      `json:"installed_size"`
 	PackagePath                        string     `json:"package_path"`
-	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerChoicesXml                []byte     `json:"installer_choices_xml"`
 	InstallerEnvironment               []byte     `json:"installer_environment"`
 	Installs                           []byte     `json:"installs"`
 	Receipts                           []byte     `json:"receipts"`
@@ -398,7 +398,7 @@ type GetMunkiPackageByIDRow struct {
 	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
 	InstalledSize                      int64      `json:"installed_size"`
 	PackagePath                        string     `json:"package_path"`
-	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerChoicesXml                []byte     `json:"installer_choices_xml"`
 	InstallerEnvironment               []byte     `json:"installer_environment"`
 	Installs                           []byte     `json:"installs"`
 	Receipts                           []byte     `json:"receipts"`
@@ -535,7 +535,7 @@ SET
     force_install_after_date = $20::timestamptz,
     installed_size = $21,
     package_path = $22,
-    installer_choices_xml = $23,
+    installer_choices_xml = $23::jsonb,
     installer_environment = $24::jsonb,
     installs = $25::jsonb,
     receipts = $26::jsonb,
@@ -590,7 +590,7 @@ type UpdateMunkiPackageParams struct {
 	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
 	InstalledSize                      int64      `json:"installed_size"`
 	PackagePath                        string     `json:"package_path"`
-	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerChoicesXml                []byte     `json:"installer_choices_xml"`
 	InstallerEnvironment               []byte     `json:"installer_environment"`
 	Installs                           []byte     `json:"installs"`
 	Receipts                           []byte     `json:"receipts"`

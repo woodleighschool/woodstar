@@ -295,7 +295,7 @@ SELECT
     p.force_install_after_date,
     COALESCE(p.installed_size, 0)::bigint AS installed_size,
     COALESCE(p.package_path, '') AS package_path,
-    COALESCE(p.installer_choices_xml, '') AS installer_choices_xml,
+    COALESCE(p.installer_choices_xml, '[]'::jsonb) AS installer_choices_xml,
     COALESCE(p.installer_environment, '[]'::jsonb) AS installer_environment,
     COALESCE(p.installs, '[]'::jsonb) AS installs,
     COALESCE(p.receipts, '[]'::jsonb) AS receipts,
@@ -391,7 +391,7 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	ForceInstallAfterDate              *time.Time            `json:"force_install_after_date"`
 	InstalledSize                      int64                 `json:"installed_size"`
 	PackagePath                        string                `json:"package_path"`
-	InstallerChoicesXml                string                `json:"installer_choices_xml"`
+	InstallerChoicesXml                []byte                `json:"installer_choices_xml"`
 	InstallerEnvironment               []byte                `json:"installer_environment"`
 	Installs                           []byte                `json:"installs"`
 	Receipts                           []byte                `json:"receipts"`

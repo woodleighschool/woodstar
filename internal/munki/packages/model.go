@@ -92,6 +92,13 @@ type PackageInstallerEnvironmentVariable struct {
 	Value string `json:"value"`
 }
 
+// PackageInstallerChoice is one Munki installer choice change entry.
+type PackageInstallerChoice struct {
+	ChoiceIdentifier string `json:"choice_identifier,omitempty"`
+	ChoiceAttribute  string `json:"choice_attribute,omitempty"`
+	AttributeSetting int    `json:"attribute_setting"`
+}
+
 // PackageInstallItemType describes the Munki installs item matcher shape.
 type PackageInstallItemType string
 
@@ -183,7 +190,7 @@ type PackageMutation struct {
 	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
 	InstalledSize            int64                                 `json:"installed_size,omitempty"`
 	PackagePath              string                                `json:"package_path,omitempty"`
-	InstallerChoicesXML      string                                `json:"installer_choices_xml,omitempty"`
+	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"`
 	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"`
 	Installs                 []PackageInstallItem                  `json:"installs,omitempty"`
 	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"`
@@ -242,7 +249,7 @@ type Package struct {
 	ForceInstallAfterDate       *time.Time                            `json:"force_install_after_date,omitempty"`
 	InstalledSize               int64                                 `json:"installed_size"`
 	PackagePath                 string                                `json:"package_path"`
-	InstallerChoicesXML         string                                `json:"installer_choices_xml"`
+	InstallerChoicesXML         []PackageInstallerChoice              `json:"installer_choices_xml"`
 	InstallerEnvironment        []PackageInstallerEnvironmentVariable `json:"installer_environment"`
 	Installs                    []PackageInstallItem                  `json:"installs"`
 	Receipts                    []PackageReceipt                      `json:"receipts"`

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { MunkiPackage, MunkiPackageMutation } from "@/hooks/use-munki-packages";
 import type {
   PackageAlert,
+  PackageInstallerChoice,
   PackageInstallerEnvironmentVariable,
   PackageInstallItem,
   PackageItemToCopy,
@@ -128,6 +129,10 @@ export function packageSubmitPreflightError(
   if (form.installer_type === "copy_from_dmg" && cleanItemsToCopy(form.items_to_copy).length === 0) {
     return "Copy from DMG packages require at least one item to copy.";
   }
+  if (form.installer_type !== "nopkg") {
+    const installerChoicesError = parseInstallerChoicesError(form.installer_choices_xml);
+    if (installerChoicesError) return installerChoicesError;
+  }
   if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
     return "No package items require an install check script, installs, receipts, or On Demand.";
   }
@@ -186,7 +191,7 @@ export function packageMutationFromForm(
     force_install_after_date: dateTimeLocalToISO(form.force_install_after_date),
     installed_size: numberOrUndefined(form.installed_size),
     package_path: usesInstallerOptions ? optionalText(form.package_path) : undefined,
-    installer_choices_xml: usesInstallerOptions ? optionalText(form.installer_choices_xml) : undefined,
+    installer_choices_xml: usesInstallerOptions ? parseInstallerChoices(form.installer_choices_xml) : [],
     installer_environment: usesInstallerOptions ? cleanInstallerEnvironment(form.installer_environment) : [],
     installs: cleanInstallItems(form.installs),
     receipts: cleanReceipts(form.receipts),
@@ -280,7 +285,7 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     force_install_after_date: isoToDateTimeLocal(pkg.force_install_after_date),
     installed_size: pkg.installed_size > 0 ? String(pkg.installed_size) : "",
     package_path: pkg.package_path,
-    installer_choices_xml: pkg.installer_choices_xml,
+    installer_choices_xml: installerChoicesText(pkg.installer_choices_xml ?? []),
     installer_environment: installerEnvironmentRows(pkg.installer_environment ?? []),
     installs: installItemRows(pkg.installs ?? []),
     receipts: receiptRows(pkg.receipts ?? []),
@@ -368,6 +373,47 @@ function cleanInstallerEnvironment(rows: InstallerEnvironmentRow[]): PackageInst
   });
 }
 
+function parseInstallerChoicesError(value: string) {
+  try {
+    parseInstallerChoices(value);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Installer choices must be valid JSON.";
+  }
+}
+
+function parseInstallerChoices(value: string): PackageInstallerChoice[] {
+  const text = value.trim();
+  if (text === "") return [];
+  const parsed = JSON.parse(text) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error("Installer choices must be a JSON array.");
+  }
+  return parsed.map((item) => installerChoice(item));
+}
+
+function installerChoice(value: unknown): PackageInstallerChoice {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Installer choice entries must be JSON objects.");
+  }
+  const item = value as Record<string, unknown>;
+  const choiceIdentifier = stringValue(item.choice_identifier);
+  const choiceAttribute = stringValue(item.choice_attribute);
+  const attributeSetting = numberValue(item.attribute_setting);
+  if (attributeSetting === undefined) {
+    throw new Error("Installer choice entries require attribute_setting.");
+  }
+  return {
+    choice_identifier: choiceIdentifier,
+    choice_attribute: choiceAttribute,
+    attribute_setting: attributeSetting,
+  };
+}
+
+function installerChoicesText(values: PackageInstallerChoice[]) {
+  return values.length === 0 ? "" : JSON.stringify(values, null, 2);
+}
+
 function cleanInstallItems(rows: InstallItemRow[]): PackageInstallItem[] {
   return rows.flatMap((row) => {
     const path = row.path.trim();
@@ -407,6 +453,19 @@ function cleanAlert(alert: PackageAlert): PackageAlert {
 
 function cleanStringRows(values: StringRow[]) {
   return values.map((row) => row.value.trim()).filter(Boolean);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function numberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function hasNoPkgEvidence(form: PackageFormState) {

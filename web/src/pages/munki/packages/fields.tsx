@@ -1,4 +1,3 @@
-import { xml } from "@codemirror/lang-xml";
 import { StreamLanguage } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
@@ -59,7 +58,6 @@ import {
   type StringRow,
 } from "./form-state";
 
-const xmlExtensions: Extension[] = [xml()];
 const shellExtensions: Extension[] = [StreamLanguage.define(shell)];
 
 type PackageFieldName = keyof PackageFormState;
@@ -400,7 +398,9 @@ function InstallerTab({
           />
           <form.Field
             name="installer_choices_xml"
-            children={(field) => <XMLField value={field.state.value} onChange={(value) => field.handleChange(value)} />}
+            children={(field) => (
+              <InstallerChoicesField value={field.state.value} onChange={(value) => field.handleChange(value)} />
+            )}
           />
           <form.Field
             name="installer_environment"
@@ -767,17 +767,11 @@ function CheckboxControl({
   );
 }
 
-function XMLField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function InstallerChoicesField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <Field>
-      <FieldLabel>Installer Choices XML</FieldLabel>
-      <CodeEditor
-        value={value}
-        onChange={onChange}
-        extensions={xmlExtensions}
-        lineNumbers={false}
-        className="[&_.cm-content]:min-h-28"
-      />
+      <FieldLabel>Installer Choices</FieldLabel>
+      <CodeEditor value={value} onChange={onChange} lineNumbers={false} className="[&_.cm-content]:min-h-28" />
     </Field>
   );
 }

@@ -30,7 +30,6 @@ PACKAGE_DIRECT_KEYS = (
     "force_install_after_date",
     "installed_size",
     "package_path",
-    "installer_choices_xml",
     "items_to_copy",
     "notes",
     "installcheck_script",
@@ -67,7 +66,7 @@ PACKAGE_DEFAULTS = {
     "force_install_after_date": None,
     "installed_size": 0,
     "package_path": "",
-    "installer_choices_xml": "",
+    "installer_choices_xml": [],
     "installer_environment": [],
     "installs": [],
     "receipts": [],
@@ -345,6 +344,8 @@ class WoodstarMunkiPackageUploader(Processor):
             body["on_demand"] = pkginfo["OnDemand"]
         if "installer_environment" in pkginfo:
             body["installer_environment"] = self.installer_environment(pkginfo["installer_environment"])
+        if "installer_choices_xml" in pkginfo:
+            body["installer_choices_xml"] = self.installer_choices_xml(pkginfo["installer_choices_xml"])
         if "installs" in pkginfo:
             body["installs"] = self.install_items(pkginfo["installs"])
         if "receipts" in pkginfo:
@@ -413,6 +414,30 @@ class WoodstarMunkiPackageUploader(Processor):
         if not isinstance(value, dict):
             raise ProcessorError("pkginfo installer_environment must be a dictionary")
         return [{"name": name, "value": value[name]} for name in sorted(value)]
+
+    @staticmethod
+    def installer_choices_xml(values):
+        if not isinstance(values, list):
+            raise ProcessorError("pkginfo installer_choices_xml must be a list")
+        choices = []
+        for value in values:
+            if not isinstance(value, dict):
+                raise ProcessorError("pkginfo installer_choices_xml entries must be dictionaries")
+            attribute_setting = value.get("attribute_setting")
+            if attribute_setting is None:
+                attribute_setting = value.get("attributeSetting", 0)
+            try:
+                attribute_setting = int(attribute_setting)
+            except (TypeError, ValueError) as err:
+                raise ProcessorError("pkginfo installer_choices_xml attributeSetting must be an integer") from err
+            choices.append(
+                {
+                    "choice_identifier": value.get("choice_identifier") or value.get("choiceIdentifier") or "",
+                    "choice_attribute": value.get("choice_attribute") or value.get("choiceAttribute") or "",
+                    "attribute_setting": attribute_setting,
+                }
+            )
+        return choices
 
     @staticmethod
     def install_items(values):
