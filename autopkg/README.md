@@ -21,6 +21,11 @@ is present. `WoodstarMunkiPackageUploader` then converts the generated pkginfo
 into Woodstar's normal package API shape and creates or updates the matching
 package version using `woodstar_software_id`.
 
+Package artifacts are reused by default when Woodstar already has the same
+filename, SHA-256, and size at the expected storage location. Pass `-k force=true`
+to upload the package artifact again. App metadata and package metadata are
+cheap upserts; AutoPkg summaries are only emitted when Woodstar changes.
+
 `requires` and `update_for` must contain Woodstar package IDs, matching what
 Woodstar will render as Munki item names. `nopkg` items are imported without a
 package artifact. `uninstall_package` items upload `uninstaller_pkg_path` as a
@@ -62,3 +67,36 @@ targets:
   exclude:
     - label_name: Excluded Devices
 ```
+
+## Cleanup
+
+`WoodstarMunkiPackageCleaner` keeps the newest package rows for one software item
+and deletes older rows. It defaults to `woodstar_software_id` from the app
+uploader and keeps 5 versions:
+
+```yaml
+Process:
+  - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiPackageCleaner
+    Arguments:
+      keep_version_count: 5
+```
+
+After deleting package rows it tries to delete their installer artifacts. Woodstar
+will keep artifacts that are still referenced by another package.
+
+## Repo Import
+
+`com.github.woodleighschool.woodstar.munki.repo-import` imports every pkginfo
+under `MUNKI_REPO/pkgsinfo`. Use it as a recipe after the app recipes in the
+same run, similar to where `com.github.autopkg.munki.makecatalogs` sits in a
+recipe list:
+
+```sh
+autopkg run com.github.woodleighschool.munki.Blender \
+  com.github.autopkg.munki.makecatalogs \
+  com.github.woodleighschool.woodstar.munki.repo-import
+```
+
+It creates missing software rows, leaves existing software metadata alone, and
+syncs package rows from pkginfo. It uses the same package conversion path as the
+per-recipe package processor and does not set targets.

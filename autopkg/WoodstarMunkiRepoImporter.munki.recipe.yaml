@@ -1,0 +1,9 @@
+---
+Description: >-
+  Imports the Munki repo into Woodstar. Existing software metadata is left alone;
+  package rows are synced from pkginfo.
+Identifier: com.github.woodleighschool.woodstar.munki.repo-import
+Input: {}
+MinimumVersion: "2.7"
+Process:
+  - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiRepoImporter

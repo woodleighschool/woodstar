@@ -1,26 +1,29 @@
 #!/usr/local/autopkg/python
 
 import hashlib
-import http.client
 import json
 import mimetypes
 import os
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+import posixpath
+from urllib.parse import urlsplit
 
+import requests
 from autopkglib import ProcessorError
 
 
 class WoodstarClient:
     def __init__(self, base_url, api_key):
         self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            }
+        )
 
     def get(self, path, query=None):
-        if query:
-            path = f"{path}?{urlencode(query)}"
-        return self.request("GET", path)
+        return self.request("GET", path, query=query)
 
     def post(self, path, body=None):
         return self.request("POST", path, body)
@@ -31,53 +34,75 @@ class WoodstarClient:
     def patch(self, path, body=None):
         return self.request("PATCH", path, body)
 
-    def request(self, method, path, body=None):
-        data = None
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json",
-        }
+    def delete(self, path):
+        return self.request("DELETE", path)
+
+    def request(self, method, path, body=None, query=None):
+        request_kwargs = {}
+        if query:
+            request_kwargs["params"] = query
         if body is not None:
-            data = json.dumps(json_safe(body), separators=(",", ":")).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        request = Request(
-            f"{self.base_url}{path}",
-            data=data,
-            headers=headers,
-            method=method,
-        )
+            request_kwargs["json"] = json_safe(body)
         try:
-            with urlopen(request) as response:
-                payload = response.read()
-        except HTTPError as err:
-            raise ProcessorError(http_error_message(method, path, err)) from err
-        except URLError as err:
-            raise ProcessorError(f"{method} {path} failed: {err.reason}") from err
-        if not payload:
+            response = self.session.request(method, f"{self.base_url}{path}", **request_kwargs)
+            response.raise_for_status()
+        except requests.HTTPError as err:
+            raise ProcessorError(http_error_message(method, path, err.response)) from err
+        except requests.RequestException as err:
+            raise ProcessorError(f"{method} {path} failed: {err}") from err
+        if not response.content:
             return None
-        return json.loads(payload.decode("utf-8"))
+        return response.json()
 
     def upload_artifact(self, kind, file_path, display_name=None):
-        file_path = os.path.abspath(file_path)
-        if not os.path.isfile(file_path):
-            raise ProcessorError(f"Artifact file does not exist: {file_path}")
-        filename = os.path.basename(file_path)
-        size_bytes = os.path.getsize(file_path)
-        sha256 = sha256sum(file_path)
-        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        artifact, _uploaded = self.upload_artifact_status(kind, file_path, display_name, force=True)
+        return artifact
+
+    def upload_artifact_status(self, kind, file_path, display_name=None, force=False, artifact_index=None):
+        target = artifact_target(kind, file_path, display_name)
+        if not force:
+            existing = find_artifact(self, target, artifact_index)
+            if existing:
+                return existing, False
+
         upload = self.post(
             "/api/munki/artifact-uploads",
             {
-                "kind": kind,
-                "filename": filename,
-                "display_name": display_name or filename,
-                "content_type": content_type,
-                "size_bytes": size_bytes,
-                "sha256": sha256,
+                "kind": target["kind"],
+                "filename": target["filename"],
+                "display_name": target["display_name"],
+                "content_type": target["content_type"],
+                "size_bytes": target["size_bytes"],
+                "sha256": target["sha256"],
             },
         )
-        put_file(upload["upload_url"], file_path, upload.get("headers") or {})
-        return self.post("/api/munki/artifacts", upload["artifact"])
+        put_file(upload["upload_url"], target["file_path"], upload.get("headers") or {})
+        artifact = self.post("/api/munki/artifacts", upload["artifact"])
+        if artifact_index is not None:
+            artifact_index[artifact_index_key(artifact)] = artifact
+        return artifact, True
+
+
+def artifact_target(kind, file_path, display_name=None):
+    file_path = os.path.abspath(file_path)
+    if not os.path.isfile(file_path):
+        raise ProcessorError(f"Artifact file does not exist: {file_path}")
+    filename = clean_upload_filename(os.path.basename(file_path))
+    size_bytes = os.path.getsize(file_path)
+    sha256 = sha256sum(file_path)
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    location = artifact_location(sha256, filename)
+    return {
+        "kind": kind,
+        "file_path": file_path,
+        "filename": filename,
+        "display_name": display_name or filename,
+        "location": location,
+        "content_type": content_type,
+        "size_bytes": size_bytes,
+        "sha256": sha256,
+        "storage_key": artifact_storage_key(kind, location),
+    }
 
 
 def client_from_env(env):
@@ -91,14 +116,82 @@ def client_from_env(env):
 
 
 def find_exact(client, path, field, value, extra_query=None):
-    query = {"q": value, "page_size": 1000}
+    query = {"q": value, "per_page": 1000}
     if extra_query:
         query.update(extra_query)
-    page = client.get(path, query)
-    for item in page.get("items", []):
+    for item in list_items(client, path, query):
         if item.get(field) == value:
             return item
     return None
+
+
+def list_items(client, path, query=None, per_page=1000):
+    query = dict(query or {})
+    query.setdefault("per_page", per_page)
+    page_number = int(query.get("page") or 1)
+    items = []
+    while True:
+        query["page"] = page_number
+        page = client.get(path, query)
+        page_items = page.get("items") or []
+        items.extend(page_items)
+        count = page.get("count")
+        if not page_items:
+            break
+        if count is not None and len(items) >= int(count):
+            break
+        if len(page_items) < int(query["per_page"]):
+            break
+        page_number += 1
+    return items
+
+
+def find_artifact(client, target, artifact_index=None):
+    if artifact_index is not None:
+        return artifact_index.get(artifact_index_key(target))
+    for artifact in list_items(client, "/api/munki/artifacts"):
+        if (
+            artifact.get("kind") == target["kind"]
+            and artifact.get("location") == target["location"]
+            and artifact.get("sha256") == target["sha256"]
+            and int(artifact.get("size_bytes") or 0) == int(target["size_bytes"])
+        ):
+            return artifact
+    return None
+
+
+def artifact_index(client):
+    return {artifact_index_key(artifact): artifact for artifact in list_items(client, "/api/munki/artifacts")}
+
+
+def artifact_index_key(artifact):
+    return (
+        artifact.get("kind"),
+        artifact.get("location"),
+        artifact.get("sha256"),
+        int(artifact.get("size_bytes") or 0),
+    )
+
+
+def clean_upload_filename(filename):
+    filename = posixpath.basename(str(filename).strip().replace("\\", "/"))
+    if filename in {"", ".", "/"}:
+        raise ProcessorError("artifact filename is required")
+    return filename
+
+
+def artifact_location(sha256, filename):
+    if len(sha256) >= 12:
+        return f"{sha256[:12]}/{filename}"
+    return filename
+
+
+def artifact_storage_key(kind, location):
+    if kind == "package":
+        return f"pkgs/{location}"
+    if kind == "icon":
+        return f"icons/{location}"
+    return f"{kind}/{location}"
 
 
 def sha256sum(file_path):
@@ -111,32 +204,32 @@ def sha256sum(file_path):
 
 def put_file(url, file_path, headers):
     parts = urlsplit(url)
-    path = parts.path or "/"
-    if parts.query:
-        path = f"{path}?{parts.query}"
-    conn_cls = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
+    if parts.scheme not in {"http", "https"}:
+        raise ProcessorError(f"unsupported artifact upload URL scheme: {parts.scheme}")
+    if not parts.hostname:
+        raise ProcessorError("artifact upload URL is missing a host")
+
     headers = dict(headers)
     headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
     with open(file_path, "rb") as handle:
-        conn = conn_cls(parts.netloc)
         try:
-            conn.request("PUT", path, body=handle, headers=headers)
-            response = conn.getresponse()
-            body = response.read().decode("utf-8", "replace")
-            if response.status < 200 or response.status >= 300:
-                raise ProcessorError(f"PUT artifact failed: HTTP {response.status} {body}")
-        finally:
-            conn.close()
+            response = requests.put(url, data=handle, headers=headers)
+        except requests.RequestException as err:
+            raise ProcessorError(f"PUT artifact failed: {err}") from err
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ProcessorError(f"PUT artifact failed: HTTP {response.status_code} {response.text}")
 
 
-def http_error_message(method, path, err):
-    body = err.read().decode("utf-8", "replace")
+def http_error_message(method, path, response):
+    body = response.text
     try:
         parsed = json.loads(body)
     except ValueError:
         parsed = {}
-    message = parsed.get("message") or parsed.get("detail") or body or err.reason
-    return f"{method} {path} failed: HTTP {err.code}: {message}"
+    message = parsed.get("message") or parsed.get("detail") or body or response.reason
+    if parsed.get("errors"):
+        message = f"{message}: {json.dumps(parsed['errors'], separators=(',', ':'))}"
+    return f"{method} {path} failed: HTTP {response.status_code}: {message}"
 
 
 def json_safe(value):

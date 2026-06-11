@@ -60,6 +60,7 @@ class WoodstarMunkiAppUploader(Processor):
     }
 
     def main(self):
+        self.env.pop("woodstarmunkiappuploader_summary_result", None)
         client = client_from_env(self.env)
         pkginfo = self.env.get("munki_info") or self.env.get("pkginfo") or {}
         name = self.software_name(pkginfo)
@@ -72,23 +73,23 @@ class WoodstarMunkiAppUploader(Processor):
             icon_artifact = client.upload_artifact("icon", icon_path, os.path.basename(icon_path))
             self.env["woodstar_icon_artifact"] = icon_artifact
 
-        software = self.upsert_software(client, pkginfo, name, icon_artifact)
+        software, changed, action = self.upsert_software(client, pkginfo, name, icon_artifact)
         targets = software.get("targets") or empty_targets()
 
         self.env["woodstar_software"] = software
         self.env["woodstar_software_id"] = software["id"]
         self.env["woodstar_targets"] = targets
-        self.env["woodstarmunkiappuploader_summary_result"] = {
-            "summary_text": "Woodstar Munki app processed",
-            "report_fields": ["id", "name", "include_targets", "exclude_targets"],
-            "data": {
-                "id": str(software["id"]),
-                "name": software["name"],
-                "include_targets": str(len(targets.get("include") or [])),
-                "exclude_targets": str(len(targets.get("exclude") or [])),
-            },
-        }
-        self.output(f"Processed Woodstar Munki software {software['id']}: {software['name']}")
+        if changed:
+            self.env["woodstarmunkiappuploader_summary_result"] = {
+                "summary_text": "Woodstar Munki app updated",
+                "report_fields": ["id", "name", "action"],
+                "data": {
+                    "id": str(software["id"]),
+                    "name": software["name"],
+                    "action": action,
+                },
+            }
+        self.output(f"{action} Woodstar Munki software {software['id']}: {software['name']}")
 
     def upsert_software(self, client, pkginfo, name, icon_artifact):
         body = {
@@ -97,18 +98,29 @@ class WoodstarMunkiAppUploader(Processor):
             "category": self.env.get("category") or pkginfo.get("category") or "",
             "developer": self.env.get("developer") or pkginfo.get("developer") or "",
         }
-        if icon_artifact:
-            body["icon_artifact_id"] = icon_artifact["id"]
         existing = find_exact(client, "/api/munki/software", "name", name)
         existing_detail = None
         if existing:
             existing_detail = client.get(f"/api/munki/software/{existing['id']}")
+        if icon_artifact:
+            body["icon_artifact_id"] = icon_artifact["id"]
+        elif existing_detail and existing_detail.get("icon_artifact_id"):
+            body["icon_artifact_id"] = existing_detail["icon_artifact_id"]
         body["targets"] = self.target_body(client, existing_detail)
         if existing:
+            if self.software_matches(existing_detail, body):
+                return existing_detail, False, "Skipped"
             self.output(f"Updating Woodstar Munki software: {name}")
-            return client.put(f"/api/munki/software/{existing['id']}", body)
+            return client.put(f"/api/munki/software/{existing['id']}", body), True, "Updated"
         self.output(f"Creating Woodstar Munki software: {name}")
-        return client.post("/api/munki/software", body)
+        return client.post("/api/munki/software", body), True, "Created"
+
+    @staticmethod
+    def software_matches(existing, body):
+        for key, value in body.items():
+            if normalized(existing.get(key)) != normalized(value):
+                return False
+        return True
 
     def software_name(self, pkginfo):
         return (
@@ -206,6 +218,14 @@ class WoodstarMunkiAppUploader(Processor):
 
 def empty_targets():
     return {"include": [], "exclude": []}
+
+
+def normalized(value):
+    if isinstance(value, dict):
+        return {key: normalized(item) for key, item in sorted(value.items()) if item is not None}
+    if isinstance(value, list):
+        return [normalized(item) for item in value]
+    return value
 
 
 if __name__ == "__main__":
