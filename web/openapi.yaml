@@ -3,13 +3,6 @@ components:
     Account:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Account.json
-          format: uri
-          readOnly: true
-          type: string
         api_key:
           type: string
         api_key_created_at:
@@ -23,13 +16,6 @@ components:
     AccountMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/AccountMutation.json
-          format: uri
-          readOnly: true
-          type: string
         name:
           type: string
         password:
@@ -40,13 +26,6 @@ components:
     AgentSecret:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/AgentSecret.json
-          format: uri
-          readOnly: true
-          type: string
         agent:
           enum:
             - orbit
@@ -70,13 +49,6 @@ components:
     AgentSecretCreate:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/AgentSecretCreate.json
-          format: uri
-          readOnly: true
-          type: string
         agent:
           enum:
             - orbit
@@ -93,13 +65,6 @@ components:
     AgentSecretMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/AgentSecretMutation.json
-          format: uri
-          readOnly: true
-          type: string
         value:
           minLength: 32
           type: string
@@ -109,13 +74,6 @@ components:
     BulkIDsBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/BulkIDsBody.json
-          format: uri
-          readOnly: true
-          type: string
         ids:
           items:
             format: int64
@@ -181,13 +139,6 @@ components:
     ErrorModel:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ErrorModel.json
-          format: uri
-          readOnly: true
-          type: string
         detail:
           description: A human-readable explanation specific to this occurrence of the problem.
           examples:
@@ -228,13 +179,6 @@ components:
     Group:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Group.json
-          format: uri
-          readOnly: true
-          type: string
         created_at:
           format: date-time
           type: string
@@ -441,13 +385,6 @@ components:
     HostDetail:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostDetail.json
-          format: uri
-          readOnly: true
-          type: string
         agents:
           $ref: "#/components/schemas/HostAgents"
         batteries:
@@ -785,13 +722,6 @@ components:
     HostUserAffinityPutBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostUserAffinityPutBody.json
-          format: uri
-          readOnly: true
-          type: string
         email:
           format: email
           minLength: 3
@@ -802,13 +732,6 @@ components:
     Label:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Label.json
-          format: uri
-          readOnly: true
-          type: string
         builtin_key:
           enum:
             - all-hosts
@@ -863,13 +786,6 @@ components:
     LabelMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/LabelMutation.json
-          format: uri
-          readOnly: true
-          type: string
         criteria:
           $ref: "#/components/schemas/Criteria"
         description:
@@ -907,13 +823,6 @@ components:
     LoginInputBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/LoginInputBody.json
-          format: uri
-          readOnly: true
-          type: string
         email:
           format: email
           type: string
@@ -927,13 +836,6 @@ components:
     MunkiArtifact:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiArtifact.json
-          format: uri
-          readOnly: true
-          type: string
         content_type:
           type: string
         created_at:
@@ -976,13 +878,6 @@ components:
     MunkiArtifactMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiArtifactMutation.json
-          format: uri
-          readOnly: true
-          type: string
         content_type:
           type: string
         display_name:
@@ -1011,13 +906,6 @@ components:
     MunkiArtifactUpload:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiArtifactUpload.json
-          format: uri
-          readOnly: true
-          type: string
         artifact:
           $ref: "#/components/schemas/MunkiArtifactMutation"
         headers:
@@ -1033,13 +921,6 @@ components:
     MunkiArtifactUploadMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiArtifactUploadMutation.json
-          format: uri
-          readOnly: true
-          type: string
         content_type:
           type: string
         display_name:
@@ -1134,13 +1015,6 @@ components:
     MunkiPackage:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiPackage.json
-          format: uri
-          readOnly: true
-          type: string
         apple_item:
           type: boolean
         autoremove:
@@ -1377,13 +1251,6 @@ components:
     MunkiPackageCreateMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiPackageCreateMutation.json
-          format: uri
-          readOnly: true
-          type: string
         apple_item:
           type: boolean
         autoremove:
@@ -1614,13 +1481,6 @@ components:
     MunkiPackageMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiPackageMutation.json
-          format: uri
-          readOnly: true
-          type: string
         apple_item:
           type: boolean
         autoremove:
@@ -1844,13 +1704,6 @@ components:
     MunkiSoftwareDetail:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiSoftwareDetail.json
-          format: uri
-          readOnly: true
-          type: string
         category:
           type: string
         created_at:
@@ -1932,13 +1785,6 @@ components:
     MunkiSoftwareMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/MunkiSoftwareMutation.json
-          format: uri
-          readOnly: true
-          type: string
         category:
           type: string
         description:
@@ -1994,13 +1840,6 @@ components:
     OsqueryCheck:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryCheck.json
-          format: uri
-          readOnly: true
-          type: string
         created_at:
           format: date-time
           type: string
@@ -2069,13 +1908,6 @@ components:
     OsqueryCheckMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryCheckMutation.json
-          format: uri
-          readOnly: true
-          type: string
         description:
           type: string
         name:
@@ -2107,13 +1939,6 @@ components:
     OsqueryHandle:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryHandle.json
-          format: uri
-          readOnly: true
-          type: string
         id:
           format: int64
           type: integer
@@ -2160,13 +1985,6 @@ components:
     OsqueryHostReportResultsBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryHostReportResultsBody.json
-          format: uri
-          readOnly: true
-          type: string
         host_id:
           format: int64
           type: integer
@@ -2203,13 +2021,6 @@ components:
     OsqueryLiveQueryCreateBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryLiveQueryCreateBody.json
-          format: uri
-          readOnly: true
-          type: string
         report_id:
           format: int64
           type: integer
@@ -2271,13 +2082,6 @@ components:
     OsqueryLiveQueryTargetCountBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryLiveQueryTargetCountBody.json
-          format: uri
-          readOnly: true
-          type: string
         report_id:
           format: int64
           type: integer
@@ -2287,13 +2091,6 @@ components:
     OsqueryLiveQueryTargetCountOutputBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryLiveQueryTargetCountOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
         targets_count:
           format: int64
           type: integer
@@ -2311,13 +2108,6 @@ components:
     OsqueryReport:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryReport.json
-          format: uri
-          readOnly: true
-          type: string
         created_at:
           format: date-time
           type: string
@@ -2356,13 +2146,6 @@ components:
     OsqueryReportMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/OsqueryReportMutation.json
-          format: uri
-          readOnly: true
-          type: string
         description:
           type: string
         min_osquery_version:
@@ -2426,13 +2209,6 @@ components:
     PageArtifact:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageArtifact.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2447,13 +2223,6 @@ components:
     PageCheck:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageCheck.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2468,13 +2237,6 @@ components:
     PageConfiguration:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageConfiguration.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2489,13 +2251,6 @@ components:
     PageDepartment:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageDepartment.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2510,13 +2265,6 @@ components:
     PageExecutionEvent:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageExecutionEvent.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2531,13 +2279,6 @@ components:
     PageFileAccessEvent:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageFileAccessEvent.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2552,13 +2293,6 @@ components:
     PageGroup:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageGroup.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2573,13 +2307,6 @@ components:
     PageHost:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageHost.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2594,13 +2321,6 @@ components:
     PageHostSoftwareRow:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageHostSoftwareRow.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2615,13 +2335,6 @@ components:
     PageLabel:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageLabel.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2636,13 +2349,6 @@ components:
     PageMunkiPackage:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageMunkiPackage.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2657,13 +2363,6 @@ components:
     PageMunkiSoftware:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageMunkiSoftware.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2678,13 +2377,6 @@ components:
     PageReport:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageReport.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2699,13 +2391,6 @@ components:
     PageRule:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageRule.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2720,13 +2405,6 @@ components:
     PageRuleStatus:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageRuleStatus.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2741,13 +2419,6 @@ components:
     PageSoftwareTitle:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageSoftwareTitle.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2762,13 +2433,6 @@ components:
     PageUser:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageUser.json
-          format: uri
-          readOnly: true
-          type: string
         count:
           format: int64
           type: integer
@@ -2871,13 +2535,6 @@ components:
     SantaConfiguration:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaConfiguration.json
-          format: uri
-          readOnly: true
-          type: string
         allowed_path_regex:
           type: string
         batch_size:
@@ -3012,13 +2669,6 @@ components:
     SantaConfigurationMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaConfigurationMutation.json
-          format: uri
-          readOnly: true
-          type: string
         allowed_path_regex:
           type: string
         batch_size:
@@ -3071,13 +2721,6 @@ components:
     SantaConfigurationReorderBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaConfigurationReorderBody.json
-          format: uri
-          readOnly: true
-          type: string
         ordered_ids:
           items:
             format: int64
@@ -3220,13 +2863,6 @@ components:
     SantaExecutionEvent:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaExecutionEvent.json
-          format: uri
-          readOnly: true
-          type: string
         current_sessions:
           items:
             type: string
@@ -3305,13 +2941,6 @@ components:
     SantaFileAccessEvent:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaFileAccessEvent.json
-          format: uri
-          readOnly: true
-          type: string
         decision:
           enum:
             - unknown
@@ -3494,13 +3123,6 @@ components:
     SantaRule:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaRule.json
-          format: uri
-          readOnly: true
-          type: string
         created_at:
           format: date-time
           type: string
@@ -3567,13 +3189,6 @@ components:
     SantaRuleMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaRuleMutation.json
-          format: uri
-          readOnly: true
-          type: string
         custom_message:
           type: string
         custom_url:
@@ -3821,13 +3436,6 @@ components:
     SantaSoftwareReference:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SantaSoftwareReference.json
-          format: uri
-          readOnly: true
-          type: string
         block_count:
           format: int32
           type: integer
@@ -3876,13 +3484,6 @@ components:
     SessionBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SessionBody.json
-          format: uri
-          readOnly: true
-          type: string
         setup_complete:
           type: boolean
         sso_enabled:
@@ -3896,13 +3497,6 @@ components:
     SetupInputBody:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SetupInputBody.json
-          format: uri
-          readOnly: true
-          type: string
         email:
           format: email
           type: string
@@ -3918,13 +3512,6 @@ components:
     SoftwareTitle:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SoftwareTitle.json
-          format: uri
-          readOnly: true
-          type: string
         browser:
           type: string
         bundle_identifier:
@@ -3990,13 +3577,6 @@ components:
     User:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/User.json
-          format: uri
-          readOnly: true
-          type: string
         can_login:
           type: boolean
         created_at:
@@ -4050,13 +3630,6 @@ components:
     UserCreate:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/UserCreate.json
-          format: uri
-          readOnly: true
-          type: string
         email:
           format: email
           type: string
@@ -4078,13 +3651,6 @@ components:
     UserMutation:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/UserMutation.json
-          format: uri
-          readOnly: true
-          type: string
         name:
           type: string
         password:

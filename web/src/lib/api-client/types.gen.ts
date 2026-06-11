@@ -5,29 +5,17 @@ export type ClientOptions = {
 };
 
 export type Account = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     api_key?: string;
     api_key_created_at?: string;
     user: User;
 };
 
 export type AccountMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     name: string;
     password?: string;
 };
 
 export type AgentSecret = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     agent: 'orbit' | 'munki' | 'santa';
     created_at: string;
     id: number;
@@ -35,27 +23,15 @@ export type AgentSecret = {
 };
 
 export type AgentSecretCreate = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     agent: 'orbit' | 'munki' | 'santa';
     value: string;
 };
 
 export type AgentSecretMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     value: string;
 };
 
 export type BulkIdsBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     ids: Array<number> | null;
 };
 
@@ -92,10 +68,6 @@ export type ErrorDetail = {
 
 export type ErrorModel = {
     /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    /**
      * A human-readable explanation specific to this occurrence of the problem.
      */
     detail?: string;
@@ -122,10 +94,6 @@ export type ErrorModel = {
 };
 
 export type Group = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     created_at: string;
     display_name: string;
     external_id: string;
@@ -201,10 +169,6 @@ export type HostCertificate = {
 };
 
 export type HostDetail = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     agents: HostAgents;
     batteries: Array<HostBattery> | null;
     certificates: Array<HostCertificate> | null;
@@ -322,18 +286,10 @@ export type HostUserAffinityPrimary = {
 };
 
 export type HostUserAffinityPutBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     email: string;
 };
 
 export type Label = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     readonly builtin_key?: 'all-hosts';
     created_at?: string;
     criteria?: Criteria;
@@ -349,10 +305,6 @@ export type Label = {
 };
 
 export type LabelMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     criteria?: Criteria;
     description?: string;
     host_ids?: Array<number> | null;
@@ -366,19 +318,11 @@ export type LabelRef = {
 };
 
 export type LoginInputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     email: string;
     password: string;
 };
 
 export type MunkiArtifact = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     content_type: string;
     created_at: string;
     display_name: string;
@@ -392,10 +336,6 @@ export type MunkiArtifact = {
 };
 
 export type MunkiArtifactMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     content_type?: string;
     display_name?: string;
     kind: 'package' | 'icon';
@@ -406,10 +346,6 @@ export type MunkiArtifactMutation = {
 };
 
 export type MunkiArtifactUpload = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     artifact: MunkiArtifactMutation;
     headers?: {
         [key: string]: string;
@@ -418,10 +354,6 @@ export type MunkiArtifactUpload = {
 };
 
 export type MunkiArtifactUploadMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     content_type?: string;
     display_name?: string;
     filename: string;
@@ -452,10 +384,6 @@ export type MunkiItem = {
 };
 
 export type MunkiPackage = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     apple_item: boolean;
     autoremove: boolean;
     blocking_applications: Array<string> | null;
@@ -521,10 +449,6 @@ export type MunkiPackageAlert = {
 };
 
 export type MunkiPackageCreateMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
@@ -605,10 +529,6 @@ export type MunkiPackageItemToCopy = {
 };
 
 export type MunkiPackageMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
@@ -684,10 +604,6 @@ export type MunkiSoftware = {
 };
 
 export type MunkiSoftwareDetail = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     category: string;
     created_at: string;
     description: string;
@@ -712,10 +628,6 @@ export type MunkiSoftwareInclude = {
 };
 
 export type MunkiSoftwareMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     category?: string;
     description?: string;
     developer?: string;
@@ -737,10 +649,6 @@ export type MunkiSoftwareTargets = {
 };
 
 export type OsqueryCheck = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     created_at: string;
     created_by_user_id?: number;
     description: string;
@@ -763,10 +671,6 @@ export type OsqueryCheckHostStatus = {
 };
 
 export type OsqueryCheckMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     description?: string;
     name: string;
     query: string;
@@ -779,10 +683,6 @@ export type OsqueryCheckTargets = {
 };
 
 export type OsqueryHandle = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     id: number;
     resolved_host_count: number;
     sql: string;
@@ -801,10 +701,6 @@ export type OsqueryHostReport = {
 };
 
 export type OsqueryHostReportResultsBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     host_id: number;
     host_name: string;
     items: Array<OsqueryReportResult> | null;
@@ -817,10 +713,6 @@ export type OsqueryLiveQueryCompletedEvent = {
 };
 
 export type OsqueryLiveQueryCreateBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     report_id?: number;
     selected?: OsqueryLiveQuerySelectedBody;
     sql: string;
@@ -844,29 +736,17 @@ export type OsqueryLiveQuerySelectedBody = {
 };
 
 export type OsqueryLiveQueryTargetCountBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     report_id?: number;
     selected?: OsqueryLiveQuerySelectedBody;
 };
 
 export type OsqueryLiveQueryTargetCountOutputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     targets_count: number;
     targets_offline: number;
     targets_online: number;
 };
 
 export type OsqueryReport = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     created_at: string;
     created_by_user_id?: number;
     description: string;
@@ -880,10 +760,6 @@ export type OsqueryReport = {
 };
 
 export type OsqueryReportMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     description?: string;
     min_osquery_version?: string;
     name: string;
@@ -909,154 +785,86 @@ export type OsqueryReportTargets = {
 };
 
 export type PageArtifact = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<MunkiArtifact>;
 };
 
 export type PageCheck = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<OsqueryCheck>;
 };
 
 export type PageConfiguration = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SantaConfiguration>;
 };
 
 export type PageDepartment = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<Department>;
 };
 
 export type PageExecutionEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SantaExecutionEvent>;
 };
 
 export type PageFileAccessEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SantaFileAccessEvent>;
 };
 
 export type PageGroup = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<Group>;
 };
 
 export type PageHost = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<Host>;
 };
 
 export type PageHostSoftwareRow = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<HostSoftwareRow>;
 };
 
 export type PageLabel = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<Label>;
 };
 
 export type PageMunkiPackage = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<MunkiPackage>;
 };
 
 export type PageMunkiSoftware = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<MunkiSoftware>;
 };
 
 export type PageReport = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<OsqueryReport>;
 };
 
 export type PageRule = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SantaRule>;
 };
 
 export type PageRuleStatus = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SantaRuleStatus>;
 };
 
 export type PageSoftwareTitle = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<SoftwareTitle>;
 };
 
 export type PageUser = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     count: number;
     items: Array<User>;
 };
@@ -1094,10 +902,6 @@ export type SantaCertificateReference = {
 };
 
 export type SantaConfiguration = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     allowed_path_regex?: string;
     batch_size: number;
     blocked_path_regex?: string;
@@ -1143,10 +947,6 @@ export type SantaConfigurationMatch = {
 };
 
 export type SantaConfigurationMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     allowed_path_regex?: string;
     batch_size: number;
     blocked_path_regex?: string;
@@ -1165,10 +965,6 @@ export type SantaConfigurationMutation = {
 };
 
 export type SantaConfigurationReorderBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     ordered_ids: Array<number> | null;
 };
 
@@ -1217,10 +1013,6 @@ export type SantaExecutableReference = {
 };
 
 export type SantaExecutionEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     current_sessions: Array<string> | null;
     decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
     executable: SantaExecutable;
@@ -1238,10 +1030,6 @@ export type SantaExecutionEvent = {
 };
 
 export type SantaFileAccessEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
     host: SantaHostSummary;
     host_id: number;
@@ -1304,10 +1092,6 @@ export type SantaRemovableMediaPolicy = {
 };
 
 export type SantaRule = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     created_at: string;
     custom_message: string;
     custom_url: string;
@@ -1327,10 +1111,6 @@ export type SantaRuleInclude = {
 };
 
 export type SantaRuleMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     custom_message?: string;
     custom_url?: string;
     description?: string;
@@ -1412,10 +1192,6 @@ export type SantaSigningIdentityReference = {
 };
 
 export type SantaSoftwareReference = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     block_count: number;
     bundles: Array<SantaBundleReference> | null;
     certificates: Array<SantaCertificateReference> | null;
@@ -1426,30 +1202,18 @@ export type SantaSoftwareReference = {
 };
 
 export type SessionBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     setup_complete: boolean;
     sso_enabled: boolean;
     user?: User;
 };
 
 export type SetupInputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     email: string;
     name?: string;
     password: string;
 };
 
 export type SoftwareTitle = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     browser: string;
     bundle_identifier?: string;
     counts_updated_at: string | null;
@@ -1471,10 +1235,6 @@ export type SoftwareVersion = {
 };
 
 export type User = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     can_login: boolean;
     created_at: string;
     deleted_at?: string;
@@ -1493,10 +1253,6 @@ export type User = {
 };
 
 export type UserCreate = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     email: string;
     name?: string;
     password: string;
@@ -1504,82 +1260,9 @@ export type UserCreate = {
 };
 
 export type UserMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     name: string;
     password?: string;
     role?: 'admin' | 'viewer';
-};
-
-export type AccountWritable = {
-    api_key?: string;
-    api_key_created_at?: string;
-    user: UserWritable;
-};
-
-export type AccountMutationWritable = {
-    name: string;
-    password?: string;
-};
-
-export type AgentSecretWritable = {
-    agent: 'orbit' | 'munki' | 'santa';
-    created_at: string;
-    id: number;
-    value: string;
-};
-
-export type AgentSecretCreateWritable = {
-    agent: 'orbit' | 'munki' | 'santa';
-    value: string;
-};
-
-export type AgentSecretMutationWritable = {
-    value: string;
-};
-
-export type BulkIdsBodyWritable = {
-    ids: Array<number> | null;
-};
-
-export type ErrorModelWritable = {
-    /**
-     * A human-readable explanation specific to this occurrence of the problem.
-     */
-    detail?: string;
-    /**
-     * Optional list of individual error details
-     */
-    errors?: Array<ErrorDetail> | null;
-    /**
-     * A URI reference that identifies the specific occurrence of the problem.
-     */
-    instance?: string;
-    /**
-     * HTTP status code
-     */
-    status?: number;
-    /**
-     * A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
-     */
-    title?: string;
-    /**
-     * A URI reference to human-readable documentation for the error.
-     */
-    type?: string;
-};
-
-export type GroupWritable = {
-    created_at: string;
-    display_name: string;
-    external_id: string;
-    id: number;
-    mail_nickname?: string;
-    member_count: number;
-    source: 'local' | 'entra';
-    updated_at: string;
 };
 
 export type HostDetailWritable = {
@@ -1604,10 +1287,6 @@ export type HostDetailWritable = {
     users: Array<HostUser> | null;
 };
 
-export type HostUserAffinityPutBodyWritable = {
-    email: string;
-};
-
 export type LabelWritable = {
     created_at?: string;
     criteria?: Criteria;
@@ -1622,561 +1301,9 @@ export type LabelWritable = {
     updated_at?: string;
 };
 
-export type LabelMutationWritable = {
-    criteria?: Criteria;
-    description?: string;
-    host_ids?: Array<number> | null;
-    label_membership_type?: 'dynamic' | 'manual' | 'derived';
-    name: string;
-    query?: string;
-};
-
-export type LoginInputBodyWritable = {
-    email: string;
-    password: string;
-};
-
-export type MunkiArtifactWritable = {
-    content_type: string;
-    created_at: string;
-    display_name: string;
-    id: number;
-    kind: 'package' | 'icon';
-    location: string;
-    sha256: string;
-    size_bytes: number;
-    storage_key: string;
-    updated_at: string;
-};
-
-export type MunkiArtifactMutationWritable = {
-    content_type?: string;
-    display_name?: string;
-    kind: 'package' | 'icon';
-    location: string;
-    sha256: string;
-    size_bytes: number;
-    storage_key: string;
-};
-
-export type MunkiArtifactUploadWritable = {
-    artifact: MunkiArtifactMutationWritable;
-    headers?: {
-        [key: string]: string;
-    };
-    upload_url: string;
-};
-
-export type MunkiArtifactUploadMutationWritable = {
-    content_type?: string;
-    display_name?: string;
-    filename: string;
-    kind: 'package' | 'icon';
-    sha256: string;
-    size_bytes: number;
-};
-
-export type MunkiPackageWritable = {
-    apple_item: boolean;
-    autoremove: boolean;
-    blocking_applications: Array<string> | null;
-    blocking_applications_manual_quit_only: boolean;
-    blocking_applications_quit_script: string;
-    created_at: string;
-    eligible: boolean;
-    force_install_after_date?: string;
-    icon_url?: string;
-    id: number;
-    installable_condition: string;
-    installcheck_script: string;
-    installed_size: number;
-    installer_artifact_id?: number;
-    installer_artifact_location?: string;
-    installer_choices_xml: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
-    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs: Array<MunkiPackageInstallItem> | null;
-    items_to_copy: Array<MunkiPackageItemToCopy> | null;
-    maximum_os_version: string;
-    minimum_munki_version: string;
-    minimum_os_version: string;
-    notes: string;
-    on_demand: boolean;
-    package_path: string;
-    postinstall_script: string;
-    postuninstall_script: string;
-    precache: boolean;
-    preinstall_alert: MunkiPackageAlert;
-    preinstall_script: string;
-    preuninstall_alert: MunkiPackageAlert;
-    preuninstall_script: string;
-    receipts: Array<MunkiPackageReceipt> | null;
-    requires: Array<MunkiPackageReference> | null;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_category: string;
-    software_description: string;
-    software_developer: string;
-    software_id: number;
-    software_name: string;
-    supported_architectures: Array<string> | null;
-    suppress_bundle_relocation: boolean;
-    unattended_install: boolean;
-    unattended_uninstall: boolean;
-    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
-    uninstall_script: string;
-    uninstallcheck_script: string;
-    uninstaller_artifact_id?: number;
-    uninstaller_artifact_location?: string;
-    update_for: Array<MunkiPackageReference> | null;
-    updated_at: string;
-    version: string;
-    version_script: string;
-};
-
-export type MunkiPackageCreateMutationWritable = {
-    apple_item?: boolean;
-    autoremove?: boolean;
-    blocking_applications?: Array<string> | null;
-    blocking_applications_manual_quit_only?: boolean;
-    blocking_applications_quit_script?: string;
-    eligible: boolean;
-    force_install_after_date?: string;
-    installable_condition?: string;
-    installcheck_script?: string;
-    installed_size?: number;
-    installer_artifact_id?: number;
-    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<MunkiPackageInstallItem> | null;
-    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
-    maximum_os_version?: string;
-    minimum_munki_version?: string;
-    minimum_os_version?: string;
-    notes?: string;
-    on_demand?: boolean;
-    package_path?: string;
-    postinstall_script?: string;
-    postuninstall_script?: string;
-    precache?: boolean;
-    preinstall_alert?: MunkiPackageAlert;
-    preinstall_script?: string;
-    preuninstall_alert?: MunkiPackageAlert;
-    preuninstall_script?: string;
-    receipts?: Array<MunkiPackageReceipt> | null;
-    requires?: Array<MunkiPackageReference> | null;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_id: number;
-    supported_architectures?: Array<string> | null;
-    suppress_bundle_relocation?: boolean;
-    unattended_install?: boolean;
-    unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
-    uninstall_script?: string;
-    uninstallcheck_script?: string;
-    uninstaller_artifact_id?: number;
-    update_for?: Array<MunkiPackageReference> | null;
-    version: string;
-    version_script?: string;
-};
-
-export type MunkiPackageMutationWritable = {
-    apple_item?: boolean;
-    autoremove?: boolean;
-    blocking_applications?: Array<string> | null;
-    blocking_applications_manual_quit_only?: boolean;
-    blocking_applications_quit_script?: string;
-    eligible: boolean;
-    force_install_after_date?: string;
-    installable_condition?: string;
-    installcheck_script?: string;
-    installed_size?: number;
-    installer_artifact_id?: number;
-    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<MunkiPackageInstallItem> | null;
-    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
-    maximum_os_version?: string;
-    minimum_munki_version?: string;
-    minimum_os_version?: string;
-    notes?: string;
-    on_demand?: boolean;
-    package_path?: string;
-    postinstall_script?: string;
-    postuninstall_script?: string;
-    precache?: boolean;
-    preinstall_alert?: MunkiPackageAlert;
-    preinstall_script?: string;
-    preuninstall_alert?: MunkiPackageAlert;
-    preuninstall_script?: string;
-    receipts?: Array<MunkiPackageReceipt> | null;
-    requires?: Array<MunkiPackageReference> | null;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    supported_architectures?: Array<string> | null;
-    suppress_bundle_relocation?: boolean;
-    unattended_install?: boolean;
-    unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
-    uninstall_script?: string;
-    uninstallcheck_script?: string;
-    uninstaller_artifact_id?: number;
-    update_for?: Array<MunkiPackageReference> | null;
-    version: string;
-    version_script?: string;
-};
-
-export type MunkiSoftwareDetailWritable = {
-    category: string;
-    created_at: string;
-    description: string;
-    developer: string;
-    display_name: string;
-    icon_artifact_id?: number;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
-    icon_url?: string;
-    id: number;
-    name: string;
-    packages: Array<MunkiPackageWritable> | null;
-    targets: MunkiSoftwareTargets;
-    updated_at: string;
-};
-
-export type MunkiSoftwareMutationWritable = {
-    category?: string;
-    description?: string;
-    developer?: string;
-    icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
-    name: string;
-    targets: MunkiSoftwareTargets;
-};
-
-export type OsqueryCheckWritable = {
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    failing_host_count: number;
-    id: number;
-    name: string;
-    passing_host_count: number;
-    query: string;
-    targets: OsqueryCheckTargets;
-    updated_at: string;
-};
-
-export type OsqueryCheckMutationWritable = {
-    description?: string;
-    name: string;
-    query: string;
-    targets: OsqueryCheckTargets;
-};
-
-export type OsqueryHandleWritable = {
-    id: number;
-    resolved_host_count: number;
-    sql: string;
-    started_at: string;
-};
-
-export type OsqueryHostReportResultsBodyWritable = {
-    host_id: number;
-    host_name: string;
-    items: Array<OsqueryReportResult> | null;
-    last_fetched?: string;
-    report_id: number;
-};
-
-export type OsqueryLiveQueryCreateBodyWritable = {
-    report_id?: number;
-    selected?: OsqueryLiveQuerySelectedBody;
-    sql: string;
-};
-
-export type OsqueryLiveQueryTargetCountBodyWritable = {
-    report_id?: number;
-    selected?: OsqueryLiveQuerySelectedBody;
-};
-
-export type OsqueryLiveQueryTargetCountOutputBodyWritable = {
-    targets_count: number;
-    targets_offline: number;
-    targets_online: number;
-};
-
-export type OsqueryReportWritable = {
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    id: number;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval: number;
-    targets: OsqueryReportTargets;
-    updated_at: string;
-};
-
-export type OsqueryReportMutationWritable = {
-    description?: string;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval?: number;
-    targets: OsqueryReportTargets;
-};
-
-export type PageArtifactWritable = {
-    count: number;
-    items: Array<MunkiArtifactWritable>;
-};
-
-export type PageCheckWritable = {
-    count: number;
-    items: Array<OsqueryCheckWritable>;
-};
-
-export type PageConfigurationWritable = {
-    count: number;
-    items: Array<SantaConfigurationWritable>;
-};
-
-export type PageDepartmentWritable = {
-    count: number;
-    items: Array<Department>;
-};
-
-export type PageExecutionEventWritable = {
-    count: number;
-    items: Array<SantaExecutionEventWritable>;
-};
-
-export type PageFileAccessEventWritable = {
-    count: number;
-    items: Array<SantaFileAccessEventWritable>;
-};
-
-export type PageGroupWritable = {
-    count: number;
-    items: Array<GroupWritable>;
-};
-
-export type PageHostWritable = {
-    count: number;
-    items: Array<Host>;
-};
-
-export type PageHostSoftwareRowWritable = {
-    count: number;
-    items: Array<HostSoftwareRow>;
-};
-
 export type PageLabelWritable = {
     count: number;
     items: Array<LabelWritable>;
-};
-
-export type PageMunkiPackageWritable = {
-    count: number;
-    items: Array<MunkiPackageWritable>;
-};
-
-export type PageMunkiSoftwareWritable = {
-    count: number;
-    items: Array<MunkiSoftware>;
-};
-
-export type PageReportWritable = {
-    count: number;
-    items: Array<OsqueryReportWritable>;
-};
-
-export type PageRuleWritable = {
-    count: number;
-    items: Array<SantaRuleWritable>;
-};
-
-export type PageRuleStatusWritable = {
-    count: number;
-    items: Array<SantaRuleStatus>;
-};
-
-export type PageSoftwareTitleWritable = {
-    count: number;
-    items: Array<SoftwareTitleWritable>;
-};
-
-export type PageUserWritable = {
-    count: number;
-    items: Array<UserWritable>;
-};
-
-export type SantaConfigurationWritable = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    created_at: string;
-    description: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    id: number;
-    name: string;
-    position: number;
-    removable_media_policy?: SantaRemovableMediaPolicy;
-    targets: SantaConfigurationTargets;
-    updated_at: string;
-};
-
-export type SantaConfigurationMutationWritable = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    description?: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    name: string;
-    removable_media_policy?: SantaRemovableMediaPolicy;
-    targets: SantaConfigurationTargets;
-};
-
-export type SantaConfigurationReorderBodyWritable = {
-    ordered_ids: Array<number> | null;
-};
-
-export type SantaExecutionEventWritable = {
-    current_sessions: Array<string> | null;
-    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
-    executable: SantaExecutable;
-    executing_user: string;
-    file_path: string;
-    host: SantaHostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    logged_in_users: Array<string> | null;
-    occurred_at: string;
-    parent_name: string;
-    pid: number;
-    ppid: number;
-};
-
-export type SantaFileAccessEventWritable = {
-    decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
-    host: SantaHostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    occurred_at: string;
-    primary_process: SantaProcess;
-    process_chain?: Array<SantaProcess> | null;
-    rule_name: string;
-    rule_version: string;
-    target: string;
-};
-
-export type SantaRuleWritable = {
-    created_at: string;
-    custom_message: string;
-    custom_url: string;
-    description: string;
-    id: number;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: SantaRuleTargets;
-    updated_at: string;
-};
-
-export type SantaRuleMutationWritable = {
-    custom_message?: string;
-    custom_url?: string;
-    description?: string;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: SantaRuleTargets;
-};
-
-export type SantaSoftwareReferenceWritable = {
-    block_count: number;
-    bundles: Array<SantaBundleReference> | null;
-    certificates: Array<SantaCertificateReference> | null;
-    executables: Array<SantaExecutableReference> | null;
-    execution_count: number;
-    rules: Array<SantaRuleReference> | null;
-    signing_identities: Array<SantaSigningIdentityReference> | null;
-};
-
-export type SessionBodyWritable = {
-    setup_complete: boolean;
-    sso_enabled: boolean;
-    user?: UserWritable;
-};
-
-export type SetupInputBodyWritable = {
-    email: string;
-    name?: string;
-    password: string;
-};
-
-export type SoftwareTitleWritable = {
-    browser: string;
-    bundle_identifier?: string;
-    counts_updated_at: string | null;
-    display_name: string;
-    extension_for: string;
-    hosts_count: number;
-    id: number;
-    name: string;
-    source: string;
-    versions: Array<SoftwareVersion> | null;
-    versions_count: number;
-};
-
-export type UserWritable = {
-    can_login: boolean;
-    created_at: string;
-    deleted_at?: string;
-    department?: string;
-    email: string;
-    external_id?: string;
-    family_name?: string;
-    given_name?: string;
-    id: number;
-    mail_nickname?: string;
-    name: string;
-    role?: 'admin' | 'viewer';
-    source: 'local' | 'entra';
-    updated_at: string;
-    user_principal_name?: string;
-};
-
-export type UserCreateWritable = {
-    email: string;
-    name?: string;
-    password: string;
-    role: 'admin' | 'viewer';
-};
-
-export type UserMutationWritable = {
-    name: string;
-    password?: string;
-    role?: 'admin' | 'viewer';
 };
 
 export type GetAccountData = {
@@ -2209,7 +1336,7 @@ export type GetAccountResponses = {
 export type GetAccountResponse = GetAccountResponses[keyof GetAccountResponses];
 
 export type UpdateAccountData = {
-    body: AccountMutationWritable;
+    body: AccountMutation;
     path?: never;
     query?: never;
     url: '/api/account';
@@ -2341,7 +1468,7 @@ export type ListAgentSecretsResponses = {
 export type ListAgentSecretsResponse = ListAgentSecretsResponses[keyof ListAgentSecretsResponses];
 
 export type CreateAgentSecretData = {
-    body: AgentSecretCreateWritable;
+    body: AgentSecretCreate;
     path?: never;
     query?: never;
     url: '/api/agent-secrets';
@@ -2429,7 +1556,7 @@ export type DeleteAgentSecretResponses = {
 export type DeleteAgentSecretResponse = DeleteAgentSecretResponses[keyof DeleteAgentSecretResponses];
 
 export type UpdateAgentSecretData = {
-    body: AgentSecretMutationWritable;
+    body: AgentSecretMutation;
     path: {
         id: number;
     };
@@ -2476,7 +1603,7 @@ export type UpdateAgentSecretResponses = {
 export type UpdateAgentSecretResponse = UpdateAgentSecretResponses[keyof UpdateAgentSecretResponses];
 
 export type CreateSessionData = {
-    body: LoginInputBodyWritable;
+    body: LoginInputBody;
     path?: never;
     query?: never;
     url: '/api/auth/login';
@@ -2690,7 +1817,7 @@ export type ListHostsResponses = {
 export type ListHostsResponse = ListHostsResponses[keyof ListHostsResponses];
 
 export type BulkDeleteHostsData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/hosts/bulk-delete';
@@ -3067,7 +2194,7 @@ export type DeleteHostUserAffinityResponses = {
 export type DeleteHostUserAffinityResponse = DeleteHostUserAffinityResponses[keyof DeleteHostUserAffinityResponses];
 
 export type PutHostUserAffinityData = {
-    body: HostUserAffinityPutBodyWritable;
+    body: HostUserAffinityPutBody;
     path: {
         id: number;
     };
@@ -3154,7 +2281,7 @@ export type ListLabelsResponses = {
 export type ListLabelsResponse = ListLabelsResponses[keyof ListLabelsResponses];
 
 export type CreateLabelData = {
-    body: LabelMutationWritable;
+    body: LabelMutation;
     path?: never;
     query?: never;
     url: '/api/labels';
@@ -3277,7 +2404,7 @@ export type GetLabelResponses = {
 export type GetLabelResponse = GetLabelResponses[keyof GetLabelResponses];
 
 export type UpdateLabelData = {
-    body: LabelMutationWritable;
+    body: LabelMutation;
     path: {
         id: number;
     };
@@ -3324,7 +2451,7 @@ export type UpdateLabelResponses = {
 export type UpdateLabelResponse = UpdateLabelResponses[keyof UpdateLabelResponses];
 
 export type CreateLiveQueryData = {
-    body: OsqueryLiveQueryCreateBodyWritable;
+    body: OsqueryLiveQueryCreateBody;
     path?: never;
     query?: never;
     url: '/api/live-queries';
@@ -3361,7 +2488,7 @@ export type CreateLiveQueryResponses = {
 export type CreateLiveQueryResponse = CreateLiveQueryResponses[keyof CreateLiveQueryResponses];
 
 export type CountLiveQueryTargetsData = {
-    body: OsqueryLiveQueryTargetCountBodyWritable;
+    body: OsqueryLiveQueryTargetCountBody;
     path?: never;
     query?: never;
     url: '/api/live-queries/targets/count';
@@ -3520,7 +2647,7 @@ export type StreamLiveQueryResponses = {
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
 
 export type CreateMunkiArtifactUploadData = {
-    body: MunkiArtifactUploadMutationWritable;
+    body: MunkiArtifactUploadMutation;
     path?: never;
     query?: never;
     url: '/api/munki/artifact-uploads';
@@ -3603,7 +2730,7 @@ export type ListMunkiArtifactsResponses = {
 export type ListMunkiArtifactsResponse = ListMunkiArtifactsResponses[keyof ListMunkiArtifactsResponses];
 
 export type CreateMunkiArtifactData = {
-    body: MunkiArtifactMutationWritable;
+    body: MunkiArtifactMutation;
     path?: never;
     query?: never;
     url: '/api/munki/artifacts';
@@ -3820,7 +2947,7 @@ export type ListMunkiPackagesResponses = {
 export type ListMunkiPackagesResponse = ListMunkiPackagesResponses[keyof ListMunkiPackagesResponses];
 
 export type CreateMunkiPackageData = {
-    body: MunkiPackageCreateMutationWritable;
+    body: MunkiPackageCreateMutation;
     path?: never;
     query?: never;
     url: '/api/munki/packages';
@@ -3955,7 +3082,7 @@ export type GetMunkiPackageResponses = {
 export type GetMunkiPackageResponse = GetMunkiPackageResponses[keyof GetMunkiPackageResponses];
 
 export type UpdateMunkiPackageData = {
-    body: MunkiPackageMutationWritable;
+    body: MunkiPackageMutation;
     path: {
         id: number;
     };
@@ -4044,7 +3171,7 @@ export type ListMunkiSoftwareResponses = {
 export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];
 
 export type CreateMunkiSoftwareData = {
-    body: MunkiSoftwareMutationWritable;
+    body: MunkiSoftwareMutation;
     path?: never;
     query?: never;
     url: '/api/munki/software';
@@ -4093,7 +3220,7 @@ export type CreateMunkiSoftwareResponses = {
 export type CreateMunkiSoftwareResponse = CreateMunkiSoftwareResponses[keyof CreateMunkiSoftwareResponses];
 
 export type BulkDeleteMunkiSoftwareData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/munki/software/bulk-delete';
@@ -4216,7 +3343,7 @@ export type GetMunkiSoftwareResponses = {
 export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiSoftwareResponses];
 
 export type UpdateMunkiSoftwareData = {
-    body: MunkiSoftwareMutationWritable;
+    body: MunkiSoftwareMutation;
     path: {
         id: number;
     };
@@ -4305,7 +3432,7 @@ export type ListOsqueryChecksResponses = {
 export type ListOsqueryChecksResponse = ListOsqueryChecksResponses[keyof ListOsqueryChecksResponses];
 
 export type CreateOsqueryCheckData = {
-    body: OsqueryCheckMutationWritable;
+    body: OsqueryCheckMutation;
     path?: never;
     query?: never;
     url: '/api/osquery/checks';
@@ -4350,7 +3477,7 @@ export type CreateOsqueryCheckResponses = {
 export type CreateOsqueryCheckResponse = CreateOsqueryCheckResponses[keyof CreateOsqueryCheckResponses];
 
 export type BulkDeleteOsqueryChecksData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/osquery/checks/bulk-delete';
@@ -4469,7 +3596,7 @@ export type GetOsqueryCheckResponses = {
 export type GetOsqueryCheckResponse = GetOsqueryCheckResponses[keyof GetOsqueryCheckResponses];
 
 export type UpdateOsqueryCheckData = {
-    body: OsqueryCheckMutationWritable;
+    body: OsqueryCheckMutation;
     path: {
         id: number;
     };
@@ -4593,7 +3720,7 @@ export type ListOsqueryReportsResponses = {
 export type ListOsqueryReportsResponse = ListOsqueryReportsResponses[keyof ListOsqueryReportsResponses];
 
 export type CreateOsqueryReportData = {
-    body: OsqueryReportMutationWritable;
+    body: OsqueryReportMutation;
     path?: never;
     query?: never;
     url: '/api/osquery/reports';
@@ -4638,7 +3765,7 @@ export type CreateOsqueryReportResponses = {
 export type CreateOsqueryReportResponse = CreateOsqueryReportResponses[keyof CreateOsqueryReportResponses];
 
 export type BulkDeleteOsqueryReportsData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/osquery/reports/bulk-delete';
@@ -4757,7 +3884,7 @@ export type GetOsqueryReportResponses = {
 export type GetOsqueryReportResponse = GetOsqueryReportResponses[keyof GetOsqueryReportResponses];
 
 export type UpdateOsqueryReportData = {
-    body: OsqueryReportMutationWritable;
+    body: OsqueryReportMutation;
     path: {
         id: number;
     };
@@ -4881,7 +4008,7 @@ export type ListSantaConfigurationsResponses = {
 export type ListSantaConfigurationsResponse = ListSantaConfigurationsResponses[keyof ListSantaConfigurationsResponses];
 
 export type CreateSantaConfigurationData = {
-    body: SantaConfigurationMutationWritable;
+    body: SantaConfigurationMutation;
     path?: never;
     query?: never;
     url: '/api/santa/configurations';
@@ -4930,7 +4057,7 @@ export type CreateSantaConfigurationResponses = {
 export type CreateSantaConfigurationResponse = CreateSantaConfigurationResponses[keyof CreateSantaConfigurationResponses];
 
 export type BulkDeleteSantaConfigurationsData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/santa/configurations/bulk-delete';
@@ -4971,7 +4098,7 @@ export type BulkDeleteSantaConfigurationsResponses = {
 export type BulkDeleteSantaConfigurationsResponse = BulkDeleteSantaConfigurationsResponses[keyof BulkDeleteSantaConfigurationsResponses];
 
 export type ReorderSantaConfigurationsData = {
-    body: SantaConfigurationReorderBodyWritable;
+    body: SantaConfigurationReorderBody;
     path?: never;
     query?: never;
     url: '/api/santa/configurations/order';
@@ -5094,7 +4221,7 @@ export type GetSantaConfigurationResponses = {
 export type GetSantaConfigurationResponse = GetSantaConfigurationResponses[keyof GetSantaConfigurationResponses];
 
 export type UpdateSantaConfigurationData = {
-    body: SantaConfigurationMutationWritable;
+    body: SantaConfigurationMutation;
     path: {
         id: number;
     };
@@ -5406,7 +4533,7 @@ export type ListSantaRulesResponses = {
 export type ListSantaRulesResponse = ListSantaRulesResponses[keyof ListSantaRulesResponses];
 
 export type CreateSantaRuleData = {
-    body: SantaRuleMutationWritable;
+    body: SantaRuleMutation;
     path?: never;
     query?: never;
     url: '/api/santa/rules';
@@ -5455,7 +4582,7 @@ export type CreateSantaRuleResponses = {
 export type CreateSantaRuleResponse = CreateSantaRuleResponses[keyof CreateSantaRuleResponses];
 
 export type BulkDeleteSantaRulesData = {
-    body: BulkIdsBodyWritable;
+    body: BulkIdsBody;
     path?: never;
     query?: never;
     url: '/api/santa/rules/bulk-delete';
@@ -5578,7 +4705,7 @@ export type GetSantaRuleResponses = {
 export type GetSantaRuleResponse = GetSantaRuleResponses[keyof GetSantaRuleResponses];
 
 export type UpdateSantaRuleData = {
-    body: SantaRuleMutationWritable;
+    body: SantaRuleMutation;
     path: {
         id: number;
     };
@@ -5629,7 +4756,7 @@ export type UpdateSantaRuleResponses = {
 export type UpdateSantaRuleResponse = UpdateSantaRuleResponses[keyof UpdateSantaRuleResponses];
 
 export type CompleteSetupData = {
-    body: SetupInputBodyWritable;
+    body: SetupInputBody;
     path?: never;
     query?: never;
     url: '/api/setup';
@@ -5825,7 +4952,7 @@ export type ListUsersResponses = {
 export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
 
 export type CreateUserData = {
-    body: UserCreateWritable;
+    body: UserCreate;
     path?: never;
     query?: never;
     url: '/api/users';
@@ -5995,7 +5122,7 @@ export type GetUserResponses = {
 export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
 
 export type UpdateUserData = {
-    body: UserMutationWritable;
+    body: UserMutation;
     path: {
         id: number;
     };

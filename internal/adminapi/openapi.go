@@ -13,9 +13,12 @@ func humaConfig(version string) huma.Config {
 	cfg := huma.DefaultConfig("Woodstar API", version)
 	cfg.Info.Description = "Typed admin and frontend API."
 	cfg.Info.License = &huma.License{Name: "Apache-2.0"}
-	cfg.DocsPath = "/api/docs"
-	cfg.OpenAPIPath = "/api/openapi"
-	cfg.SchemasPath = "/api/schemas"
+
+	// Don't emit docs or schema routes, useless for us.
+	cfg.OpenAPIPath = ""
+	cfg.DocsPath = ""
+	cfg.SchemasPath = ""
+	cfg.CreateHooks = nil
 
 	cfg.Components = &huma.Components{
 		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
