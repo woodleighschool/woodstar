@@ -1,4 +1,4 @@
-package hoststate
+package munki
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item
 	})
 }
 
-func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*State, error) {
+func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
 	status, err := s.q.GetMunkiHostStatus(ctx, sqlc.GetMunkiHostStatusParams{HostID: hostID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // missing Munki observation is represented by a nil state.
@@ -83,7 +83,7 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*State, error)
 	for _, row := range rows {
 		items = append(items, hostItemFromRecord(row))
 	}
-	return &State{
+	return &HostState{
 		Version:         status.Version,
 		ManifestName:    status.ManifestName,
 		Success:         status.Success,

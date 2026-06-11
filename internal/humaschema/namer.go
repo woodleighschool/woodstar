@@ -7,62 +7,37 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-const (
-	munkiPackagePrefix   = "github.com/woodleighschool/woodstar/internal/munki"
-	osqueryPackagePrefix = "github.com/woodleighschool/woodstar/internal/osquery"
-	santaPackagePrefix   = "github.com/woodleighschool/woodstar/internal/santa"
-)
+const woodstarInternalPrefix = "github.com/woodleighschool/woodstar/internal/"
 
-// WoodstarSchemaNamer keeps OpenAPI component names stable when different
-// Woodstar modules use the same local Go type names, such as Munki's State and
-// Santa's HostState.
+// WoodstarSchemaNamer gives capability types a OpenAPI component name.
 func WoodstarSchemaNamer(t reflect.Type, hint string) string {
 	t = derefSchemaType(t)
 	name := huma.DefaultSchemaNamer(t, hint)
 
-	switch schemaPackagePrefix(t.PkgPath()) {
-	case "Munki":
-		return prefixIfAmbiguous("Munki", name)
-	case "Osquery":
-		return prefixIfAmbiguous("Osquery", name)
-	case "Santa":
-		return prefixIfAmbiguous("Santa", name)
-	default:
+	prefix := capabilityPrefix(t.PkgPath())
+	if prefix == "" || strings.HasPrefix(name, prefix) {
 		return name
 	}
+	return prefix + name
 }
 
-func schemaPackagePrefix(path string) string {
-	switch {
-	case isPackageOrSubpackage(path, munkiPackagePrefix):
+// capabilityPrefix maps a package path to its OpenAPI name prefix, or "" for
+// shared and core packages that need no capability scoping.
+func capabilityPrefix(pkgPath string) string {
+	rest, ok := strings.CutPrefix(pkgPath, woodstarInternalPrefix)
+	if !ok {
+		return ""
+	}
+	capability, _, _ := strings.Cut(rest, "/")
+	switch capability {
+	case "munki":
 		return "Munki"
-	case isPackageOrSubpackage(path, osqueryPackagePrefix):
+	case "osquery":
 		return "Osquery"
-	case isPackageOrSubpackage(path, santaPackagePrefix):
+	case "santa":
 		return "Santa"
 	default:
 		return ""
-	}
-}
-
-func isPackageOrSubpackage(path, prefix string) bool {
-	return path == prefix || strings.HasPrefix(path, prefix+"/")
-}
-
-func prefixIfAmbiguous(prefix, name string) string {
-	switch name {
-	case "Artifact", "ArtifactMutation",
-		"Check", "CheckMutation",
-		"Configuration", "Event",
-		"HostState",
-		"Package", "PackageCreateMutation", "PackageMutation",
-		"Report", "ReportMutation",
-		"Rule",
-		"SoftwareInclude", "SoftwareMutation", "SoftwareTargets", "SoftwareTitle", "SoftwareTitleMutation",
-		"State", "Status":
-		return prefix + name
-	default:
-		return name
 	}
 }
 

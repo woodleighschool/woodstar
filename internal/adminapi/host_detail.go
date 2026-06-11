@@ -5,7 +5,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 )
@@ -18,7 +18,7 @@ func requireAdminUser(ctx context.Context) error {
 // HostDetail is the admin host detail response with optional capability fields.
 type HostDetail struct {
 	hosts.HostDetail
-	Munki *hoststate.State `json:"munki,omitempty"`
+	Munki *munki.HostState `json:"munki,omitempty"`
 	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
@@ -35,7 +35,7 @@ type munkiHostDetailContributor struct {
 }
 
 type munkiHostStateLoader interface {
-	LoadHostState(context.Context, int64) (*hoststate.State, error)
+	LoadHostState(context.Context, int64) (*munki.HostState, error)
 }
 
 func newMunkiHostDetailContributor(loader munkiHostStateLoader) hosts.DetailContributor[HostDetail] {

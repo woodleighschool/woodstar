@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -67,7 +67,7 @@ func TestParseOsqueryFlags(t *testing.T) {
 }
 
 func TestParseHostCertificatesStructuresDistinguishedNames(t *testing.T) {
-	got := parseHostCertificates("certificates_darwin", []map[string]string{{
+	got := parseHostCertificates([]map[string]string{{
 		"sha1":        "sha1",
 		"common_name": "Subject CN",
 		"subject":     `/C=AU/O=Example Org/OU=One/OU=Two\/WithSlash/CN=Subject CN`,
@@ -186,12 +186,12 @@ func TestIngestMunkiDetailRows(t *testing.T) {
 }
 
 type fakeMunkiStore struct {
-	status        hoststate.Observation
-	items         []hoststate.Item
+	status        munki.Observation
+	items         []munki.Item
 	clearedHostID int64
 }
 
-func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status hoststate.Observation) error {
+func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status munki.Observation) error {
 	s.status = status
 	return nil
 }
@@ -201,7 +201,7 @@ func (s *fakeMunkiStore) ClearHostStatus(_ context.Context, hostID int64) error 
 	return nil
 }
 
-func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []hoststate.Item) error {
+func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []munki.Item) error {
 	s.items = items
 	return nil
 }

@@ -1,4 +1,4 @@
-package hoststate
+package munki
 
 import "time"
 
@@ -25,8 +25,8 @@ type Item struct {
 	LastSeenAt       time.Time `json:"last_seen_at"`
 }
 
-// State is the Munki sub-object attached to host detail responses.
-type State struct {
+// HostState is the Munki sub-object attached to host detail responses.
+type HostState struct {
 	Version         string    `json:"version"`
 	ManifestName    string    `json:"manifest_name"`
 	Success         *bool     `json:"success,omitempty"`

@@ -80,8 +80,12 @@ linters:
       strconcat: false
 
     revive:
-      severity: warning
+      severity: error
+      enable-default-rules: true
       rules:
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: "*testing.T,*testing.B,*testing.F,testing.TB"
         - name: dot-imports
         - name: error-return
         - name: error-strings
@@ -90,6 +94,9 @@ linters:
         - name: range
         - name: receiver-naming
         - name: redefines-builtin-id
+        - name: exported
+          arguments:
+            - disableStutteringCheck
         - name: superfluous-else
         - name: time-naming
         - name: unreachable-code

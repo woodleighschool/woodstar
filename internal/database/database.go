@@ -101,6 +101,6 @@ func openPool(ctx context.Context, cfg *pgxpool.Config) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func registerConnTypes(ctx context.Context, conn *pgx.Conn) error {
+func registerConnTypes(_ context.Context, _ *pgx.Conn) error {
 	return nil
 }

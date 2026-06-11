@@ -30,7 +30,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -188,7 +187,7 @@ func newServer(
 	munkiArtifactStore := artifacts.NewStore(db)
 	munkiPackageStore := packages.NewStore(db, munkiArtifactStore)
 	munkiSoftwareStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
-	munkiHostStateStore := hoststate.NewStore(db)
+	munkiHostStateStore := munki.NewStore(db)
 
 	// Santa stores.
 	santaHostStore := santa.NewStore(db)

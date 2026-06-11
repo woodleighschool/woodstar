@@ -1,4 +1,4 @@
-package hoststate
+package munki
 
 import "strings"
 

@@ -8,7 +8,7 @@ import type {
   PackageItemToCopy,
   PackageReceipt,
   PackageReference,
-} from "@/lib/api-client/types.gen";
+} from "@/lib/api";
 import { fieldErrors, optionalText, requiredString } from "@/lib/form-validation";
 import type {
   MunkiInstallerType,

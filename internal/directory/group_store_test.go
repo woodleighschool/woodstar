@@ -11,7 +11,7 @@ import (
 func TestListAndGetGroups(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	seedGroups(t, store, ctx)
+	seedGroups(t, ctx, store)
 
 	groups, count, err := store.ListGroups(ctx, GroupListParams{Values: []string{"staff"}})
 	if err != nil {
@@ -33,7 +33,7 @@ func TestListAndGetGroups(t *testing.T) {
 	}
 }
 
-func seedGroups(t *testing.T, store *Store, ctx context.Context) {
+func seedGroups(t *testing.T, ctx context.Context, store *Store) {
 	t.Helper()
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),

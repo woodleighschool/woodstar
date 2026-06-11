@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
-import type { PackageAlert } from "@/lib/api-client/types.gen";
+import type { PackageAlert } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 
 import {

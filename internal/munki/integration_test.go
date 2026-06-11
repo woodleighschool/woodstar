@@ -11,8 +11,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/targeting"
@@ -20,7 +20,7 @@ import (
 
 type munkiStores struct {
 	artifacts *artifacts.Store
-	hoststate *hoststate.Store
+	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
@@ -31,7 +31,7 @@ func newMunkiStores(db *database.DB) munkiStores {
 	softwareStore := munkisoftware.NewStore(db, artifactStore, packageStore)
 	return munkiStores{
 		artifacts: artifactStore,
-		hoststate: hoststate.NewStore(db),
+		hoststate: munki.NewStore(db),
 		packages:  packageStore,
 		software:  softwareStore,
 	}
@@ -982,7 +982,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}
 
 	success := true
-	if err := stores.hoststate.UpsertHostStatus(ctx, hoststate.Observation{
+	if err := stores.hoststate.UpsertHostStatus(ctx, munki.Observation{
 		HostID:          host.ID,
 		Version:         "7.1.2.5700",
 		ManifestName:    "site_default",
@@ -995,7 +995,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert munki host status: %v", err)
 	}
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []hoststate.Item{
+	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.Item{
 		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0", RunEndedAt: "2026-05-31 19:24:14 +1000"},
 		{Name: "Optional App", Installed: false},
 	}); err != nil {
@@ -1022,7 +1022,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	if err := stores.hoststate.ReplaceHostItems(
 		ctx,
 		host.ID,
-		[]hoststate.Item{{Name: "Replacement", Installed: true}},
+		[]munki.Item{{Name: "Replacement", Installed: true}},
 	); err != nil {
 		t.Fatalf("replace munki host items again: %v", err)
 	}

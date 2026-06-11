@@ -6,95 +6,56 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
-	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
-	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
-func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
+func TestWoodstarSchemaNamerScopesCapabilityTypes(t *testing.T) {
 	tests := []struct {
 		name string
 		typ  reflect.Type
 		want string
 	}{
 		{
-			name: "munki host state",
-			typ:  reflect.TypeFor[hoststate.State](),
-			want: "MunkiState",
-		},
-		{
-			name: "munki artifact",
-			typ:  reflect.TypeFor[artifacts.Artifact](),
-			want: "MunkiArtifact",
-		},
-		{
-			name: "munki software include",
-			typ:  reflect.TypeFor[munkisoftware.SoftwareInclude](),
-			want: "MunkiSoftwareInclude",
-		},
-		{
-			name: "munki software targets",
-			typ:  reflect.TypeFor[munkisoftware.SoftwareTargets](),
-			want: "MunkiSoftwareTargets",
-		},
-		{
-			name: "munki package mutation",
-			typ:  reflect.TypeFor[packages.PackageMutation](),
-			want: "MunkiPackageMutation",
-		},
-		{
-			name: "munki package create mutation",
-			typ:  reflect.TypeFor[packages.PackageCreateMutation](),
-			want: "MunkiPackageCreateMutation",
-		},
-		{
-			name: "munki software mutation",
-			typ:  reflect.TypeFor[munkisoftware.SoftwareMutation](),
-			want: "MunkiSoftwareMutation",
-		},
-		{
-			name: "osquery check",
-			typ:  reflect.TypeFor[checks.Check](),
-			want: "OsqueryCheck",
-		},
-		{
-			name: "osquery report mutation",
-			typ:  reflect.TypeFor[reports.ReportMutation](),
-			want: "OsqueryReportMutation",
-		},
-		{
-			name: "santa host state",
+			name: "santa root type",
 			typ:  reflect.TypeFor[santa.HostState](),
 			want: "SantaHostState",
 		},
 		{
-			name: "santa subpackage configuration",
+			name: "santa subpackage type",
 			typ:  reflect.TypeFor[configurations.Configuration](),
 			want: "SantaConfiguration",
 		},
 		{
-			name: "santa subpackage rule",
-			typ:  reflect.TypeFor[santarules.Rule](),
-			want: "SantaRule",
+			name: "osquery subpackage type",
+			typ:  reflect.TypeFor[checks.Check](),
+			want: "OsqueryCheck",
 		},
 		{
-			name: "pointer slice element",
-			typ:  reflect.TypeFor[[]*hoststate.State](),
-			want: "MunkiState",
+			name: "munki host state",
+			typ:  reflect.TypeFor[munki.HostState](),
+			want: "MunkiHostState",
 		},
 		{
-			name: "non ambiguous capability name",
-			typ:  reflect.TypeFor[hoststate.Item](),
-			want: "Item",
+			name: "munki type without a familiar name still scoped",
+			typ:  reflect.TypeFor[munki.Item](),
+			want: "MunkiItem",
 		},
 		{
-			name: "non capability package",
+			name: "prefix not repeated when already present",
+			typ:  reflect.TypeFor[packages.MunkiPackage](),
+			want: "MunkiPackage",
+		},
+		{
+			name: "pointer slice element keeps capability scope",
+			typ:  reflect.TypeFor[[]*munki.HostState](),
+			want: "MunkiHostState",
+		},
+		{
+			name: "core package type left bare",
 			typ:  reflect.TypeFor[directory.User](),
 			want: "User",
 		},

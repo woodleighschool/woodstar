@@ -27,7 +27,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -610,7 +609,7 @@ func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.Artifact
 
 type munkiTestStores struct {
 	artifacts *artifacts.Store
-	hoststate *hoststate.Store
+	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
@@ -621,7 +620,7 @@ func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 	softwareStore := munkisoftware.NewStore(db, artifactStore, packageStore)
 	stores := munkiTestStores{
 		artifacts: artifactStore,
-		hoststate: hoststate.NewStore(db),
+		hoststate: munki.NewStore(db),
 		packages:  packageStore,
 		software:  softwareStore,
 	}

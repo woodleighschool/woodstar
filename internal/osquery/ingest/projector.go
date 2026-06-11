@@ -10,7 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -27,9 +27,9 @@ type softwareStore interface {
 }
 
 type munkiStore interface {
-	UpsertHostStatus(context.Context, hoststate.Observation) error
+	UpsertHostStatus(context.Context, munki.Observation) error
 	ClearHostStatus(context.Context, int64) error
-	ReplaceHostItems(context.Context, int64, []hoststate.Item) error
+	ReplaceHostItems(context.Context, int64, []munki.Item) error
 }
 
 type Projector struct {
@@ -73,7 +73,7 @@ func (p *Projector) IngestDetail(
 	case catalog.IngestBatteries:
 		return ingestBatteries(ctx, p, hostID, rows)
 	case catalog.IngestCertificates:
-		return ingestCertificates(ctx, p, hostID, name, rows)
+		return ingestCertificates(ctx, p, hostID, rows)
 	case catalog.IngestMunkiInfo:
 		return ingestMunkiInfo(ctx, p, hostID, rows)
 	case catalog.IngestMunkiInstalls:
@@ -186,17 +186,16 @@ func ingestCertificates(
 	ctx context.Context,
 	projector *Projector,
 	hostID int64,
-	name string,
 	rows []map[string]string,
 ) error {
-	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(name, rows))
+	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(rows))
 }
 
 func ingestMunkiInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if projector.munkiStore == nil {
 		return nil
 	}
-	status, ok := hoststate.HostStatusFromInfoRows(hostID, rows)
+	status, ok := munki.HostStatusFromInfoRows(hostID, rows)
 	if !ok {
 		return projector.munkiStore.ClearHostStatus(ctx, hostID)
 	}
@@ -207,7 +206,7 @@ func ingestMunkiInstalls(ctx context.Context, projector *Projector, hostID int64
 	if projector.munkiStore == nil {
 		return nil
 	}
-	return projector.munkiStore.ReplaceHostItems(ctx, hostID, hoststate.ItemsFromInstallRows(hostID, rows))
+	return projector.munkiStore.ReplaceHostItems(ctx, hostID, munki.ItemsFromInstallRows(hostID, rows))
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {
@@ -253,15 +252,15 @@ func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
 	return batteries
 }
 
-func parseHostCertificates(queryName string, rows []map[string]string) []hosts.HostCertificate {
+func parseHostCertificates(rows []map[string]string) []hosts.HostCertificate {
 	certificates := make([]hosts.HostCertificate, 0, len(rows))
 	for _, row := range rows {
 		sha1 := row["sha1"]
 		if sha1 == "" {
 			continue
 		}
-		subject := parseCertificateName(queryName, row["subject"])
-		issuer := parseCertificateName(queryName, row["issuer"])
+		subject := parseCertificateName(row["subject"])
+		issuer := parseCertificateName(row["issuer"])
 		commonName := row["common_name"]
 		if commonName == "" {
 			commonName = subject.CommonName
@@ -287,7 +286,7 @@ func parseHostCertificates(queryName string, rows []map[string]string) []hosts.H
 	return certificates
 }
 
-func parseCertificateName(queryName string, value string) hosts.CertificateName {
+func parseCertificateName(value string) hosts.CertificateName {
 	if value == "" {
 		return hosts.CertificateName{}
 	}

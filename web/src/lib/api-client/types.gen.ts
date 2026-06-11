@@ -59,99 +59,11 @@ export type BulkIdsBody = {
     ids: Array<number> | null;
 };
 
-export type BundleReference = {
-    binary_count: number;
-    bundle_id: string;
-    collected_binary_count: number;
-    complete: boolean;
-    hash_millis: number;
-    name: string;
-    path: string;
-    sha256: string;
-    uploaded_at?: string;
-    version: string;
-    version_string: string;
-};
-
 export type CertificateName = {
     common_name: string;
     country: string;
     organization: string;
     organizational_unit: string;
-};
-
-export type CertificateReference = {
-    common_name: string;
-    organization: string;
-    organizational_unit: string;
-    rule_count: number;
-    sha256: string;
-    valid_from?: string;
-    valid_until?: string;
-};
-
-export type CheckHostStatus = {
-    check_id: number;
-    check_name: string;
-    host_id: number;
-    host_name: string;
-    response: 'pass' | 'fail';
-    updated_at?: string;
-};
-
-export type CheckTargets = {
-    exclude: Array<LabelRef>;
-    include: Array<LabelRef>;
-};
-
-export type ConfigurationMatch = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    created_at: string;
-    description: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    id: number;
-    matched_via_label?: LabelMatch;
-    name: string;
-    position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    targets: ConfigurationTargets;
-    updated_at: string;
-};
-
-export type ConfigurationMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    description?: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    name: string;
-    removable_media_policy?: RemovableMediaPolicy;
-    targets: ConfigurationTargets;
-};
-
-export type ConfigurationTargets = {
-    exclude: Array<LabelRef>;
-    include: Array<LabelRef>;
 };
 
 export type Criteria = {
@@ -209,84 +121,6 @@ export type ErrorModel = {
     type?: string;
 };
 
-export type Executable = {
-    cdhash: string;
-    codesigning_flags: number;
-    entitlements?: {
-        [key: string]: unknown;
-    };
-    file_bundle_binary_count: number;
-    file_bundle_executable_rel_path: string;
-    file_bundle_hash: string;
-    file_bundle_hash_millis: number;
-    file_bundle_id: string;
-    file_bundle_name: string;
-    file_bundle_path: string;
-    file_bundle_version: string;
-    file_bundle_version_string: string;
-    file_name: string;
-    id: number;
-    secure_signing_time?: string;
-    sha256: string;
-    signing_chain?: Array<SigningChainEntry> | null;
-    signing_id: string;
-    signing_status: 'unspecified' | 'unsigned' | 'invalid' | 'adhoc' | 'development' | 'production';
-    signing_time?: string;
-    team_id: string;
-};
-
-export type ExecutableReference = {
-    block_count: number;
-    cdhash?: string;
-    execution_count: number;
-    file_bundle_id?: string;
-    file_bundle_name?: string;
-    file_bundle_version?: string;
-    file_name: string;
-    sha256: string;
-    signing_id?: string;
-    team_id?: string;
-};
-
-export type ExecutionEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    current_sessions: Array<string> | null;
-    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
-    executable: Executable;
-    executing_user: string;
-    file_path: string;
-    host: HostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    logged_in_users: Array<string> | null;
-    occurred_at: string;
-    parent_name: string;
-    pid: number;
-    ppid: number;
-};
-
-export type FileAccessEvent = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
-    host: HostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    occurred_at: string;
-    primary_process: Process;
-    process_chain?: Array<Process> | null;
-    rule_name: string;
-    rule_version: string;
-    target: string;
-};
-
 export type Group = {
     /**
      * A URL to the JSON Schema for this object.
@@ -300,17 +134,6 @@ export type Group = {
     member_count: number;
     source: 'local' | 'entra';
     updated_at: string;
-};
-
-export type Handle = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    id: number;
-    resolved_host_count: number;
-    sql: string;
-    started_at: string;
 };
 
 export type Host = {
@@ -392,7 +215,7 @@ export type HostDetail = {
     hostname: string;
     id: number;
     labels: Array<Label> | null;
-    munki?: MunkiState;
+    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     santa?: SantaHostState;
@@ -441,29 +264,6 @@ export type HostOsqueryAgent = {
     version: string;
 };
 
-export type HostReport = {
-    description: string;
-    first_result?: {
-        [key: string]: string;
-    };
-    last_fetched?: string;
-    n_host_results: number;
-    name: string;
-    report_id: number;
-};
-
-export type HostReportResultsBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    host_id: number;
-    host_name: string;
-    items: Array<ReportResult> | null;
-    last_fetched?: string;
-    report_id: number;
-};
-
 export type HostSoftwareInstalledVersion = {
     bundle_identifier: string;
     installed_paths: Array<string> | null;
@@ -483,22 +283,6 @@ export type HostSoftwareRow = {
 
 export type HostStorage = {
     boot_volume: HostBootVolume;
-};
-
-export type HostSummary = {
-    computer_name: string;
-    display_name: string;
-    hardware: HostSummaryHardware;
-    hostname: string;
-    id: number;
-    santa_client_mode: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
-    santa_machine_id: string;
-    santa_version: string;
-};
-
-export type HostSummaryHardware = {
-    model_identifier: string;
-    serial: string;
 };
 
 export type HostTimestamps = {
@@ -545,14 +329,6 @@ export type HostUserAffinityPutBody = {
     email: string;
 };
 
-export type Item = {
-    installed: boolean;
-    installed_version: string;
-    last_seen_at: string;
-    name: string;
-    run_ended_at?: string;
-};
-
 export type Label = {
     /**
      * A URL to the JSON Schema for this object.
@@ -572,11 +348,6 @@ export type Label = {
     updated_at?: string;
 };
 
-export type LabelMatch = {
-    id: number;
-    name: string;
-};
-
 export type LabelMutation = {
     /**
      * A URL to the JSON Schema for this object.
@@ -592,56 +363,6 @@ export type LabelMutation = {
 
 export type LabelRef = {
     label_id: number;
-};
-
-export type LiveQueryCompletedEvent = {
-    status: 'completed';
-};
-
-export type LiveQueryCreateBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    report_id?: number;
-    selected?: LiveQuerySelectedBody;
-    sql: string;
-};
-
-export type LiveQueryPingEvent = {
-    status: 'ok';
-};
-
-export type LiveQueryResultEvent = {
-    data?: unknown;
-    error?: string;
-    host_id?: number;
-    host_name?: string;
-    status: 'success' | 'error' | 'stopped';
-};
-
-export type LiveQuerySelectedBody = {
-    hosts?: Array<number> | null;
-    labels?: Array<number> | null;
-};
-
-export type LiveQueryTargetCountBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    report_id?: number;
-    selected?: LiveQuerySelectedBody;
-};
-
-export type LiveQueryTargetCountOutputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    targets_count: number;
-    targets_offline: number;
-    targets_online: number;
 };
 
 export type LoginInputBody = {
@@ -709,6 +430,27 @@ export type MunkiArtifactUploadMutation = {
     size_bytes: number;
 };
 
+export type MunkiHostState = {
+    errors: Array<string> | null;
+    items: Array<MunkiItem> | null;
+    last_seen_at: string;
+    manifest_name: string;
+    problem_installs: Array<string> | null;
+    run_ended_at?: string;
+    run_started_at?: string;
+    success?: boolean;
+    version: string;
+    warnings: Array<string> | null;
+};
+
+export type MunkiItem = {
+    installed: boolean;
+    installed_version: string;
+    last_seen_at: string;
+    name: string;
+    run_ended_at?: string;
+};
+
 export type MunkiPackage = {
     /**
      * A URL to the JSON Schema for this object.
@@ -730,10 +472,10 @@ export type MunkiPackage = {
     installer_artifact_id?: number;
     installer_artifact_location?: string;
     installer_choices_xml: string;
-    installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs: Array<PackageInstallItem> | null;
-    items_to_copy: Array<PackageItemToCopy> | null;
+    installs: Array<MunkiPackageInstallItem> | null;
+    items_to_copy: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
@@ -743,12 +485,12 @@ export type MunkiPackage = {
     postinstall_script: string;
     postuninstall_script: string;
     precache: boolean;
-    preinstall_alert: PackageAlert;
+    preinstall_alert: MunkiPackageAlert;
     preinstall_script: string;
-    preuninstall_alert: PackageAlert;
+    preuninstall_alert: MunkiPackageAlert;
     preuninstall_script: string;
-    receipts: Array<PackageReceipt> | null;
-    requires: Array<PackageReference> | null;
+    receipts: Array<MunkiPackageReceipt> | null;
+    requires: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_category: string;
     software_description: string;
@@ -764,10 +506,18 @@ export type MunkiPackage = {
     uninstallcheck_script: string;
     uninstaller_artifact_id?: number;
     uninstaller_artifact_location?: string;
-    update_for: Array<PackageReference> | null;
+    update_for: Array<MunkiPackageReference> | null;
     updated_at: string;
     version: string;
     version_script: string;
+};
+
+export type MunkiPackageAlert = {
+    cancel_label?: string;
+    detail?: string;
+    enabled: boolean;
+    ok_label?: string;
+    title?: string;
 };
 
 export type MunkiPackageCreateMutation = {
@@ -787,10 +537,10 @@ export type MunkiPackageCreateMutation = {
     installed_size?: number;
     installer_artifact_id?: number;
     installer_choices_xml?: string;
-    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<PackageInstallItem> | null;
-    items_to_copy?: Array<PackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem> | null;
+    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -800,12 +550,12 @@ export type MunkiPackageCreateMutation = {
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
-    preinstall_alert?: PackageAlert;
+    preinstall_alert?: MunkiPackageAlert;
     preinstall_script?: string;
-    preuninstall_alert?: PackageAlert;
+    preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<PackageReceipt> | null;
-    requires?: Array<PackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt> | null;
+    requires?: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string> | null;
@@ -816,9 +566,36 @@ export type MunkiPackageCreateMutation = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
-    update_for?: Array<PackageReference> | null;
+    update_for?: Array<MunkiPackageReference> | null;
     version: string;
     version_script?: string;
+};
+
+export type MunkiPackageInstallItem = {
+    bundle_identifier?: string;
+    bundle_name?: string;
+    bundle_short_version?: string;
+    bundle_version?: string;
+    installer_item_location?: string;
+    md5checksum?: string;
+    minimum_os_version?: string;
+    path: string;
+    type: 'application' | 'bundle' | 'plist' | 'file';
+    version_comparison_key?: string;
+};
+
+export type MunkiPackageInstallerEnvironmentVariable = {
+    name: string;
+    value: string;
+};
+
+export type MunkiPackageItemToCopy = {
+    destination_item?: string;
+    destination_path: string;
+    group?: string;
+    mode?: string;
+    source_item: string;
+    user?: string;
 };
 
 export type MunkiPackageMutation = {
@@ -838,10 +615,10 @@ export type MunkiPackageMutation = {
     installed_size?: number;
     installer_artifact_id?: number;
     installer_choices_xml?: string;
-    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<PackageInstallItem> | null;
-    items_to_copy?: Array<PackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem> | null;
+    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -851,12 +628,12 @@ export type MunkiPackageMutation = {
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
-    preinstall_alert?: PackageAlert;
+    preinstall_alert?: MunkiPackageAlert;
     preinstall_script?: string;
-    preuninstall_alert?: PackageAlert;
+    preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<PackageReceipt> | null;
-    requires?: Array<PackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt> | null;
+    requires?: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     supported_architectures?: Array<string> | null;
     suppress_bundle_relocation?: boolean;
@@ -866,9 +643,22 @@ export type MunkiPackageMutation = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
-    update_for?: Array<PackageReference> | null;
+    update_for?: Array<MunkiPackageReference> | null;
     version: string;
     version_script?: string;
+};
+
+export type MunkiPackageReceipt = {
+    optional?: boolean;
+    package_id: string;
+    version?: string;
+};
+
+export type MunkiPackageReference = {
+    package_id: number;
+    package_version?: string;
+    software_id?: number;
+    software_name?: string;
 };
 
 export type MunkiSoftware = {
@@ -912,7 +702,7 @@ export type MunkiSoftwareDetail = {
 export type MunkiSoftwareInclude = {
     actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
     label_id: number;
-    package: SoftwarePackageSelector;
+    package: MunkiSoftwarePackageSelector;
 };
 
 export type MunkiSoftwareMutation = {
@@ -930,22 +720,14 @@ export type MunkiSoftwareMutation = {
     targets: MunkiSoftwareTargets;
 };
 
+export type MunkiSoftwarePackageSelector = {
+    package_id?: number;
+    strategy: 'latest' | 'specific';
+};
+
 export type MunkiSoftwareTargets = {
     exclude: Array<LabelRef>;
     include: Array<MunkiSoftwareInclude>;
-};
-
-export type MunkiState = {
-    errors: Array<string> | null;
-    items: Array<Item> | null;
-    last_seen_at: string;
-    manifest_name: string;
-    problem_installs: Array<string> | null;
-    run_ended_at?: string;
-    run_started_at?: string;
-    success?: boolean;
-    version: string;
-    warnings: Array<string> | null;
 };
 
 export type OsqueryCheck = {
@@ -961,8 +743,17 @@ export type OsqueryCheck = {
     name: string;
     passing_host_count: number;
     query: string;
-    targets: CheckTargets;
+    targets: OsqueryCheckTargets;
     updated_at: string;
+};
+
+export type OsqueryCheckHostStatus = {
+    check_id: number;
+    check_name: string;
+    host_id: number;
+    host_name: string;
+    response: 'pass' | 'fail';
+    updated_at?: string;
 };
 
 export type OsqueryCheckMutation = {
@@ -973,7 +764,96 @@ export type OsqueryCheckMutation = {
     description?: string;
     name: string;
     query: string;
-    targets: CheckTargets;
+    targets: OsqueryCheckTargets;
+};
+
+export type OsqueryCheckTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
+};
+
+export type OsqueryHandle = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    id: number;
+    resolved_host_count: number;
+    sql: string;
+    started_at: string;
+};
+
+export type OsqueryHostReport = {
+    description: string;
+    first_result?: {
+        [key: string]: string;
+    };
+    last_fetched?: string;
+    n_host_results: number;
+    name: string;
+    report_id: number;
+};
+
+export type OsqueryHostReportResultsBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    host_id: number;
+    host_name: string;
+    items: Array<OsqueryReportResult> | null;
+    last_fetched?: string;
+    report_id: number;
+};
+
+export type OsqueryLiveQueryCompletedEvent = {
+    status: 'completed';
+};
+
+export type OsqueryLiveQueryCreateBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    report_id?: number;
+    selected?: OsqueryLiveQuerySelectedBody;
+    sql: string;
+};
+
+export type OsqueryLiveQueryPingEvent = {
+    status: 'ok';
+};
+
+export type OsqueryLiveQueryResultEvent = {
+    data?: unknown;
+    error?: string;
+    host_id?: number;
+    host_name?: string;
+    status: 'success' | 'error' | 'stopped';
+};
+
+export type OsqueryLiveQuerySelectedBody = {
+    hosts?: Array<number> | null;
+    labels?: Array<number> | null;
+};
+
+export type OsqueryLiveQueryTargetCountBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    report_id?: number;
+    selected?: OsqueryLiveQuerySelectedBody;
+};
+
+export type OsqueryLiveQueryTargetCountOutputBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    targets_count: number;
+    targets_offline: number;
+    targets_online: number;
 };
 
 export type OsqueryReport = {
@@ -989,7 +869,7 @@ export type OsqueryReport = {
     name: string;
     query: string;
     schedule_interval: number;
-    targets: ReportTargets;
+    targets: OsqueryReportTargets;
     updated_at: string;
 };
 
@@ -1003,55 +883,23 @@ export type OsqueryReportMutation = {
     name: string;
     query: string;
     schedule_interval?: number;
-    targets: ReportTargets;
+    targets: OsqueryReportTargets;
 };
 
-export type PackageAlert = {
-    cancel_label?: string;
-    detail?: string;
-    enabled: boolean;
-    ok_label?: string;
-    title?: string;
+export type OsqueryReportResult = {
+    columns: {
+        [key: string]: string;
+    };
+    host_id: number;
+    host_name: string;
+    last_fetched?: string;
+    report_id: number;
+    report_name: string;
 };
 
-export type PackageInstallItem = {
-    bundle_identifier?: string;
-    bundle_name?: string;
-    bundle_short_version?: string;
-    bundle_version?: string;
-    installer_item_location?: string;
-    md5checksum?: string;
-    minimum_os_version?: string;
-    path: string;
-    type: 'application' | 'bundle' | 'plist' | 'file';
-    version_comparison_key?: string;
-};
-
-export type PackageInstallerEnvironmentVariable = {
-    name: string;
-    value: string;
-};
-
-export type PackageItemToCopy = {
-    destination_item?: string;
-    destination_path: string;
-    group?: string;
-    mode?: string;
-    source_item: string;
-    user?: string;
-};
-
-export type PackageReceipt = {
-    optional?: boolean;
-    package_id: string;
-    version?: string;
-};
-
-export type PackageReference = {
-    package_id: number;
-    package_version?: string;
-    software_id?: number;
-    software_name?: string;
+export type OsqueryReportTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
 };
 
 export type PageArtifact = {
@@ -1096,7 +944,7 @@ export type PageExecutionEvent = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<ExecutionEvent>;
+    items: Array<SantaExecutionEvent>;
 };
 
 export type PageFileAccessEvent = {
@@ -1105,7 +953,7 @@ export type PageFileAccessEvent = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<FileAccessEvent>;
+    items: Array<SantaFileAccessEvent>;
 };
 
 export type PageGroup = {
@@ -1186,7 +1034,7 @@ export type PageRuleStatus = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<RuleStatus>;
+    items: Array<SantaRuleStatus>;
 };
 
 export type PageSoftwareTitle = {
@@ -1215,113 +1063,28 @@ export type PathSignatureInformation = {
     team_identifier: string;
 };
 
-export type Process = {
-    cdhash: string;
-    file_name: string;
-    file_path: string;
-    file_sha256: string;
-    pid: number;
-    signing_chain?: Array<SigningChainEntry> | null;
-    signing_id: string;
-    team_id: string;
-};
-
-export type RemovableMediaPolicy = {
-    action?: 'allow' | 'block' | 'remount';
-    /**
-     * Mount flags required when action is remount.
-     */
-    remount_flags?: Array<string> | null;
-};
-
-export type ReportResult = {
-    columns: {
-        [key: string]: string;
-    };
-    host_id: number;
-    host_name: string;
-    last_fetched?: string;
-    report_id: number;
-    report_name: string;
-};
-
-export type ReportTargets = {
-    exclude: Array<LabelRef>;
-    include: Array<LabelRef>;
-};
-
-export type RuleInclude = {
-    cel_expression?: string;
-    label_id: number;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
-};
-
-export type RuleMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    custom_message?: string;
-    custom_url?: string;
-    description?: string;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: RuleTargets;
-};
-
-export type RuleReference = {
-    custom_message: string;
-    custom_url: string;
-    id: number;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-};
-
-export type RuleReferenceCandidate = {
-    binary_count?: number;
-    bundle_identifier?: string;
-    certificate_common_name?: string;
-    certificate_organization?: string;
-    certificate_organizational_unit?: string;
-    collected_binary_count?: number;
+export type SantaBundleReference = {
+    binary_count: number;
+    bundle_id: string;
+    collected_binary_count: number;
     complete: boolean;
-    display_name?: string;
-    file_name?: string;
-    identifier: string;
-    path?: string;
-    rule_count: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    version?: string;
-};
-
-export type RuleStatus = {
-    applied: boolean;
-    cel_expression?: string;
-    custom_message?: string;
-    custom_url?: string;
-    description: string;
-    identifier: string;
-    matched_include_id: number;
+    hash_millis: number;
     name: string;
-    notification_app_name?: string;
-    payload_hash: string;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
-    rule_id: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    path: string;
+    sha256: string;
+    uploaded_at?: string;
+    version: string;
+    version_string: string;
 };
 
-export type RuleSyncSummary = {
-    applied_count: number;
-    desired_count: number;
-    last_clean_sync_at?: string;
-    pending_count: number;
-};
-
-export type RuleTargets = {
-    exclude: Array<LabelRef>;
-    include: Array<RuleInclude>;
+export type SantaCertificateReference = {
+    common_name: string;
+    organization: string;
+    organizational_unit: string;
+    rule_count: number;
+    sha256: string;
+    valid_from?: string;
+    valid_until?: string;
 };
 
 export type SantaConfiguration = {
@@ -1338,16 +1101,61 @@ export type SantaConfiguration = {
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
+    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
     event_detail_text?: string;
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     id: number;
     name: string;
     position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    targets: ConfigurationTargets;
+    removable_media_policy?: SantaRemovableMediaPolicy;
+    targets: SantaConfigurationTargets;
     updated_at: string;
+};
+
+export type SantaConfigurationMatch = {
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    created_at: string;
+    description: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    id: number;
+    matched_via_label?: SantaLabelMatch;
+    name: string;
+    position: number;
+    removable_media_policy?: SantaRemovableMediaPolicy;
+    targets: SantaConfigurationTargets;
+    updated_at: string;
+};
+
+export type SantaConfigurationMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    description?: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    name: string;
+    removable_media_policy?: SantaRemovableMediaPolicy;
+    targets: SantaConfigurationTargets;
 };
 
 export type SantaConfigurationReorderBody = {
@@ -1358,12 +1166,135 @@ export type SantaConfigurationReorderBody = {
     ordered_ids: Array<number> | null;
 };
 
+export type SantaConfigurationTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
+};
+
+export type SantaExecutable = {
+    cdhash: string;
+    codesigning_flags: number;
+    entitlements?: {
+        [key: string]: unknown;
+    };
+    file_bundle_binary_count: number;
+    file_bundle_executable_rel_path: string;
+    file_bundle_hash: string;
+    file_bundle_hash_millis: number;
+    file_bundle_id: string;
+    file_bundle_name: string;
+    file_bundle_path: string;
+    file_bundle_version: string;
+    file_bundle_version_string: string;
+    file_name: string;
+    id: number;
+    secure_signing_time?: string;
+    sha256: string;
+    signing_chain?: Array<SantaSigningChainEntry> | null;
+    signing_id: string;
+    signing_status: 'unspecified' | 'unsigned' | 'invalid' | 'adhoc' | 'development' | 'production';
+    signing_time?: string;
+    team_id: string;
+};
+
+export type SantaExecutableReference = {
+    block_count: number;
+    cdhash?: string;
+    execution_count: number;
+    file_bundle_id?: string;
+    file_bundle_name?: string;
+    file_bundle_version?: string;
+    file_name: string;
+    sha256: string;
+    signing_id?: string;
+    team_id?: string;
+};
+
+export type SantaExecutionEvent = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    current_sessions: Array<string> | null;
+    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
+    executable: SantaExecutable;
+    executing_user: string;
+    file_path: string;
+    host: SantaHostSummary;
+    host_id: number;
+    id: number;
+    ingested_at: string;
+    logged_in_users: Array<string> | null;
+    occurred_at: string;
+    parent_name: string;
+    pid: number;
+    ppid: number;
+};
+
+export type SantaFileAccessEvent = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
+    host: SantaHostSummary;
+    host_id: number;
+    id: number;
+    ingested_at: string;
+    occurred_at: string;
+    primary_process: SantaProcess;
+    process_chain?: Array<SantaProcess> | null;
+    rule_name: string;
+    rule_version: string;
+    target: string;
+};
+
 export type SantaHostState = {
     client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
-    configuration?: ConfigurationMatch;
+    configuration?: SantaConfigurationMatch;
     last_sync_at?: string;
-    rule_sync: RuleSyncSummary;
+    rule_sync: SantaRuleSyncSummary;
     version: string;
+};
+
+export type SantaHostSummary = {
+    computer_name: string;
+    display_name: string;
+    hardware: SantaHostSummaryHardware;
+    hostname: string;
+    id: number;
+    santa_client_mode: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
+    santa_machine_id: string;
+    santa_version: string;
+};
+
+export type SantaHostSummaryHardware = {
+    model_identifier: string;
+    serial: string;
+};
+
+export type SantaLabelMatch = {
+    id: number;
+    name: string;
+};
+
+export type SantaProcess = {
+    cdhash: string;
+    file_name: string;
+    file_path: string;
+    file_sha256: string;
+    pid: number;
+    signing_chain?: Array<SantaSigningChainEntry> | null;
+    signing_id: string;
+    team_id: string;
+};
+
+export type SantaRemovableMediaPolicy = {
+    action?: 'allow' | 'block' | 'remount';
+    /**
+     * Mount flags required when action is remount.
+     */
+    remount_flags?: Array<string> | null;
 };
 
 export type SantaRule = {
@@ -1379,8 +1310,113 @@ export type SantaRule = {
     identifier: string;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: RuleTargets;
+    targets: SantaRuleTargets;
     updated_at: string;
+};
+
+export type SantaRuleInclude = {
+    cel_expression?: string;
+    label_id: number;
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
+};
+
+export type SantaRuleMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    custom_message?: string;
+    custom_url?: string;
+    description?: string;
+    identifier: string;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: SantaRuleTargets;
+};
+
+export type SantaRuleReference = {
+    custom_message: string;
+    custom_url: string;
+    id: number;
+    identifier: string;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type SantaRuleReferenceCandidate = {
+    binary_count?: number;
+    bundle_identifier?: string;
+    certificate_common_name?: string;
+    certificate_organization?: string;
+    certificate_organizational_unit?: string;
+    collected_binary_count?: number;
+    complete: boolean;
+    display_name?: string;
+    file_name?: string;
+    identifier: string;
+    path?: string;
+    rule_count: number;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    version?: string;
+};
+
+export type SantaRuleStatus = {
+    applied: boolean;
+    cel_expression?: string;
+    custom_message?: string;
+    custom_url?: string;
+    description: string;
+    identifier: string;
+    matched_include_id: number;
+    name: string;
+    notification_app_name?: string;
+    payload_hash: string;
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
+    rule_id: number;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type SantaRuleSyncSummary = {
+    applied_count: number;
+    desired_count: number;
+    last_clean_sync_at?: string;
+    pending_count: number;
+};
+
+export type SantaRuleTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<SantaRuleInclude>;
+};
+
+export type SantaSigningChainEntry = {
+    common_name?: string;
+    organization?: string;
+    organizational_unit?: string;
+    sha256: string;
+    valid_from?: string;
+    valid_until?: string;
+};
+
+export type SantaSigningIdentityReference = {
+    executable_count: number;
+    identifier: string;
+    name: string;
+    rule_count: number;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type SantaSoftwareReference = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    block_count: number;
+    bundles: Array<SantaBundleReference> | null;
+    certificates: Array<SantaCertificateReference> | null;
+    executables: Array<SantaExecutableReference> | null;
+    execution_count: number;
+    rules: Array<SantaRuleReference> | null;
+    signing_identities: Array<SantaSigningIdentityReference> | null;
 };
 
 export type SessionBody = {
@@ -1401,42 +1437,6 @@ export type SetupInputBody = {
     email: string;
     name?: string;
     password: string;
-};
-
-export type SigningChainEntry = {
-    common_name?: string;
-    organization?: string;
-    organizational_unit?: string;
-    sha256: string;
-    valid_from?: string;
-    valid_until?: string;
-};
-
-export type SigningIdentityReference = {
-    executable_count: number;
-    identifier: string;
-    name: string;
-    rule_count: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-};
-
-export type SoftwarePackageSelector = {
-    package_id?: number;
-    strategy: 'latest' | 'specific';
-};
-
-export type SoftwareReference = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    block_count: number;
-    bundles: Array<BundleReference> | null;
-    certificates: Array<CertificateReference> | null;
-    executables: Array<ExecutableReference> | null;
-    execution_count: number;
-    rules: Array<RuleReference> | null;
-    signing_identities: Array<SigningIdentityReference> | null;
 };
 
 export type SoftwareTitle = {
@@ -1538,24 +1538,6 @@ export type BulkIdsBodyWritable = {
     ids: Array<number> | null;
 };
 
-export type ConfigurationMutationWritable = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    description?: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    name: string;
-    removable_media_policy?: RemovableMediaPolicy;
-    targets: ConfigurationTargets;
-};
-
 export type ErrorModelWritable = {
     /**
      * A human-readable explanation specific to this occurrence of the problem.
@@ -1583,37 +1565,6 @@ export type ErrorModelWritable = {
     type?: string;
 };
 
-export type ExecutionEventWritable = {
-    current_sessions: Array<string> | null;
-    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
-    executable: Executable;
-    executing_user: string;
-    file_path: string;
-    host: HostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    logged_in_users: Array<string> | null;
-    occurred_at: string;
-    parent_name: string;
-    pid: number;
-    ppid: number;
-};
-
-export type FileAccessEventWritable = {
-    decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
-    host: HostSummary;
-    host_id: number;
-    id: number;
-    ingested_at: string;
-    occurred_at: string;
-    primary_process: Process;
-    process_chain?: Array<Process> | null;
-    rule_name: string;
-    rule_version: string;
-    target: string;
-};
-
 export type GroupWritable = {
     created_at: string;
     display_name: string;
@@ -1623,13 +1574,6 @@ export type GroupWritable = {
     member_count: number;
     source: 'local' | 'entra';
     updated_at: string;
-};
-
-export type HandleWritable = {
-    id: number;
-    resolved_host_count: number;
-    sql: string;
-    started_at: string;
 };
 
 export type HostDetailWritable = {
@@ -1643,7 +1587,7 @@ export type HostDetailWritable = {
     hostname: string;
     id: number;
     labels: Array<LabelWritable> | null;
-    munki?: MunkiState;
+    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     santa?: SantaHostState;
@@ -1652,14 +1596,6 @@ export type HostDetailWritable = {
     timestamps: HostTimestamps;
     user_affinity: HostUserAffinity;
     users: Array<HostUser> | null;
-};
-
-export type HostReportResultsBodyWritable = {
-    host_id: number;
-    host_name: string;
-    items: Array<ReportResult> | null;
-    last_fetched?: string;
-    report_id: number;
 };
 
 export type HostUserAffinityPutBodyWritable = {
@@ -1687,23 +1623,6 @@ export type LabelMutationWritable = {
     label_membership_type?: 'dynamic' | 'manual' | 'derived';
     name: string;
     query?: string;
-};
-
-export type LiveQueryCreateBodyWritable = {
-    report_id?: number;
-    selected?: LiveQuerySelectedBody;
-    sql: string;
-};
-
-export type LiveQueryTargetCountBodyWritable = {
-    report_id?: number;
-    selected?: LiveQuerySelectedBody;
-};
-
-export type LiveQueryTargetCountOutputBodyWritable = {
-    targets_count: number;
-    targets_offline: number;
-    targets_online: number;
 };
 
 export type LoginInputBodyWritable = {
@@ -1768,10 +1687,10 @@ export type MunkiPackageWritable = {
     installer_artifact_id?: number;
     installer_artifact_location?: string;
     installer_choices_xml: string;
-    installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs: Array<PackageInstallItem> | null;
-    items_to_copy: Array<PackageItemToCopy> | null;
+    installs: Array<MunkiPackageInstallItem> | null;
+    items_to_copy: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
@@ -1781,12 +1700,12 @@ export type MunkiPackageWritable = {
     postinstall_script: string;
     postuninstall_script: string;
     precache: boolean;
-    preinstall_alert: PackageAlert;
+    preinstall_alert: MunkiPackageAlert;
     preinstall_script: string;
-    preuninstall_alert: PackageAlert;
+    preuninstall_alert: MunkiPackageAlert;
     preuninstall_script: string;
-    receipts: Array<PackageReceipt> | null;
-    requires: Array<PackageReference> | null;
+    receipts: Array<MunkiPackageReceipt> | null;
+    requires: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_category: string;
     software_description: string;
@@ -1802,7 +1721,7 @@ export type MunkiPackageWritable = {
     uninstallcheck_script: string;
     uninstaller_artifact_id?: number;
     uninstaller_artifact_location?: string;
-    update_for: Array<PackageReference> | null;
+    update_for: Array<MunkiPackageReference> | null;
     updated_at: string;
     version: string;
     version_script: string;
@@ -1821,10 +1740,10 @@ export type MunkiPackageCreateMutationWritable = {
     installed_size?: number;
     installer_artifact_id?: number;
     installer_choices_xml?: string;
-    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<PackageInstallItem> | null;
-    items_to_copy?: Array<PackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem> | null;
+    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -1834,12 +1753,12 @@ export type MunkiPackageCreateMutationWritable = {
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
-    preinstall_alert?: PackageAlert;
+    preinstall_alert?: MunkiPackageAlert;
     preinstall_script?: string;
-    preuninstall_alert?: PackageAlert;
+    preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<PackageReceipt> | null;
-    requires?: Array<PackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt> | null;
+    requires?: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string> | null;
@@ -1850,7 +1769,7 @@ export type MunkiPackageCreateMutationWritable = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
-    update_for?: Array<PackageReference> | null;
+    update_for?: Array<MunkiPackageReference> | null;
     version: string;
     version_script?: string;
 };
@@ -1868,10 +1787,10 @@ export type MunkiPackageMutationWritable = {
     installed_size?: number;
     installer_artifact_id?: number;
     installer_choices_xml?: string;
-    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<PackageInstallItem> | null;
-    items_to_copy?: Array<PackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem> | null;
+    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -1881,12 +1800,12 @@ export type MunkiPackageMutationWritable = {
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
-    preinstall_alert?: PackageAlert;
+    preinstall_alert?: MunkiPackageAlert;
     preinstall_script?: string;
-    preuninstall_alert?: PackageAlert;
+    preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<PackageReceipt> | null;
-    requires?: Array<PackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt> | null;
+    requires?: Array<MunkiPackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     supported_architectures?: Array<string> | null;
     suppress_bundle_relocation?: boolean;
@@ -1896,7 +1815,7 @@ export type MunkiPackageMutationWritable = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
-    update_for?: Array<PackageReference> | null;
+    update_for?: Array<MunkiPackageReference> | null;
     version: string;
     version_script?: string;
 };
@@ -1939,7 +1858,7 @@ export type OsqueryCheckWritable = {
     name: string;
     passing_host_count: number;
     query: string;
-    targets: CheckTargets;
+    targets: OsqueryCheckTargets;
     updated_at: string;
 };
 
@@ -1947,7 +1866,39 @@ export type OsqueryCheckMutationWritable = {
     description?: string;
     name: string;
     query: string;
-    targets: CheckTargets;
+    targets: OsqueryCheckTargets;
+};
+
+export type OsqueryHandleWritable = {
+    id: number;
+    resolved_host_count: number;
+    sql: string;
+    started_at: string;
+};
+
+export type OsqueryHostReportResultsBodyWritable = {
+    host_id: number;
+    host_name: string;
+    items: Array<OsqueryReportResult> | null;
+    last_fetched?: string;
+    report_id: number;
+};
+
+export type OsqueryLiveQueryCreateBodyWritable = {
+    report_id?: number;
+    selected?: OsqueryLiveQuerySelectedBody;
+    sql: string;
+};
+
+export type OsqueryLiveQueryTargetCountBodyWritable = {
+    report_id?: number;
+    selected?: OsqueryLiveQuerySelectedBody;
+};
+
+export type OsqueryLiveQueryTargetCountOutputBodyWritable = {
+    targets_count: number;
+    targets_offline: number;
+    targets_online: number;
 };
 
 export type OsqueryReportWritable = {
@@ -1959,7 +1910,7 @@ export type OsqueryReportWritable = {
     name: string;
     query: string;
     schedule_interval: number;
-    targets: ReportTargets;
+    targets: OsqueryReportTargets;
     updated_at: string;
 };
 
@@ -1969,7 +1920,7 @@ export type OsqueryReportMutationWritable = {
     name: string;
     query: string;
     schedule_interval?: number;
-    targets: ReportTargets;
+    targets: OsqueryReportTargets;
 };
 
 export type PageArtifactWritable = {
@@ -1994,12 +1945,12 @@ export type PageDepartmentWritable = {
 
 export type PageExecutionEventWritable = {
     count: number;
-    items: Array<ExecutionEventWritable>;
+    items: Array<SantaExecutionEventWritable>;
 };
 
 export type PageFileAccessEventWritable = {
     count: number;
-    items: Array<FileAccessEventWritable>;
+    items: Array<SantaFileAccessEventWritable>;
 };
 
 export type PageGroupWritable = {
@@ -2044,7 +1995,7 @@ export type PageRuleWritable = {
 
 export type PageRuleStatusWritable = {
     count: number;
-    items: Array<RuleStatus>;
+    items: Array<SantaRuleStatus>;
 };
 
 export type PageSoftwareTitleWritable = {
@@ -2057,16 +2008,6 @@ export type PageUserWritable = {
     items: Array<UserWritable>;
 };
 
-export type RuleMutationWritable = {
-    custom_message?: string;
-    custom_url?: string;
-    description?: string;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: RuleTargets;
-};
-
 export type SantaConfigurationWritable = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -2077,20 +2018,69 @@ export type SantaConfigurationWritable = {
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
+    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
     event_detail_text?: string;
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     id: number;
     name: string;
     position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    targets: ConfigurationTargets;
+    removable_media_policy?: SantaRemovableMediaPolicy;
+    targets: SantaConfigurationTargets;
     updated_at: string;
+};
+
+export type SantaConfigurationMutationWritable = {
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    description?: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: SantaRemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    name: string;
+    removable_media_policy?: SantaRemovableMediaPolicy;
+    targets: SantaConfigurationTargets;
 };
 
 export type SantaConfigurationReorderBodyWritable = {
     ordered_ids: Array<number> | null;
+};
+
+export type SantaExecutionEventWritable = {
+    current_sessions: Array<string> | null;
+    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
+    executable: SantaExecutable;
+    executing_user: string;
+    file_path: string;
+    host: SantaHostSummary;
+    host_id: number;
+    id: number;
+    ingested_at: string;
+    logged_in_users: Array<string> | null;
+    occurred_at: string;
+    parent_name: string;
+    pid: number;
+    ppid: number;
+};
+
+export type SantaFileAccessEventWritable = {
+    decision: 'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only';
+    host: SantaHostSummary;
+    host_id: number;
+    id: number;
+    ingested_at: string;
+    occurred_at: string;
+    primary_process: SantaProcess;
+    process_chain?: Array<SantaProcess> | null;
+    rule_name: string;
+    rule_version: string;
+    target: string;
 };
 
 export type SantaRuleWritable = {
@@ -2102,8 +2092,28 @@ export type SantaRuleWritable = {
     identifier: string;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    targets: RuleTargets;
+    targets: SantaRuleTargets;
     updated_at: string;
+};
+
+export type SantaRuleMutationWritable = {
+    custom_message?: string;
+    custom_url?: string;
+    description?: string;
+    identifier: string;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: SantaRuleTargets;
+};
+
+export type SantaSoftwareReferenceWritable = {
+    block_count: number;
+    bundles: Array<SantaBundleReference> | null;
+    certificates: Array<SantaCertificateReference> | null;
+    executables: Array<SantaExecutableReference> | null;
+    execution_count: number;
+    rules: Array<SantaRuleReference> | null;
+    signing_identities: Array<SantaSigningIdentityReference> | null;
 };
 
 export type SessionBodyWritable = {
@@ -2116,16 +2126,6 @@ export type SetupInputBodyWritable = {
     email: string;
     name?: string;
     password: string;
-};
-
-export type SoftwareReferenceWritable = {
-    block_count: number;
-    bundles: Array<BundleReference> | null;
-    certificates: Array<CertificateReference> | null;
-    executables: Array<ExecutableReference> | null;
-    execution_count: number;
-    rules: Array<RuleReference> | null;
-    signing_identities: Array<SigningIdentityReference> | null;
 };
 
 export type SoftwareTitleWritable = {
@@ -2848,7 +2848,7 @@ export type ListHostOsqueryChecksResponses = {
     /**
      * OK
      */
-    200: Array<CheckHostStatus> | null;
+    200: Array<OsqueryCheckHostStatus> | null;
 };
 
 export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
@@ -2887,7 +2887,7 @@ export type ListHostOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: Array<HostReport> | null;
+    200: Array<OsqueryHostReport> | null;
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
@@ -2927,7 +2927,7 @@ export type ListHostOsqueryReportResultsResponses = {
     /**
      * OK
      */
-    200: HostReportResultsBody;
+    200: OsqueryHostReportResultsBody;
 };
 
 export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
@@ -3326,7 +3326,7 @@ export type UpdateLabelResponses = {
 export type UpdateLabelResponse = UpdateLabelResponses[keyof UpdateLabelResponses];
 
 export type CreateLiveQueryData = {
-    body: LiveQueryCreateBodyWritable;
+    body: OsqueryLiveQueryCreateBodyWritable;
     path?: never;
     query?: never;
     url: '/api/live-queries';
@@ -3357,13 +3357,13 @@ export type CreateLiveQueryResponses = {
     /**
      * Created
      */
-    201: Handle;
+    201: OsqueryHandle;
 };
 
 export type CreateLiveQueryResponse = CreateLiveQueryResponses[keyof CreateLiveQueryResponses];
 
 export type CountLiveQueryTargetsData = {
-    body: LiveQueryTargetCountBodyWritable;
+    body: OsqueryLiveQueryTargetCountBodyWritable;
     path?: never;
     query?: never;
     url: '/api/live-queries/targets/count';
@@ -3394,7 +3394,7 @@ export type CountLiveQueryTargetsResponses = {
     /**
      * OK
      */
-    200: LiveQueryTargetCountOutputBody;
+    200: OsqueryLiveQueryTargetCountOutputBody;
 };
 
 export type CountLiveQueryTargetsResponse = CountLiveQueryTargetsResponses[keyof CountLiveQueryTargetsResponses];
@@ -3475,7 +3475,7 @@ export type StreamLiveQueryResponses = {
      * Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
      */
     200: Array<{
-        data: LiveQueryCompletedEvent;
+        data: OsqueryLiveQueryCompletedEvent;
         /**
          * The event name.
          */
@@ -3489,7 +3489,7 @@ export type StreamLiveQueryResponses = {
          */
         retry?: number;
     } | {
-        data: LiveQueryPingEvent;
+        data: OsqueryLiveQueryPingEvent;
         /**
          * The event name.
          */
@@ -3503,7 +3503,7 @@ export type StreamLiveQueryResponses = {
          */
         retry?: number;
     } | {
-        data: LiveQueryResultEvent;
+        data: OsqueryLiveQueryResultEvent;
         /**
          * The event name.
          */
@@ -4579,7 +4579,7 @@ export type ListOsqueryCheckHostsResponses = {
     /**
      * OK
      */
-    200: Array<CheckHostStatus> | null;
+    200: Array<OsqueryCheckHostStatus> | null;
 };
 
 export type ListOsqueryCheckHostsResponse = ListOsqueryCheckHostsResponses[keyof ListOsqueryCheckHostsResponses];
@@ -4867,7 +4867,7 @@ export type ListOsqueryReportResultsResponses = {
     /**
      * OK
      */
-    200: Array<ReportResult> | null;
+    200: Array<OsqueryReportResult> | null;
 };
 
 export type ListOsqueryReportResultsResponse = ListOsqueryReportResultsResponses[keyof ListOsqueryReportResultsResponses];
@@ -4915,7 +4915,7 @@ export type ListSantaConfigurationsResponses = {
 export type ListSantaConfigurationsResponse = ListSantaConfigurationsResponses[keyof ListSantaConfigurationsResponses];
 
 export type CreateSantaConfigurationData = {
-    body: ConfigurationMutationWritable;
+    body: SantaConfigurationMutationWritable;
     path?: never;
     query?: never;
     url: '/api/santa/configurations';
@@ -5132,7 +5132,7 @@ export type GetSantaConfigurationResponses = {
 export type GetSantaConfigurationResponse = GetSantaConfigurationResponses[keyof GetSantaConfigurationResponses];
 
 export type UpdateSantaConfigurationData = {
-    body: ConfigurationMutationWritable;
+    body: SantaConfigurationMutationWritable;
     path: {
         id: number;
     };
@@ -5274,7 +5274,7 @@ export type GetSantaEventResponses = {
     /**
      * OK
      */
-    200: ExecutionEvent;
+    200: SantaExecutionEvent;
 };
 
 export type GetSantaEventResponse = GetSantaEventResponses[keyof GetSantaEventResponses];
@@ -5370,7 +5370,7 @@ export type GetSantaFileAccessEventResponses = {
     /**
      * OK
      */
-    200: FileAccessEvent;
+    200: SantaFileAccessEvent;
 };
 
 export type GetSantaFileAccessEventResponse = GetSantaFileAccessEventResponses[keyof GetSantaFileAccessEventResponses];
@@ -5415,7 +5415,7 @@ export type ListSantaRuleReferencesResponses = {
     /**
      * OK
      */
-    200: Array<RuleReferenceCandidate> | null;
+    200: Array<SantaRuleReferenceCandidate> | null;
 };
 
 export type ListSantaRuleReferencesResponse = ListSantaRuleReferencesResponses[keyof ListSantaRuleReferencesResponses];
@@ -5468,7 +5468,7 @@ export type ListSantaRulesResponses = {
 export type ListSantaRulesResponse = ListSantaRulesResponses[keyof ListSantaRulesResponses];
 
 export type CreateSantaRuleData = {
-    body: RuleMutationWritable;
+    body: SantaRuleMutationWritable;
     path?: never;
     query?: never;
     url: '/api/santa/rules';
@@ -5644,7 +5644,7 @@ export type GetSantaRuleResponses = {
 export type GetSantaRuleResponse = GetSantaRuleResponses[keyof GetSantaRuleResponses];
 
 export type UpdateSantaRuleData = {
-    body: RuleMutationWritable;
+    body: SantaRuleMutationWritable;
     path: {
         id: number;
     };
@@ -5843,7 +5843,7 @@ export type GetSoftwareSantaReferenceResponses = {
     /**
      * OK
      */
-    200: SoftwareReference;
+    200: SantaSoftwareReference;
 };
 
 export type GetSoftwareSantaReferenceResponse = GetSoftwareSantaReferenceResponses[keyof GetSoftwareSantaReferenceResponses];

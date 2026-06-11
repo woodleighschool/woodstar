@@ -34,7 +34,7 @@ func NewLabelEvaluator(store labelStore, logger *slog.Logger) *LabelEvaluator {
 }
 
 // ApplicableLabels returns labels with dynamic membership.
-func (e *LabelEvaluator) ApplicableLabels(ctx context.Context, host *hosts.Host) ([]labels.Label, error) {
+func (e *LabelEvaluator) ApplicableLabels(ctx context.Context, _ *hosts.Host) ([]labels.Label, error) {
 	return e.store.ListApplicableDynamic(ctx)
 }
 
