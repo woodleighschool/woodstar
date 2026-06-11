@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/use-auth";
 import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
@@ -56,6 +57,8 @@ export function LiveRunner({
   sql: string;
   editAction: ReactNode;
 }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const create = useCreateLiveQuery();
   const stop = useStopLiveQuery();
   const [step, setStep] = useState<LiveRunStep>("targets");
@@ -127,6 +130,19 @@ export function LiveRunner({
 
   const itemLabel = kind === "report" ? "report" : "check";
   const title = step === "targets" ? `Run ${name}` : `${name} Live Run`;
+
+  if (!isAdmin) {
+    return (
+      <PageShell>
+        <PageHeader
+          title={name}
+          description={`Live ${itemLabel} execution is admin-only.`}
+          actions={<ShowQueryButton sql={sql} />}
+        />
+        <EmptyPanel>Live execution is unavailable for this account.</EmptyPanel>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>

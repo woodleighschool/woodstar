@@ -39,14 +39,6 @@ import { nonEmpty } from "@/lib/utils";
 
 export function AppSidebar() {
   const { location } = useRouterState();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
-  const visibleSections = navSections
-    .map((section) => ({
-      ...section,
-      items: visibleItems(section.items, isAdmin),
-    }))
-    .filter((section) => section.items.length > 0);
 
   return (
     <Sidebar collapsible="icon">
@@ -54,7 +46,7 @@ export function AppSidebar() {
         <SidebarBrand />
       </SidebarHeader>
       <SidebarContent>
-        {visibleSections.map((section) => (
+        {navSections.map((section) => (
           <SidebarNavGroup key={section.label} section={section} pathname={location.pathname} />
         ))}
       </SidebarContent>
@@ -251,11 +243,4 @@ function SidebarUserAvatar({ email }: { email?: string }) {
 function isActivePath(pathname: string, item: NavItem): boolean {
   if (item.to && (pathname === item.to || pathname.startsWith(`${item.to}/`))) return true;
   return item.items?.some((child) => isActivePath(pathname, child)) ?? false;
-}
-
-function visibleItems(items: NavItem[], isAdmin: boolean): NavItem[] {
-  return items
-    .filter((item) => !item.adminOnly || isAdmin)
-    .map((item) => ({ ...item, items: item.items ? visibleItems(item.items, isAdmin) : undefined }))
-    .filter((item) => !item.items || item.items.length > 0);
 }

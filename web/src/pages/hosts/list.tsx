@@ -19,6 +19,7 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -47,6 +48,8 @@ const deepLinkParsers = {
 
 export function HostListPage() {
   const tableSearch = useDataTableSearch(STATUS_FILTER_KEYS);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [deepLink, setDeepLink] = useQueryStates(deepLinkParsers);
 
   const checkQuery = useCheck(deepLink.check_id);
@@ -83,7 +86,10 @@ export function HostListPage() {
     deepLink.software_title_id != null ||
     deepLink.check_id != null;
 
-  const columns = React.useMemo<ColumnDef<Host>[]>(() => hostColumns, []);
+  const columns = React.useMemo<ColumnDef<Host>[]>(
+    () => (isAdmin ? hostColumns : hostColumns.filter((column) => column.id !== "select")),
+    [isAdmin],
+  );
 
   const { table } = useDataTable({
     data: hosts,
@@ -125,7 +131,7 @@ export function HostListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={<HostsActionBar table={table} />}
+          actionBar={isAdmin ? <HostsActionBar table={table} /> : undefined}
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>

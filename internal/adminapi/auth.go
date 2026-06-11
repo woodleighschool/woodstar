@@ -3,6 +3,7 @@ package adminapi
 import (
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -42,5 +43,38 @@ func RequireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
 			return
 		}
 		next(ctx)
+	}
+}
+
+// RequireAdminForMutations restricts ordinary write operations to administrators.
+func RequireAdminForMutations(api huma.API) func(*huma.Operation, func(*huma.Operation)) {
+	return func(op *huma.Operation, next func(*huma.Operation)) {
+		if mutationMethod(op.Method) {
+			requireAdminOperation(api, op)
+		}
+		next(op)
+	}
+}
+
+func requireAdminForAll(api huma.API) func(*huma.Operation, func(*huma.Operation)) {
+	return func(op *huma.Operation, next func(*huma.Operation)) {
+		requireAdminOperation(api, op)
+		next(op)
+	}
+}
+
+func requireAdminOperation(api huma.API, op *huma.Operation) {
+	op.Middlewares = append(op.Middlewares, RequireAdmin(api))
+	if !slices.Contains(op.Errors, http.StatusForbidden) {
+		op.Errors = append(op.Errors, http.StatusForbidden)
+	}
+}
+
+func mutationMethod(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
 	}
 }

@@ -2579,10 +2579,6 @@ export type ListGroupsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -2617,10 +2613,6 @@ export type GetGroupErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -3584,10 +3576,6 @@ export type ListMunkiArtifactsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -3719,10 +3707,6 @@ export type GetMunkiArtifactErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3761,10 +3745,6 @@ export type GetMunkiArtifactContentErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -3812,10 +3792,6 @@ export type ListMunkiPackagesErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -3948,10 +3924,6 @@ export type GetMunkiPackageErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Not Found
      */
     404: ErrorModel;
@@ -4044,10 +4016,6 @@ export type ListMunkiSoftwareErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -4216,10 +4184,6 @@ export type GetMunkiSoftwareErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4890,10 +4854,6 @@ export type ListSantaConfigurationsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5103,10 +5063,6 @@ export type GetSantaConfigurationErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Not Found
      */
     404: ErrorModel;
@@ -5208,10 +5164,6 @@ export type ListSantaEventsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5250,10 +5202,6 @@ export type GetSantaEventErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5304,10 +5252,6 @@ export type ListSantaFileAccessEventsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5346,10 +5290,6 @@ export type GetSantaFileAccessEventErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5396,10 +5336,6 @@ export type ListSantaRuleReferencesErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5442,10 +5378,6 @@ export type ListSantaRulesErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -5614,10 +5546,6 @@ export type GetSantaRuleErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5870,10 +5798,6 @@ export type ListUsersErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5958,10 +5882,6 @@ export type ListUserDepartmentsErrors = {
      */
     401: ErrorModel;
     /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -6043,10 +5963,6 @@ export type GetUserErrors = {
      * Unauthorized
      */
     401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
     /**
      * Not Found
      */

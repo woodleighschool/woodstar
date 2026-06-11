@@ -100,7 +100,7 @@ func registerListMunkiArtifacts(api huma.API, store *Store) {
 		Path:        munkiArtifactPath,
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki artifacts",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiArtifactListInput) (*munkiArtifactListOutput, error) {
 		rows, count, err := store.List(ctx, input.ListQueryInput.Params())
 		if err != nil {
@@ -190,7 +190,7 @@ func registerGetMunkiArtifact(api huma.API, store *Store) {
 		Path:        munkiArtifactIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Get a Munki artifact",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiArtifactGetInput) (*munkiArtifactOutput, error) {
 		artifact, err := store.GetByID(ctx, input.ArtifactID)
 		if err != nil {
@@ -209,7 +209,6 @@ func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage
 		Summary:     "Get a Munki artifact content URL",
 		Errors: []int{
 			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusServiceUnavailable,
 		},

@@ -15,6 +15,7 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteMunkiSoftware, useMunkiSoftware, type MunkiSoftware } from "@/hooks/use-munki-software";
@@ -22,6 +23,8 @@ import { formatRelative } from "@/lib/utils";
 
 export function MunkiSoftwareListPage() {
   const tableSearch = useDataTableSearch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const query = useMunkiSoftware({
     q: tableSearch.q,
@@ -35,8 +38,8 @@ export function MunkiSoftwareListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<MunkiSoftware>[]>(
-    () => [
+  const columns = React.useMemo<ColumnDef<MunkiSoftware>[]>(() => {
+    const baseColumns: ColumnDef<MunkiSoftware>[] = [
       {
         id: "select",
         header: ({ table }) => (
@@ -61,16 +64,22 @@ export function MunkiSoftwareListPage() {
         id: "name",
         accessorKey: "name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Software" />,
-        cell: ({ row }) => (
-          <Link
-            to="/munki/software/$softwareId"
-            params={{ softwareId: String(row.original.id) }}
-            className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-          >
-            <MunkiIcon iconUrl={row.original.icon_url} />
-            <span className="truncate">{row.original.name}</span>
-          </Link>
-        ),
+        cell: ({ row }) =>
+          isAdmin ? (
+            <Link
+              to="/munki/software/$softwareId"
+              params={{ softwareId: String(row.original.id) }}
+              className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+            >
+              <MunkiIcon iconUrl={row.original.icon_url} />
+              <span className="truncate">{row.original.name}</span>
+            </Link>
+          ) : (
+            <span className="flex min-w-0 items-center gap-2 font-medium">
+              <MunkiIcon iconUrl={row.original.icon_url} />
+              <span className="truncate">{row.original.name}</span>
+            </span>
+          ),
         enableHiding: false,
         meta: { label: "Software" },
       },
@@ -96,9 +105,9 @@ export function MunkiSoftwareListPage() {
         cell: ({ row }) => formatRelative(row.original.updated_at),
         meta: { label: "Updated" },
       },
-    ],
-    [],
-  );
+    ];
+    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+  }, [isAdmin]);
 
   const { table } = useDataTable({
     data: software,
@@ -113,12 +122,14 @@ export function MunkiSoftwareListPage() {
       <PageHeader
         title="Software"
         actions={
-          <Button asChild size="sm">
-            <Link to="/munki/software/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/munki/software/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
@@ -129,7 +140,7 @@ export function MunkiSoftwareListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={<MunkiSoftwareActionBar table={table} />}
+          actionBar={isAdmin ? <MunkiSoftwareActionBar table={table} /> : undefined}
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>

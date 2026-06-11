@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/use-auth";
 import type { SantaRuleType } from "@/hooks/use-santa-rules";
 import {
   useSoftwareSantaReference,
@@ -31,6 +32,8 @@ type SigningIdentityReference = NonNullable<SoftwareSantaReference["signing_iden
 
 export function SoftwareDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const query = useSoftwareTitle(Number(softwareId));
   const title = query.data;
 
@@ -50,7 +53,7 @@ export function SoftwareDetailPage() {
     <PageShell className="gap-6">
       <SoftwareHeader title={title} />
       <SoftwareInfoCard title={title} />
-      <SoftwareSantaCard titleID={title.id} />
+      <SoftwareSantaCard titleID={title.id} isAdmin={isAdmin} />
       <SoftwareVersionsCard title={title} />
     </PageShell>
   );
@@ -132,7 +135,7 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
   );
 }
 
-function SoftwareSantaCard({ titleID }: { titleID: number }) {
+function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boolean }) {
   const query = useSoftwareSantaReference(titleID);
 
   if (query.error) {
@@ -175,11 +178,11 @@ function SoftwareSantaCard({ titleID }: { titleID: number }) {
           <EmptyPanel>No Santa data yet</EmptyPanel>
         ) : (
           <div className="grid gap-5 xl:grid-cols-2">
-            <SantaBundlesTable bundles={bundles} />
-            <SantaExecutablesTable executables={executables} />
-            <SantaSigningTable identities={identities} />
-            <SantaCertificatesTable certificates={certificates} />
-            <SantaRulesTable rules={rules} />
+            <SantaBundlesTable bundles={bundles} isAdmin={isAdmin} />
+            <SantaExecutablesTable executables={executables} isAdmin={isAdmin} />
+            <SantaSigningTable identities={identities} isAdmin={isAdmin} />
+            <SantaCertificatesTable certificates={certificates} isAdmin={isAdmin} />
+            <SantaRulesTable rules={rules} isAdmin={isAdmin} />
           </div>
         )}
       </CardContent>
@@ -196,7 +199,7 @@ function SantaMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function SantaBundlesTable({ bundles }: { bundles: BundleReference[] }) {
+function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Bundles" empty="No related bundles." count={bundles.length}>
       {bundles.map((bundle) => (
@@ -211,7 +214,7 @@ function SantaBundlesTable({ bundles }: { bundles: BundleReference[] }) {
             {bundle.collected_binary_count}/{bundle.binary_count}
           </TableCell>
           <TableCell className="w-10 text-right">
-            {bundle.complete ? (
+            {isAdmin && bundle.complete ? (
               <QuickAddRuleButton ruleType="bundle" identifier={bundle.sha256} name={bundle.name || bundle.bundle_id} />
             ) : null}
           </TableCell>
@@ -221,7 +224,7 @@ function SantaBundlesTable({ bundles }: { bundles: BundleReference[] }) {
   );
 }
 
-function SantaExecutablesTable({ executables }: { executables: ExecutableReference[] }) {
+function SantaExecutablesTable({ executables, isAdmin }: { executables: ExecutableReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Executables" empty="No related executables." count={executables.length}>
       {executables.map((executable) => (
@@ -236,7 +239,9 @@ function SantaExecutablesTable({ executables }: { executables: ExecutableReferen
             <span>{executable.block_count}</span>
           </TableCell>
           <TableCell className="w-10 text-right">
-            <QuickAddRuleButton ruleType="binary" identifier={executable.sha256} name={executable.file_bundle_name} />
+            {isAdmin ? (
+              <QuickAddRuleButton ruleType="binary" identifier={executable.sha256} name={executable.file_bundle_name} />
+            ) : null}
           </TableCell>
         </TableRow>
       ))}
@@ -244,7 +249,7 @@ function SantaExecutablesTable({ executables }: { executables: ExecutableReferen
   );
 }
 
-function SantaSigningTable({ identities }: { identities: SigningIdentityReference[] }) {
+function SantaSigningTable({ identities, isAdmin }: { identities: SigningIdentityReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Signing" empty="No signing identities." count={identities.length}>
       {identities.map((identity) => (
@@ -260,11 +265,13 @@ function SantaSigningTable({ identities }: { identities: SigningIdentityReferenc
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">{identity.rule_count}</TableCell>
           <TableCell className="w-10 text-right">
-            <QuickAddRuleButton
-              ruleType={identity.rule_type}
-              identifier={identity.identifier}
-              name={identity.name || identity.identifier}
-            />
+            {isAdmin ? (
+              <QuickAddRuleButton
+                ruleType={identity.rule_type}
+                identifier={identity.identifier}
+                name={identity.name || identity.identifier}
+              />
+            ) : null}
           </TableCell>
         </TableRow>
       ))}
@@ -279,7 +286,7 @@ function executableDisplayName(executable: ExecutableReference) {
   return "Executable";
 }
 
-function SantaCertificatesTable({ certificates }: { certificates: CertificateReference[] }) {
+function SantaCertificatesTable({ certificates, isAdmin }: { certificates: CertificateReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Certificates" empty="No signing certificates." count={certificates.length}>
       {certificates.map((certificate) => (
@@ -292,7 +299,13 @@ function SantaCertificatesTable({ certificates }: { certificates: CertificateRef
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">{certificate.rule_count}</TableCell>
           <TableCell className="w-10 text-right">
-            <QuickAddRuleButton ruleType="certificate" identifier={certificate.sha256} name={certificate.common_name} />
+            {isAdmin ? (
+              <QuickAddRuleButton
+                ruleType="certificate"
+                identifier={certificate.sha256}
+                name={certificate.common_name}
+              />
+            ) : null}
           </TableCell>
         </TableRow>
       ))}
@@ -300,19 +313,23 @@ function SantaCertificatesTable({ certificates }: { certificates: CertificateRef
   );
 }
 
-function SantaRulesTable({ rules }: { rules: RuleReference[] }) {
+function SantaRulesTable({ rules, isAdmin }: { rules: RuleReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Rules" empty="No matching rules." count={rules.length}>
       {rules.map((rule) => (
         <TableRow key={rule.id}>
           <TableCell className="min-w-0">
-            <Link
-              to="/santa/rules/$ruleId"
-              params={{ ruleId: String(rule.id) }}
-              className="hover:text-primary block truncate font-medium hover:underline"
-            >
-              {rule.name || rule.identifier}
-            </Link>
+            {isAdmin ? (
+              <Link
+                to="/santa/rules/$ruleId"
+                params={{ ruleId: String(rule.id) }}
+                className="hover:text-primary block truncate font-medium hover:underline"
+              >
+                {rule.name || rule.identifier}
+              </Link>
+            ) : (
+              <span className="block truncate font-medium">{rule.name || rule.identifier}</span>
+            )}
             <div className="text-muted-foreground truncate font-mono text-xs">{shortIdentifier(rule.identifier)}</div>
           </TableCell>
           <TableCell className="text-right">

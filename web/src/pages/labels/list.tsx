@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useDeleteLabel, useLabels, type Label, type LabelListParams } from "@/hooks/use-labels";
@@ -40,6 +41,8 @@ const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
 
 export function LabelListPage() {
   const tableSearch = useDataTableSearch(MEMBERSHIP_FILTER_KEYS);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [deleting, setDeleting] = React.useState<Label | null>(null);
 
   const membership = tableSearch.filters.label_membership_type?.[0];
@@ -58,21 +61,24 @@ export function LabelListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!membership;
 
-  const columns = React.useMemo<ColumnDef<Label>[]>(
-    () => [
+  const columns = React.useMemo<ColumnDef<Label>[]>(() => {
+    const baseColumns: ColumnDef<Label>[] = [
       {
         id: "name",
         accessorKey: "name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-        cell: ({ row }) => (
-          <Link
-            to="/labels/$labelId/edit"
-            params={{ labelId: String(row.original.id) }}
-            className="font-medium hover:underline"
-          >
-            {row.original.name}
-          </Link>
-        ),
+        cell: ({ row }) =>
+          isAdmin ? (
+            <Link
+              to="/labels/$labelId/edit"
+              params={{ labelId: String(row.original.id) }}
+              className="font-medium hover:underline"
+            >
+              {row.original.name}
+            </Link>
+          ) : (
+            <span className="font-medium">{row.original.name}</span>
+          ),
         enableHiding: false,
         meta: { label: "Name" },
       },
@@ -104,11 +110,11 @@ export function LabelListPage() {
         enableSorting: false,
         enableHiding: false,
         size: 48,
-        cell: ({ row }) => <LabelRowActions label={row.original} onDelete={setDeleting} />,
+        cell: ({ row }) => (isAdmin ? <LabelRowActions label={row.original} onDelete={setDeleting} /> : null),
       },
-    ],
-    [],
-  );
+    ];
+    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
+  }, [isAdmin]);
 
   const { table } = useDataTable({
     data: labels,
@@ -124,12 +130,14 @@ export function LabelListPage() {
         title="Labels"
         description="Group hosts for targeting, reporting, and Santa rules."
         actions={
-          <Button asChild size="sm">
-            <Link to="/labels/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/labels/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
       {query.error ? (
@@ -166,13 +174,15 @@ export function LabelListPage() {
         </DataTable>
       )}
 
-      <LabelDeleteDialog
-        label={deleting}
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
-      />
+      {isAdmin ? (
+        <LabelDeleteDialog
+          label={deleting}
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

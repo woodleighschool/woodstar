@@ -28,7 +28,6 @@ type DetailBuilder[T any] func(HostDetail) T
 type AdminRoutesOptions[T any] struct {
 	Store          *Store
 	UserAffinities *UserAffinityStore
-	RequireAdmin   func(context.Context) error
 	CheckFilter    CheckStatusFilter
 	DetailBuilder  DetailBuilder[T]
 	Contributors   []DetailContributor[T]
@@ -100,14 +99,13 @@ type hostUserAffinityPutInput struct {
 }
 
 // RegisterAdminRoutes registers admin host inventory endpoints.
-// Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterAdminRoutes[T any](api huma.API, opts AdminRoutesOptions[T]) {
 	registerListHosts(api, opts.Store, opts.CheckFilter)
 	registerGetHost(api, opts)
 	registerPutHostUserAffinity(api, opts)
 	registerDeleteHostUserAffinity(api, opts)
-	registerDeleteHost(api, opts.Store, opts.RequireAdmin)
-	registerBulkDeleteHosts(api, opts.Store, opts.RequireAdmin)
+	registerDeleteHost(api, opts.Store)
+	registerBulkDeleteHosts(api, opts.Store)
 }
 
 func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFilter) {
@@ -231,9 +229,6 @@ func registerPutHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions[T]
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput[T], error) {
-		if err := requireAdmin(ctx, opts.RequireAdmin); err != nil {
-			return nil, err
-		}
 		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
@@ -263,9 +258,6 @@ func registerDeleteHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions
 		Summary:     "Clear the host user affinity",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput[T], error) {
-		if err := requireAdmin(ctx, opts.RequireAdmin); err != nil {
-			return nil, err
-		}
 		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
@@ -282,7 +274,7 @@ func registerDeleteHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions
 	})
 }
 
-func registerDeleteHost(api huma.API, hostStore *Store, requireAdminFunc func(context.Context) error) {
+func registerDeleteHost(api huma.API, hostStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -291,9 +283,6 @@ func registerDeleteHost(api huma.API, hostStore *Store, requireAdminFunc func(co
 		Summary:     "Delete an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
-		if err := requireAdmin(ctx, requireAdminFunc); err != nil {
-			return nil, err
-		}
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
 			return nil, apitypes.ResourceMutationError("host", err)
 		}
@@ -301,7 +290,7 @@ func registerDeleteHost(api huma.API, hostStore *Store, requireAdminFunc func(co
 	})
 }
 
-func registerBulkDeleteHosts(api huma.API, hostStore *Store, requireAdminFunc func(context.Context) error) {
+func registerBulkDeleteHosts(api huma.API, hostStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-hosts",
 		Method:      http.MethodPost,
@@ -310,19 +299,9 @@ func registerBulkDeleteHosts(api huma.API, hostStore *Store, requireAdminFunc fu
 		Summary:     "Delete enrolled hosts",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
-		if err := requireAdmin(ctx, requireAdminFunc); err != nil {
-			return nil, err
-		}
 		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func requireAdmin(ctx context.Context, requireAdminFunc func(context.Context) error) error {
-	if requireAdminFunc == nil {
-		return errors.New("admin authorizer is not configured")
-	}
-	return requireAdminFunc(ctx)
 }

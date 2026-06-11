@@ -87,7 +87,7 @@ func registerListSantaRules(api huma.API, store *Store) {
 		Path:        "/api/santa/rules",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa rules",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaRuleListInput) (*santaRuleListOutput, error) {
 		rules, count, err := store.ListRules(ctx, input.params())
 		if err != nil {
@@ -104,7 +104,7 @@ func registerListSantaRuleReferences(api huma.API, store *Store) {
 		Path:        "/api/santa/rule-references",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa rule references",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaRuleReferenceListInput) (*santaRuleReferenceListOutput, error) {
 		candidates, err := store.ListRuleReferences(ctx, input.params())
 		if err != nil {
@@ -145,7 +145,7 @@ func registerGetSantaRule(api huma.API, store *Store) {
 		Path:        santaRuleIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa rule",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
 		rule, err := store.GetRuleByID(ctx, input.RuleID)
 		if err != nil {

@@ -39,6 +39,7 @@ export function UserListPage() {
   const tableSearch = useDataTableSearch(USER_FILTER_KEYS);
   const { user: currentUser } = useAuth();
   const currentUserId = currentUser?.id ?? null;
+  const isAdmin = currentUser?.role === "admin";
   const [createOpen, setCreateOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<User | null>(null);
   const [deepLink, setDeepLink] = useQueryStates({ group_id: parseAsInteger });
@@ -64,17 +65,23 @@ export function UserListPage() {
   const hasFilters = !!tableSearch.q || !!role || !!source || groupID !== undefined;
   const groupLabel = groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
 
-  const columns = React.useMemo<ColumnDef<User>[]>(
-    () => [
+  const columns = React.useMemo<ColumnDef<User>[]>(() => {
+    const baseColumns: ColumnDef<User>[] = [
       {
         id: "name",
         accessorKey: "name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-        cell: ({ row }) => (
-          <Link {...userEditLink(row.original.id, currentUserId)} className="font-medium hover:underline">
-            {nonEmpty(row.original.name) ?? row.original.email}
-          </Link>
-        ),
+        cell: ({ row }) => {
+          const label = nonEmpty(row.original.name) ?? row.original.email;
+          if (isAdmin || row.original.id === currentUserId) {
+            return (
+              <Link {...userEditLink(row.original.id, currentUserId)} className="font-medium hover:underline">
+                {label}
+              </Link>
+            );
+          }
+          return <span className="font-medium">{label}</span>;
+        },
         enableHiding: false,
         meta: { label: "Name" },
       },
@@ -114,13 +121,14 @@ export function UserListPage() {
         enableSorting: false,
         enableHiding: false,
         size: 48,
-        cell: ({ row }) => (
-          <UserRowActions user={row.original} isSelf={row.original.id === currentUserId} onDelete={setDeleting} />
-        ),
+        cell: ({ row }) =>
+          isAdmin ? (
+            <UserRowActions user={row.original} isSelf={row.original.id === currentUserId} onDelete={setDeleting} />
+          ) : null,
       },
-    ],
-    [currentUserId],
-  );
+    ];
+    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
+  }, [currentUserId, isAdmin]);
 
   const { table } = useDataTable({
     data: users,
@@ -141,10 +149,12 @@ export function UserListPage() {
           ) : null
         }
         actions={
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <UserPlus data-icon="inline-start" />
-            Create
-          </Button>
+          isAdmin ? (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <UserPlus data-icon="inline-start" />
+              Create
+            </Button>
+          ) : null
         }
       />
 
@@ -187,14 +197,18 @@ export function UserListPage() {
         </DataTable>
       )}
 
-      <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <UserDeleteDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
-        user={deleting}
-      />
+      {isAdmin ? (
+        <>
+          <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+          <UserDeleteDialog
+            open={deleting !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleting(null);
+            }}
+            user={deleting}
+          />
+        </>
+      ) : null}
     </PageShell>
   );
 }

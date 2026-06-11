@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -91,7 +90,7 @@ func registerListMunkiSoftware(api huma.API, store *Store) {
 		Path:        munkiSoftwarePath,
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki software",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -142,7 +141,7 @@ func registerGetMunkiSoftware(
 		Path:        munkiSoftwareIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Get Munki software",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareGetInput) (*munkiSoftwareDetailOutput, error) {
 		return loadMunkiSoftwareDetail(ctx, input.SoftwareID, store, packageStore)
 	})
@@ -184,9 +183,6 @@ func registerDeleteMunkiSoftware(api huma.API, store *Store) {
 		Summary:     "Delete Munki software",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		if err := store.Delete(ctx, input.SoftwareID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
@@ -203,9 +199,6 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 		Summary:     "Delete Munki software",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiSoftwareBulkDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}

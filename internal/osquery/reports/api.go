@@ -157,9 +157,6 @@ func registerBulkDeleteReports(api huma.API, reportStore *Store) {
 		Summary:     "Delete reports",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *reportBulkDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		if _, err := reportStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}

@@ -79,7 +79,7 @@ func registerListSantaConfigurations(api huma.API, store *Store) {
 		Path:        "/api/santa/configurations",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa configurations",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaConfigurationListInput) (*santaConfigurationListOutput, error) {
 		rows, count, err := store.ListConfigurations(ctx, input.params())
 		if err != nil {
@@ -122,7 +122,7 @@ func registerGetSantaConfiguration(api huma.API, store *Store) {
 		Path:        santaConfigurationIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa configuration",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.GetConfigurationByID(ctx, input.ConfigurationID)
 		if err != nil {

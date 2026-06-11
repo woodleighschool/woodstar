@@ -14,6 +14,7 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
@@ -21,6 +22,8 @@ import { formatInterval } from "@/lib/utils";
 
 export function ReportListPage() {
   const tableSearch = useDataTableSearch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const query = useReports({
     q: tableSearch.q,
@@ -34,7 +37,7 @@ export function ReportListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<Report>[]>(() => reportColumns, []);
+  const columns = React.useMemo<ColumnDef<Report>[]>(() => reportColumns(isAdmin), [isAdmin]);
 
   const { table } = useDataTable({
     data: reports,
@@ -49,12 +52,14 @@ export function ReportListPage() {
       <PageHeader
         title="Reports"
         actions={
-          <Button asChild size="sm">
-            <Link to="/osquery/reports/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/osquery/reports/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
       {query.error ? (
@@ -64,7 +69,7 @@ export function ReportListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={<ReportsActionBar table={table} />}
+          actionBar={isAdmin ? <ReportsActionBar table={table} /> : undefined}
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>
@@ -90,52 +95,58 @@ export function ReportListPage() {
   );
 }
 
-const reportColumns: ColumnDef<Report>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 32,
-  },
-  {
-    id: "name",
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-    cell: ({ row }) => (
-      <Link
-        to="/osquery/reports/$reportId"
-        params={{ reportId: String(row.original.id) }}
-        className="font-medium hover:underline"
-      >
-        {row.original.name}
-      </Link>
-    ),
-    enableHiding: false,
-    meta: { label: "Name" },
-  },
-  {
-    id: "schedule_interval",
-    accessorKey: "schedule_interval",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Interval" />,
-    cell: ({ row }) =>
-      row.original.schedule_interval ? `Every ${formatInterval(row.original.schedule_interval)}` : "Off",
-    meta: { label: "Interval" },
-  },
-];
+function reportColumns(isAdmin: boolean): ColumnDef<Report>[] {
+  const columns: ColumnDef<Report>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 32,
+    },
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      cell: ({ row }) =>
+        isAdmin ? (
+          <Link
+            to="/osquery/reports/$reportId"
+            params={{ reportId: String(row.original.id) }}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ) : (
+          <span className="font-medium">{row.original.name}</span>
+        ),
+      enableHiding: false,
+      meta: { label: "Name" },
+    },
+    {
+      id: "schedule_interval",
+      accessorKey: "schedule_interval",
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Interval" />,
+      cell: ({ row }) =>
+        row.original.schedule_interval ? `Every ${formatInterval(row.original.schedule_interval)}` : "Off",
+      meta: { label: "Interval" },
+    },
+  ];
+  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
+}
 
 function ReportsActionBar({ table }: { table: TanStackTable<Report> }) {
   const rows = table.getFilteredSelectedRowModel().rows;

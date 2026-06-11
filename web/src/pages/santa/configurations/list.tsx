@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Sortable, SortableContent, SortableItem, SortableItemHandle } from "@/components/ui/sortable";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, encodeSort, MAX_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
@@ -45,6 +46,8 @@ import { formatRelative } from "@/lib/utils";
 
 export function ConfigurationListPage() {
   const tableSearch = useDataTableSearch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
 
@@ -65,9 +68,12 @@ export function ConfigurationListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
-  const canEnableReorder = !hasFilters && totalCount > 1 && !query.isLoading;
+  const canEnableReorder = isAdmin && !hasFilters && totalCount > 1 && !query.isLoading;
 
-  const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(() => configurationColumns(labelsByID), [labelsByID]);
+  const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(
+    () => configurationColumns(labelsByID, isAdmin),
+    [isAdmin, labelsByID],
+  );
 
   const { table } = useDataTable({
     data: serverRows,
@@ -96,33 +102,35 @@ export function ConfigurationListPage() {
       <PageHeader
         title="Configurations"
         actions={
-          <>
-            <ButtonGroup>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={reorderEnabled || !canEnableReorder}
-                onClick={() => setReorderWarningOpen(true)}
-              >
-                Edit Order
-              </Button>
-            </ButtonGroup>
-            {reorderEnabled ? null : (
-              <Button asChild size="sm">
-                <Link to="/santa/configurations/new">
-                  <Plus data-icon="inline-start" />
-                  Create
-                </Link>
-              </Button>
-            )}
-          </>
+          isAdmin ? (
+            <>
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={reorderEnabled || !canEnableReorder}
+                  onClick={() => setReorderWarningOpen(true)}
+                >
+                  Edit Order
+                </Button>
+              </ButtonGroup>
+              {reorderEnabled ? null : (
+                <Button asChild size="sm">
+                  <Link to="/santa/configurations/new">
+                    <Plus data-icon="inline-start" />
+                    Create
+                  </Link>
+                </Button>
+              )}
+            </>
+          ) : null
         }
       />
 
       {query.error ? (
         <QueryError title="Failed to load configurations" error={query.error} onRetry={() => void query.refetch()} />
-      ) : reorderEnabled ? (
+      ) : reorderEnabled && isAdmin ? (
         <ConfigurationReorder
           key={serverRows.map((row) => row.id).join(",")}
           rows={serverRows}
@@ -134,7 +142,11 @@ export function ConfigurationListPage() {
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={6} />
       ) : (
-        <DataTable table={table} actionBar={<ConfigurationsActionBar table={table} />} empty={emptyState}>
+        <DataTable
+          table={table}
+          actionBar={isAdmin ? <ConfigurationsActionBar table={table} /> : undefined}
+          empty={emptyState}
+        >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
               <DataTableSearchInput className="h-8 w-40 lg:w-56" />
@@ -143,20 +155,25 @@ export function ConfigurationListPage() {
         </DataTable>
       )}
 
-      <ReorderWarningDialog
-        open={reorderWarningOpen}
-        onOpenChange={setReorderWarningOpen}
-        onConfirm={() => {
-          setReorderEnabled(true);
-          setReorderWarningOpen(false);
-        }}
-      />
+      {isAdmin ? (
+        <ReorderWarningDialog
+          open={reorderWarningOpen}
+          onOpenChange={setReorderWarningOpen}
+          onConfirm={() => {
+            setReorderEnabled(true);
+            setReorderWarningOpen(false);
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }
 
-function configurationColumns(labelsByID: ReadonlyMap<number, LabelChip>): ColumnDef<SantaConfiguration>[] {
-  return [
+function configurationColumns(
+  labelsByID: ReadonlyMap<number, LabelChip>,
+  isAdmin: boolean,
+): ColumnDef<SantaConfiguration>[] {
+  const columns: ColumnDef<SantaConfiguration>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -189,15 +206,18 @@ function configurationColumns(labelsByID: ReadonlyMap<number, LabelChip>): Colum
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-      cell: ({ row }) => (
-        <Link
-          to="/santa/configurations/$configurationId"
-          params={{ configurationId: String(row.original.id) }}
-          className="font-medium hover:underline"
-        >
-          {row.original.name}
-        </Link>
-      ),
+      cell: ({ row }) =>
+        isAdmin ? (
+          <Link
+            to="/santa/configurations/$configurationId"
+            params={{ configurationId: String(row.original.id) }}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ) : (
+          <span className="font-medium">{row.original.name}</span>
+        ),
       enableHiding: false,
       meta: { label: "Name" },
     },
@@ -225,6 +245,7 @@ function configurationColumns(labelsByID: ReadonlyMap<number, LabelChip>): Colum
       meta: { label: "Updated" },
     },
   ];
+  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
 }
 
 function ConfigurationsActionBar({ table }: { table: TanStackTable<SantaConfiguration> }) {

@@ -157,9 +157,6 @@ func registerBulkDeleteChecks(api huma.API, checkStore *Store) {
 		Summary:     "Delete checks",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *checkBulkDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		if _, err := checkStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, encodeSort, MAX_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
@@ -28,6 +29,8 @@ const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
 
 export function RuleListPage() {
   const tableSearch = useDataTableSearch(RULE_TYPE_FILTER_KEYS);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const ruleType = tableSearch.filters.rule_type?.[0] as SantaRuleType | undefined;
 
@@ -50,8 +53,8 @@ export function RuleListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!ruleType;
 
-  const columns = React.useMemo<ColumnDef<SantaRule>[]>(
-    () => [
+  const columns = React.useMemo<ColumnDef<SantaRule>[]>(() => {
+    const baseColumns: ColumnDef<SantaRule>[] = [
       {
         id: "select",
         header: ({ table }) => (
@@ -76,15 +79,18 @@ export function RuleListPage() {
         id: "name",
         accessorKey: "name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-        cell: ({ row }) => (
-          <Link
-            to="/santa/rules/$ruleId"
-            params={{ ruleId: String(row.original.id) }}
-            className="font-medium hover:underline"
-          >
-            {row.original.name}
-          </Link>
-        ),
+        cell: ({ row }) =>
+          isAdmin ? (
+            <Link
+              to="/santa/rules/$ruleId"
+              params={{ ruleId: String(row.original.id) }}
+              className="font-medium hover:underline"
+            >
+              {row.original.name}
+            </Link>
+          ) : (
+            <span className="font-medium">{row.original.name}</span>
+          ),
         enableHiding: false,
         meta: { label: "Name" },
       },
@@ -115,9 +121,9 @@ export function RuleListPage() {
           ),
         meta: { label: "Targets" },
       },
-    ],
-    [labelsByID],
-  );
+    ];
+    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+  }, [isAdmin, labelsByID]);
 
   const { table } = useDataTable({
     data: rules,
@@ -132,12 +138,14 @@ export function RuleListPage() {
       <PageHeader
         title="Rules"
         actions={
-          <Button asChild size="sm">
-            <Link to="/santa/rules/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/santa/rules/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
@@ -148,7 +156,7 @@ export function RuleListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={<RulesActionBar table={table} />}
+          actionBar={isAdmin ? <RulesActionBar table={table} /> : undefined}
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>

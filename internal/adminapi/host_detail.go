@@ -3,17 +3,11 @@ package adminapi
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 )
-
-func requireAdminUser(ctx context.Context) error {
-	_, err := adminctx.RequireAdmin(ctx)
-	return err
-}
 
 // HostDetail is the admin host detail response with optional capability fields.
 type HostDetail struct {

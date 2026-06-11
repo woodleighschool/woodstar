@@ -104,7 +104,7 @@ func registerListSantaEvents(api huma.API, store *Store) {
 		Path:        "/api/santa/events",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa execution events",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		events, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
@@ -121,7 +121,7 @@ func registerGetSantaEvent(api huma.API, store *Store) {
 		Path:        santaEventIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa execution event",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
 		event, err := store.GetExecutionEvent(ctx, input.EventID)
 		if errors.Is(err, dbutil.ErrNotFound) {
@@ -141,7 +141,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *Store) {
 		Path:        santaFileAccessEventPath,
 		Tags:        []string{santaTag},
 		Summary:     "List Santa file access events",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		events, count, err := store.ListFileAccessEvents(ctx, input.params())
 		if err != nil {
@@ -160,7 +160,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *Store) {
 		Path:        santaFileAccessEventIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa file access event",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
 		event, err := store.GetFileAccessEvent(ctx, input.EventID)
 		if errors.Is(err, dbutil.ErrNotFound) {

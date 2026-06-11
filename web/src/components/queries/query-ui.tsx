@@ -4,6 +4,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 const LazySQLEditor = lazy(() =>
@@ -62,6 +63,11 @@ export function LiveRunButton({
   params?: Record<string, string>;
   search?: Record<string, string>;
 }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  if (!isAdmin) return null;
+
   return (
     <Button asChild variant="outline" size="sm">
       <Link to={to} params={params} search={search}>

@@ -14,12 +14,15 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 
 export function CheckListPage() {
   const tableSearch = useDataTableSearch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const query = useChecks({
     q: tableSearch.q,
@@ -33,7 +36,7 @@ export function CheckListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<Check>[]>(() => checkColumns, []);
+  const columns = React.useMemo<ColumnDef<Check>[]>(() => checkColumns(isAdmin), [isAdmin]);
 
   const { table } = useDataTable({
     data: checks,
@@ -48,12 +51,14 @@ export function CheckListPage() {
       <PageHeader
         title="Checks"
         actions={
-          <Button asChild size="sm">
-            <Link to="/osquery/checks/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/osquery/checks/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
       {query.error ? (
@@ -63,7 +68,7 @@ export function CheckListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={<ChecksActionBar table={table} />}
+          actionBar={isAdmin ? <ChecksActionBar table={table} /> : undefined}
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>
@@ -89,70 +94,80 @@ export function CheckListPage() {
   );
 }
 
-const checkColumns: ColumnDef<Check>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 32,
-  },
-  {
-    id: "name",
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
-    cell: ({ row }) => (
-      <Link
-        to="/osquery/checks/$checkId"
-        params={{ checkId: String(row.original.id) }}
-        className="font-medium hover:underline"
-      >
-        {row.original.name}
-      </Link>
-    ),
-    enableHiding: false,
-    meta: { label: "Name" },
-  },
-  {
-    id: "passing_host_count",
-    accessorKey: "passing_host_count",
-    enableSorting: false,
-    header: () => (
-      <span className="flex items-center gap-1.5">
-        <CircleCheck className="size-4 text-status-online" />
-        Pass
-      </span>
-    ),
-    cell: ({ row }) => <HostCount checkId={row.original.id} response="pass" value={row.original.passing_host_count} />,
-    meta: { label: "Pass" },
-  },
-  {
-    id: "failing_host_count",
-    accessorKey: "failing_host_count",
-    enableSorting: false,
-    header: () => (
-      <span className="flex items-center gap-1.5">
-        <CircleAlert className="size-4 text-muted-foreground" />
-        Fail
-      </span>
-    ),
-    cell: ({ row }) => <HostCount checkId={row.original.id} response="fail" value={row.original.failing_host_count} />,
-    meta: { label: "Fail" },
-  },
-];
+function checkColumns(isAdmin: boolean): ColumnDef<Check>[] {
+  const columns: ColumnDef<Check>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 32,
+    },
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      cell: ({ row }) =>
+        isAdmin ? (
+          <Link
+            to="/osquery/checks/$checkId"
+            params={{ checkId: String(row.original.id) }}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ) : (
+          <span className="font-medium">{row.original.name}</span>
+        ),
+      enableHiding: false,
+      meta: { label: "Name" },
+    },
+    {
+      id: "passing_host_count",
+      accessorKey: "passing_host_count",
+      enableSorting: false,
+      header: () => (
+        <span className="flex items-center gap-1.5">
+          <CircleCheck className="size-4 text-status-online" />
+          Pass
+        </span>
+      ),
+      cell: ({ row }) => (
+        <HostCount checkId={row.original.id} response="pass" value={row.original.passing_host_count} />
+      ),
+      meta: { label: "Pass" },
+    },
+    {
+      id: "failing_host_count",
+      accessorKey: "failing_host_count",
+      enableSorting: false,
+      header: () => (
+        <span className="flex items-center gap-1.5">
+          <CircleAlert className="size-4 text-muted-foreground" />
+          Fail
+        </span>
+      ),
+      cell: ({ row }) => (
+        <HostCount checkId={row.original.id} response="fail" value={row.original.failing_host_count} />
+      ),
+      meta: { label: "Fail" },
+    },
+  ];
+  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
+}
 
 function ChecksActionBar({ table }: { table: TanStackTable<Check> }) {
   const rows = table.getFilteredSelectedRowModel().rows;

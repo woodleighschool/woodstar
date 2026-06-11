@@ -76,7 +76,7 @@ func registerListMunkiPackages(api huma.API, store *Store) {
 		Path:        munkiPackagePath,
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki packages",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -119,7 +119,7 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 		Path:        munkiPackageIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Get a Munki package",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.PackageID)
 		if err != nil {

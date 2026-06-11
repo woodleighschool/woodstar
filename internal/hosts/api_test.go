@@ -46,7 +46,6 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
 			Store:          hostStore,
 			UserAffinities: userAffinities,
-			RequireAdmin:   func(context.Context) error { return nil },
 			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
 		})
 	})
@@ -144,7 +143,6 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
 			Store:          hostStore,
 			UserAffinities: hosts.NewUserAffinityStore(db),
-			RequireAdmin:   func(context.Context) error { return nil },
 			CheckFilter:    checkStatusFilter{store: checkStore},
 			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
 		})

@@ -82,7 +82,6 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[HostDetail]{
 			Store:          hostStore,
 			UserAffinities: hosts.NewUserAffinityStore(db),
-			RequireAdmin:   requireAdminUser,
 			DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
 			Contributors: []hosts.DetailContributor[HostDetail]{
 				newSantaHostDetailContributor(hostState),
@@ -132,17 +131,12 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 
 func santaAuthedRouter(t *testing.T, db *database.DB, email string, register func(huma.API)) (*chi.Mux, *http.Cookie) {
 	t.Helper()
-	router, protected, cookie := santaTestAPIWith(t, db, email, false)
+	router, protected, cookie := santaTestAPIWith(t, db, email)
 	register(protected)
 	return router, cookie
 }
 
-func santaTestAPIWith(
-	t *testing.T,
-	db *database.DB,
-	email string,
-	requireAdminGroup bool,
-) (*chi.Mux, huma.API, *http.Cookie) {
+func santaTestAPIWith(t *testing.T, db *database.DB, email string) (*chi.Mux, huma.API, *http.Cookie) {
 	t.Helper()
 
 	userService := directory.NewUserService(directory.NewStore(db))
@@ -163,9 +157,6 @@ func santaTestAPIWith(
 	api := humachi.New(router, humaConfig("test"))
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(santaTestWithUser(admin))
-	if requireAdminGroup {
-		protected.UseMiddleware(santaTestRequireAdmin)
-	}
 
 	return router, protected, loginSantaTestUser(t, authService, sessionManager, email)
 }
@@ -174,13 +165,6 @@ func santaTestWithUser(user *directory.User) func(huma.Context, func(huma.Contex
 	return func(ctx huma.Context, next func(huma.Context)) {
 		next(huma.WithContext(ctx, adminctx.WithUser(ctx.Context(), user)))
 	}
-}
-
-func santaTestRequireAdmin(ctx huma.Context, next func(huma.Context)) {
-	if _, err := adminctx.RequireAdmin(ctx.Context()); err != nil {
-		panic(err)
-	}
-	next(ctx)
 }
 
 func loginSantaTestUser(

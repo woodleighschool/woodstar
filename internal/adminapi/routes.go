@@ -32,32 +32,34 @@ func Mount(r chi.Router, deps Dependencies) {
 func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	protected := huma.NewGroup(humaAPI)
 	protected.UseMiddleware(RequireAuth(humaAPI, deps.Auth.AuthService))
-	admin := huma.NewGroup(protected)
-	admin.UseMiddleware(RequireAdmin(humaAPI))
+	ordinary := huma.NewGroup(protected)
+	ordinary.UseModifier(RequireAdminForMutations(humaAPI))
+	sensitive := huma.NewGroup(protected)
+	sensitive.UseModifier(requireAdminForAll(humaAPI))
 
 	auth.RegisterPublicAdminRoutes(humaAPI, deps.Auth.AuthService)
 	RegisterSSO(r, deps.Auth.AuthService)
 	auth.RegisterAccountAdminRoutes(protected, deps.Auth.AuthService, deps.Auth.UserService)
-	directory.RegisterUserAdminRoutes(admin, deps.Auth.UserService)
-	directory.RegisterGroupAdminRoutes(admin, deps.Directory.Store)
-	hosts.RegisterAdminRoutes(protected, hostRoutesOptions(deps))
-	inventory.RegisterAdminRoutes(protected, deps.Inventory.Software)
-	inventory.RegisterHostAdminRoutes(protected, deps.Inventory.Software, deps.Inventory.Hosts)
-	references.RegisterSoftwareAdminRoutes(protected, deps.Santa.References)
-	labels.RegisterAdminRoutes(protected, deps.Inventory.Labels)
-	agentauth.RegisterAdminRoutes(admin, deps.AgentAuth.Store)
-	reports.RegisterAdminRoutes(protected, deps.Osquery.Reports)
-	reports.RegisterHostAdminRoutes(protected, deps.Osquery.Reports, deps.Inventory.Hosts)
-	checks.RegisterAdminRoutes(protected, deps.Osquery.Checks)
-	checks.RegisterHostAdminRoutes(protected, deps.Osquery.Checks, deps.Inventory.Hosts)
-	livequery.RegisterAdminRoutes(protected, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
-	configurations.RegisterAdminRoutes(admin, deps.Santa.Configurations)
-	rules.RegisterAdminRoutes(admin, deps.Santa.Rules)
-	events.RegisterAdminRoutes(admin, deps.Santa.Events)
-	rules.RegisterHostAdminRoutes(protected, deps.Santa.Rules, deps.Inventory.Hosts)
-	munkisoftware.RegisterAdminRoutes(admin, deps.Munki.Software, deps.Munki.Packages)
-	munkiartifacts.RegisterAdminRoutes(admin, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
-	munkipackages.RegisterAdminRoutes(admin, deps.Munki.Packages)
+	directory.RegisterUserAdminRoutes(ordinary, deps.Auth.UserService)
+	directory.RegisterGroupAdminRoutes(ordinary, deps.Directory.Store)
+	hosts.RegisterAdminRoutes(ordinary, hostRoutesOptions(deps))
+	inventory.RegisterAdminRoutes(ordinary, deps.Inventory.Software)
+	inventory.RegisterHostAdminRoutes(ordinary, deps.Inventory.Software, deps.Inventory.Hosts)
+	references.RegisterSoftwareAdminRoutes(ordinary, deps.Santa.References)
+	labels.RegisterAdminRoutes(ordinary, deps.Inventory.Labels)
+	agentauth.RegisterAdminRoutes(sensitive, deps.AgentAuth.Store)
+	reports.RegisterAdminRoutes(ordinary, deps.Osquery.Reports)
+	reports.RegisterHostAdminRoutes(ordinary, deps.Osquery.Reports, deps.Inventory.Hosts)
+	checks.RegisterAdminRoutes(ordinary, deps.Osquery.Checks)
+	checks.RegisterHostAdminRoutes(ordinary, deps.Osquery.Checks, deps.Inventory.Hosts)
+	livequery.RegisterAdminRoutes(sensitive, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
+	configurations.RegisterAdminRoutes(ordinary, deps.Santa.Configurations)
+	rules.RegisterAdminRoutes(ordinary, deps.Santa.Rules)
+	events.RegisterAdminRoutes(ordinary, deps.Santa.Events)
+	rules.RegisterHostAdminRoutes(ordinary, deps.Santa.Rules, deps.Inventory.Hosts)
+	munkisoftware.RegisterAdminRoutes(ordinary, deps.Munki.Software, deps.Munki.Packages)
+	munkiartifacts.RegisterAdminRoutes(ordinary, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
+	munkipackages.RegisterAdminRoutes(ordinary, deps.Munki.Packages)
 }
 
 func hostRoutesOptions(deps Dependencies) hosts.AdminRoutesOptions[HostDetail] {
@@ -68,7 +70,6 @@ func hostRoutesOptions(deps Dependencies) hosts.AdminRoutesOptions[HostDetail] {
 	return hosts.AdminRoutesOptions[HostDetail]{
 		Store:          deps.Inventory.Hosts,
 		UserAffinities: deps.Inventory.UserAffinities,
-		RequireAdmin:   requireAdminUser,
 		CheckFilter:    checkFilter,
 		DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
 		Contributors: []hosts.DetailContributor[HostDetail]{

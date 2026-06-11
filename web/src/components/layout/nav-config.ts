@@ -14,7 +14,6 @@ export interface NavItem {
   label: string;
   to?: string;
   icon?: LucideIcon;
-  adminOnly?: boolean;
   disabled?: boolean;
   items?: NavItem[];
 }
@@ -55,7 +54,6 @@ export const navSections: NavMenu[] = [
       {
         label: "Munki",
         icon: PackageSearch,
-        adminOnly: true,
         items: [
           { label: "Software", to: "/munki/software" },
           { label: "Packages", to: "/munki/packages" },
@@ -69,7 +67,6 @@ export const navSections: NavMenu[] = [
       {
         label: "Directory",
         icon: UsersRound,
-        adminOnly: true,
         items: [
           { label: "Users", to: "/directory/users" },
           { label: "Groups", to: "/directory/groups" },
@@ -78,7 +75,6 @@ export const navSections: NavMenu[] = [
       {
         label: "Enrollments",
         icon: KeyRound,
-        adminOnly: true,
         items: [
           { label: "Orbit", to: "/enrollments/orbit" },
           { label: "Munki", to: "/enrollments/munki" },

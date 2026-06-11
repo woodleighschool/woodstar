@@ -12,6 +12,7 @@ import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useMunkiPackages, type MunkiPackage } from "@/hooks/use-munki-packages";
@@ -20,6 +21,8 @@ import { munkiInstallerTypeLabel } from "../software/munki-software";
 
 export function MunkiPackageListPage() {
   const tableSearch = useDataTableSearch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const query = useMunkiPackages({
     q: tableSearch.q,
@@ -39,16 +42,22 @@ export function MunkiPackageListPage() {
         id: "package",
         accessorKey: "software_name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Package" />,
-        cell: ({ row }) => (
-          <Link
-            to="/munki/packages/$packageId/edit"
-            params={{ packageId: String(row.original.id) }}
-            className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-          >
-            <MunkiIcon iconUrl={row.original.icon_url} />
-            <span className="truncate">{row.original.software_name}</span>
-          </Link>
-        ),
+        cell: ({ row }) =>
+          isAdmin ? (
+            <Link
+              to="/munki/packages/$packageId/edit"
+              params={{ packageId: String(row.original.id) }}
+              className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+            >
+              <MunkiIcon iconUrl={row.original.icon_url} />
+              <span className="truncate">{row.original.software_name}</span>
+            </Link>
+          ) : (
+            <span className="flex min-w-0 items-center gap-2 font-medium">
+              <MunkiIcon iconUrl={row.original.icon_url} />
+              <span className="truncate">{row.original.software_name}</span>
+            </span>
+          ),
         enableHiding: false,
         meta: { label: "Package" },
       },
@@ -75,7 +84,7 @@ export function MunkiPackageListPage() {
         meta: { label: "Updated" },
       },
     ],
-    [],
+    [isAdmin],
   );
 
   const { table } = useDataTable({
@@ -91,12 +100,14 @@ export function MunkiPackageListPage() {
       <PageHeader
         title="Packages"
         actions={
-          <Button asChild size="sm">
-            <Link to="/munki/packages/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild size="sm">
+              <Link to="/munki/packages/new">
+                <Plus data-icon="inline-start" />
+                Create
+              </Link>
+            </Button>
+          ) : null
         }
       />
       {query.error ? (

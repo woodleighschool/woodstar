@@ -24,12 +24,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -218,110 +221,281 @@ func TestAgentSecretsRejectBadAgent(t *testing.T) {
 	}
 }
 
-func TestAgentSecretsRequireAdmin(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
-	if _, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "viewer@example.test",
-		Name:     "Agent Secret Viewer",
-		Password: testUserPassword,
-		Role:     directory.RoleViewer,
-	}); err != nil {
-		t.Fatalf("create viewer user: %v", err)
-	}
+func TestOrdinaryAdminResourcePolicy(t *testing.T) {
+	server, viewerCookie, adminCookie := newAuthzTestServer(t)
 
-	deps := testDependencies(testConfig())
-	deps.Runtime.DB = database
-	deps.Auth.UserService = userService
-	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.AgentAuth.Store = agentauth.NewStore(database)
-	server := NewServer(deps)
-	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "viewer@example.test")
+	t.Run("viewer can read ordinary resources", func(t *testing.T) {
+		for _, path := range []string{
+			"/api/hosts",
+			"/api/labels",
+			"/api/users",
+			"/api/groups",
+			"/api/osquery/reports",
+			"/api/osquery/checks",
+			"/api/santa/configurations",
+			"/api/santa/rules",
+			"/api/santa/events",
+			"/api/munki/software",
+			"/api/munki/packages",
+			"/api/munki/artifacts",
+		} {
+			rec := adminAPIRequest(t, server, viewerCookie, http.MethodGet, path, "")
+			if rec.Code != http.StatusOK {
+				t.Fatalf(
+					"viewer GET %s status = %d, want %d; body = %q",
+					path,
+					rec.Code,
+					http.StatusOK,
+					rec.Body.String(),
+				)
+			}
+		}
+	})
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/agent-secrets", nil)
-	req.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(rec, req)
+	t.Run("viewer cannot mutate ordinary resources", func(t *testing.T) {
+		mutations := []struct {
+			method string
+			path   string
+			body   string
+		}{
+			{
+				method: http.MethodPost,
+				path:   "/api/labels",
+				body:   `{"name":"Viewer Label","label_membership_type":"manual"}`,
+			},
+			{
+				method: http.MethodPut,
+				path:   "/api/labels/1",
+				body:   `{"name":"Viewer Label","label_membership_type":"manual"}`,
+			},
+			{method: http.MethodDelete, path: "/api/labels/1"},
+			{
+				method: http.MethodPost,
+				path:   "/api/osquery/reports",
+				body:   `{"name":"Viewer Report","query":"select 1;","schedule_interval":60,"targets":{"include":[],"exclude":[]}}`,
+			},
+			{
+				method: http.MethodPut,
+				path:   "/api/osquery/reports/1",
+				body:   `{"name":"Viewer Report","query":"select 1;","schedule_interval":60,"targets":{"include":[],"exclude":[]}}`,
+			},
+			{method: http.MethodDelete, path: "/api/osquery/reports/1"},
+			{method: http.MethodPost, path: "/api/osquery/reports/bulk-delete", body: `{"ids":[1]}`},
+			{
+				method: http.MethodPost,
+				path:   "/api/osquery/checks",
+				body:   `{"name":"Viewer Check","query":"select 1;","targets":{"include":[],"exclude":[]}}`,
+			},
+			{
+				method: http.MethodPut,
+				path:   "/api/osquery/checks/1",
+				body:   `{"name":"Viewer Check","query":"select 1;","targets":{"include":[],"exclude":[]}}`,
+			},
+			{method: http.MethodDelete, path: "/api/osquery/checks/1"},
+			{method: http.MethodPost, path: "/api/osquery/checks/bulk-delete", body: `{"ids":[1]}`},
+			{
+				method: http.MethodPost,
+				path:   "/api/santa/configurations",
+				body:   `{"name":"Viewer Configuration","client_mode":"monitor","enable_bundles":true,"enable_transitive_rules":true,"enable_all_event_upload":true,"full_sync_interval_seconds":600,"batch_size":50,"targets":{"include":[],"exclude":[]}}`,
+			},
+			{
+				method: http.MethodPost,
+				path:   "/api/santa/rules",
+				body:   `{"rule_type":"binary","identifier":"abc123","name":"Viewer Rule","targets":{"include":[],"exclude":[]}}`,
+			},
+			{
+				method: http.MethodPost,
+				path:   "/api/munki/software",
+				body:   `{"name":"Viewer App","targets":{"include":[],"exclude":[]}}`,
+			},
+			{
+				method: http.MethodPost,
+				path:   "/api/users",
+				body:   `{"email":"blocked@example.test","name":"Blocked","role":"viewer","password":"test-user-password"}`,
+			},
+			{method: http.MethodPost, path: "/api/hosts/bulk-delete", body: `{"ids":[1]}`},
+		}
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusForbidden, rec.Body.String())
-	}
+		for _, mutation := range mutations {
+			rec := adminAPIRequest(t, server, viewerCookie, mutation.method, mutation.path, mutation.body)
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf(
+					"viewer %s %s status = %d, want %d; body = %q",
+					mutation.method,
+					mutation.path,
+					rec.Code,
+					http.StatusForbidden,
+					rec.Body.String(),
+				)
+			}
+		}
+	})
+
+	t.Run("admin can mutate ordinary resources", func(t *testing.T) {
+		for _, mutation := range []struct {
+			method string
+			path   string
+			body   string
+			want   int
+		}{
+			{
+				method: http.MethodPost,
+				path:   "/api/labels",
+				body:   `{"name":"Admin Label","label_membership_type":"manual"}`,
+				want:   http.StatusCreated,
+			},
+			{
+				method: http.MethodPost,
+				path:   "/api/osquery/reports",
+				body:   `{"name":"Admin Report","query":"select 1;","schedule_interval":60,"targets":{"include":[],"exclude":[]}}`,
+				want:   http.StatusCreated,
+			},
+			{
+				method: http.MethodPost,
+				path:   "/api/osquery/checks",
+				body:   `{"name":"Admin Check","query":"select 1;","targets":{"include":[],"exclude":[]}}`,
+				want:   http.StatusCreated,
+			},
+		} {
+			rec := adminAPIRequest(t, server, adminCookie, mutation.method, mutation.path, mutation.body)
+			if rec.Code != mutation.want {
+				t.Fatalf(
+					"admin %s %s status = %d, want %d; body = %q",
+					mutation.method,
+					mutation.path,
+					rec.Code,
+					mutation.want,
+					rec.Body.String(),
+				)
+			}
+		}
+	})
 }
 
-func TestSantaAdminRoutesRequireAdmin(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
-	if _, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "santa-viewer@example.test",
-		Name:     "Santa Viewer",
-		Password: testUserPassword,
-		Role:     directory.RoleViewer,
-	}); err != nil {
-		t.Fatalf("create viewer user: %v", err)
-	}
-	if _, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "santa-admin@example.test",
-		Name:     "Santa Admin",
-		Password: testUserPassword,
-		Role:     directory.RoleAdmin,
-	}); err != nil {
-		t.Fatalf("create admin user: %v", err)
-	}
+func TestSensitiveAdminResourcePolicy(t *testing.T) {
+	server, viewerCookie, adminCookie := newAuthzTestServer(t)
 
-	deps := testDependencies(testConfig())
-	deps.Runtime.DB = database
-	deps.Auth.UserService = userService
-	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Santa.Configurations = configurations.NewStore(database)
-	deps.Santa.Rules = rules.NewStore(database)
-	deps.Santa.Events = events.NewStore(database)
-	server := NewServer(deps)
-	viewerCookie := loginTestUserWithEmail(
-		t,
-		deps.Auth.AuthService,
-		deps.Runtime.SessionManager,
-		"santa-viewer@example.test",
-	)
-	adminCookie := loginTestUserWithEmail(
-		t,
-		deps.Auth.AuthService,
-		deps.Runtime.SessionManager,
-		"santa-admin@example.test",
-	)
-
-	for _, path := range []string{
-		"/api/santa/configurations",
-		"/api/santa/rules",
-		"/api/santa/events",
+	for _, tc := range []struct {
+		name        string
+		method      string
+		path        string
+		body        string
+		adminStatus int
+	}{
+		{
+			name:        "agent secrets",
+			method:      http.MethodGet,
+			path:        "/api/agent-secrets",
+			adminStatus: http.StatusOK,
+		},
+		{
+			name:        "live query target count",
+			method:      http.MethodPost,
+			path:        "/api/live-queries/targets/count",
+			body:        `{"selected":{"hosts":[],"labels":[]}}`,
+			adminStatus: http.StatusOK,
+		},
 	} {
-		rec := getAdminPath(t, server, nil, path)
-		if rec.Code != http.StatusUnauthorized {
-			t.Fatalf("anonymous GET %s status = %d, want %d", path, rec.Code, http.StatusUnauthorized)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			rec := adminAPIRequest(t, server, viewerCookie, tc.method, tc.path, tc.body)
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf(
+					"viewer %s %s status = %d, want %d; body = %q",
+					tc.method,
+					tc.path,
+					rec.Code,
+					http.StatusForbidden,
+					rec.Body.String(),
+				)
+			}
 
-		rec = getAdminPath(t, server, viewerCookie, path)
-		if rec.Code != http.StatusForbidden {
-			t.Fatalf(
-				"viewer GET %s status = %d, want %d; body = %q",
-				path,
-				rec.Code,
-				http.StatusForbidden,
-				rec.Body.String(),
-			)
-		}
+			rec = adminAPIRequest(t, server, adminCookie, tc.method, tc.path, tc.body)
+			if rec.Code != tc.adminStatus {
+				t.Fatalf(
+					"admin %s %s status = %d, want %d; body = %q",
+					tc.method,
+					tc.path,
+					rec.Code,
+					tc.adminStatus,
+					rec.Body.String(),
+				)
+			}
+		})
+	}
 
-		rec = getAdminPath(t, server, adminCookie, path)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("admin GET %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
-		}
+	rec := adminAPIRequest(t, server, viewerCookie, http.MethodGet, "/api/live-queries/1/stream", "")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf(
+			"viewer live query stream status = %d, want %d; body = %q",
+			rec.Code,
+			http.StatusForbidden,
+			rec.Body.String(),
+		)
 	}
 }
 
-func getAdminPath(t *testing.T, server *Server, cookie *http.Cookie, path string) *httptest.ResponseRecorder {
+func newAuthzTestServer(t *testing.T) (*Server, *http.Cookie, *http.Cookie) {
 	t.Helper()
 
+	db, ctx := dbtest.Open(t)
+	userStore := directory.NewStore(db)
+	userService := directory.NewUserService(userStore)
+	for _, user := range []directory.UserCreate{
+		{Email: "viewer@example.test", Name: "Test Viewer", Password: testUserPassword, Role: directory.RoleViewer},
+		{Email: "admin@example.test", Name: "Test Admin", Password: testUserPassword, Role: directory.RoleAdmin},
+	} {
+		if _, err := userService.Create(ctx, user); err != nil {
+			t.Fatalf("create %s user: %v", user.Role, err)
+		}
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = db
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Directory.Store = userStore
+	deps.Inventory.Hosts = hosts.NewStore(db)
+	deps.Inventory.UserAffinities = hosts.NewUserAffinityStore(db)
+	deps.Inventory.Software = inventory.NewStore(db)
+	deps.Inventory.Labels = labels.NewStore(db)
+	deps.AgentAuth.Store = agentauth.NewStore(db)
+	deps.Osquery.LiveQueries = livequery.NewManager()
+	deps.Osquery.Reports = reports.NewStore(db)
+	deps.Osquery.Checks = checks.NewStore(db)
+	deps.Santa.Configurations = configurations.NewStore(db)
+	deps.Santa.Rules = rules.NewStore(db)
+	deps.Santa.Events = events.NewStore(db)
+	wireMunkiTestDeps(&deps, db)
+
+	server := NewServer(deps)
+	viewerCookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "viewer@example.test")
+	adminCookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "admin@example.test")
+	return server, viewerCookie, adminCookie
+}
+
+func adminAPIRequest(
+	t *testing.T,
+	server *Server,
+	cookie *http.Cookie,
+	method string,
+	path string,
+	body string,
+) *httptest.ResponseRecorder {
+	t.Helper()
+
+	var reader io.Reader
+	if body != "" {
+		reader = strings.NewReader(body)
+	}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, reader)
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch ||
+		method == http.MethodDelete {
+		req.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}

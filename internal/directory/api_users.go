@@ -93,7 +93,7 @@ func registerListUsers(api huma.API, userService *UserService) {
 		Path:        "/api/users",
 		Tags:        []string{usersTag},
 		Summary:     "List Woodstar users",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
@@ -110,7 +110,7 @@ func registerListUserDepartments(api huma.API, userService *UserService) {
 		Path:        "/api/users/departments",
 		Tags:        []string{usersTag},
 		Summary:     "List directory user departments",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
@@ -150,7 +150,7 @@ func registerGetUser(api huma.API, userService *UserService) {
 		Path:        userIDPath,
 		Tags:        []string{usersTag},
 		Summary:     "Get a Woodstar user",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
 		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
