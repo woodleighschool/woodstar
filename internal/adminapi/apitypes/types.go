@@ -1,6 +1,7 @@
 package apitypes
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -35,22 +36,44 @@ type BulkIDsBody struct {
 }
 
 type Page[T any] struct {
-	Items []T `json:"items"`
+	Items []T `json:"items" nullable:"false"`
 	Count int `json:"count"`
 }
 
+// MarshalJSON renders an empty page as items: [] rather than null, matching the
+// non-nullable items schema so the frontend never sees null for an empty list.
+func (p Page[T]) MarshalJSON() ([]byte, error) {
+	items := p.Items
+	if items == nil {
+		items = make([]T, 0)
+	}
+	return json.Marshal(struct {
+		Items []T `json:"items"`
+		Count int `json:"count"`
+	}{Items: items, Count: p.Count})
+}
+
+// ListQueryInput is the shared query contract for paginated list endpoints. It
+// carries the nuqs/TanStack Table state as snake_case query params to match the
+// rest of the API: 1-based `page`, `per_page`, and a `sort` JSON array of
+// {id, desc}. Per-resource filters are added as their own query fields, keyed by
+// column id.
 type ListQueryInput struct {
-	Q         string `query:"q,omitempty"`
-	PageIndex int    `query:"page_index,omitempty" minimum:"0"`
-	PageSize  int    `query:"page_size,omitempty"  minimum:"1" maximum:"1000"`
-	Sort      string `query:"sort,omitempty"                                  example:"name.asc"`
+	Q       string `query:"q,omitempty"`
+	Page    int    `query:"page,omitempty"     minimum:"1"`
+	PerPage int    `query:"per_page,omitempty" minimum:"1" maximum:"1000"`
+	Sort    string `query:"sort,omitempty"`
 }
 
 func (input ListQueryInput) Params() dbutil.ListParams {
+	pageIndex := 0
+	if input.Page > 1 {
+		pageIndex = input.Page - 1
+	}
 	return dbutil.ListParams{
 		Q:         input.Q,
-		PageIndex: input.PageIndex,
-		PageSize:  input.PageSize,
+		PageIndex: pageIndex,
+		PageSize:  input.PerPage,
 		Sort:      input.Sort,
 	}
 }

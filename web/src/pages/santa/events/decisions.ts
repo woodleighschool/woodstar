@@ -5,13 +5,13 @@ import type {
   SantaFileAccessDecision,
   SantaFileAccessEvent,
 } from "@/hooks/use-santa-events";
-import { enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumOptions, type StatusMetadataMap } from "@/lib/enum-metadata";
 
 export const EXECUTION_DECISIONS = {
   unknown: {
     name: "Unknown",
     description: "Santa reported an execution event without a specific decision.",
-    variant: "secondary",
+    variant: "default",
   },
   allow_unknown: {
     name: "Allow Unknown",
@@ -51,44 +51,44 @@ export const EXECUTION_DECISIONS = {
   block_unknown: {
     name: "Block Unknown",
     description: "Blocked because no rule matched while the client was in Lockdown mode.",
-    variant: "destructive",
+    variant: "error",
   },
   block_binary: {
     name: "Block Binary",
     description: "Blocked by a rule for this exact binary.",
-    variant: "destructive",
+    variant: "error",
   },
   block_certificate: {
     name: "Block Certificate",
     description: "Blocked by a matching signing certificate.",
-    variant: "destructive",
+    variant: "error",
   },
   block_scope: {
     name: "Block Scope",
     description: "Blocked by a blocked path rule or Page Zero protection.",
-    variant: "destructive",
+    variant: "error",
   },
   block_teamid: {
     name: "Block Team ID",
     description: "Blocked by a matching Team ID rule.",
-    variant: "destructive",
+    variant: "error",
   },
   block_signingid: {
     name: "Block Signing ID",
     description: "Blocked by a matching Signing ID rule.",
-    variant: "destructive",
+    variant: "error",
   },
   block_cdhash: {
     name: "Block CDHash",
     description: "Blocked by a matching CDHash rule.",
-    variant: "destructive",
+    variant: "error",
   },
   bundle_binary: {
     name: "Bundle Binary",
     description: "Metadata for a binary inside a bundle. It is not an allow or block decision.",
-    variant: "secondary",
+    variant: "default",
   },
-} satisfies EnumMetadataMap<SantaExecutionDecision>;
+} satisfies StatusMetadataMap<SantaExecutionDecision>;
 
 export const DECISION_FILTER_VALUES = [
   "allowed",
@@ -127,24 +127,24 @@ export const FILE_ACCESS_DECISIONS = {
   unknown: {
     name: "Unknown",
     description: "Santa reported a file access event without a specific decision.",
-    variant: "secondary",
+    variant: "default",
   },
   denied: {
     name: "Denied",
     description: "Santa denied the file access because the rule matched and access was blocked.",
-    variant: "destructive",
+    variant: "error",
   },
   denied_invalid_signature: {
     name: "Denied (Invalid Signature)",
     description: "Santa denied the file access because the accessing process had an invalid signature.",
-    variant: "destructive",
+    variant: "error",
   },
   audit_only: {
     name: "Audit Only",
     description: "Santa recorded the file access event without blocking it.",
     variant: "success",
   },
-} satisfies EnumMetadataMap<SantaFileAccessDecision>;
+} satisfies StatusMetadataMap<SantaFileAccessDecision>;
 
 export const FILE_ACCESS_DECISION_VALUES = [
   "unknown",

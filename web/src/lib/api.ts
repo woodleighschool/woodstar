@@ -2,7 +2,7 @@ import { client } from "@/lib/api-client/client.gen";
 import type * as API from "@/lib/api-client/types.gen";
 
 export type Page<T> = {
-  items: T[] | null;
+  items: T[];
   count: number;
 };
 

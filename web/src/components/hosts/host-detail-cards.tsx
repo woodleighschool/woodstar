@@ -1,11 +1,10 @@
 import { useForm } from "@tanstack/react-form";
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { z } from "zod";
 
-import { DataTable, DataTableColumnHeader } from "@/components/data-table";
-import { EmptyPanel } from "@/components/empty-panel";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
@@ -38,7 +37,6 @@ interface Tile {
 
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 
-const CERTIFICATES_PAGE_SIZE = 25;
 const certificateSourceLabels: Record<string, string> = {
   system: "System",
   user: "User",
@@ -337,9 +335,11 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
 
 export function HostCertificatesCard({ host }: { host: HostDetail }) {
   const [selectedCertificate, setSelectedCertificate] = useState<HostCertificate | null>(null);
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: CERTIFICATES_PAGE_SIZE });
-  const [sorting, setSorting] = useState<SortingState>([{ id: "common_name", desc: false }]);
-  const certificates = useMemo(() => host.certificates ?? [], [host.certificates]);
+  const certificates = useMemo(
+    () => [...(host.certificates ?? [])].sort((a, b) => (a.common_name || "").localeCompare(b.common_name || "")),
+    [host.certificates],
+  );
+  const columns = useMemo<ColumnDef<HostCertificate>[]>(() => certificateColumns(setSelectedCertificate), []);
   if (certificates.length === 0) return null;
 
   return (
@@ -348,76 +348,55 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
         <CardTitle>Certificates</CardTitle>
       </CardHeader>
       <CardContent>
-        <DataTable
-          columns={certificateColumns}
-          data={certificates}
-          totalCount={certificates.length}
-          pagination={pagination}
-          sorting={sorting}
-          onPaginationChange={setPagination}
-          onSortingChange={setSorting}
-          onRowClick={setSelectedCertificate}
-          getRowId={(certificate) => String(certificate.id)}
-          empty={<EmptyPanel>No certificates yet</EmptyPanel>}
-        />
+        <DataTableStatic columns={columns} data={certificates} />
         <CertificateDetailsDialog certificate={selectedCertificate} onOpenChange={setSelectedCertificate} />
       </CardContent>
     </Card>
   );
 }
 
-const certificateColumns: ColumnDef<HostCertificate>[] = [
-  {
-    id: "common_name",
-    accessorKey: "common_name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    cell: ({ row }) => row.original.common_name || "-",
-    meta: {
-      cellClassName: "max-w-[360px] py-1.5",
-      headClassName: "h-8",
+function certificateColumns(onSelect: (certificate: HostCertificate) => void): ColumnDef<HostCertificate>[] {
+  return [
+    {
+      id: "common_name",
+      accessorKey: "common_name",
+      header: () => "Name",
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={() => onSelect(row.original)}
+          className="max-w-[360px] truncate text-left font-medium hover:underline"
+        >
+          {row.original.common_name || "-"}
+        </button>
+      ),
     },
-  },
-  {
-    id: "issuer",
-    accessorFn: (certificate) => certificate.issuer.common_name,
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Issuer" />,
-    cell: ({ row }) => row.original.issuer.common_name || "-",
-    meta: {
-      cellClassName: "py-1.5",
-      headClassName: "h-8",
+    {
+      id: "issuer",
+      accessorFn: (certificate) => certificate.issuer.common_name,
+      header: () => "Issuer",
+      cell: ({ row }) => row.original.issuer.common_name || "-",
     },
-  },
-  {
-    id: "source",
-    accessorFn: (certificate) => certificateSourceLabel(certificate.source),
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Keychain" />,
-    cell: ({ row }) => certificateSourceLabel(row.original.source),
-    meta: {
-      cellClassName: "py-1.5",
-      headClassName: "h-8",
+    {
+      id: "source",
+      accessorFn: (certificate) => certificateSourceLabel(certificate.source),
+      header: () => "Keychain",
+      cell: ({ row }) => certificateSourceLabel(row.original.source),
     },
-  },
-  {
-    id: "not_valid_before",
-    accessorKey: "not_valid_before",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Issued" />,
-    cell: ({ row }) => (row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-"),
-    meta: {
-      cellClassName: "py-1.5",
-      headClassName: "h-8",
+    {
+      id: "not_valid_before",
+      accessorKey: "not_valid_before",
+      header: () => "Issued",
+      cell: ({ row }) => (row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-"),
     },
-  },
-  {
-    id: "not_valid_after",
-    accessorKey: "not_valid_after",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Expires" />,
-    cell: ({ row }) => (row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-"),
-    meta: {
-      cellClassName: "py-1.5",
-      headClassName: "h-8",
+    {
+      id: "not_valid_after",
+      accessorKey: "not_valid_after",
+      header: () => "Expires",
+      cell: ({ row }) => (row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-"),
     },
-  },
-];
+  ];
+}
 
 function CertificateDetailsDialog({
   certificate,

@@ -1,19 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { tableSearchSchema } from "@/lib/pagination";
-import { FILE_ACCESS_DECISION_VALUES } from "@/pages/santa/events/decisions";
 import { SantaFileAccessEventListPage } from "@/pages/santa/events/list";
 
-const searchSchema = z.object({
-  ...tableSearchSchema.shape,
+// Table state (q, page, per_page, sort, decision facet) is nuqs-owned; the route
+// validates the host_id deep-link context and stays loose so nuqs keys survive
+// validation on a bookmarked load.
+const searchSchema = z.looseObject({
   host_id: z.coerce.number().int().positive().optional(),
-  decisions: z
-    .preprocess(
-      (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : value),
-      z.array(z.enum(FILE_ACCESS_DECISION_VALUES)),
-    )
-    .optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/santa/events/file-access/")({

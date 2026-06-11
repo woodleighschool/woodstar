@@ -2881,9 +2881,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/MunkiArtifact"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -2904,9 +2902,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/OsqueryCheck"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -2927,9 +2923,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/SantaConfiguration"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -2950,9 +2944,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Department"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -2973,9 +2965,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ExecutionEvent"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -2996,9 +2986,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/FileAccessEvent"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3019,9 +3007,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Group"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3042,9 +3028,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Host"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3065,9 +3049,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/HostSoftwareRow"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3088,9 +3070,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Label"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3111,9 +3091,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/MunkiPackage"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3134,9 +3112,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/MunkiSoftware"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3157,9 +3133,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/OsqueryReport"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3180,9 +3154,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/SantaRule"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3203,9 +3175,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/RuleStatus"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3226,9 +3196,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/SoftwareTitle"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -3249,9 +3217,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
         - count
@@ -4531,14 +4497,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -4548,8 +4514,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -4655,14 +4619,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -4672,8 +4636,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -5051,14 +5013,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -5068,8 +5030,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -5128,14 +5088,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -5145,8 +5105,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -5313,14 +5271,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -5330,8 +5288,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -5870,14 +5826,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -5887,8 +5843,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -6152,14 +6106,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -6169,8 +6123,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -6451,14 +6403,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -6468,8 +6420,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -6783,14 +6733,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -6800,8 +6750,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -7133,14 +7081,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -7150,8 +7098,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -7483,14 +7429,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -7500,8 +7446,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
       responses:
         "200":
@@ -7860,14 +7804,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -7877,8 +7821,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -8032,14 +7974,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -8049,8 +7991,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -8258,14 +8198,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -8275,8 +8215,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -8651,14 +8589,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -8668,8 +8606,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -8807,14 +8743,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -8824,8 +8760,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query
@@ -8959,14 +8893,14 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page_index
+          name: page
           schema:
             format: int64
-            minimum: 0
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: page_size
+          name: per_page
           schema:
             format: int64
             maximum: 1000
@@ -8976,8 +8910,6 @@ paths:
           in: query
           name: sort
           schema:
-            examples:
-              - name.asc
             type: string
         - explode: false
           in: query

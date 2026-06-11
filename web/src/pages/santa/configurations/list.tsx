@@ -1,18 +1,15 @@
-import { Link, useSearch } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { FileSliders, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
+import { FileSliders, GripVertical, Plus, Trash2 } from "lucide-react";
+import * as React from "react";
 import { toast } from "sonner";
 
-import {
-  BulkDeleteDialog,
-  DataTable,
-  DataTableColumnHeader,
-  DataTableEmptyState,
-  DataTableRowDragHandle,
-  DataTableSearch,
-} from "@/components/data-table";
-import { EnumBadge } from "@/components/enum-badge";
+import { BulkDeleteDialog } from "@/components/bulk-delete-dialog";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import { EnumStatus } from "@/components/enum-status";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
@@ -30,7 +27,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Sortable, SortableContent, SortableItem, SortableItemHandle } from "@/components/ui/sortable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDataTable } from "@/hooks/use-data-table";
+import { DEFAULT_PAGE_SIZE, encodeSort, MAX_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import {
   useBulkDeleteSantaConfigurations,
@@ -38,128 +40,56 @@ import {
   useSantaConfigurations,
   type SantaConfiguration,
 } from "@/hooks/use-santa-configurations";
-import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { CLIENT_MODES } from "@/lib/santa-configurations";
 import { formatRelative } from "@/lib/utils";
 
-import { CLIENT_MODES } from "@/lib/santa-configurations";
-
 export function ConfigurationListPage() {
-  const search = useSearch({ strict: false });
-  const { state, setters } = useTablePaginationParams();
-  const [draft, setDraft] = useDebouncedSearchParam("q");
-  const [selectedConfigurationIds, setSelectedConfigurationIds] = useState<string[]>([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [reorderWarningOpen, setReorderWarningOpen] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
-  const query = useSantaConfigurations({
-    q: typeof search.q === "string" ? search.q : undefined,
-    ...(reorderEnabled ? { page_size: MAX_PAGE_SIZE, sort: "position.asc" } : tableQueryParams(state)),
-  });
-  const labels = useLabels({
-    page_size: MAX_PAGE_SIZE,
-    sort: "name.asc",
-  });
-  const bulkDelete = useBulkDeleteSantaConfigurations();
-  const reorder = useReorderSantaConfigurations();
-  const totalCount = query.data?.count ?? 0;
-  const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
-  const serverRows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
-  const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
+  const tableSearch = useDataTableSearch();
+  const [reorderEnabled, setReorderEnabled] = React.useState(false);
+  const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
+
+  const query = useSantaConfigurations(
+    reorderEnabled
+      ? { q: tableSearch.q, per_page: MAX_PAGE_SIZE, sort: encodeSort("position") }
+      : { q: tableSearch.q, page: tableSearch.page, per_page: tableSearch.per_page, sort: tableSearch.sort },
+  );
+
+  const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const labelsByID = React.useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
   );
-  const [orderedRows, setOrderedRows] = useState<SantaConfiguration[]>([]);
-  const hasFilters = !!search.q;
-  const canEnableReorder = !hasFilters && totalCount > 1 && orderedRows.length > 1 && !query.isLoading;
-  const selectedIDs = selectedConfigurationIds.map(Number);
 
-  useEffect(() => {
-    setOrderedRows(serverRows);
-  }, [serverRows]);
+  const serverRows = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
+  const totalCount = query.data?.count ?? 0;
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const hasFilters = !!tableSearch.q;
+  const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
+  const canEnableReorder = !hasFilters && totalCount > 1 && !query.isLoading;
 
-  function enableReorder() {
-    setSelectedConfigurationIds([]);
-    setReorderEnabled(true);
-    setReorderWarningOpen(false);
-  }
+  const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(() => configurationColumns(labelsByID), [labelsByID]);
 
-  function deleteSelectedConfigurations() {
-    const count = selectedIDs.length;
-    bulkDelete.mutate(selectedIDs, {
-      onSuccess: () => {
-        setSelectedConfigurationIds([]);
-        setDeleteOpen(false);
-        toast.success(`Deleted ${count} ${count === 1 ? "configuration" : "configurations"}`);
-      },
-    });
-  }
+  const { table } = useDataTable({
+    data: serverRows,
+    columns,
+    pageCount,
+    initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
+    getRowId: (row) => String(row.id),
+  });
 
-  function moveOrder(next: SantaConfiguration[]) {
-    const nextRows = next.map((row, position) => ({ ...row, position }));
-    setOrderedRows(nextRows);
-  }
-
-  function saveOrder() {
-    reorder.mutate(
-      orderedRows.map((row) => row.id),
-      {
-        onSuccess: () => {
-          setReorderEnabled(false);
-          toast.success("Saved order");
-        },
-        onError: () => setOrderedRows(serverRows),
-      },
-    );
-  }
-
-  const columns: ColumnDef<SantaConfiguration>[] = [
-    ...(reorderEnabled
-      ? ([
-          {
-            id: "drag",
-            header: () => null,
-            enableSorting: false,
-            enableHiding: false,
-            cell: () => <DataTableRowDragHandle />,
-            meta: { headClassName: "w-10", cellClassName: "w-10" },
-          },
-        ] satisfies ColumnDef<SantaConfiguration>[])
-      : []),
-    {
-      id: "position",
-      accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
-      cell: ({ row }) => row.original.position + 1,
-      meta: { headClassName: "w-20", cellClassName: "w-20" },
-    },
-    {
-      id: "name",
-      accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.name,
-    },
-    {
-      id: "client_mode",
-      accessorKey: "client_mode",
-      header: "Client Mode",
-      enableSorting: false,
-      cell: ({ row }) => <EnumBadge value={row.original.client_mode} metadata={CLIENT_MODES} />,
-    },
-    {
-      id: "labels",
-      header: "Targets",
-      enableSorting: false,
-      cell: ({ row }) => <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />,
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
+  const emptyState = (
+    <Empty className="min-h-72 border-0">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileSliders />
+        </EmptyMedia>
+        <EmptyTitle>{hasFilters ? "No matches" : "No client configurations"}</EmptyTitle>
+        <EmptyDescription>
+          {hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
 
   return (
     <PageShell>
@@ -177,22 +107,6 @@ export function ConfigurationListPage() {
               >
                 Edit Order
               </Button>
-              {reorderEnabled ? (
-                <>
-                  <SubmitButton
-                    type="button"
-                    pending={reorder.isPending}
-                    size="sm"
-                    disabled={query.isLoading || reorderTruncated}
-                    onClick={saveOrder}
-                  >
-                    Save
-                  </SubmitButton>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setReorderEnabled(false)}>
-                    Cancel
-                  </Button>
-                </>
-              ) : null}
             </ButtonGroup>
             {reorderEnabled ? null : (
               <Button asChild size="sm">
@@ -209,85 +123,244 @@ export function ConfigurationListPage() {
       {query.error ? (
         <QueryError title="Failed to load configurations" error={query.error} onRetry={() => void query.refetch()} />
       ) : reorderEnabled ? (
-        <DataTable
-          columns={columns}
-          data={orderedRows}
-          totalCount={orderedRows.length}
-          pagination={{ pageIndex: 0, pageSize: Math.max(orderedRows.length, 1) }}
-          sorting={[]}
-          onPaginationChange={() => undefined}
-          onSortingChange={() => undefined}
-          isLoading={query.isLoading}
-          clientSort
-          rowReorderDisabled={reorder.isPending || reorderTruncated || orderedRows.length <= 1}
-          onRowReorder={moveOrder}
-          empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
-          footer={
-            reorderTruncated ? (
-              <div className="text-muted-foreground rounded-md border px-3 py-2 text-sm">
-                Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before editing order.
-              </div>
-            ) : null
-          }
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={serverRows}
+        <ConfigurationReorder
+          rows={serverRows}
+          labelsByID={labelsByID}
+          truncated={reorderTruncated}
           totalCount={totalCount}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          enableRowSelection
-          selectedRowIds={selectedConfigurationIds}
-          onSelectedRowIdsChange={setSelectedConfigurationIds}
-          bulkActions={
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
-              <Trash2 data-icon="inline-start" />
-              Delete
-            </Button>
-          }
-          rowHref={(row) => ({
-            to: "/santa/configurations/$configurationId",
-            params: { configurationId: String(row.id) },
-          })}
-          toolbar={
-            <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
-            </div>
-          }
-          empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
+          onDone={() => setReorderEnabled(false)}
         />
+      ) : query.isLoading ? (
+        <DataTableSkeleton columnCount={6} />
+      ) : (
+        <DataTable table={table} actionBar={<ConfigurationsActionBar table={table} />} empty={emptyState}>
+          <div className="flex items-start justify-between gap-2 p-1">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+            </div>
+          </div>
+        </DataTable>
       )}
 
-      <BulkDeleteDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!open) bulkDelete.reset();
-          setDeleteOpen(open);
+      <ReorderWarningDialog
+        open={reorderWarningOpen}
+        onOpenChange={setReorderWarningOpen}
+        onConfirm={() => {
+          setReorderEnabled(true);
+          setReorderWarningOpen(false);
         }}
-        count={selectedIDs.length}
-        noun="configuration"
-        description="Deleted configurations stop applying."
-        pending={bulkDelete.isPending}
-        onConfirm={deleteSelectedConfigurations}
       />
-      <ReorderWarningDialog open={reorderWarningOpen} onOpenChange={setReorderWarningOpen} onConfirm={enableReorder} />
     </PageShell>
   );
 }
 
-function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
+function configurationColumns(labelsByID: ReadonlyMap<number, LabelChip>): ColumnDef<SantaConfiguration>[] {
+  return [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 32,
+    },
+    {
+      id: "position",
+      accessorKey: "position",
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Order" />,
+      cell: ({ row }) => row.original.position + 1,
+      meta: { label: "Order" },
+      size: 80,
+    },
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      cell: ({ row }) => (
+        <Link
+          to="/santa/configurations/$configurationId"
+          params={{ configurationId: String(row.original.id) }}
+          className="font-medium hover:underline"
+        >
+          {row.original.name}
+        </Link>
+      ),
+      enableHiding: false,
+      meta: { label: "Name" },
+    },
+    {
+      id: "client_mode",
+      accessorKey: "client_mode",
+      header: () => "Client Mode",
+      enableSorting: false,
+      cell: ({ row }) => <EnumStatus value={row.original.client_mode} metadata={CLIENT_MODES} />,
+      meta: { label: "Client Mode" },
+    },
+    {
+      id: "labels",
+      header: () => "Targets",
+      enableSorting: false,
+      cell: ({ row }) => <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />,
+      meta: { label: "Targets" },
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: () => "Updated",
+      enableSorting: false,
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+      meta: { label: "Updated" },
+    },
+  ];
+}
+
+function ConfigurationsActionBar({ table }: { table: TanStackTable<SantaConfiguration> }) {
+  const rows = table.getFilteredSelectedRowModel().rows;
+  const ids = React.useMemo(() => rows.map((row) => Number(row.original.id)), [rows]);
+  const [open, setOpen] = React.useState(false);
+  const bulkDelete = useBulkDeleteSantaConfigurations();
+
+  const onConfirm = () => {
+    const count = ids.length;
+    bulkDelete.mutate(ids, {
+      onSuccess: () => {
+        toast.success(`Deleted ${count} ${count === 1 ? "configuration" : "configurations"}`);
+        table.toggleAllRowsSelected(false);
+        setOpen(false);
+      },
+    });
+  };
+
   return (
-    <DataTableEmptyState
-      icon={<FileSliders />}
-      title={hasFilters ? "No Matches" : "No Client Configurations"}
-      description={
-        hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."
-      }
-    />
+    <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
+      <span className="text-sm text-muted-foreground">{ids.length} selected</span>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+        <Trash2 />
+        Delete
+      </Button>
+      <BulkDeleteDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) bulkDelete.reset();
+          setOpen(next);
+        }}
+        count={ids.length}
+        noun="configuration"
+        description="Deleted configurations stop applying."
+        pending={bulkDelete.isPending}
+        onConfirm={onConfirm}
+      />
+    </div>
+  );
+}
+
+function ConfigurationReorder({
+  rows,
+  labelsByID,
+  truncated,
+  totalCount,
+  onDone,
+}: {
+  rows: SantaConfiguration[];
+  labelsByID: ReadonlyMap<number, LabelChip>;
+  truncated: boolean;
+  totalCount: number;
+  onDone: () => void;
+}) {
+  const [ordered, setOrdered] = React.useState<SantaConfiguration[]>(rows);
+  const reorder = useReorderSantaConfigurations();
+
+  React.useEffect(() => {
+    setOrdered(rows);
+  }, [rows]);
+
+  const dragDisabled = reorder.isPending || truncated || ordered.length <= 1;
+
+  function saveOrder() {
+    reorder.mutate(
+      ordered.map((row) => row.id),
+      {
+        onSuccess: () => {
+          toast.success("Saved order");
+          onDone();
+        },
+        onError: () => setOrdered(rows),
+      },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-end gap-2">
+        <SubmitButton type="button" pending={reorder.isPending} size="sm" disabled={truncated} onClick={saveOrder}>
+          Save
+        </SubmitButton>
+        <Button type="button" variant="outline" size="sm" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+
+      <Sortable value={ordered} onValueChange={setOrdered} getItemValue={(row) => row.id}>
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10" />
+                <TableHead className="w-20">Order</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Client Mode</TableHead>
+                <TableHead>Targets</TableHead>
+                <TableHead>Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <SortableContent asChild>
+              <TableBody>
+                {ordered.map((row, index) => (
+                  <SortableItem key={row.id} value={row.id} asChild>
+                    <TableRow>
+                      <TableCell className="w-10">
+                        <SortableItemHandle asChild disabled={dragDisabled}>
+                          <Button type="button" variant="ghost" size="icon" aria-label="Drag to reorder">
+                            <GripVertical className="text-muted-foreground" />
+                          </Button>
+                        </SortableItemHandle>
+                      </TableCell>
+                      <TableCell className="w-20">{index + 1}</TableCell>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>
+                        <EnumStatus value={row.client_mode} metadata={CLIENT_MODES} />
+                      </TableCell>
+                      <TableCell>
+                        <TargetLabelsCell targets={row.targets} labelsByID={labelsByID} />
+                      </TableCell>
+                      <TableCell>{formatRelative(row.updated_at)}</TableCell>
+                    </TableRow>
+                  </SortableItem>
+                ))}
+              </TableBody>
+            </SortableContent>
+          </Table>
+        </div>
+      </Sortable>
+
+      {truncated ? (
+        <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
+          Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before editing order.
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -304,10 +377,10 @@ function ReorderWarningDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Reorder Configurations?</AlertDialogTitle>
+          <AlertDialogTitle>Reorder configurations?</AlertDialogTitle>
           <AlertDialogDescription>
             Santa uses the first matching configuration for each host. Reordering can change client behavior
-            immediately, so make sure you know what you&apos;re doing before continuing.
+            immediately.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

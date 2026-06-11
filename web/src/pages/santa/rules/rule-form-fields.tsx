@@ -1,12 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import { Code2, ExternalLink, Trash2 } from "lucide-react";
-import { useMemo } from "react";
-
-import { CodeEditor } from "@/components/editor/code-editor";
-import { EmptyPanel } from "@/components/empty-panel";
-import { LabelTargetRowsTable } from "@/components/targeting/label-target-rows-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxContent,
@@ -15,18 +7,11 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  useSantaRuleReferences,
-  type SantaRulePolicy,
-  type SantaRuleReference,
-  type SantaRuleType,
-} from "@/hooks/use-santa-rules";
-import { POLICY_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
-import { ruleIdentifierHint, type RuleFormState, type RuleIncludeErrors, type RuleIncludeForm } from "./form-state";
+import { useSantaRuleReferences, type SantaRuleReference, type SantaRuleType } from "@/hooks/use-santa-rules";
+import { ruleTypeLabel } from "@/lib/santa-rules";
+
+import { ruleIdentifierHint, type RuleFormState } from "./form-state";
 
 export function RuleReferencePicker({
   form,
@@ -169,169 +154,4 @@ function ruleReferenceDescriptionParts(reference: SantaRuleReference) {
   if (reference.version) parts.push(reference.version);
   if (reference.path) parts.push(reference.path);
   return parts;
-}
-
-export function IncludeTargetsTable({
-  includeRows,
-  showErrors,
-  includeErrors,
-  excludedLabelIDs,
-  onChange,
-  onUpdate,
-  onEditCEL,
-  onDelete,
-}: {
-  includeRows: RuleIncludeForm[];
-  showErrors: boolean;
-  includeErrors: Partial<Record<number, RuleIncludeErrors>>;
-  excludedLabelIDs: number[];
-  onChange: (includeRows: RuleIncludeForm[]) => void;
-  onUpdate: (id: number, include: Partial<RuleIncludeForm>) => void;
-  onEditCEL: (id: number) => void;
-  onDelete: (id: number) => void;
-}) {
-  const policyColumns = useMemo<ColumnDef<RuleIncludeForm>[]>(
-    () => [
-      {
-        id: "policy",
-        header: "Policy",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const hasExpression = row.original.cel_expression.trim() !== "";
-          const celLabel = hasExpression ? "Edit CEL Expression" : "Add CEL Expression";
-          const error = showErrors ? includeErrors[row.original.id]?.cel_expression : undefined;
-          const celInvalid = row.original.policy === "cel" && (!hasExpression || error !== undefined);
-
-          return (
-            <Field className="min-w-56 gap-1">
-              <div className="flex items-center gap-2">
-                <Select
-                  value={row.original.policy}
-                  onValueChange={(policy) => {
-                    const nextPolicy = policy as SantaRulePolicy;
-                    onUpdate(row.original.id, { policy: nextPolicy });
-                    if (nextPolicy === "cel" && row.original.cel_expression.trim() === "") {
-                      onEditCEL(row.original.id);
-                    }
-                  }}
-                >
-                  <SelectTrigger id={`include-policy-${row.original.id}`} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {POLICY_OPTIONS.map((policy) => (
-                        <SelectItem key={policy.value} value={policy.value}>
-                          {policy.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {row.original.policy === "cel" ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        aria-label={celLabel}
-                        data-invalid={celInvalid ? true : undefined}
-                        className={celInvalid ? "text-destructive hover:text-destructive" : undefined}
-                        onClick={() => onEditCEL(row.original.id)}
-                      >
-                        <Code2 />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{celLabel}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </div>
-              {error ? <FieldError>{error}</FieldError> : null}
-            </Field>
-          );
-        },
-      },
-    ],
-    [includeErrors, onEditCEL, onUpdate, showErrors],
-  );
-
-  return (
-    <LabelTargetRowsTable
-      rows={includeRows}
-      excludeLabelIDs={excludedLabelIDs}
-      labelErrors={includeLabelErrors(showErrors, includeErrors)}
-      columnsAfterLabel={policyColumns}
-      onChange={onChange}
-      onLabelChange={(id, labelID) => onUpdate(id, { label_id: labelID })}
-      renderActions={(row) => (
-        <Button type="button" variant="ghost" size="icon" aria-label="Delete include" onClick={() => onDelete(row.id)}>
-          <Trash2 />
-        </Button>
-      )}
-      empty={<EmptyPanel>No includes yet</EmptyPanel>}
-    />
-  );
-}
-
-function includeLabelErrors(showErrors: boolean, includeErrors: Partial<Record<number, RuleIncludeErrors>>) {
-  if (!showErrors) return {};
-  const errors: Partial<Record<number, string>> = {};
-  for (const [id, error] of Object.entries(includeErrors)) {
-    if (error?.label_id) errors[Number(id)] = error.label_id;
-  }
-  return errors;
-}
-
-export function CELDialog({
-  include,
-  error,
-  showRequiredError,
-  onOpenChange,
-  onChange,
-}: {
-  include?: RuleIncludeForm;
-  error?: string;
-  showRequiredError: boolean;
-  onOpenChange: (open: boolean) => void;
-  onChange: (cel_expression: string) => void;
-}) {
-  const visibleError = include && (showRequiredError || include.cel_expression.trim() !== "") ? error : undefined;
-  return (
-    <Dialog open={include !== undefined} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>CEL</DialogTitle>
-        </DialogHeader>
-
-        {include ? (
-          <Field data-invalid={visibleError ? true : undefined} className="gap-2">
-            <FieldLabel required>Expression</FieldLabel>
-            <CodeEditor
-              value={include.cel_expression}
-              onChange={onChange}
-              placeholder="target.signing_time >= timestamp('2025-05-31T00:00:00Z')"
-              lineNumbers={false}
-              highlightActiveLine={false}
-              invalid={visibleError ? true : undefined}
-              className="[&_.cm-content]:min-h-28 [&_.cm-scroller]:max-h-48 [&_.cm-scroller]:overflow-auto"
-            />
-            {visibleError ? <FieldError>{visibleError}</FieldError> : null}
-          </Field>
-        ) : null}
-
-        <DialogFooter className="gap-2 sm:justify-between">
-          <Button asChild type="button" variant="outline" size="sm">
-            <a href="https://northpole.dev/features/binary-authorization/#cel" target="_blank" rel="noreferrer">
-              <ExternalLink data-icon="inline-start" />
-              Northpole CEL
-            </a>
-          </Button>
-          <Button type="button" size="sm" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }

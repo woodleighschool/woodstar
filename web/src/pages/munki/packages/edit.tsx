@@ -1,8 +1,10 @@
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
+import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import {
   useMunkiPackage,
@@ -10,7 +12,6 @@ import {
   useUpdateMunkiPackage,
   type MunkiPackage,
 } from "@/hooks/use-munki-packages";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, PackageFormActions, type SoftwareInfo } from "./fields";
@@ -49,7 +50,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const navigate = useNavigate();
   const update = useUpdateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
-  const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const [preflightError, setPreflightError] = useState<string | undefined>();

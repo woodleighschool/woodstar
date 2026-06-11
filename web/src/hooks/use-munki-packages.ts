@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
   ApiError,
   MunkiPackage,
@@ -15,8 +16,8 @@ export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
 
 interface MunkiSoftwareListParams {
   q?: string;
-  page_index?: number;
-  page_size?: number;
+  page?: number;
+  per_page?: number;
   sort?: string;
   software_id?: number;
 }
@@ -24,8 +25,8 @@ interface MunkiSoftwareListParams {
 function softwareQueryParams(params: MunkiSoftwareListParams) {
   return {
     q: nonEmpty(params.q),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
     software_id: params.software_id === 0 ? undefined : params.software_id,
   };

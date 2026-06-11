@@ -1,30 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, FolderLock } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useHostSantaRules, type HostDetail, type HostSantaRule } from "@/hooks/use-hosts";
-import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
 
-const HOST_SANTA_RULES_PAGE_SIZE = 25;
-
 export function HostSantaTab({ hostId, host }: { hostId: number | null; host: HostDetail }) {
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: HOST_SANTA_RULES_PAGE_SIZE,
-  });
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const rules = useHostSantaRules(hostId, tableQueryParams({ pagination, sorting }));
+  const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const santa = host.santa;
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
@@ -51,27 +44,27 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     () => [
       {
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        header: () => "Name",
         cell: ({ row }) => row.original.name || "-",
       },
       {
         accessorKey: "identifier",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
+        header: () => "Identifier",
         cell: ({ row }) => row.original.identifier,
       },
       {
         accessorKey: "rule_type",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+        header: () => "Type",
         cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
       },
       {
         accessorKey: "policy",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Policy" />,
+        header: () => "Policy",
         cell: ({ row }) => policyLabel(row.original.policy),
       },
       {
         accessorKey: "applied",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        header: () => "Status",
         cell: ({ row }) => (
           <Badge variant={!row.original.applied ? "secondary" : "outline"} className="gap-1.5">
             <span
@@ -135,23 +128,10 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
         <CardContent>
           {rules.error ? (
             <QueryError title="Failed to load rules" error={rules.error} onRetry={() => void rules.refetch()} />
+          ) : rules.isLoading ? null : totalCount === 0 ? (
+            <EmptyPanel>No matching rules</EmptyPanel>
           ) : (
-            <DataTable
-              columns={columns}
-              data={items}
-              totalCount={totalCount}
-              pagination={pagination}
-              sorting={sorting}
-              onPaginationChange={setPagination}
-              onSortingChange={setSorting}
-              isLoading={rules.isLoading}
-              getRowId={(rule) => `${rule.rule_id}-${rule.matched_include_id}`}
-              rowHref={(rule) => ({
-                to: "/santa/rules/$ruleId",
-                params: { ruleId: String(rule.rule_id) },
-              })}
-              empty={<EmptyPanel>No matching rules</EmptyPanel>}
-            />
+            <DataTableStatic columns={columns} data={items} />
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Label, LabelMutation, Page } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
@@ -13,8 +14,8 @@ export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
     label_type: params.label_type,
     label_membership_type: params.label_membership_type,

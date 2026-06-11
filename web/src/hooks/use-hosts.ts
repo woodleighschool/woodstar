@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
   ApiError,
   CheckHostStatus,
@@ -32,8 +33,8 @@ interface HostUserAffinityMutation {
 
 interface ListParams {
   q?: string;
-  page_index?: number;
-  page_size?: number;
+  page?: number;
+  per_page?: number;
   sort?: string;
 }
 
@@ -50,8 +51,8 @@ interface HostListParams extends ListParams {
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
     status: nonEmpty(params.status),
     label_id: params.label_id,
@@ -141,8 +142,8 @@ interface HostSoftwareListParams extends ListParams {
 export function useHostSoftware(id: number | null, params: HostSoftwareListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
     source: params.source && params.source.length > 0 ? params.source : undefined,
   };
@@ -191,8 +192,8 @@ export function useHostChecks(id: number | null) {
 
 export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
   const queryParams = {
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 100,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? 100,
     sort: nonEmpty(params.sort),
   };
 

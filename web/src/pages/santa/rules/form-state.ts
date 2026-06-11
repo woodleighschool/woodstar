@@ -51,7 +51,6 @@ export const ruleFormSchema = z
   });
 
 export type RuleFormParse = ReturnType<typeof ruleFormSchema.safeParse>;
-export type RuleIncludeErrors = { cel_expression?: string; label_id?: string };
 
 export interface RuleIncludeForm {
   id: number;
@@ -146,36 +145,8 @@ function includeBody(include: RuleIncludeForm) {
   };
 }
 
-export function includeErrorMap(
-  result: RuleFormParse,
-  includeRows: RuleIncludeForm[],
-): Partial<Record<number, RuleIncludeErrors>> {
-  if (result.success) return {};
-  const out: Partial<Record<number, RuleIncludeErrors>> = {};
-  for (const issue of result.error.issues) {
-    if (issue.path[0] !== "targets" || issue.path[1] !== "include") continue;
-    const index = issue.path[2];
-    if (typeof index !== "number" || index >= includeRows.length) continue;
-    const include = includeRows[index];
-    const entry = out[include.id] ?? {};
-    const field = issue.path[3];
-    if (field === "cel_expression" && !entry.cel_expression) entry.cel_expression = issue.message;
-    if (field === "label_id" && !entry.label_id) entry.label_id = issue.message;
-    out[include.id] = entry;
-  }
-  return out;
-}
-
 export function selectedIncludeLabelIDs(includeRows: RuleIncludeForm[]) {
   return includeRows.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
-}
-
-export function labelRefsFromIDs(labelIDs: number[]): LabelRef[] {
-  return labelIDs.map((labelID) => ({ label_id: labelID }));
-}
-
-export function labelIDsFromRefs(refs: LabelRef[]) {
-  return refs.map((ref) => ref.label_id);
 }
 
 export function ruleIdentifierHint(ruleType: SantaRuleType) {

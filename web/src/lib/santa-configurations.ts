@@ -1,5 +1,5 @@
 import type { SantaClientMode, SantaConfigurationMutation } from "@/hooks/use-santa-configurations";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, enumOptions, type EnumMetadataMap, type StatusMetadataMap } from "@/lib/enum-metadata";
 
 type StoredMediaAction = NonNullable<NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]>;
 
@@ -13,7 +13,7 @@ export const CLIENT_MODES = {
   unknown: {
     name: "Unknown",
     description: "The host has not reported a Santa client mode yet.",
-    variant: "secondary",
+    variant: "default",
   },
   monitor: {
     name: "Monitor",
@@ -23,14 +23,14 @@ export const CLIENT_MODES = {
   lockdown: {
     name: "Lockdown",
     description: "Santa blocks unknown executions unless a matching allow rule applies.",
-    variant: "destructive",
+    variant: "error",
   },
   standalone: {
     name: "Standalone",
     description: "Santa is enforcing local configuration without server-managed sync.",
-    variant: "secondary",
+    variant: "default",
   },
-} satisfies EnumMetadataMap<SantaClientMode>;
+} satisfies StatusMetadataMap<SantaClientMode>;
 
 export const CLIENT_MODE_OPTIONS = enumOptions(CLIENT_MODES).filter((option) =>
   CLIENT_MODE_VALUES.includes(option.value as NonNullable<SantaConfigurationMutation["client_mode"]>),

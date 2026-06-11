@@ -11,8 +11,8 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 interface LabelPickerProps {
   value: number[];
@@ -40,8 +40,8 @@ export function LabelPicker({
   invalid = false,
 }: LabelPickerProps) {
   const labels = useLabels({
-    page_size: MAX_PAGE_SIZE,
-    sort: "name.asc",
+    per_page: MAX_PAGE_SIZE,
+    sort: encodeSort("name"),
     label_type: includeBuiltins ? undefined : "regular",
   });
   const rows = labels.data?.items ?? [];

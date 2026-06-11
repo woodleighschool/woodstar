@@ -1,13 +1,10 @@
 import { useForm } from "@tanstack/react-form";
-import { Plus } from "lucide-react";
-import { useState } from "react";
 
 import { FormField } from "@/components/form-field";
-import { LabelPicker } from "@/components/labels/label-picker";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { SubmitButton } from "@/components/submit-button";
-import { TargetSection } from "@/components/targeting/target-section";
+import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -19,16 +16,13 @@ import { RULE_TYPE_OPTIONS } from "@/lib/santa-rules";
 
 import {
   identifierErrorFor,
-  includeErrorMap,
-  labelIDsFromRefs,
-  labelRefsFromIDs,
   ruleBody,
   ruleFormSchema,
   selectedIncludeLabelIDs,
   type RuleFormState,
-  type RuleIncludeForm,
 } from "./form-state";
-import { CELDialog, IncludeTargetsTable, RuleReferencePicker } from "./rule-form-fields";
+import { SantaIncludeTargets } from "./include-targets";
+import { RuleReferencePicker } from "./rule-form-fields";
 
 export function RuleForm({
   initial,
@@ -47,7 +41,6 @@ export function RuleForm({
   onSubmit: (body: SantaRuleMutation) => Promise<void> | void;
   onCancel?: () => void;
 }) {
-  const [celDialogID, setCELDialogID] = useState<number | null>(null);
   const form = useForm({
     defaultValues: initial,
     validators: {
@@ -60,16 +53,6 @@ export function RuleForm({
     form.setFieldValue("rule_type", next.rule_type);
     form.setFieldValue("identifier", next.identifier);
     form.setFieldValue("name", next.name);
-  }
-
-  function updateInclude(values: RuleFormState, id: number, next: Partial<RuleIncludeForm>) {
-    if (next.policy && next.policy !== "cel" && celDialogID === id) {
-      setCELDialogID(null);
-    }
-    form.setFieldValue("targets", {
-      ...values.targets,
-      include: values.targets.include.map((include) => (include.id === id ? { ...include, ...next } : include)),
-    });
   }
 
   return (
@@ -87,8 +70,6 @@ export function RuleForm({
             const showErrors = submissionAttempts > 0;
             const identifierError = identifierErrorFor(parsed);
             const identifierInvalid = identifierError !== undefined && (showErrors || values.identifier.trim() !== "");
-            const includeErrors = includeErrorMap(parsed, values.targets.include);
-            const includeLabelIDs = selectedIncludeLabelIDs(values.targets.include);
 
             return (
               <>
@@ -206,61 +187,21 @@ export function RuleForm({
                       label: "Targets",
                       content: (
                         <FieldGroup>
-                          <TargetSection
-                            title="Include"
-                            action={
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  form.setFieldValue("targets", {
-                                    ...values.targets,
-                                    include: [
-                                      ...values.targets.include,
-                                      { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
-                                    ],
-                                  })
-                                }
-                              >
-                                <Plus data-icon="inline-start" />
-                                Add Include
-                              </Button>
-                            }
-                          >
-                            <IncludeTargetsTable
-                              includeRows={values.targets.include}
-                              showErrors={showErrors}
-                              includeErrors={includeErrors}
-                              excludedLabelIDs={labelIDsFromRefs(values.targets.exclude)}
-                              onChange={(includeRows) =>
-                                form.setFieldValue("targets", { ...values.targets, include: includeRows })
-                              }
-                              onUpdate={(id, include) => updateInclude(values, id, include)}
-                              onEditCEL={setCELDialogID}
-                              onDelete={(id) => {
-                                if (celDialogID === id) setCELDialogID(null);
-                                form.setFieldValue("targets", {
-                                  ...values.targets,
-                                  include: values.targets.include.filter((item) => item.id !== id),
-                                });
-                              }}
-                            />
-                          </TargetSection>
+                          <SantaIncludeTargets
+                            include={values.targets.include}
+                            excludeLabelIDs={values.targets.exclude.map((ref) => ref.label_id)}
+                            onChange={(include) => form.setFieldValue("targets", { ...values.targets, include })}
+                          />
                           <Separator />
-                          <TargetSection title="Exclude">
-                            <LabelPicker
-                              value={labelIDsFromRefs(values.targets.exclude)}
-                              unavailableLabelIDs={includeLabelIDs}
-                              onChange={(labelIDs) =>
-                                form.setFieldValue("targets", {
-                                  ...values.targets,
-                                  exclude: labelRefsFromIDs(labelIDs),
-                                })
-                              }
-                              placeholder="Add Exclude"
-                            />
-                          </TargetSection>
+                          <LabelAssignmentList
+                            title="Exclude"
+                            addLabel="Add Exclude"
+                            emptyText="No excludes yet"
+                            rows={values.targets.exclude}
+                            crossListLabelIDs={selectedIncludeLabelIDs(values.targets.include)}
+                            includeBuiltins={false}
+                            onChange={(exclude) => form.setFieldValue("targets", { ...values.targets, exclude })}
+                          />
                         </FieldGroup>
                       ),
                     },
@@ -280,18 +221,6 @@ export function RuleForm({
                   </div>
                   {error ? <FieldError>{error.message}</FieldError> : null}
                 </div>
-
-                <CELDialog
-                  include={values.targets.include.find((include) => include.id === celDialogID)}
-                  error={celDialogID !== null ? includeErrors[celDialogID]?.cel_expression : undefined}
-                  showRequiredError={showErrors}
-                  onOpenChange={(open) => {
-                    if (!open) setCELDialogID(null);
-                  }}
-                  onChange={(celExpression) => {
-                    if (celDialogID !== null) updateInclude(values, celDialogID, { cel_expression: celExpression });
-                  }}
-                />
               </>
             );
           }}

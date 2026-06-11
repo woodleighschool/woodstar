@@ -1,14 +1,26 @@
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import {
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type PaginationState,
+  type SortingState,
+} from "@tanstack/react-table";
+import { useRef, useState } from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableFacetedFilter, DataTableSearch } from "@/components/data-table";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
-import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import type { HostSoftwareInstalledVersion, PathSignatureInformation } from "@/lib/api";
 import {
   expandSoftwareSourceFilters,
@@ -20,22 +32,87 @@ import { formatRelative } from "@/lib/utils";
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
 
+const softwareColumns: ColumnDef<HostSoftware>[] = [
+  {
+    id: "name",
+    accessorFn: (row) => row.display_name || row.name,
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+    cell: ({ row }) => (
+      <Link
+        to="/software/titles/$softwareId"
+        params={{ softwareId: String(row.original.id) }}
+        className="inline-flex items-center gap-2 truncate font-medium hover:underline"
+      >
+        <SoftwareIcon source={row.original.source} />
+        <span className="truncate">{row.original.display_name || row.original.name}</span>
+      </Link>
+    ),
+    meta: { label: "Name" },
+  },
+  {
+    id: "version",
+    accessorFn: (row) => row.installed_versions?.[0]?.version ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Version" />,
+    cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions ?? []),
+    meta: { label: "Version" },
+  },
+  {
+    id: "source",
+    accessorKey: "source",
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
+    cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
+    meta: { label: "Type", variant: "multiSelect", options: SOURCE_FILTER_OPTIONS },
+    enableColumnFilter: true,
+  },
+  {
+    id: "last_opened_at",
+    accessorFn: (row) => pickLatestLastOpened(row.installed_versions ?? []) ?? "",
+    header: ({ column }) => <DataTableColumnHeader column={column} label="Last Opened" />,
+    cell: ({ row }) => {
+      const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
+      return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
+    },
+    meta: { label: "Last Opened" },
+  },
+  {
+    id: "path",
+    header: () => "File path",
+    enableSorting: false,
+    cell: ({ row }) => {
+      const versions = row.original.installed_versions ?? [];
+      const versionLabel = versionsSummaryLabel(versions);
+      const paths = installedPathsFor(versions);
+      const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
+      return <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />;
+    },
+    meta: { label: "File path" },
+  },
+  {
+    id: "hash",
+    header: () => "Hash",
+    enableSorting: false,
+    cell: ({ row }) => truncateHash(singleHash(installedPathsFor(row.original.installed_versions ?? []))),
+    meta: { label: "Hash" },
+  },
+];
+
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const [draft, setDraft] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
-  const [sources, setSources] = useState<string[]>([]);
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: HOST_SOFTWARE_PAGE_SIZE,
-  });
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: HOST_SOFTWARE_PAGE_SIZE });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const debounceRef = useRef<number | null>(null);
 
-  const setDraftDebounced = (next: string) => {
+  const sources = (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
+
+  const setSearch = (next: string) => {
     setDraft(next);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    if (next === "") {
+      setActiveQuery("");
+      return;
     }
     debounceRef.current = window.setTimeout(() => setActiveQuery(next.trim()), 200);
   };
@@ -43,126 +120,58 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const query = useHostSoftware(hostId, {
     q: activeQuery,
     source: expandSoftwareSourceFilters(sources),
-    ...tableQueryParams({ pagination, sorting }),
+    page: pagination.pageIndex + 1,
+    per_page: pagination.pageSize,
+    sort: sorting.length > 0 ? encodeSort(sorting[0].id, sorting[0].desc) : undefined,
   });
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = activeQuery !== "" || sources.length > 0;
 
-  const columns = useMemo<ColumnDef<HostSoftware>[]>(
-    () => [
-      {
-        id: "name",
-        accessorFn: (row) => row.display_name || row.name,
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-        cell: ({ row }) => {
-          const name = row.original.display_name || row.original.name;
-          return (
-            <span className="inline-flex items-center gap-2 truncate">
-              <SoftwareIcon source={row.original.source} />
-              <span className="truncate">{name}</span>
-            </span>
-          );
-        },
-      },
-      {
-        id: "version",
-        accessorFn: (row) => row.installed_versions?.[0]?.version ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
-        cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions ?? []),
-      },
-      {
-        id: "source",
-        accessorKey: "source",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
-        cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
-      },
-      {
-        id: "last_opened_at",
-        accessorFn: (row) => pickLatestLastOpened(row.installed_versions ?? []) ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Last Opened" />,
-        cell: ({ row }) => {
-          const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
-          return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
-        },
-      },
-      {
-        id: "path",
-        header: () => "File path",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const versions = row.original.installed_versions ?? [];
-          const versionLabel = versionsSummaryLabel(versions);
-          const paths = installedPathsFor(versions);
-          const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
-          return (
-            <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />
-          );
-        },
-      },
-      {
-        id: "hash",
-        header: () => "Hash",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const paths = installedPathsFor(row.original.installed_versions ?? []);
-          return truncateHash(singleHash(paths));
-        },
-      },
-    ],
-    [],
-  );
+  const table = useReactTable({
+    data,
+    columns: softwareColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => String(row.id),
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
+    state: { pagination, sorting, columnFilters },
+    onPaginationChange: setPagination,
+    onSortingChange: (updater) => {
+      setSorting(updater);
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    },
+    onColumnFiltersChange: (updater) => {
+      setColumnFilters(updater);
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    },
+  });
 
   if (query.error) {
     return <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />;
   }
+  if (query.isLoading) return <DataTableSkeleton columnCount={6} filterCount={1} />;
 
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      totalCount={totalCount}
-      pagination={pagination}
-      sorting={sorting}
-      onPaginationChange={setPagination}
-      onSortingChange={(updater) => {
-        setSorting(updater);
-        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-      }}
-      rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
-      isLoading={query.isLoading}
-      showExport
-      exportFilename="host-software.csv"
-      toolbar={(_table, exportButton) => (
-        <div className="flex items-center gap-2">
-          <DataTableSearch
-            value={draft}
-            onChange={(next) => {
-              if (next === "") {
-                setDraft("");
-                setActiveQuery("");
-                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                return;
-              }
-              setDraftDebounced(next);
-            }}
-            placeholder="Search Software"
-          />
-          <DataTableFacetedFilter
-            title="Type"
-            options={SOURCE_FILTER_OPTIONS}
-            selected={sources}
-            onChange={(next) => {
-              setSources(next);
-              setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-            }}
-          />
-          {exportButton ? <div className="ml-auto">{exportButton}</div> : null}
-        </div>
-      )}
-      empty={<EmptyPanel>{hasFilters ? "No matching software" : "No software yet"}</EmptyPanel>}
-    />
+    <DataTable table={table} empty={<EmptyPanel>{hasFilters ? "No matching software" : "No software yet"}</EmptyPanel>}>
+      <div className="flex flex-wrap items-center gap-2 p-1">
+        <Input
+          value={draft}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search software"
+          className="h-8 w-56"
+        />
+        <DataTableFacetedFilter
+          column={table.getColumn("source")}
+          title="Type"
+          options={SOURCE_FILTER_OPTIONS}
+          multiple
+        />
+      </div>
+    </DataTable>
   );
 }
 

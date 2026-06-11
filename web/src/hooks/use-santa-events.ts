@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, ExecutionEvent, FileAccessEvent, HostSummary, Page } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import type { ListSantaEventsData, ListSantaFileAccessEventsData } from "@/lib/api-client/types.gen";
@@ -25,8 +26,8 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
     since: nonEmpty(params.since),
     user: nonEmpty(params.user),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
   };
 
@@ -57,8 +58,8 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
     since: nonEmpty(params.since),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
   };
 

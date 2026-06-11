@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { tableSearchSchema } from "@/lib/pagination";
 import { HostListPage } from "@/pages/hosts/list";
 
-const searchSchema = z.object({
-  ...tableSearchSchema.shape,
-  status: z.string().optional(),
+// Table state (q, page, per_page, sort, status facet) is nuqs-owned; the route
+// only validates the semantic deep-link params and stays loose so the nuqs keys
+// survive validation on a bookmarked load.
+const searchSchema = z.looseObject({
   label_id: z.string().optional(),
   software_title_id: z.coerce.number().int().positive().optional(),
   software_id: z.coerce.number().int().positive().optional(),

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 
-import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { QueryError } from "@/components/query-error";
@@ -10,63 +10,44 @@ import { useHostChecks } from "@/hooks/use-hosts";
 import type { CheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
-const HOST_CHECKS_PAGE_SIZE = 25;
+const checkColumns: ColumnDef<CheckHostStatus>[] = [
+  {
+    accessorKey: "check_name",
+    header: () => "Check",
+    cell: ({ row }) => (
+      <Link
+        to="/osquery/checks/$checkId"
+        params={{ checkId: String(row.original.check_id) }}
+        className="hover:underline"
+      >
+        {row.original.check_name || String(row.original.check_id)}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "response",
+    header: () => "Status",
+    cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
+  },
+  {
+    accessorKey: "updated_at",
+    header: () => "Last Evaluated",
+    cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
+  },
+];
 
 export function HostChecksTab({ hostId }: { hostId: number | null }) {
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: HOST_CHECKS_PAGE_SIZE,
-  });
-  const [sorting, setSorting] = useState<SortingState>([{ id: "check_name", desc: false }]);
   const query = useHostChecks(hostId);
-  const rows = query.data ?? [];
-
-  const columns = useMemo<ColumnDef<CheckHostStatus>[]>(
-    () => [
-      {
-        accessorKey: "check_name",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Check" />,
-        cell: ({ row }) => (
-          <Link
-            to="/osquery/checks/$checkId"
-            params={{ checkId: String(row.original.check_id) }}
-            className="hover:underline"
-          >
-            {row.original.check_name || String(row.original.check_id)}
-          </Link>
-        ),
-      },
-      {
-        accessorKey: "response",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-        cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
-      },
-      {
-        accessorKey: "updated_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Last Evaluated" />,
-        cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
-      },
-    ],
-    [],
+  const rows = useMemo(
+    () => [...(query.data ?? [])].sort((a, b) => (a.check_name || "").localeCompare(b.check_name || "")),
+    [query.data],
   );
 
   if (query.error) {
     return <QueryError title="Failed to load checks" error={query.error} onRetry={() => void query.refetch()} />;
   }
+  if (query.isLoading) return null;
+  if (rows.length === 0) return <EmptyPanel>No checks yet</EmptyPanel>;
 
-  return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      totalCount={rows.length}
-      pagination={pagination}
-      sorting={sorting}
-      onPaginationChange={setPagination}
-      onSortingChange={setSorting}
-      isLoading={query.isLoading}
-      getRowId={(row) => `${row.check_id}-${row.host_id}`}
-      rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.check_id) } })}
-      empty={<EmptyPanel>No checks yet</EmptyPanel>}
-    />
-  );
+  return <DataTableStatic columns={checkColumns} data={rows} />;
 }

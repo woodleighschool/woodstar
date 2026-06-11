@@ -10,7 +10,7 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 	params := CleanListParams(ListParams{
 		PageIndex: 1,
 		PageSize:  25,
-		Sort:      "last_seen_at.desc",
+		Sort:      `[{"id":"last_seen_at","desc":true}]`,
 	})
 
 	query, args, err := ListQuery{
@@ -44,7 +44,7 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{Sort: "orbit_node_key"}),
+		Params: CleanListParams(ListParams{Sort: `[{"id":"orbit_node_key"}]`}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
@@ -54,18 +54,51 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 	}
 }
 
+func TestListQueryRejectsMalformedSort(t *testing.T) {
+	_, _, err := ListQuery{
+		SelectSQL: "SELECT * FROM hosts",
+		OrderKeys: map[string]OrderExpr{
+			"display_name": {SQL: "lower(display_name)"},
+		},
+		Params: CleanListParams(ListParams{Sort: "display_name.asc"}),
+	}.Build()
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("err = %v, want ErrInvalidInput", err)
+	}
+}
+
 func TestListQueryNestedSortKey(t *testing.T) {
 	query, _, err := ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
 		OrderKeys: map[string]OrderExpr{
 			"hardware.serial": {SQL: "lower(hardware_serial)"},
 		},
-		Params: CleanListParams(ListParams{Sort: "hardware.serial.desc"}),
+		Params: CleanListParams(ListParams{Sort: `[{"id":"hardware.serial","desc":true}]`}),
 	}.Build()
 	if err != nil {
 		t.Fatalf("Build returned error: %v", err)
 	}
 	if !strings.Contains(query, "ORDER BY lower(hardware_serial) DESC") {
+		t.Fatalf("query = %s", query)
+	}
+}
+
+func TestListQueryMultiColumnSort(t *testing.T) {
+	query, _, err := ListQuery{
+		SelectSQL: "SELECT * FROM hosts",
+		OrderKeys: map[string]OrderExpr{
+			"display_name": {SQL: "lower(display_name)"},
+			"last_seen_at": {SQL: "last_seen_at", NullOrder: NullsLast},
+		},
+		DefaultOrder: []OrderExpr{{SQL: "id"}},
+		Params: CleanListParams(ListParams{
+			Sort: `[{"id":"last_seen_at","desc":true},{"id":"display_name","desc":false}]`,
+		}),
+	}.Build()
+	if err != nil {
+		t.Fatalf("Build returned error: %v", err)
+	}
+	if !strings.Contains(query, "ORDER BY last_seen_at DESC NULLS LAST, lower(display_name) ASC, id ASC") {
 		t.Fatalf("query = %s", query)
 	}
 }

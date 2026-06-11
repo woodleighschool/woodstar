@@ -1,6 +1,7 @@
 package dbutil
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -87,67 +88,74 @@ func (q ListQuery) baseParts() []string {
 	return parts
 }
 
+// OrderBy builds a multi-column ORDER BY from the requested sort columns,
+// appending DefaultOrder columns (ascending) that the request did not already
+// pin. Sort is the nuqs/TanStack Table wire format: a JSON array of {id, desc}.
 func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
-	order := make([]OrderExpr, 0, 1+len(defaultOrder))
-	sortKey, sortDirection, err := parseSort(params.Sort)
+	cols, err := parseSortColumns(params.Sort)
 	if err != nil {
 		return "", err
 	}
-	if sortKey != "" {
-		expr, ok := orderKeys[sortKey]
+
+	parts := make([]string, 0, len(cols)+len(defaultOrder))
+	used := make([]string, 0, len(cols)+len(defaultOrder))
+
+	for _, col := range cols {
+		expr, ok := orderKeys[col.ID]
 		if !ok {
-			return "", fmt.Errorf("%w: unknown sort key %q", ErrInvalidInput, sortKey)
+			return "", fmt.Errorf("%w: unknown sort key %q", ErrInvalidInput, col.ID)
 		}
-		order = append(order, expr)
-	}
-	for _, expr := range defaultOrder {
-		if !orderContains(order, expr.SQL) {
-			order = append(order, expr)
+		if slices.Contains(used, expr.SQL) {
+			continue
 		}
-	}
-	if len(order) == 0 {
-		return "", nil
+		used = append(used, expr.SQL)
+		parts = append(parts, orderPart(expr, col.Desc))
 	}
 
-	direction := orderSQLAsc
-	if sortDirection == orderDesc {
-		direction = orderSQLDesc
+	for _, expr := range defaultOrder {
+		if slices.Contains(used, expr.SQL) {
+			continue
+		}
+		used = append(used, expr.SQL)
+		parts = append(parts, orderPart(expr, false))
 	}
-	parts := make([]string, 0, len(order))
-	for i, expr := range order {
-		itemDirection := direction
-		if i > 0 {
-			itemDirection = orderSQLAsc
-		}
-		part := expr.SQL + " " + itemDirection
-		if expr.NullOrder != NullOrderDefault {
-			part += " " + string(expr.NullOrder)
-		}
-		parts = append(parts, part)
+
+	if len(parts) == 0 {
+		return "", nil
 	}
 	return "ORDER BY " + strings.Join(parts, ", "), nil
 }
 
-func parseSort(sort string) (string, string, error) {
-	if sort == "" {
-		return "", orderAsc, nil
-	}
-	dot := strings.LastIndex(sort, ".")
-	if dot == -1 {
-		return sort, orderAsc, nil
-	}
-	key, direction := sort[:dot], sort[dot+1:]
-	if key == "" {
-		return "", "", fmt.Errorf("%w: sort key is required", ErrInvalidInput)
-	}
-	if direction != orderAsc && direction != orderDesc {
-		return sort, orderAsc, nil
-	}
-	return key, direction, nil
+type sortColumn struct {
+	ID   string `json:"id"`
+	Desc bool   `json:"desc"`
 }
 
-func orderContains(order []OrderExpr, sql string) bool {
-	return slices.ContainsFunc(order, func(expr OrderExpr) bool {
-		return expr.SQL == sql
-	})
+func parseSortColumns(sort string) ([]sortColumn, error) {
+	trimmed := strings.TrimSpace(sort)
+	if trimmed == "" {
+		return nil, nil
+	}
+	var cols []sortColumn
+	if err := json.Unmarshal([]byte(trimmed), &cols); err != nil {
+		return nil, fmt.Errorf("%w: invalid sort %q", ErrInvalidInput, sort)
+	}
+	for _, col := range cols {
+		if col.ID == "" {
+			return nil, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
+		}
+	}
+	return cols, nil
+}
+
+func orderPart(expr OrderExpr, desc bool) string {
+	direction := orderSQLAsc
+	if desc {
+		direction = orderSQLDesc
+	}
+	part := expr.SQL + " " + direction
+	if expr.NullOrder != NullOrderDefault {
+		part += " " + string(expr.NullOrder)
+	}
+	return part
 }

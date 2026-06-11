@@ -78,4 +78,33 @@ export default tseslint.config([
     files: ["src/pages/**/fields.tsx"],
     rules: { "react-refresh/only-export-components": "off" },
   },
+  {
+    // Vendored diceui registry code (data-table primitives + their support
+    // hooks/utils/types). Kept close to upstream, so it is exempt from the
+    // app-strict rules it trips, same treatment as the shadcn ui/** primitives.
+    // Our own additions to the data-table dir stay under the strict rules.
+    files: [
+      "src/components/data-table/**/*.{ts,tsx}",
+      "src/hooks/use-data-table.ts",
+      "src/hooks/use-debounced-callback.ts",
+      "src/hooks/use-callback-ref.ts",
+      "src/lib/data-table.ts",
+      "src/lib/parsers.ts",
+      "src/lib/compose-refs.ts",
+      "src/lib/format.ts",
+      "src/types/data-table.ts",
+      "src/config/data-table.ts",
+    ],
+    ignores: ["src/components/data-table/data-table-static.tsx"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/prefer-nullish-coalescing": "off",
+      "react-x/no-leaked-conditional-rendering": "off",
+      "react-x/no-array-index-key": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "unused-imports/no-unused-vars": "off",
+    },
+  },
 ]);

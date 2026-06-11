@@ -1,16 +1,14 @@
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
-import { useState } from "react";
+import * as React from "react";
 import { toast } from "sonner";
 
-import {
-  DataTable,
-  DataTableColumnHeader,
-  DataTableEmptyState,
-  DataTableFacetedFilter,
-  DataTableSearch,
-} from "@/components/data-table";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import {
@@ -31,62 +29,94 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
-import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useDataTable } from "@/hooks/use-data-table";
+import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { useDeleteLabel, useLabels, type Label, type LabelListParams } from "@/hooks/use-labels";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { formatRelative } from "@/lib/utils";
 
+const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
+
 export function LabelListPage() {
-  const search = useSearch({ from: "/_authenticated/labels/" });
-  const { state, setters } = useTablePaginationParams();
-  const [draft, setDraft] = useDebouncedSearchParam("q");
-  const [deleting, setDeleting] = useState<Label | null>(null);
+  const tableSearch = useDataTableSearch(MEMBERSHIP_FILTER_KEYS);
+  const [deleting, setDeleting] = React.useState<Label | null>(null);
+
+  const membership = tableSearch.filters.label_membership_type?.[0];
 
   const query = useLabels({
-    q: search.q,
-    ...tableQueryParams(state),
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
     label_type: "regular",
-    label_membership_type: search.label_membership_type,
+    label_membership_type: membership as LabelListParams["label_membership_type"],
   });
 
-  const data = query.data?.items ?? [];
+  const labels = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.label_membership_type;
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const hasFilters = !!tableSearch.q || !!membership;
 
-  const columns: ColumnDef<Label>[] = [
-    {
-      id: "name",
-      accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.name,
-    },
-    {
-      id: "label_membership_type",
-      accessorKey: "label_membership_type",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
-      cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
-    },
-    {
-      id: "hosts_count",
-      accessorKey: "hosts_count",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" />,
-      cell: ({ row }) => row.original.hosts_count,
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
-      cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
-    },
-    {
-      id: "actions",
-      header: () => null,
-      enableSorting: false,
-      cell: ({ row }) => <LabelRowActions label={row.original} onDelete={setDeleting} />,
-      meta: { headClassName: "w-12" },
-    },
-  ];
+  const columns = React.useMemo<ColumnDef<Label>[]>(
+    () => [
+      {
+        id: "name",
+        accessorKey: "name",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+        cell: ({ row }) => (
+          <Link
+            to="/labels/$labelId/edit"
+            params={{ labelId: String(row.original.id) }}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ),
+        enableHiding: false,
+        meta: { label: "Name" },
+      },
+      {
+        id: "label_membership_type",
+        accessorKey: "label_membership_type",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Membership" />,
+        cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
+        meta: { label: "Membership", variant: "select", options: LABEL_MEMBERSHIP_OPTIONS },
+        enableColumnFilter: true,
+      },
+      {
+        id: "hosts_count",
+        accessorKey: "hosts_count",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Hosts" />,
+        cell: ({ row }) => row.original.hosts_count,
+        meta: { label: "Hosts" },
+      },
+      {
+        id: "updated_at",
+        accessorKey: "updated_at",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
+        cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
+        meta: { label: "Updated" },
+      },
+      {
+        id: "actions",
+        header: () => null,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+        cell: ({ row }) => <LabelRowActions label={row.original} onDelete={setDeleting} />,
+      },
+    ],
+    [],
+  );
+
+  const { table } = useDataTable({
+    data: labels,
+    columns,
+    pageCount,
+    initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
+    getRowId: (row) => String(row.id),
+  });
 
   return (
     <PageShell>
@@ -104,37 +134,36 @@ export function LabelListPage() {
       />
       {query.error ? (
         <QueryError title="Failed to load labels" error={query.error} onRetry={() => void query.refetch()} />
+      ) : query.isLoading ? (
+        <DataTableSkeleton columnCount={5} filterCount={1} />
       ) : (
         <DataTable
-          columns={columns}
-          data={data}
-          totalCount={totalCount}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/labels/$labelId/edit", params: { labelId: String(row.id) } })}
-          toolbar={
-            <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
+          table={table}
+          empty={
+            <Empty className="min-h-72 border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Tags />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matches" : "No labels"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
+        >
+          <div className="flex items-start justify-between gap-2 p-1">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
               <DataTableFacetedFilter
+                column={table.getColumn("label_membership_type")}
                 title="Membership"
                 options={LABEL_MEMBERSHIP_OPTIONS}
-                selected={search.label_membership_type ? [search.label_membership_type] : []}
-                onChange={(next) => setters.setFilter("label_membership_type", next[0])}
-                singleSelect
               />
             </div>
-          }
-          empty={
-            <DataTableEmptyState
-              icon={<Tags />}
-              title={hasFilters ? "No Matches" : "No Labels"}
-              description={hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
-            />
-          }
-        />
+          </div>
+        </DataTable>
       )}
 
       <LabelDeleteDialog

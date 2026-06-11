@@ -5,8 +5,6 @@ import "strings"
 const (
 	defaultPageSize = 50
 	maxPageSize     = 1000
-	orderAsc        = "asc"
-	orderDesc       = "desc"
 	orderSQLAsc     = "ASC"
 	orderSQLDesc    = "DESC"
 	OrderUpdatedAt  = "updated_at"

@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Department, Page, User, UserCreate, UserMutation } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import type { ListUserDepartmentsData, ListUsersData } from "@/lib/api-client/types.gen";
@@ -13,8 +14,8 @@ export type UserListParams = NonNullable<ListUsersData["query"]>;
 export type DepartmentListParams = NonNullable<ListUserDepartmentsData["query"]>;
 
 type BaseUserListParams = {
-  page_index?: number;
-  page_size?: number;
+  page?: number;
+  per_page?: number;
   q?: string;
   sort?: string;
   values?: string[] | null;
@@ -23,8 +24,8 @@ type BaseUserListParams = {
 function baseUserQueryParams(params: BaseUserListParams = {}) {
   return {
     q: nonEmpty(params.q),
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
     values: params.values && params.values.length > 0 ? params.values : undefined,
   };

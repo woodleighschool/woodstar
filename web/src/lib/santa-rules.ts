@@ -1,5 +1,5 @@
 import type { SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa-rules";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, enumOptions, type EnumMetadataMap, type StatusMetadataMap } from "@/lib/enum-metadata";
 
 export const RULE_TYPE_VALUES = [
   "binary",
@@ -61,19 +61,19 @@ export const POLICIES = {
   blocklist: {
     name: "Blocklist",
     description: "Block matching software on targeted hosts.",
-    variant: "destructive",
+    variant: "error",
   },
   silent_blocklist: {
     name: "Silent Blocklist",
     description: "Block matching software without showing a custom user-facing Santa message.",
-    variant: "destructive",
+    variant: "error",
   },
   cel: {
     name: "CEL",
     description: "Use a Santa CEL expression to decide whether the rule applies.",
-    variant: "secondary",
+    variant: "default",
   },
-} satisfies EnumMetadataMap<SantaRulePolicy>;
+} satisfies StatusMetadataMap<SantaRulePolicy>;
 
 export const POLICY_OPTIONS = enumOptions(POLICIES);
 

@@ -1,10 +1,11 @@
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { DataTable, DataTableSearch } from "@/components/data-table";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
@@ -20,7 +21,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
 import {
@@ -35,15 +38,10 @@ import {
   type LiveQueryTargetSelection,
 } from "@/hooks/use-live-queries";
 import { isAllHostsLabel } from "@/lib/labels";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
 type ReportResultRow = Record<string, string>;
-
-const STATIC_TABLE_PER_PAGE = 500;
-const STATIC_TABLE_PAGINATION = { pageIndex: 0, pageSize: STATIC_TABLE_PER_PAGE };
-const STATIC_TABLE_SORTING: SortingState = [];
 
 export function LiveRunner({
   kind,
@@ -430,9 +428,9 @@ function TargetPicker({
   onLabelsChange: (labels: Label[]) => void;
   onHostsChange: (hosts: Host[]) => void;
 }) {
-  const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [hostSearch, setHostSearch] = useState("");
-  const hosts = useHosts({ q: hostSearch, page_size: 8, sort: "display_name.asc" });
+  const hosts = useHosts({ q: hostSearch, per_page: 8, sort: encodeSort("display_name") });
   const grouped = useMemo(() => groupLabels(labels.data?.items ?? []), [labels.data?.items]);
   const hostRows = hosts.data?.items ?? [];
 
@@ -475,11 +473,11 @@ function TargetPicker({
 
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">Hosts</h3>
-        <DataTableSearch
+        <Input
           value={hostSearch}
-          onChange={setHostSearch}
-          placeholder="Search Hosts"
-          className="max-w-none"
+          onChange={(event) => setHostSearch(event.target.value)}
+          placeholder="Search hosts"
+          className="h-8"
         />
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
@@ -570,39 +568,26 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       accessorKey: "host_name",
       header: "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$hostId" params={{ hostId: row.original.host_id }} className="hover:underline">
+        <Link
+          to="/hosts/$hostId"
+          params={{ hostId: row.original.host_id }}
+          className="whitespace-nowrap hover:underline"
+        >
           {row.original.host_name}
         </Link>
       ),
-      meta: {
-        headClassName: "whitespace-nowrap",
-        cellClassName: "whitespace-nowrap",
-      },
     },
     ...resultColumns.map<ColumnDef<ReportResultRow>>((name) => ({
       id: name,
       accessorFn: (row) => row[name] ?? "-",
       header: name,
-      cell: ({ row }) => row.original[name] ?? "-",
-      meta: {
-        headClassName: "whitespace-nowrap",
-        cellClassName: "whitespace-nowrap",
-      },
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.original[name] ?? "-"}</span>,
     })),
   ];
   return (
-    <DataTable
+    <DataTableStatic
       columns={columns}
       data={rows}
-      totalCount={rows.length}
-      pagination={STATIC_TABLE_PAGINATION}
-      sorting={STATIC_TABLE_SORTING}
-      onPaginationChange={() => undefined}
-      onSortingChange={() => undefined}
-      getRowId={(row) => `${row.host_id}-${JSON.stringify(row)}`}
-      clientSort
-      showExport
-      exportFilename="report-run-results.csv"
       empty={<RunEmptyState text={running ? "Waiting for results" : "No rows returned"} />}
     />
   );
@@ -626,18 +611,9 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
     },
   ];
   return (
-    <DataTable
+    <DataTableStatic
       columns={columns}
       data={rows}
-      totalCount={rows.length}
-      pagination={STATIC_TABLE_PAGINATION}
-      sorting={STATIC_TABLE_SORTING}
-      onPaginationChange={() => undefined}
-      onSortingChange={() => undefined}
-      getRowId={(row) => String(row.host_id)}
-      clientSort
-      showExport
-      exportFilename="check-run-results.csv"
       empty={<RunEmptyState text={running ? "Waiting for hosts" : "No host results yet"} />}
     />
   );
@@ -656,22 +632,7 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       cell: ({ row }) => row.original.error ?? row.original.status,
     },
   ];
-  return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      totalCount={rows.length}
-      pagination={STATIC_TABLE_PAGINATION}
-      sorting={STATIC_TABLE_SORTING}
-      onPaginationChange={() => undefined}
-      onSortingChange={() => undefined}
-      getRowId={(row) => String(row._seq)}
-      clientSort
-      showExport
-      exportFilename="live-query-errors.csv"
-      empty={<RunEmptyState text="No errors yet" />}
-    />
-  );
+  return <DataTableStatic columns={columns} data={rows} empty={<RunEmptyState text="No errors yet" />} />;
 }
 
 function RunEmptyState({ text }: { text: string }) {

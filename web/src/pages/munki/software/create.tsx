@@ -1,3 +1,4 @@
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useForm } from "@tanstack/react-form";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Info } from "lucide-react";
@@ -14,10 +15,10 @@ import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { useCreateMunkiSoftware, useMunkiSoftware, type MunkiSoftwareMutation } from "@/hooks/use-munki-software";
 import { uniqueOptions } from "@/lib/form-validation";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { emptyMunkiSoftwareForm, munkiSoftwareSchema } from "./fields";
 
 export function MunkiSoftwareCreatePage() {
@@ -25,7 +26,7 @@ export function MunkiSoftwareCreatePage() {
   const create = useCreateMunkiSoftware();
   const iconUpload = useUploadMunkiArtifact("icon");
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
-  const titles = useMunkiSoftware({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
     [titles.data?.items],

@@ -1,3 +1,4 @@
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -11,10 +12,10 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { useMunkiSoftware, type MunkiSoftware } from "@/hooks/use-munki-software";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, PackageFormActions, type SoftwareInfo } from "./fields";
@@ -28,8 +29,8 @@ export function MunkiPackageCreatePage() {
   const [softwareID, setSoftwareID] = useState<number | null>(initialSoftwareID);
   const create = useCreateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
-  const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
-  const software = useMunkiSoftware({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const [preflightError, setPreflightError] = useState<string | undefined>();

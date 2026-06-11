@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DataTableColumnHeader } from "@/components/data-table";
 import type { ReportResult } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
@@ -40,7 +39,7 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
     {
       id: "hostName",
       accessorKey: "hostName",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
+      header: () => "Host",
       cell: ({ row }) => (
         <Link to="/hosts/$hostId" params={{ hostId: String(row.original.hostId) }} className="hover:underline">
           {row.original.hostName}
@@ -50,7 +49,7 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
     {
       id: "lastFetched",
       accessorKey: "lastFetched",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Last Fetched" />,
+      header: () => "Last Fetched",
       cell: ({ row }) => (row.original.lastFetched ? formatRelative(row.original.lastFetched) : "-"),
     },
   ];

@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
-import { DataTable, DataTableColumnHeader } from "@/components/data-table";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { EmptyPanel } from "@/components/empty-panel";
@@ -272,7 +272,7 @@ export function ReportForm({
                     label: "Results",
                     content: (
                       <form.Subscribe selector={(state) => state.values.name}>
-                        {(name) => <ReportResults reportId={resultsReportId} reportName={name} />}
+                        {() => <ReportResults reportId={resultsReportId} />}
                       </form.Subscribe>
                     ),
                   },
@@ -307,31 +307,19 @@ export function ReportForm({
   );
 }
 
-function ReportResults({ reportId, reportName }: { reportId: number; reportName: string }) {
+function ReportResults({ reportId }: { reportId: number }) {
   const results = useReportResults(reportId);
   const rows = reportRows(results.data);
   const resultColumns: ColumnDef<ReportTableRow>[] = resultColumnNames(rows).map((name) => ({
     id: name,
     accessorFn: (row) => row.columns[name] ?? "",
-    header: ({ column }) => <DataTableColumnHeader column={column} title={name} />,
+    header: () => name,
     cell: ({ row }) => resultValue(row.original.columns[name]),
   }));
   const columns = [...reportTableColumns(), ...resultColumns];
 
-  return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      isLoading={results.isLoading}
-      showExport
-      exportFilename={`${reportName || "report"}-results.csv`}
-      totalCount={rows.length}
-      pagination={{ pageIndex: 0, pageSize: rows.length || 50 }}
-      sorting={[]}
-      clientSort
-      onPaginationChange={() => null}
-      onSortingChange={() => null}
-      empty={<EmptyPanel>No results yet</EmptyPanel>}
-    />
-  );
+  if (results.isLoading) return null;
+  if (rows.length === 0) return <EmptyPanel>No results yet</EmptyPanel>;
+
+  return <DataTableStatic columns={columns} data={rows} />;
 }

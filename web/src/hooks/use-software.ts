@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Page, SoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -12,8 +13,8 @@ export type SoftwareSantaReference = SoftwareReference;
 export interface SoftwareListParams {
   q?: string;
   source?: string[];
-  page_index?: number;
-  page_size?: number;
+  page?: number;
+  per_page?: number;
   sort?: string;
 }
 
@@ -21,8 +22,8 @@ export function useSoftware(params: SoftwareListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
     source: params.source && params.source.length > 0 ? params.source : undefined,
-    page_index: params.page_index ?? 0,
-    page_size: params.page_size ?? 50,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
   };
 

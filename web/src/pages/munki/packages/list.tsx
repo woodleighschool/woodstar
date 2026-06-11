@@ -1,62 +1,90 @@
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { PackageCheck, Plus } from "lucide-react";
+import * as React from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
-import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { useDataTable } from "@/hooks/use-data-table";
+import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useMunkiPackages, type MunkiPackage } from "@/hooks/use-munki-packages";
-import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
 import { munkiInstallerTypeLabel } from "../software/munki-software";
 
 export function MunkiPackageListPage() {
-  const search = useSearch({ strict: false });
-  const { state, setters } = useTablePaginationParams();
-  const [draft, setDraft] = useDebouncedSearchParam("q");
-  const query = useMunkiPackages({
-    q: typeof search.q === "string" ? search.q : undefined,
-    ...tableQueryParams(state),
-  });
-  const rows = query.data?.items ?? [];
-  const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q;
+  const tableSearch = useDataTableSearch();
 
-  const columns: ColumnDef<MunkiPackage>[] = [
-    {
-      id: "package",
-      accessorKey: "software_name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Package" />,
-      cell: ({ row }) => (
-        <div className="flex min-w-0 items-center gap-2">
-          <MunkiIcon iconUrl={row.original.icon_url} />
-          <div className="truncate font-medium">{row.original.software_name}</div>
-        </div>
-      ),
-    },
-    {
-      id: "version",
-      accessorKey: "version",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
-      cell: ({ row }) => row.original.version,
-    },
-    {
-      id: "type",
-      accessorKey: "installer_type",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
-      cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
+  const query = useMunkiPackages({
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+  });
+
+  const packages = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const hasFilters = !!tableSearch.q;
+
+  const columns = React.useMemo<ColumnDef<MunkiPackage>[]>(
+    () => [
+      {
+        id: "package",
+        accessorKey: "software_name",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Package" />,
+        cell: ({ row }) => (
+          <Link
+            to="/munki/packages/$packageId/edit"
+            params={{ packageId: String(row.original.id) }}
+            className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+          >
+            <MunkiIcon iconUrl={row.original.icon_url} />
+            <span className="truncate">{row.original.software_name}</span>
+          </Link>
+        ),
+        enableHiding: false,
+        meta: { label: "Package" },
+      },
+      {
+        id: "version",
+        accessorKey: "version",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Version" />,
+        cell: ({ row }) => row.original.version,
+        meta: { label: "Version" },
+      },
+      {
+        id: "type",
+        accessorKey: "installer_type",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
+        cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
+        meta: { label: "Type" },
+      },
+      {
+        id: "updated_at",
+        accessorKey: "updated_at",
+        header: () => "Updated",
+        enableSorting: false,
+        cell: ({ row }) => formatRelative(row.original.updated_at),
+        meta: { label: "Updated" },
+      },
+    ],
+    [],
+  );
+
+  const { table } = useDataTable({
+    data: packages,
+    columns,
+    pageCount,
+    initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
+    getRowId: (row) => String(row.id),
+  });
 
   return (
     <PageShell>
@@ -73,29 +101,31 @@ export function MunkiPackageListPage() {
       />
       {query.error ? (
         <QueryError title="Failed to load packages" error={query.error} onRetry={() => void query.refetch()} />
+      ) : query.isLoading ? (
+        <DataTableSkeleton columnCount={4} />
       ) : (
         <DataTable
-          columns={columns}
-          data={rows}
-          totalCount={totalCount}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          rowHref={(row) => ({
-            to: "/munki/packages/$packageId/edit",
-            params: { packageId: String(row.id) },
-          })}
-          toolbar={<DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />}
+          table={table}
           empty={
-            <DataTableEmptyState
-              icon={<PackageCheck />}
-              title={hasFilters ? "No Matching Packages" : "No Packages"}
-              description={hasFilters ? "Try a different search." : "Create package versions for Munki software."}
-            />
+            <Empty className="min-h-72 border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <PackageCheck />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matching packages" : "No packages"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters ? "Try a different search." : "Create package versions for Munki software."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           }
-        />
+        >
+          <div className="flex items-start justify-between gap-2 p-1">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+            </div>
+          </div>
+        </DataTable>
       )}
     </PageShell>
   );

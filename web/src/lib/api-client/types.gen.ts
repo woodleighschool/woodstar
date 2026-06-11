@@ -1060,7 +1060,7 @@ export type PageArtifact = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<MunkiArtifact> | null;
+    items: Array<MunkiArtifact>;
 };
 
 export type PageCheck = {
@@ -1069,7 +1069,7 @@ export type PageCheck = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<OsqueryCheck> | null;
+    items: Array<OsqueryCheck>;
 };
 
 export type PageConfiguration = {
@@ -1078,7 +1078,7 @@ export type PageConfiguration = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<SantaConfiguration> | null;
+    items: Array<SantaConfiguration>;
 };
 
 export type PageDepartment = {
@@ -1087,7 +1087,7 @@ export type PageDepartment = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Department> | null;
+    items: Array<Department>;
 };
 
 export type PageExecutionEvent = {
@@ -1096,7 +1096,7 @@ export type PageExecutionEvent = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<ExecutionEvent> | null;
+    items: Array<ExecutionEvent>;
 };
 
 export type PageFileAccessEvent = {
@@ -1105,7 +1105,7 @@ export type PageFileAccessEvent = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<FileAccessEvent> | null;
+    items: Array<FileAccessEvent>;
 };
 
 export type PageGroup = {
@@ -1114,7 +1114,7 @@ export type PageGroup = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Group> | null;
+    items: Array<Group>;
 };
 
 export type PageHost = {
@@ -1123,7 +1123,7 @@ export type PageHost = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Host> | null;
+    items: Array<Host>;
 };
 
 export type PageHostSoftwareRow = {
@@ -1132,7 +1132,7 @@ export type PageHostSoftwareRow = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<HostSoftwareRow> | null;
+    items: Array<HostSoftwareRow>;
 };
 
 export type PageLabel = {
@@ -1141,7 +1141,7 @@ export type PageLabel = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Label> | null;
+    items: Array<Label>;
 };
 
 export type PageMunkiPackage = {
@@ -1150,7 +1150,7 @@ export type PageMunkiPackage = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<MunkiPackage> | null;
+    items: Array<MunkiPackage>;
 };
 
 export type PageMunkiSoftware = {
@@ -1159,7 +1159,7 @@ export type PageMunkiSoftware = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<MunkiSoftware> | null;
+    items: Array<MunkiSoftware>;
 };
 
 export type PageReport = {
@@ -1168,7 +1168,7 @@ export type PageReport = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<OsqueryReport> | null;
+    items: Array<OsqueryReport>;
 };
 
 export type PageRule = {
@@ -1177,7 +1177,7 @@ export type PageRule = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<SantaRule> | null;
+    items: Array<SantaRule>;
 };
 
 export type PageRuleStatus = {
@@ -1186,7 +1186,7 @@ export type PageRuleStatus = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<RuleStatus> | null;
+    items: Array<RuleStatus>;
 };
 
 export type PageSoftwareTitle = {
@@ -1195,7 +1195,7 @@ export type PageSoftwareTitle = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<SoftwareTitle> | null;
+    items: Array<SoftwareTitle>;
 };
 
 export type PageUser = {
@@ -1204,7 +1204,7 @@ export type PageUser = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<User> | null;
+    items: Array<User>;
 };
 
 export type PathSignatureInformation = {
@@ -1974,87 +1974,87 @@ export type OsqueryReportMutationWritable = {
 
 export type PageArtifactWritable = {
     count: number;
-    items: Array<MunkiArtifactWritable> | null;
+    items: Array<MunkiArtifactWritable>;
 };
 
 export type PageCheckWritable = {
     count: number;
-    items: Array<OsqueryCheckWritable> | null;
+    items: Array<OsqueryCheckWritable>;
 };
 
 export type PageConfigurationWritable = {
     count: number;
-    items: Array<SantaConfigurationWritable> | null;
+    items: Array<SantaConfigurationWritable>;
 };
 
 export type PageDepartmentWritable = {
     count: number;
-    items: Array<Department> | null;
+    items: Array<Department>;
 };
 
 export type PageExecutionEventWritable = {
     count: number;
-    items: Array<ExecutionEventWritable> | null;
+    items: Array<ExecutionEventWritable>;
 };
 
 export type PageFileAccessEventWritable = {
     count: number;
-    items: Array<FileAccessEventWritable> | null;
+    items: Array<FileAccessEventWritable>;
 };
 
 export type PageGroupWritable = {
     count: number;
-    items: Array<GroupWritable> | null;
+    items: Array<GroupWritable>;
 };
 
 export type PageHostWritable = {
     count: number;
-    items: Array<Host> | null;
+    items: Array<Host>;
 };
 
 export type PageHostSoftwareRowWritable = {
     count: number;
-    items: Array<HostSoftwareRow> | null;
+    items: Array<HostSoftwareRow>;
 };
 
 export type PageLabelWritable = {
     count: number;
-    items: Array<LabelWritable> | null;
+    items: Array<LabelWritable>;
 };
 
 export type PageMunkiPackageWritable = {
     count: number;
-    items: Array<MunkiPackageWritable> | null;
+    items: Array<MunkiPackageWritable>;
 };
 
 export type PageMunkiSoftwareWritable = {
     count: number;
-    items: Array<MunkiSoftware> | null;
+    items: Array<MunkiSoftware>;
 };
 
 export type PageReportWritable = {
     count: number;
-    items: Array<OsqueryReportWritable> | null;
+    items: Array<OsqueryReportWritable>;
 };
 
 export type PageRuleWritable = {
     count: number;
-    items: Array<SantaRuleWritable> | null;
+    items: Array<SantaRuleWritable>;
 };
 
 export type PageRuleStatusWritable = {
     count: number;
-    items: Array<RuleStatus> | null;
+    items: Array<RuleStatus>;
 };
 
 export type PageSoftwareTitleWritable = {
     count: number;
-    items: Array<SoftwareTitleWritable> | null;
+    items: Array<SoftwareTitleWritable>;
 };
 
 export type PageUserWritable = {
     count: number;
-    items: Array<UserWritable> | null;
+    items: Array<UserWritable>;
 };
 
 export type RuleMutationWritable = {
@@ -2565,8 +2565,8 @@ export type ListGroupsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         values?: Array<string> | null;
     };
@@ -2651,8 +2651,8 @@ export type ListHostsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         status?: string;
         label_id?: number;
@@ -2939,8 +2939,8 @@ export type ListHostSantaRulesData = {
     };
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/hosts/{id}/santa/rules';
@@ -2987,8 +2987,8 @@ export type ListHostSoftwareData = {
     };
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         source?: Array<string> | null;
     };
@@ -3120,8 +3120,8 @@ export type ListLabelsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         label_type?: 'builtin' | 'regular';
         label_membership_type?: 'dynamic' | 'manual' | 'derived';
@@ -3571,8 +3571,8 @@ export type ListMunkiArtifactsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/munki/artifacts';
@@ -3799,8 +3799,8 @@ export type ListMunkiPackagesData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         software_id?: number;
     };
@@ -4032,8 +4032,8 @@ export type ListMunkiSoftwareData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/munki/software';
@@ -4301,8 +4301,8 @@ export type ListOsqueryChecksData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/osquery/checks';
@@ -4589,8 +4589,8 @@ export type ListOsqueryReportsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/osquery/reports';
@@ -4877,8 +4877,8 @@ export type ListSantaConfigurationsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
     };
     url: '/api/santa/configurations';
@@ -5187,8 +5187,8 @@ export type ListSantaEventsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         host_id?: number;
         decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary'> | null;
@@ -5284,8 +5284,8 @@ export type ListSantaFileAccessEventsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         host_id?: number;
         decisions?: Array<'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only'> | null;
@@ -5425,8 +5425,8 @@ export type ListSantaRulesData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     };
@@ -5736,8 +5736,8 @@ export type ListSoftwareData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         source?: Array<string> | null;
     };
@@ -5853,8 +5853,8 @@ export type ListUsersData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         values?: Array<string> | null;
         role?: 'admin' | 'viewer' | 'none';
@@ -5944,8 +5944,8 @@ export type ListUserDepartmentsData = {
     path?: never;
     query?: {
         q?: string;
-        page_index?: number;
-        page_size?: number;
+        page?: number;
+        per_page?: number;
         sort?: string;
         values?: Array<string> | null;
     };
