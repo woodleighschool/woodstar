@@ -2,12 +2,12 @@ package munki
 
 import "strings"
 
-func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (Observation, bool) {
+func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostObservation, bool) {
 	if len(rows) == 0 {
-		return Observation{}, false
+		return HostObservation{}, false
 	}
 	row := rows[0]
-	return Observation{
+	return HostObservation{
 		HostID:          hostID,
 		Version:         row["version"],
 		ManifestName:    row["manifest_name"],

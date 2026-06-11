@@ -982,7 +982,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}
 
 	success := true
-	if err := stores.hoststate.UpsertHostStatus(ctx, munki.Observation{
+	if err := stores.hoststate.UpsertHostObservation(ctx, munki.HostObservation{
 		HostID:          host.ID,
 		Version:         "7.1.2.5700",
 		ManifestName:    "site_default",
@@ -1034,7 +1034,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		t.Fatalf("items after replace = %+v", detail.Items)
 	}
 
-	if err := stores.hoststate.ClearHostStatus(ctx, host.ID); err != nil {
+	if err := stores.hoststate.ClearHostObservation(ctx, host.ID); err != nil {
 		t.Fatalf("clear munki host status: %v", err)
 	}
 	if detail, err := stores.hoststate.LoadHostState(ctx, host.ID); err != nil {
@@ -1046,7 +1046,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 
 func allHostsLabelID(t *testing.T, ctx context.Context, labelStore *labels.Store) int64 {
 	t.Helper()
-	rows, _, err := labelStore.List(ctx, labels.ListParams{})
+	rows, _, err := labelStore.List(ctx, labels.LabelListParams{})
 	if err != nil {
 		t.Fatalf("list labels: %v", err)
 	}

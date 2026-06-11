@@ -143,7 +143,7 @@ func TestBuiltinLabelUsesStableKey(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := NewStore(db)
 
-	rows, _, err := store.List(ctx, ListParams{LabelType: LabelTypeBuiltin})
+	rows, _, err := store.List(ctx, LabelListParams{LabelType: LabelTypeBuiltin})
 	if err != nil {
 		t.Fatalf("list builtin labels: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestListIncludesDerivedCriteria(t *testing.T) {
 		t.Fatalf("create label: %v", err)
 	}
 
-	labels, count, err := store.List(ctx, ListParams{})
+	labels, count, err := store.List(ctx, LabelListParams{})
 	if err != nil {
 		t.Fatalf("list labels: %v", err)
 	}

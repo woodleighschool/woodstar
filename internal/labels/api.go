@@ -46,8 +46,8 @@ type labelDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-func (i labelListInput) params() ListParams {
-	return ListParams{
+func (i labelListInput) params() LabelListParams {
+	return LabelListParams{
 		ListParams:          i.ListQueryInput.Params(),
 		LabelType:           i.LabelType,
 		LabelMembershipType: i.MembershipType,

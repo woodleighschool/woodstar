@@ -8,8 +8,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-// ListParams filters host list results.
-type ListParams struct {
+// HostListParams filters host list results.
+type HostListParams struct {
 	dbutil.ListParams
 
 	Status          string

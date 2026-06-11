@@ -85,7 +85,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 	return new(hostFromSQLC(row)), nil
 }
 
-func (s *Store) List(ctx context.Context, params ListParams) ([]Host, int, error) {
+func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
 	where, args, err := hostListWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -394,7 +394,7 @@ func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
 	return nil
 }
 
-func hostListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func hostListQuery(params HostListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
 		WhereSQL:  where,
@@ -418,7 +418,7 @@ func hostListQuery(params ListParams, where string, args []any) dbutil.ListQuery
 	}
 }
 
-func hostListWhere(params ListParams) (string, []any, error) {
+func hostListWhere(params HostListParams) (string, []any, error) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")

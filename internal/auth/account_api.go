@@ -33,25 +33,35 @@ func RegisterAccountAdminRoutes(api huma.API, authService *Service, userService 
 	registerRevokeAPIKey(api, authService)
 }
 
+// registerAccountAction registers a bodyless account endpoint that runs action
+// for the signed-in user and returns the resulting account.
+func registerAccountAction(
+	api huma.API,
+	op huma.Operation,
+	action func(context.Context, int64) (*directory.Account, error),
+) {
+	huma.Register(api, op, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
+		user, err := adminctx.RequireUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		account, err := action(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &accountOutput{Body: *account}, nil
+	})
+}
+
 func registerGetAccount(api huma.API, authService *Service) {
-	huma.Register(api, huma.Operation{
+	registerAccountAction(api, huma.Operation{
 		OperationID: "get-account",
 		Method:      http.MethodGet,
 		Path:        "/api/account",
 		Tags:        []string{accountTag},
 		Summary:     "Get the signed-in user's account, including any API key",
 		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := adminctx.RequireUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-		account, err := authService.Account(ctx, user.ID)
-		if err != nil {
-			return nil, err
-		}
-		return &accountOutput{Body: *account}, nil
-	})
+	}, authService.Account)
 }
 
 func registerPutAccount(api huma.API, userService *directory.UserService) {
@@ -80,7 +90,7 @@ func registerPutAccount(api huma.API, userService *directory.UserService) {
 }
 
 func registerRotateAPIKey(api huma.API, authService *Service) {
-	huma.Register(api, huma.Operation{
+	registerAccountAction(api, huma.Operation{
 		OperationID:   "rotate-account-api-key",
 		Method:        http.MethodPost,
 		Path:          "/api/account/api-key",
@@ -88,38 +98,18 @@ func registerRotateAPIKey(api huma.API, authService *Service) {
 		Summary:       "Generate a new API key for the signed-in user, replacing any prior key",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := adminctx.RequireUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-		rotated, err := authService.RotateAPIKey(ctx, user.ID)
-		if err != nil {
-			return nil, err
-		}
-		return &accountOutput{Body: *rotated}, nil
-	})
+	}, authService.RotateAPIKey)
 }
 
 func registerRevokeAPIKey(api huma.API, authService *Service) {
-	huma.Register(api, huma.Operation{
+	registerAccountAction(api, huma.Operation{
 		OperationID: "revoke-account-api-key",
 		Method:      http.MethodDelete,
 		Path:        "/api/account/api-key",
 		Tags:        []string{accountTag},
 		Summary:     "Clear the API key on the signed-in user's account",
 		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := adminctx.RequireUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-		cleared, err := authService.RevokeAPIKey(ctx, user.ID)
-		if err != nil {
-			return nil, err
-		}
-		return &accountOutput{Body: *cleared}, nil
-	})
+	}, authService.RevokeAPIKey)
 }
 
 func accountMutationError(err error) error {

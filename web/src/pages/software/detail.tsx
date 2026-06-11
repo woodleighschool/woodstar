@@ -20,8 +20,8 @@ import {
   type SoftwareVersion,
 } from "@/hooks/use-software";
 import { ruleTypeLabel } from "@/lib/santa-rules";
-import { softwareSourceLabel } from "@/lib/software-source-labels";
 import { formatDateTime, formatRelative } from "@/lib/utils";
+import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 
 type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
 type CertificateReference = NonNullable<SoftwareSantaReference["certificates"]>[number];

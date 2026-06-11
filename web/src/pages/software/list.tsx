@@ -20,7 +20,7 @@ import {
   softwareSourceLabel,
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
-} from "@/lib/software-source-labels";
+} from "@/pages/software/software-source-labels";
 
 const SOURCE_FILTER_KEYS = [{ id: "source" }] as const;
 

@@ -186,17 +186,17 @@ func TestIngestMunkiDetailRows(t *testing.T) {
 }
 
 type fakeMunkiStore struct {
-	status        munki.Observation
+	status        munki.HostObservation
 	items         []munki.Item
 	clearedHostID int64
 }
 
-func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status munki.Observation) error {
+func (s *fakeMunkiStore) UpsertHostObservation(_ context.Context, status munki.HostObservation) error {
 	s.status = status
 	return nil
 }
 
-func (s *fakeMunkiStore) ClearHostStatus(_ context.Context, hostID int64) error {
+func (s *fakeMunkiStore) ClearHostObservation(_ context.Context, hostID int64) error {
 	s.clearedHostID = hostID
 	return nil
 }

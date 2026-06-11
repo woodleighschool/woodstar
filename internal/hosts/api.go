@@ -57,8 +57,8 @@ type hostListInput struct {
 	CheckResponse   string  `query:"check_response,omitempty"                enum:"pass,fail"`
 }
 
-func (i hostListInput) params() ListParams {
-	return ListParams{
+func (i hostListInput) params() HostListParams {
+	return HostListParams{
 		ListParams:      i.ListQueryInput.Params(),
 		Status:          i.Status,
 		LabelID:         i.LabelID,

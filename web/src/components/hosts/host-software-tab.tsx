@@ -22,13 +22,13 @@ import { Input } from "@/components/ui/input";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
 import type { HostSoftwareInstalledVersion, PathSignatureInformation } from "@/lib/api";
+import { formatRelative } from "@/lib/utils";
 import {
   expandSoftwareSourceFilters,
   softwareSourceLabel,
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
-} from "@/lib/software-source-labels";
-import { formatRelative } from "@/lib/utils";
+} from "@/pages/software/software-source-labels";
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
 

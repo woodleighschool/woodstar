@@ -104,6 +104,7 @@ export function useUpdateUser() {
           body,
         }),
       ),
+    meta: { inlineError: true },
     onSuccess: async (user, variables) => {
       queryClient.setQueryData(queryKeys.user(variables.id), user);
       await Promise.all([

@@ -287,6 +287,22 @@ type PackageListParams struct {
 }
 
 func (m PackageMutation) Validate() error {
+	if err := m.validateEnums(); err != nil {
+		return err
+	}
+	if err := validateArchitectures(m.SupportedArchitectures); err != nil {
+		return err
+	}
+	if err := validateReferences("requires", m.Requires); err != nil {
+		return err
+	}
+	if err := validateReferences("update_for", m.UpdateFor); err != nil {
+		return err
+	}
+	return m.validateCollections()
+}
+
+func (m PackageMutation) validateEnums() error {
 	if !validInstallerType(m.InstallerType) {
 		return fmt.Errorf("%w: unsupported installer_type %q", dbutil.ErrInvalidInput, m.InstallerType)
 	}
@@ -296,7 +312,11 @@ func (m PackageMutation) Validate() error {
 	if !validRestartAction(m.RestartAction) {
 		return fmt.Errorf("%w: unsupported restart_action %q", dbutil.ErrInvalidInput, m.RestartAction)
 	}
-	for _, arch := range m.SupportedArchitectures {
+	return nil
+}
+
+func validateArchitectures(architectures []string) error {
+	for _, arch := range architectures {
 		switch strings.TrimSpace(arch) {
 		case "arm64", "x86_64":
 		default:
@@ -307,12 +327,10 @@ func (m PackageMutation) Validate() error {
 			)
 		}
 	}
-	if err := validateReferences("requires", m.Requires); err != nil {
-		return err
-	}
-	if err := validateReferences("update_for", m.UpdateFor); err != nil {
-		return err
-	}
+	return nil
+}
+
+func (m PackageMutation) validateCollections() error {
 	for _, item := range m.Installs {
 		if !validInstallItemType(item.Type) {
 			return fmt.Errorf("%w: unsupported installs type %q", dbutil.ErrInvalidInput, item.Type)

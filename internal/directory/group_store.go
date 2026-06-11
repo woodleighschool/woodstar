@@ -11,23 +11,7 @@ import (
 
 func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group, int, error) {
 	where, args := groupWhere(params)
-	listQuery := groupListQuery(params, where, args)
-	countSQL, countArgs := listQuery.BuildCount()
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	groups, err := pgx.CollectRows(rows, pgx.RowToStructByName[Group])
-	return groups, count, err
+	return dbutil.ListWithCount[Group](ctx, s.db.Pool(), groupListQuery(params, where, args))
 }
 
 func (s *Store) GetGroupByID(ctx context.Context, id int64) (*Group, error) {

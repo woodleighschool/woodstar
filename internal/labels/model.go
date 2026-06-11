@@ -78,8 +78,8 @@ func (c Criteria) json() ([]byte, error) {
 	return json.Marshal(c)
 }
 
-// ListParams filters labels.
-type ListParams struct {
+// LabelListParams filters labels.
+type LabelListParams struct {
 	dbutil.ListParams
 
 	LabelType           LabelType

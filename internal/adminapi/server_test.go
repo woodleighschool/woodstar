@@ -1033,7 +1033,7 @@ func loginTestUserWithEmail(
 
 func apiTestAllHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int64 {
 	t.Helper()
-	rows, _, err := store.List(ctx, labels.ListParams{})
+	rows, _, err := store.List(ctx, labels.LabelListParams{})
 	if err != nil {
 		t.Fatalf("list labels: %v", err)
 	}

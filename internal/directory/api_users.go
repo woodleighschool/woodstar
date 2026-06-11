@@ -85,6 +85,7 @@ func (i departmentListInput) params() UserListParams {
 	}
 }
 
+//nolint:dupl // parallel groups/users list handlers over distinct types; route registration stays explicit per resource
 func registerListUsers(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",

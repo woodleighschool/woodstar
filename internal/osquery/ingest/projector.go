@@ -27,8 +27,8 @@ type softwareStore interface {
 }
 
 type munkiStore interface {
-	UpsertHostStatus(context.Context, munki.Observation) error
-	ClearHostStatus(context.Context, int64) error
+	UpsertHostObservation(context.Context, munki.HostObservation) error
+	ClearHostObservation(context.Context, int64) error
 	ReplaceHostItems(context.Context, int64, []munki.Item) error
 }
 
@@ -197,9 +197,9 @@ func ingestMunkiInfo(ctx context.Context, projector *Projector, hostID int64, ro
 	}
 	status, ok := munki.HostStatusFromInfoRows(hostID, rows)
 	if !ok {
-		return projector.munkiStore.ClearHostStatus(ctx, hostID)
+		return projector.munkiStore.ClearHostObservation(ctx, hostID)
 	}
-	return projector.munkiStore.UpsertHostStatus(ctx, status)
+	return projector.munkiStore.UpsertHostObservation(ctx, status)
 }
 
 func ingestMunkiInstalls(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {

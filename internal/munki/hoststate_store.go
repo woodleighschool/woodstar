@@ -19,21 +19,21 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-func (s *Store) UpsertHostStatus(ctx context.Context, status Observation) error {
+func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
 	return s.q.UpsertMunkiHostStatus(ctx, sqlc.UpsertMunkiHostStatusParams{
-		HostID:          status.HostID,
-		Version:         status.Version,
-		ManifestName:    status.ManifestName,
-		Success:         status.Success,
-		Errors:          nonNilStrings(status.Errors),
-		Warnings:        nonNilStrings(status.Warnings),
-		ProblemInstalls: nonNilStrings(status.ProblemInstalls),
-		RunStartedAt:    status.RunStartedAt,
-		RunEndedAt:      status.RunEndedAt,
+		HostID:          observation.HostID,
+		Version:         observation.Version,
+		ManifestName:    observation.ManifestName,
+		Success:         observation.Success,
+		Errors:          nonNilStrings(observation.Errors),
+		Warnings:        nonNilStrings(observation.Warnings),
+		ProblemInstalls: nonNilStrings(observation.ProblemInstalls),
+		RunStartedAt:    observation.RunStartedAt,
+		RunEndedAt:      observation.RunEndedAt,
 	})
 }
 
-func (s *Store) ClearHostStatus(ctx context.Context, hostID int64) error {
+func (s *Store) ClearHostObservation(ctx context.Context, hostID int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		if err := q.DeleteMunkiHostItems(ctx, sqlc.DeleteMunkiHostItemsParams{HostID: hostID}); err != nil {

@@ -1,27 +1,18 @@
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useForm } from "@tanstack/react-form";
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
-import { FormField } from "@/components/form-field";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
-import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
-import { SubmitButton } from "@/components/submit-button";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
-import { FieldError, FieldGroup } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
@@ -36,7 +27,14 @@ import type { SoftwareInclude } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
 import { formatRelative } from "@/lib/utils";
 
-import { munkiSoftwareFormFromSoftware, munkiSoftwareInclude, munkiSoftwareSchema } from "./fields";
+import {
+  MunkiSoftwareFormActions,
+  MunkiSoftwareOptionsFields,
+  munkiSoftwareFormFromSoftware,
+  munkiSoftwareInclude,
+  munkiSoftwareSchema,
+  useMunkiSoftwareForm,
+} from "./fields";
 import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targets";
 import { munkiInstallerTypeLabel } from "./munki-software";
 
@@ -96,11 +94,21 @@ function MunkiSoftwareDetailForm({
     () => targetRows.flatMap((row) => (row.label_id === null ? [] : [row.label_id])),
     [targetRows],
   );
-  const softwareOptionsForm = useForm({
-    defaultValues: munkiSoftwareFormFromSoftware(software),
-    validators: {
-      onSubmit: munkiSoftwareSchema,
-    },
+  const softwareOptionsForm = useMunkiSoftwareForm(munkiSoftwareFormFromSoftware(software), async (value) => {
+    const data = munkiSoftwareSchema.parse(value);
+    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
+    const body: MunkiSoftwareMutation = {
+      ...data,
+      icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
+      targets: {
+        include: targetRows.map(munkiSoftwareInclude),
+        exclude: excludeForm.map((label_id) => ({ label_id })),
+      },
+    };
+    await updateSoftware.mutateAsync({ id: software.id, body });
+    setIconFile(null);
+    setIconCleared(false);
+    await refetchSoftware();
   });
   const pagePending = updateSoftware.isPending || iconUpload.isUploading;
   const pageError = updateSoftware.error?.message ?? iconUpload.error?.message;
@@ -124,26 +132,6 @@ function MunkiSoftwareDetailForm({
   function changeExclude(next: number[]) {
     updateSoftware.reset();
     setExcludeForm(next);
-  }
-
-  async function savePage() {
-    await softwareOptionsForm.handleSubmit();
-    const softwareParsed = munkiSoftwareSchema.safeParse(softwareOptionsForm.state.values);
-    if (!softwareParsed.success) return;
-
-    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    const body: MunkiSoftwareMutation = {
-      ...softwareParsed.data,
-      icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
-      targets: {
-        include: targetRows.map(munkiSoftwareInclude),
-        exclude: excludeForm.map((label_id) => ({ label_id })),
-      },
-    };
-    await updateSoftware.mutateAsync({ id: software.id, body });
-    setIconFile(null);
-    setIconCleared(false);
-    await refetchSoftware();
   }
 
   function resetTargetPage() {
@@ -203,7 +191,7 @@ function MunkiSoftwareDetailForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void savePage();
+          void softwareOptionsForm.handleSubmit();
         }}
       >
         <MutableResourceTabs
@@ -212,108 +200,24 @@ function MunkiSoftwareDetailForm({
               value: "options",
               label: "Options",
               content: (
-                <FieldGroup className="max-w-3xl">
-                  <div className="flex items-start gap-4">
-                    <EditableMunkiIcon
-                      title="software icon"
-                      iconUrl={iconCleared ? undefined : software.icon_url}
-                      file={iconFile}
-                      clearable={!!iconFile || (!iconCleared && !!software.icon_artifact_id)}
-                      onFileChange={(file) => {
-                        setIconFile(file);
-                        setIconCleared(false);
-                      }}
-                      onClear={() => {
-                        setIconFile(null);
-                        setIconCleared(!!software.icon_artifact_id);
-                      }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <softwareOptionsForm.Field name="name">
-                        {(field) => (
-                          <FormField field={field} label="Name" htmlFor="munki-software-name" required>
-                            {(control) => (
-                              <Input
-                                {...control}
-                                name={field.name}
-                                value={field.state.value}
-                                onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value)}
-                              />
-                            )}
-                          </FormField>
-                        )}
-                      </softwareOptionsForm.Field>
-                    </div>
-                  </div>
-                  <softwareOptionsForm.Field name="description">
-                    {(field) => (
-                      <FormField
-                        field={field}
-                        htmlFor="munki-software-description"
-                        label={
-                          <>
-                            Description
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon-xs" type="button">
-                                  <Info className="size-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Description is shown in Managed Software Center.</TooltipContent>
-                            </Tooltip>
-                          </>
-                        }
-                      >
-                        {(control) => (
-                          <Textarea
-                            {...control}
-                            name={field.name}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        )}
-                      </FormField>
-                    )}
-                  </softwareOptionsForm.Field>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <softwareOptionsForm.Field name="category">
-                      {(field) => (
-                        <FormField field={field} label="Category" htmlFor="munki-software-category">
-                          {(control) => (
-                            <FreeTextCombobox
-                              id={control.id}
-                              name={field.name}
-                              value={field.state.value}
-                              options={categoryOptions}
-                              invalid={control["aria-invalid"]}
-                              onBlur={field.handleBlur}
-                              onChange={field.handleChange}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </softwareOptionsForm.Field>
-                    <softwareOptionsForm.Field name="developer">
-                      {(field) => (
-                        <FormField field={field} label="Developer" htmlFor="munki-software-developer">
-                          {(control) => (
-                            <FreeTextCombobox
-                              id={control.id}
-                              name={field.name}
-                              value={field.state.value}
-                              options={developerOptions}
-                              invalid={control["aria-invalid"]}
-                              onBlur={field.handleBlur}
-                              onChange={field.handleChange}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </softwareOptionsForm.Field>
-                  </div>
-                </FieldGroup>
+                <MunkiSoftwareOptionsFields
+                  form={softwareOptionsForm}
+                  categoryOptions={categoryOptions}
+                  developerOptions={developerOptions}
+                  icon={{
+                    iconUrl: iconCleared ? undefined : software.icon_url,
+                    file: iconFile,
+                    clearable: !!iconFile || (!iconCleared && !!software.icon_artifact_id),
+                    onFileChange: (file) => {
+                      setIconFile(file);
+                      setIconCleared(false);
+                    },
+                    onClear: () => {
+                      setIconFile(null);
+                      setIconCleared(!!software.icon_artifact_id);
+                    },
+                  }}
+                />
               ),
             },
             {
@@ -365,17 +269,15 @@ function MunkiSoftwareDetailForm({
           ]}
         />
 
-        <div className="flex flex-col gap-2 border-t pt-4">
-          {pageError ? <FieldError>{pageError}</FieldError> : null}
-          <div className="flex items-center gap-2">
-            <SubmitButton pending={pagePending} size="sm">
-              Save
-            </SubmitButton>
+        <MunkiSoftwareFormActions
+          pending={pagePending}
+          error={pageError}
+          cancel={
             <Button type="button" variant="outline" size="sm" onClick={resetTargetPage}>
               Cancel
             </Button>
-          </div>
-        </div>
+          }
+        />
       </form>
     </PageShell>
   );

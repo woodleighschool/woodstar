@@ -42,14 +42,7 @@ func Open(ctx context.Context, databaseURL string) (*DB, error) {
 		pool.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
-
-	pool.Close()
-	cfg.AfterConnect = registerConnTypes
-	pool, err = openPool(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return &DB{pool: pool}, nil
+	return db, nil
 }
 
 // Close releases database connections.
@@ -99,8 +92,4 @@ func openPool(ctx context.Context, cfg *pgxpool.Config) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	return pool, nil
-}
-
-func registerConnTypes(_ context.Context, _ *pgx.Conn) error {
-	return nil
 }

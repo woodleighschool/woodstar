@@ -147,38 +147,66 @@ func (c *Client) fetchUsersGroupIDs(
 		batch := pending[:size]
 		pending = pending[size:]
 
-		responses, err := c.fetchMembershipBatch(ctx, batch)
+		followups, err := c.applyMembershipBatch(ctx, batch, out)
 		if err != nil {
 			return nil, err
 		}
-		for _, request := range batch {
-			response, ok := responses[request.ID]
-			if !ok {
-				return nil, fmt.Errorf("graph batch missing response for %s", request.UserID)
-			}
-			if response.Status >= 300 {
-				return nil, fmt.Errorf("fetch groups for %s: graph batch status %d", request.UserID, response.Status)
-			}
-			var page graphGroupPage
-			if err := json.Unmarshal(response.Body, &page); err != nil {
-				return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
-			}
-			for _, group := range page.Value {
-				out[request.UserID] = append(out[request.UserID], group.ID)
-			}
-			if page.NextLink != "" {
-				nextURL, err := graphBatchRelativeURL(page.NextLink)
-				if err != nil {
-					return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
-				}
-				pending = append(pending, graphMembershipRequest{
-					UserID: request.UserID,
-					URL:    nextURL,
-				})
-			}
-		}
+		pending = append(pending, followups...)
 	}
 	return out, nil
+}
+
+// applyMembershipBatch sends one batch, records each user's group IDs into out,
+// and returns follow-up requests for any paged responses.
+func (c *Client) applyMembershipBatch(
+	ctx context.Context,
+	batch []graphMembershipRequest,
+	out map[string][]string,
+) ([]graphMembershipRequest, error) {
+	responses, err := c.fetchMembershipBatch(ctx, batch)
+	if err != nil {
+		return nil, err
+	}
+	var followups []graphMembershipRequest
+	for _, request := range batch {
+		response, ok := responses[request.ID]
+		if !ok {
+			return nil, fmt.Errorf("graph batch missing response for %s", request.UserID)
+		}
+		next, err := parseMembershipResponse(request, response, out)
+		if err != nil {
+			return nil, err
+		}
+		followups = append(followups, next...)
+	}
+	return followups, nil
+}
+
+// parseMembershipResponse validates one batch response, appends its group IDs
+// to out, and returns any follow-up request when the response is paged.
+func parseMembershipResponse(
+	request graphMembershipRequest,
+	response graphBatchResponse,
+	out map[string][]string,
+) ([]graphMembershipRequest, error) {
+	if response.Status >= 300 {
+		return nil, fmt.Errorf("fetch groups for %s: graph batch status %d", request.UserID, response.Status)
+	}
+	var page graphGroupPage
+	if err := json.Unmarshal(response.Body, &page); err != nil {
+		return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
+	}
+	for _, group := range page.Value {
+		out[request.UserID] = append(out[request.UserID], group.ID)
+	}
+	if page.NextLink == "" {
+		return nil, nil
+	}
+	nextURL, err := graphBatchRelativeURL(page.NextLink)
+	if err != nil {
+		return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
+	}
+	return []graphMembershipRequest{{UserID: request.UserID, URL: nextURL}}, nil
 }
 
 func (c *Client) userGroupMembershipURL(userID string) string {

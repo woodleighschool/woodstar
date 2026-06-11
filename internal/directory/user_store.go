@@ -94,22 +94,7 @@ func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) 
 
 func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, int, error) {
 	where, args := userWhere(params)
-	listQuery := userListQuery(params, where, args)
-	countSQL, countArgs := listQuery.BuildCount()
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.User])
+	list, count, err := dbutil.ListWithCount[sqlc.User](ctx, s.db.Pool(), userListQuery(params, where, args))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -122,23 +107,7 @@ func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, i
 
 func (s *Store) ListDepartments(ctx context.Context, params UserListParams) ([]Department, int, error) {
 	where, args := departmentWhere(params)
-	listQuery := departmentListQuery(params, where, args)
-	countSQL, countArgs := listQuery.BuildCount()
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	departments, err := pgx.CollectRows(rows, pgx.RowToStructByName[Department])
-	return departments, count, err
+	return dbutil.ListWithCount[Department](ctx, s.db.Pool(), departmentListQuery(params, where, args))
 }
 
 type userUpdateRecord struct {

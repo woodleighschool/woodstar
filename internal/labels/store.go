@@ -26,7 +26,7 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-func (s *Store) List(ctx context.Context, params ListParams) ([]Label, int, error) {
+func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	where, args := labelListWhere(params)
 	listQuery := labelListQuery(params, where, args)
 	countSQL, countArgs := listQuery.BuildCount()
@@ -291,36 +291,47 @@ func validateMembershipPairing(
 ) error {
 	switch membershipType {
 	case LabelMembershipTypeDynamic:
-		if query == nil || strings.TrimSpace(*query) == "" {
-			return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
-		}
-		if criteria != nil {
-			return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
-		}
-		if len(hostIDs) > 0 {
-			return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
-		}
+		return validateDynamicMembership(query, criteria, hostIDs)
 	case LabelMembershipTypeManual:
-		if query != nil {
-			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
-		}
-		if criteria != nil {
-			return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
-		}
+		return validateManualMembership(query, criteria)
 	case LabelMembershipTypeDerived:
-		if query != nil {
-			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
-		}
-		if len(hostIDs) > 0 {
-			return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
-		}
-		if err := validateCriteria(criteria); err != nil {
-			return err
-		}
+		return validateDerivedMembership(query, criteria, hostIDs)
 	default:
 		return fmt.Errorf("%w: membership type must be dynamic, manual, or derived", dbutil.ErrInvalidInput)
 	}
+}
+
+func validateDynamicMembership(query *string, criteria *Criteria, hostIDs []int64) error {
+	if query == nil || strings.TrimSpace(*query) == "" {
+		return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
+	}
+	if criteria != nil {
+		return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
+	}
+	if len(hostIDs) > 0 {
+		return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
+	}
 	return nil
+}
+
+func validateManualMembership(query *string, criteria *Criteria) error {
+	if query != nil {
+		return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
+	}
+	if criteria != nil {
+		return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
+func validateDerivedMembership(query *string, criteria *Criteria, hostIDs []int64) error {
+	if query != nil {
+		return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
+	}
+	if len(hostIDs) > 0 {
+		return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
+	}
+	return validateCriteria(criteria)
 }
 
 func validateCriteria(criteria *Criteria) error {
@@ -338,7 +349,7 @@ func validateCriteria(criteria *Criteria) error {
 	return nil
 }
 
-func labelListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func labelListQuery(params LabelListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: `SELECT
 	l.id,
@@ -369,7 +380,7 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 	}
 }
 
-func labelListWhere(params ListParams) (string, []any) {
+func labelListWhere(params LabelListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")

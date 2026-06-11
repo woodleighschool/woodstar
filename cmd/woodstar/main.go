@@ -163,6 +163,7 @@ func runHTTPServer(
 	}
 }
 
+//nolint:funlen // dependency-glass wiring: one linear store/service/route construction sequence
 func newServer(
 	ctx context.Context,
 	cfg config.Config,

@@ -73,9 +73,6 @@ func NewRepositoryService(
 	options ...RepositoryServiceOption,
 ) *RepositoryService {
 	s := &RepositoryService{hosts: hosts, packages: packages}
-	if artifacts, ok := packages.(artifactResolver); ok {
-		s.artifacts = artifacts
-	}
 	for _, option := range options {
 		option(s)
 	}

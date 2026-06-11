@@ -79,43 +79,7 @@ func (s *Store) IngestEvents(
 	}
 	var bundleBinaryRequests []string
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		bundleRequestCandidates := []string{}
-		for _, event := range executionEvents {
-			executableID, err := upsertExecutable(ctx, tx, event)
-			if err != nil {
-				return err
-			}
-			if err := upsertSigningChain(ctx, tx, executableID, event.SigningChain); err != nil {
-				return err
-			}
-			bundleID, hasBundle, err := upsertBundle(ctx, tx, event)
-			if err != nil {
-				return err
-			}
-			if hasBundle {
-				if err := linkBundleExecutable(ctx, tx, bundleID, executableID); err != nil {
-					return err
-				}
-				if err := refreshBundleUploadedAt(ctx, tx, bundleID); err != nil {
-					return err
-				}
-				if event.Decision != ExecutionDecisionBundleBinary {
-					bundleRequestCandidates = append(bundleRequestCandidates, event.BundleHash)
-				}
-			}
-			if event.Decision == ExecutionDecisionBundleBinary {
-				continue
-			}
-			if err := insertExecutionEvent(ctx, tx, hostID, executableID, event); err != nil {
-				return err
-			}
-		}
-		for _, event := range fileAccessEvents {
-			if err := insertFileAccessEvent(ctx, tx, hostID, event); err != nil {
-				return err
-			}
-		}
-		requests, err := incompleteBundleHashes(ctx, tx, bundleRequestCandidates)
+		requests, err := ingestEventsTx(ctx, tx, hostID, executionEvents, fileAccessEvents)
 		if err != nil {
 			return err
 		}
@@ -123,6 +87,86 @@ func (s *Store) IngestEvents(
 		return nil
 	})
 	return bundleBinaryRequests, err
+}
+
+func ingestEventsTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	executionEvents []ExecutionEventInput,
+	fileAccessEvents []FileAccessEventInput,
+) ([]string, error) {
+	bundleRequestCandidates := []string{}
+	for _, event := range executionEvents {
+		candidate, err := processExecutionEvent(ctx, tx, hostID, event)
+		if err != nil {
+			return nil, err
+		}
+		if candidate != "" {
+			bundleRequestCandidates = append(bundleRequestCandidates, candidate)
+		}
+	}
+	for _, event := range fileAccessEvents {
+		if err := insertFileAccessEvent(ctx, tx, hostID, event); err != nil {
+			return nil, err
+		}
+	}
+	return incompleteBundleHashes(ctx, tx, bundleRequestCandidates)
+}
+
+// processExecutionEvent persists one execution event and returns the bundle
+// hash to request a binary listing for, or "" when none is needed.
+func processExecutionEvent(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	event ExecutionEventInput,
+) (string, error) {
+	executableID, err := upsertExecutable(ctx, tx, event)
+	if err != nil {
+		return "", err
+	}
+	if err := upsertSigningChain(ctx, tx, executableID, event.SigningChain); err != nil {
+		return "", err
+	}
+	bundleRequest, err := processEventBundle(ctx, tx, executableID, event)
+	if err != nil {
+		return "", err
+	}
+	if event.Decision == ExecutionDecisionBundleBinary {
+		return bundleRequest, nil
+	}
+	if err := insertExecutionEvent(ctx, tx, hostID, executableID, event); err != nil {
+		return "", err
+	}
+	return bundleRequest, nil
+}
+
+// processEventBundle upserts and links the event's bundle when present and
+// returns the bundle hash to request a binary listing for, or "" when none.
+func processEventBundle(
+	ctx context.Context,
+	tx pgx.Tx,
+	executableID int64,
+	event ExecutionEventInput,
+) (string, error) {
+	bundleID, hasBundle, err := upsertBundle(ctx, tx, event)
+	if err != nil {
+		return "", err
+	}
+	if !hasBundle {
+		return "", nil
+	}
+	if err := linkBundleExecutable(ctx, tx, bundleID, executableID); err != nil {
+		return "", err
+	}
+	if err := refreshBundleUploadedAt(ctx, tx, bundleID); err != nil {
+		return "", err
+	}
+	if event.Decision == ExecutionDecisionBundleBinary {
+		return "", nil
+	}
+	return event.BundleHash, nil
 }
 
 func validateEventsHaveOccurrenceTimes(
@@ -149,36 +193,7 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 	if err != nil {
 		return nil, 0, err
 	}
-	listQuery := executionEventListQuery(params, where, args)
-
-	var count int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	items := []ExecutionEvent{}
-	for rows.Next() {
-		event, err := scanExecutionEvent(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, event)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-	return items, count, nil
+	return runEventListQuery(ctx, s.db, executionEventListQuery(params, where, args), scanExecutionEvent)
 }
 
 // GetExecutionEvent returns one execution event by id.
@@ -207,11 +222,21 @@ func (s *Store) ListFileAccessEvents(
 	if err != nil {
 		return nil, 0, err
 	}
-	listQuery := fileAccessEventListQuery(params, where, args)
+	return runEventListQuery(ctx, s.db, fileAccessEventListQuery(params, where, args), scanFileAccessEvent)
+}
 
+// runEventListQuery counts and pages an event list query, scanning each row
+// with scan. The per-event where/order/select and row mapping stay in the
+// caller; only the count + page + scan-loop mechanics are shared.
+func runEventListQuery[T any](
+	ctx context.Context,
+	db *database.DB,
+	listQuery dbutil.ListQuery,
+	scan func(pgx.Row) (T, error),
+) ([]T, int, error) {
 	var count int
 	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
+	if err := db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
@@ -219,19 +244,19 @@ func (s *Store) ListFileAccessEvents(
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
+	rows, err := db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
-	items := []FileAccessEvent{}
+	items := []T{}
 	for rows.Next() {
-		event, err := scanFileAccessEvent(rows)
+		item, err := scan(rows)
 		if err != nil {
 			return nil, 0, err
 		}
-		items = append(items, event)
+		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err

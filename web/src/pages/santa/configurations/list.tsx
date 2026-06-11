@@ -124,6 +124,7 @@ export function ConfigurationListPage() {
         <QueryError title="Failed to load configurations" error={query.error} onRetry={() => void query.refetch()} />
       ) : reorderEnabled ? (
         <ConfigurationReorder
+          key={serverRows.map((row) => row.id).join(",")}
           rows={serverRows}
           labelsByID={labelsByID}
           truncated={reorderTruncated}
@@ -281,10 +282,6 @@ function ConfigurationReorder({
 }) {
   const [ordered, setOrdered] = React.useState<SantaConfiguration[]>(rows);
   const reorder = useReorderSantaConfigurations();
-
-  React.useEffect(() => {
-    setOrdered(rows);
-  }, [rows]);
 
   const dragDisabled = reorder.isPending || truncated || ordered.length <= 1;
 

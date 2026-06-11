@@ -77,65 +77,31 @@ func (s *Store) PreparePending(
 ) (SyncType, error) {
 	desired = sortedTargets(desired)
 
-	var hadState bool
 	var pendingFullSync bool
-	var applied []Target
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
-		var err error
-		hadState, err = syncStateExists(ctx, q, hostID)
+		applied, err := loadPriorState(ctx, q, hostID)
 		if err != nil {
 			return err
 		}
-		applied, err = loadTargets(ctx, q, hostID, phaseApplied)
-		if err != nil {
-			return err
-		}
-		pendingFullSync = requestCleanSync ||
-			!hadState ||
-			(targetsEqual(desired, applied) && countTargets(desired) != reported)
+		pendingFullSync = applied.requiresFullSync(desired, reported, requestCleanSync)
 
-		payload := incrementalPayload(desired, applied)
+		payload := incrementalPayload(desired, applied.targets)
 		if pendingFullSync {
 			payload = fullSyncPayload(desired)
 		}
 
-		desiredCounts := countTargets(desired)
-		if err := q.UpsertSantaSyncPreflight(ctx, sqlc.UpsertSantaSyncPreflightParams{
-			HostID:                      hostID,
-			ClientRulesHash:             clientRulesHash,
-			PendingFullSync:             pendingFullSync,
-			PendingPayloadRuleCount:     int32(len(payload)),
-			DesiredBinaryRuleCount:      desiredCounts.Binary,
-			DesiredCertificateRuleCount: desiredCounts.Certificate,
-			DesiredTeamidRuleCount:      desiredCounts.TeamID,
-			DesiredSigningidRuleCount:   desiredCounts.SigningID,
-			DesiredCdhashRuleCount:      desiredCounts.CDHash,
-			BinaryRuleCount:             reported.Binary,
-			CertificateRuleCount:        reported.Certificate,
-			TeamidRuleCount:             reported.TeamID,
-			SigningidRuleCount:          reported.SigningID,
-			CdhashRuleCount:             reported.CDHash,
-			CountsMatch:                 desiredCounts == reported,
+		if err := upsertPreflight(ctx, q, preflightParams{
+			hostID:          hostID,
+			clientRulesHash: clientRulesHash,
+			pendingFullSync: pendingFullSync,
+			payload:         payload,
+			desired:         desired,
+			reported:        reported,
 		}); err != nil {
 			return err
 		}
-		if err := q.DeleteSantaSyncTargetsByPhase(ctx, sqlc.DeleteSantaSyncTargetsByPhaseParams{
-			HostID: hostID,
-			Phase:  sqlc.SantaSyncTargetPhase(phaseDesired),
-		}); err != nil {
-			return err
-		}
-		if err := q.DeleteSantaSyncPendingRules(
-			ctx,
-			sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
-		); err != nil {
-			return err
-		}
-		if err := insertTargets(ctx, q, hostID, phaseDesired, desired); err != nil {
-			return err
-		}
-		return insertPayloadRules(ctx, q, hostID, payload)
+		return rewritePendingState(ctx, q, hostID, desired, payload)
 	})
 	if err != nil {
 		return "", err
@@ -144,6 +110,85 @@ func (s *Store) PreparePending(
 		return SyncTypeClean, nil
 	}
 	return SyncTypeNormal, nil
+}
+
+// priorState is the applied sync state loaded at the start of a preflight.
+type priorState struct {
+	exists  bool
+	targets []Target
+}
+
+func loadPriorState(ctx context.Context, q *sqlc.Queries, hostID int64) (priorState, error) {
+	exists, err := syncStateExists(ctx, q, hostID)
+	if err != nil {
+		return priorState{}, err
+	}
+	targets, err := loadTargets(ctx, q, hostID, phaseApplied)
+	if err != nil {
+		return priorState{}, err
+	}
+	return priorState{exists: exists, targets: targets}, nil
+}
+
+func (p priorState) requiresFullSync(desired []Target, reported RuleCounts, requestCleanSync bool) bool {
+	return requestCleanSync ||
+		!p.exists ||
+		(targetsEqual(desired, p.targets) && countTargets(desired) != reported)
+}
+
+type preflightParams struct {
+	hostID          int64
+	clientRulesHash string
+	pendingFullSync bool
+	payload         []PayloadRule
+	desired         []Target
+	reported        RuleCounts
+}
+
+func upsertPreflight(ctx context.Context, q *sqlc.Queries, p preflightParams) error {
+	desiredCounts := countTargets(p.desired)
+	return q.UpsertSantaSyncPreflight(ctx, sqlc.UpsertSantaSyncPreflightParams{
+		HostID:                      p.hostID,
+		ClientRulesHash:             p.clientRulesHash,
+		PendingFullSync:             p.pendingFullSync,
+		PendingPayloadRuleCount:     int32(len(p.payload)),
+		DesiredBinaryRuleCount:      desiredCounts.Binary,
+		DesiredCertificateRuleCount: desiredCounts.Certificate,
+		DesiredTeamidRuleCount:      desiredCounts.TeamID,
+		DesiredSigningidRuleCount:   desiredCounts.SigningID,
+		DesiredCdhashRuleCount:      desiredCounts.CDHash,
+		BinaryRuleCount:             p.reported.Binary,
+		CertificateRuleCount:        p.reported.Certificate,
+		TeamidRuleCount:             p.reported.TeamID,
+		SigningidRuleCount:          p.reported.SigningID,
+		CdhashRuleCount:             p.reported.CDHash,
+		CountsMatch:                 desiredCounts == p.reported,
+	})
+}
+
+func rewritePendingState(
+	ctx context.Context,
+	q *sqlc.Queries,
+	hostID int64,
+	desired []Target,
+	payload []PayloadRule,
+) error {
+	if err := q.DeleteSantaSyncTargetsByPhase(ctx, sqlc.DeleteSantaSyncTargetsByPhaseParams{
+		HostID: hostID,
+		Phase:  sqlc.SantaSyncTargetPhase(phaseDesired),
+	}); err != nil {
+		return err
+	}
+	if err := q.DeleteSantaSyncPendingRules(
+		ctx,
+		sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
+	); err != nil {
+		return err
+	}
+	if err := insertTargets(ctx, q, hostID, phaseDesired, desired); err != nil {
+		return err
+	}
+	return insertPayloadRules(ctx, q, hostID, payload)
 }
 
 func (s *Store) LoadPendingPayloadPage(

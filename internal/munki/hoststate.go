@@ -2,8 +2,8 @@ package munki
 
 import "time"
 
-// Observation is Munki state observed for an existing host.
-type Observation struct {
+// HostObservation is Munki state observed for an existing host.
+type HostObservation struct {
 	HostID          int64
 	Version         string
 	ManifestName    string

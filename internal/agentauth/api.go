@@ -38,6 +38,13 @@ type agentSecretDeleteInput struct {
 }
 
 func RegisterAdminRoutes(api huma.API, store *Store) {
+	registerListAgentSecrets(api, store)
+	registerCreateAgentSecret(api, store)
+	registerUpdateAgentSecret(api, store)
+	registerDeleteAgentSecret(api, store)
+}
+
+func registerListAgentSecrets(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-agent-secrets",
 		Method:      http.MethodGet,
@@ -52,7 +59,9 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 		}
 		return &agentSecretListOutput{Body: secrets}, nil
 	})
+}
 
+func registerCreateAgentSecret(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-agent-secret",
 		Method:        http.MethodPost,
@@ -74,7 +83,9 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 		}
 		return &agentSecretCreateOutput{Body: secret}, nil
 	})
+}
 
+func registerUpdateAgentSecret(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-agent-secret",
 		Method:      http.MethodPut,
@@ -100,7 +111,9 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 		}
 		return &agentSecretCreateOutput{Body: secret}, nil
 	})
+}
 
+func registerDeleteAgentSecret(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-agent-secret",
 		Method:      http.MethodDelete,
