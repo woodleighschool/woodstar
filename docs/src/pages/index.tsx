@@ -13,35 +13,35 @@ type LinkItem = {
 const primaryLinks: LinkItem[] = [
   {
     title: "Run it locally",
-    text: "Use the repo's mise tasks with Postgres and the checked-in compose stack.",
+    text: "Bring up Woodstar, Postgres, and the frontend from a checkout with the repo's mise tasks.",
     to: "/docs/getting-started/local-development",
   },
   {
-    title: "Read the architecture",
-    text: "Capability boundaries, agent protocols, admin API ownership, and runtime wiring.",
+    title: "How it fits together",
+    text: "Hosts, labels, the four agents, and where the admin app ends and the agent protocols begin.",
     to: "/docs/concepts/capability-boundaries",
   },
   {
-    title: "Check the protocol surface",
-    text: "Orbit, osquery, Santa, and Munki endpoints are documented from the code that mounts them.",
+    title: "Agent protocols",
+    text: "How Orbit, osquery, Santa, and Munki clients enroll, authenticate, and sync.",
     to: "/docs/agent-protocols/overview",
   },
 ];
 
 const secondaryLinks: LinkItem[] = [
   {
-    title: "Environment",
-    text: "The current `WOODSTAR_` settings, defaults, and capability gates.",
+    title: "Configuration",
+    text: "The WOODSTAR_ settings, what's required, and which features switch on once you set them.",
     to: "/docs/configuration/environment",
   },
   {
-    title: "Admin API",
-    text: "Huma-backed JSON routes under `/api`, plus the generated OpenAPI command.",
+    title: "API reference",
+    text: "Every admin endpoint, generated from the OpenAPI spec the server ships.",
     to: "/docs/api/overview",
   },
   {
     title: "Development",
-    text: "Build, test, generation, and formatting tasks from the repository contract.",
+    text: "Build, test, generate, and format with the mise tasks.",
     to: "/docs/development/commands",
   },
 ];
@@ -57,21 +57,16 @@ function LinkPanel({ title, text, to }: LinkItem) {
 
 export default function Home(): ReactNode {
   return (
-    <Layout
-      title="Woodstar documentation"
-      description="Woodstar macOS observability and admin server documentation"
-    >
+    <Layout title="Woodstar documentation" description="Self-hosted macOS management: Munki, Santa, and osquery.">
       <main className={styles.main}>
         <section className={styles.intro}>
           <img src="/img/woodstar.svg" className={styles.logo} />
           <div>
             <p className={styles.kicker}>Woodstar docs</p>
-            <h1>macOS fleet admin notes, tied to the code that exists now.</h1>
+            <h1>Self-hosted macOS management: Munki, Santa, and osquery.</h1>
             <p className={styles.summary}>
-              Woodstar is a self-hosted server for Orbit/osquery first, with Santa and
-              Munki modules growing alongside the admin UI. These docs avoid release
-              promises. They explain what the current tree wires, what is inferred from
-              code, and where an operator still needs local knowledge.
+              Woodstar runs Munki, Santa, and osquery for a fleet of Macs: managed software, execution policy, and
+              inventory. It covers the macOS gaps left by our move from Jamf to Intune.
             </p>
             <div className={styles.actions}>
               <Link className={styles.primaryAction} to="/docs/intro">

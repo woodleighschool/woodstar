@@ -6,7 +6,7 @@ description: Run Woodstar from a checkout with mise, Postgres, and the frontend 
 
 # Local Development
 
-Woodstar uses mise tasks as the repository contract. Use those tasks first. They keep Go, Node, pnpm, linters, generated code, and test commands in one place.
+Woodstar uses [mise](https://mise.jdx.dev/) tasks as the repo's contract. Reach for those first: they keep Go, Node, pnpm, the linters, generated code, and the test commands in one place.
 
 ## Prerequisites
 
@@ -17,25 +17,25 @@ mise install
 mise run deps
 ```
 
-`mise run deps` downloads Go modules and installs the frontend dependencies in `web/`.
+`mise run deps` pulls the Go modules and installs the frontend dependencies under `web/`.
 
 ## Start Postgres
 
-The checked-in compose file provides local Postgres and Garage for Munki artifact work:
+The checked-in compose file gives you local Postgres, plus Garage for Munki artifact work:
 
 ```bash
 docker compose up -d postgres
 ```
 
-For Munki artifact flows, start Garage as well:
+If you're going to touch Munki artifacts, start Garage too:
 
 ```bash
 docker compose up -d garage
 ```
 
-## Run The Server
+## Run the server
 
-The server requires `WOODSTAR_PUBLIC_URL` and a session secret of at least 32 characters. A local run usually looks like this:
+The server needs `WOODSTAR_PUBLIC_URL` and a session secret of at least 32 characters. A local run usually looks like this:
 
 ```bash
 WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable' \
@@ -44,25 +44,21 @@ WOODSTAR_SESSION_SECRET='replace-with-at-least-32-characters' \
   mise exec -- go run ./cmd/woodstar serve
 ```
 
-The default listen address is `0.0.0.0:8080`.
+It listens on `0.0.0.0:8080` by default.
 
-## Development Loop
+## The dev loop
+
+```bash
+mise run dev
+```
+
+That starts both sides at once. `dev-backend` loads `.env` if it's there and runs the Go server through Air; `dev-frontend` runs Vite from `web/`. You can run either on its own:
 
 ```bash
 mise run dev-backend
 mise run dev-frontend
 ```
 
-`dev-backend` loads `.env` if it exists, then starts the Go server through Air. `dev-frontend` runs Vite from `web/`.
+## First admin account
 
-The aggregate command starts both:
-
-```bash
-mise run dev
-```
-
-## First Admin Account
-
-The setup route is mounted under `/api/setup`, and the frontend has a `setup` page. Start the backend, open the app, and create the first local admin account there.
-
-OIDC does not replace initial local setup in the current code. OIDC endpoints are enabled only when issuer URL, client ID, and client secret are all configured.
+On a fresh database there are no accounts yet. Start the backend, open the app, and the setup flow walks you through creating the first local admin. From there, sign-in works as described in [Authentication](../configuration/authentication).

@@ -1,39 +1,47 @@
 ---
 sidebar_position: 1
 title: Introduction
-description: What Woodstar is, what this documentation covers, and what still needs owner knowledge.
+description: What Woodstar is, why it exists, and how the pieces fit.
 ---
 
 # Woodstar
 
-Woodstar is a self-hosted macOS observability and admin server. The code is built around Orbit/osquery enrollment first. Santa and Munki are native modules that add security policy, execution-event visibility, package metadata, and client repository responses when those parts are configured.
+Woodstar is a self-hosted server for managing a fleet of Macs. It keeps an inventory of every enrolled machine, decides what software those machines should run and which binaries are allowed to launch, and serves the agents on each Mac.
 
-This documentation is a bootstrap pass. It is based on the repository state, not on a production rollout or hidden operating practice. Where the code is clear, the docs say so directly. Where a niche depends on real deployment choices, they stop short.
+We built it at Woodleigh to fill the gaps left when we moved Mac management from Jamf to Intune.
 
-## Current Shape
+## Why it exists
 
-- The backend is a Go server started by `cmd/woodstar`.
-- Runtime configuration comes from `WOODSTAR_` environment variables and a small Cobra CLI.
-- Postgres is the database. Migrations and sqlc live under `internal/database`.
-- The admin UI is a React/Vite app under `web/`, served by the Go binary after build.
-- The documented admin API is registered with Huma under `/api`.
-- Agent-facing protocols are plain `chi` routes mounted outside the admin API contract.
+Intune is the MDM now. It handles enrollment, configuration profiles, and the rest of what an MDM is good at. What it doesn't do well is the Mac-specific ground Jamf used to cover, so Woodstar picks that up:
 
-## Capability Map
+- **Software and patching** run through Munki. Woodstar is the Munki server. It holds the catalog of managed software and works out which packages each Mac should install, update, or remove.
+- **What's allowed to run** is Santa's job. Woodstar is the Santa sync server. It ships allow and block rules to each Mac and collects the execution events Santa sends back.
+- **Inventory and custom facts** come from osquery. This is the stand-in for Jamf's Extension Attributes and Smart Groups: ask the fleet a SQL question, save it as a scheduled report or a pass/fail check, and group hosts with labels.
 
-| Area | What It Owns |
+So Intune owns the device. Woodstar owns the software, the execution policy, and the inventory Intune doesn't cover.
+
+## The agents
+
+A Mac talks to Woodstar through four clients. Two of them get the machine on board and keep its record current; the other two attach to a machine that already exists.
+
+| Agent | Does |
 | --- | --- |
-| Hosts | Canonical Mac identity, enrollment metadata, host detail loading, user affinity, and cross-capability host enrichment. |
-| Labels | Manual, dynamic osquery-backed, and derived directory labels used by checks, reports, Santa, and Munki scoping. |
-| Agent secrets | Shared credentials accepted by agent-facing protocols. Orbit and osquery use them for enrollment. Santa and Munki use bearer-style protocol access. |
-| Orbit | Orbit enrollment, node-key validation, config, device mapping, and Fleet-compatible placeholder endpoints that keep Orbit clients calm. |
-| osquery | TLS-plugin enrollment, config, scheduled reports, checks, inventory projection, label evaluation, distributed writes, logs, and live queries. |
-| Santa | Sync protocol, host state, configurations, rules, execution events, file-access events, and rule sync state. |
-| Munki | Woodstar-managed software titles, pkginfo/package metadata, deployments, artifacts, manifest rendering, catalog rendering, and artifact redirects. |
-| Directory | Optional Entra sync into users, groups, departments, and derived labels. |
+| Orbit | Enrolls the Mac and reports back the basics. Compatible with the Fleet Orbit client. |
+| osquery | Runs the queries behind inventory, reports, checks, and live queries. |
+| Santa | Enforces which binaries can run and reports execution events. |
+| Munki | Installs, updates, and removes managed software. |
 
-## What Not To Read Into This
+Hosts are the thing everything hangs off. Orbit and osquery create and refresh hosts during enrollment; Santa and Munki look up a host that's already there. Labels are how you group hosts and aim everything else at them.
 
-Woodstar is not documented here as a SaaS product, a polished public release, or a generic MDM. The current tree is a tool with sharp domain edges: osquery inventory, Santa policy sync, Munki repository behavior, and school-owned deployment assumptions that still need operator notes before a production runbook would be honest.
+## Built on Fleet's core
 
-For development commands, start with [Local Development](./getting-started/local-development). For the server shape, read [Capability Boundaries](./concepts/capability-boundaries).
+The host, label, query, and check model underneath all this is [Fleet's](https://fleetdm.com/). Woodstar takes Fleet's osquery core and its reporting, then builds the macOS-specific pieces around it with Santa and Munki. It isn't all of Fleet: there's no MDM here, the platform focus is macOS, and the surface is trimmed to what our fleet needs. Where you see hosts, labels, scheduled reports, checks, and Orbit enrollment, you're looking at Fleet's model. Santa and Munki are the parts we added.
+
+## How these docs are organized
+
+- [Getting Started](./getting-started/local-development) gets Woodstar running from a checkout or the compose stack.
+- [Concepts](./concepts/capability-boundaries) is the mental model: the two sides of the server, hosts, labels, and agent secrets.
+- [Admin Guide](./admin/hosts-and-inventory) covers the day to day in the admin app.
+- [Agent Protocols](./agent-protocols/overview) is how the four clients enroll, authenticate, and sync.
+- [AutoPkg](./autopkg/overview) is how packages get authored and pushed into Woodstar's Munki repo.
+- [Configuration](./configuration/environment) and the [API reference](./api/overview) are the lookup material.

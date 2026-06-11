@@ -1,23 +1,25 @@
 ---
 sidebar_position: 3
 title: Santa Sync
-description: Santa sync transport, endpoints, and current Woodstar behavior.
+description: The Santa sync transport, its four stages, and how rules page out to clients.
 ---
 
 # Santa Sync
 
-Santa sync uses protobuf payloads over HTTP. The current routes are mounted under `/santa/sync` and require an agent secret for `agent=santa`.
+Santa syncs over HTTP using protobuf payloads. The routes live under `/santa/sync` and authenticate with the `santa` agent secret. Each request is for one machine, named by its `machine_id` in the path.
 
-## Endpoints
+## The four stages
+
+Santa walks through the same four-stage handshake every sync.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/santa/sync/preflight/{machine_id}` | Record Santa host observation, resolve configuration, prepare pending rule sync state. |
-| `POST` | `/santa/sync/eventupload/{machine_id}` | Ingest execution and file-access events for an existing host. |
-| `POST` | `/santa/sync/ruledownload/{machine_id}` | Return a page of pending Santa rules for the host. |
-| `POST` | `/santa/sync/postflight/{machine_id}` | Promote pending sync state after the client reports received and processed rule counts. |
+| `POST` | `/santa/sync/preflight/{machine_id}` | Record the host's Santa state, resolve which configuration applies, and stage the rules waiting to go out. |
+| `POST` | `/santa/sync/eventupload/{machine_id}` | Take execution and file-access events for the host. |
+| `POST` | `/santa/sync/ruledownload/{machine_id}` | Hand back a page of pending rules. |
+| `POST` | `/santa/sync/postflight/{machine_id}` | Promote the staged rules once the client reports how many it received and applied. |
 
-## Transport Requirements
+## Transport
 
 The handler expects:
 
@@ -27,24 +29,14 @@ Content-Type: application/x-protobuf
 Content-Encoding: gzip
 ```
 
-The request body limit is 16 MiB before decoding.
+The body limit is 16 MiB before decoding.
 
-## Host Resolution
+## Host resolution
 
-Santa resolves the host by `machine_id`. The service writes Santa host state only after it resolves an existing Woodstar host. It does not enroll a new host.
+Santa finds the host by `machine_id`, and it only writes Santa state once it has matched an existing Woodstar host. It never enrolls a new one. If the machine is unknown, there's nowhere to put the state.
 
-Preflight can update:
+Preflight is the catch-up moment. It can update the host's Santa version, reported client mode, primary user and groups, SIP status, OS build, model identifier, and the rule sync counters.
 
-- Santa version
-- reported client mode
-- primary user and groups
-- SIP status
-- OS build
-- model identifier
-- rule sync counters
+Event upload persists both execution and file-access events. Rule download pages out up to 500 pending rules at a time, which is why postflight exists: the client confirms what it got, and only then does Woodstar mark those rules delivered.
 
-Event upload persists execution events and file-access events. Rule download returns up to 500 pending rules per page.
-
-## Admin Resources
-
-Santa admin routes expose configurations, rules, event lists, file-access event lists, and per-host rule state under `/api/santa` and `/api/hosts/{id}/santa/...`.
+The admin side of Santa (configurations, rules, events, and per-host rule state) is in [Santa](../admin/santa).

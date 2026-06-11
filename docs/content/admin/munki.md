@@ -1,61 +1,40 @@
 ---
 sidebar_position: 4
 title: Munki
-description: Woodstar-managed Munki titles, packages, deployments, artifacts, and client repository output.
+description: "Desired software state: titles, packages, deployments, and artifacts."
 ---
 
 # Munki
 
-Munki in Woodstar is desired state. It is separate from observed software inventory.
+Munki is where you decide what software a Mac should have. Woodstar holds the managed catalog and renders the manifests and catalogs that Munki clients pull down. This is desired state, the opposite end from the [observed software inventory](./hosts-and-inventory#software) that osquery reports.
 
-The current admin model has four main objects:
+Four objects make it work.
 
-| Object | Purpose |
-| --- | --- |
-| Software title | Human-owned grouping for one managed software item. |
-| Package | One pkginfo item or imported pkginfo payload. |
-| Deployment | Assignment behavior and scope for a software title. |
-| Artifact | Package or icon object metadata used by rendered Munki pkginfo. |
+## Software titles
 
-## Software Titles
-
-| Route | Purpose |
-| --- | --- |
-| `GET /api/munki/software-titles` | List titles. |
-| `POST /api/munki/software-titles` | Create a title. |
-| `GET /api/munki/software-titles/{id}` | Load a title with packages and deployments. |
-| `PATCH /api/munki/software-titles/{id}` | Update title metadata. |
+A title is the human-owned grouping for one managed thing, "Google Chrome", say. It carries the name, description, category, developer, and icon. Everything else hangs off a title.
 
 ## Packages
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/munki/software-titles/{id}/packages` | List packages for a title. |
-| `POST /api/munki/software-titles/{id}/packages` | Create package metadata. |
-| `POST /api/munki/software-titles/{id}/packages/import` | Import an existing pkginfo item. |
-| `GET /api/munki/software-titles/{id}/packages/{package_id}` | Load one package. |
-| `PATCH /api/munki/software-titles/{id}/packages/{package_id}` | Update one package. |
+A package is one installable version under a title. Packages keep a lot of Munki's own vocabulary, because that's what ends up in the rendered pkginfo: installer type, restart action, blocking applications, `requires`, `update_for`, supported architectures, the unattended flags, and an `extra_pkginfo` escape hatch for anything Woodstar doesn't model directly.
 
-Package fields intentionally preserve a lot of Munki vocabulary: installer type, restart action, blocking applications, requires, update-for, supported architectures, unattended flags, optional `extra_pkginfo`, and artifact references.
+You can create package metadata by hand, or import an existing pkginfo item. In practice most packages arrive through [AutoPkg](../autopkg/overview) rather than being typed in.
 
 ## Deployments
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/munki/software-titles/{id}/deployments` | List deployments for a title. |
-| `POST /api/munki/software-titles/{id}/deployments` | Create a deployment. |
-| `GET /api/munki/software-titles/{id}/deployments/{deployment_id}` | Load one deployment. |
-| `PATCH /api/munki/software-titles/{id}/deployments/{deployment_id}` | Update one deployment. |
-| `PUT /api/munki/software-titles/{id}/deployments/order` | Reorder deployments. |
+A deployment is how a title reaches machines. It targets all hosts, or includes and excludes labels, or includes and excludes specific host IDs, and it carries an action:
 
-Deployments can target all hosts, include/exclude labels, and include/exclude concrete host IDs. Actions are `install`, `remove`, `update_if_present`, and `none`.
+- `install`
+- `remove`
+- `update_if_present`
+- `none`
+
+Deployments are ordered, because a host can match more than one and the order decides which wins. When Woodstar renders a manifest for a Mac, it works out the effective set of packages from the deployments that apply and drops each one into the right Munki key (managed installs, managed uninstalls, managed updates, optional installs, or featured items).
 
 ## Artifacts
 
-| Route | Purpose |
-| --- | --- |
-| `POST /api/munki/artifacts` | Register an existing package or icon artifact. |
-| `POST /api/munki/artifacts/upload-url` | Create a temporary object-storage upload URL. |
-| `GET /api/munki/artifacts/{id}/content` | Fetch or redirect artifact content. |
+An artifact is the actual file: the package payload or an icon. The metadata is a stable Woodstar row; the bytes live in S3-compatible object storage when that's configured.
 
-Artifact upload URLs require configured Munki S3 storage. Without that backend, metadata can exist but upload and redirect flows are limited.
+There are two ways an artifact gets in. Either you register one that already sits at a known storage location, or you ask Woodstar for a temporary upload URL, push the file to storage, and attach it. The upload-URL path needs storage configured; without it you can hold metadata but not move bytes. See [Munki Storage](../configuration/storage) for how that's wired, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
+
+Endpoints are in the [API reference](../api/overview).

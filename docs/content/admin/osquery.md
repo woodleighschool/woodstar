@@ -1,57 +1,35 @@
 ---
 sidebar_position: 2
 title: osquery
-description: Reports, checks, live queries, and their admin API routes.
+description: Reports, checks, and live queries against the fleet.
 ---
 
 # osquery
 
-Woodstar uses osquery for scheduled report snapshots, pass/fail checks, live queries, dynamic labels, and inventory projection.
+osquery is how Woodstar asks the fleet questions. It's the replacement for Jamf's Extension Attributes and Smart Groups: write SQL, and either schedule it, turn it into a pass/fail check, or run it right now. It also drives dynamic labels and the software inventory.
+
+This is Fleet's query model. A Woodstar report is a Fleet scheduled query; a Woodstar check is what Fleet calls a policy. The names are ours, the behaviour is theirs.
+
+There are three things you author here.
 
 ## Reports
 
-Reports are saved osquery SQL definitions with a schedule interval and optional label scope.
+A report is a saved osquery query with a schedule and an optional label scope. Woodstar pushes it into the osquery config for the hosts in scope, and the results come back as snapshots you can look at over time.
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/osquery/reports` | List reports. |
-| `POST /api/osquery/reports` | Create a report. |
-| `GET /api/osquery/reports/{id}` | Load one report. |
-| `PUT /api/osquery/reports/{id}` | Replace report settings. |
-| `DELETE /api/osquery/reports/{id}` | Delete one report. |
-| `POST /api/osquery/reports/bulk-delete` | Delete multiple reports. |
-| `GET /api/osquery/reports/{id}/results` | List saved result snapshots. |
-| `GET /api/hosts/{id}/osquery/reports` | List reports for one host. |
-| `GET /api/hosts/{id}/osquery/reports/{report_id}` | Load one host report. |
-
-`schedule_interval` accepts non-negative values. The code does not document a scheduler guarantee beyond the intervals it sends through osquery config.
+Use a report when you want a recurring answer: installed apps, profiles, disk encryption status, whatever you'd have built an Extension Attribute for. Scope it with a label to ask only the machines it's relevant to.
 
 ## Checks
 
-Checks are query-backed pass/fail rules. A check has a SQL query, optional label scope, and aggregate pass/fail host counts.
+A check is a query turned into a pass or fail, the same idea as a Fleet policy. Each host that runs it lands on one side or the other, and Woodstar keeps the aggregate counts so you can see "47 passing, 3 failing" at a glance and drill into the three.
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/osquery/checks` | List checks. |
-| `POST /api/osquery/checks` | Create a check. |
-| `GET /api/osquery/checks/{id}` | Load one check. |
-| `PUT /api/osquery/checks/{id}` | Replace check settings. |
-| `DELETE /api/osquery/checks/{id}` | Delete one check. |
-| `POST /api/osquery/checks/bulk-delete` | Delete multiple checks. |
-| `GET /api/osquery/checks/{id}/hosts` | List host pass/fail state for one check. |
-| `GET /api/hosts/{id}/osquery/checks` | List checks for one host. |
+The query has to return enough for Woodstar to read a pass/fail result from it. The editor in the app is the place to get that shape right; the convention is best learned there rather than memorized from docs.
 
-The check query must return enough signal for Woodstar to interpret a pass/fail state. The exact authoring convention should stay close to the frontend editor and backend check tests as that area evolves.
+Use a check for things that should be true: a setting is enforced, an agent is running, a risky app isn't present.
 
-## Live Queries
+## Live queries
 
-Live queries are command-shaped. They do not behave like persisted report definitions.
+A live query is a one-off. You pick a target, fire a query, and watch results stream in as hosts respond. Nothing is saved as a definition; it's for answering a question on the spot.
 
-| Route | Purpose |
-| --- | --- |
-| `POST /api/live-queries` | Start a live query. |
-| `POST /api/live-queries/targets/count` | Count matching target hosts. |
-| `POST /api/live-queries/{id}/stop` | Stop a live query. |
-| `GET /api/live-queries/{id}/stream` | Stream live query events. |
+You can count the matching targets before you run, and stop a query that's still going. Results arrive through osquery's distributed write path and are tracked in memory while the query is live.
 
-Results come back through osquery distributed writes and are tracked by the in-memory live-query manager.
+Endpoints for all three are in the [API reference](../api/overview). Retention, scheduling cadence, and how distributed reads and writes work on the wire are covered under [Agent Protocols](../agent-protocols/orbit-and-osquery).

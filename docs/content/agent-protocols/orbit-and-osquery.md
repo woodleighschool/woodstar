@@ -1,55 +1,55 @@
 ---
 sidebar_position: 2
-title: Orbit And osquery
-description: Enrollment, config, distributed query, and compatibility endpoints for Orbit and osquery clients.
+title: Orbit and osquery
+description: Enrollment, config, distributed queries, and the Fleet-compatible endpoints.
 ---
 
-# Orbit And osquery
+# Orbit and osquery
 
-Orbit and osquery are separate enrolling clients. Both use shared agent secrets during enrollment, then use their own host node keys afterward.
+Orbit and osquery are two separate enrolling clients. Both authenticate with a shared enrollment secret the first time, then switch to their own per-host node key for everything after. Orbit speaks the Fleet Orbit protocol, so an off-the-shelf Orbit client works against Woodstar.
 
-## Orbit Endpoints
+## Orbit endpoints
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/fleet/orbit/enroll` | Validate the Orbit enroll secret, upsert the host by hardware UUID, and issue an Orbit node key. |
-| `POST` | `/api/fleet/orbit/config` | Validate the Orbit node key and return the current Orbit config. |
-| `PUT` | `/api/fleet/orbit/device_mapping` | Validate the Orbit node key and record a profile-provided email as user affinity. |
+| `POST` | `/api/fleet/orbit/enroll` | Check the enroll secret, upsert the host by hardware UUID, and issue an Orbit node key. |
+| `POST` | `/api/fleet/orbit/config` | Validate the node key and return the host's Orbit config. |
+| `PUT` | `/api/fleet/orbit/device_mapping` | Validate the node key and record an email from the device profile as user affinity. |
 | `HEAD` | `/api/fleet/orbit/ping` | Return `200 OK`. |
 
-Woodstar also returns Fleet-compatible empty responses for several Orbit paths such as scripts, software install, setup experience, device token, disk encryption, and LUKS data. These are compatibility endpoints, not Woodstar feature promises.
+Orbit clients expect a few more endpoints to exist even when the feature behind them isn't something Woodstar does, so Woodstar answers the Fleet-compatible paths (scripts, software install, setup experience, device token, disk encryption, LUKS) with empty responses. They keep the client happy; they aren't features.
 
-Orbit responses set:
+Orbit responses advertise their capabilities:
 
 ```http
 X-Fleet-Capabilities: orbit_endpoints,end_user_email
 ```
 
-## osquery Endpoints
+## osquery endpoints
 
 Each osquery endpoint is mounted under both `/api/osquery` and `/api/v1/osquery`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/enroll` | Validate the enroll secret, parse host details, upsert the host, and issue an osquery node key. |
-| `POST` | `/config` | Return scheduled query config and osquery options. |
-| `POST` | `/distributed/read` | Queue detail queries, label queries, checks, and live queries for the host. |
-| `POST` | `/distributed/write` | Ingest distributed query results. |
+| `POST` | `/enroll` | Check the enroll secret, parse the host details, upsert the host, and issue an osquery node key. |
+| `POST` | `/config` | Return the scheduled query config and osquery options. |
+| `POST` | `/distributed/read` | Hand the host its queued detail queries, label queries, checks, and live queries. |
+| `POST` | `/distributed/write` | Take the results back. |
 | `POST` | `/log` | Accept osquery logs and scheduled report results. |
-| `POST` | `/carve/begin` | Return an empty JSON object. |
-| `POST` | `/carve/block` | Return an empty JSON object. |
+| `POST` | `/carve/begin` | Return an empty object. |
+| `POST` | `/carve/block` | Return an empty object. |
 
-Invalid node keys do not crash the client path. The osquery service returns `node_invalid: true` where the TLS plugin expects it.
+A bad node key doesn't break the client. The osquery service returns `node_invalid: true` where the TLS plugin expects it, and the client re-enrolls.
 
-## Inventory Work
+## What distributed writes do
 
-osquery distributed writes do several jobs:
+The write endpoint is where most of the inventory work happens. A single batch of results can:
 
-- update host detail inventory
+- update the host's detail and inventory
 - project observed software
 - evaluate dynamic labels
 - record check pass/fail membership
 - save report result snapshots
 - return live-query results to the in-memory live-query manager
 
-Missing Orbit extension data should be treated as query result state. It is not a separate server mode.
+If a host is missing the Orbit extension tables some queries want, that's just query result state, not a separate mode the server runs in.

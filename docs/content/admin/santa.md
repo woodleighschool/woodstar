@@ -1,56 +1,38 @@
 ---
 sidebar_position: 3
 title: Santa
-description: Santa configurations, rules, events, and host rule state.
+description: "Execution policy and event visibility: configurations, rules, and events."
 ---
 
 # Santa
 
-Santa adds execution policy and event visibility for hosts that already exist in Woodstar. It is optional: the core app still works without Santa sync traffic.
+Santa decides which binaries are allowed to run on a Mac, and reports back what it sees. Woodstar is the sync server: you write the policy here, the Macs pull it down, and the execution events come back for you to look at.
+
+Santa is optional. A host works fine without it; the Santa sections just stay empty until that host starts syncing.
 
 ## Configurations
 
-Configurations are ordered. They can target labels and carry Santa client policy settings such as client mode, bundle support, transitive rules, event upload, sync interval, batch size, path regexes, removable-media policy, and event detail links.
+A configuration is the client policy Santa runs under: client mode, bundle support, transitive rules, event upload, sync interval, batch size, path regexes, removable-media policy, and the link Santa uses for event detail. Configurations are ordered and target labels.
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/santa/configurations` | List configurations. |
-| `POST /api/santa/configurations` | Create a configuration. |
-| `GET /api/santa/configurations/{id}` | Load one configuration. |
-| `PATCH /api/santa/configurations/{id}` | Update one configuration. |
-| `DELETE /api/santa/configurations/{id}` | Delete one configuration. |
-| `POST /api/santa/configurations/bulk-delete` | Delete multiple configurations. |
-| `PUT /api/santa/configurations/order` | Reorder configurations. |
-
-Label conflicts return `409` when a label is already assigned to another configuration.
+A label can only belong to one configuration. Assign a label that's already taken and Woodstar returns a conflict rather than letting two configurations fight over the same hosts.
 
 ## Rules
 
-Rules model Santa targets and policies. The current rule types are `binary`, `certificate`, `teamid`, `signingid`, `cdhash`, and `bundle`. Policies include allowlist, compiler allowlist, blocklist, silent blocklist, and CEL.
+Rules are the allow and block decisions. Each rule has a target type and a policy.
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/santa/rules` | List rules. |
-| `GET /api/santa/rule-targets` | Search target candidates from observed execution data. |
-| `POST /api/santa/rules` | Create a rule. |
-| `GET /api/santa/rules/{id}` | Load one rule. |
-| `PATCH /api/santa/rules/{id}` | Update one rule. |
-| `DELETE /api/santa/rules/{id}` | Delete one rule. |
-| `POST /api/santa/rules/bulk-delete` | Delete multiple rules. |
-| `PUT /api/santa/rules/{id}/includes/order` | Reorder rule includes. |
-| `GET /api/hosts/{id}/santa/rules` | List effective rule state for one host. |
+Target types: `binary`, `certificate`, `teamid`, `signingid`, `cdhash`, and `bundle`. Policies: allowlist, compiler allowlist, blocklist, silent blocklist, and CEL.
 
-Rule includes attach a policy to a label. Exclude label IDs remove hosts from a rule even when an include matches.
+A rule attaches its policy to a label through an include, and you can layer excludes to carve hosts back out even when an include would otherwise match. When you're hunting for something to write a rule about, the rule-target search pulls candidates straight from observed execution data, so you can build a rule from a binary you've actually seen run.
+
+You can also look at the effective rule state for a single host, which is the set of rules that machine should be enforcing.
 
 ## Events
 
-Santa event routes are read-only in the admin API:
+Events are read-only here. Santa reports two kinds:
 
-- `GET /api/santa/events`
-- `GET /api/santa/events/{id}`
-- `GET /api/santa/file-access-events`
-- `GET /api/santa/file-access-events/{id}`
+- **Execution events**: what tried to run, with the executable's metadata, the user and session, the decision, and timestamps.
+- **File-access events**: access against the paths Santa is watching, with Santa's file-access decision values.
 
-Execution events include host summary, executable metadata, user/session fields, decision, and timestamps. File-access events use Santa's file-access decision values.
+Events accumulate, so they're swept on a schedule. Retention is controlled by `WOODSTAR_SANTA_EVENT_RETENTION_DAYS` and the sweep cadence by `WOODSTAR_SANTA_EVENT_SWEEP_INTERVAL` (see [Environment](../configuration/environment)).
 
-Retention cleanup is controlled by `WOODSTAR_SANTA_EVENT_RETENTION_DAYS` and `WOODSTAR_SANTA_EVENT_SWEEP_INTERVAL`.
+The sync protocol itself, including how rules are paged out to clients, is in [Santa Sync](../agent-protocols/santa-sync). Endpoints are in the [API reference](../api/overview).

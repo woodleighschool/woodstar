@@ -1,39 +1,39 @@
 ---
 sidebar_position: 3
 title: Agent Secrets
-description: Shared secrets accepted by Woodstar's agent-facing protocols.
+description: The shared credentials the agent protocols accept, and how they differ from node keys.
 ---
 
 # Agent Secrets
 
-Agent secrets are admin-managed shared credentials used by agent-facing protocols. They are stored through the `agentauth` package and managed through `/api/agent-secrets`.
+Agent secrets are the shared credentials the Mac clients use to talk to Woodstar. You manage them in the admin app under Enrollments, and they're stored separately from user passwords and API keys.
 
-The current agent values are:
+There are three:
 
-| Agent | Used By |
+| Secret | Used by |
 | --- | --- |
-| `orbit` | Orbit enrollment and osquery enrollment. |
-| `santa` | Santa sync bearer authorization. |
-| `munki` | Munki repository bearer authorization. |
+| `orbit` | Orbit and osquery enrollment. |
+| `santa` | Santa sync. |
+| `munki` | Munki repository access. |
 
-The store requires secret values with at least 32 characters when creating or updating through the admin API.
+Each value has to be at least 32 characters.
 
-## Enrollment Secret vs Node Key
+## Enrollment secrets and node keys
 
-Orbit and osquery use a shared agent secret at enrollment time. Successful enrollment issues a node key and stores that node key on the host. Follow-up Orbit/osquery requests use the node key, not the shared enrollment secret.
+Orbit and osquery use the shared secret only at enrollment. Enrolling successfully mints a *node key*, which Woodstar stores on the host, and every request after that carries the node key instead of the shared secret. Re-enrolling the same Mac issues a fresh node key and retires the old one.
 
-Re-enrolling the same host refreshes the node key. The old node key stops authenticating.
+So the shared secret is the thing you hand out when setting up a machine. The node key is the per-host credential it earns once it's in.
 
-## Bearer Secrets
+## Bearer secrets
 
-Santa and Munki protocol routes parse the `Authorization` header as a bearer token:
+Santa and Munki are simpler. Their requests carry the shared secret straight through as a bearer token:
 
 ```http
 Authorization: Bearer <secret>
 ```
 
-The helper rejects empty tokens and tokens with whitespace. The token must verify against the matching agent value in the agent secret store.
+Empty tokens and tokens with whitespace are rejected, and the token has to match the secret for that agent.
 
-## Admin Access
+## Who can manage them
 
-The agent secret admin resource is admin-only. Ordinary authenticated users can use the admin UI resources they are allowed to access, but creating, editing, or deleting shared agent protocol credentials is protected by admin middleware.
+Creating, editing, and deleting agent secrets is admin-only. A regular Woodstar user can work in the parts of the app they're allowed into, but the shared protocol credentials sit behind admin access.

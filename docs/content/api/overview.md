@@ -1,55 +1,34 @@
 ---
-sidebar_position: 1
-title: Admin API
-description: Huma-backed admin API routes and OpenAPI generation.
+sidebar_position: 0
+title: Overview
+description: The admin API, how it's authenticated, and how this reference is generated.
 ---
 
-# Admin API
+# API Reference
 
-The admin API is the session-authenticated JSON surface for the Woodstar SPA. It is registered with Huma under `/api` and documented as OpenAPI 3.1 by the `woodstar openapi` command.
+This is the admin API: the JSON surface the web app runs on, served under `/api`. The pages beside this one are generated from Woodstar's own OpenAPI spec and grouped by capability, so the sidebar lines up with the parts of the app (Hosts, Labels, Santa, Munki, and the rest).
 
-Agent protocol routes are not part of this API contract. Orbit, osquery, Santa, and Munki protocol endpoints are documented under [Agent Protocols](../agent-protocols/overview).
+The Mac clients don't use this API. Their endpoints are a separate surface, documented in [Agent Protocols](../agent-protocols/overview).
 
-## Generate OpenAPI
+## Authenticating
+
+Two ways in, both tied to a Woodstar account:
+
+- **Session cookie.** Signing in to the app sets `woodstar_session`, and the browser carries it. This is what the SPA uses.
+- **API key.** For scripting, create an account API key and send it instead of using a session. Same permissions as the account it belongs to.
+
+See [Authentication](../configuration/authentication) for both.
+
+## Errors
+
+Woodstar returns plain Huma error responses with a human-readable `message`. There's no sprawling error-code taxonomy to memorize; the message says what went wrong, and the frontend shows it.
+
+## How this reference is generated
+
+The spec is `web/openapi.yaml`, built by the backend itself:
 
 ```bash
 go run ./cmd/woodstar openapi --output web/openapi.yaml
 ```
 
-The command builds the same Huma route registration used by the server. It does not call handlers and does not require a database.
-
-To check the checked-in schema:
-
-```bash
-mise run test-openapi
-```
-
-To regenerate the OpenAPI file and frontend client types:
-
-```bash
-mise run openapi-types
-```
-
-## Route Groups
-
-| Group | Routes |
-| --- | --- |
-| Auth | `/api/setup`, `/api/auth/session`, `/api/auth/login`, `/api/auth/logout`, SSO callback routes |
-| Account | `/api/account`, `/api/account/api-key` |
-| Users | `/api/users` |
-| Hosts | `/api/hosts`, host software, user affinity, osquery host state, Santa host state |
-| Labels | `/api/labels` |
-| Software | `/api/software` |
-| Directory | `/api/directory/users`, `/api/directory/groups`, `/api/directory/departments` |
-| Agent secrets | `/api/agent-secrets` |
-| osquery | `/api/osquery/reports`, `/api/osquery/checks`, `/api/live-queries` |
-| Santa | `/api/santa/configurations`, `/api/santa/rules`, `/api/santa/events`, `/api/santa/file-access-events` |
-| Munki | `/api/munki/software-titles`, package, deployment, and artifact subresources |
-
-## Error Contract
-
-Huma error messages are part of the SPA contract in this repository. The current API does not maintain a broad error-code taxonomy. Add narrow structured fields only when a real frontend flow needs to branch on them.
-
-## Route Registration Rule
-
-Route registration should remain side-effect-free. `api.BuildSchemaAPI` reuses the same route registration path with empty dependencies for schema generation.
+The same registration that mounts the routes produces the schema, so the reference can't drift from the server without the spec changing too. Regenerating these pages from the spec is covered in [Docs Site](../development/docs-site#the-api-reference).

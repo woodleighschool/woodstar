@@ -1,31 +1,20 @@
 ---
 sidebar_position: 1
 title: Overview
-description: Agent-facing route families and how they differ from the admin API.
+description: The agent-facing route families and how they differ from the admin API.
 ---
 
 # Agent Protocols
 
-Woodstar mounts agent protocols beside the admin API, but they are not the same surface.
+The Macs don't use the admin API. They talk to a separate set of endpoints, each shaped to match the client that's calling: Orbit, osquery, Santa, and Munki. These routes sit beside the admin API but they're a different surface, with different authentication and different wire formats.
 
-Admin routes are session-authenticated JSON resources under `/api`. Agent routes are shaped around existing clients: Orbit, osquery, Santa, and Munki.
-
-| Client | Route Family | Auth Shape |
+| Client | Route family | Auth |
 | --- | --- | --- |
-| Orbit | `/api/fleet/orbit/...` | enrollment secret, then Orbit node key |
-| osquery | `/api/osquery/...`, `/api/v1/osquery/...` | enrollment secret, then osquery node key |
-| Santa | `/santa/sync/...` | bearer token for `agent=santa` |
-| Munki | `/munki/...` | bearer token for `agent=munki` plus `Serial` host header |
+| Orbit | `/api/fleet/orbit/...` | Enroll secret, then an Orbit node key. |
+| osquery | `/api/osquery/...`, `/api/v1/osquery/...` | Enroll secret, then an osquery node key. |
+| Santa | `/santa/sync/...` | Bearer token for the `santa` secret. |
+| Munki | `/munki/...` | Bearer token for the `munki` secret, plus a `Serial` header. |
 
-Orbit and osquery can create or refresh host rows during enrollment. Santa and Munki resolve existing hosts. If the host is unknown, those protocols return the protocol-level failure for missing state instead of creating a host.
+The split between "creates a host" and "attaches to a host" matters here. Orbit and osquery can create or refresh a host record while enrolling. Santa and Munki resolve a host that already exists, and if it doesn't, they return the protocol's own not-found shape rather than enrolling anything. See [Agent Secrets](../concepts/agent-secrets) for how node keys differ from the shared enrollment secrets.
 
-## Source Files
-
-| Protocol | Route Registration |
-| --- | --- |
-| Orbit | `internal/orbit/protocol/orbit.go` |
-| osquery | `internal/osquery/protocol/osquery.go` |
-| Santa | `internal/santa/protocol/santa.go` |
-| Munki | `internal/munki/protocol/munki.go` |
-
-The combined mount point is `internal/api/protocols.go`.
+The pages in this section describe each protocol's endpoints and the behaviour that isn't obvious from the route alone. The admin-facing endpoints (the ones the SPA uses) are in the [API reference](../api/overview) instead.

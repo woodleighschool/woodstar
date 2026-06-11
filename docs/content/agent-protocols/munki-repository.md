@@ -1,36 +1,34 @@
 ---
 sidebar_position: 4
 title: Munki Repository
-description: Munki client repository routes and artifact redirect behavior.
+description: "The Munki repository surface: manifests, catalogs, and artifact redirects."
 ---
 
 # Munki Repository
 
-Woodstar exposes a Munki repository-shaped HTTP surface under `/munki`. It renders manifests and catalogs from Woodstar-managed software, package, deployment, and artifact rows.
-
-## Endpoints
+To a Munki client, Woodstar looks like a Munki repository. It serves the same shape of URLs a static repo would, but the manifests and catalogs are rendered on the fly from the software, packages, deployments, and artifacts you've set up.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/munki/manifests/{name}` | Render a manifest plist for the requesting host. |
-| `GET` | `/munki/catalogs/{name}` | Render a catalog plist. The current code accepts `production`. |
-| `GET` | `/munki/pkgs/*` | Redirect to a package artifact if the requesting host can fetch it. |
+| `GET` | `/munki/manifests/{name}` | Render the manifest plist for the requesting host. |
+| `GET` | `/munki/catalogs/{name}` | Render a catalog plist. The `production` catalog is the one in use. |
+| `GET` | `/munki/pkgs/*` | Redirect to a package artifact, if this host is allowed it. |
 | `GET` | `/munki/icons/*` | Redirect to an icon artifact. |
 
-## Request Identity
+## Request identity
 
-Munki routes require:
+Every request carries the shared secret and the machine's serial:
 
 ```http
 Authorization: Bearer <munki-agent-secret>
 Serial: <mac-hardware-serial>
 ```
 
-The service resolves `Serial` to an existing host by hardware serial. Unknown serials return `404`.
+Woodstar resolves the `Serial` to an existing host. An unknown serial gets a `404`; there's no host to render a manifest for.
 
-## Manifests And Catalogs
+## How a manifest comes together
 
-Manifest rendering starts from effective packages for the host. Deployments can place package names into:
+Rendering starts from the host's effective package set, which is whatever the applicable deployments work out to. Each package lands in the Munki key its deployment chose:
 
 - `managed_installs`
 - `managed_uninstalls`
@@ -38,10 +36,10 @@ Manifest rendering starts from effective packages for the host. Deployments can 
 - `optional_installs`
 - `featured_items`
 
-Catalog rendering builds pkginfo items from the effective package set. Package selection can follow the latest eligible package or a pinned package.
+The catalog is built from the same effective set. When more than one version of a package is eligible, selection follows either the latest one or a version pinned in the deployment.
 
 ## Artifacts
 
-Artifacts are stable Woodstar rows. Package and icon artifact routes redirect to object storage when the Munki S3 presigner is configured.
+Artifacts are stable Woodstar rows; the package and icon routes redirect to object storage when the S3 presigner is configured.
 
-If the artifact exists but no storage backend is usable, the protocol route returns `503 Service Unavailable`. If a package artifact is not part of the host's effective package set, the route returns `404`.
+Two failure cases are worth knowing. If the artifact exists but no storage backend can serve it, the route returns `503`. If a package artifact isn't part of this host's effective set, it returns `404`, even if the file is sitting in storage. A Mac only gets the bytes for software it's actually assigned. The storage wiring is in [Munki Storage](../configuration/storage).

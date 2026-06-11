@@ -1,34 +1,34 @@
 ---
 sidebar_position: 2
 title: Munki Storage
-description: How Munki artifact storage and redirects are wired.
+description: Where Munki artifacts live and how clients get to them.
 ---
 
 # Munki Storage
 
-Munki package and icon artifacts are represented by database rows. The binary object lives in an S3-compatible storage backend when that backend is configured.
+Munki package and icon artifacts are split in two. The metadata is a row in Postgres; the actual bytes live in S3-compatible object storage. The database always knows about the artifact, but it can only serve the file when storage is configured.
 
-## Admin Flow
+## Getting artifacts in
 
-The admin API supports two artifact paths:
+There are two ways an artifact arrives, both from the admin side:
 
-1. Register metadata for an artifact that already has a stable `location`.
-2. Ask Woodstar for a temporary upload URL, upload to object storage, then attach the artifact to a package.
+1. Register metadata for a file that already sits at a known storage location.
+2. Ask Woodstar for a temporary upload URL, push the file straight to storage, then attach it to a package.
 
-The upload URL path requires a configured storage presigner.
+The upload-URL route needs a storage presigner, so it only works once S3 is set up.
 
-## Client Flow
+## Getting artifacts out
 
-Munki clients do not receive raw object-storage keys in pkginfo. Woodstar renders stable artifact URLs in manifest/catalog output and handles client requests through:
+Munki clients never see raw storage keys. The manifests and catalogs Woodstar renders point at stable Woodstar URLs, and the client fetches through:
 
 - `/munki/pkgs/*`
 - `/munki/icons/*`
 
-Those routes authorize the client, resolve its host by serial, check whether the package artifact applies to the host, and redirect to a presigned object-storage URL.
+Each request is authenticated, the host is resolved by its serial, Woodstar checks the artifact actually applies to that host, and then it redirects to a presigned storage URL. A host only gets bytes for software it's assigned (see [Munki Repository](../agent-protocols/munki-repository)).
 
 ## Local Garage
 
-The local compose stack uses Garage with path-style S3 access:
+The checked-in compose stack runs [Garage](https://garagehq.deuxfleurs.fr/) as a local S3 backend, with path-style addressing:
 
 ```bash
 WOODSTAR_MUNKI_S3_ENDPOINT=http://garage:3900
@@ -36,4 +36,4 @@ WOODSTAR_MUNKI_S3_PUBLIC_ENDPOINT=http://127.0.0.1:3900
 WOODSTAR_MUNKI_S3_PATH_STYLE=true
 ```
 
-That is enough for local upload and redirect testing. Real deployments need storage credentials and endpoint behavior chosen by the operator.
+That's enough to exercise upload and redirect locally. A real deployment brings its own bucket, credentials, and endpoints; the full set of settings is in [Environment](./environment#munki-s3-storage).

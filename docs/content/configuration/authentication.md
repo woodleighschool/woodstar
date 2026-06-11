@@ -1,46 +1,39 @@
 ---
 sidebar_position: 3
 title: Authentication
-description: Local users, sessions, OIDC gating, API keys, and agent secrets.
+description: Admin sign-in, first setup, OIDC, API keys, and how agent secrets differ.
 ---
 
 # Authentication
 
-Woodstar has two separate authentication areas: admin users and agent protocols.
+There are two separate worlds of authentication in Woodstar, and it helps not to mix them up. People sign in to the admin app. Macs authenticate to the agent protocols. They don't share credentials.
 
-## Admin Sessions
+## Admin sessions
 
-Admin users are local Woodstar accounts stored in Postgres. The server uses `scs` with the pgx session store. The browser cookie is named:
+Admin users are local Woodstar accounts in Postgres. Sign-in creates a server-side session, and the browser carries a cookie:
 
 ```text
 woodstar_session
 ```
 
-The cookie is marked secure when `WOODSTAR_PUBLIC_URL` uses `https`.
+The cookie is marked secure when `WOODSTAR_PUBLIC_URL` is `https`.
 
-## First Setup
+## First setup
 
-The first account is created through `/api/setup`. After setup, normal session routes handle login, logout, and session inspection:
+The very first account is created through the setup flow, which the app walks you through on a fresh install: start the backend, open it in a browser, and create the first local admin. After that, the normal login, logout, and session endpoints take over.
 
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/session`
-
-Account routes expose the signed-in user's account state and API key management:
-
-- `GET /api/account`
-- `PUT /api/account`
-- `POST /api/account/api-key`
-- `DELETE /api/account/api-key`
+OIDC doesn't replace this first local account. You always have a local admin to fall back on.
 
 ## OIDC
 
-OIDC is capability-gated. It is enabled only when issuer URL, client ID, and client secret are all configured. The service discovers the provider at startup. If discovery fails, SSO stays disabled and local auth continues.
+OIDC is optional and switches on only when the issuer URL, client ID, and client secret are all configured. Woodstar discovers the provider at startup; if that fails, SSO stays off for the boot and local sign-in carries on.
 
-The configured email claim becomes the local user identity used by Woodstar.
+The configured email claim becomes the user's identity in Woodstar. The settings are in [Environment](./environment#oidc).
 
-## Agent Secrets
+## API keys
 
-Agent secrets are not browser sessions and not API keys. They are shared credentials accepted by Orbit/osquery enrollment, Santa sync, and Munki repository access.
+Each account can hold an API key for scripting against the admin API without a browser session. It's the same permissions as the account it belongs to. [AutoPkg](../autopkg/overview) uses an API key to push packages in.
 
-Admin routes for agent secrets are protected by admin middleware.
+## Agent secrets
+
+Agent secrets are a different thing entirely. They aren't sessions and they aren't API keys: they're the shared credentials the Mac clients use to enroll and sync. Managing them is admin-only, and they get their own page in [Agent Secrets](../concepts/agent-secrets).

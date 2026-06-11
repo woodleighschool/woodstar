@@ -1,91 +1,85 @@
+/* Theme tokens synced with the web admin app (web/src/index.css):
+   the Moonah green, the warm beige/grey backgrounds, and the warm-grey text. */
+
 :root {
-  --ifm-color-primary: #225241;
-  --ifm-color-primary-dark: #1d4637;
-  --ifm-color-primary-darker: #193d30;
-  --ifm-color-primary-darkest: #123026;
-  --ifm-color-primary-light: #2a614d;
-  --ifm-color-primary-lighter: #337259;
-  --ifm-color-primary-lightest: #418765;
+  --woodleigh-moonah: #225241;
+  --woodleigh-light-grey: #e9e3dc;
 
-  --ifm-background-color: #fbfcf8;
-  --ifm-background-surface-color: #ffffff;
-  --ifm-navbar-background-color: #fbfcf8;
-  --ifm-footer-background-color: #f3f5ee;
+  --ifm-color-primary: var(--woodleigh-moonah);
+  --ifm-color-primary-dark: #1e4a3a;
+  --ifm-color-primary-darker: #1c4536;
+  --ifm-color-primary-darkest: #16372b;
+  --ifm-color-primary-light: #285c49;
+  --ifm-color-primary-lighter: #2d6650;
+  --ifm-color-primary-lightest: #34735a;
 
-  --ifm-color-content: #1c1f1d;
-  --ifm-color-content-secondary: #636d66;
-  --ifm-heading-color: #171a18;
-  --ifm-link-color: #225241;
-  --ifm-link-hover-color: #1d4637;
+  --ifm-background-color: var(--woodleigh-light-grey);
+  --ifm-background-surface-color: oklch(0.985 0.005 82);
 
-  --ifm-toc-border-color: #dde4d9;
-  --ifm-hr-border-color: #dde4d9;
-  --ifm-hover-overlay: rgba(34, 82, 65, 0.07);
+  --ifm-color-content: oklch(0.25 0.006 80);
+  --ifm-color-content-secondary: oklch(0.48 0.008 80);
+  --ifm-heading-color: oklch(0.22 0.006 80);
 
-  --ifm-code-font-size: 94%;
-  --ifm-code-background: #edf3ea;
-  --ifm-code-border-radius: 0.35rem;
-  --prism-background-color: #f5f7f3;
-  --docusaurus-highlighted-code-line-bg: rgba(34, 82, 65, 0.12);
+  --ifm-color-emphasis-300: oklch(0.82 0.009 82);
+  --ifm-toc-border-color: oklch(0.82 0.009 82);
+  --ifm-hr-border-color: oklch(0.82 0.009 82);
+  --ifm-table-border-color: oklch(0.82 0.009 82);
 
-  --ifm-card-background-color: #ffffff;
-  --ifm-card-border-radius: 0.5rem;
-  --ifm-global-radius: 0.5rem;
-  --ifm-button-border-radius: 0.45rem;
-  --ifm-alert-border-radius: 0.5rem;
+  --ifm-hover-overlay: color-mix(in oklch, var(--ifm-color-primary) 8%, transparent);
+  --ifm-menu-color-background-active: var(--ifm-hover-overlay);
+  --ifm-menu-color-background-hover: var(--ifm-hover-overlay);
 
-  --ifm-color-info: #225241;
-  --ifm-color-success: #3c784c;
-  --ifm-color-warning: #936b10;
-  --ifm-color-danger: #b4483e;
+  --ifm-code-background: oklch(0.925 0.009 82);
+  --docusaurus-highlighted-code-line-bg: color-mix(in oklch, var(--ifm-color-primary) 12%, transparent);
 
-  --ifm-font-family-base: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --ifm-font-family-monospace: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  --ifm-heading-font-family: var(--ifm-font-family-base);
+  --ifm-color-info: var(--woodleigh-moonah);
+  --ifm-color-success: oklch(0.605 0.123 150.2);
+  --ifm-color-warning: oklch(0.772 0.146 59.7);
+  --ifm-color-danger: oklch(0.655 0.182 35.1);
+
+  --ifm-global-radius: 0.625rem;
+  --ifm-font-family-base:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --ifm-font-family-monospace:
+    ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 [data-theme="dark"] {
-  --ifm-color-primary: #b9d8c7;
-  --ifm-color-primary-dark: #9fc8b4;
-  --ifm-color-primary-darker: #89bca4;
-  --ifm-color-primary-darkest: #6da98e;
-  --ifm-color-primary-light: #d0e4d8;
-  --ifm-color-primary-lighter: #e2efe7;
-  --ifm-color-primary-lightest: #f0f7f2;
+  --ifm-color-primary: #8fc3a9;
+  --ifm-color-primary-dark: #79b698;
+  --ifm-color-primary-darker: #6aae8c;
+  --ifm-color-primary-darkest: #57a07c;
+  --ifm-color-primary-light: #a3cfb8;
+  --ifm-color-primary-lighter: #b8dbc7;
+  --ifm-color-primary-lightest: #cde7d8;
 
-  --ifm-background-color: #171a18;
-  --ifm-background-surface-color: #20251f;
-  --ifm-navbar-background-color: #171a18;
-  --ifm-footer-background-color: #111412;
+  --ifm-background-color: oklch(0.2 0.006 80);
+  --ifm-background-surface-color: oklch(0.245 0.006 80);
 
-  --ifm-color-content: #eef2ee;
-  --ifm-color-content-secondary: #a8b2ab;
-  --ifm-heading-color: #f5f8f5;
-  --ifm-link-color: #c8dfd1;
-  --ifm-link-hover-color: #f5f8f5;
+  --ifm-color-content: oklch(0.94 0.006 82);
+  --ifm-color-content-secondary: oklch(0.72 0.006 82);
+  --ifm-heading-color: oklch(0.97 0.006 82);
 
-  --ifm-toc-border-color: #344036;
-  --ifm-hr-border-color: #344036;
-  --ifm-hover-overlay: rgba(185, 216, 199, 0.08);
+  --ifm-color-emphasis-300: oklch(1 0 0 / 0.12);
+  --ifm-toc-border-color: oklch(1 0 0 / 0.08);
+  --ifm-hr-border-color: oklch(1 0 0 / 0.08);
+  --ifm-table-border-color: oklch(1 0 0 / 0.08);
 
-  --ifm-code-background: #263027;
-  --prism-background-color: #1f241f;
-  --docusaurus-highlighted-code-line-bg: rgba(185, 216, 199, 0.14);
+  --ifm-hover-overlay: color-mix(in oklch, var(--ifm-color-primary) 12%, transparent);
 
-  --ifm-card-background-color: #20251f;
-  --ifm-color-info: #b9d8c7;
-  --ifm-color-success: #8dc79e;
-  --ifm-color-warning: #d7b85a;
-  --ifm-color-danger: #df8f83;
+  --ifm-code-background: oklch(0.295 0.006 80);
+
+  --ifm-color-info: #8fc3a9;
+  --ifm-color-success: oklch(0.74 0.12 150);
+  --ifm-color-warning: oklch(0.8 0.145 68);
+  --ifm-color-danger: oklch(0.7 0.18 35);
 }
 
+/* Flat chrome to match the app: a hairline instead of Infima's drop shadow. */
 .navbar {
-  border-bottom: 1px solid var(--ifm-toc-border-color);
   box-shadow: none;
-}
-
-.navbar__title {
-  font-weight: 700;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
 }
 
 .footer {
@@ -93,81 +87,44 @@
 }
 
 .footer--dark {
-  --ifm-footer-background-color: #111412;
+  --ifm-footer-background-color: oklch(0.16 0.006 80);
 }
 
-.menu__link {
-  border-radius: 0.35rem;
-}
-
-.menu__link--active:not(.menu__link--sublist),
-.menu__link:hover {
-  background: var(--ifm-hover-overlay);
-}
-
-.table-of-contents__link {
-  color: var(--ifm-color-content-secondary);
-}
-
+/* Prose keeps a readable line length; the API pages use the openapi
+   two-column layout and need the full width. */
 .theme-doc-markdown {
   max-width: 74ch;
 }
 
-.theme-doc-markdown h1 {
-  font-size: 2.15rem;
+.theme-doc-markdown:has(.theme-api-markdown) {
+  max-width: none;
 }
 
-.theme-doc-markdown h2 {
-  margin-top: 2.1rem;
-}
-
-.theme-doc-markdown p,
-.theme-doc-markdown li {
-  line-height: 1.68;
-}
-
+/* Wide reference tables scroll instead of overflowing. */
 .theme-doc-markdown table {
   display: block;
   width: 100%;
   overflow-x: auto;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.theme-doc-markdown th {
-  background: var(--ifm-background-surface-color);
 }
 
 .theme-doc-markdown td,
 .theme-doc-markdown th {
-  border-color: var(--ifm-toc-border-color);
   vertical-align: top;
 }
 
+/* Code blocks and inline code get a hairline so they read on the warm background. */
 pre {
   border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 0.5rem;
 }
 
 code {
-  border: 1px solid color-mix(in srgb, var(--ifm-code-background), var(--ifm-color-content) 10%);
+  border: 1px solid color-mix(in oklch, var(--ifm-code-background), var(--ifm-color-content) 12%);
 }
 
 pre code {
   border: 0;
 }
 
-[class*="theme-admonition"] {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-left-width: 4px;
-  border-radius: 0.5rem;
-  box-shadow: none;
-}
-
 ::selection {
-  background: rgba(34, 82, 65, 0.22);
-}
-
-[data-theme="dark"] ::selection {
-  background: rgba(185, 216, 199, 0.26);
+  background: color-mix(in oklch, var(--ifm-color-primary) 26%, transparent);
 }
