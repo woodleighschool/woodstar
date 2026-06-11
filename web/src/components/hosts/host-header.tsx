@@ -1,25 +1,21 @@
 import { HostImage } from "@/components/hosts/host-image";
+import { HostStatus } from "@/components/hosts/host-status";
 import type { Host } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
 export function HostHeader({ host }: { host: Host }) {
-  const isOnline = host.status === "online";
-
   return (
     <div className="flex items-center gap-4">
-      <div className="relative shrink-0">
+      <div className="shrink-0">
         <HostImage hardwareModel={host.hardware.model_identifier} />
-        {isOnline ? (
-          <span
-            title="Online"
-            className="bg-status-online ring-background absolute top-2 right-2 size-2.5 rounded-full ring-2"
-          />
-        ) : null}
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-foreground truncate text-xl font-semibold" title={host.display_name}>
-          {host.display_name}
-        </h1>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h1 className="text-foreground min-w-0 truncate text-xl font-semibold" title={host.display_name}>
+            {host.display_name}
+          </h1>
+          <HostStatus status={host.status} />
+        </div>
         <p className="text-muted-foreground text-xs">
           {host.timestamps.inventory_updated_at ? (
             <span title={new Date(host.timestamps.inventory_updated_at).toLocaleString()}>

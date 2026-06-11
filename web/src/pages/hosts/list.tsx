@@ -13,12 +13,12 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { FilterChip } from "@/components/filter-controls";
+import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Status, StatusIndicator, StatusLabel } from "@/components/ui/status";
 import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -195,7 +195,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.status,
     header: () => "Status",
     enableSorting: false,
-    cell: ({ row }) => <HostStatus host={row.original} />,
+    cell: ({ row }) => <HostStatus status={row.original.status} />,
     meta: { label: "Status", variant: "select", options: STATUS_OPTIONS },
     enableColumnFilter: true,
   },
@@ -326,16 +326,6 @@ function HostsActionBar({ table }: { table: TanStackTable<Host> }) {
         onConfirm={onConfirm}
       />
     </div>
-  );
-}
-
-function HostStatus({ host }: { host: Host }) {
-  const online = host.status === "online";
-  return (
-    <Status variant={online ? "success" : "default"}>
-      <StatusIndicator />
-      <StatusLabel>{online ? "Online" : "Offline"}</StatusLabel>
-    </Status>
   );
 }
 
