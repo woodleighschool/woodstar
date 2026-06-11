@@ -54,10 +54,9 @@ func (p Page[T]) MarshalJSON() ([]byte, error) {
 }
 
 // ListQueryInput is the shared query contract for paginated list endpoints. It
-// carries the nuqs/TanStack Table state as snake_case query params to match the
-// rest of the API: 1-based `page`, `per_page`, and a `sort` JSON array of
-// {id, desc}. Per-resource filters are added as their own query fields, keyed by
-// column id.
+// carries optional `q`, 1-based `page`, `per_page`, and a single `sort` token
+// such as `name.asc` or `last_seen_at.desc`. Per-resource filters are added as
+// their own query fields, keyed by column ID.
 type ListQueryInput struct {
 	Q       string `query:"q,omitempty"`
 	Page    int    `query:"page,omitempty"     minimum:"1"`

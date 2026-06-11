@@ -308,10 +308,13 @@ function SelectorTable<TData>({
     getRowId: (row) => getRowId(row),
     manualPagination: true,
     manualSorting: true,
+    enableMultiSort: false,
     pageCount: Math.max(1, Math.ceil(totalCount / controls.pagination.pageSize)),
     state: { pagination: controls.pagination, sorting: controls.sorting },
     onPaginationChange: controls.setPagination,
-    onSortingChange: controls.setSorting,
+    onSortingChange: (updater) => {
+      controls.setSorting((prev) => singleSort(typeof updater === "function" ? updater(prev) : updater));
+    },
   });
 
   const selectedSet = new Set(selectedRowIds);
@@ -443,4 +446,8 @@ function SelectorTable<TData>({
 function sortParam(sorting: SortingState) {
   if (sorting.length === 0) return undefined;
   return encodeSort(sorting[0].id, sorting[0].desc);
+}
+
+function singleSort(sorting: SortingState): SortingState {
+  return sorting.length > 0 ? [sorting[0]] : [];
 }

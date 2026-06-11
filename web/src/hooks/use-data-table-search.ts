@@ -1,16 +1,15 @@
 import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import * as React from "react";
 
-import { getSortingStateParser } from "@/lib/parsers";
+import { getSortingStateParser, serializeSortingState } from "@/lib/parsers";
 
 export const DEFAULT_PAGE_SIZE = 50;
 // Upper bound for "fetch everything" reads (pickers, reorder, label maps).
 export const MAX_PAGE_SIZE = 1000;
 
-// Encodes a single-column sort in the backend wire format (a JSON array of
-// {id, desc}). Use for fetch-all/default sorts that aren't driven by the table.
+// Encodes a single-column sort in the backend wire format.
 export function encodeSort(id: string, desc = false): string {
-  return JSON.stringify([{ id, desc }]);
+  return serializeSortingState([{ id, desc }]);
 }
 
 export interface DataTableFilterKey {
@@ -34,8 +33,7 @@ const baseParsers = {
   q: parseAsString,
   page: parseAsInteger.withDefault(1),
   per_page: parseAsInteger.withDefault(DEFAULT_PAGE_SIZE),
-  // Same parser useDataTable writes with, so the `sort` key has one owner (no
-  // nuqs parser conflict); serialized back to JSON for the backend below.
+  // Same parser useDataTable writes with, so the `sort` key has one owner.
   sort: getSortingStateParser().withDefault([]),
 };
 
@@ -61,7 +59,7 @@ export function useDataTableSearch(filterKeys: readonly DataTableFilterKey[] = [
     q: base.q ?? undefined,
     page: base.page,
     per_page: base.per_page,
-    sort: base.sort.length > 0 ? JSON.stringify(base.sort) : undefined,
+    sort: base.sort.length > 0 ? serializeSortingState(base.sort) : undefined,
     filters,
   };
 }

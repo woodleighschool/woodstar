@@ -1,7 +1,6 @@
 package dbutil
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -88,25 +87,22 @@ func (q ListQuery) baseParts() []string {
 	return parts
 }
 
-// OrderBy builds a multi-column ORDER BY from the requested sort columns,
-// appending DefaultOrder columns (ascending) that the request did not already
-// pin. Sort is the nuqs/TanStack Table wire format: a JSON array of {id, desc}.
+// OrderBy builds an ORDER BY from the requested sort column, appending
+// DefaultOrder columns (ascending) that the request did not already pin. Sort is
+// a column token with an optional .asc/.desc suffix.
 func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
-	cols, err := parseSortColumns(params.Sort)
+	col, hasSort, err := parseSortColumn(params.Sort)
 	if err != nil {
 		return "", err
 	}
 
-	parts := make([]string, 0, len(cols)+len(defaultOrder))
-	used := make([]string, 0, len(cols)+len(defaultOrder))
+	parts := make([]string, 0, 1+len(defaultOrder))
+	used := make([]string, 0, 1+len(defaultOrder))
 
-	for _, col := range cols {
+	if hasSort {
 		expr, ok := orderKeys[col.ID]
 		if !ok {
 			return "", fmt.Errorf("%w: unknown sort key %q", ErrInvalidInput, col.ID)
-		}
-		if slices.Contains(used, expr.SQL) {
-			continue
 		}
 		used = append(used, expr.SQL)
 		parts = append(parts, orderPart(expr, col.Desc))
@@ -127,25 +123,38 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 }
 
 type sortColumn struct {
-	ID   string `json:"id"`
-	Desc bool   `json:"desc"`
+	ID   string
+	Desc bool
 }
 
-func parseSortColumns(sort string) ([]sortColumn, error) {
+func parseSortColumn(sort string) (sortColumn, bool, error) {
 	trimmed := strings.TrimSpace(sort)
 	if trimmed == "" {
-		return nil, nil
+		return sortColumn{}, false, nil
 	}
-	var cols []sortColumn
-	if err := json.Unmarshal([]byte(trimmed), &cols); err != nil {
-		return nil, fmt.Errorf("%w: invalid sort %q", ErrInvalidInput, sort)
+	if strings.Contains(trimmed, ",") {
+		return sortColumn{}, false, fmt.Errorf("%w: multi-column sort is not supported", ErrInvalidInput)
 	}
-	for _, col := range cols {
-		if col.ID == "" {
-			return nil, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
+	dot := strings.LastIndex(trimmed, ".")
+	if dot == -1 {
+		return sortColumn{ID: trimmed}, true, nil
+	}
+
+	key, direction := trimmed[:dot], trimmed[dot+1:]
+	switch direction {
+	case "asc":
+		if key == "" {
+			return sortColumn{}, false, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
 		}
+		return sortColumn{ID: key}, true, nil
+	case "desc":
+		if key == "" {
+			return sortColumn{}, false, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
+		}
+		return sortColumn{ID: key, Desc: true}, true, nil
+	default:
+		return sortColumn{ID: trimmed}, true, nil
 	}
-	return cols, nil
 }
 
 func orderPart(expr OrderExpr, desc bool) string {

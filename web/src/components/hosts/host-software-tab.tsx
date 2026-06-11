@@ -137,11 +137,12 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
+    enableMultiSort: false,
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
     state: { pagination, sorting, columnFilters },
     onPaginationChange: setPagination,
     onSortingChange: (updater) => {
-      setSorting(updater);
+      setSorting((prev) => singleSort(typeof updater === "function" ? updater(prev) : updater));
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     },
     onColumnFiltersChange: (updater) => {
@@ -173,6 +174,10 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       </div>
     </DataTable>
   );
+}
+
+function singleSort(sorting: SortingState): SortingState {
+  return sorting.length > 0 ? [sorting[0]] : [];
 }
 
 interface InstalledPath {

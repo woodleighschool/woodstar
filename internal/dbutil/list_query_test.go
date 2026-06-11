@@ -10,7 +10,7 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 	params := CleanListParams(ListParams{
 		PageIndex: 1,
 		PageSize:  25,
-		Sort:      `[{"id":"last_seen_at","desc":true}]`,
+		Sort:      "last_seen_at.desc",
 	})
 
 	query, args, err := ListQuery{
@@ -44,7 +44,7 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{Sort: `[{"id":"orbit_node_key"}]`}),
+		Params: CleanListParams(ListParams{Sort: "orbit_node_key"}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
@@ -60,7 +60,7 @@ func TestListQueryRejectsMalformedSort(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{Sort: "display_name.asc"}),
+		Params: CleanListParams(ListParams{Sort: ".asc"}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
@@ -73,7 +73,7 @@ func TestListQueryNestedSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"hardware.serial": {SQL: "lower(hardware_serial)"},
 		},
-		Params: CleanListParams(ListParams{Sort: `[{"id":"hardware.serial","desc":true}]`}),
+		Params: CleanListParams(ListParams{Sort: "hardware.serial.desc"}),
 	}.Build()
 	if err != nil {
 		t.Fatalf("Build returned error: %v", err)
@@ -83,8 +83,8 @@ func TestListQueryNestedSortKey(t *testing.T) {
 	}
 }
 
-func TestListQueryMultiColumnSort(t *testing.T) {
-	query, _, err := ListQuery{
+func TestListQueryRejectsMultiColumnSort(t *testing.T) {
+	_, _, err := ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
@@ -92,14 +92,14 @@ func TestListQueryMultiColumnSort(t *testing.T) {
 		},
 		DefaultOrder: []OrderExpr{{SQL: "id"}},
 		Params: CleanListParams(ListParams{
-			Sort: `[{"id":"last_seen_at","desc":true},{"id":"display_name","desc":false}]`,
+			Sort: "last_seen_at.desc,display_name.asc",
 		}),
 	}.Build()
-	if err != nil {
-		t.Fatalf("Build returned error: %v", err)
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("err = %v, want ErrInvalidInput", err)
 	}
-	if !strings.Contains(query, "ORDER BY last_seen_at DESC NULLS LAST, lower(display_name) ASC, id ASC") {
-		t.Fatalf("query = %s", query)
+	if !strings.Contains(err.Error(), "multi-column sort") {
+		t.Fatalf("err = %v, want multi-column sort", err)
 	}
 }
 
