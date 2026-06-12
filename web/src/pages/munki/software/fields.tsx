@@ -1,5 +1,4 @@
 import { useForm } from "@tanstack/react-form";
-import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import { z } from "zod";
 
@@ -7,11 +6,9 @@ import { FormField } from "@/components/form-field";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { SubmitButton } from "@/components/submit-button";
-import { Button } from "@/components/ui/button";
-import { FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldDescription, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { MunkiSoftwareDetail } from "@/hooks/use-munki-software";
 import type { SoftwareInclude } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
@@ -81,6 +78,9 @@ export function MunkiSoftwareOptionsFields({
 }) {
   return (
     <FieldGroup className="max-w-3xl">
+      <FieldDescription>
+        These fields are visible to users in Managed Software Center.
+      </FieldDescription>
       <div className="flex items-start gap-4">
         <EditableMunkiIcon
           title="software icon"
@@ -110,23 +110,7 @@ export function MunkiSoftwareOptionsFields({
       </div>
       <form.Field name="description">
         {(field) => (
-          <FormField
-            field={field}
-            htmlFor="munki-software-description"
-            label={
-              <>
-                Description
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" type="button">
-                      <Info className="size-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Description is shown in Managed Software Center.</TooltipContent>
-                </Tooltip>
-              </>
-            }
-          >
+          <FormField field={field} htmlFor="munki-software-description" label="Description">
             {(control) => (
               <Textarea
                 {...control}
@@ -257,9 +241,17 @@ export function targetPackageFromValue(value: string): SoftwareInclude["package"
 
 function validateTarget(value: MunkiSoftwareTargetMutation, ctx: z.RefinementCtx) {
   if (value.package.strategy === "latest" && value.package.package_id !== undefined) {
-    ctx.addIssue({ code: "custom", message: "Latest must not pin a package.", path: ["package"] });
+    ctx.addIssue({
+      code: "custom",
+      message: "Latest must not pin a package.",
+      path: ["package"],
+    });
   }
   if (value.package.strategy === "specific" && !value.package.package_id) {
-    ctx.addIssue({ code: "custom", message: "Package is required.", path: ["package"] });
+    ctx.addIssue({
+      code: "custom",
+      message: "Package is required.",
+      path: ["package"],
+    });
   }
 }
