@@ -1,0 +1,26 @@
+{
+  "ignorePatterns": ["build/**", ".docusaurus/**", ".cache-loader/**", "pnpm-lock.yaml", "content/api/**"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "plugins": ["typescript", "oxc", "unicorn", "import", "promise"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-explicit-any": "warn",
+    "typescript/consistent-type-imports": ["warn", { "fixStyle": "separate-type-imports" }]
+  }
+}

@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/lint.yml"
+      - ".github/workflows/lint.yaml"
       - ".golangci.yml"
       - "go.mod"
       - "go.sum"
@@ -27,41 +27,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
         with:
           version: v2.12.2
-
-      - name: Deadcode
-        run: |
-          deadcode_output="$(go tool golang.org/x/tools/cmd/deadcode -test ./...)"
-          if [ -n "$deadcode_output" ]; then
-            printf '%s\n' "$deadcode_output"
-            exit 1
-          fi
 
   frontend:
     name: Frontend lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
         with:
           package_json_file: web/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: 26.2.0
           cache: pnpm

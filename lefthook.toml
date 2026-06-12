@@ -1,0 +1,31 @@
+[pre-commit]
+parallel = true
+skip = ["merge", "rebase"]
+
+[pre-commit.commands.format-go]
+glob = ["*.go"]
+run = "gofmt -s -w {staged_files}"
+stage_fixed = true
+
+[pre-commit.commands.format-mise]
+glob = [".mise.toml", "web/.mise.toml", "docs/.mise.toml"]
+run = "mise fmt && mise fmt -C web && mise fmt -C docs"
+stage_fixed = true
+
+[pre-commit.commands.format-web]
+glob = ["web/**/*.{ts,tsx,js,jsx,css,json}", "web/*.{js,ts,json}"]
+run = "oxfmt {staged_files}"
+stage_fixed = true
+
+[pre-commit.commands.format-docs]
+glob = ["docs/**/*.{md,mdx,ts,tsx,css,json}", "docs/*.{ts,json,md}"]
+run = "oxfmt {staged_files}"
+stage_fixed = true
+
+[pre-commit.commands.mise-lock]
+glob = [".mise.toml"]
+run = "mise lock && git add mise.lock"
+
+[pre-commit.commands.zizmor]
+glob = [".github/workflows/*.{yaml,yml}", ".github/actions/**/action.{yaml,yml}"]
+run = "zizmor --offline {staged_files}"

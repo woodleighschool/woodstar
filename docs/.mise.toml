@@ -1,0 +1,43 @@
+[tasks.deps]
+description = "Install docs dependencies"
+run = "pnpm install"
+
+[tasks.gen-api-docs]
+description = "Generate docs API reference"
+run = "pnpm run gen-api-docs"
+
+[tasks.clean-api-docs]
+description = "Clean generated docs API reference"
+run = "pnpm run clean-api-docs"
+
+[tasks.dev]
+description = "Run docs development server"
+run = "pnpm run dev"
+
+[tasks.build]
+description = "Build docs site"
+run = "pnpm run build"
+
+[tasks.serve]
+description = "Serve the built docs site"
+run = "pnpm run serve"
+
+[tasks.typecheck]
+description = "Typecheck docs site"
+run = "pnpm run typecheck"
+
+[tasks.format]
+description = "Format authored docs files"
+run = "pnpm run format"
+
+[tasks.lint]
+description = "Run docs lint and typecheck"
+run = "pnpm run lint"
+
+[tasks.check]
+description = "Run docs lint and build"
+run = "pnpm run check"
+
+[tasks.clean]
+description = "Remove docs build output"
+run = "rm -rf build .docusaurus .cache-loader"

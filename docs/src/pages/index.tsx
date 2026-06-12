@@ -60,7 +60,7 @@ export default function Home(): ReactNode {
     <Layout title="Woodstar documentation" description="Self-hosted macOS management: Munki, Santa, and osquery.">
       <main className={styles.main}>
         <section className={styles.intro}>
-          <img src="/img/woodstar.svg" className={styles.logo} />
+          <img src="/img/woodstar.svg" className={styles.logo} alt="Woodstar" />
           <div>
             <p className={styles.kicker}>Woodstar docs</p>
             <h1>Self-hosted macOS management: Munki, Santa, and osquery.</h1>

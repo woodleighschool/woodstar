@@ -17,7 +17,8 @@
           const storedTheme = window.localStorage.getItem("theme");
           const isDark =
             storedTheme === "dark" ||
-            ((storedTheme === null || storedTheme === "system" || storedTheme === "auto") && media.matches);
+            ((storedTheme === null || storedTheme === "system" || storedTheme === "auto") &&
+              media.matches);
 
           if (isDark) {
             root.classList.add("dark");

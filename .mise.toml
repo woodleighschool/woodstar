@@ -1,24 +1,38 @@
+experimental_monorepo_root = true
+
 [tools]
-go = "1.26.3"
-node = "26.2.0"
-pnpm = "11.5.0"
+go = "1.26.4"
+node = "26.3.0"
+pnpm = "11.5.3"
 golangci-lint = "2.12.2"
 air = "1.65.3"
+lefthook = "2.1.9"
+zizmor = "1.25.2"
+oxfmt = "0.54.0"
+oxlint = "1.69.0"
 
 [settings]
+experimental = true
 pin = true
 lockfile = true
 
+[monorepo]
+config_roots = ["web", "docs"]
+
+[hooks]
+postinstall = "lefthook install"
+
 [tasks.deps]
-description = "Install Go and frontend dependencies"
+description = "Install backend, web, and docs dependencies"
 run = """
 go mod download
-cd web && pnpm install
+mise //web:deps
+mise //docs:deps
 """
 
 [tasks.dev]
-description = "Run backend and frontend development servers"
-depends = ["dev-backend", "dev-frontend"]
+description = "Run backend and web development servers"
+run = "mise run dev-backend ::: //web:dev"
 
 [tasks.dev-backend]
 description = "Run backend development server"
@@ -29,22 +43,16 @@ set +a
 air -c .air.toml
 """
 
-[tasks.dev-frontend]
-description = "Run frontend development server"
-run = "cd web && pnpm dev"
-
 [tasks.build]
-description = "Build frontend and backend"
-depends = ["frontend"]
-run = "go build -o woodstar ./cmd/woodstar"
+description = "Build web bundle and backend binary"
+run = """
+mise //web:build
+go build -o woodstar ./cmd/woodstar
+"""
 
 [tasks.backend]
 description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
-
-[tasks.frontend]
-description = "Build frontend bundle"
-run = "cd web && pnpm install && pnpm build"
 
 [tasks.test]
 description = "Run fast Go suite"
@@ -69,10 +77,10 @@ description = "Generate OpenAPI schema"
 run = "go run ./cmd/woodstar openapi --output web/openapi.yaml"
 
 [tasks.openapi-types]
-description = "Generate OpenAPI schema and frontend types"
+description = "Generate OpenAPI schema and web types"
 run = """
 mise run openapi
-cd web && pnpm openapi:types
+mise run //web:openapi-types
 """
 
 [tasks.test-openapi]
@@ -102,38 +110,31 @@ mise run openapi-types
 
 [tasks.backend-lint]
 description = "Run backend linters"
-run = """
-golangci-lint run
-deadcode_output="$(go tool golang.org/x/tools/cmd/deadcode -test ./...)"
-if [ -n "$deadcode_output" ]; then
-  printf '%s\n' "$deadcode_output"
-  exit 1
-fi
-"""
-
-[tasks.frontend-lint]
-description = "Run frontend lint and typecheck"
-run = "cd web && pnpm run lint"
+run = "golangci-lint run"
 
 [tasks.lint]
-description = "Run backend and frontend linters"
-depends = ["backend-lint", "frontend-lint"]
+description = "Run backend, web, and docs linters"
+run = """
+mise run backend-lint
+mise //web:lint
+mise //docs:lint
+"""
 
 [tasks.backend-format]
 description = "Format backend code"
 run = "golangci-lint fmt"
 
-[tasks.frontend-format]
-description = "Format frontend code"
-run = "cd web && pnpm run format"
-
 [tasks.format]
-description = "Format backend and frontend code"
-depends = ["frontend-format", "backend-format"]
+description = "Format backend, web, and docs code"
+run = """
+mise run backend-format
+mise //web:format
+mise //docs:format
+"""
 
 [tasks.fmt]
 description = "Alias for format"
-depends = ["format"]
+run = "mise run format"
 
 [tasks.precommit]
 description = "Run the full local gate"
@@ -146,7 +147,7 @@ mise run test-openapi
 
 [tasks.clean]
 description = "Remove local build outputs"
-run = "rm -rf woodstar build tmp web/dist"
+run = "rm -rf woodstar build tmp web/dist docs/build docs/.docusaurus docs/.cache-loader"
 
 [tasks.schema-sync]
 description = "Refresh the osquery schema snapshot"

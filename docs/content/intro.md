@@ -24,12 +24,12 @@ So Intune owns the device. Woodstar owns the software, the execution policy, and
 
 A Mac talks to Woodstar through four clients. Two of them get the machine on board and keep its record current; the other two attach to a machine that already exists.
 
-| Agent | Does |
-| --- | --- |
-| Orbit | Enrolls the Mac and reports back the basics. Compatible with the Fleet Orbit client. |
-| osquery | Runs the queries behind inventory, reports, checks, and live queries. |
-| Santa | Enforces which binaries can run and reports execution events. |
-| Munki | Installs, updates, and removes managed software. |
+| Agent   | Does                                                                                 |
+| ------- | ------------------------------------------------------------------------------------ |
+| Orbit   | Enrolls the Mac and reports back the basics. Compatible with the Fleet Orbit client. |
+| osquery | Runs the queries behind inventory, reports, checks, and live queries.                |
+| Santa   | Enforces which binaries can run and reports execution events.                        |
+| Munki   | Installs, updates, and removes managed software.                                     |
 
 Hosts are the thing everything hangs off. Orbit and osquery create and refresh hosts during enrollment; Santa and Munki look up a host that's already there. Labels are how you group hosts and aim everything else at them.
 

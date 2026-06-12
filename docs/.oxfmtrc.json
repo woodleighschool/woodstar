@@ -1,0 +1,11 @@
+{
+  "printWidth": 120,
+  "ignorePatterns": [
+    "build/**",
+    ".docusaurus/**",
+    ".cache-loader/**",
+    "pnpm-lock.yaml",
+    "content/api/**",
+    "!content/api/_category_.json"
+  ]
+}

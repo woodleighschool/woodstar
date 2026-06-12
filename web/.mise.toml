@@ -1,0 +1,38 @@
+[tasks.deps]
+description = "Install web dependencies"
+run = "pnpm install"
+
+[tasks.dev]
+description = "Run web development server"
+run = "pnpm run dev"
+
+[tasks.build]
+description = "Build web bundle"
+run = """
+pnpm install
+pnpm run build
+"""
+
+[tasks.serve]
+description = "Serve the built web bundle"
+run = "pnpm run preview"
+
+[tasks.lint]
+description = "Run web lint and typecheck"
+run = "pnpm run lint"
+
+[tasks.typecheck]
+description = "Run web typecheck"
+run = "pnpm run typecheck"
+
+[tasks.format]
+description = "Format web code"
+run = "pnpm run format"
+
+[tasks.openapi-types]
+description = "Generate web OpenAPI client types"
+run = "pnpm run openapi:types"
+
+[tasks.clean]
+description = "Remove web build output"
+run = "rm -rf dist"
