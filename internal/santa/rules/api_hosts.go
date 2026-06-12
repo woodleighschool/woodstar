@@ -19,8 +19,9 @@ type hostSantaRulesOutput struct {
 }
 
 type hostSantaRulesInput struct {
-	HostID int64 `path:"id"`
 	apitypes.ListQueryInput
+
+	HostID int64 `path:"id"`
 }
 
 func RegisterHostAdminRoutes(api huma.API, ruleStore *Store, hostStore *hosts.Store) {

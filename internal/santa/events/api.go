@@ -22,6 +22,7 @@ const (
 
 type santaEventListInput struct {
 	apitypes.ListQueryInput
+
 	HostID    int64            `query:"host_id,omitempty"`
 	Decisions []DecisionFilter `query:"decisions,omitempty"`
 	Since     time.Time        `query:"since,omitempty"`
@@ -42,6 +43,7 @@ type santaEventGetOutput struct {
 
 type santaFileAccessEventListInput struct {
 	apitypes.ListQueryInput
+
 	HostID    int64                `query:"host_id,omitempty"`
 	Decisions []FileAccessDecision `query:"decisions,omitempty"`
 	Since     time.Time            `query:"since,omitempty"`

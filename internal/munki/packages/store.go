@@ -47,7 +47,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer tx.Rollback(ctx)
 
 	qtx := s.q.WithTx(tx)
 	row, err := qtx.CreateMunkiPackage(ctx, createMunkiPackageParams(softwareID, params, fields))
@@ -87,7 +87,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer tx.Rollback(ctx)
 
 	qtx := s.q.WithTx(tx)
 	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))

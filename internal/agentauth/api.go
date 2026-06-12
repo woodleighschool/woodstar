@@ -12,7 +12,7 @@ import (
 
 const (
 	agentSecretsTag   = "Agent secrets"
-	agentSecretPath   = "/api/agent-secrets"
+	agentSecretPath   = "/api/agent-secrets" //nolint:gosec // G101: URL path, not a credential
 	agentSecretIDPath = agentSecretPath + "/{id}"
 )
 

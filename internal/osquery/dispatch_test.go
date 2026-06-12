@@ -3,7 +3,6 @@ package osquery
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"testing"
 
@@ -155,5 +154,5 @@ func testHost(id int64) *hosts.Host {
 }
 
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }

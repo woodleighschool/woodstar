@@ -154,6 +154,7 @@ func redirectIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		target += "?" + r.URL.RawQuery
 	}
+	//nolint:gosec // G710: target is always the same-origin root path, only the query string is preserved
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 

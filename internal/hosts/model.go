@@ -145,6 +145,7 @@ type HostTimestamps struct {
 // HostDetail is a host plus its loaded children.
 type HostDetail struct {
 	Host
+
 	Labels       []labels.Label    `json:"labels"`
 	Users        []HostUser        `json:"users"`
 	Batteries    []HostBattery     `json:"batteries"`

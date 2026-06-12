@@ -13,9 +13,10 @@ import (
 // BuiltinKey identifies a built-in label independent of display text.
 type BuiltinKey string
 
-// LabelType marks builtin vs regular labels.
 type (
-	LabelType           string
+	// LabelType marks builtin vs regular labels.
+	LabelType string
+	// LabelMembershipType marks how hosts join a label: dynamic, manual, or derived.
 	LabelMembershipType string
 )
 

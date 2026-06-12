@@ -84,7 +84,7 @@ func (h handler) iconArtifact(w http.ResponseWriter, r *http.Request) {
 func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts.ArtifactKind) {
 	authorized, err := h.authorized(r)
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, "artifact", err)
+		h.log(r, "artifact", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -98,7 +98,7 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts
 		return
 	}
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, "artifact", err)
+		h.log(r, "artifact", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -116,10 +116,11 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts
 		return
 	}
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, "artifact", err)
+		h.log(r, "artifact", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	//nolint:gosec // G710: location is a presigned storage URL from the repository, not user input
 	http.Redirect(w, r, location, http.StatusFound)
 }
 
@@ -131,7 +132,7 @@ func (h handler) writePlist(
 ) {
 	authorized, err := h.authorized(r)
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, operation, err)
+		h.log(r, operation, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -145,7 +146,7 @@ func (h handler) writePlist(
 		return
 	}
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, operation, err)
+		h.log(r, operation, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -155,14 +156,14 @@ func (h handler) writePlist(
 		return
 	}
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, operation, err)
+		h.log(r, operation, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", plistContentType)
 	_, err = w.Write(body)
 	if err != nil {
-		h.log(r, http.StatusInternalServerError, operation, err)
+		h.log(r, operation, err)
 	}
 }
 
@@ -189,7 +190,7 @@ func (h handler) clientHost(r *http.Request) (munki.ClientHost, error) {
 	return h.repository.ResolveClient(r.Context(), serial)
 }
 
-func (h handler) log(r *http.Request, statusCode int, operation string, err error) {
+func (h handler) log(r *http.Request, operation string, err error) {
 	if h.logger == nil {
 		return
 	}
@@ -197,7 +198,7 @@ func (h handler) log(r *http.Request, statusCode int, operation string, err erro
 		r.Context(),
 		"munki protocol request failed",
 		"operation", operation,
-		"status", statusCode,
+		"status", http.StatusInternalServerError,
 		"path", r.URL.Path,
 		"err", err,
 	)

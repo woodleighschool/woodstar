@@ -69,15 +69,8 @@ type liveQuery struct {
 
 // NewManager returns a manager for ephemeral browser-session live runs.
 func NewManager() *Manager {
-	return newManager(orphanCleanupAfter)
-}
-
-func newManager(cleanupAfter time.Duration) *Manager {
-	if cleanupAfter <= 0 {
-		cleanupAfter = orphanCleanupAfter
-	}
 	return &Manager{
-		cleanupAfter: cleanupAfter,
+		cleanupAfter: orphanCleanupAfter,
 		active:       make(map[int64]*liveQuery),
 		completed:    make(map[int64]struct{}),
 		subs:         make(map[int64]map[int64]chan Event),

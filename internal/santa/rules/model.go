@@ -100,6 +100,7 @@ type HostRule struct {
 
 type RuleStatus struct {
 	HostRule
+
 	Applied     bool   `json:"applied"`
 	PayloadHash string `json:"payload_hash"`
 }

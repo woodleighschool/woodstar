@@ -21,12 +21,6 @@ const (
 	munkiArtifactLabel       = "Munki artifact"
 )
 
-type munkiArtifactStorage interface {
-	PresignGet(context.Context, Artifact) (string, error)
-	PresignPut(context.Context, string, string, string) (ArtifactUploadURL, error)
-	Stat(context.Context, string) (ArtifactObject, error)
-}
-
 type munkiArtifactCreateInput struct {
 	Body ArtifactMutation
 }
@@ -84,7 +78,7 @@ type munkiArtifactUpload struct {
 }
 
 // RegisterAdminRoutes registers Munki artifact admin endpoints.
-func RegisterAdminRoutes(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
+func RegisterAdminRoutes(api huma.API, store *Store, artifactStorage ArtifactStorage) {
 	registerListMunkiArtifacts(api, store)
 	registerCreateMunkiArtifact(api, store, artifactStorage)
 	registerCreateMunkiArtifactUpload(api, artifactStorage)
@@ -112,7 +106,7 @@ func registerListMunkiArtifacts(api huma.API, store *Store) {
 	})
 }
 
-func registerCreateMunkiArtifact(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
+func registerCreateMunkiArtifact(api huma.API, store *Store, artifactStorage ArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-artifact",
 		Method:        http.MethodPost,
@@ -140,7 +134,7 @@ func registerCreateMunkiArtifact(api huma.API, store *Store, artifactStorage mun
 	})
 }
 
-func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorage) {
+func registerCreateMunkiArtifactUpload(api huma.API, uploads ArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-artifact-upload",
 		Method:        http.MethodPost,
@@ -200,7 +194,7 @@ func registerGetMunkiArtifact(api huma.API, store *Store) {
 	})
 }
 
-func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
+func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage ArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-artifact-content",
 		Method:      http.MethodGet,
@@ -246,7 +240,7 @@ func registerDeleteMunkiArtifact(api huma.API, store *Store) {
 
 func verifyMunkiArtifactObject(
 	ctx context.Context,
-	artifactStorage munkiArtifactStorage,
+	artifactStorage ArtifactStorage,
 	mutation ArtifactMutation,
 ) error {
 	if artifactStorage == nil {

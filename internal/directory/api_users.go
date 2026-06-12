@@ -31,6 +31,7 @@ type userOutput struct {
 
 type userListInput struct {
 	apitypes.ListQueryInput
+
 	Values  []string `query:"values,omitempty"`
 	Role    string   `query:"role,omitempty"     enum:"admin,viewer,none"`
 	Source  string   `query:"source,omitempty"   enum:"local,entra"`
@@ -39,6 +40,7 @@ type userListInput struct {
 
 type departmentListInput struct {
 	apitypes.ListQueryInput
+
 	Values []string `query:"values,omitempty"`
 }
 
@@ -85,7 +87,6 @@ func (i departmentListInput) params() UserListParams {
 	}
 }
 
-//nolint:dupl // parallel groups/users list handlers over distinct types; route registration stays explicit per resource
 func registerListUsers(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",

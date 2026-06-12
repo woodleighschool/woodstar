@@ -87,7 +87,7 @@ type munkiPkginfoInstallItem struct {
 }
 
 type munkiPkginfoReceipt struct {
-	PackageID string `json:"packageid"` //nolint:misspell
+	PackageID string `json:"packageid"`
 	Version   string `json:"version,omitempty"`
 	Optional  bool   `json:"optional,omitempty"`
 }

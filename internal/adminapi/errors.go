@@ -15,6 +15,7 @@ import (
 // HTTP response, matching the "log and surface" pattern Fleet uses for
 // admin-only APIs.
 func InstallHumaErrorHandler(logger *slog.Logger) {
+	//nolint:reassign // huma's documented hook for customizing error responses; see this func's doc
 	huma.NewErrorWithContext = func(hctx huma.Context, status int, msg string, errs ...error) huma.StatusError {
 		if status >= http.StatusInternalServerError {
 			ctx := context.Background()

@@ -35,10 +35,7 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
-	where, args, err := ruleListWhere(params)
-	if err != nil {
-		return nil, 0, err
-	}
+	where, args := ruleListWhere(params)
 	listQuery := ruleListQuery(params, where, args)
 
 	var count int
@@ -514,7 +511,7 @@ func validateRuleReference(ctx context.Context, tx pgx.Tx, params RuleMutation) 
 	return nil
 }
 
-func ruleListWhere(params RuleListParams) (string, []any, error) {
+func ruleListWhere(params RuleListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -527,8 +524,7 @@ func ruleListWhere(params RuleListParams) (string, []any, error) {
 	if params.RuleType != "" {
 		where.Add("rule_type = " + where.Arg(params.RuleType))
 	}
-	whereSQL, args := where.Build()
-	return whereSQL, args, nil
+	return where.Build()
 }
 
 func ruleListQuery(params RuleListParams, where string, args []any) dbutil.ListQuery {
@@ -691,6 +687,7 @@ const ruleTypeSortSQL = `CASE r.rule_type
 	ELSE 7
 END`
 
+//nolint:unqueryvet // inner r.* is re-projected by the explicit outer SELECT; new columns are ignored
 const ruleSelectSQL = `
 SELECT
 	id,

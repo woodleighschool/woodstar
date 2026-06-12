@@ -18,6 +18,7 @@ const (
 
 type groupListInput struct {
 	apitypes.ListQueryInput
+
 	Values []string `query:"values,omitempty"`
 }
 
@@ -45,7 +46,6 @@ func (i groupListInput) params() GroupListParams {
 	}
 }
 
-//nolint:dupl // parallel groups/users list handlers over distinct types; route registration stays explicit per resource
 func registerListGroups(api huma.API, groupStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-groups",

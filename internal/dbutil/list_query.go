@@ -46,7 +46,7 @@ func (b *WhereBuilder) Arg(arg any) string {
 	return fmt.Sprintf("$%d", len(b.args))
 }
 
-func (b WhereBuilder) Build() (string, []any) {
+func (b *WhereBuilder) Build() (string, []any) {
 	if len(b.clauses) == 0 {
 		return "", slices.Clone(b.args)
 	}

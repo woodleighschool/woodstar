@@ -17,6 +17,7 @@ const (
 
 type santaRuleListInput struct {
 	apitypes.ListQueryInput
+
 	RuleType RuleType `query:"rule_type,omitempty"`
 }
 

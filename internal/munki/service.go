@@ -136,11 +136,7 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.catalogItems(packages)
-	if err != nil {
-		return nil, err
-	}
-	return encodePlist(items)
+	return encodePlist(s.catalogItems(packages))
 }
 
 // ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
@@ -247,7 +243,7 @@ func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	return packages.MunkiName(pkg.Package.ID)
 }
 
-func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePackage) ([]map[string]any, error) {
+func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePackage) []map[string]any {
 	items := make([]map[string]any, 0, len(effective))
 	seen := make(map[int64]bool, len(effective))
 	for _, pkg := range effective {
@@ -271,7 +267,7 @@ func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePack
 		}
 		items = append(items, item)
 	}
-	return items, nil
+	return items
 }
 
 func appendUnique(values []string, value string) []string {

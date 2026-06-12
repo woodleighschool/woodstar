@@ -12,6 +12,7 @@ import (
 // HostDetail is the admin host detail response with optional capability fields.
 type HostDetail struct {
 	hosts.HostDetail
+
 	Munki *munki.HostState `json:"munki,omitempty"`
 	Santa *santa.HostState `json:"santa,omitempty"`
 }

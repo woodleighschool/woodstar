@@ -129,6 +129,7 @@ type Configuration struct {
 
 type ConfigurationMatch struct {
 	Configuration
+
 	MatchedViaLabel *LabelMatch `json:"matched_via_label,omitempty"`
 }
 

@@ -19,6 +19,7 @@ const (
 
 type munkiPackageListInput struct {
 	apitypes.ListQueryInput
+
 	SoftwareID int64 `query:"software_id,omitempty"`
 }
 
@@ -50,6 +51,7 @@ type munkiPackageOutput struct {
 // MunkiPackage is the shared admin API representation of one Munki package version.
 type MunkiPackage struct {
 	Package
+
 	IconURL string `json:"icon_url,omitempty"`
 }
 

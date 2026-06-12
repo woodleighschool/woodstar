@@ -55,6 +55,7 @@ type munkiSoftwareDetailOutput struct {
 
 type munkiSoftwareDetail struct {
 	Software
+
 	IconURL  string                  `json:"icon_url,omitempty"`
 	Packages []packages.MunkiPackage `json:"packages"`
 	Targets  SoftwareTargets         `json:"targets"`
@@ -62,6 +63,7 @@ type munkiSoftwareDetail struct {
 
 type munkiSoftware struct {
 	Software
+
 	IconURL string `json:"icon_url,omitempty"`
 }
 

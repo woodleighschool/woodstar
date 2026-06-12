@@ -15,8 +15,9 @@ import (
 const hostsTag = "Hosts"
 
 type hostSoftwareInput struct {
-	HostID int64 `path:"id"`
 	apitypes.ListQueryInput
+
+	HostID int64    `path:"id"`
 	Source []string `query:"source,omitempty"`
 }
 

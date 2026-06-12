@@ -7,7 +7,7 @@ import (
 )
 
 func TestRecordResultPublishesResultAndCloses(t *testing.T) {
-	m := newManager(time.Minute)
+	m := NewManager()
 	handle := m.Start("select 1", []int64{4})
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -30,7 +30,7 @@ func TestRecordResultPublishesResultAndCloses(t *testing.T) {
 }
 
 func TestPendingForHostClearsAfterResult(t *testing.T) {
-	m := newManager(time.Minute)
+	m := NewManager()
 	handle := m.Start("select 1", []int64{4, 5})
 
 	if work := m.PendingForHost(4); len(work) != 1 || work[0].QueryID != handle.ID || work[0].SQL != "select 1" {
@@ -48,7 +48,7 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 }
 
 func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
-	m := newManager(time.Minute)
+	m := NewManager()
 	handle := m.Start("select 1", nil)
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -61,7 +61,7 @@ func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
 }
 
 func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
-	m := newManager(time.Minute)
+	m := NewManager()
 	handle := m.Start("select 1", []int64{4, 5})
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -81,7 +81,7 @@ func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 }
 
 func TestStopClearsPendingHostsAndCloses(t *testing.T) {
-	m := newManager(time.Minute)
+	m := NewManager()
 	handle := m.Start("select 1", []int64{4, 5})
 
 	events, release, err := m.Subscribe(handle.ID)

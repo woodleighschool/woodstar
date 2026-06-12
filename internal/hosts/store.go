@@ -499,7 +499,7 @@ func (s *Store) loadHostUserAffinityPrimary(ctx context.Context, hostID int64) (
 		AffinityHostID: hostID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil //nolint:nilnil // no host affinity is represented as an omitted primary object.
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err

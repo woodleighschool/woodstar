@@ -47,6 +47,7 @@ type hostGetInput struct {
 
 type hostListInput struct {
 	apitypes.ListQueryInput
+
 	Status          string  `query:"status,omitempty"`
 	LabelID         int64   `query:"label_id,omitempty"`
 	SoftwareTitleID int64   `query:"software_title_id,omitempty"`

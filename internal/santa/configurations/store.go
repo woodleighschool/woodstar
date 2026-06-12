@@ -180,7 +180,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 		sqlc.ResolveSantaConfigurationForHostParams{HostID: hostID},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil //nolint:nilnil // no matching configuration is represented by a nil result.
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err

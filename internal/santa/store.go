@@ -56,7 +56,7 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
 	row, err := s.q.GetObservedSantaHostState(ctx, sqlc.GetObservedSantaHostStateParams{HostID: hostID})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil //nolint:nilnil // missing Santa observation is represented by a nil state.
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err

@@ -125,7 +125,7 @@ func (s *AgentService) dispatchWriteResults(
 		message := req.Messages[name]
 
 		var err error
-		switch kind { //nolint:exhaustive // parseQueryName narrows to the four handled kinds.
+		switch kind { //nolint:exhaustive // parseQueryName already narrowed to the four dispatched kinds
 		case kindDetail:
 			err = handleDetailResult(
 				ctx,

@@ -213,8 +213,9 @@ type PackageMutation struct {
 
 // PackageCreateMutation creates one package version under selected Munki software.
 type PackageCreateMutation struct {
-	SoftwareID int64 `json:"software_id" minimum:"1"`
 	PackageMutation
+
+	SoftwareID int64 `json:"software_id" minimum:"1"`
 }
 
 // Package is one Woodstar-authored Munki package version available for targeting.
@@ -285,11 +286,13 @@ type IconRef struct {
 // PackageRecord is a package row joined with parent software icon context.
 type PackageRecord struct {
 	Package
+
 	SoftwareIcon IconRef
 }
 
 type PackageListParams struct {
 	dbutil.ListParams
+
 	SoftwareID int64
 }
 

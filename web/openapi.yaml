@@ -4579,12 +4579,6 @@ paths:
     get:
       operationId: list-host-santa-rules
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
         - explode: false
           in: query
           name: q
@@ -4610,6 +4604,12 @@ paths:
           name: sort
           schema:
             type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -4654,12 +4654,6 @@ paths:
     get:
       operationId: list-host-software
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
         - explode: false
           in: query
           name: q
@@ -4685,6 +4679,12 @@ paths:
           name: sort
           schema:
             type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: source

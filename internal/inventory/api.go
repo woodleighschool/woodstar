@@ -15,6 +15,7 @@ const softwareTag = "Software"
 
 type softwareListInput struct {
 	apitypes.ListQueryInput
+
 	Source []string `query:"source,omitempty"`
 }
 

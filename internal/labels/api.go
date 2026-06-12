@@ -25,6 +25,7 @@ type labelOutput struct {
 
 type labelListInput struct {
 	apitypes.ListQueryInput
+
 	LabelType      LabelType           `query:"label_type,omitempty"`
 	MembershipType LabelMembershipType `query:"label_membership_type,omitempty"`
 }
