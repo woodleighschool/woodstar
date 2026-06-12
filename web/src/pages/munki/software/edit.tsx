@@ -1,4 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
@@ -13,15 +12,15 @@ import { QueryError } from "@/components/query-error";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import {
+  type MunkiSoftwareDetail,
+  type MunkiSoftwareMutation,
   useMunkiSoftware,
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
-  type MunkiSoftwareDetail,
-  type MunkiSoftwareMutation,
 } from "@/hooks/use-munki-software";
 import type { SoftwareInclude } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
@@ -29,9 +28,9 @@ import { formatRelative } from "@/lib/utils";
 
 import {
   MunkiSoftwareFormActions,
-  MunkiSoftwareOptionsFields,
   munkiSoftwareFormFromSoftware,
   munkiSoftwareInclude,
+  MunkiSoftwareOptionsFields,
   munkiSoftwareSchema,
   useMunkiSoftwareForm,
 } from "./fields";
@@ -47,7 +46,10 @@ export function MunkiSoftwareEditPage() {
   if (softwareID === null) {
     return (
       <PageShell>
-        <QueryError title="Failed to load software" error={{ message: "Software route is invalid." }} />
+        <QueryError
+          title="Failed to load software"
+          error={{ message: "Software route is invalid." }}
+        />
       </PageShell>
     );
   }
@@ -55,7 +57,11 @@ export function MunkiSoftwareEditPage() {
   if (query.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load software"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       </PageShell>
     );
   }
@@ -86,7 +92,9 @@ function MunkiSoftwareDetailForm({
   );
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
-  const [excludeForm, setExcludeForm] = useState<number[]>(() => excludeLabelIDsFromTargets(software));
+  const [excludeForm, setExcludeForm] = useState<number[]>(() =>
+    excludeLabelIDsFromTargets(software),
+  );
   const packages = software.packages ?? [];
   const includes = useMemo(() => software.targets.include, [software.targets.include]);
   const excludeLabelIDs = useMemo(() => excludeLabelIDsFromTargets(software), [software]);
@@ -94,22 +102,25 @@ function MunkiSoftwareDetailForm({
     () => targetRows.flatMap((row) => (row.label_id === null ? [] : [row.label_id])),
     [targetRows],
   );
-  const softwareOptionsForm = useMunkiSoftwareForm(munkiSoftwareFormFromSoftware(software), async (value) => {
-    const data = munkiSoftwareSchema.parse(value);
-    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    const body: MunkiSoftwareMutation = {
-      ...data,
-      icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
-      targets: {
-        include: targetRows.map(munkiSoftwareInclude),
-        exclude: excludeForm.map((label_id) => ({ label_id })),
-      },
-    };
-    await updateSoftware.mutateAsync({ id: software.id, body });
-    setIconFile(null);
-    setIconCleared(false);
-    await refetchSoftware();
-  });
+  const softwareOptionsForm = useMunkiSoftwareForm(
+    munkiSoftwareFormFromSoftware(software),
+    async (value) => {
+      const data = munkiSoftwareSchema.parse(value);
+      const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
+      const body: MunkiSoftwareMutation = {
+        ...data,
+        icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
+        targets: {
+          include: targetRows.map(munkiSoftwareInclude),
+          exclude: excludeForm.map((label_id) => ({ label_id })),
+        },
+      };
+      await updateSoftware.mutateAsync({ id: software.id, body });
+      setIconFile(null);
+      setIconCleared(false);
+      await refetchSoftware();
+    },
+  );
   const pagePending = updateSoftware.isPending || iconUpload.isUploading;
   const pageError = updateSoftware.error?.message ?? iconUpload.error?.message;
 

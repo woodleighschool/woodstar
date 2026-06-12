@@ -3,7 +3,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { ThemeProvider } from "next-themes";
-import { Toaster, toast } from "sonner";
+import { toast, Toaster } from "sonner";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { router } from "@/router";

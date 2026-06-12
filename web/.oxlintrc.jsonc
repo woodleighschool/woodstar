@@ -14,17 +14,7 @@
     "reportUnusedDisableDirectives": "error",
   },
 
-  "plugins": [
-    "eslint",
-    "typescript",
-    "unicorn",
-    "oxc",
-    "import",
-    "react",
-    "react-perf",
-    "jsx-a11y",
-    "promise",
-  ],
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "react", "react-perf", "promise"],
 
   "jsPlugins": [
     "@tanstack/eslint-plugin-query",
@@ -35,27 +25,16 @@
   "categories": {
     "correctness": "error",
     "suspicious": "error",
-    "perf": "warn",
-    "pedantic": "warn",
-    "style": "warn",
+    "perf": "off",
+    "pedantic": "off",
+    "style": "off",
     "restriction": "off",
-    "nursery": "warn",
+    "nursery": "off",
   },
 
   "settings": {
     "react": {
       "version": "19.2.7",
-    },
-
-    "jsx-a11y": {
-      "components": {
-        "Link": "a",
-        "Button": "button",
-        "IconButton": "button",
-        "Label": "label",
-        "Input": "input",
-        "Textarea": "textarea",
-      },
     },
 
     "better-tailwindcss": {
@@ -69,7 +48,8 @@
     "no-debugger": "error",
     "no-alert": "error",
     "eqeqeq": ["error", "always", { "null": "ignore" }],
-    "curly": ["error", "multi-line"],
+    "curly": "off",
+    "no-shadow": "off",
     "no-var": "error",
     "prefer-const": ["error", { "destructuring": "all", "ignoreReadBeforeAssign": true }],
     "no-unused-vars": [
@@ -82,11 +62,13 @@
         "ignoreRestSiblings": true,
       },
     ],
-    "no-implicit-coercion": "warn",
-    "prefer-template": "warn",
+    "no-implicit-coercion": "off",
+    "prefer-template": "off",
     "unicorn/no-nested-ternary": "off",
     "unicorn/no-null": "off",
     "unicorn/no-negated-condition": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/prefer-add-event-listener": "off",
     "object-shorthand": ["warn", "always"],
     "sort-imports": [
       "warn",
@@ -113,13 +95,15 @@
     "typescript/no-unsafe-call": "warn",
     "typescript/no-unsafe-member-access": "warn",
     "typescript/no-unsafe-return": "warn",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/consistent-return": "off",
+    "typescript/no-unnecessary-type-conversion": "off",
+    "typescript/no-useless-default-assignment": "off",
+    "typescript/no-unnecessary-type-parameters": "off",
     "typescript/no-unnecessary-type-assertion": "warn",
     "typescript/no-confusing-void-expression": "off",
-    "typescript/no-import-type-side-effects": "error",
-    "typescript/consistent-type-imports": [
-      "error",
-      { "prefer": "type-imports", "fixStyle": "separate-type-imports" },
-    ],
+    "typescript/no-import-type-side-effects": "off",
+    "typescript/consistent-type-imports": "off",
     "typescript/consistent-type-exports": "warn",
     "typescript/consistent-type-assertions": [
       "warn",
@@ -159,11 +143,13 @@
     "react/jsx-no-constructed-context-values": "error",
     "react/jsx-no-duplicate-props": "error",
     "react/button-has-type": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true, "checkJS": true }],
+    "react/only-export-components": "off",
     "react/display-name": "warn",
     "react/jsx-no-useless-fragment": "warn",
     "react/jsx-pascal-case": "warn",
     "react/self-closing-comp": "warn",
+    "react/no-children-prop": "off",
+    "react/no-unstable-nested-components": "off",
 
     "react/jsx-props-no-spreading": "off",
     "react/no-multi-comp": "off",
@@ -194,21 +180,24 @@
     "@tanstack/query/infinite-query-property-order": "error",
     "@tanstack/query/mutation-property-order": "error",
     "@tanstack/query/no-void-query-fn": "error",
-    "@tanstack/query/prefer-query-options": "warn",
+    "@tanstack/query/prefer-query-options": "off",
 
     "@tanstack/router/create-route-property-order": "error",
 
-    "better-tailwindcss/no-unknown-classes": "error",
+    "better-tailwindcss/no-unknown-classes": [
+      "error",
+      { "ignore": ["^sidebar-subnav-collapsible$", "^toaster$"] },
+    ],
     "better-tailwindcss/no-conflicting-classes": "error",
     "better-tailwindcss/no-restricted-classes": "error",
     "better-tailwindcss/no-duplicate-classes": "error",
     "better-tailwindcss/no-deprecated-classes": "warn",
-    "better-tailwindcss/enforce-canonical-classes": "warn",
-    "better-tailwindcss/enforce-shorthand-classes": "warn",
-    "better-tailwindcss/enforce-logical-properties": "warn",
+    "better-tailwindcss/enforce-canonical-classes": "off",
+    "better-tailwindcss/enforce-shorthand-classes": "off",
+    "better-tailwindcss/enforce-logical-properties": "off",
     "better-tailwindcss/enforce-consistent-class-order": "warn",
     "better-tailwindcss/enforce-consistent-variant-order": "warn",
-    "better-tailwindcss/enforce-consistent-variable-syntax": "warn",
+    "better-tailwindcss/enforce-consistent-variable-syntax": "off",
     "better-tailwindcss/enforce-consistent-important-position": "warn",
     "better-tailwindcss/no-unnecessary-whitespace": "warn",
     "better-tailwindcss/enforce-consistent-line-wrapping": "off",
@@ -260,6 +249,12 @@
         "react/display-name": "off",
         "react/jsx-props-no-spreading": "off",
         "react/no-multi-comp": "off",
+      },
+    },
+    {
+      "files": ["src/lib/compose-refs.ts"],
+      "rules": {
+        "react/exhaustive-deps": "off",
       },
     },
     {

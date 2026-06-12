@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { Copy, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -29,21 +29,34 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  type AgentSecret,
   useAgentSecrets,
   useCreateAgentSecret,
   useDeleteAgentSecret,
   useUpdateAgentSecret,
-  type AgentSecret,
 } from "@/hooks/use-agent-secrets";
-import { deleteDescription, integrationLabel, secretUsageDescription, type Integration } from "@/lib/enrollments";
+import {
+  deleteDescription,
+  type Integration,
+  integrationLabel,
+  secretUsageDescription,
+} from "@/lib/enrollments";
 
 const MIN_SECRET_LENGTH = 32;
 const SECRET_MASK = "••••••••••••••••••••••••";
-const secretValueSchema = z.string().trim().min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
+const secretValueSchema = z
+  .string()
+  .trim()
+  .min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
 
 export function AgentSecretsDialog({
   integration,
@@ -87,8 +100,9 @@ export function AgentSecretsDialog({
           </DialogHeader>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-            <p className="text-muted-foreground text-sm">
-              Add, reveal, copy, rotate, or remove the shared secrets accepted by this enrollment endpoint.
+            <p className="text-sm text-muted-foreground">
+              Add, reveal, copy, rotate, or remove the shared secrets accepted by this enrollment
+              endpoint.
             </p>
             <Button
               type="button"
@@ -400,7 +414,13 @@ function SecretValueDialog({
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <form.Subscribe selector={(state) => state.canSubmit}>

@@ -19,7 +19,12 @@ interface Range {
 type RangeValue = [number, number];
 
 function getIsValidRange(value: unknown): value is RangeValue {
-  return Array.isArray(value) && value.length === 2 && typeof value[0] === "number" && typeof value[1] === "number";
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === "number" &&
+    typeof value[1] === "number"
+  );
 }
 
 function parseValuesAsNumbers(value: unknown): RangeValue | undefined {
@@ -35,7 +40,7 @@ function parseValuesAsNumbers(value: unknown): RangeValue | undefined {
 }
 
 interface DataTableSliderFilterProps<TData> {
-  column: Column<TData, unknown>;
+  column: Column<TData>;
   title?: string;
 }
 
@@ -65,9 +70,14 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
     }
 
     const rangeSize = maxValue - minValue;
-    const step = rangeSize <= 20 ? 1 : rangeSize <= 100 ? Math.ceil(rangeSize / 20) : Math.ceil(rangeSize / 50);
+    const stepSize =
+      rangeSize <= 20
+        ? 1
+        : rangeSize <= 100
+          ? Math.ceil(rangeSize / 20)
+          : Math.ceil(rangeSize / 50);
 
-    return { min: minValue, max: maxValue, step };
+    return { min: minValue, max: maxValue, step: stepSize };
   }, [column, defaultRange]);
 
   const range = React.useMemo((): RangeValue => {
@@ -126,7 +136,7 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
               role="button"
               aria-label={`Clear ${title} filter`}
               tabIndex={0}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               onClick={onReset}
             >
               <XCircle />
@@ -137,7 +147,10 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
           <span>{title}</span>
           {columnFilterValue ? (
             <>
-              <Separator orientation="vertical" className="mx-0.5 data-[orientation=vertical]:h-4" />
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 data-[orientation=vertical]:h-4"
+              />
               {formatValue(columnFilterValue[0])} - {formatValue(columnFilterValue[1])}
               {unit ? ` ${unit}` : ""}
             </>
@@ -146,7 +159,9 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-auto flex-col gap-4">
         <div className="flex flex-col gap-3">
-          <p className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{title}</p>
+          <p className="leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            {title}
+          </p>
           <div className="flex items-center gap-4">
             <Label htmlFor={`${id}-from`} className="sr-only">
               From
@@ -167,7 +182,7 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
                 className={cn("h-8 w-24", unit && "pr-8")}
               />
               {unit && (
-                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-muted-foreground text-sm">
+                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-sm text-muted-foreground">
                   {unit}
                 </span>
               )}
@@ -191,7 +206,7 @@ export function DataTableSliderFilter<TData>({ column, title }: DataTableSliderF
                 className={cn("h-8 w-24", unit && "pr-8")}
               />
               {unit && (
-                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-muted-foreground text-sm">
+                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-sm text-muted-foreground">
                   {unit}
                 </span>
               )}

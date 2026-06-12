@@ -28,7 +28,8 @@ export function useCreateAgentSecret() {
 export function useUpdateAgentSecret() {
   const queryClient = useQueryClient();
   return useMutation<AgentSecret, ApiError, { id: number; body: AgentSecretMutation }>({
-    mutationFn: ({ id, body }) => unwrap(apiClient.PUT("/api/agent-secrets/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PUT("/api/agent-secrets/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.agentSecrets });
     },
@@ -38,7 +39,8 @@ export function useUpdateAgentSecret() {
 export function useDeleteAgentSecret() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/agent-secrets/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/agent-secrets/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.agentSecrets });
     },

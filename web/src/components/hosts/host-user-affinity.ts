@@ -11,7 +11,7 @@ const SOURCE_PRIORITY: Record<string, number> = {
 export function sortUserAffinityMappings(
   mappings: readonly HostUserAffinityMapping[] | null | undefined,
 ): HostUserAffinityMapping[] {
-  return [...(mappings ?? [])].sort((a, b) => {
+  return [...(mappings ?? [])].toSorted((a, b) => {
     const byPriority = sourcePriority(a.source) - sourcePriority(b.source);
     if (byPriority !== 0) return byPriority;
     return a.source.localeCompare(b.source) || a.email.localeCompare(b.email);
@@ -30,7 +30,9 @@ export function manualUserAffinityMapping(
   return (mappings ?? []).find((mapping) => mapping.source === "manual") ?? null;
 }
 
-export function secondaryUserAffinityMappings(mappings: readonly HostUserAffinityMapping[] | null | undefined) {
+export function secondaryUserAffinityMappings(
+  mappings: readonly HostUserAffinityMapping[] | null | undefined,
+) {
   const sorted = sortUserAffinityMappings(mappings);
   return sorted.slice(1);
 }

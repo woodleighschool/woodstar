@@ -69,10 +69,8 @@ export function useStopLiveQuery() {
 }
 
 export function useLiveQueryTargetCount(body: LiveQueryTargetSelection, enabled: boolean) {
-  const hosts = body.selected?.hosts ?? [];
-  const labels = body.selected?.labels ?? [];
   return useQuery<LiveQueryTargetCount, ApiError>({
-    queryKey: queryKeys.liveQueryTargetCount(body.report_id ?? null, hosts, labels),
+    queryKey: queryKeys.liveQueryTargetCount(body),
     queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
     enabled,
   });

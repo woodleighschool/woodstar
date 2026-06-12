@@ -2,7 +2,14 @@ import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
 import type * as React from "react";
 
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getColumnPinningStyle } from "@/lib/data-table";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +19,14 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   empty?: React.ReactNode;
 }
 
-export function DataTable<TData>({ table, actionBar, empty, children, className, ...props }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  table,
+  actionBar,
+  empty,
+  children,
+  className,
+  ...props
+}: DataTableProps<TData>) {
   return (
     <div className={cn("flex w-full flex-col gap-2.5 overflow-auto", className)} {...props}>
       {children}
@@ -29,7 +43,9 @@ export function DataTable<TData>({ table, actionBar, empty, children, className,
                       ...getColumnPinningStyle({ column: header.column }),
                     }}
                   >
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -54,7 +70,11 @@ export function DataTable<TData>({ table, actionBar, empty, children, className,
             ) : (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={table.getAllColumns().length} className="p-0">
-                  {empty ?? <div className="h-24 text-center leading-[6rem] text-muted-foreground">No results.</div>}
+                  {empty ?? (
+                    <div className="h-24 text-center leading-[6rem] text-muted-foreground">
+                      No results.
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             )}

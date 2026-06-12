@@ -92,7 +92,11 @@ export function SoftwareIcon({ source = "", size = "sm", className }: SoftwareIc
 
   return (
     <span
-      className={cn("bg-muted/40 inline-flex shrink-0 items-center justify-center border", sizes.box, className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center border bg-muted/40",
+        sizes.box,
+        className,
+      )}
       style={style.box}
     >
       {renderSourceIcon(definition.icon, cn(style.iconClassName, sizes.icon))}

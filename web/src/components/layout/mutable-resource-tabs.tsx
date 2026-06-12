@@ -23,7 +23,12 @@ export function MutableResourceTabs({
     <Tabs defaultValue={defaultValue} className={cn("gap-5", className)}>
       <TabsList variant="line" className="w-full justify-start gap-9 border-b px-0">
         {tabs.map((tab) => (
-          <TabsTrigger key={tab.value} value={tab.value} disabled={tab.disabled} className="flex-none px-0">
+          <TabsTrigger
+            key={tab.value}
+            value={tab.value}
+            disabled={tab.disabled}
+            className="flex-none px-0"
+          >
             {tab.label}
           </TabsTrigger>
         ))}

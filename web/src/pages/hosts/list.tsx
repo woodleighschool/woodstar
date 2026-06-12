@@ -18,13 +18,19 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
-import { useSoftwareTitle, type SoftwareTitle } from "@/hooks/use-software";
+import { type Host, useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
+import { type SoftwareTitle, useSoftwareTitle } from "@/hooks/use-software";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
@@ -125,7 +131,11 @@ export function HostListPage() {
       />
 
       {query.error ? (
-        <QueryError title="Failed to load hosts" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load hosts"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={8} filterCount={1} />
       ) : (
@@ -151,7 +161,11 @@ export function HostListPage() {
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
               <DataTableSearchInput className="h-8 w-40 lg:w-56" />
-              <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={STATUS_OPTIONS} />
+              <DataTableFacetedFilter
+                column={table.getColumn("status")}
+                title="Status"
+                options={STATUS_OPTIONS}
+              />
             </div>
             <div className="flex items-center gap-2">
               <DataTableViewOptions table={table} align="end" />
@@ -168,7 +182,9 @@ const hostColumns: ColumnDef<Host>[] = [
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        checked={
+          table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
@@ -189,7 +205,11 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.display_name,
     header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
     cell: ({ row }) => (
-      <Link to="/hosts/$hostId" params={{ hostId: String(row.original.id) }} className="font-medium hover:underline">
+      <Link
+        to="/hosts/$hostId"
+        params={{ hostId: String(row.original.id) }}
+        className="font-medium hover:underline"
+      >
         {row.original.display_name}
       </Link>
     ),
@@ -275,7 +295,10 @@ const hostColumns: ColumnDef<Host>[] = [
     id: "hardware.memory_bytes",
     accessorFn: (row) => row.hardware.memory_bytes,
     header: ({ column }) => <DataTableColumnHeader column={column} label="Memory" />,
-    cell: ({ row }) => (row.original.hardware.memory_bytes > 0 ? formatBytes(row.original.hardware.memory_bytes) : "-"),
+    cell: ({ row }) =>
+      row.original.hardware.memory_bytes > 0
+        ? formatBytes(row.original.hardware.memory_bytes)
+        : "-",
     meta: { label: "Memory" },
   },
   {
@@ -290,7 +313,9 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.timestamps.last_restarted_at,
     header: ({ column }) => <DataTableColumnHeader column={column} label="Last Restarted" />,
     cell: ({ row }) =>
-      row.original.timestamps.last_restarted_at ? formatRelative(row.original.timestamps.last_restarted_at) : "-",
+      row.original.timestamps.last_restarted_at
+        ? formatRelative(row.original.timestamps.last_restarted_at)
+        : "-",
     meta: { label: "Last Restarted" },
   },
 ];
@@ -315,7 +340,12 @@ function HostsActionBar({ table }: { table: TanStackTable<Host> }) {
   return (
     <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={bulkDelete.isPending}
+      >
         <Trash2 />
         Delete
       </Button>

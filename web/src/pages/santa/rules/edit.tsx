@@ -17,7 +17,11 @@ export function RuleEditPage() {
   if (detail.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load rule" error={detail.error} onRetry={() => void detail.refetch()} />
+        <QueryError
+          title="Failed to load rule"
+          error={detail.error}
+          onRetry={() => void detail.refetch()}
+        />
       </PageShell>
     );
   }

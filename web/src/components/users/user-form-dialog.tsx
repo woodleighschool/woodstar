@@ -15,7 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateUser } from "@/hooks/use-users";
 import { USER_ROLE_OPTIONS, type UserRole } from "@/lib/users";
 
@@ -63,7 +70,9 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
     <>
       <DialogHeader>
         <DialogTitle>Add User</DialogTitle>
-        <DialogDescription>Roles control whether the user can manage other users and enrollments.</DialogDescription>
+        <DialogDescription>
+          Roles control whether the user can manage other users and enrollments.
+        </DialogDescription>
       </DialogHeader>
 
       <form
@@ -114,7 +123,10 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
             {(field) => (
               <FormField field={field} label="Role" htmlFor="user-role">
                 {(control) => (
-                  <Select value={field.state.value} onValueChange={(value) => field.handleChange(value as UserRole)}>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) => field.handleChange(value as UserRole)}
+                  >
                     <SelectTrigger {...control} className="w-full">
                       <SelectValue />
                     </SelectTrigger>

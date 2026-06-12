@@ -1,4 +1,4 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -6,14 +6,29 @@ import { useMemo, useState } from "react";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
-import { AssignmentLabelField, AssignmentLabelStatic } from "@/components/targeting/assignment-label-field";
+import {
+  AssignmentLabelField,
+  AssignmentLabelStatic,
+} from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useLabels } from "@/hooks/use-labels";
 import { type SantaRulePolicy } from "@/hooks/use-santa-rules";
 import { POLICY_OPTIONS } from "@/lib/santa-rules";
@@ -44,7 +59,8 @@ export function SantaIncludeTargets({
   const [draft, setDraft] = useState<IncludeDraft>(emptyDraft);
   const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const labelsByID = useMemo(
-    () => new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
+    () =>
+      new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
     [labels.data],
   );
   const usedLabelIDs = include.flatMap((row) => (row.label_id === null ? [] : [row.label_id]));
@@ -77,7 +93,9 @@ export function SantaIncludeTargets({
     } else {
       onChange(
         include.map((row) =>
-          row.id === dialog.id ? { ...row, policy: draft.policy, cel_expression: draft.cel_expression } : row,
+          row.id === dialog.id
+            ? { ...row, policy: draft.policy, cel_expression: draft.cel_expression }
+            : row,
         ),
       );
     }
@@ -105,7 +123,9 @@ export function SantaIncludeTargets({
               {POLICY_LABELS.get(row.original.policy) ?? row.original.policy}
             </Badge>
             {row.original.policy === "cel" && row.original.cel_expression ? (
-              <code className="text-muted-foreground min-w-0 truncate text-xs">{row.original.cel_expression}</code>
+              <code className="min-w-0 truncate text-xs text-muted-foreground">
+                {row.original.cel_expression}
+              </code>
             ) : null}
           </div>
         ),
@@ -165,7 +185,9 @@ export function SantaIncludeTargets({
           </DialogHeader>
 
           {dialog?.mode === "edit" ? (
-            <AssignmentLabelStatic name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`} />
+            <AssignmentLabelStatic
+              name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`}
+            />
           ) : (
             <AssignmentLabelField
               value={draft.label_id}
@@ -178,7 +200,9 @@ export function SantaIncludeTargets({
             <FieldLabel htmlFor="santa-include-policy">Policy</FieldLabel>
             <Select
               value={draft.policy}
-              onValueChange={(policy) => setDraft((current) => ({ ...current, policy: policy as SantaRulePolicy }))}
+              onValueChange={(policy) =>
+                setDraft((current) => ({ ...current, policy: policy as SantaRulePolicy }))
+              }
             >
               <SelectTrigger id="santa-include-policy" className="w-full">
                 <SelectValue />
@@ -200,7 +224,9 @@ export function SantaIncludeTargets({
               <FieldLabel required>Expression</FieldLabel>
               <CodeEditor
                 value={draft.cel_expression}
-                onChange={(cel_expression) => setDraft((current) => ({ ...current, cel_expression }))}
+                onChange={(cel_expression) =>
+                  setDraft((current) => ({ ...current, cel_expression }))
+                }
                 placeholder="target.signing_time >= timestamp('2025-05-31T00:00:00Z')"
                 lineNumbers={false}
                 highlightActiveLine={false}
@@ -212,7 +238,7 @@ export function SantaIncludeTargets({
                 href="https://northpole.dev/features/binary-authorization/#cel"
                 target="_blank"
                 rel="noreferrer"
-                className="text-muted-foreground hover:text-primary inline-flex items-center gap-1 text-xs underline-offset-4 hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
               >
                 <ExternalLink className="size-3" />
                 Northpole CEL

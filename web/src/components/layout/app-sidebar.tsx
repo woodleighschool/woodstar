@@ -1,10 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import gravatarUrl from "gravatar-url";
-import { ChevronRight, ChevronsUpDown, LogOut, Monitor, Moon, Sun, User as UserIcon } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronsUpDown,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  User as UserIcon,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
-import { navSections, type NavItem, type NavMenu } from "@/components/layout/nav-config";
+import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -67,7 +75,7 @@ function SidebarBrand() {
             <WoodstarMark />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">Woodstar</span>
-              <span className="text-muted-foreground truncate text-xs">{`v${runtime.version}`}</span>
+              <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>
             </div>
           </Link>
         </SidebarMenuButton>
@@ -108,7 +116,10 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
             <SidebarMenuSub>
               {item.items.map((child) => (
                 <SidebarMenuSubItem key={child.to ?? child.label}>
-                  <SidebarMenuSubButton asChild={!!child.to} isActive={isActivePath(pathname, child)}>
+                  <SidebarMenuSubButton
+                    asChild={!!child.to}
+                    isActive={isActivePath(pathname, child)}
+                  >
                     {child.to ? (
                       <Link to={child.to}>
                         <span>{child.label}</span>
@@ -170,7 +181,9 @@ function SidebarUserMenu() {
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{label}</span>
                 {user?.role ? (
-                  <span className="text-muted-foreground truncate text-xs">{userRoleLabel(user.role)}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {userRoleLabel(user.role)}
+                  </span>
                 ) : null}
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -187,7 +200,9 @@ function SidebarUserMenu() {
                 <SidebarUserAvatar email={user?.email} />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{label}</span>
-                  <span className="text-muted-foreground truncate text-xs">{user?.email ?? "Not signed in"}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {user?.email ?? "Not signed in"}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>

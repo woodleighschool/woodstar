@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 
 import { useCreateLabel } from "@/hooks/use-labels";
-import { LabelForm, emptyLabel } from "@/pages/labels/fields";
+import { emptyLabel, LabelForm } from "@/pages/labels/fields";
 
 export function LabelCreatePage() {
   const navigate = useNavigate();

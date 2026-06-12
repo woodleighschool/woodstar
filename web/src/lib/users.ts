@@ -1,5 +1,5 @@
 import type { User } from "@/hooks/use-users";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type UserRole = NonNullable<User["role"]>;
 export type UserAccessRole = UserRole | "none";

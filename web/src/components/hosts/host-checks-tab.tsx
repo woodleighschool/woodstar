@@ -39,12 +39,21 @@ const checkColumns: ColumnDef<CheckHostStatus>[] = [
 export function HostChecksTab({ hostId }: { hostId: number | null }) {
   const query = useHostChecks(hostId);
   const rows = useMemo(
-    () => [...(query.data ?? [])].sort((a, b) => (a.check_name || "").localeCompare(b.check_name || "")),
+    () =>
+      [...(query.data ?? [])].toSorted((a, b) =>
+        (a.check_name || "").localeCompare(b.check_name || ""),
+      ),
     [query.data],
   );
 
   if (query.error) {
-    return <QueryError title="Failed to load checks" error={query.error} onRetry={() => void query.refetch()} />;
+    return (
+      <QueryError
+        title="Failed to load checks"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   if (query.isLoading) return null;
   if (rows.length === 0) return <EmptyPanel>No checks yet</EmptyPanel>;

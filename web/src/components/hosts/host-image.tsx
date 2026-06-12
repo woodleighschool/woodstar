@@ -18,14 +18,14 @@ export function HostImage({
   return (
     <div
       className={cn(
-        "bg-muted/40 flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border",
+        "flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/40",
         className,
       )}
     >
       {url ? (
         <img src={url} loading="lazy" className="size-full object-contain p-1" />
       ) : (
-        <Laptop className="text-muted-foreground size-8" />
+        <Laptop className="size-8 text-muted-foreground" />
       )}
     </div>
   );

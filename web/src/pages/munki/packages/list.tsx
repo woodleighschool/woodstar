@@ -11,11 +11,17 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useMunkiPackages, type MunkiPackage } from "@/hooks/use-munki-packages";
+import { type MunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { formatRelative } from "@/lib/utils";
 import { munkiInstallerTypeLabel } from "../software/munki-software";
 
@@ -111,7 +117,11 @@ export function MunkiPackageListPage() {
         }
       />
       {query.error ? (
-        <QueryError title="Failed to load packages" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load packages"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={4} />
       ) : (
@@ -125,7 +135,9 @@ export function MunkiPackageListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matching packages" : "No packages"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "Try a different search." : "Create package versions for Munki software."}
+                  {hasFilters
+                    ? "Try a different search."
+                    : "Create package versions for Munki software."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

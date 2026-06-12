@@ -14,7 +14,11 @@ export function ReportLivePage() {
   if (report.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load report" error={report.error} onRetry={() => void report.refetch()} />
+        <QueryError
+          title="Failed to load report"
+          error={report.error}
+          onRetry={() => void report.refetch()}
+        />
       </PageShell>
     );
   }

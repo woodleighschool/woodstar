@@ -4,18 +4,32 @@ import { z } from "zod";
 import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
 import { SubmitButton } from "@/components/submit-button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { User, UserMutation } from "@/hooks/use-users";
 import { directorySourceLabel } from "@/lib/directory";
 import {
-  USER_ACCESS_ROLES,
   USER_ACCESS_ROLE_OPTIONS,
+  USER_ACCESS_ROLES,
   userAccessRole,
-  userMutationRole,
   type UserAccessRole,
+  userMutationRole,
 } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
 
@@ -89,7 +103,9 @@ export function UserForm({
                   field={field}
                   label="Display Name"
                   htmlFor="user-name"
-                  description={!isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined}
+                  description={
+                    !isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined
+                  }
                 >
                   {(control) => (
                     <Input
@@ -163,7 +179,10 @@ export function UserForm({
         </CardContent>
         <CardFooter className="flex flex-col items-stretch gap-2 pt-6">
           <div className="flex justify-between gap-3">
-            <p className="text-muted-foreground text-xs" title={new Date(user.updated_at).toLocaleString()}>
+            <p
+              className="text-xs text-muted-foreground"
+              title={new Date(user.updated_at).toLocaleString()}
+            >
               Updated {formatRelative(user.updated_at)}
             </p>
             <form.Subscribe selector={(state) => state.values}>

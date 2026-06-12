@@ -46,12 +46,16 @@ function parseColumnFilterValue(value: unknown) {
 }
 
 interface DataTableDateFilterProps<TData> {
-  column: Column<TData, unknown>;
+  column: Column<TData>;
   title?: string;
   multiple?: boolean;
 }
 
-export function DataTableDateFilter<TData>({ column, title, multiple }: DataTableDateFilterProps<TData>) {
+export function DataTableDateFilter<TData>({
+  column,
+  title,
+  multiple,
+}: DataTableDateFilterProps<TData>) {
   const columnFilterValue = column.getFilterValue();
 
   const selectedDates = React.useMemo<DateSelection>(() => {
@@ -101,7 +105,7 @@ export function DataTableDateFilter<TData>({ column, title, multiple }: DataTabl
   const hasValue = React.useMemo(() => {
     if (multiple) {
       if (!getIsDateRange(selectedDates)) return false;
-      return selectedDates.from || selectedDates.to;
+      return Boolean(selectedDates.from ?? selectedDates.to);
     }
     if (!Array.isArray(selectedDates)) return false;
     return selectedDates.length > 0;
@@ -119,7 +123,7 @@ export function DataTableDateFilter<TData>({ column, title, multiple }: DataTabl
     if (multiple) {
       if (!getIsDateRange(selectedDates)) return null;
 
-      const hasSelectedDates = selectedDates.from || selectedDates.to;
+      const hasSelectedDates = selectedDates.from ?? selectedDates.to;
       const dateText = hasSelectedDates ? formatDateRange(selectedDates) : "Select date range";
 
       return (
@@ -127,7 +131,10 @@ export function DataTableDateFilter<TData>({ column, title, multiple }: DataTabl
           <span>{title}</span>
           {hasSelectedDates && (
             <>
-              <Separator orientation="vertical" className="mx-0.5 data-[orientation=vertical]:h-4" />
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 data-[orientation=vertical]:h-4"
+              />
               <span>{dateText}</span>
             </>
           )}
@@ -163,7 +170,7 @@ export function DataTableDateFilter<TData>({ column, title, multiple }: DataTabl
               aria-label={`Clear ${title} filter`}
               tabIndex={0}
               onClick={onReset}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             >
               <XCircle />
             </div>
@@ -179,7 +186,9 @@ export function DataTableDateFilter<TData>({ column, title, multiple }: DataTabl
             autoFocus
             captionLayout="dropdown"
             mode="range"
-            selected={getIsDateRange(selectedDates) ? selectedDates : { from: undefined, to: undefined }}
+            selected={
+              getIsDateRange(selectedDates) ? selectedDates : { from: undefined, to: undefined }
+            }
             onSelect={onSelect}
           />
         ) : (

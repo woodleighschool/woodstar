@@ -3,7 +3,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, ExecutionEvent, FileAccessEvent, HostSummary, Page } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
-import type { ListSantaEventsData, ListSantaFileAccessEventsData } from "@/lib/api-client/types.gen";
+import type {
+  ListSantaEventsData,
+  ListSantaFileAccessEventsData,
+} from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -17,7 +20,9 @@ export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 
 export type SantaEventListParams = NonNullable<ListSantaEventsData["query"]>;
 export type SantaFileAccessEventListParams = NonNullable<ListSantaFileAccessEventsData["query"]>;
-export type SantaEventDecisionFilter = NonNullable<NonNullable<SantaEventListParams["decisions"]>[number]>;
+export type SantaEventDecisionFilter = NonNullable<
+  NonNullable<SantaEventListParams["decisions"]>[number]
+>;
 
 export function useSantaEvents(params: SantaEventListParams = {}) {
   const queryParams = {
@@ -33,7 +38,8 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
 
   return useQuery<SantaEventListResult, ApiError>({
     queryKey: queryKeys.santaEvents(queryParams),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -66,7 +72,9 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
   return useQuery<SantaFileAccessEventListResult, ApiError>({
     queryKey: queryKeys.santaFileAccessEvents(queryParams),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/file-access-events", { params: { query: queryParams }, signal })),
+      unwrap(
+        apiClient.GET("/api/santa/file-access-events", { params: { query: queryParams }, signal }),
+      ),
     placeholderData: keepPreviousData,
   });
 }

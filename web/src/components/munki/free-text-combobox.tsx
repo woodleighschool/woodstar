@@ -46,7 +46,9 @@ export function FreeTextCombobox({
         onBlur={onBlur}
       />
       <ComboboxContent>
-        <ComboboxEmpty>{options.length === 0 ? "No Values Available." : "No Values Found."}</ComboboxEmpty>
+        <ComboboxEmpty>
+          {options.length === 0 ? "No Values Available." : "No Values Found."}
+        </ComboboxEmpty>
         <ComboboxList>
           {(option: string) => (
             <ComboboxItem key={option} value={option}>

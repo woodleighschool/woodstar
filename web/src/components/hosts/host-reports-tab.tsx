@@ -11,7 +11,13 @@ export function HostReportsTab({ hostId }: { hostId: number | null }) {
   const rows = useMemo(() => reportItems ?? [], [reportItems]);
 
   if (reports.error) {
-    return <QueryError title="Failed to load reports" error={reports.error} onRetry={() => void reports.refetch()} />;
+    return (
+      <QueryError
+        title="Failed to load reports"
+        error={reports.error}
+        onRetry={() => void reports.refetch()}
+      />
+    );
   }
 
   if (reports.isLoading) {

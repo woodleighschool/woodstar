@@ -8,10 +8,14 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import { useSantaRuleReferences, type SantaRuleReference, type SantaRuleType } from "@/hooks/use-santa-rules";
+import {
+  type SantaRuleReference,
+  type SantaRuleType,
+  useSantaRuleReferences,
+} from "@/hooks/use-santa-rules";
 import { ruleTypeLabel } from "@/lib/santa-rules";
 
-import { ruleIdentifierHint, type RuleFormState } from "./form-state";
+import { type RuleFormState, ruleIdentifierHint } from "./form-state";
 
 export function RuleReferencePicker({
   form,
@@ -27,12 +31,15 @@ export function RuleReferencePicker({
   const references = useSantaRuleReferences({ rule_type: form.rule_type, limit: 50 });
   const rows = references.data ?? [];
   const selected =
-    rows.find((candidate) => candidate.rule_type === form.rule_type && candidate.identifier === form.identifier) ??
-    currentRuleReferenceCandidate(form);
+    rows.find(
+      (candidate) =>
+        candidate.rule_type === form.rule_type && candidate.identifier === form.identifier,
+    ) ?? currentRuleReferenceCandidate(form);
   const items =
     selected &&
     !rows.some(
-      (candidate) => candidate.rule_type === selected.rule_type && candidate.identifier === selected.identifier,
+      (candidate) =>
+        candidate.rule_type === selected.rule_type && candidate.identifier === selected.identifier,
     )
       ? [selected, ...rows]
       : rows;
@@ -56,7 +63,10 @@ export function RuleReferencePicker({
             ...form,
             rule_type: candidate.rule_type,
             identifier: candidate.identifier,
-            name: form.name.trim() === "" && candidate.display_name ? candidate.display_name : form.name,
+            name:
+              form.name.trim() === "" && candidate.display_name
+                ? candidate.display_name
+                : form.name,
           });
         }}
       >
@@ -104,14 +114,20 @@ function ruleReferenceItem(reference: SantaRuleReference) {
   const disabled = reference.rule_type === "bundle" && !reference.complete;
   const secondary = ruleReferenceSecondary(reference);
   return (
-    <ComboboxItem key={`${reference.rule_type}:${reference.identifier}`} value={reference} disabled={disabled}>
+    <ComboboxItem
+      key={`${reference.rule_type}:${reference.identifier}`}
+      value={reference}
+      disabled={disabled}
+    >
       <span className="min-w-0 flex-1">
-        <span className="block break-all leading-snug">{referenceLabel(reference)}</span>
-        {secondary ? <span className="text-muted-foreground block truncate text-xs">{secondary}</span> : null}
+        <span className="block leading-snug break-all">{referenceLabel(reference)}</span>
+        {secondary ? (
+          <span className="block truncate text-xs text-muted-foreground">{secondary}</span>
+        ) : null}
       </span>
       <span className="flex shrink-0 items-center gap-2">
         {reference.rule_type === "bundle" ? (
-          <span className="text-muted-foreground text-xs tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums">
             {reference.collected_binary_count ?? 0}/{reference.binary_count ?? 0}
           </span>
         ) : null}

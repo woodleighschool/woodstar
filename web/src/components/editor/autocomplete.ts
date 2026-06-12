@@ -48,7 +48,9 @@ export function indexSchema(tables: OsqueryTable[]): SchemaIndex {
 function referencedTables(sql: string, index: SchemaIndex): Map<string, OsqueryTable> {
   const out = new Map<string, OsqueryTable>();
   const cleaned = sql.replace(/\s+/g, " ").toLowerCase();
-  const tableMatches = cleaned.matchAll(/\b(?:from|join)\s+([a-z0-9_]+)(?:\s+(?:as\s+)?([a-z0-9_]+))?/g);
+  const tableMatches = cleaned.matchAll(
+    /\b(?:from|join)\s+([a-z0-9_]+)(?:\s+(?:as\s+)?([a-z0-9_]+))?/g,
+  );
   for (const match of tableMatches) {
     const name = match[1];
     // optional regex group: TS types it `string`, but it's `undefined` when unmatched

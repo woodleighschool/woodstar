@@ -1,5 +1,8 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/munki/software/new")({
-  component: lazyRouteComponent(() => import("@/pages/munki/software/create"), "MunkiSoftwareCreatePage"),
+  component: lazyRouteComponent(
+    () => import("@/pages/munki/software/create"),
+    "MunkiSoftwareCreatePage",
+  ),
 });

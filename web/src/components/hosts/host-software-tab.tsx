@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import {
-  getCoreRowModel,
-  useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  getCoreRowModel,
   type PaginationState,
   type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
 import { useRef, useState } from "react";
 
@@ -17,10 +17,16 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
+import { type HostSoftware, useHostSoftware } from "@/hooks/use-hosts";
 import type { HostSoftwareInstalledVersion, PathSignatureInformation } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 import {
@@ -83,7 +89,14 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
       const versionLabel = versionsSummaryLabel(versions);
       const paths = installedPathsFor(versions);
       const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
-      return <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />;
+      return (
+        <InstalledPathCell
+          row={row.original}
+          versionLabel={versionLabel}
+          typeLabel={typeLabel}
+          paths={paths}
+        />
+      );
     },
     meta: { label: "File path" },
   },
@@ -91,7 +104,8 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
     id: "hash",
     header: () => "Hash",
     enableSorting: false,
-    cell: ({ row }) => truncateHash(singleHash(installedPathsFor(row.original.installed_versions ?? []))),
+    cell: ({ row }) =>
+      truncateHash(singleHash(installedPathsFor(row.original.installed_versions ?? []))),
     meta: { label: "Hash" },
   },
 ];
@@ -99,12 +113,16 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const [draft, setDraft] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: HOST_SOFTWARE_PAGE_SIZE });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: HOST_SOFTWARE_PAGE_SIZE,
+  });
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const debounceRef = useRef<number | null>(null);
 
-  const sources = (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
+  const sources =
+    (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
 
   const setSearch = (next: string) => {
     setDraft(next);
@@ -152,12 +170,21 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   });
 
   if (query.error) {
-    return <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />;
+    return (
+      <QueryError
+        title="Failed to load software"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   if (query.isLoading) return <DataTableSkeleton columnCount={6} filterCount={1} />;
 
   return (
-    <DataTable table={table} empty={<EmptyPanel>{hasFilters ? "No matching software" : "No software yet"}</EmptyPanel>}>
+    <DataTable
+      table={table}
+      empty={<EmptyPanel>{hasFilters ? "No matching software" : "No software yet"}</EmptyPanel>}
+    >
       <div className="flex flex-wrap items-center gap-2 p-1">
         <Input
           value={draft}
@@ -217,7 +244,9 @@ function InstalledPathCell({
         </DialogHeader>
         <div className="flex flex-col gap-4 text-sm">
           <div>
-            <div className="font-medium">Current version{versionLabel.endsWith("versions") ? "s" : ""}:</div>
+            <div className="font-medium">
+              Current version{versionLabel.endsWith("versions") ? "s" : ""}:
+            </div>
             <dl className="mt-2 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1">
               <dt className="text-muted-foreground">Version</dt>
               <dd>{versionLabel}</dd>

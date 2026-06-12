@@ -1,11 +1,11 @@
 import { autocompletion } from "@codemirror/autocomplete";
-import { SQLite, sql } from "@codemirror/lang-sql";
+import { sql, SQLite } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef, useMemo } from "react";
 
-import { useOsquerySchema, type OsqueryTable } from "@/hooks/use-osquery-schema";
+import { type OsqueryTable, useOsquerySchema } from "@/hooks/use-osquery-schema";
 
 import { completionsFromSchema } from "./autocomplete";
 import { CodeEditor } from "./code-editor";
@@ -51,7 +51,10 @@ export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function
   );
 });
 
-function tableMetaClick(tables: OsqueryTable[], onTableMetaClick: (tableName: string) => void): Extension {
+function tableMetaClick(
+  tables: OsqueryTable[],
+  onTableMetaClick: (tableName: string) => void,
+): Extension {
   const tableByName = new Map(tables.map((table) => [table.name.toLowerCase(), table.name]));
   return EditorView.domEventHandlers({
     mousedown(event, view) {

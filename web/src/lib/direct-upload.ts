@@ -35,7 +35,8 @@ export function uploadWithProgress({
 
     xhr.upload.onprogress = (event) => {
       const total = event.lengthComputable ? event.total : file.size;
-      const percent = event.lengthComputable && total > 0 ? Math.round((event.loaded / total) * 100) : 0;
+      const percent =
+        event.lengthComputable && total > 0 ? Math.round((event.loaded / total) * 100) : 0;
       onProgress?.({ loaded: event.loaded, total, percent });
     };
 

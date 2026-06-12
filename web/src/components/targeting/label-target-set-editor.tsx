@@ -1,6 +1,6 @@
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Separator } from "@/components/ui/separator";
-import { normalizeLabelTargetSet, type LabelTargetSet } from "@/lib/targeting";
+import { type LabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
 
 export function LabelTargetSetEditor({
   value,

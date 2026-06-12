@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import type { SantaRule, SantaRuleMutation, SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa-rules";
+import type {
+  SantaRule,
+  SantaRuleMutation,
+  SantaRulePolicy,
+  SantaRuleType,
+} from "@/hooks/use-santa-rules";
 import type { LabelRef } from "@/lib/api";
 import { optionalText, requiredString } from "@/lib/form-validation";
 import { POLICY_VALUES, RULE_IDENTIFIER_RULES, RULE_TYPE_VALUES } from "@/lib/santa-rules";
@@ -20,7 +25,11 @@ const includeSchema = z
   .superRefine((value, ctx) => {
     if (value.policy !== "cel") return;
     if (value.cel_expression === "") {
-      ctx.addIssue({ code: "custom", message: "CEL policy requires an expression.", path: ["cel_expression"] });
+      ctx.addIssue({
+        code: "custom",
+        message: "CEL policy requires an expression.",
+        path: ["cel_expression"],
+      });
       return;
     }
     const error = santaCELExpressionError(value.cel_expression);
@@ -39,7 +48,11 @@ export const ruleFormSchema = z
     custom_url: z.string().trim(),
     targets: z.object({
       include: z.array(includeSchema),
-      exclude: z.array(z.object({ label_id: z.number().int("Label selection is invalid.").positive("Pick a label.") })),
+      exclude: z.array(
+        z.object({
+          label_id: z.number().int("Label selection is invalid.").positive("Pick a label."),
+        }),
+      ),
     }),
   })
   .superRefine((value, ctx) => {

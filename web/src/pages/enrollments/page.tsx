@@ -31,7 +31,11 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
 
       <DeploymentInstructions integration={integration} publicURL={runtime.publicURL} />
       {isAdmin ? (
-        <AgentSecretsDialog integration={integration} open={secretsOpen} onOpenChange={setSecretsOpen} />
+        <AgentSecretsDialog
+          integration={integration}
+          open={secretsOpen}
+          onOpenChange={setSecretsOpen}
+        />
       ) : null}
     </PageShell>
   );

@@ -3,7 +3,14 @@ import { useRouter } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export function RouteErrorPage({ error }: ErrorComponentProps) {
   const router = useRouter();

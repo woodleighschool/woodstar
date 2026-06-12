@@ -27,7 +27,8 @@ export function useChecks(params: CheckListParams = {}) {
 
   return useQuery<CheckListResult, ApiError>({
     queryKey: queryKeys.checks(queryParams),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/osquery/checks", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/osquery/checks", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -93,7 +94,8 @@ export function useUpdateCheck(id: number | null) {
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
@@ -103,7 +105,8 @@ export function useDeleteCheck() {
 export function useBulkDeleteChecks() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(apiClient.POST("/api/osquery/checks/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) =>
+      unwrap(apiClient.POST("/api/osquery/checks/bulk-delete", { body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },

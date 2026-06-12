@@ -27,7 +27,11 @@ export function HostDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load host" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load host"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       </PageShell>
     );
   }

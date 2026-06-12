@@ -22,7 +22,8 @@ export const getSortingStateParser = (columnIds?: string[] | Set<string>) => {
     },
     serialize: serializeSortingState,
     eq: (a, b) =>
-      a.length === b.length && a.every((item, index) => item.id === b[index]?.id && item.desc === b[index]?.desc),
+      a.length === b.length &&
+      a.every((item, index) => item.id === b[index]?.id && item.desc === b[index]?.desc),
   });
 };
 

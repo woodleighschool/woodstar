@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
@@ -13,16 +13,23 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   reportRows,
   reportTableColumns,
+  type ReportTableRow,
   resultColumnNames,
   resultValue,
-  type ReportTableRow,
 } from "@/components/reports/query-results";
 import { SubmitButton } from "@/components/submit-button";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
@@ -64,7 +71,9 @@ export function reportFromDetail(detail: Report): ReportMutation {
   };
 }
 
-const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
+const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, {
+  message: invalidSQLSyntaxMessage,
+});
 
 function trimReport(value: ReportMutation): ReportMutation {
   return {
@@ -129,7 +138,13 @@ export function ReportForm({
   );
 
   return (
-    <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
+    <PageShell
+      asChild
+      className={cn(
+        "h-full transition-[padding] duration-200 ease-out",
+        schemaOpen && "pr-[21rem]",
+      )}
+    >
       <form
         noValidate
         onSubmit={(event) => {
@@ -212,7 +227,11 @@ export function ReportForm({
 
                       <form.Field name="min_osquery_version">
                         {(field) => (
-                          <FormField field={field} label="Minimum Osquery Version" htmlFor="report-min-version">
+                          <FormField
+                            field={field}
+                            label="Minimum Osquery Version"
+                            htmlFor="report-min-version"
+                          >
                             {(control) => (
                               <Input
                                 {...control}
@@ -220,7 +239,9 @@ export function ReportForm({
                                 value={field.state.value ?? ""}
                                 placeholder="5.18.1"
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(event.target.value || undefined)}
+                                onChange={(event) =>
+                                  field.handleChange(event.target.value || undefined)
+                                }
                               />
                             )}
                           </FormField>

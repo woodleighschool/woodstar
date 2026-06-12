@@ -11,7 +11,9 @@ export function optionalText(value: string) {
 }
 
 export function uniqueOptions(values: string[]) {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).toSorted((a, b) =>
+    a.localeCompare(b),
+  );
 }
 
 export function selectedIDArray(label: string) {
@@ -19,7 +21,10 @@ export function selectedIDArray(label: string) {
 }
 
 export function integerRange(label: string, min: number, max?: number) {
-  const schema = z.number().int(`${label} must be a whole number.`).min(min, `${label} must be at least ${min}.`);
+  const schema = z
+    .number()
+    .int(`${label} must be a whole number.`)
+    .min(min, `${label} must be at least ${min}.`);
   return max === undefined ? schema : schema.max(max, `${label} must be at most ${max}.`);
 }
 

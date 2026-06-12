@@ -17,7 +17,11 @@ export function CheckEditPage() {
   if (detail.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load check" error={detail.error} onRetry={() => void detail.refetch()} />
+        <QueryError
+          title="Failed to load check"
+          error={detail.error}
+          onRetry={() => void detail.refetch()}
+        />
       </PageShell>
     );
   }
@@ -50,9 +54,21 @@ export function CheckEditPage() {
   );
 }
 
-function HostCount({ checkId, response, value }: { checkId: number; response: "pass" | "fail"; value: number }) {
+function HostCount({
+  checkId,
+  response,
+  value,
+}: {
+  checkId: number;
+  response: "pass" | "fail";
+  value: number;
+}) {
   return (
-    <Link to="/hosts" search={{ check_id: checkId, check_response: response }} className="hover:underline">
+    <Link
+      to="/hosts"
+      search={{ check_id: checkId, check_response: response }}
+      className="hover:underline"
+    >
       {value}
     </Link>
   );

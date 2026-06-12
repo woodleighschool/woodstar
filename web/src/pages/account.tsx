@@ -8,10 +8,17 @@ import { FormField } from "@/components/form-field";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { SubmitButton } from "@/components/submit-button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
+import { type Account, useAccount, useUpdateAccount } from "@/hooks/use-account";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
@@ -22,7 +29,11 @@ export function AccountPage() {
   if (account.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load account" error={account.error} onRetry={() => void account.refetch()} />
+        <QueryError
+          title="Failed to load account"
+          error={account.error}
+          onRetry={() => void account.refetch()}
+        />
       </PageShell>
     );
   }
@@ -83,7 +94,9 @@ function AccountProfileCard({ account }: { account: Account }) {
                   field={field}
                   label="Display Name"
                   htmlFor="account-name"
-                  description={!isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined}
+                  description={
+                    !isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined
+                  }
                 >
                   {(control) => (
                     <Input
@@ -130,12 +143,16 @@ function AccountProfileCard({ account }: { account: Account }) {
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex justify-between gap-3 pt-6">
-          <p className="text-muted-foreground text-xs" title={new Date(user.updated_at).toLocaleString()}>
+          <p
+            className="text-xs text-muted-foreground"
+            title={new Date(user.updated_at).toLocaleString()}
+          >
             Updated {formatRelative(user.updated_at)}
           </p>
           <form.Subscribe selector={(state) => state.values}>
             {(values) => {
-              const canSubmit = isLocal && (values.name !== user.name || values.password.trim() !== "");
+              const canSubmit =
+                isLocal && (values.name !== user.name || values.password.trim() !== "");
               return (
                 <SubmitButton pending={update.isPending} disabled={!canSubmit} size="sm">
                   Save

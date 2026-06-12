@@ -14,11 +14,21 @@ import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useBulkDeleteMunkiSoftware, useMunkiSoftware, type MunkiSoftware } from "@/hooks/use-munki-software";
+import {
+  type MunkiSoftware,
+  useBulkDeleteMunkiSoftware,
+  useMunkiSoftware,
+} from "@/hooks/use-munki-software";
 import { formatRelative } from "@/lib/utils";
 
 export function MunkiSoftwareListPage() {
@@ -44,7 +54,10 @@ export function MunkiSoftwareListPage() {
         id: "select",
         header: ({ table }) => (
           <Checkbox
-            checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
             onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
             aria-label="Select all"
           />
@@ -134,7 +147,11 @@ export function MunkiSoftwareListPage() {
       />
 
       {query.error ? (
-        <QueryError title="Failed to load software" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load software"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={5} />
       ) : (
@@ -149,7 +166,9 @@ export function MunkiSoftwareListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matching software" : "No software"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "Try a different search." : "Create software to manage Munki packages."}
+                  {hasFilters
+                    ? "Try a different search."
+                    : "Create software to manage Munki packages."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -186,7 +205,12 @@ function MunkiSoftwareActionBar({ table }: { table: TanStackTable<MunkiSoftware>
   return (
     <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={bulkDelete.isPending}
+      >
         <Trash2 />
         Delete
       </Button>

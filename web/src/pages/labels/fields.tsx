@@ -12,7 +12,14 @@ import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
@@ -24,8 +31,8 @@ import {
   LABEL_MEMBERSHIP_OPTIONS,
   LABEL_MEMBERSHIP_TYPES,
   LABEL_MEMBERSHIP_VALUES,
-  labelDerivedAttributeSelectorLabel,
   type LabelDerivedAttribute,
+  labelDerivedAttributeSelectorLabel,
   type LabelMembershipType,
 } from "@/lib/labels";
 import { sqlSyntaxError } from "@/lib/sql-validation";
@@ -79,7 +86,11 @@ const labelFormSchema = z
     if (value.label_membership_type === "dynamic") {
       const query = queryRequiredSchema.safeParse(value.query);
       if (!query.success) {
-        ctx.addIssue({ code: "custom", message: query.error.issues[0]?.message ?? "Invalid query.", path: ["query"] });
+        ctx.addIssue({
+          code: "custom",
+          message: query.error.issues[0]?.message ?? "Invalid query.",
+          path: ["query"],
+        });
       } else {
         const syntaxError = sqlSyntaxError(value.query);
         if (syntaxError) {
@@ -155,7 +166,13 @@ export function LabelForm({
   );
 
   return (
-    <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
+    <PageShell
+      asChild
+      className={cn(
+        "h-full transition-[padding] duration-200 ease-out",
+        schemaOpen && "pr-[21rem]",
+      )}
+    >
       <form
         noValidate
         onSubmit={(event) => {
@@ -286,7 +303,9 @@ export function LabelForm({
                       <form.Field
                         name="derived_values"
                         children={(field) => (
-                          <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
+                          <Field
+                            data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          >
                             <FieldLabel required>
                               {labelDerivedAttributeSelectorLabel(values.derived_attribute)}
                             </FieldLabel>
@@ -308,7 +327,10 @@ export function LabelForm({
                   <form.Field
                     name="query"
                     children={(field) => (
-                      <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined} className="max-w-3xl">
+                      <Field
+                        data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                        className="max-w-3xl"
+                      >
                         <FieldLabel required>Query</FieldLabel>
                         <SQLEditor
                           ref={editorRef}
@@ -358,6 +380,8 @@ export function LabelForm({
 
 function membershipFromString(value: string | undefined): LabelMembershipType {
   switch (value) {
+    case undefined:
+      return "dynamic";
     case "manual":
     case "derived":
       return value;
@@ -368,6 +392,8 @@ function membershipFromString(value: string | undefined): LabelMembershipType {
 
 function derivedAttributeFromString(value: string | undefined): LabelDerivedAttribute {
   switch (value) {
+    case undefined:
+      return "user_department";
     case "directory_group":
     case "user":
     case "user_department":

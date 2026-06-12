@@ -205,7 +205,11 @@ export const LATEST_PACKAGE_VALUE = "latest";
 
 const packageSelectorSchema = z.object({
   strategy: z.enum(MUNKI_PACKAGE_STRATEGY_VALUES),
-  package_id: z.number().int("Package selection is invalid.").positive("Package is required.").optional(),
+  package_id: z
+    .number()
+    .int("Package selection is invalid.")
+    .positive("Package is required.")
+    .optional(),
 });
 
 export const munkiSoftwareTargetSchema = z

@@ -31,7 +31,9 @@ interface Crumb {
 
 export function AppBreadcrumbs({ className }: { className?: string }) {
   const matches = useMatches();
-  const leaf = matches[matches.length - 1] as { routeId: string; params: Record<string, string> } | undefined;
+  const leaf = matches[matches.length - 1] as
+    | { routeId: string; params: Record<string, string> }
+    | undefined;
   const crumbs = leaf ? crumbsForLeaf(leaf.routeId, leaf.params) : [];
 
   if (crumbs.length === 0) return null;
@@ -141,7 +143,10 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       return [
         { key: "munki", label: "Munki", to: "/munki/software" },
         { key: "munki-software", label: "Software", to: "/munki/software" },
-        { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
+        {
+          key: `munki-software-${params.softwareId}`,
+          label: <MunkiSoftwareCrumb id={params.softwareId} />,
+        },
       ];
     case "/_authenticated/munki/packages/new":
       return [
@@ -153,7 +158,10 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       return [
         { key: "munki", label: "Munki", to: "/munki/packages" },
         { key: "munki-packages", label: "Packages", to: "/munki/packages" },
-        { key: `munki-package-${params.packageId}`, label: <MunkiPackageCrumb id={params.packageId} /> },
+        {
+          key: `munki-package-${params.packageId}`,
+          label: <MunkiPackageCrumb id={params.packageId} />,
+        },
       ];
     // Santa
     case "/_authenticated/santa/configurations/new":

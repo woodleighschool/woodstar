@@ -19,7 +19,13 @@ const iconClass: Record<WoodstarMarkSize, string> = {
 
 export function WoodstarMark({ className, size = "sm" }: WoodstarMarkProps) {
   return (
-    <div className={cn("relative flex shrink-0 items-center justify-center", sizeClass[size], className)}>
+    <div
+      className={cn(
+        "relative flex shrink-0 items-center justify-center",
+        sizeClass[size],
+        className,
+      )}
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="currentColor"

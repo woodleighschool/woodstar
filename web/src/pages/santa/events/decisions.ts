@@ -136,7 +136,8 @@ export const FILE_ACCESS_DECISIONS = {
   },
   denied_invalid_signature: {
     name: "Denied (Invalid Signature)",
-    description: "Santa denied the file access because the accessing process had an invalid signature.",
+    description:
+      "Santa denied the file access because the accessing process had an invalid signature.",
     variant: "error",
   },
   audit_only: {

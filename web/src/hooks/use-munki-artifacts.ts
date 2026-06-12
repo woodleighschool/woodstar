@@ -31,7 +31,8 @@ export function useUploadMunkiArtifact(kind: MunkiArtifactUploadMutation["kind"]
       url: upload.upload_url,
       headers: upload.headers ?? {},
     }),
-    completeUpload: (upload) => unwrap(apiClient.POST("/api/munki/artifacts", { body: upload.artifact })),
+    completeUpload: (upload) =>
+      unwrap(apiClient.POST("/api/munki/artifacts", { body: upload.artifact })),
   });
 }
 

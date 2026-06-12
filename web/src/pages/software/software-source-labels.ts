@@ -1,21 +1,41 @@
 const SOFTWARE_SOURCE_GROUPS = [
   { value: "apps", label: "App", filterLabel: "App", sources: ["apps"] },
-  { value: "homebrew_packages", label: "Homebrew", filterLabel: "Homebrew", sources: ["homebrew_packages"] },
+  {
+    value: "homebrew_packages",
+    label: "Homebrew",
+    filterLabel: "Homebrew",
+    sources: ["homebrew_packages"],
+  },
   {
     value: "browser_plugins",
     label: "Browser Plugin",
     filterLabel: "Browser Plugins",
     sources: ["chrome_extensions", "firefox_addons", "safari_extensions"],
   },
-  { value: "npm_packages", label: "npm Package", filterLabel: "npm Packages", sources: ["npm_packages"] },
+  {
+    value: "npm_packages",
+    label: "npm Package",
+    filterLabel: "npm Packages",
+    sources: ["npm_packages"],
+  },
   {
     value: "ide_extensions",
     label: "IDE Extension",
     filterLabel: "IDE Extensions",
     sources: ["vscode_extensions", "jetbrains_plugins"],
   },
-  { value: "go_binaries", label: "Go Binary", filterLabel: "Go Binaries", sources: ["go_binaries"] },
-  { value: "python_packages", label: "Python Package", filterLabel: "Python Packages", sources: ["python_packages"] },
+  {
+    value: "go_binaries",
+    label: "Go Binary",
+    filterLabel: "Go Binaries",
+    sources: ["go_binaries"],
+  },
+  {
+    value: "python_packages",
+    label: "Python Package",
+    filterLabel: "Python Packages",
+    sources: ["python_packages"],
+  },
 ] as const;
 
 export const SOURCE_FILTER_OPTIONS = SOFTWARE_SOURCE_GROUPS.map(({ value, filterLabel }) => ({

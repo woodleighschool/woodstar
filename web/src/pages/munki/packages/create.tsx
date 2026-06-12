@@ -1,4 +1,4 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -12,14 +12,17 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
-import { useMunkiSoftware, type MunkiSoftware } from "@/hooks/use-munki-software";
+import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, PackageFormActions, type SoftwareInfo } from "./fields";
-import { emptyPackageForm, packageMutationFromForm, packageSubmitPreflightError } from "./form-state";
+import {
+  emptyPackageForm,
+  packageMutationFromForm,
+  packageSubmitPreflightError,
+} from "./form-state";
 
 export function MunkiPackageCreatePage() {
   const navigate = useNavigate();
@@ -49,7 +52,9 @@ export function MunkiPackageCreatePage() {
       return;
     }
     const installerArtifact =
-      value.installer_type !== "nopkg" && installerFile ? await packageUpload.upload(installerFile) : null;
+      value.installer_type !== "nopkg" && installerFile
+        ? await packageUpload.upload(installerFile)
+        : null;
     const uninstallerArtifact =
       value.uninstall_method === "uninstall_package" && uninstallerFile
         ? await packageUpload.upload(uninstallerFile)
@@ -131,7 +136,11 @@ export function MunkiPackageCreatePage() {
         />
         <PackageFormActions
           pending={create.isPending || packageUpload.isUploading || softwareID === null}
-          error={softwareError ? undefined : (preflightError ?? create.error?.message ?? packageUpload.error?.message)}
+          error={
+            softwareError
+              ? undefined
+              : (preflightError ?? create.error?.message ?? packageUpload.error?.message)
+          }
         />
       </form>
     </PageShell>

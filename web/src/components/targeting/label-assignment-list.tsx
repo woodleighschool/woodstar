@@ -1,4 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -8,8 +7,14 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
 
@@ -38,7 +43,8 @@ export function LabelAssignmentList({
     label_type: includeBuiltins ? undefined : "regular",
   });
   const labelsByID = useMemo(
-    () => new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
+    () =>
+      new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
     [labels.data],
   );
   const unavailableLabelIDs = [...rows.map((row) => row.label_id), ...crossListLabelIDs];
@@ -56,7 +62,8 @@ export function LabelAssignmentList({
         id: "label",
         header: "Label",
         enableSorting: false,
-        cell: ({ row }) => labelsByID.get(row.original.label_id) ?? `Label ${row.original.label_id}`,
+        cell: ({ row }) =>
+          labelsByID.get(row.original.label_id) ?? `Label ${row.original.label_id}`,
       },
       {
         id: "actions",
@@ -96,7 +103,11 @@ export function LabelAssignmentList({
         </Button>
       }
     >
-      {rows.length > 0 ? <DataTableStatic columns={columns} data={rows} /> : <EmptyPanel>{emptyText}</EmptyPanel>}
+      {rows.length > 0 ? (
+        <DataTableStatic columns={columns} data={rows} />
+      ) : (
+        <EmptyPanel>{emptyText}</EmptyPanel>
+      )}
 
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent>

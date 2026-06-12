@@ -126,7 +126,8 @@ export function useSetHostUserAffinity() {
 export function useClearHostUserAffinity() {
   const queryClient = useQueryClient();
   return useMutation<HostDetail, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
     onSuccess: async (host) => {
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });

@@ -1,13 +1,22 @@
 import type { SantaClientMode, SantaConfigurationMutation } from "@/hooks/use-santa-configurations";
-import { enumLabel, enumOptions, type EnumMetadataMap, type StatusMetadataMap } from "@/lib/enum-metadata";
+import {
+  enumLabel,
+  type EnumMetadataMap,
+  enumOptions,
+  type StatusMetadataMap,
+} from "@/lib/enum-metadata";
 
-type StoredMediaAction = NonNullable<NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]>;
+type StoredMediaAction = NonNullable<
+  NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]
+>;
 
 export type SantaMediaAction = StoredMediaAction | "none";
 
-export const CLIENT_MODE_VALUES = ["monitor", "lockdown", "standalone"] as const satisfies readonly NonNullable<
-  SantaConfigurationMutation["client_mode"]
->[];
+export const CLIENT_MODE_VALUES = [
+  "monitor",
+  "lockdown",
+  "standalone",
+] as const satisfies readonly NonNullable<SantaConfigurationMutation["client_mode"]>[];
 
 export const CLIENT_MODES = {
   unknown: {
@@ -33,10 +42,17 @@ export const CLIENT_MODES = {
 } satisfies StatusMetadataMap<SantaClientMode>;
 
 export const CLIENT_MODE_OPTIONS = enumOptions(CLIENT_MODES).filter((option) =>
-  CLIENT_MODE_VALUES.includes(option.value as NonNullable<SantaConfigurationMutation["client_mode"]>),
+  CLIENT_MODE_VALUES.includes(
+    option.value as NonNullable<SantaConfigurationMutation["client_mode"]>,
+  ),
 );
 
-export const MEDIA_ACTION_VALUES = ["none", "allow", "block", "remount"] as const satisfies readonly SantaMediaAction[];
+export const MEDIA_ACTION_VALUES = [
+  "none",
+  "allow",
+  "block",
+  "remount",
+] as const satisfies readonly SantaMediaAction[];
 
 export const MEDIA_ACTIONS = {
   none: { name: "No Policy" },

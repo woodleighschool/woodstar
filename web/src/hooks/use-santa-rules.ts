@@ -29,7 +29,8 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
 
   return useQuery<SantaRuleListResult, ApiError>({
     queryKey: queryKeys.santaRules(queryParams),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/rules", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/rules", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -58,7 +59,9 @@ export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}
   return useQuery<SantaRuleReferenceListResult, ApiError>({
     queryKey: queryKeys.santaRuleReferences(queryParams),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/rule-references", { params: { query: queryParams }, signal })),
+      unwrap(
+        apiClient.GET("/api/santa/rule-references", { params: { query: queryParams }, signal }),
+      ),
     placeholderData: keepPreviousData,
   });
 }
@@ -78,7 +81,8 @@ export function useCreateSantaRule() {
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
-    mutationFn: ({ id, body }) => unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
     meta: { inlineError: true },
     onSuccess: (rule) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
@@ -90,7 +94,8 @@ export function useUpdateSantaRule() {
 export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },

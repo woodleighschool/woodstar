@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -36,7 +36,9 @@ export function checkFromDetail(detail: Check): CheckMutation {
   };
 }
 
-const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
+const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, {
+  message: invalidSQLSyntaxMessage,
+});
 
 function trimCheck(value: CheckMutation): CheckMutation {
   return {
@@ -95,7 +97,13 @@ export function CheckForm({
   );
 
   return (
-    <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
+    <PageShell
+      asChild
+      className={cn(
+        "h-full transition-[padding] duration-200 ease-out",
+        schemaOpen && "pr-[21rem]",
+      )}
+    >
       <form
         noValidate
         onSubmit={(event) => {
@@ -104,7 +112,13 @@ export function CheckForm({
         }}
       >
         <form.Subscribe selector={(state) => state.values.name}>
-          {(name) => <PageHeader title={title ?? (name || "Check")} context={headerContext} actions={headerActions} />}
+          {(name) => (
+            <PageHeader
+              title={title ?? (name || "Check")}
+              context={headerContext}
+              actions={headerActions}
+            />
+          )}
         </form.Subscribe>
 
         <MutableResourceTabs

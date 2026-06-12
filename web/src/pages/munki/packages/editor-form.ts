@@ -1,8 +1,11 @@
 import { useForm } from "@tanstack/react-form";
 
-import { validatePackageForm, type PackageFormState } from "./form-state";
+import { type PackageFormState, validatePackageForm } from "./form-state";
 
-export function usePackageEditorForm(initial: PackageFormState, onSubmit: (value: PackageFormState) => Promise<void>) {
+export function usePackageEditorForm(
+  initial: PackageFormState,
+  onSubmit: (value: PackageFormState) => Promise<void>,
+) {
   return useForm({
     defaultValues: initial,
     validators: {

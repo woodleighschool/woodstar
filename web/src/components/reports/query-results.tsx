@@ -31,7 +31,7 @@ export function resultColumnNames(rows: ReportTableRow[]): string[] {
       seen.add(key);
     }
   }
-  return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  return Array.from(seen).toSorted((a, b) => a.localeCompare(b));
 }
 
 export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
@@ -41,7 +41,11 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
       accessorKey: "hostName",
       header: () => "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$hostId" params={{ hostId: String(row.original.hostId) }} className="hover:underline">
+        <Link
+          to="/hosts/$hostId"
+          params={{ hostId: String(row.original.hostId) }}
+          className="hover:underline"
+        >
           {row.original.hostName}
         </Link>
       ),
@@ -50,7 +54,8 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
       id: "lastFetched",
       accessorKey: "lastFetched",
       header: () => "Last Fetched",
-      cell: ({ row }) => (row.original.lastFetched ? formatRelative(row.original.lastFetched) : "-"),
+      cell: ({ row }) =>
+        row.original.lastFetched ? formatRelative(row.original.lastFetched) : "-",
     },
   ];
 }

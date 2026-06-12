@@ -12,7 +12,9 @@ export function emptyLabelTargetSet(): LabelTargetSet {
   return { include: [], exclude: [] };
 }
 
-export function normalizeLabelTargetSet(targets: LabelTargetSet | null | undefined): LabelTargetSet {
+export function normalizeLabelTargetSet(
+  targets: LabelTargetSet | null | undefined,
+): LabelTargetSet {
   return {
     include: targets?.include ?? [],
     exclude: targets?.exclude ?? [],

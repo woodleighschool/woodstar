@@ -21,7 +21,13 @@ export function QueryError({
       <AlertTitle>{title}</AlertTitle>
       {error.message ? <AlertDescription>{error.message}</AlertDescription> : null}
       {onRetry ? (
-        <Button type="button" variant="outline" size="sm" onClick={onRetry} className="col-start-2 mt-2 w-fit">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRetry}
+          className="col-start-2 mt-2 w-fit"
+        >
           Retry
         </Button>
       ) : null}

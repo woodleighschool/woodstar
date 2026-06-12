@@ -17,12 +17,28 @@ import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, encodeSort, MAX_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import {
+  DEFAULT_PAGE_SIZE,
+  encodeSort,
+  MAX_PAGE_SIZE,
+  useDataTableSearch,
+} from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
-import { useBulkDeleteSantaRules, useSantaRules, type SantaRule, type SantaRuleType } from "@/hooks/use-santa-rules";
+import {
+  type SantaRule,
+  type SantaRuleType,
+  useBulkDeleteSantaRules,
+  useSantaRules,
+} from "@/hooks/use-santa-rules";
 import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
 
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
@@ -59,7 +75,10 @@ export function RuleListPage() {
         id: "select",
         header: ({ table }) => (
           <Checkbox
-            checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
             onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
             aria-label="Select all"
           />
@@ -150,7 +169,11 @@ export function RuleListPage() {
       />
 
       {query.error ? (
-        <QueryError title="Failed to load rules" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load rules"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={5} filterCount={1} />
       ) : (
@@ -165,7 +188,9 @@ export function RuleListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matches" : "No execution rules"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "No rules matched these filters." : "Create a rule, then attach label targets."}
+                  {hasFilters
+                    ? "No rules matched these filters."
+                    : "Create a rule, then attach label targets."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -207,7 +232,12 @@ function RulesActionBar({ table }: { table: TanStackTable<SantaRule> }) {
   return (
     <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={bulkDelete.isPending}
+      >
         <Trash2 />
         Delete
       </Button>

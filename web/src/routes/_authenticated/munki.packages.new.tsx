@@ -7,5 +7,8 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_authenticated/munki/packages/new")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: lazyRouteComponent(() => import("@/pages/munki/packages/create"), "MunkiPackageCreatePage"),
+  component: lazyRouteComponent(
+    () => import("@/pages/munki/packages/create"),
+    "MunkiPackageCreatePage",
+  ),
 });

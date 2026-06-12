@@ -1,5 +1,5 @@
 import type { Group, User } from "@/lib/api";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type DirectorySource = (User | Group)["source"];
 

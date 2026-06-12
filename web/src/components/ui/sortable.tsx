@@ -23,7 +23,11 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { restrictToHorizontalAxis, restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  restrictToHorizontalAxis,
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
 import {
   arrayMove,
   horizontalListSortingStrategy,
@@ -142,49 +146,40 @@ function Sortable<T>(props: SortableProps<T>) {
     return value.map((item) => getItemValue(item));
   }, [value, getItemValue]);
 
-  const onDragStart = React.useCallback(
-    (event: DragStartEvent) => {
-      sortableProps.onDragStart?.(event);
+  function onDragStart(event: DragStartEvent) {
+    props.onDragStart?.(event);
 
-      if (event.activatorEvent.defaultPrevented) return;
+    if (event.activatorEvent.defaultPrevented) return;
 
-      setActiveId(event.active.id);
-    },
-    [sortableProps.onDragStart],
-  );
+    setActiveId(event.active.id);
+  }
 
-  const onDragEnd = React.useCallback(
-    (event: DragEndEvent) => {
-      sortableProps.onDragEnd?.(event);
+  function onDragEnd(event: DragEndEvent) {
+    props.onDragEnd?.(event);
 
-      if (event.activatorEvent.defaultPrevented) return;
+    if (event.activatorEvent.defaultPrevented) return;
 
-      const { active, over } = event;
-      if (over && active.id !== over?.id) {
-        const activeIndex = value.findIndex((item) => getItemValue(item) === active.id);
-        const overIndex = value.findIndex((item) => getItemValue(item) === over.id);
+    const { active, over } = event;
+    if (over && active.id !== over?.id) {
+      const activeIndex = value.findIndex((item) => getItemValue(item) === active.id);
+      const overIndex = value.findIndex((item) => getItemValue(item) === over.id);
 
-        if (onMove) {
-          onMove({ ...event, activeIndex, overIndex });
-        } else {
-          onValueChange?.(arrayMove(value, activeIndex, overIndex));
-        }
+      if (onMove) {
+        onMove({ ...event, activeIndex, overIndex });
+      } else {
+        onValueChange?.(arrayMove(value, activeIndex, overIndex));
       }
-      setActiveId(null);
-    },
-    [value, onValueChange, onMove, getItemValue, sortableProps.onDragEnd],
-  );
+    }
+    setActiveId(null);
+  }
 
-  const onDragCancel = React.useCallback(
-    (event: DragEndEvent) => {
-      sortableProps.onDragCancel?.(event);
+  function onDragCancel(event: DragEndEvent) {
+    props.onDragCancel?.(event);
 
-      if (event.activatorEvent.defaultPrevented) return;
+    if (event.activatorEvent.defaultPrevented) return;
 
-      setActiveId(null);
-    },
-    [sortableProps.onDragCancel],
-  );
+    setActiveId(null);
+  }
 
   const announcements: Announcements = React.useMemo(
     () => ({
@@ -251,7 +246,17 @@ function Sortable<T>(props: SortableProps<T>) {
       getItemValue,
       flatCursor,
     }),
-    [id, items, modifiers, strategy, config.modifiers, config.strategy, activeId, getItemValue, flatCursor],
+    [
+      id,
+      items,
+      modifiers,
+      strategy,
+      config.modifiers,
+      config.strategy,
+      activeId,
+      getItemValue,
+      flatCursor,
+    ],
   );
 
   return (
@@ -339,7 +344,9 @@ function SortableItem(props: SortableItemProps) {
   const inSortableOverlay = React.useContext(SortableOverlayContext);
 
   if (!inSortableContent && !inSortableOverlay) {
-    throw new Error(`\`${ITEM_NAME}\` must be used within \`${CONTENT_NAME}\` or \`${OVERLAY_NAME}\``);
+    throw new Error(
+      `\`${ITEM_NAME}\` must be used within \`${CONTENT_NAME}\` or \`${OVERLAY_NAME}\``,
+    );
   }
 
   if (value === "") {
@@ -348,7 +355,15 @@ function SortableItem(props: SortableItemProps) {
 
   const context = useSortableContext(ITEM_NAME);
   const id = React.useId();
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: value,
     disabled,
   });
@@ -394,7 +409,7 @@ function SortableItem(props: SortableItemProps) {
         ref={composedRef}
         style={composedStyle}
         className={cn(
-          "focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1",
+          "focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-hidden",
           {
             "touch-none select-none": asHandle,
             "cursor-default": context.flatCursor,
@@ -488,11 +503,22 @@ function SortableOverlay(props: SortableOverlayProps) {
       {...overlayProps}
     >
       <SortableOverlayContext.Provider value={true}>
-        {context.activeId ? (typeof children === "function" ? children({ value: context.activeId }) : children) : null}
+        {context.activeId
+          ? typeof children === "function"
+            ? children({ value: context.activeId })
+            : children
+          : null}
       </SortableOverlayContext.Provider>
     </DragOverlay>,
     container,
   );
 }
 
-export { Sortable, SortableContent, SortableItem, SortableItemHandle, SortableOverlay, type SortableProps };
+export {
+  Sortable,
+  SortableContent,
+  SortableItem,
+  SortableItemHandle,
+  SortableOverlay,
+  type SortableProps,
+};

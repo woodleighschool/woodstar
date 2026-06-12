@@ -17,7 +17,10 @@ export function ConfigurationCreatePage() {
       onCancel={() => void navigate({ to: "/santa/configurations" })}
       onSubmit={async (body) => {
         const saved = await create.mutateAsync(body);
-        void navigate({ to: "/santa/configurations/$configurationId", params: { configurationId: String(saved.id) } });
+        void navigate({
+          to: "/santa/configurations/$configurationId",
+          params: { configurationId: String(saved.id) },
+        });
       }}
     />
   );

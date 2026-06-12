@@ -27,7 +27,8 @@ export function useReports(params: ReportListParams = {}) {
 
   return useQuery<ReportListResult, ApiError>({
     queryKey: queryKeys.reports(queryParams),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/osquery/reports", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/osquery/reports", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -93,7 +94,8 @@ export function useUpdateReport(id: number | null) {
 export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
@@ -103,7 +105,8 @@ export function useDeleteReport() {
 export function useBulkDeleteReports() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(apiClient.POST("/api/osquery/reports/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) =>
+      unwrap(apiClient.POST("/api/osquery/reports/bulk-delete", { body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },

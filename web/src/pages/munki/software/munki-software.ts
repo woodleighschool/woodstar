@@ -1,6 +1,6 @@
 import type { MunkiPackageMutation } from "@/hooks/use-munki-packages";
 import type { PackageInstallItem, SoftwareInclude } from "@/lib/api";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
@@ -84,7 +84,10 @@ export const MUNKI_SOFTWARE_ACTIONS = {
 
 export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(MUNKI_SOFTWARE_ACTIONS);
 
-export const MUNKI_PACKAGE_STRATEGY_VALUES = ["latest", "specific"] as const satisfies readonly MunkiPackageStrategy[];
+export const MUNKI_PACKAGE_STRATEGY_VALUES = [
+  "latest",
+  "specific",
+] as const satisfies readonly MunkiPackageStrategy[];
 
 export function munkiInstallerTypeLabel(value: string | null | undefined) {
   return enumLabel(MUNKI_INSTALLER_TYPES, value);

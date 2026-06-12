@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
@@ -23,10 +23,22 @@ import {
 } from "@/components/ui/dialog";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { useClearHostUserAffinity, useSetHostUserAffinity, type Host, type HostDetail } from "@/hooks/use-hosts";
+import {
+  type Host,
+  type HostDetail,
+  useClearHostUserAffinity,
+  useSetHostUserAffinity,
+} from "@/hooks/use-hosts";
 import { requiredString } from "@/lib/form-validation";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
@@ -114,7 +126,10 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   tiles.push({ label: "Private IP Address", value: host.network.primary_ip ?? "-" });
 
   if (host.hardware.cpu.brand || host.hardware.cpu.architecture) {
-    tiles.push({ label: "Processor Type", value: host.hardware.cpu.brand || host.hardware.cpu.architecture });
+    tiles.push({
+      label: "Processor Type",
+      value: host.hardware.cpu.brand || host.hardware.cpu.architecture,
+    });
   }
 
   tiles.push({ label: "Public IP Address", value: host.network.last_remote_ip ?? "-" });
@@ -129,8 +144,8 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
         <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
           {tiles.map((t) => (
             <div key={t.label} className="flex min-w-0 flex-col gap-1">
-              <dt className="text-muted-foreground text-xs font-semibold">{t.label}</dt>
-              <dd className="text-foreground truncate text-sm">{t.value}</dd>
+              <dt className="text-xs font-semibold text-muted-foreground">{t.label}</dt>
+              <dd className="truncate text-sm text-foreground">{t.value}</dd>
             </div>
           ))}
         </dl>
@@ -163,7 +178,10 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
           <IdentityItem label="Username" value={displayValue(affinity?.username)} />
           <IdentityItem label="Email" value={displayValue(affinity?.email)} />
           <IdentityItem label="Department" value={displayValue(affinity?.department)} />
-          <IdentityItem label="Source" value={affinity ? userAffinitySourceLabel(affinity.source) : "-"} />
+          <IdentityItem
+            label="Source"
+            value={affinity ? userAffinitySourceLabel(affinity.source) : "-"}
+          />
           <IdentityItem
             label="Groups"
             value={<UserGroups groups={affinity?.groups ?? []} />}
@@ -228,11 +246,19 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
   );
 }
 
-function IdentityItem({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+function IdentityItem({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <dt className="text-muted-foreground text-xs font-semibold">{label}</dt>
-      <dd className="text-foreground break-words text-sm">{value}</dd>
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dd className="text-sm break-words text-foreground">{value}</dd>
     </div>
   );
 }
@@ -256,7 +282,13 @@ function displayValue(value: string | null | undefined) {
   return value && value.trim() !== "" ? value : "-";
 }
 
-function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpenChange: (open: boolean) => void }) {
+function HostUserMappingDialog({
+  host,
+  onOpenChange,
+}: {
+  host: HostDetail;
+  onOpenChange: (open: boolean) => void;
+}) {
   const manual = manualUserAffinityMapping(host.user_affinity.mappings);
   const setMapping = useSetHostUserAffinity();
   const clearMapping = useClearHostUserAffinity();
@@ -282,7 +314,9 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{manual ? "Edit User Affinity" : "Set User Affinity"}</DialogTitle>
-          <DialogDescription>Set the email or UPN Woodstar should prefer for this host.</DialogDescription>
+          <DialogDescription>
+            Set the email or UPN Woodstar should prefer for this host.
+          </DialogDescription>
         </DialogHeader>
         <form
           noValidate
@@ -315,12 +349,24 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
 
           <DialogFooter className="pt-2">
             {manual ? (
-              <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => void handleClear()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={pending}
+                onClick={() => void handleClear()}
+              >
                 <Trash2 />
                 Clear
               </Button>
             ) : null}
-            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <SubmitButton pending={pending} size="sm">
@@ -336,10 +382,16 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
 export function HostCertificatesCard({ host }: { host: HostDetail }) {
   const [selectedCertificate, setSelectedCertificate] = useState<HostCertificate | null>(null);
   const certificates = useMemo(
-    () => [...(host.certificates ?? [])].sort((a, b) => (a.common_name || "").localeCompare(b.common_name || "")),
+    () =>
+      [...(host.certificates ?? [])].toSorted((a, b) =>
+        (a.common_name || "").localeCompare(b.common_name || ""),
+      ),
     [host.certificates],
   );
-  const columns = useMemo<ColumnDef<HostCertificate>[]>(() => certificateColumns(setSelectedCertificate), []);
+  const columns = useMemo<ColumnDef<HostCertificate>[]>(
+    () => certificateColumns(setSelectedCertificate),
+    [],
+  );
   if (certificates.length === 0) return null;
 
   return (
@@ -349,13 +401,18 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
       </CardHeader>
       <CardContent>
         <DataTableStatic columns={columns} data={certificates} />
-        <CertificateDetailsDialog certificate={selectedCertificate} onOpenChange={setSelectedCertificate} />
+        <CertificateDetailsDialog
+          certificate={selectedCertificate}
+          onOpenChange={setSelectedCertificate}
+        />
       </CardContent>
     </Card>
   );
 }
 
-function certificateColumns(onSelect: (certificate: HostCertificate) => void): ColumnDef<HostCertificate>[] {
+function certificateColumns(
+  onSelect: (certificate: HostCertificate) => void,
+): ColumnDef<HostCertificate>[] {
   return [
     {
       id: "common_name",
@@ -387,13 +444,15 @@ function certificateColumns(onSelect: (certificate: HostCertificate) => void): C
       id: "not_valid_before",
       accessorKey: "not_valid_before",
       header: () => "Issued",
-      cell: ({ row }) => (row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-"),
+      cell: ({ row }) =>
+        row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-",
     },
     {
       id: "not_valid_after",
       accessorKey: "not_valid_after",
       header: () => "Expires",
-      cell: ({ row }) => (row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-"),
+      cell: ({ row }) =>
+        row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-",
     },
   ];
 }
@@ -414,8 +473,14 @@ function CertificateDetailsDialog({
         </DialogHeader>
         {certificate ? (
           <div className="grid gap-5">
-            <CertificateDetailSection title="Subject" rows={certificateNameRows(certificate.subject)} />
-            <CertificateDetailSection title="Issuer" rows={certificateNameRows(certificate.issuer)} />
+            <CertificateDetailSection
+              title="Subject"
+              rows={certificateNameRows(certificate.subject)}
+            />
+            <CertificateDetailSection
+              title="Issuer"
+              rows={certificateNameRows(certificate.issuer)}
+            />
             <CertificateDetailSection
               title="Validity"
               rows={[
@@ -448,8 +513,16 @@ function CertificateDetailsDialog({
   );
 }
 
-function CertificateDetailSection({ title, rows }: { title: string; rows: Array<[string, ReactNode]> }) {
-  const visibleRows = rows.filter(([, value]) => value !== "" && value !== null && value !== undefined);
+function CertificateDetailSection({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<[string, ReactNode]>;
+}) {
+  const visibleRows = rows.filter(
+    ([, value]) => value !== "" && value !== null && value !== undefined,
+  );
   if (visibleRows.length === 0) return null;
 
   return (

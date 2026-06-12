@@ -11,7 +11,11 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useOsquerySchema, type OsqueryColumn, type OsqueryTable } from "@/hooks/use-osquery-schema";
+import {
+  type OsqueryColumn,
+  type OsqueryTable,
+  useOsquerySchema,
+} from "@/hooks/use-osquery-schema";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
@@ -42,7 +46,7 @@ export function SchemaSidebar({
         title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         onClick={() => onOpenChange(!open)}
         className={cn(
-          "bg-card fixed top-20 z-40 rounded-l-md border border-r-0 p-2 shadow-sm md:top-6",
+          "fixed top-20 z-40 rounded-l-md border border-r-0 bg-card p-2 shadow-sm md:top-6",
           "transition-[right,color,border-color] duration-200 ease-out hover:bg-accent hover:text-accent-foreground",
           open ? "right-80" : "right-0",
         )}
@@ -80,14 +84,18 @@ function SchemaPanel({
     onSelectedTableChange?.(tableName);
   }
 
-  const selected = selectedName ? tables.find((candidate) => candidate.name === selectedName) : undefined;
+  const selected = selectedName
+    ? tables.find((candidate) => candidate.name === selectedName)
+    : undefined;
   const table =
-    tables.length > 0 ? (selected ?? tables.find((candidate) => candidate.name === "users") ?? tables[0]) : null;
+    tables.length > 0
+      ? (selected ?? tables.find((candidate) => candidate.name === "users") ?? tables[0])
+      : null;
 
   return (
     <aside
       className={cn(
-        "bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg md:top-0",
+        "fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l bg-card shadow-lg md:top-0",
         "transition-transform duration-200 ease-out",
         open ? "translate-x-0" : "translate-x-full",
       )}
@@ -107,9 +115,9 @@ function SchemaPanel({
 
       <div className="flex-1 overflow-y-auto">
         {schema.isLoading ? (
-          <div className="text-muted-foreground p-4 text-sm">Loading Schema...</div>
+          <div className="p-4 text-sm text-muted-foreground">Loading Schema...</div>
         ) : schema.error ? (
-          <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
+          <div className="p-4 text-sm text-muted-foreground">Schema unavailable</div>
         ) : table ? (
           <TableDetail table={table} onInsertColumn={onInsertColumn} />
         ) : null}
@@ -155,7 +163,13 @@ function TableSelector({
   );
 }
 
-function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertColumn?: (name: string) => void }) {
+function TableDetail({
+  table,
+  onInsertColumn,
+}: {
+  table: OsqueryTable;
+  onInsertColumn?: (name: string) => void;
+}) {
   const badges = [
     table.evented ? (
       <Badge key="evented" variant="outline">
@@ -174,7 +188,7 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
 
       {table.description ? (
         <section>
-          <Markdown className="text-muted-foreground text-sm">{table.description}</Markdown>
+          <Markdown className="text-sm text-muted-foreground">{table.description}</Markdown>
         </section>
       ) : null}
 
@@ -183,7 +197,7 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
       {table.examples ? (
         <section>
           <SectionHeading>Example</SectionHeading>
-          <Markdown className="text-muted-foreground text-sm" components={exampleComponents}>
+          <Markdown className="text-sm text-muted-foreground" components={exampleComponents}>
             {exampleMarkdown(table.examples)}
           </Markdown>
         </section>
@@ -201,7 +215,7 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
           href={table.url}
           target="_blank"
           rel="noreferrer"
-          className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
         >
           Source <ExternalLink className="size-3.5" />
         </a>
@@ -216,7 +230,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 const exampleComponents = {
   pre: ({ children }: { children?: React.ReactNode }) => (
-    <div className="text-foreground mb-2 last:mb-0">
+    <div className="mb-2 text-foreground last:mb-0">
       <SQLEditor value={codeText(children)} onChange={() => null} readOnly />
     </div>
   ),
@@ -231,7 +245,9 @@ function codeText(children: React.ReactNode) {
 function exampleMarkdown(examples: NonNullable<OsqueryTable["examples"]>) {
   if (typeof examples === "string") return examples;
   return examples
-    .map((example) => [example.description, "```sql", example.query, "```"].filter(Boolean).join("\n\n"))
+    .map((example) =>
+      [example.description, "```sql", example.query, "```"].filter(Boolean).join("\n\n"),
+    )
     .join("\n\n");
 }
 
@@ -242,12 +258,14 @@ function ColumnList({
   columns: OsqueryColumn[];
   onInsertColumn?: (name: string) => void;
 }) {
-  const ordered = [...columns].sort((a, b) => Number(b.required) - Number(a.required) || a.name.localeCompare(b.name));
+  const ordered = [...columns].toSorted(
+    (a, b) => Number(b.required) - Number(a.required) || a.name.localeCompare(b.name),
+  );
 
   return (
     <section>
       <SectionHeading>Columns</SectionHeading>
-      <ul className="divide-border divide-y">
+      <ul className="divide-y divide-border">
         {ordered.map((column) => (
           <ColumnRow key={column.name} column={column} onInsert={onInsertColumn} />
         ))}
@@ -256,15 +274,23 @@ function ColumnList({
   );
 }
 
-function ColumnRow({ column, onInsert }: { column: OsqueryColumn; onInsert?: (name: string) => void }) {
+function ColumnRow({
+  column,
+  onInsert,
+}: {
+  column: OsqueryColumn;
+  onInsert?: (name: string) => void;
+}) {
   const tooltip = renderColumnTooltip(column);
   const row = (
     <div className="flex items-baseline justify-between gap-2 py-1.5">
       <span className="flex min-w-0 items-baseline gap-1">
         <span className="truncate text-sm">{column.name}</span>
-        {column.required ? <span className="text-destructive text-xs">*</span> : null}
+        {column.required ? <span className="text-xs text-destructive">*</span> : null}
       </span>
-      <span className="text-muted-foreground shrink-0 text-[10px] tracking-wide uppercase">{column.type}</span>
+      <span className="shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
+        {column.type}
+      </span>
     </div>
   );
 
@@ -274,7 +300,7 @@ function ColumnRow({ column, onInsert }: { column: OsqueryColumn; onInsert?: (na
     <button
       type="button"
       onClick={() => onInsert(column.name)}
-      className="hover:bg-muted/60 -mx-2 block w-[calc(100%+1rem)] rounded px-2 text-left"
+      className="-mx-2 block w-[calc(100%+1rem)] rounded-sm px-2 text-left hover:bg-muted/60"
     >
       {row}
     </button>
@@ -288,7 +314,7 @@ function ColumnRow({ column, onInsert }: { column: OsqueryColumn; onInsert?: (na
     <li>
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="left" className="max-w-xs whitespace-normal text-xs">
+        <TooltipContent side="left" className="max-w-xs text-xs whitespace-normal">
           {tooltip}
         </TooltipContent>
       </Tooltip>

@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
 
 import { EnumStatus } from "@/components/enum-status";
-import type { SantaExecutionDecision, SantaFileAccessDecision, SantaHostSummary } from "@/hooks/use-santa-events";
+import type {
+  SantaExecutionDecision,
+  SantaFileAccessDecision,
+  SantaHostSummary,
+} from "@/hooks/use-santa-events";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 import { EXECUTION_DECISIONS, FILE_ACCESS_DECISIONS } from "./decisions";
 
@@ -15,7 +19,11 @@ export function FileAccessDecisionBadge({ decision }: { decision: SantaFileAcces
 
 export function HostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="font-medium hover:underline">
+    <Link
+      to="/hosts/$hostId"
+      params={{ hostId: String(host.id) }}
+      className="font-medium hover:underline"
+    >
       {host.display_name}
     </Link>
   );

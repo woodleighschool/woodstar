@@ -14,8 +14,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAccount, useRevokeAPIKey, useRotateAPIKey } from "@/hooks/use-account";
@@ -64,7 +76,12 @@ export function APIKeyCard() {
         <CardDescription>For CLI and automation access.</CardDescription>
         {!isLoading && !apiKey ? (
           <CardAction>
-            <SubmitButton type="button" pending={pending} size="sm" onClick={() => void handleRotate()}>
+            <SubmitButton
+              type="button"
+              pending={pending}
+              size="sm"
+              onClick={() => void handleRotate()}
+            >
               Generate
             </SubmitButton>
           </CardAction>
@@ -84,7 +101,11 @@ export function APIKeyCard() {
                   <div className="flex items-center gap-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton size="icon-xs" aria-label="Copy" onClick={() => void handleCopy()}>
+                        <InputGroupButton
+                          size="icon-xs"
+                          aria-label="Copy"
+                          onClick={() => void handleCopy()}
+                        >
                           <Copy />
                         </InputGroupButton>
                       </TooltipTrigger>
@@ -121,7 +142,10 @@ export function APIKeyCard() {
               </InputGroupAddon>
             </InputGroup>
             {createdAt ? (
-              <p className="text-muted-foreground text-xs" title={new Date(createdAt).toLocaleString()}>
+              <p
+                className="text-xs text-muted-foreground"
+                title={new Date(createdAt).toLocaleString()}
+              >
                 Created {formatRelative(createdAt)}
               </p>
             ) : null}
@@ -133,7 +157,9 @@ export function APIKeyCard() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Rotate API Key?</AlertDialogTitle>
-            <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
+            <AlertDialogDescription>
+              The current key stops working immediately.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel variant="ghost" size="sm" disabled={rotate.isPending}>
@@ -157,7 +183,9 @@ export function APIKeyCard() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
-            <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
+            <AlertDialogDescription>
+              The current key stops working immediately.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel variant="ghost" size="sm" disabled={revoke.isPending}>

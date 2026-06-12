@@ -14,7 +14,8 @@ interface DeviceFile {
 }
 
 const MANIFEST_URL = "https://img.appledb.dev/main.json";
-const DEVICE_URL = (model: string) => `https://api.appledb.dev/device/${encodeURIComponent(model)}.json`;
+const DEVICE_URL = (model: string) =>
+  `https://api.appledb.dev/device/${encodeURIComponent(model)}.json`;
 const IMAGE_BASE = "https://img.appledb.dev/device@main";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -28,7 +29,8 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
   const { data: device } = useQuery<DeviceFile | null>({
     queryKey: queryKeys.appledbDevice(hardwareModel),
     queryFn: async ({ signal }) => {
-      const r = await fetch(DEVICE_URL(hardwareModel!), { signal });
+      if (!hardwareModel) return null;
+      const r = await fetch(DEVICE_URL(hardwareModel), { signal });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`appledb device ${r.status}`);
       return (await r.json()) as DeviceFile;

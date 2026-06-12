@@ -1,4 +1,4 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
@@ -24,19 +24,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import { useHosts, type Host } from "@/hooks/use-hosts";
-import { useLabels, type Label } from "@/hooks/use-labels";
+import { type Host, useHosts } from "@/hooks/use-hosts";
+import { type Label, useLabels } from "@/hooks/use-labels";
 import {
-  useCreateLiveQuery,
-  useLiveQueryStream,
-  useLiveQueryTargetCount,
-  useStopLiveQuery,
   type LiveQueryCreate,
   type LiveQueryResult,
   type LiveQueryRow,
   type LiveQueryTargetCount,
   type LiveQueryTargetSelection,
+  useCreateLiveQuery,
+  useLiveQueryStream,
+  useLiveQueryTargetCount,
+  useStopLiveQuery,
 } from "@/hooks/use-live-queries";
 import { isAllHostsLabel } from "@/lib/labels";
 
@@ -148,7 +147,11 @@ export function LiveRunner({
     <PageShell>
       <PageHeader
         title={title}
-        description={step === "targets" ? `Run this ${itemLabel} against online hosts.` : `Live ${itemLabel} results.`}
+        description={
+          step === "targets"
+            ? `Run this ${itemLabel} against online hosts.`
+            : `Live ${itemLabel} results.`
+        }
         actions={
           <>
             <ShowQueryButton sql={sql} />
@@ -253,24 +256,28 @@ function TargetSummary({
   error?: string;
 }) {
   if (!hasTargets) {
-    return <p className="text-muted-foreground text-sm">Select a target to run.</p>;
+    return <p className="text-sm text-muted-foreground">Select a target to run.</p>;
   }
   if (isLoading) {
-    return <p className="text-muted-foreground text-sm">Counting {selectedCount} selected target groups...</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Counting {selectedCount} selected target groups...
+      </p>
+    );
   }
   if (metrics) {
     return (
-      <p className="text-muted-foreground text-sm">
-        {metrics.targets_count} target host{metrics.targets_count === 1 ? "" : "s"}: {metrics.targets_online} online,{" "}
-        {metrics.targets_offline} offline.
+      <p className="text-sm text-muted-foreground">
+        {metrics.targets_count} target host{metrics.targets_count === 1 ? "" : "s"}:{" "}
+        {metrics.targets_online} online, {metrics.targets_offline} offline.
       </p>
     );
   }
   if (error) {
-    return <p className="text-destructive text-sm">{error}</p>;
+    return <p className="text-sm text-destructive">{error}</p>;
   }
   return (
-    <p className="text-muted-foreground text-sm">
+    <p className="text-sm text-muted-foreground">
       {selectedCount} target{selectedCount === 1 ? "" : "s"} selected.
     </p>
   );
@@ -313,13 +320,18 @@ function RunResults({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
           <h2 className="text-base font-semibold">{runHeading(status, stopped)}</h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             {respondedCount} of {targetCount} online host{targetCount === 1 ? "" : "s"} responded.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
-            <Button size="sm" variant="destructive" onClick={() => setStopOpen(true)} disabled={isStopping}>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setStopOpen(true)}
+              disabled={isStopping}
+            >
               {isStopping ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
@@ -419,7 +431,7 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
       <TabsContent value="results">
         <div className="grid gap-3">
           {hostRows.length ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {passing} passing, {failing} failing.
             </p>
           ) : null}
@@ -484,8 +496,18 @@ function TargetPicker({
         <h2 className="text-base font-semibold">Select Targets</h2>
       </div>
 
-      <TargetSection title="" labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
-      <TargetSection title="Labels" labels={grouped.other} selected={selectedLabels} onToggle={toggleLabel} />
+      <TargetSection
+        title=""
+        labels={grouped.allHosts}
+        selected={selectedLabels}
+        onToggle={toggleLabel}
+      />
+      <TargetSection
+        title="Labels"
+        labels={grouped.other}
+        selected={selectedLabels}
+        onToggle={toggleLabel}
+      />
 
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">Hosts</h3>
@@ -498,7 +520,7 @@ function TargetPicker({
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (
-              <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-sm">
+              <div className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" /> Searching Hosts...
               </div>
             ) : hostRows.length ? (
@@ -506,14 +528,14 @@ function TargetPicker({
                 <button
                   type="button"
                   key={host.id}
-                  className="hover:bg-muted flex items-center justify-between rounded px-2 py-2 text-left text-sm"
+                  className="flex items-center justify-between rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
                   onClick={() => addHost(host)}
                 >
                   <span>{host.display_name}</span>
                 </button>
               ))
             ) : (
-              <div className="text-muted-foreground px-2 py-2 text-sm">No Hosts Found.</div>
+              <div className="px-2 py-2 text-sm text-muted-foreground">No Hosts Found.</div>
             )}
           </div>
         ) : null}
@@ -563,13 +585,21 @@ function TargetSection({
   );
 }
 
-function TargetChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function TargetChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       data-selected={selected}
-      className="border-input data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-muted inline-flex h-8 items-center rounded-full border px-3 text-sm transition-colors data-[selected=true]:border-primary"
+      className="inline-flex h-8 items-center rounded-full border border-input px-3 text-sm transition-colors hover:bg-muted data-[selected=true]:border-primary data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground"
     >
       {selected ? <Check className="mr-1 size-3.5" /> : <Plus className="mr-1 size-3.5" />}
       {label}
@@ -615,7 +645,11 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       accessorKey: "host_name",
       header: "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$hostId" params={{ hostId: String(row.original.host_id) }} className="hover:underline">
+        <Link
+          to="/hosts/$hostId"
+          params={{ hostId: String(row.original.host_id) }}
+          className="hover:underline"
+        >
           {row.original.host_name}
         </Link>
       ),
@@ -648,7 +682,9 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       cell: ({ row }) => row.original.error ?? row.original.status,
     },
   ];
-  return <DataTableStatic columns={columns} data={rows} empty={<RunEmptyState text="No errors yet" />} />;
+  return (
+    <DataTableStatic columns={columns} data={rows} empty={<RunEmptyState text="No errors yet" />} />
+  );
 }
 
 function RunEmptyState({ text }: { text: string }) {
@@ -715,14 +751,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function stringRecord(row: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, formatLiveValue(value)]));
+  return Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, formatLiveValue(value)]),
+  );
 }
 
 function formatLiveValue(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
+    return String(value);
   return "";
 }
 
@@ -733,5 +772,5 @@ function reportColumns(rows: Array<Record<string, string>>) {
       if (key !== "host_id" && key !== "host_name") seen.add(key);
     });
   }
-  return [...seen].sort((a, b) => a.localeCompare(b));
+  return [...seen].toSorted((a, b) => a.localeCompare(b));
 }

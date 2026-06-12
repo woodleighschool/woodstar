@@ -4,7 +4,10 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 
-interface DataTableSearchInputProps extends Omit<React.ComponentProps<typeof Input>, "value" | "onChange"> {
+interface DataTableSearchInputProps extends Omit<
+  React.ComponentProps<typeof Input>,
+  "value" | "onChange"
+> {
   debounceMs?: number;
 }
 

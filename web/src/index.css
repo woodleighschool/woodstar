@@ -69,17 +69,20 @@
   --page-glow: oklch(0.98 0.006 82 / 0.48);
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
 
   --radius: 0.625rem;
 
   --shadow-xs: 0 1px 2px 0 oklch(0.25 0.006 80 / 0.04);
   --shadow-sm: 0 1px 3px 0 oklch(0.25 0.006 80 / 0.07), 0 1px 2px -1px oklch(0.25 0.006 80 / 0.05);
-  --shadow-md: 0 6px 14px -6px oklch(0.25 0.006 80 / 0.12), 0 2px 6px -3px oklch(0.25 0.006 80 / 0.08);
-  --shadow-lg: 0 16px 32px -14px oklch(0.25 0.006 80 / 0.18), 0 6px 12px -8px oklch(0.25 0.006 80 / 0.1);
+  --shadow-md:
+    0 6px 14px -6px oklch(0.25 0.006 80 / 0.12), 0 2px 6px -3px oklch(0.25 0.006 80 / 0.08);
+  --shadow-lg:
+    0 16px 32px -14px oklch(0.25 0.006 80 / 0.18), 0 6px 12px -8px oklch(0.25 0.006 80 / 0.1);
 }
 
 .dark {
@@ -242,7 +245,8 @@
 
   body {
     margin: 0;
-    background: radial-gradient(circle at 8% -10%, var(--page-glow), transparent 34rem), var(--background);
+    background:
+      radial-gradient(circle at 8% -10%, var(--page-glow), transparent 34rem), var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
     font-size: 14px;

@@ -1,6 +1,6 @@
 import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { Prec, type Extension } from "@codemirror/state";
+import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
@@ -160,8 +160,10 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
     <div
       aria-invalid={invalid ? true : undefined}
       className={cn(
-        "border-input overflow-visible rounded-md border bg-[var(--code-editor-background)]",
-        readOnly ? "[--code-editor-background:var(--background)]" : "[--code-editor-background:var(--card)]",
+        "overflow-visible rounded-md border border-input bg-[var(--code-editor-background)]",
+        readOnly
+          ? "[--code-editor-background:var(--background)]"
+          : "[--code-editor-background:var(--card)]",
         "aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20",
         className,
       )}

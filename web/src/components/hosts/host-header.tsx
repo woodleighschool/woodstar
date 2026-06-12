@@ -11,12 +11,15 @@ export function HostHeader({ host }: { host: Host }) {
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h1 className="text-foreground min-w-0 truncate text-xl font-semibold" title={host.display_name}>
+          <h1
+            className="min-w-0 truncate text-xl font-semibold text-foreground"
+            title={host.display_name}
+          >
             {host.display_name}
           </h1>
           <HostStatus status={host.status} />
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           {host.timestamps.inventory_updated_at ? (
             <span title={new Date(host.timestamps.inventory_updated_at).toLocaleString()}>
               Last fetched {formatRelative(host.timestamps.inventory_updated_at)}

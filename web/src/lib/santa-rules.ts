@@ -1,5 +1,10 @@
 import type { SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa-rules";
-import { enumLabel, enumOptions, type EnumMetadataMap, type StatusMetadataMap } from "@/lib/enum-metadata";
+import {
+  enumLabel,
+  type EnumMetadataMap,
+  enumOptions,
+  type StatusMetadataMap,
+} from "@/lib/enum-metadata";
 
 export const RULE_TYPE_VALUES = [
   "binary",
@@ -55,7 +60,8 @@ export const POLICIES = {
   },
   allowlist_compiler: {
     name: "Compiler Allowlist",
-    description: "Allow matching compilers to create transitive rules when that setting is enabled.",
+    description:
+      "Allow matching compilers to create transitive rules when that setting is enabled.",
     variant: "success",
   },
   blocklist: {

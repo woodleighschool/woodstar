@@ -106,7 +106,11 @@ type APIResponse<T> = Promise<{
   response?: Response;
 }>;
 
-function request<T = unknown>(method: Method, url: string, options: RequestOptions = {}): APIResponse<T> {
+function request<T = unknown>(
+  method: Method,
+  url: string,
+  options: RequestOptions = {},
+): APIResponse<T> {
   return client.request({
     method,
     url,
@@ -118,7 +122,8 @@ function request<T = unknown>(method: Method, url: string, options: RequestOptio
 }
 
 export const apiClient = {
-  DELETE: <T = unknown>(url: string, options?: RequestOptions) => request<T>("DELETE", url, options),
+  DELETE: <T = unknown>(url: string, options?: RequestOptions) =>
+    request<T>("DELETE", url, options),
   GET: <T = unknown>(url: string, options?: RequestOptions) => request<T>("GET", url, options),
   PATCH: <T = unknown>(url: string, options?: RequestOptions) => request<T>("PATCH", url, options),
   POST: <T = unknown>(url: string, options?: RequestOptions) => request<T>("POST", url, options),

@@ -63,7 +63,8 @@ export function useCreateLabel() {
 export function useUpdateLabel(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: id ?? 0 } }, body })),
+    mutationFn: (body) =>
+      unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: id ?? 0 } }, body })),
     meta: { inlineError: true },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });

@@ -1,10 +1,10 @@
 import {
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
   type PaginationState,
   type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
@@ -14,15 +14,28 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useGroups, type Group } from "@/hooks/use-groups";
-import { useHosts, type Host } from "@/hooks/use-hosts";
-import { useUserDepartments, useUsers, type Department, type User } from "@/hooks/use-users";
+import { type Group, useGroups } from "@/hooks/use-groups";
+import { type Host, useHosts } from "@/hooks/use-hosts";
+import { type Department, type User, useUserDepartments, useUsers } from "@/hooks/use-users";
 import type { LabelDerivedAttribute } from "@/lib/labels";
 
-export function HostSelector({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
+export function HostSelector({
+  value,
+  onChange,
+}: {
+  value: number[];
+  onChange: (value: number[]) => void;
+}) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
   const showSelected = controls.filter === "selected";
   const hosts = useHosts({
@@ -69,7 +82,9 @@ export function HostSelector({ value, onChange }: { value: number[]; onChange: (
       isLoading={hosts.isLoading}
       error={hosts.error?.message}
       selectedRowIds={value.map(String)}
-      onSelectedRowIdsChange={(ids) => onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))}
+      onSelectedRowIdsChange={(ids) =>
+        onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))
+      }
       getRowId={(host) => String(host.id)}
       emptyTitle={showSelected ? "No selected hosts" : "No hosts found"}
     />
@@ -86,16 +101,22 @@ export function DerivedSelector({
   onChange: (value: string[]) => void;
 }) {
   switch (attribute) {
+    case "user_department":
+      return <DepartmentSelector value={value} onChange={onChange} />;
     case "directory_group":
       return <GroupSelector value={value} onChange={onChange} />;
     case "user":
       return <UserSelector value={value} onChange={onChange} />;
-    default:
-      return <DepartmentSelector value={value} onChange={onChange} />;
   }
 }
 
-function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function DepartmentSelector({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
   const controls = useSelectorControls([{ id: "value", desc: false }]);
   const showSelected = controls.filter === "selected";
   const departments = useUserDepartments({
@@ -136,7 +157,13 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
   );
 }
 
-function GroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function GroupSelector({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
   const showSelected = controls.filter === "selected";
   const groups = useGroups({
@@ -182,7 +209,13 @@ function GroupSelector({ value, onChange }: { value: string[]; onChange: (value:
   );
 }
 
-function UserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function UserSelector({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
   const controls = useSelectorControls([{ id: "name", desc: false }]);
   const showSelected = controls.filter === "selected";
   const users = useUsers({
@@ -313,7 +346,9 @@ function SelectorTable<TData>({
     state: { pagination: controls.pagination, sorting: controls.sorting },
     onPaginationChange: controls.setPagination,
     onSortingChange: (updater) => {
-      controls.setSorting((prev) => singleSort(typeof updater === "function" ? updater(prev) : updater));
+      controls.setSorting((prev) =>
+        singleSort(typeof updater === "function" ? updater(prev) : updater),
+      );
     },
   });
 
@@ -373,7 +408,9 @@ function SelectorTable<TData>({
                 </TableHead>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -393,7 +430,9 @@ function SelectorTable<TData>({
                       />
                     </TableCell>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
                     ))}
                   </TableRow>
                 );
@@ -402,7 +441,9 @@ function SelectorTable<TData>({
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columns.length + 1} className="p-0">
                   {isLoading ? (
-                    <div className="h-24 text-center leading-[6rem] text-muted-foreground">Loading...</div>
+                    <div className="h-24 text-center leading-[6rem] text-muted-foreground">
+                      Loading...
+                    </div>
                   ) : (
                     <EmptyPanel>{emptyTitle}</EmptyPanel>
                   )}
@@ -421,7 +462,9 @@ function SelectorTable<TData>({
             variant="outline"
             size="sm"
             disabled={controls.pagination.pageIndex <= 0}
-            onClick={() => controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }))}
+            onClick={() =>
+              controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }))
+            }
           >
             Previous
           </Button>
@@ -433,7 +476,9 @@ function SelectorTable<TData>({
             variant="outline"
             size="sm"
             disabled={controls.pagination.pageIndex >= pageCount - 1}
-            onClick={() => controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex + 1 }))}
+            onClick={() =>
+              controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex + 1 }))
+            }
           >
             Next
           </Button>

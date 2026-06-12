@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
 
-import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
+import { type LabelChip, labelsFromIDs } from "@/components/labels/label-chip-utils";
 import { LabelChips } from "@/components/labels/label-chips";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { isAllHostsLabel } from "@/lib/labels";
-import { targetLabelIDs, targetSummary, type FlatLabelTarget, type LabelTargetSet } from "@/lib/targeting";
+import {
+  type FlatLabelTarget,
+  type LabelTargetSet,
+  targetLabelIDs,
+  targetSummary,
+} from "@/lib/targeting";
 
 export function TargetLabelsCell({
   labelIDs,
@@ -18,7 +23,9 @@ export function TargetLabelsCell({
   empty?: ReactNode;
 }) {
   const ids = targets ? targetLabelIDs(targets) : (labelIDs ?? []);
-  const countText = targets ? targetSummary(targets) : `${ids.length} label${ids.length === 1 ? "" : "s"}`;
+  const countText = targets
+    ? targetSummary(targets)
+    : `${ids.length} label${ids.length === 1 ? "" : "s"}`;
 
   if (ids.length === 0) {
     return empty ?? <span className="text-sm tabular-nums">{countText}</span>;

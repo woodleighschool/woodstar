@@ -6,9 +6,16 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa-events";
+import { type SantaEvent, useSantaEvent } from "@/hooks/use-santa-events";
 import { formatDateTime } from "@/lib/utils";
 
 import { executableLabel, fileName } from "./decisions";
@@ -27,7 +34,11 @@ export function SantaEventDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load event" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load event"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       </PageShell>
     );
   }
@@ -61,8 +72,8 @@ export function SantaEventDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         leading={
-          <div className="bg-muted/40 flex size-12 items-center justify-center rounded-md border">
-            <FileCode2 className="text-muted-foreground size-6" />
+          <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40">
+            <FileCode2 className="size-6 text-muted-foreground" />
           </div>
         }
         title={executableLabel(event)}
@@ -74,7 +85,9 @@ export function SantaEventDetailPage() {
         <Tabs defaultValue="details">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
-            {hasSigningChain ? <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger> : null}
+            {hasSigningChain ? (
+              <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger>
+            ) : null}
             {hasEntitlements ? <TabsTrigger value="entitlements">Entitlements</TabsTrigger> : null}
           </TabsList>
 
@@ -128,15 +141,27 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
 function BinaryCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
   const tiles: Tile[] = [
-    { label: "File Name", value: <ValueText value={executable.file_name || fileName(event.file_path)} /> },
+    {
+      label: "File Name",
+      value: <ValueText value={executable.file_name || fileName(event.file_path)} />,
+    },
     { label: "Path", value: <ValueText value={event.file_path} /> },
     { label: "SHA-256", value: <ValueText value={executable.sha256} /> },
     { label: "CDHash", value: <ValueText value={executable.cdhash} /> },
     { label: "Signing ID", value: <ValueText value={executable.signing_id} /> },
     { label: "Team ID", value: <ValueText value={executable.team_id} /> },
-    { label: "Signing Status", value: <ValueText value={formatEnumValue(executable.signing_status)} /> },
-    { label: "CS Flags", value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} /> },
-    { label: "Secure Signing Time", value: <ValueText value={formatDateTime(executable.secure_signing_time)} /> },
+    {
+      label: "Signing Status",
+      value: <ValueText value={formatEnumValue(executable.signing_status)} />,
+    },
+    {
+      label: "CS Flags",
+      value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} />,
+    },
+    {
+      label: "Secure Signing Time",
+      value: <ValueText value={formatDateTime(executable.secure_signing_time)} />,
+    },
     { label: "Signing Time", value: <ValueText value={formatDateTime(executable.signing_time)} /> },
   ];
 
@@ -158,12 +183,21 @@ function BundleCard({ event }: { event: SantaEvent }) {
     { label: "Bundle ID", value: <ValueText value={executable.file_bundle_id} /> },
     { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
     { label: "Path", value: <ValueText value={executable.file_bundle_path} /> },
-    { label: "Executable Rel Path", value: <ValueText value={executable.file_bundle_executable_rel_path} /> },
+    {
+      label: "Executable Rel Path",
+      value: <ValueText value={executable.file_bundle_executable_rel_path} />,
+    },
     { label: "Version", value: <ValueText value={executable.file_bundle_version} /> },
     { label: "Version String", value: <ValueText value={executable.file_bundle_version_string} /> },
     { label: "Bundle Hash", value: <ValueText value={executable.file_bundle_hash} /> },
-    { label: "Binary Count", value: <ValueText value={formatNumber(executable.file_bundle_binary_count)} /> },
-    { label: "Hash Time", value: <ValueText value={formatMillis(executable.file_bundle_hash_millis)} /> },
+    {
+      label: "Binary Count",
+      value: <ValueText value={formatNumber(executable.file_bundle_binary_count)} />,
+    },
+    {
+      label: "Hash Time",
+      value: <ValueText value={formatMillis(executable.file_bundle_hash_millis)} />,
+    },
   ];
 
   return (
@@ -192,7 +226,11 @@ function SessionsCard({ event }: { event: SantaEvent }) {
   );
 }
 
-function SigningChainTable({ signingChain }: { signingChain: NonNullable<SantaEvent["executable"]["signing_chain"]> }) {
+function SigningChainTable({
+  signingChain,
+}: {
+  signingChain: NonNullable<SantaEvent["executable"]["signing_chain"]>;
+}) {
   return (
     <div className="overflow-hidden rounded-lg border">
       <Table>
@@ -208,7 +246,9 @@ function SigningChainTable({ signingChain }: { signingChain: NonNullable<SantaEv
         <TableBody>
           {signingChain.map((cert) => (
             <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
-              <TableCell className="min-w-64 whitespace-normal">{cert.common_name ?? "-"}</TableCell>
+              <TableCell className="min-w-64 whitespace-normal">
+                {cert.common_name ?? "-"}
+              </TableCell>
               <TableCell className="min-w-40 whitespace-normal">
                 {cert.organization ?? cert.organizational_unit ?? "-"}
               </TableCell>
@@ -257,8 +297,8 @@ function TileGrid({ tiles }: { tiles: Tile[] }) {
     <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
       {tiles.map((tile) => (
         <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-          <dt className="text-muted-foreground text-xs font-semibold">{tile.label}</dt>
-          <dd className="text-foreground min-w-0 text-sm">{tile.value}</dd>
+          <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
+          <dd className="min-w-0 text-sm text-foreground">{tile.value}</dd>
         </div>
       ))}
     </dl>
@@ -268,7 +308,7 @@ function TileGrid({ tiles }: { tiles: Tile[] }) {
 function SessionGroup({ label, values }: { label: string; values: string[] }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <div className="text-muted-foreground text-xs font-semibold">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <ValueBadges values={values} />
     </div>
   );
@@ -285,7 +325,7 @@ function ValueText({ value }: { value?: string }) {
 
 function ValueBadges({ values }: { values: string[] }) {
   const cleaned = values.filter(Boolean);
-  if (cleaned.length === 0) return <span className="text-muted-foreground text-sm">-</span>;
+  if (cleaned.length === 0) return <span className="text-sm text-muted-foreground">-</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {cleaned.map((value) => (
@@ -346,7 +386,9 @@ function EntitlementValue({ value }: { value: unknown }) {
   if (isRecord(normalized)) {
     return (
       <ValueBadges
-        values={Object.entries(normalized).map(([key, entryValue]) => `${key}: ${formatEntitlementChip(entryValue)}`)}
+        values={Object.entries(normalized).map(
+          ([key, entryValue]) => `${key}: ${formatEntitlementChip(entryValue)}`,
+        )}
       />
     );
   }
@@ -396,8 +438,13 @@ function normalizeEntitlementValue(value: unknown): unknown {
 function formatEntitlementChip(value: unknown): string {
   const normalized = normalizeEntitlementValue(value);
   if (normalized === null || normalized === undefined) return "";
-  if (Array.isArray(normalized)) return normalized.map(formatEntitlementChip).filter(Boolean).join(", ");
-  if (typeof normalized === "string" || typeof normalized === "number" || typeof normalized === "boolean") {
+  if (Array.isArray(normalized))
+    return normalized.map(formatEntitlementChip).filter(Boolean).join(", ");
+  if (
+    typeof normalized === "string" ||
+    typeof normalized === "number" ||
+    typeof normalized === "boolean"
+  ) {
     return String(normalized);
   }
   if (isRecord(normalized) && "identifier" in normalized) {

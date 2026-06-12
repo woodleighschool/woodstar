@@ -12,19 +12,25 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useHost } from "@/hooks/use-hosts";
 import {
-  useSantaEvents,
-  useSantaFileAccessEvents,
   type SantaEvent,
   type SantaEventListParams,
   type SantaFileAccessEvent,
   type SantaFileAccessEventListParams,
   type SantaHostSummary,
+  useSantaEvents,
+  useSantaFileAccessEvents,
 } from "@/hooks/use-santa-events";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./decisions";
@@ -49,7 +55,10 @@ export function SantaEventListPage() {
         }
       />
       <EventListNav active="execution" hostId={deepLink.host_id} />
-      <ExecutionEventsTable hostId={deepLink.host_id ?? undefined} user={deepLink.user ?? undefined} />
+      <ExecutionEventsTable
+        hostId={deepLink.host_id ?? undefined}
+        user={deepLink.user ?? undefined}
+      />
     </PageShell>
   );
 }
@@ -62,7 +71,10 @@ export function SantaFileAccessEventListPage() {
         title="Events"
         description="Review Santa execution and file access activity."
         context={
-          <EventContextChips hostId={deepLink.host_id} onClearHost={() => void setDeepLink({ host_id: null })} />
+          <EventContextChips
+            hostId={deepLink.host_id}
+            onClearHost={() => void setDeepLink({ host_id: null })}
+          />
         }
       />
       <EventListNav active="file-access" hostId={deepLink.host_id} />
@@ -86,14 +98,24 @@ function EventContextChips({
   return (
     <>
       {hostId != null ? (
-        <FilterChip label="Host" value={host.data?.display_name ?? `#${hostId}`} onRemove={onClearHost} />
+        <FilterChip
+          label="Host"
+          value={host.data?.display_name ?? `#${hostId}`}
+          onRemove={onClearHost}
+        />
       ) : null}
       {user && onClearUser ? <FilterChip label="User" value={user} onRemove={onClearUser} /> : null}
     </>
   );
 }
 
-function EventListNav({ active, hostId }: { active: "execution" | "file-access"; hostId: number | null }) {
+function EventListNav({
+  active,
+  hostId,
+}: {
+  active: "execution" | "file-access";
+  hostId: number | null;
+}) {
   const search = hostId != null ? { host_id: hostId } : {};
   return (
     <Tabs value={active}>
@@ -130,7 +152,8 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   const events = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || hostId !== undefined || user !== undefined || decisions.length > 0;
+  const hasFilters =
+    !!tableSearch.q || hostId !== undefined || user !== undefined || decisions.length > 0;
 
   const columns = React.useMemo<ColumnDef<SantaEvent>[]>(
     () => [
@@ -201,7 +224,11 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
 
   if (query.error) {
     return (
-      <QueryError title="Failed to load execution events" error={query.error} onRetry={() => void query.refetch()} />
+      <QueryError
+        title="Failed to load execution events"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
   if (query.isLoading) {
@@ -209,9 +236,15 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   }
 
   return (
-    <DataTable table={table} empty={<EventsEmptyState hasFilters={hasFilters} noun="execution events" />}>
+    <DataTable
+      table={table}
+      empty={<EventsEmptyState hasFilters={hasFilters} noun="execution events" />}
+    >
       <div className="flex flex-wrap items-center gap-2 p-1">
-        <DataTableSearchInput className="h-8 w-56 lg:w-72" placeholder="Search executable, path, host, user" />
+        <DataTableSearchInput
+          className="h-8 w-56 lg:w-72"
+          placeholder="Search executable, path, host, user"
+        />
         <DataTableFacetedFilter
           column={table.getColumn("decision")}
           title="Decision"
@@ -286,7 +319,9 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
         enableSorting: false,
         header: ({ column }) => <DataTableColumnHeader column={column} label="Process" />,
         cell: ({ row }) =>
-          row.original.primary_process.file_name || fileName(row.original.primary_process.file_path) || "-",
+          row.original.primary_process.file_name ||
+          fileName(row.original.primary_process.file_path) ||
+          "-",
         meta: { label: "Process" },
       },
       {
@@ -310,7 +345,11 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
 
   if (query.error) {
     return (
-      <QueryError title="Failed to load file access events" error={query.error} onRetry={() => void query.refetch()} />
+      <QueryError
+        title="Failed to load file access events"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
   if (query.isLoading) {
@@ -318,9 +357,15 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   }
 
   return (
-    <DataTable table={table} empty={<EventsEmptyState hasFilters={hasFilters} noun="file access events" />}>
+    <DataTable
+      table={table}
+      empty={<EventsEmptyState hasFilters={hasFilters} noun="file access events" />}
+    >
       <div className="flex flex-wrap items-center gap-2 p-1">
-        <DataTableSearchInput className="h-8 w-56 lg:w-72" placeholder="Search target, process, host, signer" />
+        <DataTableSearchInput
+          className="h-8 w-56 lg:w-72"
+          placeholder="Search target, process, host, signer"
+        />
         <DataTableFacetedFilter
           column={table.getColumn("decision")}
           title="Decision"
@@ -341,7 +386,9 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
         </EmptyMedia>
         <EmptyTitle>{hasFilters ? "No matches" : `No ${noun}`}</EmptyTitle>
         <EmptyDescription>
-          {hasFilters ? "No events matched these filters." : "Client decisions appear after Santa syncs."}
+          {hasFilters
+            ? "No events matched these filters."
+            : "Client decisions appear after Santa syncs."}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

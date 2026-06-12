@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
+import { type User, useUpdateUser, useUser } from "@/hooks/use-users";
 import { AccountPage } from "@/pages/account";
 import { UserForm, userFromDetail } from "@/pages/users/fields";
 
@@ -22,7 +22,11 @@ export function UserEditPage() {
   if (user.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load user" error={user.error} onRetry={() => void user.refetch()} />
+        <QueryError
+          title="Failed to load user"
+          error={user.error}
+          onRetry={() => void user.refetch()}
+        />
       </PageShell>
     );
   }
@@ -52,7 +56,10 @@ function UserEdit({ user }: { user: User }) {
         error={update.error}
         onSubmit={async (body) => {
           const saved = await update.mutateAsync({ id: user.id, body });
-          void navigate({ to: "/directory/users/$userId/edit", params: { userId: String(saved.id) } });
+          void navigate({
+            to: "/directory/users/$userId/edit",
+            params: { userId: String(saved.id) },
+          });
         }}
       />
 

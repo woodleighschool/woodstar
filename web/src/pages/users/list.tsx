@@ -21,14 +21,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useGroup } from "@/hooks/use-groups";
-import { useUsers, type User, type UserListParams } from "@/hooks/use-users";
+import { type User, type UserListParams, useUsers } from "@/hooks/use-users";
 import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@/lib/directory";
 import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { nonEmpty } from "@/lib/utils";
@@ -63,7 +69,8 @@ export function UserListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!role || !!source || groupID !== undefined;
-  const groupLabel = groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
+  const groupLabel =
+    groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
 
   const columns = React.useMemo<ColumnDef<User>[]>(() => {
     const baseColumns: ColumnDef<User>[] = [
@@ -75,7 +82,10 @@ export function UserListPage() {
           const label = nonEmpty(row.original.name) ?? row.original.email;
           if (isAdmin || row.original.id === currentUserId) {
             return (
-              <Link {...userEditLink(row.original.id, currentUserId)} className="font-medium hover:underline">
+              <Link
+                {...userEditLink(row.original.id, currentUserId)}
+                className="font-medium hover:underline"
+              >
                 {label}
               </Link>
             );
@@ -89,14 +99,17 @@ export function UserListPage() {
         id: "email",
         accessorKey: "email",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Email" />,
-        cell: ({ row }) => `${row.original.email}${row.original.id === currentUserId ? " (you)" : ""}`,
+        cell: ({ row }) =>
+          `${row.original.email}${row.original.id === currentUserId ? " (you)" : ""}`,
         meta: { label: "Email" },
       },
       {
         id: "role",
         accessorKey: "role",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Role" />,
-        cell: ({ row }) => <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />,
+        cell: ({ row }) => (
+          <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />
+        ),
         meta: { label: "Role", variant: "select", options: USER_ACCESS_ROLE_OPTIONS },
         enableColumnFilter: true,
       },
@@ -123,7 +136,11 @@ export function UserListPage() {
         size: 48,
         cell: ({ row }) =>
           isAdmin ? (
-            <UserRowActions user={row.original} isSelf={row.original.id === currentUserId} onDelete={setDeleting} />
+            <UserRowActions
+              user={row.original}
+              isSelf={row.original.id === currentUserId}
+              onDelete={setDeleting}
+            />
           ) : null,
       },
     ];
@@ -145,7 +162,11 @@ export function UserListPage() {
         description="Manage directory and local users."
         context={
           groupLabel ? (
-            <FilterChip label="Group" value={groupLabel} onRemove={() => void setDeepLink({ group_id: null })} />
+            <FilterChip
+              label="Group"
+              value={groupLabel}
+              onRemove={() => void setDeepLink({ group_id: null })}
+            />
           ) : null
         }
         actions={
@@ -159,7 +180,11 @@ export function UserListPage() {
       />
 
       {query.error ? (
-        <QueryError title="Failed to load users" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load users"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={6} filterCount={2} />
       ) : (
@@ -173,7 +198,9 @@ export function UserListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matches" : "No users"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "No users matched the current filters." : "Users appear after setup or sync."}
+                  {hasFilters
+                    ? "No users matched the current filters."
+                    : "Users appear after setup or sync."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -219,7 +246,15 @@ function userEditLink(userId: number, currentUserId: number | null) {
     : ({ to: "/directory/users/$userId/edit", params: { userId: String(userId) } } as const);
 }
 
-function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolean; onDelete: (user: User) => void }) {
+function UserRowActions({
+  user,
+  isSelf,
+  onDelete,
+}: {
+  user: User;
+  isSelf: boolean;
+  onDelete: (user: User) => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

@@ -10,10 +10,25 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { SantaConfiguration, SantaConfigurationMutation } from "@/hooks/use-santa-configurations";
-import { firstErrorMessage, integerRange, optionalText, requiredString } from "@/lib/form-validation";
+import type {
+  SantaConfiguration,
+  SantaConfigurationMutation,
+} from "@/hooks/use-santa-configurations";
+import {
+  firstErrorMessage,
+  integerRange,
+  optionalText,
+  requiredString,
+} from "@/lib/form-validation";
 
 import {
   CLIENT_MODE_OPTIONS,
@@ -51,10 +66,14 @@ const configurationFormSchema = z
     client_mode: z.enum(CLIENT_MODE_VALUES),
     targets: z.object({
       include: z.array(
-        z.object({ label_id: z.number().int("Label selection is invalid.").positive("Select a label.") }),
+        z.object({
+          label_id: z.number().int("Label selection is invalid.").positive("Select a label."),
+        }),
       ),
       exclude: z.array(
-        z.object({ label_id: z.number().int("Label selection is invalid.").positive("Select a label.") }),
+        z.object({
+          label_id: z.number().int("Label selection is invalid.").positive("Select a label."),
+        }),
       ),
     }),
     enable_bundles: z.boolean(),
@@ -72,7 +91,10 @@ const configurationFormSchema = z
     event_detail_text: z.string().trim(),
   })
   .superRefine((value, ctx) => {
-    if (value.removable_media_action === "remount" && splitWords(value.removable_media_remount_flags).length === 0) {
+    if (
+      value.removable_media_action === "remount" &&
+      splitWords(value.removable_media_remount_flags).length === 0
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "Remount requires at least one mount flag.",
@@ -135,7 +157,8 @@ export function ConfigurationForm({
     validators: {
       onSubmit: configurationFormSchema,
     },
-    onSubmit: async ({ value }) => onSubmit(configurationBody(configurationFormSchema.parse(value))),
+    onSubmit: async ({ value }) =>
+      onSubmit(configurationBody(configurationFormSchema.parse(value))),
   });
 
   return (
@@ -160,7 +183,12 @@ export function ConfigurationForm({
                 <FieldGroup className="max-w-3xl">
                   <form.Field name="name">
                     {(field) => (
-                      <FormField field={field} label="Name" htmlFor="santa-configuration-name" required>
+                      <FormField
+                        field={field}
+                        label="Name"
+                        htmlFor="santa-configuration-name"
+                        required
+                      >
                         {(control) => (
                           <Input
                             {...control}
@@ -178,7 +206,9 @@ export function ConfigurationForm({
                     name="description"
                     children={(field) => (
                       <Field>
-                        <FieldLabel htmlFor="santa-configuration-description">Description</FieldLabel>
+                        <FieldLabel htmlFor="santa-configuration-description">
+                          Description
+                        </FieldLabel>
                         <Textarea
                           id="santa-configuration-description"
                           name={field.name}
@@ -197,7 +227,9 @@ export function ConfigurationForm({
                           <Select
                             value={field.state.value}
                             onValueChange={(clientMode) =>
-                              field.handleChange(clientMode as SantaConfigurationMutation["client_mode"])
+                              field.handleChange(
+                                clientMode as SantaConfigurationMutation["client_mode"],
+                              )
                             }
                           >
                             <SelectTrigger {...control} className="w-full">
@@ -253,7 +285,12 @@ export function ConfigurationForm({
                   <div className="grid gap-4 md:grid-cols-2">
                     <form.Field name="full_sync_interval_seconds">
                       {(field) => (
-                        <FormField field={field} label="Full Sync Interval" htmlFor="santa-full-sync-interval" required>
+                        <FormField
+                          field={field}
+                          label="Full Sync Interval"
+                          htmlFor="santa-full-sync-interval"
+                          required
+                        >
                           {(control) => (
                             <Input
                               {...control}
@@ -273,7 +310,12 @@ export function ConfigurationForm({
                     </form.Field>
                     <form.Field name="batch_size">
                       {(field) => (
-                        <FormField field={field} label="Batch Size" htmlFor="santa-batch-size" required>
+                        <FormField
+                          field={field}
+                          label="Batch Size"
+                          htmlFor="santa-batch-size"
+                          required
+                        >
                           {(control) => (
                             <Input
                               {...control}
@@ -297,7 +339,9 @@ export function ConfigurationForm({
                     name="allowed_path_regex"
                     children={(field) => (
                       <Field>
-                        <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
+                        <FieldLabel htmlFor="santa-allowed-path-regex">
+                          Allowed Path Regex
+                        </FieldLabel>
                         <Input
                           id="santa-allowed-path-regex"
                           name={field.name}
@@ -312,7 +356,9 @@ export function ConfigurationForm({
                     name="blocked_path_regex"
                     children={(field) => (
                       <Field>
-                        <FieldLabel htmlFor="santa-blocked-path-regex">Blocked Path Regex</FieldLabel>
+                        <FieldLabel htmlFor="santa-blocked-path-regex">
+                          Blocked Path Regex
+                        </FieldLabel>
                         <Input
                           id="santa-blocked-path-regex"
                           name={field.name}
@@ -343,7 +389,9 @@ export function ConfigurationForm({
                       name="event_detail_text"
                       children={(field) => (
                         <Field>
-                          <FieldLabel htmlFor="santa-event-detail-text">Event Detail Text</FieldLabel>
+                          <FieldLabel htmlFor="santa-event-detail-text">
+                            Event Detail Text
+                          </FieldLabel>
                           <Input
                             id="santa-event-detail-text"
                             name={field.name}
@@ -403,7 +451,10 @@ export function ConfigurationForm({
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelTargetSetEditor value={field.state.value} onChange={(next) => field.handleChange(next)} />
+                    <LabelTargetSetEditor
+                      value={field.state.value}
+                      onChange={(next) => field.handleChange(next)}
+                    />
                   )}
                 />
               ),
@@ -525,11 +576,14 @@ export function formFromConfiguration(configuration: SantaConfiguration): Config
     allowed_path_regex: configuration.allowed_path_regex ?? "",
     blocked_path_regex: configuration.blocked_path_regex ?? "",
     removable_media_action: configuration.removable_media_policy?.action ?? "none",
-    removable_media_remount_flags: (configuration.removable_media_policy?.remount_flags ?? []).join(" "),
-    encrypted_removable_media_action: configuration.encrypted_removable_media_policy?.action ?? "none",
-    encrypted_removable_media_remount_flags: (configuration.encrypted_removable_media_policy?.remount_flags ?? []).join(
+    removable_media_remount_flags: (configuration.removable_media_policy?.remount_flags ?? []).join(
       " ",
     ),
+    encrypted_removable_media_action:
+      configuration.encrypted_removable_media_policy?.action ?? "none",
+    encrypted_removable_media_remount_flags: (
+      configuration.encrypted_removable_media_policy?.remount_flags ?? []
+    ).join(" "),
     event_detail_url: configuration.event_detail_url ?? "",
     event_detail_text: configuration.event_detail_text ?? "",
   };
@@ -548,7 +602,10 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     batch_size: form.batch_size,
     allowed_path_regex: optionalText(form.allowed_path_regex),
     blocked_path_regex: optionalText(form.blocked_path_regex),
-    removable_media_policy: removableMediaPolicyBody(form.removable_media_action, form.removable_media_remount_flags),
+    removable_media_policy: removableMediaPolicyBody(
+      form.removable_media_action,
+      form.removable_media_remount_flags,
+    ),
     encrypted_removable_media_policy: removableMediaPolicyBody(
       form.encrypted_removable_media_action,
       form.encrypted_removable_media_remount_flags,

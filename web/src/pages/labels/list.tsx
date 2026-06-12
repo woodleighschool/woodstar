@@ -29,11 +29,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useDeleteLabel, useLabels, type Label, type LabelListParams } from "@/hooks/use-labels";
+import { type Label, type LabelListParams, useDeleteLabel, useLabels } from "@/hooks/use-labels";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { formatRelative } from "@/lib/utils";
 
@@ -101,7 +107,8 @@ export function LabelListPage() {
         id: "updated_at",
         accessorKey: "updated_at",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
-        cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
+        cell: ({ row }) =>
+          row.original.updated_at ? formatRelative(row.original.updated_at) : "-",
         meta: { label: "Updated" },
       },
       {
@@ -110,7 +117,8 @@ export function LabelListPage() {
         enableSorting: false,
         enableHiding: false,
         size: 48,
-        cell: ({ row }) => (isAdmin ? <LabelRowActions label={row.original} onDelete={setDeleting} /> : null),
+        cell: ({ row }) =>
+          isAdmin ? <LabelRowActions label={row.original} onDelete={setDeleting} /> : null,
       },
     ];
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
@@ -141,7 +149,11 @@ export function LabelListPage() {
         }
       />
       {query.error ? (
-        <QueryError title="Failed to load labels" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load labels"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={5} filterCount={1} />
       ) : (
@@ -155,7 +167,9 @@ export function LabelListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matches" : "No labels"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
+                  {hasFilters
+                    ? "No labels matched the current filters."
+                    : "Create labels for host targeting."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -235,7 +249,9 @@ function LabelDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Label</AlertDialogTitle>
           <AlertDialogDescription>
-            {label ? `${label.name} will be removed from hosts and filters.` : "This label will be removed."}
+            {label
+              ? `${label.name} will be removed from hosts and filters.`
+              : "This label will be removed."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -3,7 +3,7 @@ import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
 import { Link } from "@tanstack/react-router";
 import { FileArchive, Plus, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { CodeEditor } from "@/components/editor/code-editor";
 import { FormField } from "@/components/form-field";
@@ -21,7 +21,14 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
@@ -29,33 +36,33 @@ import type { PackageAlert } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 
 import {
-  MUNKI_INSTALLER_TYPE_OPTIONS,
   MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
+  MUNKI_INSTALLER_TYPE_OPTIONS,
   MUNKI_RESTART_ACTION_OPTIONS,
   MUNKI_UNINSTALL_METHOD_OPTIONS,
 } from "../software/munki-software";
 import { type PackageEditorForm } from "./editor-form";
 import {
-  emptyInstallItemRow,
+  type Architecture,
   emptyInstallerEnvironmentRow,
+  emptyInstallItemRow,
   emptyItemToCopyRow,
   emptyPackageReferenceRow,
   emptyReceiptRow,
   emptyStringRow,
+  type InstallerEnvironmentRow,
+  type InstallItemRow,
+  type ItemToCopyRow,
+  type PackageFormState,
   packageLabel,
+  type PackageReferenceRow,
+  type ReceiptRow,
   removeAt,
   replaceAt,
   scriptFields,
-  toggleArray,
-  type Architecture,
-  type InstallItemRow,
-  type InstallerEnvironmentRow,
-  type ItemToCopyRow,
-  type PackageFormState,
-  type PackageReferenceRow,
-  type ReceiptRow,
   type ScriptKey,
   type StringRow,
+  toggleArray,
 } from "./form-state";
 
 const shellExtensions: Extension[] = [StreamLanguage.define(shell)];
@@ -138,7 +145,10 @@ export function PackageEditorTabs({
             <form.Subscribe
               selector={(state) => state.values}
               children={(values) => (
-                <ScriptEditor values={values} onChange={(key, value) => form.setFieldValue(key, value)} />
+                <ScriptEditor
+                  values={values}
+                  onChange={(key, value) => form.setFieldValue(key, value)}
+                />
               )}
             />
           </TabsContent>
@@ -152,7 +162,13 @@ export function PackageEditorTabs({
   );
 }
 
-function BasicInfoTab({ form, softwareInfo }: { form: PackageEditorForm; softwareInfo: SoftwareInfo | null }) {
+function BasicInfoTab({
+  form,
+  softwareInfo,
+}: {
+  form: PackageEditorForm;
+  softwareInfo: SoftwareInfo | null;
+}) {
   return (
     <FieldGroup>
       <FieldSet>
@@ -164,11 +180,21 @@ function BasicInfoTab({ form, softwareInfo }: { form: PackageEditorForm; softwar
           </Field>
           <Field>
             <FieldLabel htmlFor="munki-package-category">Category</FieldLabel>
-            <Input id="munki-package-category" value={softwareInfo?.category ?? ""} disabled readOnly />
+            <Input
+              id="munki-package-category"
+              value={softwareInfo?.category ?? ""}
+              disabled
+              readOnly
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="munki-package-developer">Developer</FieldLabel>
-            <Input id="munki-package-developer" value={softwareInfo?.developer ?? ""} disabled readOnly />
+            <Input
+              id="munki-package-developer"
+              value={softwareInfo?.developer ?? ""}
+              disabled
+              readOnly
+            />
           </Field>
           <VersionField form={form} />
           <FormSelectField
@@ -202,7 +228,12 @@ function BasicInfoTab({ form, softwareInfo }: { form: PackageEditorForm; softwar
         </FieldGroup>
         <Field>
           <FieldLabel htmlFor="munki-package-description">Description</FieldLabel>
-          <Textarea id="munki-package-description" value={softwareInfo?.description ?? ""} disabled readOnly />
+          <Textarea
+            id="munki-package-description"
+            value={softwareInfo?.description ?? ""}
+            disabled
+            readOnly
+          />
         </Field>
         <FormTextareaField form={form} name="notes" id="munki-package-notes" label="Notes" />
       </FieldSet>
@@ -222,10 +253,30 @@ function BasicInfoTab({ form, softwareInfo }: { form: PackageEditorForm; softwar
             id="munki-package-unattended-uninstall"
             label="Unattended uninstall"
           />
-          <FormCheckboxField form={form} name="on_demand" id="munki-package-on-demand" label="On demand" />
-          <FormCheckboxField form={form} name="precache" id="munki-package-precache" label="Precache" />
-          <FormCheckboxField form={form} name="autoremove" id="munki-package-autoremove" label="Autoremove" />
-          <FormCheckboxField form={form} name="apple_item" id="munki-package-apple-item" label="Apple item" />
+          <FormCheckboxField
+            form={form}
+            name="on_demand"
+            id="munki-package-on-demand"
+            label="On demand"
+          />
+          <FormCheckboxField
+            form={form}
+            name="precache"
+            id="munki-package-precache"
+            label="Precache"
+          />
+          <FormCheckboxField
+            form={form}
+            name="autoremove"
+            id="munki-package-autoremove"
+            label="Autoremove"
+          />
+          <FormCheckboxField
+            form={form}
+            name="apple_item"
+            id="munki-package-apple-item"
+            label="Apple item"
+          />
           <FormCheckboxField
             form={form}
             name="suppress_bundle_relocation"
@@ -237,7 +288,12 @@ function BasicInfoTab({ form, softwareInfo }: { form: PackageEditorForm; softwar
 
       <FieldSet>
         <FieldLegend>Woodstar</FieldLegend>
-        <FormCheckboxField form={form} name="eligible" id="munki-package-eligible" label="Available for targeting" />
+        <FormCheckboxField
+          form={form}
+          name="eligible"
+          id="munki-package-eligible"
+          label="Available for targeting"
+        />
       </FieldSet>
     </FieldGroup>
   );
@@ -249,12 +305,17 @@ function ContentsTab({ form }: { form: PackageEditorForm }) {
       <form.Field
         name="installs"
         children={(field) => (
-          <InstallItemsEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+          <InstallItemsEditor
+            rows={field.state.value}
+            onChange={(rows) => field.handleChange(rows)}
+          />
         )}
       />
       <form.Field
         name="receipts"
-        children={(field) => <ReceiptsEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />}
+        children={(field) => (
+          <ReceiptsEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+        )}
       />
     </FieldGroup>
   );
@@ -264,12 +325,20 @@ function ItemsToCopyTab({ form }: { form: PackageEditorForm }) {
   return (
     <form.Field
       name="items_to_copy"
-      children={(field) => <ItemsToCopyEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />}
+      children={(field) => (
+        <ItemsToCopyEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+      )}
     />
   );
 }
 
-function RelationshipsTab({ form, packageOptions }: { form: PackageEditorForm; packageOptions: MunkiPackage[] }) {
+function RelationshipsTab({
+  form,
+  packageOptions,
+}: {
+  form: PackageEditorForm;
+  packageOptions: MunkiPackage[];
+}) {
   return (
     <FieldGroup>
       <form.Field
@@ -328,7 +397,10 @@ function RelationshipsTab({ form, packageOptions }: { form: PackageEditorForm; p
       <form.Field
         name="supported_architectures"
         children={(field) => (
-          <ArchitectureEditor values={field.state.value} onChange={(values) => field.handleChange(values)} />
+          <ArchitectureEditor
+            values={field.state.value}
+            onChange={(values) => field.handleChange(values)}
+          />
         )}
       />
     </FieldGroup>
@@ -387,7 +459,12 @@ function InstallerTab({
       <FieldSet>
         <FieldLegend>Installer</FieldLegend>
         <FieldGroup>
-          <FormTextField form={form} name="package_path" id="munki-package-package-path" label="Package Path" />
+          <FormTextField
+            form={form}
+            name="package_path"
+            id="munki-package-package-path"
+            label="Package Path"
+          />
           <FormTextField
             form={form}
             name="installed_size"
@@ -399,13 +476,19 @@ function InstallerTab({
           <form.Field
             name="installer_choices_xml"
             children={(field) => (
-              <InstallerChoicesField value={field.state.value} onChange={(value) => field.handleChange(value)} />
+              <InstallerChoicesField
+                value={field.state.value}
+                onChange={(value) => field.handleChange(value)}
+              />
             )}
           />
           <form.Field
             name="installer_environment"
             children={(field) => (
-              <InstallerEnvironmentEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+              <InstallerEnvironmentEditor
+                rows={field.state.value}
+                onChange={(rows) => field.handleChange(rows)}
+              />
             )}
           />
         </FieldGroup>
@@ -439,9 +522,14 @@ function ScriptEditor({
               <SelectGroup>
                 {scriptFields.map((item) => (
                   <SelectItem key={item.key} value={item.key}>
-                    <span className={values[item.key] !== "" ? "font-medium" : undefined}>{item.label}</span>
+                    <span className={values[item.key] !== "" ? "font-medium" : undefined}>
+                      {item.label}
+                    </span>
                     {values[item.key] !== "" ? (
-                      <span className="bg-primary ml-auto size-1.5 shrink-0 rounded-full" aria-hidden />
+                      <span
+                        className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
+                        aria-hidden
+                      />
                     ) : null}
                   </SelectItem>
                 ))}
@@ -450,7 +538,11 @@ function ScriptEditor({
           </Select>
         </Field>
 
-        <ScriptField label={field.label} value={values[field.key]} onChange={(value) => onChange(field.key, value)} />
+        <ScriptField
+          label={field.label}
+          value={values[field.key]}
+          onChange={(value) => onChange(field.key, value)}
+        />
       </FieldGroup>
     </FieldSet>
   );
@@ -468,8 +560,18 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             id="munki-package-minimum-munki-version"
             label="Minimum Munki Version"
           />
-          <FormTextField form={form} name="minimum_os_version" id="munki-package-minimum-os" label="Minimum OS" />
-          <FormTextField form={form} name="maximum_os_version" id="munki-package-maximum-os" label="Maximum OS" />
+          <FormTextField
+            form={form}
+            name="minimum_os_version"
+            id="munki-package-minimum-os"
+            label="Minimum OS"
+          />
+          <FormTextField
+            form={form}
+            name="maximum_os_version"
+            id="munki-package-maximum-os"
+            label="Maximum OS"
+          />
         </FieldGroup>
         <FormCodeField
           form={form}
@@ -731,10 +833,15 @@ function PackageFileField({
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="flex items-center gap-3">
-        <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
           {icon}
         </div>
-        <Input id={id} type="file" accept={accept} onChange={(event) => onChange(event.target.files?.[0] ?? null)} />
+        <Input
+          id={id}
+          type="file"
+          accept={accept}
+          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        />
       </div>
       <FieldDescription>{file ? file.name : description}</FieldDescription>
     </Field>
@@ -758,7 +865,12 @@ function CheckboxControl({
 }) {
   return (
     <Field orientation="horizontal" className={disabled ? "opacity-60" : undefined}>
-      <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(value) => onChange(value === true)} />
+      <Checkbox
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onChange(value === true)}
+      />
       <FieldContent>
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
         {description ? <FieldDescription>{description}</FieldDescription> : null}
@@ -767,11 +879,22 @@ function CheckboxControl({
   );
 }
 
-function InstallerChoicesField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function InstallerChoicesField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <Field>
       <FieldLabel>Installer Choices</FieldLabel>
-      <CodeEditor value={value} onChange={onChange} lineNumbers={false} className="[&_.cm-content]:min-h-28" />
+      <CodeEditor
+        value={value}
+        onChange={onChange}
+        lineNumbers={false}
+        className="[&_.cm-content]:min-h-28"
+      />
     </Field>
   );
 }
@@ -823,14 +946,21 @@ function StringArrayEditor({
           <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
             <Input
               value={row.value}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, value: event.target.value }))}
+              onChange={(event) =>
+                onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
+              }
             />
             <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
               <Trash2 />
             </IconButton>
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, emptyStringRow()])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...rows, emptyStringRow()])}
+        >
           <Plus data-icon="inline-start" />
           {addLabel}
         </Button>
@@ -861,7 +991,12 @@ function PackageReferenceEditor({
             <Select
               value={row.package_id ? String(row.package_id) : "select"}
               onValueChange={(value) =>
-                onChange(replaceAt(rows, index, { ...row, package_id: value === "select" ? undefined : Number(value) }))
+                onChange(
+                  replaceAt(rows, index, {
+                    ...row,
+                    package_id: value === "select" ? undefined : Number(value),
+                  }),
+                )
               }
             >
               <SelectTrigger className="w-full">
@@ -909,16 +1044,23 @@ function InstallerEnvironmentEditor({
       <FieldLegend>Installer Environment</FieldLegend>
       <div className="space-y-2">
         {rows.map((row, index) => (
-          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]">
+          <div
+            key={row.rowID}
+            className="grid gap-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]"
+          >
             <Input
               aria-label="Name"
               value={row.name}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, name: event.target.value }))}
+              onChange={(event) =>
+                onChange(replaceAt(rows, index, { ...row, name: event.target.value }))
+              }
             />
             <Input
               aria-label="Value"
               value={row.value}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, value: event.target.value }))}
+              onChange={(event) =>
+                onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
+              }
             />
             <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
               <Trash2 />
@@ -963,7 +1105,9 @@ function InstallItemsEditor({
                 <Input
                   id={`munki-install-item-path-${row.rowID}`}
                   value={row.path}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, path: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, path: event.target.value }))
+                  }
                 />
               </Field>
               <div className="flex items-end justify-end">
@@ -974,40 +1118,59 @@ function InstallItemsEditor({
             </div>
             <FieldGroup className="grid gap-3 md:grid-cols-3">
               <Field>
-                <FieldLabel htmlFor={`munki-install-item-bundle-id-${row.rowID}`}>Bundle ID</FieldLabel>
+                <FieldLabel htmlFor={`munki-install-item-bundle-id-${row.rowID}`}>
+                  Bundle ID
+                </FieldLabel>
                 <Input
                   id={`munki-install-item-bundle-id-${row.rowID}`}
                   value={row.bundle_identifier ?? ""}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }),
+                    )
                   }
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`munki-install-item-short-version-${row.rowID}`}>Short Version</FieldLabel>
+                <FieldLabel htmlFor={`munki-install-item-short-version-${row.rowID}`}>
+                  Short Version
+                </FieldLabel>
                 <Input
                   id={`munki-install-item-short-version-${row.rowID}`}
                   value={row.bundle_short_version ?? ""}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, bundle_short_version: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, { ...row, bundle_short_version: event.target.value }),
+                    )
                   }
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`munki-install-item-version-${row.rowID}`}>Bundle Version</FieldLabel>
+                <FieldLabel htmlFor={`munki-install-item-version-${row.rowID}`}>
+                  Bundle Version
+                </FieldLabel>
                 <Input
                   id={`munki-install-item-version-${row.rowID}`}
                   value={row.bundle_version ?? ""}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, bundle_version: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, bundle_version: event.target.value }))
+                  }
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`munki-install-item-comparison-${row.rowID}`}>Comparison Key</FieldLabel>
+                <FieldLabel htmlFor={`munki-install-item-comparison-${row.rowID}`}>
+                  Comparison Key
+                </FieldLabel>
                 <Input
                   id={`munki-install-item-comparison-${row.rowID}`}
                   value={row.version_comparison_key ?? ""}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, version_comparison_key: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, {
+                        ...row,
+                        version_comparison_key: event.target.value,
+                      }),
+                    )
                   }
                 />
               </Field>
@@ -1016,23 +1179,34 @@ function InstallItemsEditor({
                 <Input
                   id={`munki-install-item-md5-${row.rowID}`}
                   value={row.md5checksum ?? ""}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, md5checksum: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, md5checksum: event.target.value }))
+                  }
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`munki-install-item-min-os-${row.rowID}`}>Minimum OS</FieldLabel>
+                <FieldLabel htmlFor={`munki-install-item-min-os-${row.rowID}`}>
+                  Minimum OS
+                </FieldLabel>
                 <Input
                   id={`munki-install-item-min-os-${row.rowID}`}
                   value={row.minimum_os_version ?? ""}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, minimum_os_version: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, { ...row, minimum_os_version: event.target.value }),
+                    )
                   }
                 />
               </Field>
             </FieldGroup>
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, emptyInstallItemRow()])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...rows, emptyInstallItemRow()])}
+        >
           <Plus data-icon="inline-start" />
           Install Item
         </Button>
@@ -1071,7 +1245,13 @@ function InstallItemTypeField({
   );
 }
 
-function ReceiptsEditor({ rows, onChange }: { rows: ReceiptRow[]; onChange: (rows: ReceiptRow[]) => void }) {
+function ReceiptsEditor({
+  rows,
+  onChange,
+}: {
+  rows: ReceiptRow[];
+  onChange: (rows: ReceiptRow[]) => void;
+}) {
   return (
     <FieldSet>
       <FieldLegend>Receipts</FieldLegend>
@@ -1082,26 +1262,37 @@ function ReceiptsEditor({ rows, onChange }: { rows: ReceiptRow[]; onChange: (row
               aria-label="Package ID"
               placeholder="Package ID"
               value={row.package_id}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, package_id: event.target.value }))}
+              onChange={(event) =>
+                onChange(replaceAt(rows, index, { ...row, package_id: event.target.value }))
+              }
             />
             <Input
               aria-label="Version"
               placeholder="Version"
               value={row.version ?? ""}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, version: event.target.value }))}
+              onChange={(event) =>
+                onChange(replaceAt(rows, index, { ...row, version: event.target.value }))
+              }
             />
             <CheckboxControl
               id={`munki-receipt-optional-${row.rowID}`}
               label="Optional"
               checked={row.optional === true}
-              onChange={(checked) => onChange(replaceAt(rows, index, { ...row, optional: checked }))}
+              onChange={(checked) =>
+                onChange(replaceAt(rows, index, { ...row, optional: checked }))
+              }
             />
             <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
               <Trash2 />
             </IconButton>
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, emptyReceiptRow()])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...rows, emptyReceiptRow()])}
+        >
           <Plus data-icon="inline-start" />
           Receipt
         </Button>
@@ -1110,7 +1301,13 @@ function ReceiptsEditor({ rows, onChange }: { rows: ReceiptRow[]; onChange: (row
   );
 }
 
-function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange: (rows: ItemToCopyRow[]) => void }) {
+function ItemsToCopyEditor({
+  rows,
+  onChange,
+}: {
+  rows: ItemToCopyRow[];
+  onChange: (rows: ItemToCopyRow[]) => void;
+}) {
   return (
     <FieldSet>
       <FieldLegend>Items to Copy</FieldLegend>
@@ -1123,16 +1320,22 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
                 <Input
                   id={`munki-copy-source-${row.rowID}`}
                   value={row.source_item}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, source_item: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, source_item: event.target.value }))
+                  }
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`munki-copy-destination-${row.rowID}`}>Destination Path</FieldLabel>
+                <FieldLabel htmlFor={`munki-copy-destination-${row.rowID}`}>
+                  Destination Path
+                </FieldLabel>
                 <Input
                   id={`munki-copy-destination-${row.rowID}`}
                   value={row.destination_path}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, destination_path: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, { ...row, destination_path: event.target.value }),
+                    )
                   }
                 />
               </Field>
@@ -1144,12 +1347,16 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
             </div>
             <FieldGroup className="grid gap-3 md:grid-cols-4">
               <Field>
-                <FieldLabel htmlFor={`munki-copy-destination-item-${row.rowID}`}>Destination Item</FieldLabel>
+                <FieldLabel htmlFor={`munki-copy-destination-item-${row.rowID}`}>
+                  Destination Item
+                </FieldLabel>
                 <Input
                   id={`munki-copy-destination-item-${row.rowID}`}
                   value={row.destination_item ?? ""}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, destination_item: event.target.value }))
+                    onChange(
+                      replaceAt(rows, index, { ...row, destination_item: event.target.value }),
+                    )
                   }
                 />
               </Field>
@@ -1158,7 +1365,9 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
                 <Input
                   id={`munki-copy-user-${row.rowID}`}
                   value={row.user ?? ""}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, user: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, user: event.target.value }))
+                  }
                 />
               </Field>
               <Field>
@@ -1166,7 +1375,9 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
                 <Input
                   id={`munki-copy-group-${row.rowID}`}
                   value={row.group ?? ""}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, group: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, group: event.target.value }))
+                  }
                 />
               </Field>
               <Field>
@@ -1174,13 +1385,20 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
                 <Input
                   id={`munki-copy-mode-${row.rowID}`}
                   value={row.mode ?? ""}
-                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, mode: event.target.value }))}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, mode: event.target.value }))
+                  }
                 />
               </Field>
             </FieldGroup>
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...rows, emptyItemToCopyRow()])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...rows, emptyItemToCopyRow()])}
+        >
           <Plus data-icon="inline-start" />
           Copy Item
         </Button>
@@ -1189,7 +1407,15 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
   );
 }
 
-function ScriptField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function ScriptField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>
@@ -1266,7 +1492,15 @@ function AlertEditor({
   );
 }
 
-function IconButton({ label, children, onClick }: { label: string; children: ReactNode; onClick: () => void }) {
+function IconButton({
+  label,
+  children,
+  onClick,
+}: {
+  label: string;
+  children: ReactNode;
+  onClick: () => void;
+}) {
   return (
     <Button type="button" variant="ghost" size="icon-sm" title={label} onClick={onClick}>
       {children}

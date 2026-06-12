@@ -63,12 +63,12 @@ export function EditableMunkiIcon({
       />
       <button
         type="button"
-        className="focus-visible:border-ring focus-visible:ring-ring/50 relative block rounded-lg outline-none focus-visible:ring-[3px]"
+        className="relative block rounded-lg outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-label={uploadLabel}
         onClick={() => inputRef.current?.click()}
       >
         <MunkiIcon iconUrl={previewURL || iconUrl} size={size} loading="eager" />
-        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/50 opacity-0 transition-opacity group-hover/munki-icon:opacity-100 group-focus-within/munki-icon:opacity-100">
+        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/50 opacity-0 transition-opacity group-focus-within/munki-icon:opacity-100 group-hover/munki-icon:opacity-100">
           <Upload data-icon />
         </span>
       </button>
@@ -77,7 +77,7 @@ export function EditableMunkiIcon({
           type="button"
           variant="secondary"
           size="icon-xs"
-          className="absolute -top-2 -right-2 rounded-full border shadow-sm opacity-0 transition-opacity group-hover/munki-icon:opacity-100 group-focus-within/munki-icon:opacity-100"
+          className="absolute -top-2 -right-2 rounded-full border opacity-0 shadow-sm transition-opacity group-focus-within/munki-icon:opacity-100 group-hover/munki-icon:opacity-100"
           aria-label={clearLabel}
           onClick={(event) => {
             event.stopPropagation();

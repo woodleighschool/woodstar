@@ -48,7 +48,8 @@ export function LabelPicker({
   const unavailable = new Set(unavailableLabelIDs);
   const items = rows.filter(
     (label) =>
-      (includeBuiltins || label.label_type === "regular") && (value.includes(label.id) || !unavailable.has(label.id)),
+      (includeBuiltins || label.label_type === "regular") &&
+      (value.includes(label.id) || !unavailable.has(label.id)),
   );
   const selected = rows.filter((label) => value.includes(label.id));
   const noLabelsMessage = emptyMessage ?? "No Labels Available.";
@@ -57,7 +58,7 @@ export function LabelPicker({
     return <Skeleton className="h-9 w-full" />;
   }
   if (labels.error) {
-    return <p className="text-destructive text-sm">{labels.error.message}</p>;
+    return <p className="text-sm text-destructive">{labels.error.message}</p>;
   }
 
   if (selectionMode === "single") {
@@ -70,7 +71,9 @@ export function LabelPicker({
         onValueChange={(next) => onChange(next ? [next.id] : [])}
       >
         <ComboboxInput
-          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
+          placeholder={
+            items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
+          }
           required={required}
           aria-invalid={invalid ? true : undefined}
           showClear
@@ -99,7 +102,9 @@ export function LabelPicker({
           ))}
         </ComboboxValue>
         <ComboboxChipsInput
-          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
+          placeholder={
+            items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
+          }
           required={required && selected.length === 0}
           aria-invalid={invalid ? true : undefined}
         />

@@ -22,7 +22,13 @@ const xmlExtensions: Extension[] = [xml()];
 
 type PlistDict = { [key: string]: PlistValue };
 
-export function DeploymentInstructions({ integration, publicURL }: { integration: Integration; publicURL?: string }) {
+export function DeploymentInstructions({
+  integration,
+  publicURL,
+}: {
+  integration: Integration;
+  publicURL?: string;
+}) {
   if (integration === "orbit") {
     return <OrbitDeploymentInstructions publicURL={publicURL} />;
   }
@@ -36,8 +42,11 @@ export function DeploymentInstructions({ integration, publicURL }: { integration
 function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
-        <p>Build the Orbit package once. Keep the Woodstar URL, enroll secret, and user email in the profile.</p>
+      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+        <p>
+          Build the Orbit package once. Keep the Woodstar URL, enroll secret, and user email in the
+          profile.
+        </p>
       </div>
 
       <DeploymentArtifact
@@ -68,7 +77,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
+      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
         <p>Deploy Santa with a profile for Woodstar and a bearer secret.</p>
       </div>
 
@@ -86,7 +95,7 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 function MunkiDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
+      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
         <p>Deploy Munki with a profile for Woodstar.</p>
       </div>
 
@@ -125,7 +134,7 @@ function DeploymentArtifact({
           <h2 id={titleID} className="text-base font-medium">
             {title}
           </h2>
-          <p className="text-muted-foreground max-w-3xl text-sm leading-relaxed">{description}</p>
+          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>
         </div>
         {action}
       </div>
@@ -155,7 +164,7 @@ function DeploymentExample({
       className={cn(
         multiline
           ? "max-h-96 min-h-56 overflow-auto [&_.cm-content]:py-1.5"
-          : "min-h-9 [&_.cm-content]:py-2 [&_.cm-scroller]:overflow-x-auto [&_.cm-line]:whitespace-pre",
+          : "min-h-9 [&_.cm-content]:py-2 [&_.cm-line]:whitespace-pre [&_.cm-scroller]:overflow-x-auto",
       )}
     />
   );
@@ -169,7 +178,13 @@ function deploymentArtifactTitleID(title: string) {
   return `deployment-${title.toLowerCase().replaceAll(" ", "-")}`;
 }
 
-function profile(opts: { id: string; uuid: string; displayName: string; description?: string; payloads: PlistDict[] }) {
+function profile(opts: {
+  id: string;
+  uuid: string;
+  displayName: string;
+  description?: string;
+  payloads: PlistDict[];
+}) {
   return plist.build({
     PayloadContent: opts.payloads,
     PayloadDisplayName: opts.displayName,
@@ -183,7 +198,12 @@ function profile(opts: { id: string; uuid: string; displayName: string; descript
   });
 }
 
-function payloadMeta(opts: { id: string; uuid: string; type: string; displayName: string }): PlistDict {
+function payloadMeta(opts: {
+  id: string;
+  uuid: string;
+  type: string;
+  displayName: string;
+}): PlistDict {
   return {
     PayloadDisplayName: opts.displayName,
     PayloadIdentifier: opts.id,
@@ -268,7 +288,10 @@ function munkiProfileTemplate(publicURLValue: string | undefined) {
         SoftwareRepoURL: woodstarURL(publicURLValue, "/munki"),
         ClientIdentifier: SERIAL_PLACEHOLDER,
         FollowHTTPRedirects: "all",
-        AdditionalHttpHeaders: [`Authorization: Bearer ${SECRET_PLACEHOLDER}`, `Serial: ${SERIAL_PLACEHOLDER}`],
+        AdditionalHttpHeaders: [
+          `Authorization: Bearer ${SECRET_PLACEHOLDER}`,
+          `Serial: ${SERIAL_PLACEHOLDER}`,
+        ],
         ...payloadMeta({
           id: `${PREFIX}.munki.managedinstalls`,
           type: "ManagedInstalls",

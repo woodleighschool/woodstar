@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import { useHostSantaRules, type HostDetail, type HostSantaRule } from "@/hooks/use-hosts";
+import { type HostDetail, type HostSantaRule, useHostSantaRules } from "@/hooks/use-hosts";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
@@ -69,7 +69,9 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
           <Badge variant={!row.original.applied ? "secondary" : "outline"} className="gap-1.5">
             <span
               className={
-                !row.original.applied ? "bg-warning size-1.5 rounded-full" : "bg-status-online size-1.5 rounded-full"
+                !row.original.applied
+                  ? "size-1.5 rounded-full bg-warning"
+                  : "size-1.5 rounded-full bg-status-online"
               }
             />
             {row.original.applied ? "Applied" : "Pending"}
@@ -113,8 +115,8 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               { label: "Pending Rules", value: String(santa.rule_sync.pending_count) },
             ].map((tile) => (
               <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-                <dt className="text-muted-foreground text-xs font-semibold">{tile.label}</dt>
-                <dd className="text-foreground truncate text-sm">{tile.value}</dd>
+                <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
+                <dd className="truncate text-sm text-foreground">{tile.value}</dd>
               </div>
             ))}
           </dl>
@@ -127,7 +129,11 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
         </CardHeader>
         <CardContent>
           {rules.error ? (
-            <QueryError title="Failed to load rules" error={rules.error} onRetry={() => void rules.refetch()} />
+            <QueryError
+              title="Failed to load rules"
+              error={rules.error}
+              onRetry={() => void rules.refetch()}
+            />
           ) : rules.isLoading ? null : totalCount === 0 ? (
             <EmptyPanel>No matching rules</EmptyPanel>
           ) : (

@@ -10,10 +10,16 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useGroups, type Group } from "@/hooks/use-groups";
+import { type Group, useGroups } from "@/hooks/use-groups";
 import { DIRECTORY_SOURCES } from "@/lib/directory";
 import { nonEmpty } from "@/lib/utils";
 
@@ -39,7 +45,11 @@ export function GroupListPage() {
         accessorKey: "display_name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
         cell: ({ row }) => (
-          <Link to="/directory/users" search={{ group_id: row.original.id }} className="font-medium hover:underline">
+          <Link
+            to="/directory/users"
+            search={{ group_id: row.original.id }}
+            className="font-medium hover:underline"
+          >
             {row.original.display_name}
           </Link>
         ),
@@ -84,7 +94,11 @@ export function GroupListPage() {
       <PageHeader title="Groups" description="Browse directory groups." />
 
       {query.error ? (
-        <QueryError title="Failed to load groups" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load groups"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={4} />
       ) : (
@@ -98,7 +112,9 @@ export function GroupListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matches" : "No groups"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "No groups matched the current search." : "Groups appear after directory sync."}
+                  {hasFilters
+                    ? "No groups matched the current search."
+                    : "Groups appear after directory sync."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

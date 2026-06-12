@@ -14,7 +14,11 @@ export function CheckLivePage() {
   if (check.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load check" error={check.error} onRetry={() => void check.refetch()} />
+        <QueryError
+          title="Failed to load check"
+          error={check.error}
+          onRetry={() => void check.refetch()}
+        />
       </PageShell>
     );
   }

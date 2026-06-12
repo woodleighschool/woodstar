@@ -1,13 +1,13 @@
 import {
   Database,
   KeyRound,
+  type LucideIcon,
   Package,
   PackageSearch,
   ServerCog,
   ShieldCheck,
   Tag,
   UsersRound,
-  type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem {

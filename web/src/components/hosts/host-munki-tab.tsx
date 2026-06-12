@@ -3,7 +3,14 @@ import type { ReactNode } from "react";
 import { EmptyPanel } from "@/components/empty-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { HostDetail } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
@@ -41,8 +48,8 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
           <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
             {tiles.map((tile) => (
               <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-                <dt className="text-muted-foreground text-xs font-semibold">{tile.label}</dt>
-                <dd className="text-foreground truncate text-sm">{tile.value}</dd>
+                <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
+                <dd className="truncate text-sm text-foreground">{tile.value}</dd>
               </div>
             ))}
           </dl>
@@ -57,7 +64,10 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
           <CardContent>
             <div className="flex flex-col gap-3">
               {problems.map((problem) => (
-                <div key={`${problem.kind}-${problem.value}`} className="flex min-w-0 items-start gap-3">
+                <div
+                  key={`${problem.kind}-${problem.value}`}
+                  className="flex min-w-0 items-start gap-3"
+                >
                   <Badge variant="secondary" className="shrink-0">
                     {problem.kind}
                   </Badge>

@@ -8,7 +8,14 @@ import { LabelAssignmentList } from "@/components/targeting/label-assignment-lis
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import type { SantaRuleMutation, SantaRuleType } from "@/hooks/use-santa-rules";
@@ -18,8 +25,8 @@ import {
   identifierErrorFor,
   ruleBody,
   ruleFormSchema,
-  selectedIncludeLabelIDs,
   type RuleFormState,
+  selectedIncludeLabelIDs,
 } from "./form-state";
 import { SantaIncludeTargets } from "./include-targets";
 import { RuleReferencePicker } from "./rule-form-fields";
@@ -64,12 +71,18 @@ export function RuleForm({
           void form.handleSubmit();
         }}
       >
-        <form.Subscribe selector={(state) => ({ values: state.values, submissionAttempts: state.submissionAttempts })}>
+        <form.Subscribe
+          selector={(state) => ({
+            values: state.values,
+            submissionAttempts: state.submissionAttempts,
+          })}
+        >
           {({ values, submissionAttempts }) => {
             const parsed = ruleFormSchema.safeParse(values);
             const showErrors = submissionAttempts > 0;
             const identifierError = identifierErrorFor(parsed);
-            const identifierInvalid = identifierError !== undefined && (showErrors || values.identifier.trim() !== "");
+            const identifierInvalid =
+              identifierError !== undefined && (showErrors || values.identifier.trim() !== "");
 
             return (
               <>
@@ -84,7 +97,12 @@ export function RuleForm({
                         <FieldGroup className="max-w-3xl">
                           <form.Field name="name">
                             {(field) => (
-                              <FormField field={field} label="Name" htmlFor="santa-rule-name" required>
+                              <FormField
+                                field={field}
+                                label="Name"
+                                htmlFor="santa-rule-name"
+                                required
+                              >
                                 {(control) => (
                                   <Input
                                     {...control}
@@ -102,7 +120,9 @@ export function RuleForm({
                             name="description"
                             children={(field) => (
                               <Field>
-                                <FieldLabel htmlFor="santa-rule-description">Description</FieldLabel>
+                                <FieldLabel htmlFor="santa-rule-description">
+                                  Description
+                                </FieldLabel>
                                 <Textarea
                                   id="santa-rule-description"
                                   name={field.name}
@@ -167,7 +187,9 @@ export function RuleForm({
                             name="custom_message"
                             children={(field) => (
                               <Field>
-                                <FieldLabel htmlFor="santa-rule-custom-message">Custom Message</FieldLabel>
+                                <FieldLabel htmlFor="santa-rule-custom-message">
+                                  Custom Message
+                                </FieldLabel>
                                 <Textarea
                                   id="santa-rule-custom-message"
                                   name={field.name}
@@ -190,7 +212,9 @@ export function RuleForm({
                           <SantaIncludeTargets
                             include={values.targets.include}
                             excludeLabelIDs={values.targets.exclude.map((ref) => ref.label_id)}
-                            onChange={(include) => form.setFieldValue("targets", { ...values.targets, include })}
+                            onChange={(include) =>
+                              form.setFieldValue("targets", { ...values.targets, include })
+                            }
                           />
                           <Separator />
                           <LabelAssignmentList
@@ -200,7 +224,9 @@ export function RuleForm({
                             rows={values.targets.exclude}
                             crossListLabelIDs={selectedIncludeLabelIDs(values.targets.include)}
                             includeBuiltins={false}
-                            onChange={(exclude) => form.setFieldValue("targets", { ...values.targets, exclude })}
+                            onChange={(exclude) =>
+                              form.setFieldValue("targets", { ...values.targets, exclude })
+                            }
                           />
                         </FieldGroup>
                       ),

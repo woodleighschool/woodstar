@@ -4,7 +4,14 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { DetailSettings, SettingItem } from "@/components/queries/query-ui";
 import { QueryError } from "@/components/query-error";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaFileAccessEvent } from "@/hooks/use-santa-events";
 import { formatDateTime } from "@/lib/utils";
@@ -20,7 +27,11 @@ export function SantaFileAccessEventDetailPage() {
   if (query.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load file access event" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load file access event"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       </PageShell>
     );
   }
@@ -62,7 +73,9 @@ export function SantaFileAccessEventDetailPage() {
                 <DetailRow label="Rule Version" value={event.rule_version} />
                 <DetailRow
                   label="Primary Process"
-                  value={event.primary_process.file_name || fileName(event.primary_process.file_path)}
+                  value={
+                    event.primary_process.file_name || fileName(event.primary_process.file_path)
+                  }
                 />
               </TableBody>
             </Table>
@@ -88,7 +101,9 @@ export function SantaFileAccessEventDetailPage() {
                 <TableBody>
                   {processChain.map((process) => (
                     <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
-                      <TableCell>{process.file_name || fileName(process.file_path) || "-"}</TableCell>
+                      <TableCell>
+                        {process.file_name || fileName(process.file_path) || "-"}
+                      </TableCell>
                       <TableCell>{process.pid || "-"}</TableCell>
                       <TableCell className="break-all">{process.file_sha256 || "-"}</TableCell>
                       <TableCell>{process.signing_id || "-"}</TableCell>

@@ -28,18 +28,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Sortable, SortableContent, SortableItem, SortableItemHandle } from "@/components/ui/sortable";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Sortable,
+  SortableContent,
+  SortableItem,
+  SortableItemHandle,
+} from "@/components/ui/sortable";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, encodeSort, MAX_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import {
+  DEFAULT_PAGE_SIZE,
+  encodeSort,
+  MAX_PAGE_SIZE,
+  useDataTableSearch,
+} from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import {
+  type SantaConfiguration,
   useBulkDeleteSantaConfigurations,
   useReorderSantaConfigurations,
   useSantaConfigurations,
-  type SantaConfiguration,
 } from "@/hooks/use-santa-configurations";
 import { CLIENT_MODES } from "@/lib/santa-configurations";
 import { formatRelative } from "@/lib/utils";
@@ -54,7 +77,12 @@ export function ConfigurationListPage() {
   const query = useSantaConfigurations(
     reorderEnabled
       ? { q: tableSearch.q, per_page: MAX_PAGE_SIZE, sort: encodeSort("position") }
-      : { q: tableSearch.q, page: tableSearch.page, per_page: tableSearch.per_page, sort: tableSearch.sort },
+      : {
+          q: tableSearch.q,
+          page: tableSearch.page,
+          per_page: tableSearch.per_page,
+          sort: tableSearch.sort,
+        },
   );
 
   const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
@@ -91,7 +119,9 @@ export function ConfigurationListPage() {
         </EmptyMedia>
         <EmptyTitle>{hasFilters ? "No matches" : "No client configurations"}</EmptyTitle>
         <EmptyDescription>
-          {hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."}
+          {hasFilters
+            ? "No configurations matched the current filters."
+            : "Create a configuration for Santa clients."}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -129,7 +159,11 @@ export function ConfigurationListPage() {
       />
 
       {query.error ? (
-        <QueryError title="Failed to load configurations" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load configurations"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : reorderEnabled && isAdmin ? (
         <ConfigurationReorder
           key={serverRows.map((row) => row.id).join(",")}
@@ -178,7 +212,10 @@ function configurationColumns(
       id: "select",
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -233,7 +270,9 @@ function configurationColumns(
       id: "labels",
       header: () => "Targets",
       enableSorting: false,
-      cell: ({ row }) => <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />,
+      cell: ({ row }) => (
+        <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />
+      ),
       meta: { label: "Targets" },
     },
     {
@@ -268,7 +307,12 @@ function ConfigurationsActionBar({ table }: { table: TanStackTable<SantaConfigur
   return (
     <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={bulkDelete.isPending}
+      >
         <Trash2 />
         Delete
       </Button>
@@ -322,7 +366,13 @@ function ConfigurationReorder({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
-        <SubmitButton type="button" pending={reorder.isPending} size="sm" disabled={truncated} onClick={saveOrder}>
+        <SubmitButton
+          type="button"
+          pending={reorder.isPending}
+          size="sm"
+          disabled={truncated}
+          onClick={saveOrder}
+        >
           Save
         </SubmitButton>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>
@@ -350,7 +400,12 @@ function ConfigurationReorder({
                     <TableRow>
                       <TableCell className="w-10">
                         <SortableItemHandle asChild disabled={dragDisabled}>
-                          <Button type="button" variant="ghost" size="icon" aria-label="Drag to reorder">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Drag to reorder"
+                          >
                             <GripVertical className="text-muted-foreground" />
                           </Button>
                         </SortableItemHandle>
@@ -375,7 +430,8 @@ function ConfigurationReorder({
 
       {truncated ? (
         <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-          Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before editing order.
+          Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before
+          editing order.
         </div>
       ) : null}
     </div>
@@ -397,8 +453,8 @@ function ReorderWarningDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Reorder configurations?</AlertDialogTitle>
           <AlertDialogDescription>
-            Santa uses the first matching configuration for each host. Reordering can change client behavior
-            immediately.
+            Santa uses the first matching configuration for each host. Reordering can change client
+            behavior immediately.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

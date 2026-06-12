@@ -17,7 +17,11 @@ export function LabelEditPage() {
   if (detail.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load label" error={detail.error} onRetry={() => void detail.refetch()} />
+        <QueryError
+          title="Failed to load label"
+          error={detail.error}
+          onRetry={() => void detail.refetch()}
+        />
       </PageShell>
     );
   }
@@ -29,7 +33,9 @@ export function LabelEditPage() {
       <PageShell>
         <Alert>
           <AlertTitle>Built-In Label</AlertTitle>
-          <AlertDescription>Built-in labels are managed by Woodstar and cannot be edited.</AlertDescription>
+          <AlertDescription>
+            Built-in labels are managed by Woodstar and cannot be edited.
+          </AlertDescription>
         </Alert>
       </PageShell>
     );

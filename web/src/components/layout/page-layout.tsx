@@ -1,4 +1,10 @@
-import { cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  type ComponentProps,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { cn } from "@/lib/utils";
@@ -63,9 +69,13 @@ function PageHeader({
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            {context ? <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div> : null}
+            {context ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div>
+            ) : null}
           </div>
-          {description ? <p className="text-muted-foreground max-w-3xl text-sm">{description}</p> : null}
+          {description ? (
+            <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
+          ) : null}
         </div>
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

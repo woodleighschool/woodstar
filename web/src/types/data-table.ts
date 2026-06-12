@@ -31,7 +31,15 @@ export interface Option {
   icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
 
-export type FilterVariant = "text" | "number" | "range" | "date" | "dateRange" | "boolean" | "select" | "multiSelect";
+export type FilterVariant =
+  | "text"
+  | "number"
+  | "range"
+  | "date"
+  | "dateRange"
+  | "boolean"
+  | "select"
+  | "multiSelect";
 
 export interface DataTableRowAction<TData> {
   row: Row<TData>;

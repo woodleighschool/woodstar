@@ -21,10 +21,12 @@ export const queryKeys = {
   osquerySchema: ["osquery-schema"] as const,
   hosts: (params?: unknown) => ["hosts", params ?? {}] as const,
   host: (id: number | null) => ["hosts", id] as const,
-  hostSoftware: (id: number | null, params?: unknown) => ["hosts", id, "software", params ?? {}] as const,
+  hostSoftware: (id: number | null, params?: unknown) =>
+    ["hosts", id, "software", params ?? {}] as const,
   hostReports: (id: number | null) => ["hosts", id, "reports"] as const,
   hostChecks: (id: number | null) => ["hosts", id, "checks"] as const,
-  hostSantaRules: (id: number | null, params?: unknown) => ["hosts", id, "santa", "rules", params ?? {}] as const,
+  hostSantaRules: (id: number | null, params?: unknown) =>
+    ["hosts", id, "santa", "rules", params ?? {}] as const,
   labels: (params?: unknown) => ["labels", params ?? {}] as const,
   label: (id: number | null) => ["labels", id] as const,
   reports: (params?: unknown) => ["reports", params ?? {}] as const,
@@ -45,13 +47,13 @@ export const queryKeys = {
   santaConfiguration: (id: number | null) => ["santa", "configurations", id] as const,
   santaEvents: (params?: unknown) => ["santa", "events", params ?? {}] as const,
   santaEvent: (id: number | null) => ["santa", "events", id] as const,
-  santaFileAccessEvents: (params?: unknown) => ["santa", "file-access-events", params ?? {}] as const,
+  santaFileAccessEvents: (params?: unknown) =>
+    ["santa", "file-access-events", params ?? {}] as const,
   santaFileAccessEvent: (id: number | null) => ["santa", "file-access-events", id] as const,
   santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
   santaRule: (id: number | null) => ["santa", "rules", id] as const,
   santaRuleReferences: (params?: unknown) => ["santa", "rule-references", params ?? {}] as const,
-  liveQueryTargetCount: (reportId: number | null, hosts: number[], labels: number[]) =>
-    ["live-query-target-count", reportId, hosts, labels] as const,
+  liveQueryTargetCount: (params?: unknown) => ["live-query-target-count", params ?? {}] as const,
   appledbManifest: ["appledb-image-manifest"] as const,
   appledbDevice: (model: string | null | undefined) => ["appledb-device", model ?? null] as const,
 };

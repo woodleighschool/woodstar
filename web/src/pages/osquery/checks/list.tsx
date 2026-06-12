@@ -13,9 +13,15 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useAuth } from "@/hooks/use-auth";
-import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
+import { type Check, useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 
@@ -62,7 +68,11 @@ export function CheckListPage() {
         }
       />
       {query.error ? (
-        <QueryError title="Failed to load checks" error={query.error} onRetry={() => void query.refetch()} />
+        <QueryError
+          title="Failed to load checks"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={4} />
       ) : (
@@ -77,7 +87,9 @@ export function CheckListPage() {
                 </EmptyMedia>
                 <EmptyTitle>{hasFilters ? "No matches" : "No health checks"}</EmptyTitle>
                 <EmptyDescription>
-                  {hasFilters ? "No checks matched the current search." : "Create a check from SQL."}
+                  {hasFilters
+                    ? "No checks matched the current search."
+                    : "Create a check from SQL."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -100,7 +112,10 @@ function checkColumns(isAdmin: boolean): ColumnDef<Check>[] {
       id: "select",
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -146,7 +161,11 @@ function checkColumns(isAdmin: boolean): ColumnDef<Check>[] {
         </span>
       ),
       cell: ({ row }) => (
-        <HostCount checkId={row.original.id} response="pass" value={row.original.passing_host_count} />
+        <HostCount
+          checkId={row.original.id}
+          response="pass"
+          value={row.original.passing_host_count}
+        />
       ),
       meta: { label: "Pass" },
     },
@@ -161,7 +180,11 @@ function checkColumns(isAdmin: boolean): ColumnDef<Check>[] {
         </span>
       ),
       cell: ({ row }) => (
-        <HostCount checkId={row.original.id} response="fail" value={row.original.failing_host_count} />
+        <HostCount
+          checkId={row.original.id}
+          response="fail"
+          value={row.original.failing_host_count}
+        />
       ),
       meta: { label: "Fail" },
     },
@@ -189,7 +212,12 @@ function ChecksActionBar({ table }: { table: TanStackTable<Check> }) {
   return (
     <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={bulkDelete.isPending}
+      >
         <Trash2 />
         Delete
       </Button>
@@ -208,9 +236,21 @@ function ChecksActionBar({ table }: { table: TanStackTable<Check> }) {
   );
 }
 
-function HostCount({ checkId, response, value }: { checkId: number; response: "pass" | "fail"; value: number }) {
+function HostCount({
+  checkId,
+  response,
+  value,
+}: {
+  checkId: number;
+  response: "pass" | "fail";
+  value: number;
+}) {
   return (
-    <Link to="/hosts" search={{ check_id: checkId, check_response: response }} className="hover:underline">
+    <Link
+      to="/hosts"
+      search={{ check_id: checkId, check_response: response }}
+      className="hover:underline"
+    >
       {value} {value === 1 ? "host" : "hosts"}
     </Link>
   );

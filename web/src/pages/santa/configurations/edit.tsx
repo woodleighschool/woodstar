@@ -2,7 +2,10 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { useSantaConfiguration, useUpdateSantaConfiguration } from "@/hooks/use-santa-configurations";
+import {
+  useSantaConfiguration,
+  useUpdateSantaConfiguration,
+} from "@/hooks/use-santa-configurations";
 import { ConfigurationForm, formFromConfiguration } from "@/pages/santa/configurations/fields";
 
 export function ConfigurationEditPage() {
@@ -16,7 +19,11 @@ export function ConfigurationEditPage() {
   if (detail.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load configuration" error={detail.error} onRetry={() => void detail.refetch()} />
+        <QueryError
+          title="Failed to load configuration"
+          error={detail.error}
+          onRetry={() => void detail.refetch()}
+        />
       </PageShell>
     );
   }
@@ -32,7 +39,10 @@ export function ConfigurationEditPage() {
       error={update.error}
       onSubmit={async (body) => {
         const saved = await update.mutateAsync({ id: configuration.id, body });
-        void navigate({ to: "/santa/configurations/$configurationId", params: { configurationId: String(saved.id) } });
+        void navigate({
+          to: "/santa/configurations/$configurationId",
+          params: { configurationId: String(saved.id) },
+        });
       }}
     />
   );

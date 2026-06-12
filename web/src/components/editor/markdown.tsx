@@ -15,12 +15,16 @@ const defaultComponents: Components = {
       {children}
     </a>
   ),
-  ul: ({ children }) => <ul className="mb-2 flex list-disc flex-col gap-1 pl-4 last:mb-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 flex list-decimal flex-col gap-1 pl-4 last:mb-0">{children}</ol>,
+  ul: ({ children }) => (
+    <ul className="mb-2 flex list-disc flex-col gap-1 pl-4 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-2 flex list-decimal flex-col gap-1 pl-4 last:mb-0">{children}</ol>
+  ),
   li: ({ children }) => <li>{children}</li>,
   code: ({ children }) => <span>{children}</span>,
   pre: ({ children }) => (
-    <div className="text-foreground mb-2 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap last:mb-0">
+    <div className="mb-2 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap text-foreground last:mb-0">
       {children}
     </div>
   ),

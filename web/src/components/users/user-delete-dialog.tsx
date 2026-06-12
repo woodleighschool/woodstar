@@ -51,7 +51,8 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
         </AlertDialogHeader>
 
         <p className="text-sm">
-          Delete <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
+          Delete{" "}
+          <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
           {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
         </p>
 

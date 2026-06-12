@@ -1,9 +1,12 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { EmptyPanel } from "@/components/empty-panel";
-import { AssignmentLabelField, AssignmentLabelStatic } from "@/components/targeting/assignment-label-field";
+import {
+  AssignmentLabelField,
+  AssignmentLabelStatic,
+} from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +21,13 @@ import {
   ComboboxList,
   ComboboxValue,
 } from "@/components/ui/combobox";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -29,14 +38,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sortable, SortableContent, SortableItem, SortableItemHandle } from "@/components/ui/sortable";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import {
+  Sortable,
+  SortableContent,
+  SortableItem,
+  SortableItemHandle,
+} from "@/components/ui/sortable";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useLabels } from "@/hooks/use-labels";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import type { SoftwareInclude } from "@/lib/api";
 
-import { LATEST_PACKAGE_VALUE, munkiSoftwareTargetSchema, targetPackageFromValue, targetPackageValue } from "./fields";
+import {
+  LATEST_PACKAGE_VALUE,
+  munkiSoftwareTargetSchema,
+  targetPackageFromValue,
+  targetPackageValue,
+} from "./fields";
 import { MUNKI_SOFTWARE_ACTION_OPTIONS } from "./munki-software";
 
 export interface MunkiSoftwareTargetRow {
@@ -70,7 +95,8 @@ export function MunkiIncludeTargets({
   const [draft, setDraft] = useState<TargetDraft>(emptyDraft);
   const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const labelsByID = useMemo(
-    () => new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
+    () =>
+      new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
     [labels.data],
   );
   const usedLabelIDs = rows.flatMap((row) => (row.label_id === null ? [] : [row.label_id]));
@@ -102,7 +128,9 @@ export function MunkiIncludeTargets({
       ]);
     } else {
       onChange(
-        rows.map((row) => (row.id === dialog.id ? { ...row, package: draft.package, actions: draft.actions } : row)),
+        rows.map((row) =>
+          row.id === dialog.id ? { ...row, package: draft.package, actions: draft.actions } : row,
+        ),
       );
     }
     setDialog(null);
@@ -121,7 +149,9 @@ export function MunkiIncludeTargets({
       {rows.length > 0 ? (
         <Sortable
           value={rows}
-          onValueChange={(next) => onChange(next.map((row, index) => ({ ...row, priority: index + 1 })))}
+          onValueChange={(next) =>
+            onChange(next.map((row, index) => ({ ...row, priority: index + 1 })))
+          }
           getItemValue={(row) => row.id}
         >
           <div className="overflow-x-auto rounded-md border">
@@ -142,24 +172,31 @@ export function MunkiIncludeTargets({
                       <TableRow>
                         <TableCell className="w-10">
                           <SortableItemHandle asChild disabled={rows.length <= 1}>
-                            <Button type="button" variant="ghost" size="icon" aria-label="Drag to reorder">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Drag to reorder"
+                            >
                               <GripVertical className="text-muted-foreground" />
                             </Button>
                           </SortableItemHandle>
                         </TableCell>
                         <TableCell>
-                          {row.label_id === null ? "-" : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
+                          {row.label_id === null
+                            ? "-"
+                            : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
                         </TableCell>
                         <TableCell>{packageLabel(row.package, packages)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) => row.actions.includes(option.value)).map(
-                              (option) => (
-                                <Badge key={option.value} variant="secondary" className="font-normal">
-                                  {option.label}
-                                </Badge>
-                              ),
-                            )}
+                            {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) =>
+                              row.actions.includes(option.value),
+                            ).map((option) => (
+                              <Badge key={option.value} variant="secondary" className="font-normal">
+                                {option.label}
+                              </Badge>
+                            ))}
                           </div>
                         </TableCell>
                         <TableCell className="w-20">
@@ -203,7 +240,9 @@ export function MunkiIncludeTargets({
           </DialogHeader>
 
           {dialog?.mode === "edit" ? (
-            <AssignmentLabelStatic name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`} />
+            <AssignmentLabelStatic
+              name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`}
+            />
           ) : (
             <AssignmentLabelField
               value={draft.label_id}
@@ -217,7 +256,9 @@ export function MunkiIncludeTargets({
             <FieldLabel htmlFor="munki-target-package">Package</FieldLabel>
             <Select
               value={targetPackageValue(draft.package)}
-              onValueChange={(value) => setDraft((current) => ({ ...current, package: targetPackageFromValue(value) }))}
+              onValueChange={(value) =>
+                setDraft((current) => ({ ...current, package: targetPackageFromValue(value) }))
+              }
             >
               <SelectTrigger id="munki-target-package" className="w-full">
                 <SelectValue />
@@ -298,7 +339,7 @@ function TargetActionsField({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      {warning ? <p className="text-warning text-xs">{warning}</p> : null}
+      {warning ? <p className="text-xs text-warning">{warning}</p> : null}
     </Field>
   );
 }
@@ -309,7 +350,9 @@ function emptyDraft(): TargetDraft {
 
 function packageLabel(pkg: SoftwareInclude["package"], packages: MunkiPackage[]) {
   if (pkg.strategy === "specific") {
-    return packages.find((item) => item.id === pkg.package_id)?.version ?? `Package ${pkg.package_id}`;
+    return (
+      packages.find((item) => item.id === pkg.package_id)?.version ?? `Package ${pkg.package_id}`
+    );
   }
   return "Latest";
 }

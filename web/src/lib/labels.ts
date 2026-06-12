@@ -1,5 +1,5 @@
 import type { Label } from "@/hooks/use-labels";
-import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
+import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type LabelMembershipType = Label["label_membership_type"];
 export type LabelBuiltinKey = NonNullable<Label["builtin_key"]>;
@@ -50,12 +50,12 @@ export function labelMembershipLabel(value: string | null | undefined) {
 
 export function labelDerivedAttributeSelectorLabel(attribute: LabelDerivedAttribute) {
   switch (attribute) {
+    case "user_department":
+      return "Departments";
     case "directory_group":
       return "Groups";
     case "user":
       return "Users";
-    default:
-      return "Departments";
   }
 }
 

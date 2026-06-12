@@ -16,10 +16,18 @@ interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
   table: Table<TData>;
 }
 
-export function DataTableToolbar<TData>({ table, children, className, ...props }: DataTableToolbarProps<TData>) {
+export function DataTableToolbar<TData>({
+  table,
+  children,
+  className,
+  ...props
+}: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
-  const columns = React.useMemo(() => table.getAllColumns().filter((column) => column.getCanFilter()), [table]);
+  const columns = React.useMemo(
+    () => table.getAllColumns().filter((column) => column.getCanFilter()),
+    [table],
+  );
 
   const onReset = React.useCallback(() => {
     table.resetColumnFilters();
@@ -37,7 +45,13 @@ export function DataTableToolbar<TData>({ table, children, className, ...props }
           <DataTableToolbarFilter key={column.id} column={column} />
         ))}
         {isFiltered && (
-          <Button aria-label="Reset filters" variant="outline" size="sm" className="border-dashed" onClick={onReset}>
+          <Button
+            aria-label="Reset filters"
+            variant="outline"
+            size="sm"
+            className="border-dashed"
+            onClick={onReset}
+          >
             <X />
             Reset
           </Button>
@@ -84,7 +98,7 @@ function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<T
                 className={cn("h-8 w-[120px]", columnMeta.unit && "pr-8")}
               />
               {columnMeta.unit && (
-                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-muted-foreground text-sm">
+                <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-sm text-muted-foreground">
                   {columnMeta.unit}
                 </span>
               )}
@@ -104,6 +118,7 @@ function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<T
             />
           );
 
+        case "boolean":
         case "select":
         case "multiSelect":
           return (

@@ -2,7 +2,14 @@ import { Link } from "@tanstack/react-router";
 
 import { resultValue } from "@/components/reports/query-results";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { HostReport } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
@@ -12,7 +19,9 @@ interface ReportResultCardProps {
 
 export function ReportResultCard({ report }: ReportResultCardProps) {
   const values = reportResultValues(report.first_result);
-  const subtitle = report.last_fetched ? `Last updated ${formatRelative(report.last_fetched)}` : "Collecting results";
+  const subtitle = report.last_fetched
+    ? `Last updated ${formatRelative(report.last_fetched)}`
+    : "Collecting results";
 
   return (
     <Card>
@@ -33,7 +42,7 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
         {values.length > 0 ? (
           <KeyValueGrid values={values} />
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             {report.last_fetched
               ? "This report ran but returned no rows for this host."
               : "No results have been stored yet."}
@@ -49,10 +58,10 @@ function KeyValueGrid({ values }: { values: ReportResultValue[] }) {
     <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-x-8 gap-y-5">
       {values.map((item) => (
         <div key={item.key} className="flex min-w-0 flex-col gap-1">
-          <dt className="text-muted-foreground truncate text-xs font-semibold" title={item.key}>
+          <dt className="truncate text-xs font-semibold text-muted-foreground" title={item.key}>
             {item.key}
           </dt>
-          <dd className="text-foreground truncate text-sm tabular-nums" title={item.value}>
+          <dd className="truncate text-sm text-foreground tabular-nums" title={item.value}>
             {resultValue(item.value)}
           </dd>
         </div>
@@ -69,5 +78,5 @@ interface ReportResultValue {
 function reportResultValues(row: Record<string, string> | undefined): ReportResultValue[] {
   return Object.entries(row ?? {})
     .map(([key, value]) => ({ key, value }))
-    .sort((a, b) => a.key.localeCompare(b.key));
+    .toSorted((a, b) => a.key.localeCompare(b.key));
 }

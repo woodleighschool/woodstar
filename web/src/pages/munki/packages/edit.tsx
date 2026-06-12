@@ -1,21 +1,24 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
+import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import {
+  type MunkiPackage,
   useMunkiPackage,
   useMunkiPackages,
   useUpdateMunkiPackage,
-  type MunkiPackage,
 } from "@/hooks/use-munki-packages";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, PackageFormActions, type SoftwareInfo } from "./fields";
-import { packageFormFromPackage, packageMutationFromForm, packageSubmitPreflightError } from "./form-state";
+import {
+  packageFormFromPackage,
+  packageMutationFromForm,
+  packageSubmitPreflightError,
+} from "./form-state";
 
 export function MunkiPackageEditPage() {
   const params = useParams({ strict: false });
@@ -26,7 +29,10 @@ export function MunkiPackageEditPage() {
   if (validPackageID === null) {
     return (
       <PageShell>
-        <QueryError title="Failed to load package" error={{ message: "Package route is invalid." }} />
+        <QueryError
+          title="Failed to load package"
+          error={{ message: "Package route is invalid." }}
+        />
       </PageShell>
     );
   }
@@ -34,7 +40,11 @@ export function MunkiPackageEditPage() {
   if (pkg.error) {
     return (
       <PageShell>
-        <QueryError title="Failed to load package" error={pkg.error} onRetry={() => void pkg.refetch()} />
+        <QueryError
+          title="Failed to load package"
+          error={pkg.error}
+          onRetry={() => void pkg.refetch()}
+        />
       </PageShell>
     );
   }
@@ -42,7 +52,11 @@ export function MunkiPackageEditPage() {
   if (!pkg.data) return null;
 
   return (
-    <MunkiPackageEditForm key={`${pkg.data.id}:${pkg.data.updated_at}`} packageID={validPackageID} pkg={pkg.data} />
+    <MunkiPackageEditForm
+      key={`${pkg.data.id}:${pkg.data.updated_at}`}
+      packageID={validPackageID}
+      pkg={pkg.data}
+    />
   );
 }
 
@@ -72,7 +86,9 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
       return;
     }
     const installerArtifact =
-      value.installer_type !== "nopkg" && installerFile ? await packageUpload.upload(installerFile) : null;
+      value.installer_type !== "nopkg" && installerFile
+        ? await packageUpload.upload(installerFile)
+        : null;
     const uninstallerArtifact =
       value.uninstall_method === "uninstall_package" && uninstallerFile
         ? await packageUpload.upload(uninstallerFile)

@@ -1,9 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { FileCode2, Play } from "lucide-react";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +17,13 @@ const LazySQLEditor = lazy(() =>
   import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
 );
 
-export function DetailSettings({ children, className }: { children: ReactNode; className?: string }) {
+export function DetailSettings({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("border-y bg-muted/20 px-4 py-3", className)}>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">{children}</div>
@@ -41,7 +53,7 @@ export function ShowQueryButton({ sql }: { sql: string }) {
         <DialogHeader>
           <DialogTitle>Query</DialogTitle>
         </DialogHeader>
-        <Suspense fallback={<div className="bg-muted h-40 rounded-md" />}>
+        <Suspense fallback={<div className="h-40 rounded-md bg-muted" />}>
           <LazySQLEditor
             value={sql}
             onChange={() => null}

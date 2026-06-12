@@ -27,7 +27,7 @@ export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }:
     return (
       <span
         className={cn(
-          "bg-muted/40 text-muted-foreground inline-flex shrink-0 items-center justify-center",
+          "inline-flex shrink-0 items-center justify-center bg-muted/40 text-muted-foreground",
           ICON_SIZE_CLASS[size],
           className,
         )}

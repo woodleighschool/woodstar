@@ -81,7 +81,7 @@ function BadgeOverflow<T = string>(props: BadgeOverflowProps<T>) {
       for (let i = 0; i < items.length; i++) {
         const child = measureChildren[i] as HTMLElement | undefined;
         if (child) {
-          const label = getBadgeLabel(items[i] as T);
+          const label = getBadgeLabel(items[i]);
           widthMap.set(label, child.offsetWidth);
         }
       }
@@ -144,7 +144,9 @@ function BadgeOverflow<T = string>(props: BadgeOverflowProps<T>) {
       const hasMoreItems = i < items.length - 1;
 
       const availableWidth =
-        isLastLine && hasMoreItems ? containerWidth - overflowBadgeWidth - badgeGap : containerWidth;
+        isLastLine && hasMoreItems
+          ? containerWidth - overflowBadgeWidth - badgeGap
+          : containerWidth;
 
       if (currentLineWidth + widthWithGap <= availableWidth) {
         currentLineWidth += widthWithGap;
@@ -169,14 +171,18 @@ function BadgeOverflow<T = string>(props: BadgeOverflowProps<T>) {
 
   return (
     <>
-      <div ref={measureRef} className="pointer-events-none invisible absolute flex flex-wrap" style={{ gap: badgeGap }}>
+      <div
+        ref={measureRef}
+        className="pointer-events-none invisible absolute flex flex-wrap"
+        style={{ gap: badgeGap }}
+      >
         {items.map((item, index) => (
           <React.Fragment key={index}>{renderBadge(item, getBadgeLabel(item))}</React.Fragment>
         ))}
         {renderOverflow ? (
           renderOverflow(99)
         ) : (
-          <div className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 font-semibold text-xs">
+          <div className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-xs font-semibold">
             +99
           </div>
         )}
@@ -199,7 +205,7 @@ function BadgeOverflow<T = string>(props: BadgeOverflowProps<T>) {
             (renderOverflow ? (
               renderOverflow(hiddenCount)
             ) : (
-              <div className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 font-semibold text-xs">
+              <div className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-xs font-semibold">
                 +{hiddenCount}
               </div>
             ))}
@@ -216,9 +222,11 @@ function BadgeOverflow<T = string>(props: BadgeOverflowProps<T>) {
             ...style,
           }}
         >
-          {items.slice(0, Math.min(items.length, lineCount * 3 - (lineCount > 1 ? 1 : 0))).map((item, index) => (
-            <React.Fragment key={index}>{renderBadge(item, getBadgeLabel(item))}</React.Fragment>
-          ))}
+          {items
+            .slice(0, Math.min(items.length, lineCount * 3 - (lineCount > 1 ? 1 : 0)))
+            .map((item, index) => (
+              <React.Fragment key={index}>{renderBadge(item, getBadgeLabel(item))}</React.Fragment>
+            ))}
         </Comp>
       )}
     </>
