@@ -42,7 +42,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
-			httpjson.WriteError(w, http.StatusBadRequest, err.Error())
+			httpjson.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
 			return
 		case errors.Is(err, agentauth.ErrInvalidSecret):
 			logger.WarnContext(
