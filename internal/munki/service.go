@@ -132,11 +132,11 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	if name != "production" || !validResourceName(name) {
 		return nil, ErrNotFound
 	}
-	packages, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return nil, err
 	}
-	return encodePlist(s.catalogItems(packages))
+	return encodePlist(s.catalogItems(pkgs))
 }
 
 // ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
@@ -223,17 +223,17 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 	}
 	for _, action := range pkg.Actions {
 		switch action {
-		case munkisoftware.SoftwareActionManagedInstalls:
+		case munkisoftware.ActionManagedInstalls:
 			manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-		case munkisoftware.SoftwareActionManagedUninstalls:
+		case munkisoftware.ActionManagedUninstalls:
 			manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-		case munkisoftware.SoftwareActionManagedUpdates:
+		case munkisoftware.ActionManagedUpdates:
 			manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-		case munkisoftware.SoftwareActionOptionalInstalls:
+		case munkisoftware.ActionOptionalInstalls:
 			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
-		case munkisoftware.SoftwareActionDefaultInstalls:
+		case munkisoftware.ActionDefaultInstalls:
 			manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
-		case munkisoftware.SoftwareActionFeaturedItems:
+		case munkisoftware.ActionFeaturedItems:
 			manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 		}
 	}

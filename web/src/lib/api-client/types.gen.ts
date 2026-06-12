@@ -375,12 +375,29 @@ export type MunkiHostState = {
     warnings: Array<string> | null;
 };
 
+export type MunkiInclude = {
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+    label_id: number;
+    package: MunkiPackageSelector;
+};
+
 export type MunkiItem = {
     installed: boolean;
     installed_version: string;
     last_seen_at: string;
     name: string;
     run_ended_at?: string;
+};
+
+export type MunkiMutation = {
+    category?: string;
+    description?: string;
+    developer?: string;
+    icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
+    name: string;
+    targets: MunkiTargets;
 };
 
 export type MunkiPackage = {
@@ -587,6 +604,11 @@ export type MunkiPackageReference = {
     software_name?: string;
 };
 
+export type MunkiPackageSelector = {
+    package_id?: number;
+    strategy: 'latest' | 'specific';
+};
+
 export type MunkiSoftware = {
     category: string;
     created_at: string;
@@ -617,35 +639,13 @@ export type MunkiSoftwareDetail = {
     id: number;
     name: string;
     packages: Array<MunkiPackage> | null;
-    targets: MunkiSoftwareTargets;
+    targets: MunkiTargets;
     updated_at: string;
 };
 
-export type MunkiSoftwareInclude = {
-    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
-    label_id: number;
-    package: MunkiSoftwarePackageSelector;
-};
-
-export type MunkiSoftwareMutation = {
-    category?: string;
-    description?: string;
-    developer?: string;
-    icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
-    name: string;
-    targets: MunkiSoftwareTargets;
-};
-
-export type MunkiSoftwarePackageSelector = {
-    package_id?: number;
-    strategy: 'latest' | 'specific';
-};
-
-export type MunkiSoftwareTargets = {
+export type MunkiTargets = {
     exclude: Array<LabelRef>;
-    include: Array<MunkiSoftwareInclude>;
+    include: Array<MunkiInclude>;
 };
 
 export type OsqueryCheck = {
@@ -3171,7 +3171,7 @@ export type ListMunkiSoftwareResponses = {
 export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];
 
 export type CreateMunkiSoftwareData = {
-    body: MunkiSoftwareMutation;
+    body: MunkiMutation;
     path?: never;
     query?: never;
     url: '/api/munki/software';
@@ -3343,7 +3343,7 @@ export type GetMunkiSoftwareResponses = {
 export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiSoftwareResponses];
 
 export type UpdateMunkiSoftwareData = {
-    body: MunkiSoftwareMutation;
+    body: MunkiMutation;
     path: {
         id: number;
     };

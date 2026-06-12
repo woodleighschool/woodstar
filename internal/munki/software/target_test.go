@@ -11,81 +11,81 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 	packageID := int64(123)
 	cases := []struct {
 		name    string
-		include SoftwareInclude
+		include Include
 		wantErr bool
 	}{
 		{
 			name: "latest",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy: SoftwarePackageLatest,
+				Package: PackageSelector{
+					Strategy: PackageLatest,
 				},
-				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
+				Actions: []Action{ActionManagedInstalls},
 			},
 		},
 		{
 			name: "specific",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy:  SoftwarePackageSpecific,
+				Package: PackageSelector{
+					Strategy:  PackageSpecific,
 					PackageID: &packageID,
 				},
-				Actions: []SoftwareAction{SoftwareActionOptionalInstalls, SoftwareActionFeaturedItems},
+				Actions: []Action{ActionOptionalInstalls, ActionFeaturedItems},
 			},
 		},
 		{
 			name: "featured does not require optional install",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy: SoftwarePackageLatest,
+				Package: PackageSelector{
+					Strategy: PackageLatest,
 				},
-				Actions: []SoftwareAction{SoftwareActionFeaturedItems},
+				Actions: []Action{ActionFeaturedItems},
 			},
 		},
 		{
 			name: "specific requires package id",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy: SoftwarePackageSpecific,
+				Package: PackageSelector{
+					Strategy: PackageSpecific,
 				},
-				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
+				Actions: []Action{ActionManagedInstalls},
 			},
 			wantErr: true,
 		},
 		{
 			name: "latest rejects package id",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy:  SoftwarePackageLatest,
+				Package: PackageSelector{
+					Strategy:  PackageLatest,
 					PackageID: &packageID,
 				},
-				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
+				Actions: []Action{ActionManagedInstalls},
 			},
 			wantErr: true,
 		},
 		{
 			name: "actions required",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy: SoftwarePackageLatest,
+				Package: PackageSelector{
+					Strategy: PackageLatest,
 				},
 			},
 			wantErr: true,
 		},
 		{
 			name: "unsupported action",
-			include: SoftwareInclude{
+			include: Include{
 				LabelID: 1,
-				Package: SoftwarePackageSelector{
-					Strategy: SoftwarePackageLatest,
+				Package: PackageSelector{
+					Strategy: PackageLatest,
 				},
-				Actions: []SoftwareAction{"managed_install"},
+				Actions: []Action{"managed_install"},
 			},
 			wantErr: true,
 		},
@@ -93,7 +93,7 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := SoftwareTargets{Include: []SoftwareInclude{tc.include}}.validate()
+			err := Targets{Include: []Include{tc.include}}.validate()
 			if tc.wantErr {
 				if !errors.Is(err, dbutil.ErrInvalidInput) {
 					t.Fatalf("validate error = %v, want ErrInvalidInput", err)

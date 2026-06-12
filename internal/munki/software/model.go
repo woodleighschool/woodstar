@@ -2,16 +2,16 @@ package software
 
 import "time"
 
-// SoftwareMutation is the input shape for creating or updating Munki software.
-type SoftwareMutation struct {
-	Name           string          `json:"name"                       minLength:"1"`
-	Description    string          `json:"description,omitempty"`
-	Category       string          `json:"category,omitempty"`
-	Developer      string          `json:"developer,omitempty"`
-	IconName       string          `json:"icon_name,omitempty"`
-	IconHash       string          `json:"icon_hash,omitempty"`
-	IconArtifactID *int64          `json:"icon_artifact_id,omitempty"`
-	Targets        SoftwareTargets `json:"targets"                                  nullable:"false"`
+// Mutation is the input shape for creating or updating Munki software.
+type Mutation struct {
+	Name           string  `json:"name"                       minLength:"1"`
+	Description    string  `json:"description,omitempty"`
+	Category       string  `json:"category,omitempty"`
+	Developer      string  `json:"developer,omitempty"`
+	IconName       string  `json:"icon_name,omitempty"`
+	IconHash       string  `json:"icon_hash,omitempty"`
+	IconArtifactID *int64  `json:"icon_artifact_id,omitempty"`
+	Targets        Targets `json:"targets"                                  nullable:"false"`
 }
 
 // Software is Woodstar-managed metadata for a Munki software item.

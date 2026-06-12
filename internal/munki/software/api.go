@@ -29,12 +29,12 @@ type munkiSoftwareGetInput struct {
 }
 
 type munkiSoftwareCreateInput struct {
-	Body SoftwareMutation
+	Body Mutation
 }
 
 type munkiSoftwarePutInput struct {
 	SoftwareID int64 `path:"id"`
-	Body       SoftwareMutation
+	Body       Mutation
 }
 
 type munkiSoftwareDeleteInput struct {
@@ -58,7 +58,7 @@ type munkiSoftwareDetail struct {
 
 	IconURL  string                  `json:"icon_url,omitempty"`
 	Packages []packages.MunkiPackage `json:"packages"`
-	Targets  SoftwareTargets         `json:"targets"`
+	Targets  Targets                 `json:"targets"`
 }
 
 type munkiSoftware struct {
@@ -211,7 +211,7 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 func munkiSoftwareDetailFromDomain(
 	title Software,
 	packageRows []packages.PackageRecord,
-	targets SoftwareTargets,
+	targets Targets,
 ) munkiSoftwareDetail {
 	return munkiSoftwareDetail{
 		Software: title,

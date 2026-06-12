@@ -36,7 +36,7 @@ func NewStore(db *database.DB, artifacts artifactStore, packages packageStore) *
 	return &Store{db: db, q: db.Queries(), artifacts: artifacts, packages: packages}
 }
 
-func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*Software, error) {
+func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
@@ -67,7 +67,7 @@ func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*Software,
 	return s.GetByID(ctx, softwareID)
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (*Software, error) {
+func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Software, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
@@ -202,7 +202,7 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 	return software, count, nil
 }
 
-func (s *Store) normalizeIcon(ctx context.Context, params SoftwareMutation) (SoftwareMutation, error) {
+func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, error) {
 	if params.IconArtifactID == nil {
 		return params, nil
 	}
@@ -221,14 +221,14 @@ func (s *Store) normalizeIcon(ctx context.Context, params SoftwareMutation) (Sof
 	return params, nil
 }
 
-func cleanMutation(params SoftwareMutation) SoftwareMutation {
+func cleanMutation(params Mutation) Mutation {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Category = strings.TrimSpace(params.Category)
 	params.Developer = strings.TrimSpace(params.Developer)
 	params.IconName = strings.TrimSpace(params.IconName)
 	params.IconHash = strings.TrimSpace(params.IconHash)
-	params.Targets = normalizeSoftwareTargets(params.Targets)
+	params.Targets = normalizeTargets(params.Targets)
 	return params
 }
 

@@ -16,9 +16,9 @@ func (s *Store) replaceTargets(
 	ctx context.Context,
 	qtx *sqlc.Queries,
 	softwareID int64,
-	targets SoftwareTargets,
+	targets Targets,
 ) error {
-	targets = normalizeSoftwareTargets(targets)
+	targets = normalizeTargets(targets)
 	if err := targets.validate(); err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (s *Store) replaceTargets(
 	for index, include := range targets.Include {
 		if err := qtx.CreateMunkiSoftwareInclude(
 			ctx,
-			createSoftwareIncludeParams(softwareID, int32(index+1), include),
+			createIncludeParams(softwareID, int32(index+1), include),
 		); err != nil {
 			return err
 		}
@@ -54,10 +54,10 @@ func (s *Store) replaceTargets(
 func (s *Store) validatePackageSelectors(
 	ctx context.Context,
 	softwareID int64,
-	includes []SoftwareInclude,
+	includes []Include,
 ) error {
 	for _, include := range includes {
-		if include.Package.Strategy != SoftwarePackageSpecific {
+		if include.Package.Strategy != PackageSpecific {
 			continue
 		}
 		pkg, err := s.packages.GetByID(ctx, *include.Package.PackageID)
@@ -71,10 +71,10 @@ func (s *Store) validatePackageSelectors(
 	return nil
 }
 
-func createSoftwareIncludeParams(
+func createIncludeParams(
 	softwareID int64,
 	priority int32,
-	include SoftwareInclude,
+	include Include,
 ) sqlc.CreateMunkiSoftwareIncludeParams {
 	params := sqlc.CreateMunkiSoftwareIncludeParams{
 		SoftwareID:       softwareID,
@@ -103,25 +103,25 @@ func validateExcludedLabels(ctx context.Context, qtx *sqlc.Queries, excludes []t
 	return nil
 }
 
-func storagePackageSelection(selector SoftwarePackageSelector) sqlc.MunkiPackageSelection {
+func storagePackageSelection(selector PackageSelector) sqlc.MunkiPackageSelection {
 	switch selector.Strategy {
-	case SoftwarePackageSpecific:
+	case PackageSpecific:
 		return sqlc.MunkiPackageSelectionSpecificPackage
 	default:
 		return sqlc.MunkiPackageSelectionLatestEligible
 	}
 }
 
-func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID *int64) SoftwarePackageSelector {
+func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID *int64) PackageSelector {
 	switch selection {
 	case sqlc.MunkiPackageSelectionSpecificPackage:
-		return SoftwarePackageSelector{Strategy: SoftwarePackageSpecific, PackageID: packageID}
+		return PackageSelector{Strategy: PackageSpecific, PackageID: packageID}
 	default:
-		return SoftwarePackageSelector{Strategy: SoftwarePackageLatest}
+		return PackageSelector{Strategy: PackageLatest}
 	}
 }
 
-func storageActions(actions []SoftwareAction) []string {
+func storageActions(actions []Action) []string {
 	out := make([]string, len(actions))
 	for i, action := range actions {
 		out[i] = string(action)
@@ -129,18 +129,18 @@ func storageActions(actions []SoftwareAction) []string {
 	return out
 }
 
-func actionsFromStorage(actions []string) []SoftwareAction {
-	out := make([]SoftwareAction, len(actions))
+func actionsFromStorage(actions []string) []Action {
+	out := make([]Action, len(actions))
 	for i, action := range actions {
-		out[i] = SoftwareAction(action)
+		out[i] = Action(action)
 	}
 	return out
 }
 
 // TargetsForSoftware loads include/exclude target rows for one software.
-func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (SoftwareTargets, error) {
+func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targets, error) {
 	if softwareID <= 0 {
-		return SoftwareTargets{}, dbutil.ErrNotFound
+		return Targets{}, dbutil.ErrNotFound
 	}
 	rows, err := s.db.Pool().Query(
 		ctx,
@@ -148,22 +148,22 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Softw
 		softwareID,
 	)
 	if err != nil {
-		return SoftwareTargets{}, err
+		return Targets{}, err
 	}
 	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[softwareIncludeRecord])
 	if err != nil {
-		return SoftwareTargets{}, err
+		return Targets{}, err
 	}
-	targets := emptySoftwareTargets()
+	targets := emptyTargets()
 	for _, record := range records {
-		targets.Include = append(targets.Include, softwareIncludeFromRecord(record))
+		targets.Include = append(targets.Include, includeFromRecord(record))
 	}
 	excludes, err := s.q.ListMunkiSoftwareExcludeLabels(
 		ctx,
 		sqlc.ListMunkiSoftwareExcludeLabelsParams{SoftwareIds: []int64{softwareID}},
 	)
 	if err != nil {
-		return SoftwareTargets{}, err
+		return Targets{}, err
 	}
 	for _, row := range excludes {
 		targets.Exclude = append(targets.Exclude, targeting.LabelRef{LabelID: row.LabelID})
@@ -224,8 +224,8 @@ func (s *Store) attachPackageRelations(
 	return effective, nil
 }
 
-func softwareIncludeFromRecord(row softwareIncludeRecord) SoftwareInclude {
-	return SoftwareInclude{
+func includeFromRecord(row softwareIncludeRecord) Include {
+	return Include{
 		LabelID: row.LabelID,
 		Package: packageSelectorFromStorage(
 			row.PackageSelection,

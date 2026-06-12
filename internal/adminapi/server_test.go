@@ -562,7 +562,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
 	updatedTitle := putMunkiJSON[struct {
-		Targets munkisoftware.SoftwareTargets `json:"targets"`
+		Targets munkisoftware.Targets `json:"targets"`
 	}](
 		t,
 		server,
@@ -580,8 +580,8 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 	include := updatedTitle.Targets.Include[0]
 	if len(include.Actions) != 2 ||
-		include.Actions[0] != munkisoftware.SoftwareActionOptionalInstalls ||
-		include.Actions[1] != munkisoftware.SoftwareActionFeaturedItems {
+		include.Actions[0] != munkisoftware.ActionOptionalInstalls ||
+		include.Actions[1] != munkisoftware.ActionFeaturedItems {
 		t.Fatalf("include = %+v, want optional_installs and featured_items", include)
 	}
 	if len(updatedTitle.Targets.Exclude) != 1 || updatedTitle.Targets.Exclude[0].LabelID != excludeLabel.ID {

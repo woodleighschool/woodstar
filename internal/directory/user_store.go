@@ -281,16 +281,16 @@ func userWhere(params UserListParams) (string, []any) {
 		where.Add("u.id::text = ANY(" + values + "::text[])")
 	}
 	switch params.Role {
-	case "admin", "viewer":
+	case string(RoleAdmin), string(RoleViewer):
 		role := where.Arg(params.Role)
 		where.Add("u.role = " + role + "::user_role")
 	case "none":
 		where.Add("u.role IS NULL")
 	}
 	switch params.Source {
-	case "local":
+	case string(SourceLocal):
 		where.Add("u.source = 'local'")
-	case "entra":
+	case string(SourceEntra):
 		where.Add("u.source = 'entra'")
 	}
 	return where.Build()

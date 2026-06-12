@@ -992,6 +992,32 @@ components:
         - last_seen_at
         - items
       type: object
+    MunkiInclude:
+      additionalProperties: false
+      properties:
+        actions:
+          items:
+            enum:
+              - managed_installs
+              - managed_uninstalls
+              - managed_updates
+              - optional_installs
+              - featured_items
+              - default_installs
+            type: string
+          minItems: 1
+          type: array
+        label_id:
+          format: int64
+          minimum: 1
+          type: integer
+        package:
+          $ref: "#/components/schemas/MunkiPackageSelector"
+      required:
+        - label_id
+        - package
+        - actions
+      type: object
     MunkiItem:
       additionalProperties: false
       properties:
@@ -1011,6 +1037,31 @@ components:
         - installed
         - installed_version
         - last_seen_at
+      type: object
+    MunkiMutation:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        developer:
+          type: string
+        icon_artifact_id:
+          format: int64
+          type: integer
+        icon_hash:
+          type: string
+        icon_name:
+          type: string
+        name:
+          minLength: 1
+          type: string
+        targets:
+          $ref: "#/components/schemas/MunkiTargets"
+      required:
+        - name
+        - targets
       type: object
     MunkiPackage:
       additionalProperties: false
@@ -1656,6 +1707,21 @@ components:
       required:
         - package_id
       type: object
+    MunkiPackageSelector:
+      additionalProperties: false
+      properties:
+        package_id:
+          format: int64
+          minimum: 1
+          type: integer
+        strategy:
+          enum:
+            - latest
+            - specific
+          type: string
+      required:
+        - strategy
+      type: object
     MunkiSoftware:
       additionalProperties: false
       properties:
@@ -1738,7 +1804,7 @@ components:
             - array
             - "null"
         targets:
-          $ref: "#/components/schemas/MunkiSoftwareTargets"
+          $ref: "#/components/schemas/MunkiTargets"
         updated_at:
           format: date-time
           type: string
@@ -1756,73 +1822,7 @@ components:
         - created_at
         - updated_at
       type: object
-    MunkiSoftwareInclude:
-      additionalProperties: false
-      properties:
-        actions:
-          items:
-            enum:
-              - managed_installs
-              - managed_uninstalls
-              - managed_updates
-              - optional_installs
-              - featured_items
-              - default_installs
-            type: string
-          minItems: 1
-          type: array
-        label_id:
-          format: int64
-          minimum: 1
-          type: integer
-        package:
-          $ref: "#/components/schemas/MunkiSoftwarePackageSelector"
-      required:
-        - label_id
-        - package
-        - actions
-      type: object
-    MunkiSoftwareMutation:
-      additionalProperties: false
-      properties:
-        category:
-          type: string
-        description:
-          type: string
-        developer:
-          type: string
-        icon_artifact_id:
-          format: int64
-          type: integer
-        icon_hash:
-          type: string
-        icon_name:
-          type: string
-        name:
-          minLength: 1
-          type: string
-        targets:
-          $ref: "#/components/schemas/MunkiSoftwareTargets"
-      required:
-        - name
-        - targets
-      type: object
-    MunkiSoftwarePackageSelector:
-      additionalProperties: false
-      properties:
-        package_id:
-          format: int64
-          minimum: 1
-          type: integer
-        strategy:
-          enum:
-            - latest
-            - specific
-          type: string
-      required:
-        - strategy
-      type: object
-    MunkiSoftwareTargets:
+    MunkiTargets:
       additionalProperties: false
       properties:
         exclude:
@@ -1831,7 +1831,7 @@ components:
           type: array
         include:
           items:
-            $ref: "#/components/schemas/MunkiSoftwareInclude"
+            $ref: "#/components/schemas/MunkiInclude"
           type: array
       required:
         - include
@@ -6004,7 +6004,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiSoftwareMutation"
+              $ref: "#/components/schemas/MunkiMutation"
         required: true
       responses:
         "201":
@@ -6205,7 +6205,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiSoftwareMutation"
+              $ref: "#/components/schemas/MunkiMutation"
         required: true
       responses:
         "200":

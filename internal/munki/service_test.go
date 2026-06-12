@@ -33,8 +33,8 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 			{
 				TargetID:   1,
 				SoftwareID: 1,
-				Actions:    []munkisoftware.SoftwareAction{munkisoftware.SoftwareActionManagedInstalls},
-				Selector:   munkisoftware.SoftwarePackageSelector{Strategy: munkisoftware.SoftwarePackageLatest},
+				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
 					ID:                        10,
 					SoftwareName:              "GoogleChrome",
