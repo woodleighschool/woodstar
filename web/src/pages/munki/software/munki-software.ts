@@ -1,6 +1,6 @@
 import type { MunkiPackageMutation } from "@/hooks/use-munki-packages";
 import type { PackageInstallItem, SoftwareInclude } from "@/lib/api";
-import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
+import { type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
@@ -9,42 +9,38 @@ export type MunkiInstallItemType = PackageInstallItem["type"];
 export type MunkiSoftwareAction = SoftwareInclude["actions"][number];
 export type MunkiPackageStrategy = SoftwareInclude["package"]["strategy"];
 
-export const MUNKI_INSTALLER_TYPES = {
-  pkg: { name: "Package" },
-  nopkg: { name: "No package" },
-  copy_from_dmg: { name: "Copy from DMG" },
-} satisfies EnumMetadataMap<MunkiInstallerType>;
+function rawEnumOptions<T extends string>(values: readonly T[]) {
+  return values.map((value) => ({ value, label: value }));
+}
 
-export const MUNKI_INSTALLER_TYPE_OPTIONS = enumOptions(MUNKI_INSTALLER_TYPES);
+export const MUNKI_INSTALLER_TYPE_OPTIONS = rawEnumOptions<MunkiInstallerType>([
+  "pkg",
+  "nopkg",
+  "copy_from_dmg",
+]);
 
-export const MUNKI_RESTART_ACTIONS = {
-  None: { name: "None" },
-  RequireLogout: { name: "Require logout" },
-  RecommendRestart: { name: "Recommend restart" },
-  RequireRestart: { name: "Require restart" },
-  RequireShutdown: { name: "Require shutdown" },
-} satisfies EnumMetadataMap<MunkiRestartAction>;
+export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions<MunkiRestartAction>([
+  "None",
+  "RequireLogout",
+  "RecommendRestart",
+  "RequireRestart",
+  "RequireShutdown",
+]);
 
-export const MUNKI_RESTART_ACTION_OPTIONS = enumOptions(MUNKI_RESTART_ACTIONS);
+export const MUNKI_UNINSTALL_METHOD_OPTIONS = rawEnumOptions<MunkiUninstallMethod>([
+  "none",
+  "removepackages",
+  "remove_copied_items",
+  "uninstall_script",
+  "uninstall_package",
+]);
 
-export const MUNKI_UNINSTALL_METHODS = {
-  none: { name: "None" },
-  removepackages: { name: "Remove packages" },
-  remove_copied_items: { name: "Remove copied items" },
-  uninstall_script: { name: "Uninstall script" },
-  uninstall_package: { name: "Uninstall package" },
-} satisfies EnumMetadataMap<MunkiUninstallMethod>;
-
-export const MUNKI_UNINSTALL_METHOD_OPTIONS = enumOptions(MUNKI_UNINSTALL_METHODS);
-
-export const MUNKI_INSTALL_ITEM_TYPES = {
-  application: { name: "Application" },
-  bundle: { name: "Bundle" },
-  plist: { name: "Plist" },
-  file: { name: "File" },
-} satisfies EnumMetadataMap<MunkiInstallItemType>;
-
-export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = enumOptions(MUNKI_INSTALL_ITEM_TYPES);
+export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = rawEnumOptions<MunkiInstallItemType>([
+  "application",
+  "bundle",
+  "plist",
+  "file",
+]);
 
 export const MUNKI_SOFTWARE_ACTION_VALUES = [
   "managed_installs",
@@ -88,7 +84,3 @@ export const MUNKI_PACKAGE_STRATEGY_VALUES = [
   "latest",
   "specific",
 ] as const satisfies readonly MunkiPackageStrategy[];
-
-export function munkiInstallerTypeLabel(value: string | null | undefined) {
-  return enumLabel(MUNKI_INSTALLER_TYPES, value);
-}

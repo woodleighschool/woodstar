@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 
 import { FormField } from "@/components/form-field";
-import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { SubmitButton } from "@/components/submit-button";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
@@ -88,7 +88,7 @@ export function RuleForm({
               <>
                 <PageHeader title={title ?? (values.name || "Rule")} />
 
-                <MutableResourceTabs
+                <ScrollableTabs
                   tabs={[
                     {
                       value: "options",

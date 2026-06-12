@@ -23,7 +23,6 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { type MunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { formatRelative } from "@/lib/utils";
-import { munkiInstallerTypeLabel } from "../software/munki-software";
 
 export function MunkiPackageListPage() {
   const tableSearch = useDataTableSearch();
@@ -78,7 +77,7 @@ export function MunkiPackageListPage() {
         id: "type",
         accessorKey: "installer_type",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
-        cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
+        cell: ({ row }) => row.original.installer_type,
         meta: { label: "Type" },
       },
       {

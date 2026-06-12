@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
-import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
@@ -35,7 +35,6 @@ import {
   useMunkiSoftwareForm,
 } from "./fields";
 import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targets";
-import { munkiInstallerTypeLabel } from "./munki-software";
 
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
@@ -175,7 +174,7 @@ function MunkiSoftwareDetailForm({
       id: "installer_type",
       header: "Installer",
       enableSorting: false,
-      cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
+      cell: ({ row }) => row.original.installer_type,
     },
     {
       id: "eligible",
@@ -205,7 +204,7 @@ function MunkiSoftwareDetailForm({
           void softwareOptionsForm.handleSubmit();
         }}
       >
-        <MutableResourceTabs
+        <ScrollableTabs
           tabs={[
             {
               value: "options",

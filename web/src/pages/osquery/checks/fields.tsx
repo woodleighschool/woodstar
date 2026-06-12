@@ -5,7 +5,7 @@ import { type ReactNode, useCallback, useRef, useState } from "react";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { FormField } from "@/components/form-field";
-import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { SubmitButton } from "@/components/submit-button";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
@@ -121,7 +121,7 @@ export function CheckForm({
           )}
         </form.Subscribe>
 
-        <MutableResourceTabs
+        <ScrollableTabs
           tabs={[
             {
               value: "options",

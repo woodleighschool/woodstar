@@ -2,7 +2,7 @@ import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
-import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
@@ -58,7 +58,7 @@ export function MunkiSoftwareCreatePage() {
         }}
       >
         <PageHeader title="New Software" />
-        <MutableResourceTabs
+        <ScrollableTabs
           tabs={[
             {
               value: "options",

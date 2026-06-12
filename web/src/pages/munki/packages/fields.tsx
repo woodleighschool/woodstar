@@ -3,10 +3,12 @@ import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
 import { Link } from "@tanstack/react-router";
 import { FileArchive, Plus, Trash2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { CodeEditor } from "@/components/editor/code-editor";
+import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +23,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -29,11 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
+import { useTabIndicator } from "@/hooks/use-tab-indicator";
 import type { PackageAlert } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
+import { cn } from "@/lib/utils";
 
 import {
   MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
@@ -67,6 +80,9 @@ import {
 
 const shellExtensions: Extension[] = [StreamLanguage.define(shell)];
 
+// uninstall_script lives on the Uninstall tab; the rest are general-purpose hooks.
+const generalScriptFields = scriptFields.filter((script) => script.key !== "uninstall_script");
+
 type PackageFieldName = keyof PackageFormState;
 
 export type SoftwareInfo = {
@@ -98,104 +114,82 @@ export function PackageEditorTabs({
   onUninstallerFileChange: (file: File | null) => void;
 }) {
   return (
-    <form.Subscribe selector={(state) => state.values}>
-      {(values) => (
-        <Tabs defaultValue="basic" className="max-w-6xl space-y-6">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-4 lg:grid-cols-7">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="contents">Contents</TabsTrigger>
-            <TabsTrigger value="copy">Items to Copy</TabsTrigger>
-            <TabsTrigger value="relationships">Relationships</TabsTrigger>
-            <TabsTrigger value="installer">Installer</TabsTrigger>
-            <TabsTrigger value="scripts">Scripts</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="basic" className="mt-0">
-            <BasicInfoTab form={form} softwareInfo={softwareInfo} />
-          </TabsContent>
-
-          <TabsContent value="contents" className="mt-0">
-            <ContentsTab form={form} />
-          </TabsContent>
-
-          <TabsContent value="copy" className="mt-0">
-            <ItemsToCopyTab form={form} />
-          </TabsContent>
-
-          <TabsContent value="relationships" className="mt-0">
-            <RelationshipsTab form={form} packageOptions={packageOptions} />
-          </TabsContent>
-
-          <TabsContent value="installer" className="mt-0">
-            <InstallerTab
+    <ScrollableTabs
+      className="max-w-6xl"
+      tabs={[
+        {
+          value: "basic",
+          label: "Basic Info",
+          content: <BasicInfoTab form={form} software={softwareInfo} />,
+        },
+        {
+          value: "contents",
+          label: "Contents",
+          content: <ContentsTab form={form} />,
+        },
+        {
+          value: "requirements",
+          label: "Requirements",
+          content: <RequirementsTab form={form} packageOptions={packageOptions} />,
+        },
+        {
+          value: "installation",
+          label: "Installation",
+          content: (
+            <InstallationTab
               form={form}
-              installerType={values.installer_type}
-              uninstallMethod={values.uninstall_method}
               installerFile={installerFile}
-              uninstallerFile={uninstallerFile}
               installerArtifactLocation={installerArtifactLocation}
-              uninstallerArtifactLocation={uninstallerArtifactLocation}
               onInstallerFileChange={onInstallerFileChange}
+            />
+          ),
+        },
+        {
+          value: "uninstall",
+          label: "Uninstall",
+          content: (
+            <UninstallTab
+              form={form}
+              uninstallerFile={uninstallerFile}
+              uninstallerArtifactLocation={uninstallerArtifactLocation}
               onUninstallerFileChange={onUninstallerFileChange}
             />
-          </TabsContent>
-
-          <TabsContent value="scripts" className="mt-0">
-            <form.Subscribe
-              selector={(state) => state.values}
-              children={(values) => (
-                <ScriptEditor
-                  values={values}
-                  onChange={(key, value) => form.setFieldValue(key, value)}
-                />
-              )}
-            />
-          </TabsContent>
-
-          <TabsContent value="advanced" className="mt-0">
-            <AdvancedTab form={form} />
-          </TabsContent>
-        </Tabs>
-      )}
-    </form.Subscribe>
+          ),
+        },
+        {
+          value: "scripts",
+          label: "Scripts",
+          content: <ScriptsTab form={form} />,
+        },
+        {
+          value: "alerts",
+          label: "Alerts",
+          content: <AlertsTab form={form} />,
+        },
+        {
+          value: "advanced",
+          label: "Advanced",
+          content: <AdvancedTab form={form} />,
+        },
+      ]}
+    />
   );
 }
 
 function BasicInfoTab({
   form,
-  softwareInfo,
+  software,
 }: {
   form: PackageEditorForm;
-  softwareInfo: SoftwareInfo | null;
+  software: SoftwareInfo | null;
 }) {
   return (
     <FieldGroup>
+      <InheritedSummary software={software} />
+
       <FieldSet>
         <FieldLegend>Package</FieldLegend>
         <FieldGroup className="grid gap-4 md:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="munki-package-name">Name</FieldLabel>
-            <Input id="munki-package-name" value={softwareInfo?.name ?? ""} disabled readOnly />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="munki-package-category">Category</FieldLabel>
-            <Input
-              id="munki-package-category"
-              value={softwareInfo?.category ?? ""}
-              disabled
-              readOnly
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="munki-package-developer">Developer</FieldLabel>
-            <Input
-              id="munki-package-developer"
-              value={softwareInfo?.developer ?? ""}
-              disabled
-              readOnly
-            />
-          </Field>
           <VersionField form={form} />
           <FormSelectField
             form={form}
@@ -203,13 +197,6 @@ function BasicInfoTab({
             id="munki-package-installer-type"
             label="Installer Type"
             options={MUNKI_INSTALLER_TYPE_OPTIONS}
-          />
-          <FormSelectField
-            form={form}
-            name="uninstall_method"
-            id="munki-package-uninstall-method"
-            label="Uninstall Method"
-            options={MUNKI_UNINSTALL_METHOD_OPTIONS}
           />
           <FormSelectField
             form={form}
@@ -226,21 +213,12 @@ function BasicInfoTab({
             type="datetime-local"
           />
         </FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="munki-package-description">Description</FieldLabel>
-          <Textarea
-            id="munki-package-description"
-            value={softwareInfo?.description ?? ""}
-            disabled
-            readOnly
-          />
-        </Field>
         <FormTextareaField form={form} name="notes" id="munki-package-notes" label="Notes" />
       </FieldSet>
 
       <FieldSet>
         <FieldLegend>Behavior</FieldLegend>
-        <FieldGroup className="grid gap-4 md:grid-cols-3">
+        <FieldGroup className="grid gap-4 md:grid-cols-2">
           <FormCheckboxField
             form={form}
             name="unattended_install"
@@ -261,27 +239,9 @@ function BasicInfoTab({
           />
           <FormCheckboxField
             form={form}
-            name="precache"
-            id="munki-package-precache"
-            label="Precache"
-          />
-          <FormCheckboxField
-            form={form}
             name="autoremove"
             id="munki-package-autoremove"
             label="Autoremove"
-          />
-          <FormCheckboxField
-            form={form}
-            name="apple_item"
-            id="munki-package-apple-item"
-            label="Apple item"
-          />
-          <FormCheckboxField
-            form={form}
-            name="suppress_bundle_relocation"
-            id="munki-package-suppress-bundle-relocation"
-            label="Suppress bundle relocation"
           />
         </FieldGroup>
       </FieldSet>
@@ -299,40 +259,66 @@ function BasicInfoTab({
   );
 }
 
+function InheritedSummary({ software }: { software: SoftwareInfo | null }) {
+  return (
+    <div className="rounded-md border bg-muted/30 p-4">
+      <p className="mb-3 text-xs font-medium text-muted-foreground">
+        Inherited from the parent software
+      </p>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <InheritedItem label="Name" value={software?.name} />
+        <InheritedItem label="Category" value={software?.category} />
+        <InheritedItem label="Developer" value={software?.developer} />
+        <InheritedItem
+          label="Description"
+          value={software?.description}
+          className="sm:col-span-2"
+        />
+      </dl>
+    </div>
+  );
+}
+
+function InheritedItem({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value?: string;
+  className?: string;
+}) {
+  const hasValue = value !== undefined && value !== "";
+  return (
+    <div className={className}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm whitespace-pre-wrap">
+        {hasValue ? value : <span className="text-muted-foreground">None</span>}
+      </dd>
+    </div>
+  );
+}
+
 function ContentsTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldGroup>
       <form.Field
         name="installs"
         children={(field) => (
-          <InstallItemsEditor
-            rows={field.state.value}
-            onChange={(rows) => field.handleChange(rows)}
-          />
+          <InstallsTable rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
         )}
       />
       <form.Field
         name="receipts"
         children={(field) => (
-          <ReceiptsEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+          <ReceiptsTable rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
         )}
       />
     </FieldGroup>
   );
 }
 
-function ItemsToCopyTab({ form }: { form: PackageEditorForm }) {
-  return (
-    <form.Field
-      name="items_to_copy"
-      children={(field) => (
-        <ItemsToCopyEditor rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
-      )}
-    />
-  );
-}
-
-function RelationshipsTab({
+function RequirementsTab({
   form,
   packageOptions,
 }: {
@@ -346,7 +332,7 @@ function RelationshipsTab({
         children={(field) => (
           <PackageReferenceEditor
             legend="Requires"
-            addLabel="Requirement"
+            addLabel="Add requirement"
             rows={field.state.value}
             packageOptions={packageOptions}
             onChange={(rows) => field.handleChange(rows)}
@@ -358,199 +344,13 @@ function RelationshipsTab({
         children={(field) => (
           <PackageReferenceEditor
             legend="Update For"
-            addLabel="Update Target"
+            addLabel="Add update target"
             rows={field.state.value}
             packageOptions={packageOptions}
             onChange={(rows) => field.handleChange(rows)}
           />
         )}
       />
-      <form.Field
-        name="blocking_applications"
-        children={(field) => (
-          <StringArrayEditor
-            legend="Blocking Applications"
-            addLabel="Application"
-            rows={field.state.value}
-            onChange={(rows) => field.handleChange(rows)}
-          />
-        )}
-      />
-      <FieldSet>
-        <FieldLegend>Blocking Application Handling</FieldLegend>
-        <FieldGroup>
-          <FormCheckboxField
-            form={form}
-            name="blocking_applications_manual_quit_only"
-            id="munki-package-blocking-applications-manual-quit-only"
-            label="Require manual quit"
-          />
-          <FormCodeField
-            form={form}
-            name="blocking_applications_quit_script"
-            id="munki-package-blocking-applications-quit-script"
-            label="Quit Script"
-            minHeight="[&_.cm-content]:min-h-32"
-          />
-        </FieldGroup>
-      </FieldSet>
-      <form.Field
-        name="supported_architectures"
-        children={(field) => (
-          <ArchitectureEditor
-            values={field.state.value}
-            onChange={(values) => field.handleChange(values)}
-          />
-        )}
-      />
-    </FieldGroup>
-  );
-}
-
-function InstallerTab({
-  form,
-  installerType,
-  uninstallMethod,
-  installerFile,
-  uninstallerFile,
-  installerArtifactLocation,
-  uninstallerArtifactLocation,
-  onInstallerFileChange,
-  onUninstallerFileChange,
-}: {
-  form: PackageEditorForm;
-  installerType: PackageFormState["installer_type"];
-  uninstallMethod: PackageFormState["uninstall_method"];
-  installerFile: File | null;
-  uninstallerFile: File | null;
-  installerArtifactLocation: string;
-  uninstallerArtifactLocation: string;
-  onInstallerFileChange: (file: File | null) => void;
-  onUninstallerFileChange: (file: File | null) => void;
-}) {
-  return (
-    <FieldGroup>
-      <FieldSet>
-        <FieldLegend>Artifacts</FieldLegend>
-        <FieldGroup>
-          {installerType !== "nopkg" ? (
-            <PackageFileField
-              id="munki-package-installer-file"
-              label="Installer"
-              description={installerArtifactLocation || "No installer artifact selected."}
-              icon={<FileArchive className="size-4" />}
-              file={installerFile}
-              onChange={onInstallerFileChange}
-            />
-          ) : null}
-          {uninstallMethod === "uninstall_package" ? (
-            <PackageFileField
-              id="munki-package-uninstaller-file"
-              label="Uninstaller"
-              description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
-              icon={<FileArchive className="size-4" />}
-              file={uninstallerFile}
-              onChange={onUninstallerFileChange}
-            />
-          ) : null}
-        </FieldGroup>
-      </FieldSet>
-
-      <FieldSet>
-        <FieldLegend>Installer</FieldLegend>
-        <FieldGroup>
-          <FormTextField
-            form={form}
-            name="package_path"
-            id="munki-package-package-path"
-            label="Package Path"
-          />
-          <FormTextField
-            form={form}
-            name="installed_size"
-            id="munki-package-installed-size"
-            label="Installed Size"
-            type="number"
-            inputMode="numeric"
-          />
-          <form.Field
-            name="installer_choices_xml"
-            children={(field) => (
-              <InstallerChoicesField
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-              />
-            )}
-          />
-          <form.Field
-            name="installer_environment"
-            children={(field) => (
-              <InstallerEnvironmentEditor
-                rows={field.state.value}
-                onChange={(rows) => field.handleChange(rows)}
-              />
-            )}
-          />
-        </FieldGroup>
-      </FieldSet>
-    </FieldGroup>
-  );
-}
-
-function ScriptEditor({
-  values,
-  onChange,
-}: {
-  values: Pick<PackageFormState, ScriptKey>;
-  onChange: (key: ScriptKey, value: string) => void;
-}) {
-  const [active, setActive] = useState<ScriptKey>(scriptFields[0].key);
-  const field = scriptFields.find((item) => item.key === active) ?? scriptFields[0];
-
-  return (
-    <FieldSet>
-      <FieldLegend>Scripts</FieldLegend>
-
-      <FieldGroup>
-        <Field className="max-w-sm">
-          <FieldLabel htmlFor="munki-package-script">Script</FieldLabel>
-          <Select value={active} onValueChange={(value) => setActive(value as ScriptKey)}>
-            <SelectTrigger id="munki-package-script" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {scriptFields.map((item) => (
-                  <SelectItem key={item.key} value={item.key}>
-                    <span className={values[item.key] !== "" ? "font-medium" : undefined}>
-                      {item.label}
-                    </span>
-                    {values[item.key] !== "" ? (
-                      <span
-                        className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <ScriptField
-          label={field.label}
-          value={values[field.key]}
-          onChange={(value) => onChange(field.key, value)}
-        />
-      </FieldGroup>
-    </FieldSet>
-  );
-}
-
-function AdvancedTab({ form }: { form: PackageEditorForm }) {
-  return (
-    <FieldGroup>
       <FieldSet>
         <FieldLegend>Compatibility</FieldLegend>
         <FieldGroup className="grid gap-4 md:grid-cols-3">
@@ -581,7 +381,224 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
           minHeight="[&_.cm-content]:min-h-32"
         />
       </FieldSet>
+    </FieldGroup>
+  );
+}
 
+function InstallationTab({
+  form,
+  installerFile,
+  installerArtifactLocation,
+  onInstallerFileChange,
+}: {
+  form: PackageEditorForm;
+  installerFile: File | null;
+  installerArtifactLocation: string;
+  onInstallerFileChange: (file: File | null) => void;
+}) {
+  return (
+    <FieldGroup>
+      <form.Subscribe selector={(state) => state.values.installer_type}>
+        {(installerType) =>
+          installerType === "nopkg" ? null : (
+            <FieldSet>
+              <FieldLegend>Installer</FieldLegend>
+              <PackageFileField
+                id="munki-package-installer-file"
+                label="Installer Artifact"
+                description={installerArtifactLocation || "No installer artifact selected."}
+                icon={<FileArchive className="size-4" />}
+                file={installerFile}
+                onChange={onInstallerFileChange}
+              />
+            </FieldSet>
+          )
+        }
+      </form.Subscribe>
+
+      <form.Field
+        name="items_to_copy"
+        children={(field) => (
+          <ItemsToCopyEditor
+            rows={field.state.value}
+            onChange={(rows) => field.handleChange(rows)}
+          />
+        )}
+      />
+
+      <form.Field
+        name="blocking_applications"
+        children={(field) => (
+          <StringArrayEditor
+            legend="Blocking Applications"
+            addLabel="Add application"
+            rows={field.state.value}
+            onChange={(rows) => field.handleChange(rows)}
+          />
+        )}
+      />
+      <FieldSet>
+        <FieldLegend>Blocking Application Handling</FieldLegend>
+        <FieldGroup>
+          <FormCheckboxField
+            form={form}
+            name="blocking_applications_manual_quit_only"
+            id="munki-package-blocking-applications-manual-quit-only"
+            label="Require manual quit"
+          />
+          <FormCodeField
+            form={form}
+            name="blocking_applications_quit_script"
+            id="munki-package-blocking-applications-quit-script"
+            label="Quit Script"
+            minHeight="[&_.cm-content]:min-h-32"
+          />
+        </FieldGroup>
+      </FieldSet>
+
+      <form.Field
+        name="supported_architectures"
+        children={(field) => (
+          <ArchitectureEditor
+            values={field.state.value}
+            onChange={(values) => field.handleChange(values)}
+          />
+        )}
+      />
+
+      <form.Field
+        name="installer_choices_xml"
+        children={(field) => (
+          <InstallerChoicesField
+            value={field.state.value}
+            onChange={(value) => field.handleChange(value)}
+          />
+        )}
+      />
+    </FieldGroup>
+  );
+}
+
+function UninstallTab({
+  form,
+  uninstallerFile,
+  uninstallerArtifactLocation,
+  onUninstallerFileChange,
+}: {
+  form: PackageEditorForm;
+  uninstallerFile: File | null;
+  uninstallerArtifactLocation: string;
+  onUninstallerFileChange: (file: File | null) => void;
+}) {
+  return (
+    <FieldSet>
+      <FieldLegend>Uninstall</FieldLegend>
+      <FieldGroup>
+        <div className="max-w-sm">
+          <FormSelectField
+            form={form}
+            name="uninstall_method"
+            id="munki-package-uninstall-method"
+            label="Uninstall Method"
+            options={MUNKI_UNINSTALL_METHOD_OPTIONS}
+          />
+        </div>
+        <form.Subscribe selector={(state) => state.values.uninstall_method}>
+          {(method) => (
+            <>
+              {method === "uninstall_package" ? (
+                <PackageFileField
+                  id="munki-package-uninstaller-file"
+                  label="Uninstaller Artifact"
+                  description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
+                  icon={<FileArchive className="size-4" />}
+                  file={uninstallerFile}
+                  onChange={onUninstallerFileChange}
+                />
+              ) : null}
+              {method === "uninstall_script" ? (
+                <form.Field
+                  name="uninstall_script"
+                  children={(field) => (
+                    <ScriptField
+                      label="Uninstall Script"
+                      value={field.state.value}
+                      onChange={(value) => field.handleChange(value)}
+                    />
+                  )}
+                />
+              ) : null}
+            </>
+          )}
+        </form.Subscribe>
+      </FieldGroup>
+    </FieldSet>
+  );
+}
+
+function ScriptsTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Subscribe
+      selector={(state) => state.values}
+      children={(values) => (
+        <ScriptsEditor values={values} onChange={(key, value) => form.setFieldValue(key, value)} />
+      )}
+    />
+  );
+}
+
+function ScriptsEditor({
+  values,
+  onChange,
+}: {
+  values: Pick<PackageFormState, ScriptKey>;
+  onChange: (key: ScriptKey, value: string) => void;
+}) {
+  const [active, setActive] = useState<ScriptKey>(generalScriptFields[0].key);
+  const { listRef, box } = useTabIndicator(active);
+
+  return (
+    <Tabs value={active} onValueChange={(value) => setActive(value as ScriptKey)} className="gap-4">
+      <ScrollArea orientation="horizontal">
+        <TabsList ref={listRef} className="relative w-fit">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-[3px] left-0 rounded-md bg-background shadow-sm transition-[transform,width,opacity] duration-300 ease-out dark:border dark:border-input dark:bg-input/30"
+            style={{
+              transform: `translateX(${box?.left ?? 0}px)`,
+              width: box?.width ?? 0,
+              opacity: box ? 1 : 0,
+            }}
+          />
+          {generalScriptFields.map((script) => (
+            <TabsTrigger
+              key={script.key}
+              value={script.key}
+              className="relative z-10 bg-transparent! shadow-none! dark:border-transparent! dark:bg-transparent!"
+            >
+              {script.label}
+              {values[script.key] !== "" ? (
+                <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </ScrollArea>
+      {generalScriptFields.map((script) => (
+        <TabsContent key={script.key} value={script.key} className="min-w-0">
+          <ScriptField
+            value={values[script.key]}
+            onChange={(value) => onChange(script.key, value)}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+function AlertsTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
       <form.Field
         name="preinstall_alert"
         children={(field) => (
@@ -604,6 +621,65 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
           />
         )}
       />
+    </FieldGroup>
+  );
+}
+
+function AdvancedTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
+      <FieldSet>
+        <FieldLegend>Installer Details</FieldLegend>
+        <FieldGroup className="grid gap-4 md:grid-cols-2">
+          <FormTextField
+            form={form}
+            name="package_path"
+            id="munki-package-package-path"
+            label="Package Path"
+          />
+          <FormTextField
+            form={form}
+            name="installed_size"
+            id="munki-package-installed-size"
+            label="Installed Size"
+            type="number"
+            inputMode="numeric"
+          />
+        </FieldGroup>
+        <form.Field
+          name="installer_environment"
+          children={(field) => (
+            <InstallerEnvironmentEditor
+              rows={field.state.value}
+              onChange={(rows) => field.handleChange(rows)}
+            />
+          )}
+        />
+      </FieldSet>
+
+      <FieldSet>
+        <FieldLegend>Flags</FieldLegend>
+        <FieldGroup className="grid gap-4 md:grid-cols-3">
+          <FormCheckboxField
+            form={form}
+            name="precache"
+            id="munki-package-precache"
+            label="Precache"
+          />
+          <FormCheckboxField
+            form={form}
+            name="apple_item"
+            id="munki-package-apple-item"
+            label="Apple item"
+          />
+          <FormCheckboxField
+            form={form}
+            name="suppress_bundle_relocation"
+            id="munki-package-suppress-bundle-relocation"
+            label="Suppress bundle relocation"
+          />
+        </FieldGroup>
+      </FieldSet>
     </FieldGroup>
   );
 }
@@ -888,7 +964,7 @@ function InstallerChoicesField({
 }) {
   return (
     <Field>
-      <FieldLabel>Installer Choices</FieldLabel>
+      <FieldLabel>Installer Choices XML</FieldLabel>
       <CodeEditor
         value={value}
         onChange={onChange}
@@ -940,8 +1016,12 @@ function StringArrayEditor({
 }) {
   return (
     <FieldSet>
-      <FieldLegend>{legend}</FieldLegend>
-      <div className="space-y-2">
+      <CollectionHeader
+        title={legend}
+        addLabel={addLabel}
+        onAdd={() => onChange([...rows, emptyStringRow()])}
+      />
+      <div className="space-y-2 empty:hidden">
         {rows.map((row, index) => (
           <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
             <Input
@@ -955,15 +1035,6 @@ function StringArrayEditor({
             </IconButton>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyStringRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          {addLabel}
-        </Button>
       </div>
     </FieldSet>
   );
@@ -984,8 +1055,12 @@ function PackageReferenceEditor({
 }) {
   return (
     <FieldSet>
-      <FieldLegend>{legend}</FieldLegend>
-      <div className="space-y-2">
+      <CollectionHeader
+        title={legend}
+        addLabel={addLabel}
+        onAdd={() => onChange([...rows, emptyPackageReferenceRow()])}
+      />
+      <div className="space-y-2 empty:hidden">
         {rows.map((row, index) => (
           <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
             <Select
@@ -1018,15 +1093,6 @@ function PackageReferenceEditor({
             </IconButton>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyPackageReferenceRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          {addLabel}
-        </Button>
       </div>
     </FieldSet>
   );
@@ -1041,8 +1107,12 @@ function InstallerEnvironmentEditor({
 }) {
   return (
     <FieldSet>
-      <FieldLegend>Installer Environment</FieldLegend>
-      <div className="space-y-2">
+      <CollectionHeader
+        title="Installer Environment"
+        addLabel="Add variable"
+        onAdd={() => onChange([...rows, emptyInstallerEnvironmentRow()])}
+      />
+      <div className="space-y-2 empty:hidden">
         {rows.map((row, index) => (
           <div
             key={row.rowID}
@@ -1067,21 +1137,12 @@ function InstallerEnvironmentEditor({
             </IconButton>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyInstallerEnvironmentRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          Variable
-        </Button>
       </div>
     </FieldSet>
   );
 }
 
-function InstallItemsEditor({
+function InstallsTable({
   rows,
   onChange,
 }: {
@@ -1089,163 +1150,129 @@ function InstallItemsEditor({
   onChange: (rows: InstallItemRow[]) => void;
 }) {
   return (
-    <FieldSet>
-      <FieldLegend>Installs</FieldLegend>
-      <div className="space-y-4">
-        {rows.map((row, index) => (
-          <div key={row.rowID} className="space-y-3 rounded-md border p-3">
-            <div className="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)_auto]">
-              <InstallItemTypeField
-                id={`munki-install-item-type-${row.rowID}`}
-                value={row.type}
-                onChange={(type) => onChange(replaceAt(rows, index, { ...row, type }))}
-              />
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-path-${row.rowID}`}>Path</FieldLabel>
-                <Input
-                  id={`munki-install-item-path-${row.rowID}`}
-                  value={row.path}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, path: event.target.value }))
-                  }
-                />
-              </Field>
-              <div className="flex items-end justify-end">
-                <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-                  <Trash2 />
-                </IconButton>
-              </div>
-            </div>
-            <FieldGroup className="grid gap-3 md:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-bundle-id-${row.rowID}`}>
-                  Bundle ID
-                </FieldLabel>
-                <Input
-                  id={`munki-install-item-bundle-id-${row.rowID}`}
-                  value={row.bundle_identifier ?? ""}
-                  onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }),
-                    )
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-short-version-${row.rowID}`}>
-                  Short Version
-                </FieldLabel>
-                <Input
-                  id={`munki-install-item-short-version-${row.rowID}`}
-                  value={row.bundle_short_version ?? ""}
-                  onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, { ...row, bundle_short_version: event.target.value }),
-                    )
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-version-${row.rowID}`}>
-                  Bundle Version
-                </FieldLabel>
-                <Input
-                  id={`munki-install-item-version-${row.rowID}`}
-                  value={row.bundle_version ?? ""}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, bundle_version: event.target.value }))
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-comparison-${row.rowID}`}>
-                  Comparison Key
-                </FieldLabel>
-                <Input
-                  id={`munki-install-item-comparison-${row.rowID}`}
-                  value={row.version_comparison_key ?? ""}
-                  onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, {
-                        ...row,
-                        version_comparison_key: event.target.value,
-                      }),
-                    )
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-md5-${row.rowID}`}>MD5</FieldLabel>
-                <Input
-                  id={`munki-install-item-md5-${row.rowID}`}
-                  value={row.md5checksum ?? ""}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, md5checksum: event.target.value }))
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`munki-install-item-min-os-${row.rowID}`}>
-                  Minimum OS
-                </FieldLabel>
-                <Input
-                  id={`munki-install-item-min-os-${row.rowID}`}
-                  value={row.minimum_os_version ?? ""}
-                  onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, { ...row, minimum_os_version: event.target.value }),
-                    )
-                  }
-                />
-              </Field>
-            </FieldGroup>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyInstallItemRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          Install Item
-        </Button>
-      </div>
+    <FieldSet className="min-w-0">
+      <CollectionHeader
+        title="Installs"
+        addLabel="Add install item"
+        onAdd={() => onChange([...rows, emptyInstallItemRow()])}
+      />
+      {rows.length > 0 ? (
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[14rem]">Path</TableHead>
+                <TableHead className="w-[9rem]">Type</TableHead>
+                <TableHead className="min-w-[10rem]">CFBundleName</TableHead>
+                <TableHead className="min-w-[12rem]">CFBundleIdentifier</TableHead>
+                <TableHead className="min-w-[9rem]">CFBundleShortVersionString</TableHead>
+                <TableHead className="min-w-[9rem]">CFBundleVersion</TableHead>
+                <TableHead className="w-9" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, index) => (
+                <TableRow key={row.rowID} className="hover:bg-transparent">
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Path"
+                      value={row.path}
+                      onChange={(event) =>
+                        onChange(replaceAt(rows, index, { ...row, path: event.target.value }))
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <Select
+                      value={row.type}
+                      onValueChange={(next) =>
+                        onChange(
+                          replaceAt(rows, index, { ...row, type: next as InstallItemRow["type"] }),
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        aria-label="Type"
+                        className="h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {MUNKI_INSTALL_ITEM_TYPE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="CFBundleName"
+                      value={row.bundle_name ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          replaceAt(rows, index, { ...row, bundle_name: event.target.value }),
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="CFBundleIdentifier"
+                      value={row.bundle_identifier ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }),
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="CFBundleShortVersionString"
+                      value={row.bundle_short_version ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          replaceAt(rows, index, {
+                            ...row,
+                            bundle_short_version: event.target.value,
+                          }),
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="CFBundleVersion"
+                      value={row.bundle_version ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          replaceAt(rows, index, { ...row, bundle_version: event.target.value }),
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="w-9 p-0 pr-1 text-right">
+                    <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
+                      <Trash2 />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <EmptyPanel>No installs</EmptyPanel>
+      )}
     </FieldSet>
   );
 }
 
-function InstallItemTypeField({
-  id,
-  value,
-  onChange,
-}: {
-  id: string;
-  value: InstallItemRow["type"];
-  onChange: (value: InstallItemRow["type"]) => void;
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>Type</FieldLabel>
-      <Select value={value} onValueChange={(next) => onChange(next as InstallItemRow["type"])}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {MUNKI_INSTALL_ITEM_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}
-
-function ReceiptsEditor({
+function ReceiptsTable({
   rows,
   onChange,
 }: {
@@ -1253,51 +1280,79 @@ function ReceiptsEditor({
   onChange: (rows: ReceiptRow[]) => void;
 }) {
   return (
-    <FieldSet>
-      <FieldLegend>Receipts</FieldLegend>
-      <div className="space-y-2">
-        {rows.map((row, index) => (
-          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_8rem_auto]">
-            <Input
-              aria-label="Package ID"
-              placeholder="Package ID"
-              value={row.package_id}
-              onChange={(event) =>
-                onChange(replaceAt(rows, index, { ...row, package_id: event.target.value }))
-              }
-            />
-            <Input
-              aria-label="Version"
-              placeholder="Version"
-              value={row.version ?? ""}
-              onChange={(event) =>
-                onChange(replaceAt(rows, index, { ...row, version: event.target.value }))
-              }
-            />
-            <CheckboxControl
-              id={`munki-receipt-optional-${row.rowID}`}
-              label="Optional"
-              checked={row.optional === true}
-              onChange={(checked) =>
-                onChange(replaceAt(rows, index, { ...row, optional: checked }))
-              }
-            />
-            <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-              <Trash2 />
-            </IconButton>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyReceiptRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          Receipt
-        </Button>
-      </div>
+    <FieldSet className="min-w-0">
+      <CollectionHeader
+        title="Receipts"
+        addLabel="Add receipt"
+        onAdd={() => onChange([...rows, emptyReceiptRow()])}
+      />
+      {rows.length > 0 ? (
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[16rem]">Package ID</TableHead>
+                <TableHead className="min-w-[9rem]">Version</TableHead>
+                <TableHead className="w-24 text-center">Optional</TableHead>
+                <TableHead className="w-9" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, index) => (
+                <TableRow key={row.rowID} className="hover:bg-transparent">
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Package ID"
+                      value={row.package_id}
+                      onChange={(event) =>
+                        onChange(replaceAt(rows, index, { ...row, package_id: event.target.value }))
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Version"
+                      value={row.version ?? ""}
+                      onChange={(event) =>
+                        onChange(replaceAt(rows, index, { ...row, version: event.target.value }))
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      aria-label="Optional"
+                      checked={row.optional === true}
+                      onCheckedChange={(value) =>
+                        onChange(replaceAt(rows, index, { ...row, optional: value === true }))
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="w-9 p-0 pr-1 text-right">
+                    <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
+                      <Trash2 />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <EmptyPanel>No receipts</EmptyPanel>
+      )}
     </FieldSet>
+  );
+}
+
+function CellInput({ className, ...props }: ComponentProps<typeof Input>) {
+  return (
+    <Input
+      {...props}
+      className={cn(
+        "h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent",
+        className,
+      )}
+    />
   );
 }
 
@@ -1310,8 +1365,12 @@ function ItemsToCopyEditor({
 }) {
   return (
     <FieldSet>
-      <FieldLegend>Items to Copy</FieldLegend>
-      <div className="space-y-4">
+      <CollectionHeader
+        title="Items to Copy"
+        addLabel="Add copy item"
+        onAdd={() => onChange([...rows, emptyItemToCopyRow()])}
+      />
+      <div className="space-y-4 empty:hidden">
         {rows.map((row, index) => (
           <div key={row.rowID} className="space-y-3 rounded-md border p-3">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -1393,15 +1452,6 @@ function ItemsToCopyEditor({
             </FieldGroup>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...rows, emptyItemToCopyRow()])}
-        >
-          <Plus data-icon="inline-start" />
-          Copy Item
-        </Button>
       </div>
     </FieldSet>
   );
@@ -1412,13 +1462,13 @@ function ScriptField({
   value,
   onChange,
 }: {
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <Field>
-      <FieldLabel>{label}</FieldLabel>
+      {label ? <FieldLabel>{label}</FieldLabel> : null}
       <CodeEditor
         value={value}
         onChange={onChange}
@@ -1505,5 +1555,25 @@ function IconButton({
     <Button type="button" variant="ghost" size="icon-sm" title={label} onClick={onClick}>
       {children}
     </Button>
+  );
+}
+
+// Section header for a row collection: legend on the left, add button on the right.
+function CollectionHeader({
+  title,
+  addLabel,
+  onAdd,
+}: {
+  title: string;
+  addLabel: string;
+  onAdd: () => void;
+}) {
+  return (
+    <FieldLegend className="mb-0 flex w-full items-center justify-between gap-3">
+      <span>{title}</span>
+      <IconButton label={addLabel} onClick={onAdd}>
+        <Plus />
+      </IconButton>
+    </FieldLegend>
   );
 }

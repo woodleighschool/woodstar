@@ -8,7 +8,7 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
-import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
+import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   reportRows,
@@ -156,7 +156,7 @@ export function ReportForm({
           {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
         </form.Subscribe>
 
-        <MutableResourceTabs
+        <ScrollableTabs
           tabs={[
             {
               value: "options",
