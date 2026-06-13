@@ -89,9 +89,8 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 
 func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 	artifactID := int64(42)
-	service := munki.NewRepositoryService(
-		nil,
-		staticPackageResolver{packages: []munkisoftware.EffectivePackage{
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -108,7 +107,7 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 				},
 			},
 		}},
-	)
+	})
 
 	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
 	if err != nil {
@@ -134,9 +133,8 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 }
 
 func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
-	service := munki.NewRepositoryService(
-		nil,
-		staticPackageResolver{packages: []munkisoftware.EffectivePackage{
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -145,7 +143,7 @@ func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 				Package:    staticMunkiPackage(20, 1, "ExternalURLApp", "1.0"),
 			},
 		}},
-	)
+	})
 
 	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
 	if err != nil {
@@ -568,7 +566,7 @@ func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 	}
 }
 
-func newMunkiContractRouter(verifier AgentSecretVerifier, repository Repository) chi.Router {
+func newMunkiContractRouter(verifier agentauth.SecretVerifier, repository Repository) chi.Router {
 	r := chi.NewRouter()
 	RegisterMunkiRoutes(r, verifier, repository, nil)
 	return r
@@ -615,7 +613,7 @@ func newStaticRepository(serial string) *staticRepository {
 
 func newStaticRepositoryWithPackages(serial string, packages []munkisoftware.EffectivePackage) *staticRepository {
 	return &staticRepository{
-		service: munki.NewRepositoryService(nil, staticPackageResolver{packages: packages}),
+		service: munki.NewRepositoryService(munki.Dependencies{Packages: staticPackageResolver{packages: packages}}),
 		want:    serial,
 	}
 }

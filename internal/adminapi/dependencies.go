@@ -1,7 +1,6 @@
 package adminapi
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/alexedwards/scs/v2"
@@ -92,13 +91,7 @@ type MunkiDependencies struct {
 	HostState       *munki.Store
 	Packages        *packages.Store
 	Software        *munkisoftware.Store
-	ArtifactStorage MunkiArtifactStorage
-}
-
-type MunkiArtifactStorage interface {
-	PresignGet(context.Context, artifacts.Artifact) (string, error)
-	PresignPut(context.Context, string, string, string) (artifacts.ArtifactUploadURL, error)
-	Stat(context.Context, string) (artifacts.ArtifactObject, error)
+	ArtifactStorage artifacts.ArtifactStorage
 }
 
 type SantaDependencies struct {

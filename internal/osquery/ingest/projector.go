@@ -10,7 +10,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
-	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -26,27 +25,30 @@ type softwareStore interface {
 	ReplaceHostSoftware(context.Context, int64, []inventory.HostSoftwareEntry) error
 }
 
-type munkiStore interface {
-	UpsertHostObservation(context.Context, munki.HostObservation) error
-	ClearHostObservation(context.Context, int64) error
-	ReplaceHostItems(context.Context, int64, []munki.Item) error
+type Projector struct {
+	hostStore      hostStore
+	softwareStore  softwareStore
+	logger         *slog.Logger
+	detailHandlers map[catalog.DetailIngest]DetailHandler
 }
 
-type Projector struct {
-	hostStore     hostStore
-	softwareStore softwareStore
-	munkiStore    munkiStore
-	logger        *slog.Logger
-}
+// DetailHandler ingests one detail query's rows for a host. Capabilities outside
+// osquery register handlers for detail kinds the projector core does not own.
+type DetailHandler func(ctx context.Context, hostID int64, rows []map[string]string) error
 
 func NewProjector(hostStore hostStore, softwareStore softwareStore, logger *slog.Logger) *Projector {
-	return &Projector{hostStore: hostStore, softwareStore: softwareStore, logger: logger}
+	return &Projector{
+		hostStore:      hostStore,
+		softwareStore:  softwareStore,
+		logger:         logger,
+		detailHandlers: map[catalog.DetailIngest]DetailHandler{},
+	}
 }
 
-// WithMunkiStore attaches the optional Munki observation sink to the projector.
-func (p *Projector) WithMunkiStore(store munkiStore) *Projector {
-	p.munkiStore = store
-	return p
+// RegisterDetailHandler routes a detail-query ingest kind to a handler owned by
+// another capability, keeping cross-capability enrichment out of the core.
+func (p *Projector) RegisterDetailHandler(kind catalog.DetailIngest, handler DetailHandler) {
+	p.detailHandlers[kind] = handler
 }
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
@@ -74,11 +76,10 @@ func (p *Projector) IngestDetail(
 		return ingestBatteries(ctx, p, hostID, rows)
 	case catalog.IngestCertificates:
 		return ingestCertificates(ctx, p, hostID, rows)
-	case catalog.IngestMunkiInfo:
-		return ingestMunkiInfo(ctx, p, hostID, rows)
-	case catalog.IngestMunkiInstalls:
-		return ingestMunkiInstalls(ctx, p, hostID, rows)
 	default:
+		if handler, ok := p.detailHandlers[query.Ingest]; ok {
+			return handler(ctx, hostID, rows)
+		}
 		return nil
 	}
 }
@@ -189,24 +190,6 @@ func ingestCertificates(
 	rows []map[string]string,
 ) error {
 	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(rows))
-}
-
-func ingestMunkiInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if projector.munkiStore == nil {
-		return nil
-	}
-	status, ok := munki.HostStatusFromInfoRows(hostID, rows)
-	if !ok {
-		return projector.munkiStore.ClearHostObservation(ctx, hostID)
-	}
-	return projector.munkiStore.UpsertHostObservation(ctx, status)
-}
-
-func ingestMunkiInstalls(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if projector.munkiStore == nil {
-		return nil
-	}
-	return projector.munkiStore.ReplaceHostItems(ctx, hostID, munki.ItemsFromInstallRows(hostID, rows))
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {

@@ -21,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -246,7 +247,10 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 		stores.hosts,
 		stores.software,
 		logger.With("component", "inventory"),
-	).WithMunkiStore(stores.munki)
+	)
+	munkiIngestor := munki.NewDetailIngestor(stores.munki)
+	projector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
+	projector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	RegisterOsqueryRoutes(
 		router,

@@ -49,41 +49,26 @@ type RepositoryService struct {
 	presigner artifactPresigner
 }
 
-// RepositoryServiceOption changes optional Munki repository behavior.
-type RepositoryServiceOption func(*RepositoryService)
-
-// WithArtifactStore lets the service resolve stable artifact locations.
-func WithArtifactStore(artifacts artifactResolver) RepositoryServiceOption {
-	return func(s *RepositoryService) {
-		s.artifacts = artifacts
-	}
+// Dependencies are the collaborators the Munki repository renderer needs.
+type Dependencies struct {
+	Hosts     hostResolver
+	Packages  packageResolver
+	Artifacts artifactResolver
+	Presigner artifactPresigner
 }
 
-// WithArtifactPresigner lets the service redirect stable artifact URLs to object storage.
-func WithArtifactPresigner(presigner artifactPresigner) RepositoryServiceOption {
-	return func(s *RepositoryService) {
-		s.presigner = presigner
+// NewRepositoryService returns the Munki repository renderer.
+func NewRepositoryService(deps Dependencies) *RepositoryService {
+	return &RepositoryService{
+		hosts:     deps.Hosts,
+		packages:  deps.Packages,
+		artifacts: deps.Artifacts,
+		presigner: deps.Presigner,
 	}
-}
-
-// NewRepositoryService returns the default Munki repository renderer.
-func NewRepositoryService(
-	hosts hostResolver,
-	packages packageResolver,
-	options ...RepositoryServiceOption,
-) *RepositoryService {
-	s := &RepositoryService{hosts: hosts, packages: packages}
-	for _, option := range options {
-		option(s)
-	}
-	return s
 }
 
 // ResolveClient resolves the Munki request identity to an existing host.
 func (s *RepositoryService) ResolveClient(ctx context.Context, serial string) (ClientHost, error) {
-	if s.hosts == nil {
-		return ClientHost{}, ErrNotFound
-	}
 	host, err := s.hosts.GetByHardwareSerial(ctx, strings.TrimSpace(serial))
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return ClientHost{}, ErrNotFound
@@ -107,7 +92,7 @@ func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, nam
 	if displayName == "" {
 		displayName = client.Serial
 	}
-	packages, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +106,7 @@ func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, nam
 		DefaultInstalls:   []string{},
 		FeaturedItems:     []string{},
 	}
-	for _, pkg := range packages {
+	for _, pkg := range pkgs {
 		addManifestPackage(&manifest, pkg)
 	}
 	return encodePlist(manifest)
@@ -146,9 +131,6 @@ func (s *RepositoryService) ArtifactRedirect(
 	kind artifacts.ArtifactKind,
 	location string,
 ) (string, error) {
-	if s.artifacts == nil {
-		return "", ErrNotFound
-	}
 	location = strings.TrimSpace(location)
 	if !artifacts.ValidArtifactKind(kind) || !validResourcePath(location) {
 		return "", ErrNotFound
@@ -169,9 +151,6 @@ func (s *RepositoryService) ArtifactRedirect(
 			return "", ErrNotFound
 		}
 	}
-	if s.presigner == nil {
-		return "", artifacts.ErrUnavailable
-	}
 	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
 	if err != nil {
 		return "", err
@@ -187,11 +166,11 @@ func (s *RepositoryService) clientCanFetchPackageArtifact(
 	hostID int64,
 	artifact artifacts.Artifact,
 ) (bool, error) {
-	packages, err := s.effectivePackages(ctx, hostID)
+	pkgs, err := s.effectivePackages(ctx, hostID)
 	if err != nil {
 		return false, err
 	}
-	for _, pkg := range packages {
+	for _, pkg := range pkgs {
 		if pkg.Package.InstallerArtifactID != nil &&
 			*pkg.Package.InstallerArtifactID == artifact.ID &&
 			pkg.Package.InstallerArtifactLocation == artifact.Location {
@@ -210,9 +189,6 @@ func (s *RepositoryService) effectivePackages(
 	ctx context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
-	if s.packages == nil {
-		return nil, nil
-	}
 	return s.packages.EffectivePackagesForHost(ctx, hostID)
 }
 
@@ -255,9 +231,6 @@ func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePack
 		}
 		seen[pkg.Package.ID] = true
 		item := packages.Pkginfo(pkg.Package, pkg.SoftwareIcon)
-		delete(item, "PackageCompleteURL")
-		delete(item, "PackageURL")
-		delete(item, "installer_item_location")
 		if pkg.Package.InstallerArtifactID != nil {
 			if pkg.Package.InstallerArtifactLocation != "" {
 				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation

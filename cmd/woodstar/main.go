@@ -34,6 +34,7 @@ import (
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -207,7 +208,10 @@ func newServer(
 		hostStore,
 		softwareStore,
 		logger.With("component", "inventory"),
-	).WithMunkiStore(munkiHostStateStore)
+	)
+	munkiIngestor := munki.NewDetailIngestor(munkiHostStateStore)
+	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
+	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
 
 	labelEvaluator := ingest.NewLabelEvaluator(
 		labelStore,
@@ -384,12 +388,12 @@ func newMunki(
 		)
 	}
 
-	options := []munki.RepositoryServiceOption{
-		munki.WithArtifactStore(artifactStore),
-		munki.WithArtifactPresigner(artifactStorage),
-	}
-
-	return munki.NewRepositoryService(hosts, softwareStore, options...), artifactStorage
+	return munki.NewRepositoryService(munki.Dependencies{
+		Hosts:     hosts,
+		Packages:  softwareStore,
+		Artifacts: artifactStore,
+		Presigner: artifactStorage,
+	}), artifactStorage
 }
 
 func santaCleanup(
@@ -402,10 +406,6 @@ func santaCleanup(
 			RetentionDays: cfg.SantaEventRetentionDays,
 			SweepInterval: cfg.SantaEventSweepInterval,
 		}, logger.With("component", "santa"))
-
-		if cleanup == nil {
-			return nil
-		}
 
 		return cleanup.Stop
 	}

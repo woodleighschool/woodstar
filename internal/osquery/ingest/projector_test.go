@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -127,81 +126,43 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 	}
 }
 
-func TestIngestMunkiDetailRows(t *testing.T) {
-	store := &fakeMunkiStore{}
-	projector := (&Projector{}).WithMunkiStore(store)
-	ctx := context.Background()
+func TestIngestDetailDispatchesRegisteredHandler(t *testing.T) {
+	projector := NewProjector(nil, nil, nil)
 
+	var (
+		gotHostID int64
+		gotRows   []map[string]string
+	)
+	projector.RegisterDetailHandler(
+		catalog.IngestMunkiInfo,
+		func(_ context.Context, hostID int64, rows []map[string]string) error {
+			gotHostID = hostID
+			gotRows = rows
+			return nil
+		},
+	)
+
+	rows := []map[string]string{{"version": "7.1.2"}}
 	if err := projector.IngestDetail(
-		ctx,
-		catalog.DetailQueries()[catalog.QueryMunkiInfo],
+		context.Background(),
+		catalog.DetailQuery{Ingest: catalog.IngestMunkiInfo},
 		catalog.QueryMunkiInfo,
 		42,
-		[]map[string]string{{
-			"version":       "7.1.2.5700",
-			"manifest_name": "site_default",
-			"success":       "true",
-			"errors":        "first; second",
-		}},
+		rows,
 	); err != nil {
-		t.Fatalf("ingest munki info: %v", err)
+		t.Fatalf("ingest registered detail: %v", err)
 	}
-	if store.status.HostID != 42 || store.status.Version != "7.1.2.5700" ||
-		store.status.ManifestName != "site_default" {
-		t.Fatalf("status = %+v, want parsed munki info", store.status)
-	}
-	if len(store.status.Errors) != 2 {
-		t.Fatalf("errors = %#v, want two entries", store.status.Errors)
+	if gotHostID != 42 || len(gotRows) != 1 {
+		t.Fatalf("handler got host=%d rows=%d, want 42/1", gotHostID, len(gotRows))
 	}
 
 	if err := projector.IngestDetail(
-		ctx,
-		catalog.DetailQueries()[catalog.QueryMunkiInstalls],
+		context.Background(),
+		catalog.DetailQuery{Ingest: catalog.IngestMunkiInstalls},
 		catalog.QueryMunkiInstalls,
-		42,
-		[]map[string]string{{
-			"name":              "GoogleChrome",
-			"installed":         "true",
-			"installed_version": "148.0",
-		}},
-	); err != nil {
-		t.Fatalf("ingest munki installs: %v", err)
-	}
-	if len(store.items) != 1 || store.items[0].Name != "GoogleChrome" || !store.items[0].Installed {
-		t.Fatalf("items = %+v, want parsed munki item", store.items)
-	}
-
-	if err := projector.IngestDetail(
-		ctx,
-		catalog.DetailQueries()[catalog.QueryMunkiInfo],
-		catalog.QueryMunkiInfo,
 		42,
 		nil,
 	); err != nil {
-		t.Fatalf("ingest missing munki info: %v", err)
+		t.Fatalf("unregistered detail kind should no-op: %v", err)
 	}
-	if store.clearedHostID != 42 {
-		t.Fatalf("clearedHostID = %d, want 42", store.clearedHostID)
-	}
-}
-
-type fakeMunkiStore struct {
-	status        munki.HostObservation
-	items         []munki.Item
-	clearedHostID int64
-}
-
-func (s *fakeMunkiStore) UpsertHostObservation(_ context.Context, status munki.HostObservation) error {
-	s.status = status
-	return nil
-}
-
-func (s *fakeMunkiStore) ClearHostObservation(_ context.Context, hostID int64) error {
-	s.clearedHostID = hostID
-	return nil
-}
-
-func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []munki.Item) error {
-	s.items = items
-	return nil
 }

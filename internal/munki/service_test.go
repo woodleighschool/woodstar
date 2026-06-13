@@ -45,12 +45,11 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 		},
 	}
 	presigner := serviceArtifactPresigner{url: "https://storage.example/apps/GoogleChrome.pkg?sig=1"}
-	service := munki.NewRepositoryService(
-		nil,
-		store,
-		munki.WithArtifactStore(store),
-		munki.WithArtifactPresigner(presigner),
-	)
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages:  store,
+		Artifacts: store,
+		Presigner: presigner,
+	})
 
 	location, err := service.ArtifactRedirect(
 		context.Background(),
