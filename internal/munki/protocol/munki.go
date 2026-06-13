@@ -18,11 +18,6 @@ import (
 
 const plistContentType = "application/x-plist"
 
-// AgentSecretVerifier checks shared agent secrets for protocol access.
-type AgentSecretVerifier interface {
-	Verify(context.Context, agentauth.Agent, string) (bool, error)
-}
-
 // Repository loads raw Munki repository objects.
 type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
@@ -32,7 +27,7 @@ type Repository interface {
 }
 
 type handler struct {
-	secretVerifier AgentSecretVerifier
+	secretVerifier agentauth.SecretVerifier
 	repository     Repository
 	logger         *slog.Logger
 }
@@ -40,7 +35,7 @@ type handler struct {
 // RegisterMunkiRoutes mounts Munki client repository endpoints.
 func RegisterMunkiRoutes(
 	r chi.Router,
-	secretVerifier AgentSecretVerifier,
+	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
 	logger *slog.Logger,
 ) {

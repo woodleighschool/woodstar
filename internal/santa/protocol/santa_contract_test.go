@@ -428,7 +428,7 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		tokenVerifier   AgentSecretVerifier
+		tokenVerifier   agentauth.SecretVerifier
 		body            []byte
 		contentType     string
 		contentEncoding string
@@ -604,7 +604,7 @@ func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 	}
 }
 
-func newSantaContractRouter(verifier AgentSecretVerifier, service SyncService) chi.Router {
+func newSantaContractRouter(verifier agentauth.SecretVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
 	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
 	return r

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -27,7 +28,7 @@ type AgentService struct {
 	reportStore        reportStore
 	checkStore         checkStore
 	liveQueries        liveQueries
-	secretStore        enrollment.SecretVerifier
+	secretStore        agentauth.SecretVerifier
 	logger             *slog.Logger
 }
 
@@ -38,7 +39,7 @@ type Dependencies struct {
 	ReportStore        reportStore
 	CheckStore         checkStore
 	LiveQueries        liveQueries
-	SecretStore        enrollment.SecretVerifier
+	SecretStore        agentauth.SecretVerifier
 	Logger             *slog.Logger
 }
 

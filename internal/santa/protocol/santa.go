@@ -41,11 +41,6 @@ var (
 	errRequestBodyTooBig = errors.New("santa sync request body too large")
 )
 
-// AgentSecretVerifier verifies shared agent secrets parsed from bearer authorization.
-type AgentSecretVerifier interface {
-	Verify(context.Context, agentauth.Agent, string) (bool, error)
-}
-
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
 	Preflight(context.Context, string, santa.PreflightRequest) (santa.PreflightResponse, error)
@@ -55,13 +50,18 @@ type SyncService interface {
 }
 
 type handler struct {
-	secretVerifier AgentSecretVerifier
+	secretVerifier agentauth.SecretVerifier
 	service        SyncService
 	logger         *slog.Logger
 }
 
 // RegisterSantaRoutes mounts Santa sync v1 endpoints on r.
-func RegisterSantaRoutes(r chi.Router, secretVerifier AgentSecretVerifier, service SyncService, logger *slog.Logger) {
+func RegisterSantaRoutes(
+	r chi.Router,
+	secretVerifier agentauth.SecretVerifier,
+	service SyncService,
+	logger *slog.Logger,
+) {
 	h := handler{
 		secretVerifier: secretVerifier,
 		service:        service,

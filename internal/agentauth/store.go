@@ -12,6 +12,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
+// SecretVerifier reports whether a shared secret is valid for an agent.
+type SecretVerifier interface {
+	Verify(context.Context, Agent, string) (bool, error)
+}
+
 type Store struct {
 	q *sqlc.Queries
 }
