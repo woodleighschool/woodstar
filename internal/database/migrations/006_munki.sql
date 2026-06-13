@@ -76,7 +76,7 @@ CREATE TABLE munki_packages (
     force_install_after_date TIMESTAMPTZ,
     installed_size BIGINT NOT NULL DEFAULT 0 CHECK (installed_size >= 0),
     package_path TEXT NOT NULL DEFAULT '',
-    installer_choices_xml TEXT NOT NULL DEFAULT '',
+    installer_choices_xml JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(installer_choices_xml) = 'array'),
     installer_environment JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(installer_environment) = 'array'),
     installs JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(installs) = 'array'),
     receipts JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(receipts) = 'array'),
