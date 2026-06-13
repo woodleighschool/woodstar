@@ -9,9 +9,9 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// migrationLockID keeps migration runs from racing.
-// Goose's global API does not lock; without this, a rolling restart can race
-// two pods both applying the same migration.
+// migrationLockID serializes concurrent migration runs. Goose's global API does
+// not lock, so without it two processes starting at once could race the same
+// migration.
 const migrationLockID int64 = 7146808627076917000
 
 //go:embed migrations/*.sql

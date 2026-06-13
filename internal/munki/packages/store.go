@@ -428,10 +428,6 @@ func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (PackageRec
 	return packageRecordFromRecord(packageRecordFromEffectiveSQLC(row))
 }
 
-func sqlcString[S ~string](value S) string {
-	return string(value)
-}
-
 func packageListWhere(params PackageListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.SoftwareID > 0 {
@@ -527,9 +523,9 @@ func createMunkiPackageParams(
 	return sqlc.CreateMunkiPackageParams{
 		SoftwareID:                         softwareID,
 		Version:                            params.Version,
-		InstallerType:                      sqlcString(params.InstallerType),
-		UninstallMethod:                    sqlcString(params.UninstallMethod),
-		RestartAction:                      sqlcString(params.RestartAction),
+		InstallerType:                      string(params.InstallerType),
+		UninstallMethod:                    string(params.UninstallMethod),
+		RestartAction:                      string(params.RestartAction),
 		MinimumMunkiVersion:                params.MinimumMunkiVersion,
 		MinimumOSVersion:                   params.MinimumOSVersion,
 		MaximumOSVersion:                   params.MaximumOSVersion,
@@ -585,9 +581,9 @@ func updateMunkiPackageParams(
 ) sqlc.UpdateMunkiPackageParams {
 	return sqlc.UpdateMunkiPackageParams{
 		Version:                            params.Version,
-		InstallerType:                      sqlcString(params.InstallerType),
-		UninstallMethod:                    sqlcString(params.UninstallMethod),
-		RestartAction:                      sqlcString(params.RestartAction),
+		InstallerType:                      string(params.InstallerType),
+		UninstallMethod:                    string(params.UninstallMethod),
+		RestartAction:                      string(params.RestartAction),
 		MinimumMunkiVersion:                params.MinimumMunkiVersion,
 		MinimumOSVersion:                   params.MinimumOSVersion,
 		MaximumOSVersion:                   params.MaximumOSVersion,

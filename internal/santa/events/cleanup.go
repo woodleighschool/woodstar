@@ -28,9 +28,6 @@ type Cleanup struct {
 
 // Stop cancels the cleanup loop and waits for it to exit.
 func (c *Cleanup) Stop() {
-	if c == nil {
-		return
-	}
 	c.stop()
 	<-c.done
 }
@@ -41,9 +38,6 @@ func StartCleanup(
 	options CleanupOptions,
 	logger *slog.Logger,
 ) *Cleanup {
-	if store == nil {
-		return nil
-	}
 	if options.RetentionDays <= 0 {
 		options.RetentionDays = defaultRetentionDays
 	}

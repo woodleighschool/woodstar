@@ -22,7 +22,7 @@ type Store struct {
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: sqlc.New(db.Pool())}
+	return &Store{db: db, q: db.Queries()}
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {

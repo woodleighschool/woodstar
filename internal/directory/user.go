@@ -42,7 +42,7 @@ type User struct {
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
-// Department is one non-empty department observed on directory directory.
+// Department is one non-empty department value drawn from directory users.
 type Department struct {
 	Value string `json:"value"`
 }

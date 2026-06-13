@@ -2,13 +2,12 @@ package orbit
 
 // EnrollRequest is the JSON body Orbit POSTs to /api/fleet/orbit/enroll.
 type EnrollRequest struct {
-	EnrollSecret      string `json:"enroll_secret"`
-	HardwareUUID      string `json:"hardware_uuid"`
-	HardwareSerial    string `json:"hardware_serial,omitempty"`
-	Hostname          string `json:"hostname,omitempty"`
-	OsqueryIdentifier string `json:"osquery_identifier,omitempty"`
-	ComputerName      string `json:"computer_name,omitempty"`
-	HardwareModel     string `json:"hardware_model,omitempty"`
+	EnrollSecret   string `json:"enroll_secret"`
+	HardwareUUID   string `json:"hardware_uuid"`
+	HardwareSerial string `json:"hardware_serial,omitempty"`
+	Hostname       string `json:"hostname,omitempty"`
+	ComputerName   string `json:"computer_name,omitempty"`
+	HardwareModel  string `json:"hardware_model,omitempty"`
 }
 
 // EnrollResponse is the JSON body returned to a successful enrollment.
