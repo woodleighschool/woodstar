@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
+	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 

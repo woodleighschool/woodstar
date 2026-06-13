@@ -16,7 +16,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
+	"github.com/woodleighschool/woodstar/internal/adminctx"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"

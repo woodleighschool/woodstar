@@ -13,8 +13,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
-	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
+	"github.com/woodleighschool/woodstar/internal/adminctx"
+	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
