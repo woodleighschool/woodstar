@@ -6,8 +6,15 @@ import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { FormActions } from "@/components/form-actions";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -486,12 +493,12 @@ function BoolField({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <Field>
-      <div className="flex items-center gap-2">
-        <Checkbox id={id} checked={value} onCheckedChange={(next) => onChange(next === true)} />
+    <Field orientation="horizontal">
+      <FieldContent>
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      </div>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
+      </FieldContent>
+      <Switch id={id} checked={value} onCheckedChange={onChange} />
     </Field>
   );
 }

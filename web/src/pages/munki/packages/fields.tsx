@@ -218,25 +218,25 @@ function BasicInfoTab({
       <FieldSet>
         <FieldLegend>Behavior</FieldLegend>
         <FieldGroup className="grid gap-4 md:grid-cols-2">
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="unattended_install"
             id="munki-package-unattended-install"
             label="Unattended install"
           />
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="unattended_uninstall"
             id="munki-package-unattended-uninstall"
             label="Unattended uninstall"
           />
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="on_demand"
             id="munki-package-on-demand"
             label="On demand"
           />
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="autoremove"
             id="munki-package-autoremove"
@@ -247,7 +247,7 @@ function BasicInfoTab({
 
       <FieldSet>
         <FieldLegend>Woodstar</FieldLegend>
-        <FormCheckboxField
+        <FormSwitchField
           form={form}
           name="eligible"
           id="munki-package-eligible"
@@ -429,7 +429,7 @@ function InstallationTab({
       <FieldSet>
         <FieldLegend>Blocking Application Handling</FieldLegend>
         <FieldGroup>
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="blocking_applications_manual_quit_only"
             id="munki-package-blocking-applications-manual-quit-only"
@@ -649,19 +649,19 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
       <FieldSet>
         <FieldLegend>Flags</FieldLegend>
         <FieldGroup className="grid gap-4 md:grid-cols-3">
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="precache"
             id="munki-package-precache"
             label="Precache"
           />
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="apple_item"
             id="munki-package-apple-item"
             label="Apple item"
           />
-          <FormCheckboxField
+          <FormSwitchField
             form={form}
             name="suppress_bundle_relocation"
             id="munki-package-suppress-bundle-relocation"
@@ -835,7 +835,7 @@ function FormSelectField<T extends string>({
   );
 }
 
-function FormCheckboxField({
+function FormSwitchField({
   form,
   name,
   id,
@@ -850,7 +850,7 @@ function FormCheckboxField({
     <form.Field
       name={name as never}
       children={(field) => (
-        <CheckboxControl
+        <SwitchControl
           id={id}
           label={label}
           checked={field.state.value === true}
@@ -924,6 +924,32 @@ function CheckboxControl({
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
         {description ? <FieldDescription>{description}</FieldDescription> : null}
       </FieldContent>
+    </Field>
+  );
+}
+
+function SwitchControl({
+  id,
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Field orientation="horizontal" className={disabled ? "opacity-60" : undefined}>
+      <FieldContent>
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
+      </FieldContent>
+      <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onChange} />
     </Field>
   );
 }
@@ -1562,7 +1588,7 @@ function AlertEditor({
     <FieldSet>
       <FieldLegend>{legend}</FieldLegend>
       <FieldGroup>
-        <CheckboxControl
+        <SwitchControl
           id={`${id}-enabled`}
           label="Enabled"
           checked={alert.enabled}
