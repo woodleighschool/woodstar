@@ -29,12 +29,8 @@ import type {
   SantaConfiguration,
   SantaConfigurationMutation,
 } from "@/hooks/use-santa-configurations";
-import {
-  firstErrorMessage,
-  integerRange,
-  optionalText,
-  requiredString,
-} from "@/lib/form-validation";
+import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-validation";
+import { nonEmpty } from "@/lib/utils";
 
 import {
   CLIENT_MODE_OPTIONS,
@@ -591,7 +587,7 @@ export function formFromConfiguration(configuration: SantaConfiguration): Config
 function configurationBody(form: ConfigurationFormState): SantaConfigurationMutation {
   return {
     name: form.name.trim(),
-    description: optionalText(form.description),
+    description: nonEmpty(form.description),
     client_mode: form.client_mode,
     targets: form.targets,
     enable_bundles: form.enable_bundles,
@@ -599,8 +595,8 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     enable_all_event_upload: form.enable_all_event_upload,
     full_sync_interval_seconds: form.full_sync_interval_seconds,
     batch_size: form.batch_size,
-    allowed_path_regex: optionalText(form.allowed_path_regex),
-    blocked_path_regex: optionalText(form.blocked_path_regex),
+    allowed_path_regex: nonEmpty(form.allowed_path_regex),
+    blocked_path_regex: nonEmpty(form.blocked_path_regex),
     removable_media_policy: removableMediaPolicyBody(
       form.removable_media_action,
       form.removable_media_remount_flags,
@@ -609,8 +605,8 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
       form.encrypted_removable_media_action,
       form.encrypted_removable_media_remount_flags,
     ),
-    event_detail_url: optionalText(form.event_detail_url),
-    event_detail_text: optionalText(form.event_detail_text),
+    event_detail_url: nonEmpty(form.event_detail_url),
+    event_detail_text: nonEmpty(form.event_detail_text),
   };
 }
 

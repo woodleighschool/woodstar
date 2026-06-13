@@ -36,7 +36,7 @@ import type { Report, ReportMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { emptyLabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
-import { cn } from "@/lib/utils";
+import { cn, nonEmpty } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Off" },
@@ -80,14 +80,9 @@ function trimReport(value: ReportMutation): ReportMutation {
     name: value.name.trim(),
     description: value.description?.trim() ?? "",
     query: value.query.trim(),
-    min_osquery_version: nonEmptyText(value.min_osquery_version),
+    min_osquery_version: nonEmpty(value.min_osquery_version),
     targets: normalizeLabelTargetSet(value.targets),
   };
-}
-
-function nonEmptyText(value: string | undefined) {
-  const trimmed = value?.trim();
-  return trimmed === "" ? undefined : trimmed;
 }
 
 export function ReportForm({

@@ -10,7 +10,8 @@ import type {
   PackageReceipt,
   PackageReference,
 } from "@/lib/api";
-import { fieldErrors, optionalText, requiredString } from "@/lib/form-validation";
+import { fieldErrors, requiredString } from "@/lib/form-validation";
+import { nonEmpty } from "@/lib/utils";
 import type {
   MunkiInstallerType,
   MunkiRestartAction,
@@ -152,7 +153,7 @@ export function packageSubmitPreflightError(
   }
   if (
     form.uninstall_method === "uninstall_script" &&
-    optionalText(form.uninstall_script) === undefined
+    nonEmpty(form.uninstall_script) === undefined
   ) {
     return "Uninstall script method requires an uninstall script.";
   }
@@ -183,9 +184,9 @@ export function packageMutationFromForm(
     installer_type: installerType,
     uninstall_method: uninstallMethod,
     restart_action: form.restart_action === "None" ? undefined : form.restart_action,
-    minimum_munki_version: optionalText(form.minimum_munki_version),
-    minimum_os_version: optionalText(form.minimum_os_version),
-    maximum_os_version: optionalText(form.maximum_os_version),
+    minimum_munki_version: nonEmpty(form.minimum_munki_version),
+    minimum_os_version: nonEmpty(form.minimum_os_version),
+    maximum_os_version: nonEmpty(form.maximum_os_version),
     supported_architectures: form.supported_architectures,
     blocking_applications:
       blockingApplications.length > 0
@@ -193,9 +194,9 @@ export function packageMutationFromForm(
         : form.include_empty_blocking_applications
           ? []
           : undefined,
-    installable_condition: optionalText(form.installable_condition),
+    installable_condition: nonEmpty(form.installable_condition),
     blocking_applications_manual_quit_only: form.blocking_applications_manual_quit_only,
-    blocking_applications_quit_script: optionalText(form.blocking_applications_quit_script),
+    blocking_applications_quit_script: nonEmpty(form.blocking_applications_quit_script),
     requires: cleanPackageReferences(form.requires),
     update_for: cleanPackageReferences(form.update_for),
     eligible: form.eligible,
@@ -208,7 +209,7 @@ export function packageMutationFromForm(
     suppress_bundle_relocation: form.suppress_bundle_relocation,
     force_install_after_date: dateTimeLocalToISO(form.force_install_after_date),
     installed_size: numberOrUndefined(form.installed_size),
-    package_path: usesInstallerOptions ? optionalText(form.package_path) : undefined,
+    package_path: usesInstallerOptions ? nonEmpty(form.package_path) : undefined,
     installer_choices_xml: usesInstallerOptions
       ? parseInstallerChoices(form.installer_choices_xml)
       : [],
@@ -218,16 +219,16 @@ export function packageMutationFromForm(
     installs: cleanInstallItems(form.installs),
     receipts: cleanReceipts(form.receipts),
     items_to_copy: usesItemsToCopy ? cleanItemsToCopy(form.items_to_copy) : [],
-    notes: optionalText(form.notes),
-    installcheck_script: optionalText(form.installcheck_script),
-    uninstallcheck_script: optionalText(form.uninstallcheck_script),
-    preinstall_script: optionalText(form.preinstall_script),
-    postinstall_script: optionalText(form.postinstall_script),
-    preuninstall_script: optionalText(form.preuninstall_script),
-    postuninstall_script: optionalText(form.postuninstall_script),
+    notes: nonEmpty(form.notes),
+    installcheck_script: nonEmpty(form.installcheck_script),
+    uninstallcheck_script: nonEmpty(form.uninstallcheck_script),
+    preinstall_script: nonEmpty(form.preinstall_script),
+    postinstall_script: nonEmpty(form.postinstall_script),
+    preuninstall_script: nonEmpty(form.preuninstall_script),
+    postuninstall_script: nonEmpty(form.postuninstall_script),
     uninstall_script:
-      uninstallMethod === "uninstall_script" ? optionalText(form.uninstall_script) : undefined,
-    version_script: optionalText(form.version_script),
+      uninstallMethod === "uninstall_script" ? nonEmpty(form.uninstall_script) : undefined,
+    version_script: nonEmpty(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
     installer_artifact_id: usesInstallerArtifact ? artifacts.installerArtifactID : undefined,
@@ -460,7 +461,7 @@ function cleanReceipts(rows: ReceiptRow[]): PackageReceipt[] {
       ? [
           {
             package_id: packageID,
-            version: optionalText(row.version ?? ""),
+            version: nonEmpty(row.version ?? ""),
             optional: row.optional,
           },
         ]
@@ -482,10 +483,10 @@ function cleanAlert(alert: PackageAlert): PackageAlert {
   if (!alert.enabled) return { enabled: false };
   return {
     enabled: true,
-    title: optionalText(alert.title ?? ""),
-    detail: optionalText(alert.detail ?? ""),
-    ok_label: optionalText(alert.ok_label ?? ""),
-    cancel_label: optionalText(alert.cancel_label ?? ""),
+    title: nonEmpty(alert.title ?? ""),
+    detail: nonEmpty(alert.detail ?? ""),
+    ok_label: nonEmpty(alert.ok_label ?? ""),
+    cancel_label: nonEmpty(alert.cancel_label ?? ""),
   };
 }
 
@@ -508,7 +509,7 @@ function numberValue(value: unknown) {
 
 function hasNoPkgEvidence(form: PackageFormState) {
   return (
-    optionalText(form.installcheck_script) !== undefined ||
+    nonEmpty(form.installcheck_script) !== undefined ||
     cleanInstallItems(form.installs).length > 0 ||
     cleanReceipts(form.receipts).length > 0 ||
     form.on_demand

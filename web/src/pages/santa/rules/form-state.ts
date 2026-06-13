@@ -7,8 +7,9 @@ import type {
   SantaRuleType,
 } from "@/hooks/use-santa-rules";
 import type { LabelRef } from "@/lib/api";
-import { optionalText, requiredString } from "@/lib/form-validation";
+import { requiredString } from "@/lib/form-validation";
 import { POLICY_VALUES, RULE_IDENTIFIER_RULES, RULE_TYPE_VALUES } from "@/lib/santa-rules";
+import { nonEmpty } from "@/lib/utils";
 import { santaCELExpressionError } from "./cel";
 
 const includeSchema = z
@@ -137,9 +138,9 @@ export function ruleBody(form: RuleFormState): SantaRuleMutation {
     rule_type: form.rule_type,
     identifier: form.identifier.trim(),
     name: form.name.trim(),
-    description: optionalText(form.description),
-    custom_message: optionalText(form.custom_message),
-    custom_url: optionalText(form.custom_url),
+    description: nonEmpty(form.description),
+    custom_message: nonEmpty(form.custom_message),
+    custom_url: nonEmpty(form.custom_url),
     targets: {
       include: form.targets.include.map(includeBody),
       exclude: form.targets.exclude,
@@ -153,7 +154,7 @@ function includeBody(include: RuleIncludeForm) {
   }
   return {
     policy: include.policy,
-    cel_expression: include.policy === "cel" ? optionalText(include.cel_expression) : undefined,
+    cel_expression: include.policy === "cel" ? nonEmpty(include.cel_expression) : undefined,
     label_id: include.label_id,
   };
 }

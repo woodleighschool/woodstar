@@ -5,11 +5,6 @@ export function requiredString(label: string) {
   return z.string().trim().min(1, `${label} is required.`);
 }
 
-export function optionalText(value: string) {
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
 export function uniqueOptions(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).toSorted((a, b) =>
     a.localeCompare(b),
