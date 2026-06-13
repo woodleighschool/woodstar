@@ -2,6 +2,7 @@ import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   Combobox,
@@ -17,7 +18,7 @@ import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packa
 import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 
 import { usePackageEditorForm } from "./editor-form";
-import { PackageEditorTabs, PackageFormActions, type SoftwareInfo } from "./fields";
+import { PackageEditorTabs, type SoftwareInfo } from "./fields";
 import {
   emptyPackageForm,
   packageMutationFromForm,
@@ -134,13 +135,15 @@ export function MunkiPackageCreatePage() {
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
         />
-        <PackageFormActions
-          pending={create.isPending || packageUpload.isUploading || softwareID === null}
+        <FormActions
+          pending={create.isPending || packageUpload.isUploading}
+          disabled={softwareID === null}
           error={
             softwareError
               ? undefined
               : (preflightError ?? create.error?.message ?? packageUpload.error?.message)
           }
+          onCancel={() => void navigate({ to: "/munki/packages" })}
         />
       </form>
     </PageShell>

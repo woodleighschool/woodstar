@@ -17,9 +17,8 @@ import {
   resultColumnNames,
   resultValue,
 } from "@/components/reports/query-results";
-import { SubmitButton } from "@/components/submit-button";
+import { FormActions } from "@/components/form-actions";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
-import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -302,19 +301,12 @@ export function ReportForm({
           ]}
         />
 
-        <div className="flex flex-col gap-2 border-t pt-4">
-          <div className="flex items-center gap-2">
-            <SubmitButton pending={pending} size="sm">
-              {submitLabel}
-            </SubmitButton>
-            {onCancel ? (
-              <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-                Cancel
-              </Button>
-            ) : null}
-          </div>
-          {error ? <FieldError>{error.message}</FieldError> : null}
-        </div>
+        <FormActions
+          pending={pending}
+          error={error?.message}
+          submitLabel={submitLabel}
+          onCancel={onCancel}
+        />
 
         <SchemaSidebar
           open={schemaOpen}

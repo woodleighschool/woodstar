@@ -1,10 +1,10 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
+import { FormActions } from "@/components/form-actions";
 import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Button } from "@/components/ui/button";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import {
   type MunkiSoftwareMutation,
@@ -15,7 +15,6 @@ import { uniqueOptions } from "@/lib/form-validation";
 
 import {
   emptyMunkiSoftwareForm,
-  MunkiSoftwareFormActions,
   MunkiSoftwareOptionsFields,
   munkiSoftwareSchema,
   useMunkiSoftwareForm,
@@ -79,14 +78,10 @@ export function MunkiSoftwareCreatePage() {
             },
           ]}
         />
-        <MunkiSoftwareFormActions
+        <FormActions
           pending={create.isPending || iconUpload.isUploading}
           error={create.error?.message ?? iconUpload.error?.message}
-          cancel={
-            <Button asChild type="button" variant="outline" size="sm">
-              <Link to="/munki/software">Cancel</Link>
-            </Button>
-          }
+          onCancel={() => void navigate({ to: "/munki/software" })}
         />
       </form>
     </PageShell>

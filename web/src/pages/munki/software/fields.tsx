@@ -1,12 +1,10 @@
 import { useForm } from "@tanstack/react-form";
-import type { ReactNode } from "react";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
-import { SubmitButton } from "@/components/submit-button";
-import { FieldDescription, FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiSoftwareDetail } from "@/hooks/use-munki-software";
@@ -160,28 +158,6 @@ export function MunkiSoftwareOptionsFields({
         </form.Field>
       </div>
     </FieldGroup>
-  );
-}
-
-export function MunkiSoftwareFormActions({
-  pending,
-  error,
-  cancel,
-}: {
-  pending: boolean;
-  error?: string;
-  cancel: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 border-t pt-4">
-      {error ? <FieldError>{error}</FieldError> : null}
-      <div className="flex items-center gap-2">
-        <SubmitButton pending={pending} size="sm">
-          Save
-        </SubmitButton>
-        {cancel}
-      </div>
-    </div>
   );
 }
 

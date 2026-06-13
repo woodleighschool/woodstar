@@ -3,10 +3,9 @@ import { useForm } from "@tanstack/react-form";
 import { FormField } from "@/components/form-field";
 import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { SubmitButton } from "@/components/submit-button";
+import { FormActions } from "@/components/form-actions";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
-import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -234,19 +233,12 @@ export function RuleForm({
                   ]}
                 />
 
-                <div className="flex flex-col gap-2 border-t pt-4">
-                  <div className="flex items-center gap-2">
-                    <SubmitButton pending={pending} size="sm">
-                      {submitLabel}
-                    </SubmitButton>
-                    {onCancel ? (
-                      <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-                        Cancel
-                      </Button>
-                    ) : null}
-                  </div>
-                  {error ? <FieldError>{error.message}</FieldError> : null}
-                </div>
+                <FormActions
+                  pending={pending}
+                  error={error?.message}
+                  submitLabel={submitLabel}
+                  onCancel={onCancel}
+                />
               </>
             );
           }}

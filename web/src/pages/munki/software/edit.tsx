@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
+import { FormActions } from "@/components/form-actions";
 import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
@@ -27,7 +28,6 @@ import { uniqueOptions } from "@/lib/form-validation";
 import { formatRelative } from "@/lib/utils";
 
 import {
-  MunkiSoftwareFormActions,
   munkiSoftwareFormFromSoftware,
   munkiSoftwareInclude,
   MunkiSoftwareOptionsFields,
@@ -279,15 +279,7 @@ function MunkiSoftwareDetailForm({
           ]}
         />
 
-        <MunkiSoftwareFormActions
-          pending={pagePending}
-          error={pageError}
-          cancel={
-            <Button type="button" variant="outline" size="sm" onClick={resetTargetPage}>
-              Cancel
-            </Button>
-          }
-        />
+        <FormActions pending={pagePending} error={pageError} onCancel={resetTargetPage} />
       </form>
     </PageShell>
   );

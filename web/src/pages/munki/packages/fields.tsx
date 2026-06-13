@@ -1,7 +1,6 @@
 import { StreamLanguage } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
-import { Link } from "@tanstack/react-router";
 import { FileArchive, Plus, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
 
@@ -9,14 +8,12 @@ import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
 import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
-import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
@@ -673,22 +670,6 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
         </FieldGroup>
       </FieldSet>
     </FieldGroup>
-  );
-}
-
-export function PackageFormActions({ pending, error }: { pending: boolean; error?: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {error ? <FieldError>{error}</FieldError> : null}
-      <div className="flex items-center gap-2">
-        <SubmitButton pending={pending} size="sm">
-          Save
-        </SubmitButton>
-        <Button asChild type="button" variant="outline" size="sm">
-          <Link to="/munki/packages">Cancel</Link>
-        </Button>
-      </div>
-    </div>
   );
 }
 

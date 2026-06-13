@@ -8,8 +8,7 @@ import { SQLEditor } from "@/components/editor/sql-editor";
 import { FormField } from "@/components/form-field";
 import { DerivedSelector, HostSelector } from "@/components/labels/label-membership-selectors";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { SubmitButton } from "@/components/submit-button";
-import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/form-actions";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -360,19 +359,13 @@ export function LabelForm({
           }}
         </form.Subscribe>
 
-        <div className="flex max-w-5xl flex-col gap-2 border-t pt-4">
-          <div className="flex items-center gap-2">
-            <SubmitButton pending={pending} size="sm">
-              {submitLabel}
-            </SubmitButton>
-            {onCancel ? (
-              <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-                Cancel
-              </Button>
-            ) : null}
-          </div>
-          {error ? <FieldError>{error.message}</FieldError> : null}
-        </div>
+        <FormActions
+          className="max-w-5xl"
+          pending={pending}
+          error={error?.message}
+          submitLabel={submitLabel}
+          onCancel={onCancel}
+        />
       </form>
     </PageShell>
   );
