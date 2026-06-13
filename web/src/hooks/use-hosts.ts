@@ -20,6 +20,8 @@ export type { Host, HostDetail, HostReport };
 export type HostSoftware = HostSoftwareRow;
 export type HostSantaRule = RuleStatus;
 
+const HOST_SANTA_RULES_PAGE_SIZE = 100;
+
 type HostListResult = Page<Host>;
 type HostSoftwareListResult = Page<HostSoftwareRow>;
 type HostReportsResult = HostReport[];
@@ -194,7 +196,7 @@ export function useHostChecks(id: number | null) {
 export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
   const queryParams = {
     page: params.page ?? 1,
-    per_page: params.per_page ?? 100,
+    per_page: params.per_page ?? HOST_SANTA_RULES_PAGE_SIZE,
     sort: nonEmpty(params.sort),
   };
 
