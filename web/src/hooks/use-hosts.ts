@@ -17,8 +17,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { Host, HostDetail, HostReport };
-export type HostSoftware = HostSoftwareRow;
-export type HostSantaRule = RuleStatus;
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 
