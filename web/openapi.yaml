@@ -1705,7 +1705,7 @@ components:
         software_name:
           type: string
       required:
-        - package_id
+        - software_id
       type: object
     MunkiPackageSelector:
       additionalProperties: false

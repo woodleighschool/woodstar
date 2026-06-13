@@ -194,12 +194,14 @@ WHERE package_id = @package_id
 INSERT INTO munki_package_relations (
     package_id,
     relation_kind,
+    target_software_id,
     target_package_id,
     position
 )
 VALUES (
     @package_id,
     @relation_kind::munki_package_relation_kind,
-    @target_package_id,
+    @target_software_id,
+    sqlc.narg(target_package_id)::bigint,
     @position::integer
 );

@@ -28,7 +28,8 @@ export type ScriptKey =
   | "uninstall_script"
   | "version_script";
 
-export interface PackageReferenceRow extends Omit<PackageReference, "package_id"> {
+export interface PackageReferenceRow extends Omit<PackageReference, "package_id" | "software_id"> {
+  software_id?: number;
   package_id?: number;
   rowID: string;
 }
@@ -63,6 +64,7 @@ export interface PackageFormState {
   minimum_os_version: string;
   maximum_os_version: string;
   supported_architectures: Architecture[];
+  include_empty_blocking_applications: boolean;
   blocking_applications: StringRow[];
   installable_condition: string;
   blocking_applications_manual_quit_only: boolean;
@@ -174,6 +176,7 @@ export function packageMutationFromForm(
   const usesItemsToCopy =
     installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
   const usesUninstallerArtifact = uninstallMethod === "uninstall_package";
+  const blockingApplications = cleanStringRows(form.blocking_applications);
 
   return {
     version: form.version,
@@ -184,7 +187,12 @@ export function packageMutationFromForm(
     minimum_os_version: optionalText(form.minimum_os_version),
     maximum_os_version: optionalText(form.maximum_os_version),
     supported_architectures: form.supported_architectures,
-    blocking_applications: cleanStringRows(form.blocking_applications),
+    blocking_applications:
+      blockingApplications.length > 0
+        ? blockingApplications
+        : form.include_empty_blocking_applications
+          ? []
+          : undefined,
     installable_condition: optionalText(form.installable_condition),
     blocking_applications_manual_quit_only: form.blocking_applications_manual_quit_only,
     blocking_applications_quit_script: optionalText(form.blocking_applications_quit_script),
@@ -237,6 +245,7 @@ export function emptyPackageForm(): PackageFormState {
     minimum_os_version: "",
     maximum_os_version: "",
     supported_architectures: [],
+    include_empty_blocking_applications: false,
     blocking_applications: [],
     installable_condition: "",
     blocking_applications_manual_quit_only: false,
@@ -283,6 +292,7 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     minimum_os_version: pkg.minimum_os_version,
     maximum_os_version: pkg.maximum_os_version,
     supported_architectures: (pkg.supported_architectures ?? []).filter(isArchitecture),
+    include_empty_blocking_applications: pkg.blocking_applications?.length === 0,
     blocking_applications: stringRows(pkg.blocking_applications ?? []),
     installable_condition: pkg.installable_condition,
     blocking_applications_manual_quit_only: pkg.blocking_applications_manual_quit_only,
@@ -376,8 +386,11 @@ function itemToCopyRows(values: PackageItemToCopy[]): ItemToCopyRow[] {
 function cleanPackageReferences(rows: PackageReferenceRow[]): PackageReference[] {
   const out: PackageReference[] = [];
   for (const row of rows) {
-    if (row.package_id) {
-      out.push({ package_id: row.package_id });
+    if (row.software_id) {
+      out.push({
+        software_id: row.software_id,
+        package_id: row.package_id,
+      });
     }
   }
   return out;

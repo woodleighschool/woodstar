@@ -287,6 +287,7 @@ const createMunkiPackageRelation = `-- name: CreateMunkiPackageRelation :exec
 INSERT INTO munki_package_relations (
     package_id,
     relation_kind,
+    target_software_id,
     target_package_id,
     position
 )
@@ -294,21 +295,24 @@ VALUES (
     $1,
     $2::munki_package_relation_kind,
     $3,
-    $4::integer
+    $4::bigint,
+    $5::integer
 )
 `
 
 type CreateMunkiPackageRelationParams struct {
-	PackageID       int64                    `json:"package_id"`
-	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
-	TargetPackageID int64                    `json:"target_package_id"`
-	Position        int32                    `json:"position"`
+	PackageID        int64                    `json:"package_id"`
+	RelationKind     MunkiPackageRelationKind `json:"relation_kind"`
+	TargetSoftwareID int64                    `json:"target_software_id"`
+	TargetPackageID  *int64                   `json:"target_package_id"`
+	Position         int32                    `json:"position"`
 }
 
 func (q *Queries) CreateMunkiPackageRelation(ctx context.Context, arg CreateMunkiPackageRelationParams) error {
 	_, err := q.db.Exec(ctx, createMunkiPackageRelation,
 		arg.PackageID,
 		arg.RelationKind,
+		arg.TargetSoftwareID,
 		arg.TargetPackageID,
 		arg.Position,
 	)

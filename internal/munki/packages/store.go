@@ -270,7 +270,7 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	params.MinimumOSVersion = strings.TrimSpace(params.MinimumOSVersion)
 	params.MaximumOSVersion = strings.TrimSpace(params.MaximumOSVersion)
 	params.SupportedArchitectures = cleanStringList(params.SupportedArchitectures)
-	params.BlockingApplications = cleanStringList(params.BlockingApplications)
+	params.BlockingApplications = cleanOptionalStringList(params.BlockingApplications)
 	params.Requires = cleanReferences(params.Requires)
 	params.UpdateFor = cleanReferences(params.UpdateFor)
 	params.PackagePath = strings.TrimSpace(params.PackagePath)
@@ -336,7 +336,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		MinimumOSVersion:            row.MinimumOSVersion,
 		MaximumOSVersion:            row.MaximumOSVersion,
 		SupportedArchitectures:      nonNilStrings(row.SupportedArchitectures),
-		BlockingApplications:        nonNilStrings(row.BlockingApplications),
+		BlockingApplications:        row.BlockingApplications,
 		InstallableCondition:        row.InstallableCondition,
 		BlockingAppsManualQuit:      row.BlockingAppsManualQuit,
 		BlockingAppsQuitScript:      row.BlockingAppsQuitScript,
@@ -943,10 +943,11 @@ func replacePackageRelations(
 	}
 	for position, ref := range references {
 		if err := q.CreateMunkiPackageRelation(ctx, sqlc.CreateMunkiPackageRelationParams{
-			PackageID:       packageID,
-			RelationKind:    kind,
-			TargetPackageID: ref.PackageID,
-			Position:        int32(position),
+			PackageID:        packageID,
+			RelationKind:     kind,
+			TargetSoftwareID: ref.SoftwareID,
+			TargetPackageID:  optionalPositiveInt64(ref.PackageID),
+			Position:         int32(position),
 		}); err != nil {
 			return err
 		}
@@ -957,9 +958,9 @@ func replacePackageRelations(
 type packageRelationRecord struct {
 	PackageID       int64
 	RelationKind    sqlc.MunkiPackageRelationKind
-	TargetPackageID int64
 	SoftwareID      int64
 	SoftwareName    string
+	TargetPackageID *int64
 	TargetVersion   string
 }
 
@@ -993,13 +994,13 @@ func (s *Store) packageRelationsByPackage(
 		SELECT
 			r.package_id,
 			r.relation_kind,
-			r.target_package_id,
-			target.software_id,
+			r.target_software_id AS software_id,
 			target_software.name AS software_name,
-			target.version AS target_version
+			r.target_package_id,
+			COALESCE(target.version, '') AS target_version
 		FROM munki_package_relations r
-		JOIN munki_packages target ON target.id = r.target_package_id
-		JOIN munki_software target_software ON target_software.id = target.software_id
+		JOIN munki_software target_software ON target_software.id = r.target_software_id
+		LEFT JOIN munki_packages target ON target.id = r.target_package_id
 		WHERE r.package_id = ANY($1::bigint[])
 		ORDER BY r.package_id, r.relation_kind, r.position, r.id
 	`, packageIDs)
@@ -1013,10 +1014,12 @@ func (s *Store) packageRelationsByPackage(
 	out := make(map[int64]packageRelations, len(packageIDs))
 	for _, record := range records {
 		reference := PackageReference{
-			PackageID:      record.TargetPackageID,
 			SoftwareID:     record.SoftwareID,
 			SoftwareName:   record.SoftwareName,
 			PackageVersion: record.TargetVersion,
+		}
+		if record.TargetPackageID != nil {
+			reference.PackageID = *record.TargetPackageID
 		}
 		rel := out[record.PackageID]
 		switch record.RelationKind {
@@ -1048,17 +1051,36 @@ func packageIDs(packages []Package) []int64 {
 
 func cleanReferences(values []PackageReference) []PackageReference {
 	out := make([]PackageReference, 0, len(values))
-	seen := make(map[int64]struct{}, len(values))
+	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
-		if _, ok := seen[value.PackageID]; ok {
+		key := packageReferenceKey(value)
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[value.PackageID] = struct{}{}
+		seen[key] = struct{}{}
 		out = append(out, PackageReference{
-			PackageID: value.PackageID,
+			SoftwareID: value.SoftwareID,
+			PackageID:  value.PackageID,
 		})
 	}
 	return out
+}
+
+func packageReferenceKey(ref PackageReference) string {
+	if ref.PackageID > 0 {
+		return fmt.Sprintf("package:%d", ref.PackageID)
+	}
+	if ref.SoftwareID > 0 {
+		return fmt.Sprintf("software:%d", ref.SoftwareID)
+	}
+	return fmt.Sprintf("invalid:%d:%d", ref.SoftwareID, ref.PackageID)
+}
+
+func optionalPositiveInt64(value int64) *int64 {
+	if value <= 0 {
+		return nil
+	}
+	return &value
 }
 
 func nonNilReferences(values []PackageReference) []PackageReference {

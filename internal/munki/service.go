@@ -240,7 +240,10 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 }
 
 func manifestItemName(pkg munkisoftware.EffectivePackage) string {
-	return packages.MunkiName(pkg.Package.ID)
+	if pkg.Selector.Strategy == munkisoftware.PackageSpecific {
+		return packages.MunkiVersionedName(pkg.Package)
+	}
+	return packages.MunkiName(pkg.Package)
 }
 
 func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePackage) []map[string]any {

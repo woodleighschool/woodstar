@@ -30,21 +30,21 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 					munkisoftware.ActionDefaultInstalls,
 				},
 				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
+				Package:  staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
 			},
 			{
 				TargetID:   11,
 				SoftwareID: 2,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, "Slack", "4.50.0"),
+				Package:    staticMunkiPackage(21, 2, "Slack", "4.50.0"),
 			},
 			{
 				TargetID:   12,
 				SoftwareID: 3,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(22, "LegacyVPN", "1.0"),
+				Package:    staticMunkiPackage(22, 3, "LegacyVPN", "1.0"),
 			},
 			{
 				TargetID:   13,
@@ -54,7 +54,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 					munkisoftware.ActionFeaturedItems,
 				},
 				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(23, "FeaturedApp", "3.2.1"),
+				Package:  staticMunkiPackage(23, 4, "FeaturedApp", "3.2.1"),
 			},
 		}),
 	)
@@ -99,6 +99,7 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
 					ID:                        20,
+					SoftwareID:                1,
 					SoftwareName:              "GoogleChrome",
 					Version:                   "148.0.0.1",
 					InstallerType:             packages.InstallerTypeNoPkg,
@@ -141,7 +142,7 @@ func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+				Package:    staticMunkiPackage(20, 1, "ExternalURLApp", "1.0"),
 			},
 		}},
 	)
@@ -187,23 +188,23 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if decoded.DisplayName != "Test MacBook" {
 		t.Fatalf("display_name = %q, want Test MacBook", decoded.DisplayName)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
-		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
+		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"21", "23"}) {
-		t.Fatalf("optional_installs = %v, want [21 23]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"2", "4"}) {
+		t.Fatalf("optional_installs = %v, want [2 4]", decoded.OptionalInstalls)
 	}
-	if !sameStrings(decoded.ManagedUninstalls, []string{"22"}) {
-		t.Fatalf("managed_uninstalls = %v, want [22]", decoded.ManagedUninstalls)
+	if !sameStrings(decoded.ManagedUninstalls, []string{"3"}) {
+		t.Fatalf("managed_uninstalls = %v, want [3]", decoded.ManagedUninstalls)
 	}
-	if !sameStrings(decoded.ManagedUpdates, []string{"20"}) {
-		t.Fatalf("managed_updates = %v, want [20]", decoded.ManagedUpdates)
+	if !sameStrings(decoded.ManagedUpdates, []string{"1"}) {
+		t.Fatalf("managed_updates = %v, want [1]", decoded.ManagedUpdates)
 	}
-	if !sameStrings(decoded.DefaultInstalls, []string{"20"}) {
-		t.Fatalf("default_installs = %v, want [20]", decoded.DefaultInstalls)
+	if !sameStrings(decoded.DefaultInstalls, []string{"1"}) {
+		t.Fatalf("default_installs = %v, want [1]", decoded.DefaultInstalls)
 	}
-	if !sameStrings(decoded.FeaturedItems, []string{"23"}) {
-		t.Fatalf("featured_items = %v, want [23]", decoded.FeaturedItems)
+	if !sameStrings(decoded.FeaturedItems, []string{"4"}) {
+		t.Fatalf("featured_items = %v, want [4]", decoded.FeaturedItems)
 	}
 }
 
@@ -216,10 +217,73 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 	if len(decoded) != 4 {
 		t.Fatalf("catalog items = %d, want 4", len(decoded))
 	}
-	if decoded[0]["name"] != "20" ||
+	if decoded[0]["name"] != "1" ||
 		decoded[0]["display_name"] != "GoogleChrome" ||
 		decoded[0]["version"] != "148.0.0.1" {
 		t.Fatalf("first catalog item = %+v, want package 20 / GoogleChrome 148.0.0.1", decoded[0])
+	}
+}
+
+func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		newStaticRepositoryWithPackages("C02MUNKI", []munkisoftware.EffectivePackage{
+			{
+				TargetID:   10,
+				SoftwareID: 1,
+				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:    staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
+			},
+			{
+				TargetID:   10,
+				SoftwareID: 1,
+				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:    staticMunkiPackage(21, 1, "GoogleChrome", "149.0.0.1"),
+			},
+		}),
+	)
+
+	manifest := httptest.NewRecorder()
+	manifestReq := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	manifestReq.Header.Set("Authorization", "Bearer munki-secret")
+	manifestReq.Header.Set("Serial", "C02MUNKI")
+	router.ServeHTTP(manifest, manifestReq)
+
+	if manifest.Code != http.StatusOK {
+		t.Fatalf("manifest status = %d, want %d; body = %q", manifest.Code, http.StatusOK, manifest.Body.String())
+	}
+	var manifestBody struct {
+		OptionalInstalls []string `plist:"optional_installs"`
+	}
+	if _, err := plist.Unmarshal(manifest.Body.Bytes(), &manifestBody); err != nil {
+		t.Fatalf("manifest plist: %v", err)
+	}
+	if !sameStrings(manifestBody.OptionalInstalls, []string{"1"}) {
+		t.Fatalf("optional_installs = %v, want [1]", manifestBody.OptionalInstalls)
+	}
+
+	catalog := httptest.NewRecorder()
+	catalogReq := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	catalogReq.Header.Set("Authorization", "Bearer munki-secret")
+	catalogReq.Header.Set("Serial", "C02MUNKI")
+	router.ServeHTTP(catalog, catalogReq)
+
+	if catalog.Code != http.StatusOK {
+		t.Fatalf("catalog status = %d, want %d; body = %q", catalog.Code, http.StatusOK, catalog.Body.String())
+	}
+	var catalogBody []map[string]any
+	if _, err := plist.Unmarshal(catalog.Body.Bytes(), &catalogBody); err != nil {
+		t.Fatalf("catalog plist: %v", err)
+	}
+	if len(catalogBody) != 2 {
+		t.Fatalf("catalog items = %d, want 2", len(catalogBody))
+	}
+	for _, item := range catalogBody {
+		if item["name"] != "1" {
+			t.Fatalf("catalog item name = %v, want 1: %+v", item["name"], item)
+		}
 	}
 }
 
@@ -232,21 +296,21 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, "OverlapApp", "1.0"),
+				Package:    staticMunkiPackage(20, 1, "OverlapApp", "1.0"),
 			},
 			{
 				TargetID:   11,
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, "OverlapApp", "1.1"),
+				Package:    staticMunkiPackage(21, 1, "OverlapApp", "1.1"),
 			},
 			{
 				TargetID:   12,
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(22, "OverlapApp", "1.2"),
+				Package:    staticMunkiPackage(22, 1, "OverlapApp", "1.2"),
 			},
 		}),
 	)
@@ -268,8 +332,8 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
-		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
+		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
 	}
 	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
 		t.Fatalf("manifest still has later conflicting rows: %+v", decoded)
@@ -285,7 +349,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageSpecific},
-				Package:    staticMunkiPackage(20, "PinnedApp", "1.0"),
+				Package:    staticMunkiPackage(20, 1, "PinnedApp", "1.0"),
 			},
 		}),
 	)
@@ -305,8 +369,8 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
-		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"1--1.0"}) {
+		t.Fatalf("managed_installs = %v, want [1--1.0]", decoded.ManagedInstalls)
 	}
 }
 
@@ -600,9 +664,10 @@ func (r staticPackageResolver) EffectivePackagesForHost(
 	return munkisoftware.ResolveEffectivePackages(r.packages), nil
 }
 
-func staticMunkiPackage(id int64, name string, version string) packages.Package {
+func staticMunkiPackage(id int64, softwareID int64, name string, version string) packages.Package {
 	return packages.Package{
 		ID:            id,
+		SoftwareID:    softwareID,
 		SoftwareName:  name,
 		Version:       version,
 		InstallerType: packages.InstallerTypeNoPkg,

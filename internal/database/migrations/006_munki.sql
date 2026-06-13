@@ -62,7 +62,7 @@ CREATE TABLE munki_packages (
     minimum_os_version TEXT NOT NULL DEFAULT '',
     maximum_os_version TEXT NOT NULL DEFAULT '',
     supported_architectures TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-    blocking_applications TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    blocking_applications TEXT[],
     installable_condition TEXT NOT NULL DEFAULT '',
     blocking_applications_manual_quit_only BOOLEAN NOT NULL DEFAULT FALSE,
     blocking_applications_quit_script TEXT NOT NULL DEFAULT '',
@@ -113,10 +113,14 @@ CREATE TABLE munki_package_relations (
     id BIGSERIAL PRIMARY KEY,
     package_id BIGINT NOT NULL REFERENCES munki_packages (id) ON DELETE CASCADE,
     relation_kind munki_package_relation_kind NOT NULL,
-    target_package_id BIGINT NOT NULL REFERENCES munki_packages (id) ON DELETE RESTRICT,
+    target_software_id BIGINT NOT NULL REFERENCES munki_software (id) ON DELETE RESTRICT,
+    target_package_id BIGINT REFERENCES munki_packages (id) ON DELETE RESTRICT,
     position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (target_software_id, target_package_id)
+        REFERENCES munki_packages (software_id, id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE munki_software_targets (
@@ -167,6 +171,8 @@ CREATE INDEX munki_packages_uninstaller_artifact_idx
     ON munki_packages (uninstaller_artifact_id);
 CREATE INDEX munki_package_relations_package_idx
     ON munki_package_relations (package_id, relation_kind, position, id);
+CREATE INDEX munki_package_relations_target_software_idx
+    ON munki_package_relations (target_software_id);
 CREATE INDEX munki_package_relations_target_package_idx
     ON munki_package_relations (target_package_id);
 CREATE INDEX munki_software_targets_label_idx

@@ -460,6 +460,90 @@ func TestCreatePackageRejectsUnsupportedArchitecture(t *testing.T) {
 	}
 }
 
+func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
+	stores := newMunkiStores(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "munki-blocking-apps-uuid", Serial: "C02BLOCKING"},
+		OrbitNodeKey: "munki-blocking-apps-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "Blocking App"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	unset, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:       "1.0",
+		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
+		Eligible:      true,
+	})
+	if err != nil {
+		t.Fatalf("create unset package: %v", err)
+	}
+	empty, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:              "2.0",
+		InstallerType:        packages.InstallerTypeNoPkg,
+		BlockingApplications: []string{},
+		OnDemand:             true,
+		Eligible:             true,
+	})
+	if err != nil {
+		t.Fatalf("create empty package: %v", err)
+	}
+	populated, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:              "3.0",
+		InstallerType:        packages.InstallerTypeNoPkg,
+		BlockingApplications: []string{"Blocking App"},
+		OnDemand:             true,
+		Eligible:             true,
+	})
+	if err != nil {
+		t.Fatalf("create populated package: %v", err)
+	}
+	_, err = stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
+		Name: title.Name,
+		Targets: munkisoftware.Targets{
+			Include: []munkisoftware.Include{
+				includeTarget(allHostsID, munkisoftware.ActionManagedInstalls),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("target software: %v", err)
+	}
+
+	assertBlockingApplications(t, unset.Package, nil)
+	assertBlockingApplications(t, empty.Package, []string{})
+	assertBlockingApplications(t, populated.Package, []string{"Blocking App"})
+
+	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("effective packages: %v", err)
+	}
+	if len(effective) != 3 {
+		t.Fatalf("effective packages = %+v, want three package candidates", effective)
+	}
+	for _, candidate := range effective {
+		switch candidate.Package.Version {
+		case "1.0":
+			assertBlockingApplications(t, candidate.Package, nil)
+		case "2.0":
+			assertBlockingApplications(t, candidate.Package, []string{})
+		case "3.0":
+			assertBlockingApplications(t, candidate.Package, []string{"Blocking App"})
+		default:
+			t.Fatalf("unexpected effective package version %q", candidate.Package.Version)
+		}
+	}
+}
+
 func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -474,8 +558,10 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 		Version:       "1.0",
 		InstallerType: packages.InstallerTypeNoPkg,
 		OnDemand:      true,
-		Requires:      []packages.PackageReference{{PackageID: missingPackageID}},
-		Eligible:      true,
+		Requires: []packages.PackageReference{
+			{SoftwareID: title.ID, PackageID: missingPackageID},
+		},
+		Eligible: true,
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("CreatePackage error = %v, want ErrNotFound", err)
@@ -495,7 +581,7 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 		Version:       "1.0",
 		InstallerType: packages.InstallerTypeNoPkg,
 		OnDemand:      true,
-		Requires:      []packages.PackageReference{{PackageID: -1}},
+		Requires:      []packages.PackageReference{{SoftwareID: title.ID, PackageID: -1}},
 		Eligible:      true,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -516,8 +602,10 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 		Version:       "2.0",
 		InstallerType: packages.InstallerTypeNoPkg,
 		OnDemand:      true,
-		Requires:      []packages.PackageReference{{PackageID: targetPackage.ID}},
-		Eligible:      true,
+		Requires: []packages.PackageReference{
+			{SoftwareID: title.ID, PackageID: targetPackage.ID},
+		},
+		Eligible: true,
 	})
 	if err != nil {
 		t.Fatalf("create dependent package: %v", err)
@@ -635,7 +723,8 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 		InstallerType:      packages.InstallerTypeNoPkg,
 		InstallcheckScript: "#!/bin/zsh\nexit 0\n",
 		Requires: []packages.PackageReference{
-			{PackageID: dependency.ID},
+			{SoftwareID: dependencyTitle.ID},
+			{SoftwareID: dependencyTitle.ID, PackageID: dependency.ID},
 		},
 		Eligible: true,
 	})
@@ -645,14 +734,20 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	if pkg.InstallcheckScript == "" || pkg.InstallerType != packages.InstallerTypeNoPkg {
 		t.Fatalf("pkg typed fields = %+v, want nopkg installcheck script", pkg)
 	}
-	if len(pkg.Requires) != 1 {
-		t.Fatalf("requires = %+v, want dependency reference", pkg.Requires)
+	if len(pkg.Requires) != 2 {
+		t.Fatalf("requires = %+v, want latest and specific dependency references", pkg.Requires)
 	}
-	if pkg.Requires[0].PackageID != dependency.ID {
-		t.Fatalf("first requires = %+v, want dependency package id", pkg.Requires[0])
+	if pkg.Requires[0].SoftwareID != dependencyTitle.ID || pkg.Requires[0].PackageID != 0 {
+		t.Fatalf("first requires = %+v, want dependency software reference", pkg.Requires[0])
 	}
-	if pkg.Requires[0].SoftwareName != "DependencyApp" || pkg.Requires[0].PackageVersion != "2.0" {
-		t.Fatalf("first requires target = %+v, want dependency package details", pkg.Requires[0])
+	if pkg.Requires[0].SoftwareName != "DependencyApp" || pkg.Requires[0].PackageVersion != "" {
+		t.Fatalf("first requires target = %+v, want unversioned dependency software details", pkg.Requires[0])
+	}
+	if pkg.Requires[1].PackageID != dependency.ID {
+		t.Fatalf("second requires = %+v, want dependency package id", pkg.Requires[1])
+	}
+	if pkg.Requires[1].SoftwareName != "DependencyApp" || pkg.Requires[1].PackageVersion != "2.0" {
+		t.Fatalf("second requires target = %+v, want dependency package details", pkg.Requires[1])
 	}
 }
 
@@ -1188,6 +1283,24 @@ func createMunkiPackageArtifact(
 		t.Fatalf("create package artifact: %v", err)
 	}
 	return artifact
+}
+
+func assertBlockingApplications(t *testing.T, pkg packages.Package, want []string) {
+	t.Helper()
+	if want == nil {
+		if pkg.BlockingApplications != nil {
+			t.Fatalf("package %s blocking applications = %#v, want nil", pkg.Version, pkg.BlockingApplications)
+		}
+		return
+	}
+	if len(pkg.BlockingApplications) != len(want) {
+		t.Fatalf("package %s blocking applications = %#v, want %#v", pkg.Version, pkg.BlockingApplications, want)
+	}
+	for i := range want {
+		if pkg.BlockingApplications[i] != want[i] {
+			t.Fatalf("package %s blocking applications = %#v, want %#v", pkg.Version, pkg.BlockingApplications, want)
+		}
+	}
 }
 
 func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores, softwareID int64) {

@@ -128,7 +128,7 @@ SELECT
     COALESCE(p.minimum_os_version, '') AS minimum_os_version,
     COALESCE(p.maximum_os_version, '') AS maximum_os_version,
     COALESCE(p.supported_architectures, ARRAY[]::text[]) AS supported_architectures,
-    COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
+    p.blocking_applications AS blocking_applications,
     COALESCE(p.installable_condition, '') AS installable_condition,
     COALESCE(p.blocking_applications_manual_quit_only, false) AS blocking_applications_manual_quit_only,
     COALESCE(p.blocking_applications_quit_script, '') AS blocking_applications_quit_script,

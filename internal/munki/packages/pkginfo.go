@@ -10,12 +10,32 @@ import (
 
 var timeType = reflect.TypeFor[time.Time]()
 
-// MunkiName returns the stable internal pkginfo name Woodstar gives Munki.
-func MunkiName(packageID int64) string {
-	if packageID <= 0 {
+// MunkiName returns the stable software identity Woodstar gives Munki.
+func MunkiName(pkg Package) string {
+	return MunkiSoftwareName(pkg.SoftwareID)
+}
+
+// MunkiSoftwareName returns the stable pkginfo name for a Woodstar software item.
+func MunkiSoftwareName(softwareID int64) string {
+	if softwareID <= 0 {
 		return ""
 	}
-	return strconv.FormatInt(packageID, 10)
+	return strconv.FormatInt(softwareID, 10)
+}
+
+// MunkiVersionedName returns Munki's manifest syntax for a specific package version.
+func MunkiVersionedName(pkg Package) string {
+	return MunkiVersionedSoftwareName(pkg.SoftwareID, pkg.Version)
+}
+
+// MunkiVersionedSoftwareName returns Munki's name--version syntax for a specific package version.
+func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string {
+	name := MunkiSoftwareName(softwareID)
+	version := strings.TrimSpace(packageVersion)
+	if name == "" || version == "" {
+		return name
+	}
+	return name + "--" + version
 }
 
 func Pkginfo(pkg Package, softwareIcon IconRef) map[string]any {
@@ -36,7 +56,7 @@ type munkiPkginfo struct {
 	MinimumOSVersion         string                    `json:"minimum_os_version,omitempty"`
 	MaximumOSVersion         string                    `json:"maximum_os_version,omitempty"`
 	SupportedArchitectures   []string                  `json:"supported_architectures,omitempty"`
-	BlockingApplications     []string                  `json:"blocking_applications"`
+	BlockingApplications     []string                  `json:"blocking_applications,omitempty"`
 	InstallableCondition     string                    `json:"installable_condition,omitempty"`
 	BlockingAppsManualQuit   bool                      `json:"blocking_applications_manual_quit_only,omitempty"`
 	BlockingAppsQuitScript   string                    `json:"blocking_applications_quit_script,omitempty"`
@@ -116,7 +136,7 @@ type munkiPkginfoAlert struct {
 
 func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 	item := munkiPkginfo{
-		Name:                     MunkiName(pkg.ID),
+		Name:                     MunkiName(pkg),
 		Version:                  pkg.Version,
 		DisplayName:              pkg.SoftwareName,
 		Description:              pkg.SoftwareDescription,
@@ -125,7 +145,7 @@ func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 		MinimumMunkiVersion:      pkg.MinimumMunkiVersion,
 		MinimumOSVersion:         pkg.MinimumOSVersion,
 		MaximumOSVersion:         pkg.MaximumOSVersion,
-		SupportedArchitectures:   pkg.SupportedArchitectures,
+		SupportedArchitectures:   nonEmptyStrings(pkg.SupportedArchitectures),
 		BlockingApplications:     pkg.BlockingApplications,
 		InstallableCondition:     pkg.InstallableCondition,
 		BlockingAppsManualQuit:   pkg.BlockingAppsManualQuit,
@@ -245,13 +265,23 @@ func munkiSlice(value reflect.Value) any {
 }
 
 func munkiReferenceNames(references []PackageReference) []string {
+	if len(references) == 0 {
+		return nil
+	}
 	out := make([]string, 0, len(references))
 	for _, ref := range references {
-		if name := MunkiName(ref.PackageID); name != "" {
+		if name := munkiReferenceName(ref); name != "" {
 			out = append(out, name)
 		}
 	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
+}
+
+func munkiReferenceName(ref PackageReference) string {
+	return MunkiVersionedSoftwareName(ref.SoftwareID, ref.PackageVersion)
 }
 
 func munkiInstallerEnvironment(values []PackageInstallerEnvironmentVariable) map[string]string {
@@ -266,6 +296,9 @@ func munkiInstallerEnvironment(values []PackageInstallerEnvironmentVariable) map
 }
 
 func munkiInstallItems(values []PackageInstallItem) []munkiPkginfoInstallItem {
+	if len(values) == 0 {
+		return nil
+	}
 	out := make([]munkiPkginfoInstallItem, 0, len(values))
 	for _, value := range values {
 		out = append(out, munkiPkginfoInstallItem(value))
@@ -274,6 +307,9 @@ func munkiInstallItems(values []PackageInstallItem) []munkiPkginfoInstallItem {
 }
 
 func munkiReceipts(values []PackageReceipt) []munkiPkginfoReceipt {
+	if len(values) == 0 {
+		return nil
+	}
 	out := make([]munkiPkginfoReceipt, 0, len(values))
 	for _, value := range values {
 		out = append(out, munkiPkginfoReceipt(value))
@@ -282,6 +318,9 @@ func munkiReceipts(values []PackageReceipt) []munkiPkginfoReceipt {
 }
 
 func munkiItemsToCopy(values []PackageItemToCopy) []munkiPkginfoItemToCopy {
+	if len(values) == 0 {
+		return nil
+	}
 	out := make([]munkiPkginfoItemToCopy, 0, len(values))
 	for _, value := range values {
 		out = append(out, munkiPkginfoItemToCopy(value))
@@ -290,11 +329,21 @@ func munkiItemsToCopy(values []PackageItemToCopy) []munkiPkginfoItemToCopy {
 }
 
 func munkiInstallerChoices(values []PackageInstallerChoice) []munkiPkginfoChoice {
+	if len(values) == 0 {
+		return nil
+	}
 	out := make([]munkiPkginfoChoice, 0, len(values))
 	for _, value := range values {
 		out = append(out, munkiPkginfoChoice(value))
 	}
 	return out
+}
+
+func nonEmptyStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	return values
 }
 
 func munkiAlert(alert PackageAlert) *munkiPkginfoAlert {

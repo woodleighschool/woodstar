@@ -598,9 +598,9 @@ export type MunkiPackageReceipt = {
 };
 
 export type MunkiPackageReference = {
-    package_id: number;
+    package_id?: number;
     package_version?: string;
-    software_id?: number;
+    software_id: number;
     software_name?: string;
 };
 

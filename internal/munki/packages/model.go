@@ -78,10 +78,10 @@ func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(uninstallMethodValues...)
 }
 
-// PackageReference points to another Woodstar-authored package.
+// PackageReference points to Woodstar-authored software, optionally pinned to one package version.
 type PackageReference struct {
-	PackageID      int64  `json:"package_id"`
-	SoftwareID     int64  `json:"software_id,omitempty"`
+	SoftwareID     int64  `json:"software_id"`
+	PackageID      int64  `json:"package_id,omitempty"`
 	SoftwareName   string `json:"software_name,omitempty"`
 	PackageVersion string `json:"package_version,omitempty"`
 }
@@ -390,8 +390,11 @@ func validInstallItemType(itemType PackageInstallItemType) bool {
 
 func validateReferences(field string, references []PackageReference) error {
 	for _, ref := range references {
-		if ref.PackageID <= 0 {
-			return fmt.Errorf("%w: %s entries require package_id", dbutil.ErrInvalidInput, field)
+		if ref.SoftwareID <= 0 {
+			return fmt.Errorf("%w: %s entries require software_id", dbutil.ErrInvalidInput, field)
+		}
+		if ref.PackageID < 0 {
+			return fmt.Errorf("%w: %s entries have invalid package_id", dbutil.ErrInvalidInput, field)
 		}
 	}
 	return nil
@@ -412,4 +415,11 @@ func cleanStringList(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func cleanOptionalStringList(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	return cleanStringList(values)
 }

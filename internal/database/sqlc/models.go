@@ -1093,13 +1093,14 @@ type MunkiPackage struct {
 }
 
 type MunkiPackageRelation struct {
-	ID              int64                    `json:"id"`
-	PackageID       int64                    `json:"package_id"`
-	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
-	TargetPackageID int64                    `json:"target_package_id"`
-	Position        int32                    `json:"position"`
-	CreatedAt       time.Time                `json:"created_at"`
-	UpdatedAt       time.Time                `json:"updated_at"`
+	ID               int64                    `json:"id"`
+	PackageID        int64                    `json:"package_id"`
+	RelationKind     MunkiPackageRelationKind `json:"relation_kind"`
+	TargetSoftwareID int64                    `json:"target_software_id"`
+	TargetPackageID  *int64                   `json:"target_package_id"`
+	Position         int32                    `json:"position"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
 }
 
 type MunkiSoftware struct {

@@ -29,6 +29,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
 import { useTabIndicator } from "@/hooks/use-tab-indicator";
 import type { PackageAlert } from "@/lib/api";
@@ -426,17 +428,7 @@ function InstallationTab({
         )}
       />
 
-      <form.Field
-        name="blocking_applications"
-        children={(field) => (
-          <StringArrayEditor
-            legend="Blocking Applications"
-            addLabel="Add application"
-            rows={field.state.value}
-            onChange={(rows) => field.handleChange(rows)}
-          />
-        )}
-      />
+      <BlockingApplicationsEditor form={form} />
       <FieldSet>
         <FieldLegend>Blocking Application Handling</FieldLegend>
         <FieldGroup>
@@ -1003,40 +995,77 @@ function ArchitectureEditor({
   );
 }
 
-function StringArrayEditor({
-  legend,
-  addLabel,
+function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldSet>
+      <form.Field
+        name="blocking_applications"
+        children={(field) => (
+          <>
+            <CollectionHeader
+              title="Blocking Applications"
+              addLabel="Add application"
+              onAdd={() => field.handleChange([...field.state.value, emptyStringRow()])}
+            />
+            <StringArrayRows
+              removeLabel="Remove application"
+              rows={field.state.value}
+              onChange={(rows) => field.handleChange(rows)}
+            />
+            {field.state.value.length === 0 ? (
+              <form.Field
+                name="include_empty_blocking_applications"
+                children={(emptyField) => (
+                  <Field orientation="horizontal" className="max-w-xl">
+                    <FieldContent>
+                      <FieldLabel htmlFor="munki-package-include-empty-blocking-applications">
+                        Include empty list
+                      </FieldLabel>
+                      <FieldDescription>
+                        Render blocking_applications as [] instead of omitting it.
+                      </FieldDescription>
+                    </FieldContent>
+                    <Switch
+                      id="munki-package-include-empty-blocking-applications"
+                      checked={emptyField.state.value}
+                      onCheckedChange={(checked) => emptyField.handleChange(checked)}
+                    />
+                  </Field>
+                )}
+              />
+            ) : null}
+          </>
+        )}
+      />
+    </FieldSet>
+  );
+}
+
+function StringArrayRows({
+  removeLabel,
   rows,
   onChange,
 }: {
-  legend: string;
-  addLabel: string;
+  removeLabel: string;
   rows: StringRow[];
   onChange: (rows: StringRow[]) => void;
 }) {
   return (
-    <FieldSet>
-      <CollectionHeader
-        title={legend}
-        addLabel={addLabel}
-        onAdd={() => onChange([...rows, emptyStringRow()])}
-      />
-      <div className="space-y-2 empty:hidden">
-        {rows.map((row, index) => (
-          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-            <Input
-              value={row.value}
-              onChange={(event) =>
-                onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
-              }
-            />
-            <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-              <Trash2 />
-            </IconButton>
-          </div>
-        ))}
-      </div>
-    </FieldSet>
+    <div className="flex flex-col gap-2 empty:hidden">
+      {rows.map((row, index) => (
+        <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+          <Input
+            value={row.value}
+            onChange={(event) =>
+              onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
+            }
+          />
+          <IconButton label={removeLabel} onClick={() => onChange(removeAt(rows, index))}>
+            <Trash2 />
+          </IconButton>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1053,6 +1082,8 @@ function PackageReferenceEditor({
   packageOptions: MunkiPackage[];
   onChange: (rows: PackageReferenceRow[]) => void;
 }) {
+  const packageGroups = packageReferenceGroups(packageOptions);
+
   return (
     <FieldSet>
       <CollectionHeader
@@ -1064,12 +1095,12 @@ function PackageReferenceEditor({
         {rows.map((row, index) => (
           <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
             <Select
-              value={row.package_id ? String(row.package_id) : "select"}
+              value={packageReferenceValue(row)}
               onValueChange={(value) =>
                 onChange(
                   replaceAt(rows, index, {
-                    ...row,
-                    package_id: value === "select" ? undefined : Number(value),
+                    rowID: row.rowID,
+                    ...packageReferenceSelection(value, packageOptions),
                   }),
                 )
               }
@@ -1078,14 +1109,20 @@ function PackageReferenceEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="select">Select package</SelectItem>
-                  {packageOptions.map((option) => (
-                    <SelectItem key={option.id} value={String(option.id)}>
-                      {packageLabel(option)}
+                <SelectItem value="select">Select package</SelectItem>
+                {packageGroups.map((group) => (
+                  <SelectGroup key={group.softwareID}>
+                    <SelectLabel>{group.softwareName}</SelectLabel>
+                    <SelectItem value={`software:${group.softwareID}`}>
+                      {group.softwareName} Latest
                     </SelectItem>
-                  ))}
-                </SelectGroup>
+                    {group.packages.map((option) => (
+                      <SelectItem key={option.id} value={`package:${option.id}`}>
+                        {packageLabel(option)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
               </SelectContent>
             </Select>
             <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
@@ -1096,6 +1133,55 @@ function PackageReferenceEditor({
       </div>
     </FieldSet>
   );
+}
+
+function packageReferenceValue(row: PackageReferenceRow) {
+  if (row.package_id) return `package:${row.package_id}`;
+  if (row.software_id) return `software:${row.software_id}`;
+  return "select";
+}
+
+function packageReferenceSelection(value: string, packages: MunkiPackage[]) {
+  if (value.startsWith("package:")) {
+    const packageID = Number(value.slice("package:".length));
+    const pkg = packages.find((option) => option.id === packageID);
+    if (!pkg) return {};
+    return {
+      software_id: pkg.software_id,
+      software_name: pkg.software_name,
+      package_id: pkg.id,
+      package_version: pkg.version,
+    };
+  }
+  if (value.startsWith("software:")) {
+    const softwareID = Number(value.slice("software:".length));
+    const pkg = packages.find((option) => option.software_id === softwareID);
+    if (!pkg) return {};
+    return {
+      software_id: pkg.software_id,
+      software_name: pkg.software_name,
+      package_id: undefined,
+      package_version: undefined,
+    };
+  }
+  return {};
+}
+
+function packageReferenceGroups(packages: MunkiPackage[]) {
+  const groups = new Map<
+    number,
+    { softwareID: number; softwareName: string; packages: MunkiPackage[] }
+  >();
+  for (const pkg of packages) {
+    const group = groups.get(pkg.software_id) ?? {
+      softwareID: pkg.software_id,
+      softwareName: pkg.software_name,
+      packages: [],
+    };
+    group.packages.push(pkg);
+    groups.set(pkg.software_id, group);
+  }
+  return [...groups.values()];
 }
 
 function InstallerEnvironmentEditor({
