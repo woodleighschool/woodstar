@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Checkbox } from "@/components/ui/checkbox";
+import { selectColumn } from "@/components/data-table/select-column";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import {
   Sortable,
@@ -205,29 +205,7 @@ function configurationColumns(
   isAdmin: boolean,
 ): ColumnDef<SantaConfiguration>[] {
   const columns: ColumnDef<SantaConfiguration>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-      size: 32,
-    },
+    selectColumn<SantaConfiguration>(),
     {
       id: "position",
       accessorKey: "position",

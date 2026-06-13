@@ -15,7 +15,7 @@ import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { selectColumn } from "@/components/data-table/select-column";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -64,29 +64,7 @@ export function RuleListPage() {
 
   const columns = React.useMemo<ColumnDef<SantaRule>[]>(() => {
     const baseColumns: ColumnDef<SantaRule>[] = [
-      {
-        id: "select",
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-            aria-label="Select all"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-        size: 32,
-      },
+      selectColumn<SantaRule>(),
       {
         id: "name",
         accessorKey: "name",
