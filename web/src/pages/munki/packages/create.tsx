@@ -136,8 +136,8 @@ export function MunkiPackageCreatePage() {
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
-          pending={create.isPending || packageUpload.isUploading}
-          disabled={softwareID === null}
+          pending={create.isPending}
+          disabled={softwareID === null || packageUpload.isUploading}
           error={
             softwareError
               ? undefined

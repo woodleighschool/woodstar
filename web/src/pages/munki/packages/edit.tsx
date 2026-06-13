@@ -124,7 +124,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
-          pending={update.isPending || packageUpload.isUploading}
+          pending={update.isPending}
+          disabled={packageUpload.isUploading}
           error={preflightError ?? update.error?.message ?? packageUpload.error?.message}
           onCancel={() => void navigate({ to: "/munki/packages" })}
         />

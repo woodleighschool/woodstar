@@ -79,7 +79,8 @@ export function MunkiSoftwareCreatePage() {
           ]}
         />
         <FormActions
-          pending={create.isPending || iconUpload.isUploading}
+          pending={create.isPending}
+          disabled={iconUpload.isUploading}
           error={create.error?.message ?? iconUpload.error?.message}
           onCancel={() => void navigate({ to: "/munki/software" })}
         />

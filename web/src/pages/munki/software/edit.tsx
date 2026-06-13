@@ -120,7 +120,6 @@ function MunkiSoftwareDetailForm({
       await refetchSoftware();
     },
   );
-  const pagePending = updateSoftware.isPending || iconUpload.isUploading;
   const pageError = updateSoftware.error?.message ?? iconUpload.error?.message;
 
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
@@ -279,7 +278,12 @@ function MunkiSoftwareDetailForm({
           ]}
         />
 
-        <FormActions pending={pagePending} error={pageError} onCancel={resetTargetPage} />
+        <FormActions
+          pending={updateSoftware.isPending}
+          disabled={iconUpload.isUploading}
+          error={pageError}
+          onCancel={resetTargetPage}
+        />
       </form>
     </PageShell>
   );
