@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -62,7 +61,7 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 		return s.replaceTargets(ctx, qtx, softwareID, params.Targets)
 	})
 	if err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return s.GetByID(ctx, softwareID)
 }
@@ -95,7 +94,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 		return s.replaceTargets(ctx, qtx, row.ID, params.Targets)
 	})
 	if err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return s.GetByID(ctx, id)
 }
@@ -260,23 +259,6 @@ func softwareListWhere(params dbutil.ListParams) (string, []any) {
 		)`)
 	}
 	return where.Build()
-}
-
-func mapMutationError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation:
-		return dbutil.ErrNotFound
-	case pgerrcode.UniqueViolation:
-		return dbutil.ErrAlreadyExists
-	case pgerrcode.InvalidTextRepresentation,
-		pgerrcode.NotNullViolation,
-		pgerrcode.CheckViolation:
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
-	}
-	return err
 }
 
 const softwareSelectSQL = `

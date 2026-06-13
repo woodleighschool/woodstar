@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -52,7 +51,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 	qtx := s.q.WithTx(tx)
 	row, err := qtx.CreateMunkiPackage(ctx, createMunkiPackageParams(softwareID, params, fields))
 	if err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
@@ -61,7 +60,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 		sqlc.MunkiPackageRelationKindRequires,
 		params.Requires,
 	); err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
@@ -70,7 +69,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 		sqlc.MunkiPackageRelationKindUpdateFor,
 		params.UpdateFor,
 	); err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
@@ -95,7 +94,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
@@ -104,7 +103,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		sqlc.MunkiPackageRelationKindRequires,
 		params.Requires,
 	); err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
@@ -113,7 +112,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		sqlc.MunkiPackageRelationKindUpdateFor,
 		params.UpdateFor,
 	); err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
@@ -146,23 +145,12 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*PackageRecord, error) {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	rows, err := s.q.DeleteMunkiPackage(ctx, sqlc.DeleteMunkiPackageParams{ID: id})
 	if err != nil {
-		return mapDeleteError(err)
+		return dbutil.DeleteConflict(err, "Munki package is still referenced")
 	}
 	if rows == 0 {
 		return dbutil.ErrNotFound
 	}
 	return nil
-}
-
-func mapDeleteError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation, pgerrcode.RestrictViolation:
-		return fmt.Errorf("%w: Munki package is still referenced", dbutil.ErrConflict)
-	}
-	return mapMutationError(err)
 }
 
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]PackageRecord, int, error) {
@@ -1162,23 +1150,6 @@ func cleanAlert(alert PackageAlert) PackageAlert {
 	alert.OKLabel = strings.TrimSpace(alert.OKLabel)
 	alert.CancelLabel = strings.TrimSpace(alert.CancelLabel)
 	return alert
-}
-
-func mapMutationError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation:
-		return dbutil.ErrNotFound
-	case pgerrcode.UniqueViolation:
-		return dbutil.ErrAlreadyExists
-	case pgerrcode.InvalidTextRepresentation,
-		pgerrcode.NotNullViolation,
-		pgerrcode.CheckViolation:
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
-	}
-	return err
 }
 
 func nonNilStrings(values []string) []string {

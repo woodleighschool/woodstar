@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -42,7 +41,7 @@ func (s *Store) createUser(ctx context.Context, params userCreateRecord) (*User,
 		Role:         sqlc.UserRole(params.Role),
 	})
 	if err != nil {
-		return nil, mapUserMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
@@ -133,7 +132,7 @@ func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecor
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapUserMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
@@ -186,7 +185,7 @@ func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Ac
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapUserMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return new(accountFromSQLC(row)), nil
 }
@@ -233,13 +232,6 @@ func accountFromSQLC(s sqlc.User) Account {
 		account.APIKey = *s.APIKey
 	}
 	return account
-}
-
-func mapUserMutationError(err error) error {
-	if database.SQLState(err) == pgerrcode.UniqueViolation {
-		return dbutil.ErrAlreadyExists
-	}
-	return err
 }
 
 func roleFromSQLC(role *sqlc.UserRole) *Role {

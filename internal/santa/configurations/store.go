@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -93,11 +92,11 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMut
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(params))
 		if err != nil {
-			return mapConfigurationMutationError(err)
+			return dbutil.MutationError(err)
 		}
 		configurationID = row.ID
 		if err := replaceConfigurationTargets(ctx, tx, configurationID, params.Targets); err != nil {
-			return mapConfigurationMutationError(err)
+			return dbutil.MutationError(err)
 		}
 		return nil
 	})
@@ -121,10 +120,10 @@ func (s *Store) UpdateConfiguration(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		} else if err != nil {
-			return mapConfigurationMutationError(err)
+			return dbutil.MutationError(err)
 		}
 		if err := replaceConfigurationTargets(ctx, tx, row.ID, params.Targets); err != nil {
-			return mapConfigurationMutationError(err)
+			return dbutil.MutationError(err)
 		}
 		return nil
 	})
@@ -322,20 +321,6 @@ func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) erro
 		)
 	}
 	return nil
-}
-
-func mapConfigurationMutationError(err error) error {
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation:
-		return dbutil.ErrNotFound
-	case pgerrcode.UniqueViolation:
-		return dbutil.ErrAlreadyExists
-	case pgerrcode.InvalidTextRepresentation,
-		pgerrcode.NotNullViolation,
-		pgerrcode.CheckViolation:
-		return dbutil.ErrInvalidInput
-	}
-	return err
 }
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {

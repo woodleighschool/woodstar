@@ -3,10 +3,8 @@ package artifacts
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -38,7 +36,7 @@ func (s *Store) Create(ctx context.Context, params ArtifactMutation) (*Artifact,
 		StorageKey:  params.StorageKey,
 	})
 	if err != nil {
-		return nil, mapMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	artifact := artifactFromSQLC(row)
 	return &artifact, nil
@@ -100,7 +98,7 @@ func (s *Store) GetByLocation(ctx context.Context, kind ArtifactKind, location s
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	rows, err := s.q.DeleteMunkiArtifact(ctx, sqlc.DeleteMunkiArtifactParams{ID: id})
 	if err != nil {
-		return mapDeleteError(err)
+		return dbutil.DeleteConflict(err, "Munki artifact is still referenced")
 	}
 	if rows == 0 {
 		return dbutil.ErrNotFound
@@ -133,32 +131,4 @@ func artifactFromSQLC(row sqlc.MunkiArtifact) Artifact {
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
 	}
-}
-
-func mapMutationError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation:
-		return dbutil.ErrNotFound
-	case pgerrcode.UniqueViolation:
-		return dbutil.ErrAlreadyExists
-	case pgerrcode.InvalidTextRepresentation,
-		pgerrcode.NotNullViolation,
-		pgerrcode.CheckViolation:
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
-	}
-	return err
-}
-
-func mapDeleteError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation, pgerrcode.RestrictViolation:
-		return fmt.Errorf("%w: Munki artifact is still referenced", dbutil.ErrConflict)
-	}
-	return mapMutationError(err)
 }

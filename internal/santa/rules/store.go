@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -149,7 +148,7 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 		return replaceRuleTargets(ctx, tx, ruleID, params.Targets)
 	})
 	if err != nil {
-		return nil, mapRuleMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return s.GetRuleByID(ctx, ruleID)
 }
@@ -184,23 +183,9 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 		return replaceRuleTargets(ctx, tx, row.ID, params.Targets)
 	})
 	if err != nil {
-		return nil, mapRuleMutationError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	return s.GetRuleByID(ctx, id)
-}
-
-func mapRuleMutationError(err error) error {
-	switch database.SQLState(err) {
-	case pgerrcode.ForeignKeyViolation:
-		return dbutil.ErrNotFound
-	case pgerrcode.UniqueViolation:
-		return dbutil.ErrAlreadyExists
-	case pgerrcode.InvalidTextRepresentation,
-		pgerrcode.NotNullViolation,
-		pgerrcode.CheckViolation:
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
-	}
-	return err
 }
 
 func (s *Store) DeleteRule(ctx context.Context, id int64) error {
