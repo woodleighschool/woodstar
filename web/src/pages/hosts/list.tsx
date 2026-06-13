@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
-import { ServerCog, Trash2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ServerCog } from "lucide-react";
 import { parseAsInteger, parseAsStringEnum, useQueryStates } from "nuqs";
 import * as React from "react";
-import { toast } from "sonner";
 
-import { BulkDeleteDialog } from "@/components/bulk-delete-dialog";
+import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
@@ -16,7 +15,6 @@ import { FilterChip } from "@/components/filter-controls";
 import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
@@ -141,7 +139,16 @@ export function HostListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={isAdmin ? <HostsActionBar table={table} /> : undefined}
+          actionBar={
+            isAdmin ? (
+              <BulkDeleteActionBar
+                table={table}
+                useBulkDelete={useBulkDeleteHosts}
+                noun="host"
+                description="Agents can re-enroll with a valid Orbit secret."
+              />
+            ) : undefined
+          }
           empty={
             <Empty className="min-h-72 border-0">
               <EmptyHeader>
@@ -319,51 +326,6 @@ const hostColumns: ColumnDef<Host>[] = [
     meta: { label: "Last Restarted" },
   },
 ];
-
-function HostsActionBar({ table }: { table: TanStackTable<Host> }) {
-  const rows = table.getFilteredSelectedRowModel().rows;
-  const ids = React.useMemo(() => rows.map((row) => Number(row.original.id)), [rows]);
-  const [open, setOpen] = React.useState(false);
-  const bulkDelete = useBulkDeleteHosts();
-
-  const onConfirm = () => {
-    const count = ids.length;
-    bulkDelete.mutate(ids, {
-      onSuccess: () => {
-        toast.success(`Deleted ${count} ${count === 1 ? "host" : "hosts"}`);
-        table.toggleAllRowsSelected(false);
-        setOpen(false);
-      },
-    });
-  };
-
-  return (
-    <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
-      <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => setOpen(true)}
-        disabled={bulkDelete.isPending}
-      >
-        <Trash2 />
-        Delete
-      </Button>
-      <BulkDeleteDialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) bulkDelete.reset();
-          setOpen(next);
-        }}
-        count={ids.length}
-        noun="host"
-        description="Agents can re-enroll with a valid Orbit secret."
-        pending={bulkDelete.isPending}
-        onConfirm={onConfirm}
-      />
-    </div>
-  );
-}
 
 function softwareFilterLabel({
   title,

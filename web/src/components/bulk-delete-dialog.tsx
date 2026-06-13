@@ -14,6 +14,7 @@ export interface BulkDeleteDialogProps {
   onOpenChange: (open: boolean) => void;
   count: number;
   noun: string;
+  pluralNoun?: string;
   description?: string;
   pending?: boolean;
   onConfirm: () => void;
@@ -24,11 +25,12 @@ export function BulkDeleteDialog({
   onOpenChange,
   count,
   noun,
+  pluralNoun,
   description,
   pending = false,
   onConfirm,
 }: BulkDeleteDialogProps) {
-  const label = count === 1 ? noun : `${noun}s`;
+  const label = count === 1 ? noun : (pluralNoun ?? `${noun}s`);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>

@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
-import { FileSliders, GripVertical, Plus, Trash2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FileSliders, GripVertical, Plus } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { BulkDeleteDialog } from "@/components/bulk-delete-dialog";
+import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -178,7 +178,16 @@ export function ConfigurationListPage() {
       ) : (
         <DataTable
           table={table}
-          actionBar={isAdmin ? <ConfigurationsActionBar table={table} /> : undefined}
+          actionBar={
+            isAdmin ? (
+              <BulkDeleteActionBar
+                table={table}
+                useBulkDelete={useBulkDeleteSantaConfigurations}
+                noun="configuration"
+                description="Deleted configurations stop applying."
+              />
+            ) : undefined
+          }
           empty={emptyState}
         >
           <div className="flex items-start justify-between gap-2 p-1">
@@ -285,51 +294,6 @@ function configurationColumns(
     },
   ];
   return isAdmin ? columns : columns.filter((column) => column.id !== "select");
-}
-
-function ConfigurationsActionBar({ table }: { table: TanStackTable<SantaConfiguration> }) {
-  const rows = table.getFilteredSelectedRowModel().rows;
-  const ids = React.useMemo(() => rows.map((row) => Number(row.original.id)), [rows]);
-  const [open, setOpen] = React.useState(false);
-  const bulkDelete = useBulkDeleteSantaConfigurations();
-
-  const onConfirm = () => {
-    const count = ids.length;
-    bulkDelete.mutate(ids, {
-      onSuccess: () => {
-        toast.success(`Deleted ${count} ${count === 1 ? "configuration" : "configurations"}`);
-        table.toggleAllRowsSelected(false);
-        setOpen(false);
-      },
-    });
-  };
-
-  return (
-    <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
-      <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => setOpen(true)}
-        disabled={bulkDelete.isPending}
-      >
-        <Trash2 />
-        Delete
-      </Button>
-      <BulkDeleteDialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) bulkDelete.reset();
-          setOpen(next);
-        }}
-        count={ids.length}
-        noun="configuration"
-        description="Deleted configurations stop applying."
-        pending={bulkDelete.isPending}
-        onConfirm={onConfirm}
-      />
-    </div>
-  );
 }
 
 function ConfigurationReorder({
