@@ -4,6 +4,7 @@ import { Activity, FolderLock } from "lucide-react";
 import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
+import { DetailTiles } from "@/components/detail-tiles";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -103,8 +104,8 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               </Link>
             </Button>
           </div>
-          <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-            {[
+          <DetailTiles
+            tiles={[
               { label: "Version", value: santa.version || "-" },
               { label: "Client Mode", value: clientModeLabel(santa.client_mode_reported) },
               { label: "Configuration", value: configurationValue },
@@ -114,13 +115,8 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
                 value: `${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`,
               },
               { label: "Pending Rules", value: String(santa.rule_sync.pending_count) },
-            ].map((tile) => (
-              <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-                <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
-                <dd className="truncate text-sm text-foreground">{tile.value}</dd>
-              </div>
-            ))}
-          </dl>
+            ]}
+          />
         </CardContent>
       </Card>
 

@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-
+import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
 import { EmptyPanel } from "@/components/empty-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +15,6 @@ import { formatRelative } from "@/lib/utils";
 
 type MunkiHostState = NonNullable<HostDetail["munki"]>;
 
-interface Tile {
-  label: string;
-  value: ReactNode;
-}
-
 export function HostMunkiTab({ host }: { host: HostDetail }) {
   const munki = host.munki;
   if (!munki) return null;
@@ -32,7 +26,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     ...problemRows("Problem Installs", munki.problem_installs),
   ];
 
-  const tiles: Tile[] = [
+  const tiles: DetailTile[] = [
     { label: "Version", value: munki.version || "-" },
     { label: "Manifest", value: munki.manifest_name || "-" },
     { label: "Status", value: <MunkiStatusBadge munki={munki} /> },
@@ -45,14 +39,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
-          <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-            {tiles.map((tile) => (
-              <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-                <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
-                <dd className="truncate text-sm text-foreground">{tile.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <DetailTiles tiles={tiles} />
         </CardContent>
       </Card>
 

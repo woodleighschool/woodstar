@@ -5,6 +5,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
+import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
 import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
@@ -42,11 +43,6 @@ import {
 import { requiredString } from "@/lib/form-validation";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
-interface Tile {
-  label: string;
-  value: ReactNode;
-}
-
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 
 const certificateSourceLabels: Record<string, string> = {
@@ -55,7 +51,7 @@ const certificateSourceLabels: Record<string, string> = {
 };
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
-  const tiles: Tile[] = [];
+  const tiles: DetailTile[] = [];
   const osqueryVersion = host.agents.osquery.version;
   const orbitVersion = host.agents.orbit.version;
 
@@ -141,14 +137,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   return (
     <Card>
       <CardContent>
-        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-          {tiles.map((t) => (
-            <div key={t.label} className="flex min-w-0 flex-col gap-1">
-              <dt className="text-xs font-semibold text-muted-foreground">{t.label}</dt>
-              <dd className="truncate text-sm text-foreground">{t.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <DetailTiles tiles={tiles} />
       </CardContent>
     </Card>
   );

@@ -1,7 +1,7 @@
 import { useParams } from "@tanstack/react-router";
 import { Check, FileCode2, X } from "lucide-react";
-import type { ReactNode } from "react";
 
+import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -20,11 +20,6 @@ import { formatDateTime } from "@/lib/utils";
 
 import { executableLabel, fileName } from "./decisions";
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
-
-interface Tile {
-  label: string;
-  value: ReactNode;
-}
 
 export function SantaEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/$eventId" });
@@ -113,7 +108,7 @@ export function SantaEventDetailPage() {
 }
 
 function ExecutionCard({ event }: { event: SantaEvent }) {
-  const tiles: Tile[] = [
+  const tiles: DetailTile[] = [
     { label: "Host", value: <HostLink host={event.host} /> },
     { label: "Executing User", value: <ValueText value={event.executing_user} /> },
     { label: "PID", value: <ValueText value={formatNumber(event.pid)} /> },
@@ -132,7 +127,7 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
         <CardTitle>Execution</CardTitle>
       </CardHeader>
       <CardContent>
-        <TileGrid tiles={tiles} />
+        <DetailTiles tiles={tiles} />
       </CardContent>
     </Card>
   );
@@ -140,7 +135,7 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
 
 function BinaryCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: Tile[] = [
+  const tiles: DetailTile[] = [
     {
       label: "File Name",
       value: <ValueText value={executable.file_name || fileName(event.file_path)} />,
@@ -171,7 +166,7 @@ function BinaryCard({ event }: { event: SantaEvent }) {
         <CardTitle>Binary</CardTitle>
       </CardHeader>
       <CardContent>
-        <TileGrid tiles={tiles} />
+        <DetailTiles tiles={tiles} />
       </CardContent>
     </Card>
   );
@@ -179,7 +174,7 @@ function BinaryCard({ event }: { event: SantaEvent }) {
 
 function BundleCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: Tile[] = [
+  const tiles: DetailTile[] = [
     { label: "Bundle ID", value: <ValueText value={executable.file_bundle_id} /> },
     { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
     { label: "Path", value: <ValueText value={executable.file_bundle_path} /> },
@@ -206,7 +201,7 @@ function BundleCard({ event }: { event: SantaEvent }) {
         <CardTitle>Bundle</CardTitle>
       </CardHeader>
       <CardContent>
-        <TileGrid tiles={tiles} />
+        <DetailTiles tiles={tiles} />
       </CardContent>
     </Card>
   );
@@ -289,19 +284,6 @@ function EntitlementsTable({ entitlements }: { entitlements: EntitlementEntry[] 
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-function TileGrid({ tiles }: { tiles: Tile[] }) {
-  return (
-    <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-      {tiles.map((tile) => (
-        <div key={tile.label} className="flex min-w-0 flex-col gap-1">
-          <dt className="text-xs font-semibold text-muted-foreground">{tile.label}</dt>
-          <dd className="min-w-0 text-sm text-foreground">{tile.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

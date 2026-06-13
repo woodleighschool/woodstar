@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
@@ -107,13 +108,8 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   );
 }
 
-interface Tile {
-  label: string;
-  value: ReactNode;
-}
-
 function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
-  const tiles: Tile[] = [];
+  const tiles: DetailTile[] = [];
 
   if (title.bundle_identifier) {
     tiles.push({
@@ -137,13 +133,8 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
 
   return (
     <Card>
-      <CardContent className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-        {tiles.map((t) => (
-          <div key={t.label} className="flex min-w-0 flex-col gap-1">
-            <dt className="text-xs font-semibold text-muted-foreground">{t.label}</dt>
-            <dd className="truncate text-sm text-foreground">{t.value}</dd>
-          </div>
-        ))}
+      <CardContent>
+        <DetailTiles tiles={tiles} />
       </CardContent>
     </Card>
   );
