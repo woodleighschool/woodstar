@@ -29,7 +29,7 @@ import {
   selectedIncludeLabelIDs,
 } from "./form-state";
 import { SantaIncludeTargets } from "./include-targets";
-import { RuleReferencePicker } from "./rule-form-fields";
+import { RuleReferencePicker } from "./reference-picker";
 
 export function RuleForm({
   initial,
