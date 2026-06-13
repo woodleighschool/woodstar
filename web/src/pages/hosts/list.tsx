@@ -16,13 +16,7 @@ import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -150,19 +144,13 @@ export function HostListPage() {
             ) : undefined
           }
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ServerCog />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No enrolled devices"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No hosts matched the current filters."
-                    : "Create an Orbit enrollment, then install the package on a host."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<ServerCog />}
+              filtered={hasFilters}
+              title="No enrolled devices"
+              description="Create an Orbit enrollment, then install the package on a host."
+              filteredDescription="No hosts matched the current filters."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

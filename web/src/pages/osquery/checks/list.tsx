@@ -12,13 +12,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { type Check, useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -83,19 +77,13 @@ export function CheckListPage() {
             ) : undefined
           }
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ShieldCheck />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No health checks"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No checks matched the current search."
-                    : "Create a check from SQL."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<ShieldCheck />}
+              filtered={hasFilters}
+              title="No health checks"
+              description="Create a check from SQL."
+              filteredDescription="No checks matched the current search."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

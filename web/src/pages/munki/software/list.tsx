@@ -13,13 +13,7 @@ import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -168,19 +162,14 @@ export function MunkiSoftwareListPage() {
             ) : undefined
           }
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <PackageSearch />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matching software" : "No software"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "Try a different search."
-                    : "Create software to manage Munki packages."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<PackageSearch />}
+              filtered={hasFilters}
+              filteredTitle="No matching software"
+              title="No software"
+              description="Create software to manage Munki packages."
+              filteredDescription="Try a different search."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

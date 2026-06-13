@@ -12,13 +12,7 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -379,19 +373,13 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
 
 function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: string }) {
   return (
-    <Empty className="min-h-72 border-0">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Activity />
-        </EmptyMedia>
-        <EmptyTitle>{hasFilters ? "No matches" : `No ${noun}`}</EmptyTitle>
-        <EmptyDescription>
-          {hasFilters
-            ? "No events matched these filters."
-            : "Client decisions appear after Santa syncs."}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <DataTableEmpty
+      icon={<Activity />}
+      filtered={hasFilters}
+      title={`No ${noun}`}
+      description="Client decisions appear after Santa syncs."
+      filteredDescription="No events matched these filters."
+    />
   );
 }
 

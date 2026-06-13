@@ -10,13 +10,7 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { type Group, useGroups } from "@/hooks/use-groups";
@@ -105,19 +99,13 @@ export function GroupListPage() {
         <DataTable
           table={table}
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <UsersRound />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No groups"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No groups matched the current search."
-                    : "Groups appear after directory sync."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<UsersRound />}
+              filtered={hasFilters}
+              title="No groups"
+              description="Groups appear after directory sync."
+              filteredDescription="No groups matched the current search."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

@@ -33,7 +33,7 @@ Frontend rules for AI agents working under `web/`.
 ## Data, Forms, And Feedback
 
 - Lists use `components/data-table` and its search, filter, column, bulk, skeleton, and empty-state helpers.
-- A root resource list can use `DataTableEmptyState`. Subresources, tabs, nested tables, and detail-page sections use text-only `EmptyPanel`.
+- A first-class resource list renders its empty state as chrome (icon + title + description). Subresources, tabs, nested tables, and detail-page sections use plain text instead.
 - Query load failures render `QueryError` with retry. Detail/form first-load can return `null` instead of flashing a skeleton.
 - Forms use `@tanstack/react-form`, zod, `components/form-field.tsx`, and `components/submit-button.tsx`.
 - Create/edit submit errors render inline near the submit button and set mutation `meta: { inlineError: true }`.

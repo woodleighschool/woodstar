@@ -29,13 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -160,19 +154,13 @@ export function LabelListPage() {
         <DataTable
           table={table}
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Tags />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No labels"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No labels matched the current filters."
-                    : "Create labels for host targeting."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<Tags />}
+              filtered={hasFilters}
+              title="No labels"
+              description="Create labels for host targeting."
+              filteredDescription="No labels matched the current filters."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

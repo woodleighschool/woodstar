@@ -12,13 +12,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -88,19 +82,13 @@ export function ReportListPage() {
             ) : undefined
           }
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <FileBarChart2 />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No saved queries"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No reports matched the current search."
-                    : "Create a report from SQL."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<FileBarChart2 />}
+              filtered={hasFilters}
+              title="No saved queries"
+              description="Create a report from SQL."
+              filteredDescription="No reports matched the current search."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

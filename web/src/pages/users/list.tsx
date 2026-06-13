@@ -21,13 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
 import { useAuth } from "@/hooks/use-auth";
@@ -191,19 +185,13 @@ export function UserListPage() {
         <DataTable
           table={table}
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Users />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No users"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No users matched the current filters."
-                    : "Users appear after setup or sync."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<Users />}
+              filtered={hasFilters}
+              title="No users"
+              description="Users appear after setup or sync."
+              filteredDescription="No users matched the current filters."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

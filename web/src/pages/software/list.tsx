@@ -11,13 +11,7 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { type SoftwareTitle, useSoftware } from "@/hooks/use-software";
@@ -77,19 +71,13 @@ export function SoftwareListPage() {
         <DataTable
           table={table}
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Package />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No observed software"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No titles matched the current filters."
-                    : "Inventory appears after hosts refresh."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<Package />}
+              filtered={hasFilters}
+              title="No observed software"
+              description="Inventory appears after hosts refresh."
+              filteredDescription="No titles matched the current filters."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">

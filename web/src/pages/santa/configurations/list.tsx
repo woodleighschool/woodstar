@@ -28,13 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import {
   Sortable,
   SortableContent,
@@ -112,19 +106,13 @@ export function ConfigurationListPage() {
   });
 
   const emptyState = (
-    <Empty className="min-h-72 border-0">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileSliders />
-        </EmptyMedia>
-        <EmptyTitle>{hasFilters ? "No matches" : "No client configurations"}</EmptyTitle>
-        <EmptyDescription>
-          {hasFilters
-            ? "No configurations matched the current filters."
-            : "Create a configuration for Santa clients."}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <DataTableEmpty
+      icon={<FileSliders />}
+      filtered={hasFilters}
+      title="No client configurations"
+      description="Create a configuration for Santa clients."
+      filteredDescription="No configurations matched the current filters."
+    />
   );
 
   return (

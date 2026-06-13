@@ -16,13 +16,7 @@ import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import {
@@ -189,19 +183,13 @@ export function RuleListPage() {
             ) : undefined
           }
           empty={
-            <Empty className="min-h-72 border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ListChecks />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No execution rules"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No rules matched these filters."
-                    : "Create a rule, then attach label targets."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmpty
+              icon={<ListChecks />}
+              filtered={hasFilters}
+              title="No execution rules"
+              description="Create a rule, then attach label targets."
+              filteredDescription="No rules matched these filters."
+            />
           }
         >
           <div className="flex items-start justify-between gap-2 p-1">
