@@ -204,19 +204,25 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
 }
 
 function resourceCrumb<T>(
-  useDetail: (id: number) => { data?: T; isLoading: boolean },
+  useDetail: (id: number) => { data?: T; isError?: boolean; isLoading: boolean },
   label: (data: T, id: string) => ReactNode,
 ): (props: { id: string }) => ReactNode {
   return function ResourceCrumb({ id }: { id: string }) {
-    const { data, isLoading } = useDetail(Number(id));
-    if (isLoading || !data) return <CrumbSkeleton />;
-    return <span>{label(data, id)}</span>;
+    const { data, isError, isLoading } = useDetail(Number(id));
+    if (data) return <span>{label(data, id)}</span>;
+    if (isLoading) return <CrumbSkeleton />;
+    if (isError) return <span>{id}</span>;
+    return <CrumbSkeleton />;
   };
 }
 
 function HostCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useHost(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
+  const { data, isError, isLoading } = useHost(Number(id));
+  if (!data) {
+    if (isLoading) return <CrumbSkeleton />;
+    if (isError) return <span>{id}</span>;
+    return <CrumbSkeleton />;
+  }
   return <span title={data.hardware.uuid}>{data.display_name}</span>;
 }
 
@@ -230,8 +236,12 @@ const LabelCrumb = resourceCrumb(useLabel, (d, id) => d.name || id);
 const UserCrumb = resourceCrumb(useUser, (d, id) => d.name || d.email || id);
 
 function MunkiPackageCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useMunkiPackage(Number(id));
-  if (isLoading || !data) return <CrumbSkeleton />;
+  const { data, isError, isLoading } = useMunkiPackage(Number(id));
+  if (!data) {
+    if (isLoading) return <CrumbSkeleton />;
+    if (isError) return <span>{id}</span>;
+    return <CrumbSkeleton />;
+  }
   return <span>{`${data.software_name} ${data.version}`}</span>;
 }
 

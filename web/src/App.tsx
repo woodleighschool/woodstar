@@ -13,7 +13,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: false,
+      retryOnMount: false,
     },
   },
   // Unhandled mutation errors surface as a toast. Resource forms that render their
