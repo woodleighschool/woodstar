@@ -8,7 +8,7 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
-import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   reportRows,
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
@@ -150,151 +151,145 @@ export function ReportForm({
           {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
         </form.Subscribe>
 
-        <ScrollableTabs
-          tabs={[
-            {
-              value: "options",
-              label: "Options",
-              content: (
-                <div className="flex max-w-5xl flex-col gap-6">
-                  <FieldGroup className="max-w-3xl">
-                    <form.Field name="name" validators={{ onSubmit: requiredString("Name") }}>
-                      {(field) => (
-                        <FormField field={field} label="Name" htmlFor="report-name" required>
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              required
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
+        <ScrollableTabs defaultValue="options">
+          <ScrollableTabsList>
+            <TabsTrigger value="options">Options</TabsTrigger>
+            <TabsTrigger value="targets">Targets</TabsTrigger>
+            {resultsReportId !== undefined ? (
+              <TabsTrigger value="results">Results</TabsTrigger>
+            ) : null}
+          </ScrollableTabsList>
 
-                    <form.Field name="description">
-                      {(field) => (
-                        <FormField field={field} label="Description" htmlFor="report-description">
-                          {(control) => (
-                            <Textarea
-                              {...control}
-                              name={field.name}
-                              rows={3}
-                              value={field.state.value ?? ""}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <form.Field name="schedule_interval">
-                        {(field) => (
-                          <FormField field={field} label="Interval" htmlFor="report-interval">
-                            {(control) => (
-                              <Select
-                                value={String(field.state.value ?? 0)}
-                                onValueChange={(value) => field.handleChange(Number(value))}
-                              >
-                                <SelectTrigger {...control} className="w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {FREQUENCY_OPTIONS.map((option) => (
-                                      <SelectItem key={option.value} value={String(option.value)}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </FormField>
-                        )}
-                      </form.Field>
-
-                      <form.Field name="min_osquery_version">
-                        {(field) => (
-                          <FormField
-                            field={field}
-                            label="Minimum Osquery Version"
-                            htmlFor="report-min-version"
-                          >
-                            {(control) => (
-                              <Input
-                                {...control}
-                                name={field.name}
-                                value={field.state.value ?? ""}
-                                placeholder="5.18.1"
-                                onBlur={field.handleBlur}
-                                onChange={(event) =>
-                                  field.handleChange(event.target.value || undefined)
-                                }
-                              />
-                            )}
-                          </FormField>
-                        )}
-                      </form.Field>
-                    </div>
-                  </FieldGroup>
-
-                  <form.Field name="query" validators={{ onSubmit: reportQuerySchema }}>
-                    {(field) => {
-                      const error = firstErrorMessage(field.state.meta.errors);
-                      return (
-                        <Field data-invalid={error ? true : undefined}>
-                          <FieldLabel required>Query</FieldLabel>
-                          <SQLEditor
-                            ref={editorRef}
-                            value={field.state.value}
-                            onChange={field.handleChange}
-                            onTableMetaClick={selectSchemaTable}
-                            placeholder="SELECT ..."
-                            invalid={error ? true : undefined}
-                          />
-                          {error ? <FieldError>{error}</FieldError> : null}
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
-                </div>
-              ),
-            },
-            {
-              value: "targets",
-              label: "Targets",
-              content: (
-                <form.Field name="targets">
+          <TabsContent value="options" className="min-w-0">
+            <div className="flex max-w-5xl flex-col gap-6">
+              <FieldGroup className="max-w-3xl">
+                <form.Field name="name" validators={{ onSubmit: requiredString("Name") }}>
                   {(field) => (
-                    <LabelTargetSetEditor
-                      value={normalizeLabelTargetSet(field.state.value)}
-                      onChange={field.handleChange}
-                    />
+                    <FormField field={field} label="Name" htmlFor="report-name" required>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          name={field.name}
+                          required
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                      )}
+                    </FormField>
                   )}
                 </form.Field>
-              ),
-            },
-            ...(resultsReportId !== undefined
-              ? [
-                  {
-                    value: "results",
-                    label: "Results",
-                    content: (
-                      <form.Subscribe selector={(state) => state.values.name}>
-                        {() => <ReportResults reportId={resultsReportId} />}
-                      </form.Subscribe>
-                    ),
-                  },
-                ]
-              : []),
-          ]}
-        />
+
+                <form.Field name="description">
+                  {(field) => (
+                    <FormField field={field} label="Description" htmlFor="report-description">
+                      {(control) => (
+                        <Textarea
+                          {...control}
+                          name={field.name}
+                          rows={3}
+                          value={field.state.value ?? ""}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                      )}
+                    </FormField>
+                  )}
+                </form.Field>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <form.Field name="schedule_interval">
+                    {(field) => (
+                      <FormField field={field} label="Interval" htmlFor="report-interval">
+                        {(control) => (
+                          <Select
+                            value={String(field.state.value ?? 0)}
+                            onValueChange={(value) => field.handleChange(Number(value))}
+                          >
+                            <SelectTrigger {...control} className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {FREQUENCY_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={String(option.value)}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </FormField>
+                    )}
+                  </form.Field>
+
+                  <form.Field name="min_osquery_version">
+                    {(field) => (
+                      <FormField
+                        field={field}
+                        label="Minimum Osquery Version"
+                        htmlFor="report-min-version"
+                      >
+                        {(control) => (
+                          <Input
+                            {...control}
+                            name={field.name}
+                            value={field.state.value ?? ""}
+                            placeholder="5.18.1"
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value || undefined)
+                            }
+                          />
+                        )}
+                      </FormField>
+                    )}
+                  </form.Field>
+                </div>
+              </FieldGroup>
+
+              <form.Field name="query" validators={{ onSubmit: reportQuerySchema }}>
+                {(field) => {
+                  const error = firstErrorMessage(field.state.meta.errors);
+                  return (
+                    <Field data-invalid={error ? true : undefined}>
+                      <FieldLabel required>Query</FieldLabel>
+                      <SQLEditor
+                        ref={editorRef}
+                        value={field.state.value}
+                        onChange={field.handleChange}
+                        onTableMetaClick={selectSchemaTable}
+                        placeholder="SELECT ..."
+                        invalid={error ? true : undefined}
+                      />
+                      {error ? <FieldError>{error}</FieldError> : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="targets" className="min-w-0">
+            <form.Field name="targets">
+              {(field) => (
+                <LabelTargetSetEditor
+                  value={normalizeLabelTargetSet(field.state.value)}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+          </TabsContent>
+
+          {resultsReportId !== undefined ? (
+            <TabsContent value="results" className="min-w-0">
+              <form.Subscribe selector={(state) => state.values.name}>
+                {() => <ReportResults reportId={resultsReportId} />}
+              </form.Subscribe>
+            </TabsContent>
+          ) : null}
+        </ScrollableTabs>
 
         <FormActions
           pending={pending}

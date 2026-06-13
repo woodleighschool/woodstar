@@ -3,8 +3,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { FormActions } from "@/components/form-actions";
-import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import {
   type MunkiSoftwareMutation,
@@ -46,6 +47,25 @@ export function MunkiSoftwareCreatePage() {
     const title = await create.mutateAsync(body);
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(title.id) } });
   });
+  const tabs = [
+    {
+      value: "options",
+      label: "Options",
+      content: (
+        <MunkiSoftwareOptionsFields
+          form={form}
+          categoryOptions={categoryOptions}
+          developerOptions={developerOptions}
+          icon={{
+            file: iconFile,
+            clearable: !!iconFile,
+            onFileChange: setIconFile,
+            onClear: () => setIconFile(null),
+          }}
+        />
+      ),
+    },
+  ];
 
   return (
     <PageShell asChild>
@@ -57,27 +77,20 @@ export function MunkiSoftwareCreatePage() {
         }}
       >
         <PageHeader title="New Software" />
-        <ScrollableTabs
-          tabs={[
-            {
-              value: "options",
-              label: "Options",
-              content: (
-                <MunkiSoftwareOptionsFields
-                  form={form}
-                  categoryOptions={categoryOptions}
-                  developerOptions={developerOptions}
-                  icon={{
-                    file: iconFile,
-                    clearable: !!iconFile,
-                    onFileChange: setIconFile,
-                    onClear: () => setIconFile(null),
-                  }}
-                />
-              ),
-            },
-          ]}
-        />
+        <ScrollableTabs defaultValue="options">
+          <ScrollableTabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </ScrollableTabsList>
+          {tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+              {tab.content}
+            </TabsContent>
+          ))}
+        </ScrollableTabs>
         <FormActions
           pending={create.isPending}
           disabled={iconUpload.isUploading}

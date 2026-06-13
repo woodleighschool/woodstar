@@ -7,7 +7,7 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
-import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,7 +20,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -42,7 +41,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
-import { useTabIndicator } from "@/hooks/use-tab-indicator";
 import type { PackageAlert } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 import { cn } from "@/lib/utils";
@@ -112,66 +110,78 @@ export function PackageEditorTabs({
   onInstallerFileChange: (file: File | null) => void;
   onUninstallerFileChange: (file: File | null) => void;
 }) {
+  const tabs = [
+    {
+      value: "basic",
+      label: "Basic Info",
+      content: <BasicInfoTab form={form} software={softwareInfo} />,
+    },
+    {
+      value: "contents",
+      label: "Contents",
+      content: <ContentsTab form={form} />,
+    },
+    {
+      value: "requirements",
+      label: "Requirements",
+      content: <RequirementsTab form={form} packageOptions={packageOptions} />,
+    },
+    {
+      value: "installation",
+      label: "Installation",
+      content: (
+        <InstallationTab
+          form={form}
+          installerFile={installerFile}
+          installerArtifactLocation={installerArtifactLocation}
+          onInstallerFileChange={onInstallerFileChange}
+        />
+      ),
+    },
+    {
+      value: "uninstall",
+      label: "Uninstall",
+      content: (
+        <UninstallTab
+          form={form}
+          uninstallerFile={uninstallerFile}
+          uninstallerArtifactLocation={uninstallerArtifactLocation}
+          onUninstallerFileChange={onUninstallerFileChange}
+        />
+      ),
+    },
+    {
+      value: "scripts",
+      label: "Scripts",
+      content: <ScriptsTab form={form} />,
+    },
+    {
+      value: "alerts",
+      label: "Alerts",
+      content: <AlertsTab form={form} />,
+    },
+    {
+      value: "advanced",
+      label: "Advanced",
+      content: <AdvancedTab form={form} />,
+    },
+  ];
+
   return (
-    <ScrollableTabs
-      className="max-w-6xl"
-      tabs={[
-        {
-          value: "basic",
-          label: "Basic Info",
-          content: <BasicInfoTab form={form} software={softwareInfo} />,
-        },
-        {
-          value: "contents",
-          label: "Contents",
-          content: <ContentsTab form={form} />,
-        },
-        {
-          value: "requirements",
-          label: "Requirements",
-          content: <RequirementsTab form={form} packageOptions={packageOptions} />,
-        },
-        {
-          value: "installation",
-          label: "Installation",
-          content: (
-            <InstallationTab
-              form={form}
-              installerFile={installerFile}
-              installerArtifactLocation={installerArtifactLocation}
-              onInstallerFileChange={onInstallerFileChange}
-            />
-          ),
-        },
-        {
-          value: "uninstall",
-          label: "Uninstall",
-          content: (
-            <UninstallTab
-              form={form}
-              uninstallerFile={uninstallerFile}
-              uninstallerArtifactLocation={uninstallerArtifactLocation}
-              onUninstallerFileChange={onUninstallerFileChange}
-            />
-          ),
-        },
-        {
-          value: "scripts",
-          label: "Scripts",
-          content: <ScriptsTab form={form} />,
-        },
-        {
-          value: "alerts",
-          label: "Alerts",
-          content: <AlertsTab form={form} />,
-        },
-        {
-          value: "advanced",
-          label: "Advanced",
-          content: <AdvancedTab form={form} />,
-        },
-      ]}
-    />
+    <ScrollableTabs defaultValue="basic" className="max-w-6xl">
+      <ScrollableTabsList>
+        {tabs.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </ScrollableTabsList>
+      {tabs.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+          {tab.content}
+        </TabsContent>
+      ))}
+    </ScrollableTabs>
   );
 }
 
@@ -544,35 +554,19 @@ function ScriptsEditor({
   onChange: (key: ScriptKey, value: string) => void;
 }) {
   const [active, setActive] = useState<ScriptKey>(generalScriptFields[0].key);
-  const { listRef, box } = useTabIndicator(active);
 
   return (
     <Tabs value={active} onValueChange={(value) => setActive(value as ScriptKey)} className="gap-4">
-      <ScrollArea orientation="horizontal">
-        <TabsList ref={listRef} className="relative w-fit">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-[3px] left-0 rounded-md bg-background shadow-sm transition-[transform,width,opacity] duration-300 ease-out dark:border dark:border-input dark:bg-input/30"
-            style={{
-              transform: `translateX(${box?.left ?? 0}px)`,
-              width: box?.width ?? 0,
-              opacity: box ? 1 : 0,
-            }}
-          />
-          {generalScriptFields.map((script) => (
-            <TabsTrigger
-              key={script.key}
-              value={script.key}
-              className="relative z-10 bg-transparent! shadow-none! dark:border-transparent! dark:bg-transparent!"
-            >
-              {script.label}
-              {values[script.key] !== "" ? (
-                <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-              ) : null}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </ScrollArea>
+      <TabsList>
+        {generalScriptFields.map((script) => (
+          <TabsTrigger key={script.key} value={script.key}>
+            {script.label}
+            {values[script.key] !== "" ? (
+              <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+            ) : null}
+          </TabsTrigger>
+        ))}
+      </TabsList>
       {generalScriptFields.map((script) => (
         <TabsContent key={script.key} value={script.key} className="min-w-0">
           <ScriptField

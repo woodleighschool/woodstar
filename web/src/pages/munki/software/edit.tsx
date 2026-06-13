@@ -6,13 +6,14 @@ import { useMemo, useState } from "react";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
-import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
@@ -190,6 +191,78 @@ function MunkiSoftwareDetailForm({
       cell: ({ row }) => formatRelative(row.original.updated_at),
     },
   ];
+  const tabs = [
+    {
+      value: "options",
+      label: "Options",
+      content: (
+        <MunkiSoftwareOptionsFields
+          form={softwareOptionsForm}
+          categoryOptions={categoryOptions}
+          developerOptions={developerOptions}
+          icon={{
+            iconUrl: iconCleared ? undefined : software.icon_url,
+            file: iconFile,
+            clearable: !!iconFile || (!iconCleared && !!software.icon_artifact_id),
+            onFileChange: (file) => {
+              setIconFile(file);
+              setIconCleared(false);
+            },
+            onClear: () => {
+              setIconFile(null);
+              setIconCleared(!!software.icon_artifact_id);
+            },
+          }}
+        />
+      ),
+    },
+    {
+      value: "targets",
+      label: "Targets",
+      content: (
+        <div className="flex flex-col gap-6">
+          <MunkiIncludeTargets
+            rows={targetRows}
+            excludeLabelIDs={excludeForm}
+            packages={packages}
+            onChange={changeTargets}
+          />
+          <Separator />
+          <LabelAssignmentList
+            title="Exclude"
+            addLabel="Add Exclude"
+            emptyText="No excludes yet"
+            rows={excludeForm.map((label_id) => ({ label_id }))}
+            crossListLabelIDs={includeLabelIDs}
+            includeBuiltins={false}
+            onChange={(rows) => changeExclude(rows.map((row) => row.label_id))}
+          />
+        </div>
+      ),
+    },
+    {
+      value: "packages",
+      label: "Packages",
+      content: (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Packages</h2>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/munki/packages/new" search={{ software_id: software.id }}>
+                <Plus data-icon="inline-start" />
+                Add Package
+              </Link>
+            </Button>
+          </div>
+          {packages.length > 0 ? (
+            <DataTableStatic columns={packageColumns} data={packages} />
+          ) : (
+            <EmptyPanel>No packages yet</EmptyPanel>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <PageShell>
@@ -203,80 +276,20 @@ function MunkiSoftwareDetailForm({
           void softwareOptionsForm.handleSubmit();
         }}
       >
-        <ScrollableTabs
-          tabs={[
-            {
-              value: "options",
-              label: "Options",
-              content: (
-                <MunkiSoftwareOptionsFields
-                  form={softwareOptionsForm}
-                  categoryOptions={categoryOptions}
-                  developerOptions={developerOptions}
-                  icon={{
-                    iconUrl: iconCleared ? undefined : software.icon_url,
-                    file: iconFile,
-                    clearable: !!iconFile || (!iconCleared && !!software.icon_artifact_id),
-                    onFileChange: (file) => {
-                      setIconFile(file);
-                      setIconCleared(false);
-                    },
-                    onClear: () => {
-                      setIconFile(null);
-                      setIconCleared(!!software.icon_artifact_id);
-                    },
-                  }}
-                />
-              ),
-            },
-            {
-              value: "targets",
-              label: "Targets",
-              content: (
-                <div className="flex flex-col gap-6">
-                  <MunkiIncludeTargets
-                    rows={targetRows}
-                    excludeLabelIDs={excludeForm}
-                    packages={packages}
-                    onChange={changeTargets}
-                  />
-                  <Separator />
-                  <LabelAssignmentList
-                    title="Exclude"
-                    addLabel="Add Exclude"
-                    emptyText="No excludes yet"
-                    rows={excludeForm.map((label_id) => ({ label_id }))}
-                    crossListLabelIDs={includeLabelIDs}
-                    includeBuiltins={false}
-                    onChange={(rows) => changeExclude(rows.map((row) => row.label_id))}
-                  />
-                </div>
-              ),
-            },
-            {
-              value: "packages",
-              label: "Packages",
-              content: (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-base font-semibold">Packages</h2>
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/munki/packages/new" search={{ software_id: software.id }}>
-                        <Plus data-icon="inline-start" />
-                        Add Package
-                      </Link>
-                    </Button>
-                  </div>
-                  {packages.length > 0 ? (
-                    <DataTableStatic columns={packageColumns} data={packages} />
-                  ) : (
-                    <EmptyPanel>No packages yet</EmptyPanel>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
+        <ScrollableTabs defaultValue="options">
+          <ScrollableTabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </ScrollableTabsList>
+          {tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+              {tab.content}
+            </TabsContent>
+          ))}
+        </ScrollableTabs>
 
         <FormActions
           pending={updateSoftware.isPending}

@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
-import { ScrollableTabs } from "@/components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { FormActions } from "@/components/form-actions";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   SantaConfiguration,
@@ -176,293 +177,271 @@ export function ConfigurationForm({
           {(name) => <PageHeader title={title ?? (name || "Configuration")} />}
         </form.Subscribe>
 
-        <ScrollableTabs
-          tabs={[
-            {
-              value: "options",
-              label: "Options",
-              content: (
-                <FieldGroup className="max-w-3xl">
-                  <form.Field name="name">
-                    {(field) => (
-                      <FormField
-                        field={field}
-                        label="Name"
-                        htmlFor="santa-configuration-name"
+        <ScrollableTabs defaultValue="options">
+          <ScrollableTabsList>
+            <TabsTrigger value="options">Options</TabsTrigger>
+            <TabsTrigger value="targets">Targets</TabsTrigger>
+          </ScrollableTabsList>
+
+          <TabsContent value="options" className="min-w-0">
+            <FieldGroup className="max-w-3xl">
+              <form.Field name="name">
+                {(field) => (
+                  <FormField field={field} label="Name" htmlFor="santa-configuration-name" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        name={field.name}
                         required
-                      >
-                        {(control) => (
-                          <Input
-                            {...control}
-                            name={field.name}
-                            required
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
-                  <form.Field
-                    name="description"
-                    children={(field) => (
-                      <Field>
-                        <FieldLabel htmlFor="santa-configuration-description">
-                          Description
-                        </FieldLabel>
-                        <Textarea
-                          id="santa-configuration-description"
-                          name={field.name}
-                          rows={3}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      </Field>
-                    )}
-                  />
-                  <form.Field name="client_mode">
-                    {(field) => (
-                      <FormField field={field} label="Client Mode" htmlFor="santa-client-mode">
-                        {(control) => (
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(clientMode) =>
-                              field.handleChange(
-                                clientMode as SantaConfigurationMutation["client_mode"],
-                              )
-                            }
-                          >
-                            <SelectTrigger {...control} className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {CLIENT_MODE_OPTIONS.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
-                  <form.Field
-                    name="enable_bundles"
-                    children={(field) => (
-                      <BoolField
-                        id="santa-enable-bundles"
-                        label="Bundles"
                         value={field.state.value}
-                        onChange={field.handleChange}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
                       />
                     )}
-                  />
-                  <form.Field
-                    name="enable_transitive_rules"
-                    children={(field) => (
-                      <BoolField
-                        id="santa-enable-transitive-rules"
-                        label="Transitive Rules"
-                        value={field.state.value}
-                        onChange={field.handleChange}
-                      />
-                    )}
-                  />
-                  <form.Field
-                    name="enable_all_event_upload"
-                    children={(field) => (
-                      <BoolField
-                        id="santa-upload-all-events"
-                        label="Upload All Events"
-                        value={field.state.value}
-                        onChange={field.handleChange}
-                      />
-                    )}
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <form.Field name="full_sync_interval_seconds">
-                      {(field) => (
-                        <FormField
-                          field={field}
-                          label="Full Sync Interval"
-                          htmlFor="santa-full-sync-interval"
-                          required
-                        >
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              type="number"
-                              min={60}
-                              step={1}
-                              required
-                              inputMode="numeric"
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(Number(event.target.value))}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
-                    <form.Field name="batch_size">
-                      {(field) => (
-                        <FormField
-                          field={field}
-                          label="Batch Size"
-                          htmlFor="santa-batch-size"
-                          required
-                        >
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              type="number"
-                              min={5}
-                              max={100}
-                              step={1}
-                              required
-                              inputMode="numeric"
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(Number(event.target.value))}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
-                  </div>
-                  <form.Field
-                    name="allowed_path_regex"
-                    children={(field) => (
-                      <Field>
-                        <FieldLabel htmlFor="santa-allowed-path-regex">
-                          Allowed Path Regex
-                        </FieldLabel>
-                        <Input
-                          id="santa-allowed-path-regex"
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      </Field>
-                    )}
-                  />
-                  <form.Field
-                    name="blocked_path_regex"
-                    children={(field) => (
-                      <Field>
-                        <FieldLabel htmlFor="santa-blocked-path-regex">
-                          Blocked Path Regex
-                        </FieldLabel>
-                        <Input
-                          id="santa-blocked-path-regex"
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      </Field>
-                    )}
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <form.Field
-                      name="event_detail_url"
-                      children={(field) => (
-                        <Field>
-                          <FieldLabel htmlFor="santa-event-detail-url">Event Detail URL</FieldLabel>
-                          <Input
-                            id="santa-event-detail-url"
-                            name={field.name}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        </Field>
-                      )}
-                    />
-                    <form.Field
-                      name="event_detail_text"
-                      children={(field) => (
-                        <Field>
-                          <FieldLabel htmlFor="santa-event-detail-text">
-                            Event Detail Text
-                          </FieldLabel>
-                          <Input
-                            id="santa-event-detail-text"
-                            name={field.name}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        </Field>
-                      )}
-                    />
-                  </div>
-                  <form.Field
-                    name="removable_media_action"
-                    children={(actionField) => (
-                      <form.Field
-                        name="removable_media_remount_flags"
-                        children={(flagsField) => (
-                          <MediaActionField
-                            id="santa-removable-media"
-                            label="Removable Media"
-                            action={actionField.state.value}
-                            flags={flagsField.state.value}
-                            flagsError={firstErrorMessage(flagsField.state.meta.errors)}
-                            onActionChange={actionField.handleChange}
-                            onFlagsChange={flagsField.handleChange}
-                          />
-                        )}
-                      />
-                    )}
-                  />
-                  <form.Field
-                    name="encrypted_removable_media_action"
-                    children={(actionField) => (
-                      <form.Field
-                        name="encrypted_removable_media_remount_flags"
-                        children={(flagsField) => (
-                          <MediaActionField
-                            id="santa-encrypted-removable-media"
-                            label="Encrypted Removable Media"
-                            action={actionField.state.value}
-                            flags={flagsField.state.value}
-                            flagsError={firstErrorMessage(flagsField.state.meta.errors)}
-                            onActionChange={actionField.handleChange}
-                            onFlagsChange={flagsField.handleChange}
-                          />
-                        )}
-                      />
-                    )}
-                  />
-                </FieldGroup>
-              ),
-            },
-            {
-              value: "targets",
-              label: "Targets",
-              content: (
-                <form.Field
-                  name="targets"
-                  children={(field) => (
-                    <LabelTargetSetEditor
+                  </FormField>
+                )}
+              </form.Field>
+              <form.Field
+                name="description"
+                children={(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="santa-configuration-description">Description</FieldLabel>
+                    <Textarea
+                      id="santa-configuration-description"
+                      name={field.name}
+                      rows={3}
                       value={field.state.value}
-                      onChange={(next) => field.handleChange(next)}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
                     />
+                  </Field>
+                )}
+              />
+              <form.Field name="client_mode">
+                {(field) => (
+                  <FormField field={field} label="Client Mode" htmlFor="santa-client-mode">
+                    {(control) => (
+                      <Select
+                        value={field.state.value}
+                        onValueChange={(clientMode) =>
+                          field.handleChange(
+                            clientMode as SantaConfigurationMutation["client_mode"],
+                          )
+                        }
+                      >
+                        <SelectTrigger {...control} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {CLIENT_MODE_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+              <form.Field
+                name="enable_bundles"
+                children={(field) => (
+                  <BoolField
+                    id="santa-enable-bundles"
+                    label="Bundles"
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                )}
+              />
+              <form.Field
+                name="enable_transitive_rules"
+                children={(field) => (
+                  <BoolField
+                    id="santa-enable-transitive-rules"
+                    label="Transitive Rules"
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                )}
+              />
+              <form.Field
+                name="enable_all_event_upload"
+                children={(field) => (
+                  <BoolField
+                    id="santa-upload-all-events"
+                    label="Upload All Events"
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                )}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <form.Field name="full_sync_interval_seconds">
+                  {(field) => (
+                    <FormField
+                      field={field}
+                      label="Full Sync Interval"
+                      htmlFor="santa-full-sync-interval"
+                      required
+                    >
+                      {(control) => (
+                        <Input
+                          {...control}
+                          name={field.name}
+                          type="number"
+                          min={60}
+                          step={1}
+                          required
+                          inputMode="numeric"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(Number(event.target.value))}
+                        />
+                      )}
+                    </FormField>
+                  )}
+                </form.Field>
+                <form.Field name="batch_size">
+                  {(field) => (
+                    <FormField field={field} label="Batch Size" htmlFor="santa-batch-size" required>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          name={field.name}
+                          type="number"
+                          min={5}
+                          max={100}
+                          step={1}
+                          required
+                          inputMode="numeric"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(Number(event.target.value))}
+                        />
+                      )}
+                    </FormField>
+                  )}
+                </form.Field>
+              </div>
+              <form.Field
+                name="allowed_path_regex"
+                children={(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
+                    <Input
+                      id="santa-allowed-path-regex"
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  </Field>
+                )}
+              />
+              <form.Field
+                name="blocked_path_regex"
+                children={(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="santa-blocked-path-regex">Blocked Path Regex</FieldLabel>
+                    <Input
+                      id="santa-blocked-path-regex"
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  </Field>
+                )}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <form.Field
+                  name="event_detail_url"
+                  children={(field) => (
+                    <Field>
+                      <FieldLabel htmlFor="santa-event-detail-url">Event Detail URL</FieldLabel>
+                      <Input
+                        id="santa-event-detail-url"
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    </Field>
                   )}
                 />
-              ),
-            },
-          ]}
-        />
+                <form.Field
+                  name="event_detail_text"
+                  children={(field) => (
+                    <Field>
+                      <FieldLabel htmlFor="santa-event-detail-text">Event Detail Text</FieldLabel>
+                      <Input
+                        id="santa-event-detail-text"
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    </Field>
+                  )}
+                />
+              </div>
+              <form.Field
+                name="removable_media_action"
+                children={(actionField) => (
+                  <form.Field
+                    name="removable_media_remount_flags"
+                    children={(flagsField) => (
+                      <MediaActionField
+                        id="santa-removable-media"
+                        label="Removable Media"
+                        action={actionField.state.value}
+                        flags={flagsField.state.value}
+                        flagsError={firstErrorMessage(flagsField.state.meta.errors)}
+                        onActionChange={actionField.handleChange}
+                        onFlagsChange={flagsField.handleChange}
+                      />
+                    )}
+                  />
+                )}
+              />
+              <form.Field
+                name="encrypted_removable_media_action"
+                children={(actionField) => (
+                  <form.Field
+                    name="encrypted_removable_media_remount_flags"
+                    children={(flagsField) => (
+                      <MediaActionField
+                        id="santa-encrypted-removable-media"
+                        label="Encrypted Removable Media"
+                        action={actionField.state.value}
+                        flags={flagsField.state.value}
+                        flagsError={firstErrorMessage(flagsField.state.meta.errors)}
+                        onActionChange={actionField.handleChange}
+                        onFlagsChange={flagsField.handleChange}
+                      />
+                    )}
+                  />
+                )}
+              />
+            </FieldGroup>
+          </TabsContent>
+
+          <TabsContent value="targets" className="min-w-0">
+            <form.Field
+              name="targets"
+              children={(field) => (
+                <LabelTargetSetEditor
+                  value={field.state.value}
+                  onChange={(next) => field.handleChange(next)}
+                />
+              )}
+            />
+          </TabsContent>
+        </ScrollableTabs>
 
         <FormActions
           pending={pending}
