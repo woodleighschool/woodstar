@@ -1,10 +1,5 @@
 -- +goose Up
 
-CREATE TYPE munki_artifact_kind AS ENUM (
-    'package',
-    'icon'
-);
-
 CREATE TYPE munki_manifest_action AS ENUM (
     'managed_installs',
     'managed_uninstalls',
@@ -24,20 +19,6 @@ CREATE TYPE munki_package_relation_kind AS ENUM (
     'update_for'
 );
 
-CREATE TABLE munki_artifacts (
-    id BIGSERIAL PRIMARY KEY,
-    kind munki_artifact_kind NOT NULL,
-    display_name TEXT NOT NULL DEFAULT '',
-    location TEXT NOT NULL,
-    content_type TEXT NOT NULL DEFAULT '',
-    size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
-    sha256 TEXT NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
-    storage_key TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (kind, location)
-);
-
 CREATE TABLE munki_software (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -46,7 +27,7 @@ CREATE TABLE munki_software (
     developer TEXT NOT NULL DEFAULT '',
     icon_name TEXT NOT NULL DEFAULT '',
     icon_hash TEXT NOT NULL DEFAULT '',
-    icon_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE SET NULL,
+    icon_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -100,8 +81,8 @@ CREATE TABLE munki_packages (
     preuninstall_alert_detail TEXT NOT NULL DEFAULT '',
     preuninstall_alert_ok_label TEXT NOT NULL DEFAULT '',
     preuninstall_alert_cancel_label TEXT NOT NULL DEFAULT '',
-    installer_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE RESTRICT,
-    uninstaller_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE RESTRICT,
+    installer_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
+    uninstaller_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -159,16 +140,14 @@ CREATE TABLE munki_software_targets (
         ON DELETE RESTRICT
 );
 
-CREATE INDEX munki_artifacts_kind_idx
-    ON munki_artifacts (kind, lower(location), id);
-CREATE INDEX munki_software_icon_artifact_idx
-    ON munki_software (icon_artifact_id);
+CREATE INDEX munki_software_icon_object_idx
+    ON munki_software (icon_object_id);
 CREATE INDEX munki_packages_software_idx
     ON munki_packages (software_id);
-CREATE INDEX munki_packages_installer_artifact_idx
-    ON munki_packages (installer_artifact_id);
-CREATE INDEX munki_packages_uninstaller_artifact_idx
-    ON munki_packages (uninstaller_artifact_id);
+CREATE INDEX munki_packages_installer_object_idx
+    ON munki_packages (installer_object_id);
+CREATE INDEX munki_packages_uninstaller_object_idx
+    ON munki_packages (uninstaller_object_id);
 CREATE INDEX munki_package_relations_package_idx
     ON munki_package_relations (package_id, relation_kind, position, id);
 CREATE INDEX munki_package_relations_target_software_idx

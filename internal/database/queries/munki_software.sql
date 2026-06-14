@@ -6,7 +6,7 @@ INSERT INTO munki_software (
     developer,
     icon_name,
     icon_hash,
-    icon_artifact_id
+    icon_object_id
 )
 VALUES (
     @name,
@@ -15,7 +15,7 @@ VALUES (
     @developer,
     @icon_name,
     @icon_hash,
-    sqlc.narg(icon_artifact_id)::bigint
+    sqlc.narg(icon_object_id)::bigint
 )
 RETURNING *;
 
@@ -43,7 +43,7 @@ SET
     developer = @developer,
     icon_name = @icon_name,
     icon_hash = @icon_hash,
-    icon_artifact_id = sqlc.narg(icon_artifact_id)::bigint,
+    icon_object_id = sqlc.narg(icon_object_id)::bigint,
     updated_at = now()
 WHERE id = @id
 RETURNING *;
@@ -119,7 +119,7 @@ SELECT
     s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
-    s.icon_artifact_id AS software_icon_artifact_id,
+    s.icon_object_id AS software_icon_object_id,
     COALESCE(p.version, '') AS version,
     COALESCE(p.installer_type, 'pkg') AS installer_type,
     COALESCE(p.uninstall_method, '') AS uninstall_method,
@@ -166,11 +166,14 @@ SELECT
     COALESCE(p.preuninstall_alert_detail, '') AS preuninstall_alert_detail,
     COALESCE(p.preuninstall_alert_ok_label, '') AS preuninstall_alert_ok_label,
     COALESCE(p.preuninstall_alert_cancel_label, '') AS preuninstall_alert_cancel_label,
-    p.installer_artifact_id,
-    art.location AS installer_artifact_location,
-    p.uninstaller_artifact_id,
-    uninstaller.location AS uninstaller_artifact_location,
-    software_icon.location AS software_icon_artifact_location
+    p.installer_object_id,
+    installer_obj.prefix AS installer_object_prefix,
+    installer_obj.filename AS installer_object_filename,
+    p.uninstaller_object_id,
+    uninstaller_obj.prefix AS uninstaller_object_prefix,
+    uninstaller_obj.filename AS uninstaller_object_filename,
+    icon_obj.prefix AS software_icon_object_prefix,
+    icon_obj.filename AS software_icon_object_filename
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
 JOIN munki_software s ON s.id = a.software_id
@@ -179,11 +182,12 @@ JOIN munki_packages p ON p.software_id = a.software_id
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
         OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
     )
-LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
-LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
-LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
+LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
 WHERE a.direction = 'include'
   AND p.eligible
+  AND installer_obj.available_at IS NOT NULL
   AND NOT EXISTS (
       SELECT 1
       FROM munki_software_targets excluded
@@ -194,3 +198,23 @@ WHERE a.direction = 'include'
         AND excluded.direction = 'exclude'
   )
 ORDER BY a.software_id, a.position, p.id;
+
+-- name: DeleteUnreferencedStorageObjects :many
+DELETE FROM storage_objects o
+WHERE o.id = ANY(@ids::bigint[])
+  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_packages p
+      WHERE p.installer_object_id = o.id OR p.uninstaller_object_id = o.id
+  )
+RETURNING o.prefix, o.id, o.filename;
+
+-- name: ListUnreferencedStorageObjects :many
+SELECT o.prefix, o.id, o.filename
+FROM storage_objects o
+WHERE o.id = ANY(@ids::bigint[])
+  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_packages p
+      WHERE p.installer_object_id = o.id OR p.uninstaller_object_id = o.id
+  );

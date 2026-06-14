@@ -59,8 +59,8 @@ INSERT INTO munki_packages (
     preuninstall_alert_detail,
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
-    installer_artifact_id,
-    uninstaller_artifact_id,
+    installer_object_id,
+    uninstaller_object_id,
     eligible
 )
 VALUES (
@@ -115,7 +115,7 @@ VALUES (
     $49::bigint,
     $50
 )
-RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_artifact_id, uninstaller_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_object_id, uninstaller_object_id, eligible, created_at, updated_at
 `
 
 type CreateMunkiPackageParams struct {
@@ -166,8 +166,8 @@ type CreateMunkiPackageParams struct {
 	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
 	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
-	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	InstallerObjectID                  *int64     `json:"installer_object_id"`
+	UninstallerObjectID                *int64     `json:"uninstaller_object_id"`
 	Eligible                           bool       `json:"eligible"`
 }
 
@@ -220,8 +220,8 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.PreuninstallAlertDetail,
 		arg.PreuninstallAlertOkLabel,
 		arg.PreuninstallAlertCancelLabel,
-		arg.InstallerArtifactID,
-		arg.UninstallerArtifactID,
+		arg.InstallerObjectID,
+		arg.UninstallerObjectID,
 		arg.Eligible,
 	)
 	var i MunkiPackage
@@ -274,8 +274,8 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.InstallerArtifactID,
-		&i.UninstallerArtifactID,
+		&i.InstallerObjectID,
+		&i.UninstallerObjectID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -398,22 +398,25 @@ func (q *Queries) DeleteMunkiPackages(ctx context.Context, arg DeleteMunkiPackag
 
 const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
 SELECT
-    p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.installable_condition, p.blocking_applications_manual_quit_only, p.blocking_applications_quit_script, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.installer_artifact_id, p.uninstaller_artifact_id, p.eligible, p.created_at, p.updated_at,
+    p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.installable_condition, p.blocking_applications_manual_quit_only, p.blocking_applications_quit_script, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.installer_object_id, p.uninstaller_object_id, p.eligible, p.created_at, p.updated_at,
     s.name AS software_name,
     s.description AS software_description,
     s.category AS software_category,
     s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
-    s.icon_artifact_id AS software_icon_artifact_id,
-    art.location AS installer_artifact_location,
-    uninstaller.location AS uninstaller_artifact_location,
-    software_icon.location AS software_icon_artifact_location
+    s.icon_object_id AS software_icon_object_id,
+    installer_obj.prefix AS installer_object_prefix,
+    installer_obj.filename AS installer_object_filename,
+    uninstaller_obj.prefix AS uninstaller_object_prefix,
+    uninstaller_obj.filename AS uninstaller_object_filename,
+    icon_obj.prefix AS software_icon_object_prefix,
+    icon_obj.filename AS software_icon_object_filename
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
-LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
-LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
-LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
+LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
 WHERE p.id = $1
 `
 
@@ -470,8 +473,8 @@ type GetMunkiPackageByIDRow struct {
 	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
 	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
-	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	InstallerObjectID                  *int64     `json:"installer_object_id"`
+	UninstallerObjectID                *int64     `json:"uninstaller_object_id"`
 	Eligible                           bool       `json:"eligible"`
 	CreatedAt                          time.Time  `json:"created_at"`
 	UpdatedAt                          time.Time  `json:"updated_at"`
@@ -481,10 +484,13 @@ type GetMunkiPackageByIDRow struct {
 	SoftwareDeveloper                  string     `json:"software_developer"`
 	SoftwareIconName                   string     `json:"software_icon_name"`
 	SoftwareIconHash                   string     `json:"software_icon_hash"`
-	SoftwareIconArtifactID             *int64     `json:"software_icon_artifact_id"`
-	InstallerArtifactLocation          *string    `json:"installer_artifact_location"`
-	UninstallerArtifactLocation        *string    `json:"uninstaller_artifact_location"`
-	SoftwareIconArtifactLocation       *string    `json:"software_icon_artifact_location"`
+	SoftwareIconObjectID               *int64     `json:"software_icon_object_id"`
+	InstallerObjectPrefix              *string    `json:"installer_object_prefix"`
+	InstallerObjectFilename            *string    `json:"installer_object_filename"`
+	UninstallerObjectPrefix            *string    `json:"uninstaller_object_prefix"`
+	UninstallerObjectFilename          *string    `json:"uninstaller_object_filename"`
+	SoftwareIconObjectPrefix           *string    `json:"software_icon_object_prefix"`
+	SoftwareIconObjectFilename         *string    `json:"software_icon_object_filename"`
 }
 
 func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageByIDParams) (GetMunkiPackageByIDRow, error) {
@@ -539,8 +545,8 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.InstallerArtifactID,
-		&i.UninstallerArtifactID,
+		&i.InstallerObjectID,
+		&i.UninstallerObjectID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -550,10 +556,13 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.SoftwareDeveloper,
 		&i.SoftwareIconName,
 		&i.SoftwareIconHash,
-		&i.SoftwareIconArtifactID,
-		&i.InstallerArtifactLocation,
-		&i.UninstallerArtifactLocation,
-		&i.SoftwareIconArtifactLocation,
+		&i.SoftwareIconObjectID,
+		&i.InstallerObjectPrefix,
+		&i.InstallerObjectFilename,
+		&i.UninstallerObjectPrefix,
+		&i.UninstallerObjectFilename,
+		&i.SoftwareIconObjectPrefix,
+		&i.SoftwareIconObjectFilename,
 	)
 	return i, err
 }
@@ -607,12 +616,12 @@ SET
     preuninstall_alert_detail = $44,
     preuninstall_alert_ok_label = $45,
     preuninstall_alert_cancel_label = $46,
-    installer_artifact_id = $47::bigint,
-    uninstaller_artifact_id = $48::bigint,
+    installer_object_id = $47::bigint,
+    uninstaller_object_id = $48::bigint,
     eligible = $49,
     updated_at = now()
 WHERE id = $50
-RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_artifact_id, uninstaller_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_object_id, uninstaller_object_id, eligible, created_at, updated_at
 `
 
 type UpdateMunkiPackageParams struct {
@@ -662,8 +671,8 @@ type UpdateMunkiPackageParams struct {
 	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
 	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
-	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	InstallerObjectID                  *int64     `json:"installer_object_id"`
+	UninstallerObjectID                *int64     `json:"uninstaller_object_id"`
 	Eligible                           bool       `json:"eligible"`
 	ID                                 int64      `json:"id"`
 }
@@ -716,8 +725,8 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		arg.PreuninstallAlertDetail,
 		arg.PreuninstallAlertOkLabel,
 		arg.PreuninstallAlertCancelLabel,
-		arg.InstallerArtifactID,
-		arg.UninstallerArtifactID,
+		arg.InstallerObjectID,
+		arg.UninstallerObjectID,
 		arg.Eligible,
 		arg.ID,
 	)
@@ -771,8 +780,8 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.InstallerArtifactID,
-		&i.UninstallerArtifactID,
+		&i.InstallerObjectID,
+		&i.UninstallerObjectID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -181,48 +181,6 @@ func (ns NullHostUserLinkSource) Value() (driver.Value, error) {
 	return string(ns.HostUserLinkSource), nil
 }
 
-type MunkiArtifactKind string
-
-const (
-	MunkiArtifactKindPackage MunkiArtifactKind = "package"
-	MunkiArtifactKindIcon    MunkiArtifactKind = "icon"
-)
-
-func (e *MunkiArtifactKind) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MunkiArtifactKind(s)
-	case string:
-		*e = MunkiArtifactKind(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MunkiArtifactKind: %T", src)
-	}
-	return nil
-}
-
-type NullMunkiArtifactKind struct {
-	MunkiArtifactKind MunkiArtifactKind `json:"munki_artifact_kind"`
-	Valid             bool              `json:"valid"` // Valid is true if MunkiArtifactKind is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMunkiArtifactKind) Scan(value interface{}) error {
-	if value == nil {
-		ns.MunkiArtifactKind, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MunkiArtifactKind.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMunkiArtifactKind) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MunkiArtifactKind), nil
-}
-
 type MunkiManifestAction string
 
 const (
@@ -999,19 +957,6 @@ type LabelMembership struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type MunkiArtifact struct {
-	ID          int64             `json:"id"`
-	Kind        MunkiArtifactKind `json:"kind"`
-	DisplayName string            `json:"display_name"`
-	Location    string            `json:"location"`
-	ContentType string            `json:"content_type"`
-	SizeBytes   int64             `json:"size_bytes"`
-	Sha256      string            `json:"sha256"`
-	StorageKey  string            `json:"storage_key"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-}
-
 type MunkiHostItem struct {
 	HostID           int64     `json:"host_id"`
 	Name             string    `json:"name"`
@@ -1085,8 +1030,8 @@ type MunkiPackage struct {
 	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
 	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
-	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	InstallerObjectID                  *int64     `json:"installer_object_id"`
+	UninstallerObjectID                *int64     `json:"uninstaller_object_id"`
 	Eligible                           bool       `json:"eligible"`
 	CreatedAt                          time.Time  `json:"created_at"`
 	UpdatedAt                          time.Time  `json:"updated_at"`
@@ -1104,16 +1049,16 @@ type MunkiPackageRelation struct {
 }
 
 type MunkiSoftware struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Category       string    `json:"category"`
-	Developer      string    `json:"developer"`
-	IconName       string    `json:"icon_name"`
-	IconHash       string    `json:"icon_hash"`
-	IconArtifactID *int64    `json:"icon_artifact_id"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Category     string    `json:"category"`
+	Developer    string    `json:"developer"`
+	IconName     string    `json:"icon_name"`
+	IconHash     string    `json:"icon_hash"`
+	IconObjectID *int64    `json:"icon_object_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type MunkiSoftwareTarget struct {
