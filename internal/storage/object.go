@@ -29,9 +29,15 @@ type Object struct {
 	UpdatedAt   time.Time
 }
 
-// Key is the object's storage key: <prefix>/<id>/<filename>.
+// Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
+// one place the key format lives.
+func Key(prefix string, id int64, filename string) string {
+	return fmt.Sprintf("%s/%d/%s", prefix, id, filename)
+}
+
+// Key is the object's storage key.
 func (o Object) Key() string {
-	return fmt.Sprintf("%s/%d/%s", o.Prefix, o.ID, o.Filename)
+	return Key(o.Prefix, o.ID, o.Filename)
 }
 
 // Available reports whether the bytes have been confirmed present.

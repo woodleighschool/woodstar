@@ -29,7 +29,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -45,6 +44,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 	webdist "github.com/woodleighschool/woodstar/web"
 )
@@ -112,7 +112,12 @@ func serve(parent context.Context, cfg config.Config) error {
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
 
-	server, starts := newServer(ctx, cfg, db, sessions, logger)
+	storageBackend, err := storage.New(ctx, storageConfig(cfg))
+	if err != nil {
+		return fmt.Errorf("init storage: %w", err)
+	}
+
+	server, starts := newServer(ctx, cfg, db, sessions, logger, storageBackend)
 
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
 	if err != nil {
@@ -171,6 +176,7 @@ func newServer(
 	db *database.DB,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
+	storageBackend storage.Store,
 ) (*adminapi.Server, []starter) {
 	// Core stores.
 	directoryStore := directory.NewStore(db)
@@ -186,9 +192,9 @@ func newServer(
 	liveQueries := livequery.NewManager()
 
 	// Munki stores.
-	munkiArtifactStore := artifacts.NewStore(db)
-	munkiPackageStore := packages.NewStore(db, munkiArtifactStore)
-	munkiSoftwareStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
+	storageObjects := storage.NewObjectStore(db)
+	munkiPackageStore := packages.NewStore(db, storageObjects)
+	munkiSoftwareStore := munkisoftware.NewStore(db, storageObjects, munkiPackageStore)
 	munkiHostStateStore := munki.NewStore(db)
 
 	// Santa stores.
@@ -229,14 +235,7 @@ func newServer(
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	munkiRepo, munkiArtifacts := newMunki(
-		ctx,
-		cfg,
-		hostStore,
-		munkiSoftwareStore,
-		munkiArtifactStore,
-		logger,
-	)
+	munkiRepo := newMunki(hostStore, munkiSoftwareStore)
 
 	santaSync := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -296,12 +295,11 @@ func newServer(
 		},
 
 		Munki: adminapi.MunkiDependencies{
-			Repository:      munkiRepo,
-			Artifacts:       munkiArtifactStore,
-			HostState:       munkiHostStateStore,
-			Packages:        munkiPackageStore,
-			Software:        munkiSoftwareStore,
-			ArtifactStorage: munkiArtifacts,
+			Repository: munkiRepo,
+			Store:      storageBackend,
+			HostState:  munkiHostStateStore,
+			Packages:   munkiPackageStore,
+			Software:   munkiSoftwareStore,
 		},
 
 		Santa: adminapi.SantaDependencies{
@@ -359,41 +357,28 @@ func newAuth(
 	return service
 }
 
-func newMunki(
-	ctx context.Context,
-	cfg config.Config,
-	hosts *hosts.Store,
-	softwareStore *munkisoftware.Store,
-	artifactStore *artifacts.Store,
-	logger *slog.Logger,
-) (*munki.RepositoryService, artifacts.ArtifactStorage) {
-	artifactStorage, err := artifacts.NewArtifactStorage(ctx, artifacts.Config{
-		Enabled: cfg.MunkiS3Enabled(),
-		S3: artifacts.S3Config{
-			Bucket:         cfg.MunkiS3Bucket,
-			Region:         cfg.MunkiS3Region,
-			Endpoint:       cfg.MunkiS3Endpoint,
-			PublicEndpoint: cfg.MunkiS3PublicEndpoint,
-			AccessKey:      cfg.MunkiS3AccessKey,
-			SecretKey:      cfg.MunkiS3SecretKey,
-			PathStyle:      cfg.MunkiS3PathStyle,
-			TTL:            cfg.MunkiS3PresignTTL,
-		},
-	})
-	if err != nil {
-		logger.WarnContext(ctx, "munki artifact storage disabled",
-			"component", "munki",
-			"operation", "artifact-storage",
-			"err", err,
-		)
-	}
-
+func newMunki(hosts *hosts.Store, softwareStore *munkisoftware.Store) *munki.RepositoryService {
 	return munki.NewRepositoryService(munki.Dependencies{
-		Hosts:     hosts,
-		Packages:  softwareStore,
-		Artifacts: artifactStore,
-		Presigner: artifactStorage,
-	}), artifactStorage
+		Hosts:    hosts,
+		Packages: softwareStore,
+	})
+}
+
+func storageConfig(cfg config.Config) storage.Config {
+	return storage.Config{
+		Kind:     storage.Kind(cfg.StorageKind),
+		FileRoot: cfg.StorageFileRoot,
+		S3: storage.S3Config{
+			Bucket:         cfg.StorageS3Bucket,
+			Region:         cfg.StorageS3Region,
+			Endpoint:       cfg.StorageS3Endpoint,
+			PublicEndpoint: cfg.StorageS3PublicEndpoint,
+			AccessKey:      cfg.StorageS3AccessKey,
+			SecretKey:      cfg.StorageS3SecretKey,
+			PathStyle:      cfg.StorageS3PathStyle,
+			PresignTTL:     cfg.StorageS3PresignTTL,
+		},
+	}
 }
 
 func santaCleanup(

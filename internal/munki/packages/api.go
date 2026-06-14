@@ -209,12 +209,12 @@ func MunkiPackagesFromRecords(rows []PackageRecord) []MunkiPackage {
 }
 
 func munkiPackageIconURL(softwareIcon IconRef) string {
-	return munkiArtifactContentURL(softwareIcon.ArtifactID)
+	return objectContentURL(softwareIcon.ObjectID)
 }
 
-func munkiArtifactContentURL(artifactID *int64) string {
-	if artifactID == nil {
+func objectContentURL(objectID *int64) string {
+	if objectID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/munki/artifacts/%d/content", *artifactID)
+	return fmt.Sprintf("/api/storage/objects/%d/content", *objectID)
 }

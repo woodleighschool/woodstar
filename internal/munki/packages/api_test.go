@@ -12,7 +12,7 @@ func TestMunkiPackageFromRecordUsesSoftwareIconURL(t *testing.T) {
 	}{
 		{
 			name:        "software icon",
-			record:      PackageRecord{SoftwareIcon: IconRef{ArtifactID: &softwareIconID}},
+			record:      PackageRecord{SoftwareIcon: IconRef{ObjectID: &softwareIconID}},
 			wantIconURL: "/api/munki/artifacts/41/content",
 		},
 		{

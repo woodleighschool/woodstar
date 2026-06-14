@@ -263,8 +263,8 @@ func munkiSoftwareFromDomain(rows []Software) []munkiSoftware {
 }
 
 func munkiSoftwareIconURL(title Software) string {
-	if title.IconArtifactID == nil {
+	if title.IconObjectID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/munki/artifacts/%d/content", *title.IconArtifactID)
+	return fmt.Sprintf("/api/storage/objects/%d/content", *title.IconObjectID)
 }

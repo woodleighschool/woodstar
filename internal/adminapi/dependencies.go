@@ -14,7 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -27,6 +26,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -86,12 +86,11 @@ type OsqueryDependencies struct {
 }
 
 type MunkiDependencies struct {
-	Repository      *munki.RepositoryService
-	Artifacts       *artifacts.Store
-	HostState       *munki.Store
-	Packages        *packages.Store
-	Software        *munkisoftware.Store
-	ArtifactStorage artifacts.ArtifactStorage
+	Repository *munki.RepositoryService
+	Store      storage.Store
+	HostState  *munki.Store
+	Packages   *packages.Store
+	Software   *munkisoftware.Store
 }
 
 type SantaDependencies struct {

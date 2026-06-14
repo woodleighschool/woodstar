@@ -11,7 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	munkiartifacts "github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	munkipackages "github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -58,7 +57,6 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	events.RegisterAdminRoutes(ordinary, deps.Santa.Events)
 	rules.RegisterHostAdminRoutes(ordinary, deps.Santa.Rules, deps.Inventory.Hosts)
 	munkisoftware.RegisterAdminRoutes(ordinary, deps.Munki.Software, deps.Munki.Packages)
-	munkiartifacts.RegisterAdminRoutes(ordinary, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
 	munkipackages.RegisterAdminRoutes(ordinary, deps.Munki.Packages)
 }
 

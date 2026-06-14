@@ -206,8 +206,8 @@ type PackageMutation struct {
 	VersionScript            string                                `json:"version_script,omitempty"`
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
-	InstallerArtifactID      *int64                                `json:"installer_artifact_id,omitempty"`
-	UninstallerArtifactID    *int64                                `json:"uninstaller_artifact_id,omitempty"`
+	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
+	UninstallerObjectID      *int64                                `json:"uninstaller_object_id,omitempty"`
 	Eligible                 bool                                  `json:"eligible"`
 }
 
@@ -220,67 +220,67 @@ type PackageCreateMutation struct {
 
 // Package is one Woodstar-authored Munki package version available for targeting.
 type Package struct {
-	ID                          int64                                 `json:"id"`
-	SoftwareID                  int64                                 `json:"software_id"`
-	SoftwareName                string                                `json:"software_name"`
-	SoftwareDescription         string                                `json:"software_description"`
-	SoftwareCategory            string                                `json:"software_category"`
-	SoftwareDeveloper           string                                `json:"software_developer"`
-	Version                     string                                `json:"version"`
-	InstallerType               InstallerType                         `json:"installer_type"`
-	UnattendedInstall           bool                                  `json:"unattended_install"`
-	UnattendedUninstall         bool                                  `json:"unattended_uninstall"`
-	UninstallMethod             UninstallMethod                       `json:"uninstall_method"`
-	RestartAction               RestartAction                         `json:"restart_action,omitempty"`
-	MinimumMunkiVersion         string                                `json:"minimum_munki_version"`
-	MinimumOSVersion            string                                `json:"minimum_os_version"`
-	MaximumOSVersion            string                                `json:"maximum_os_version"`
-	SupportedArchitectures      []string                              `json:"supported_architectures"`
-	BlockingApplications        []string                              `json:"blocking_applications"`
-	InstallableCondition        string                                `json:"installable_condition"`
-	BlockingAppsManualQuit      bool                                  `json:"blocking_applications_manual_quit_only"`
-	BlockingAppsQuitScript      string                                `json:"blocking_applications_quit_script"`
-	Requires                    []PackageReference                    `json:"requires"`
-	UpdateFor                   []PackageReference                    `json:"update_for"`
-	OnDemand                    bool                                  `json:"on_demand"`
-	Precache                    bool                                  `json:"precache"`
-	Autoremove                  bool                                  `json:"autoremove"`
-	AppleItem                   bool                                  `json:"apple_item"`
-	SuppressBundleRelocation    bool                                  `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate       *time.Time                            `json:"force_install_after_date,omitempty"`
-	InstalledSize               int64                                 `json:"installed_size"`
-	PackagePath                 string                                `json:"package_path"`
-	InstallerChoicesXML         []PackageInstallerChoice              `json:"installer_choices_xml"`
-	InstallerEnvironment        []PackageInstallerEnvironmentVariable `json:"installer_environment"`
-	Installs                    []PackageInstallItem                  `json:"installs"`
-	Receipts                    []PackageReceipt                      `json:"receipts"`
-	ItemsToCopy                 []PackageItemToCopy                   `json:"items_to_copy"`
-	Notes                       string                                `json:"notes"`
-	InstallcheckScript          string                                `json:"installcheck_script"`
-	UninstallcheckScript        string                                `json:"uninstallcheck_script"`
-	PreinstallScript            string                                `json:"preinstall_script"`
-	PostinstallScript           string                                `json:"postinstall_script"`
-	PreuninstallScript          string                                `json:"preuninstall_script"`
-	PostuninstallScript         string                                `json:"postuninstall_script"`
-	UninstallScript             string                                `json:"uninstall_script"`
-	VersionScript               string                                `json:"version_script"`
-	PreinstallAlert             PackageAlert                          `json:"preinstall_alert"`
-	PreuninstallAlert           PackageAlert                          `json:"preuninstall_alert"`
-	InstallerArtifactID         *int64                                `json:"installer_artifact_id,omitempty"`
-	InstallerArtifactLocation   string                                `json:"installer_artifact_location,omitempty"`
-	UninstallerArtifactID       *int64                                `json:"uninstaller_artifact_id,omitempty"`
-	UninstallerArtifactLocation string                                `json:"uninstaller_artifact_location,omitempty"`
-	Eligible                    bool                                  `json:"eligible"`
-	CreatedAt                   time.Time                             `json:"created_at"`
-	UpdatedAt                   time.Time                             `json:"updated_at"`
+	ID                        int64                                 `json:"id"`
+	SoftwareID                int64                                 `json:"software_id"`
+	SoftwareName              string                                `json:"software_name"`
+	SoftwareDescription       string                                `json:"software_description"`
+	SoftwareCategory          string                                `json:"software_category"`
+	SoftwareDeveloper         string                                `json:"software_developer"`
+	Version                   string                                `json:"version"`
+	InstallerType             InstallerType                         `json:"installer_type"`
+	UnattendedInstall         bool                                  `json:"unattended_install"`
+	UnattendedUninstall       bool                                  `json:"unattended_uninstall"`
+	UninstallMethod           UninstallMethod                       `json:"uninstall_method"`
+	RestartAction             RestartAction                         `json:"restart_action,omitempty"`
+	MinimumMunkiVersion       string                                `json:"minimum_munki_version"`
+	MinimumOSVersion          string                                `json:"minimum_os_version"`
+	MaximumOSVersion          string                                `json:"maximum_os_version"`
+	SupportedArchitectures    []string                              `json:"supported_architectures"`
+	BlockingApplications      []string                              `json:"blocking_applications"`
+	InstallableCondition      string                                `json:"installable_condition"`
+	BlockingAppsManualQuit    bool                                  `json:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript    string                                `json:"blocking_applications_quit_script"`
+	Requires                  []PackageReference                    `json:"requires"`
+	UpdateFor                 []PackageReference                    `json:"update_for"`
+	OnDemand                  bool                                  `json:"on_demand"`
+	Precache                  bool                                  `json:"precache"`
+	Autoremove                bool                                  `json:"autoremove"`
+	AppleItem                 bool                                  `json:"apple_item"`
+	SuppressBundleRelocation  bool                                  `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate     *time.Time                            `json:"force_install_after_date,omitempty"`
+	InstalledSize             int64                                 `json:"installed_size"`
+	PackagePath               string                                `json:"package_path"`
+	InstallerChoicesXML       []PackageInstallerChoice              `json:"installer_choices_xml"`
+	InstallerEnvironment      []PackageInstallerEnvironmentVariable `json:"installer_environment"`
+	Installs                  []PackageInstallItem                  `json:"installs"`
+	Receipts                  []PackageReceipt                      `json:"receipts"`
+	ItemsToCopy               []PackageItemToCopy                   `json:"items_to_copy"`
+	Notes                     string                                `json:"notes"`
+	InstallcheckScript        string                                `json:"installcheck_script"`
+	UninstallcheckScript      string                                `json:"uninstallcheck_script"`
+	PreinstallScript          string                                `json:"preinstall_script"`
+	PostinstallScript         string                                `json:"postinstall_script"`
+	PreuninstallScript        string                                `json:"preuninstall_script"`
+	PostuninstallScript       string                                `json:"postuninstall_script"`
+	UninstallScript           string                                `json:"uninstall_script"`
+	VersionScript             string                                `json:"version_script"`
+	PreinstallAlert           PackageAlert                          `json:"preinstall_alert"`
+	PreuninstallAlert         PackageAlert                          `json:"preuninstall_alert"`
+	InstallerObjectID         *int64                                `json:"installer_object_id,omitempty"`
+	InstallerObjectLocation   string                                `json:"installer_object_location,omitempty"`
+	UninstallerObjectID       *int64                                `json:"uninstaller_object_id,omitempty"`
+	UninstallerObjectLocation string                                `json:"uninstaller_object_location,omitempty"`
+	Eligible                  bool                                  `json:"eligible"`
+	CreatedAt                 time.Time                             `json:"created_at"`
+	UpdatedAt                 time.Time                             `json:"updated_at"`
 }
 
 // IconRef is parent software icon metadata projected alongside package rows.
 type IconRef struct {
-	Name             string
-	Hash             string
-	ArtifactID       *int64
-	ArtifactLocation string
+	Name           string
+	Hash           string
+	ObjectID       *int64
+	ObjectLocation string
 }
 
 // PackageRecord is a package row joined with parent software icon context.

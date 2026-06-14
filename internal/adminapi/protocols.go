@@ -26,6 +26,7 @@ func protocolRoutes(r chi.Router, deps Dependencies) {
 		r,
 		deps.AgentAuth.Store,
 		deps.Munki.Repository,
+		deps.Munki.Store,
 		deps.Runtime.Logger.With("component", "munki"),
 	)
 	santaprotocol.RegisterSantaRoutes(

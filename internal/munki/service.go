@@ -10,7 +10,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
@@ -26,14 +25,6 @@ type packageResolver interface {
 	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
 }
 
-type artifactResolver interface {
-	GetByLocation(context.Context, artifacts.ArtifactKind, string) (*artifacts.Artifact, error)
-}
-
-type artifactPresigner interface {
-	PresignGet(context.Context, artifacts.Artifact) (string, error)
-}
-
 // ClientHost identifies the existing Woodstar host making a Munki request.
 type ClientHost struct {
 	ID          int64
@@ -43,27 +34,21 @@ type ClientHost struct {
 
 // RepositoryService renders the Munki client-facing repository surface.
 type RepositoryService struct {
-	hosts     hostResolver
-	packages  packageResolver
-	artifacts artifactResolver
-	presigner artifactPresigner
+	hosts    hostResolver
+	packages packageResolver
 }
 
 // Dependencies are the collaborators the Munki repository renderer needs.
 type Dependencies struct {
-	Hosts     hostResolver
-	Packages  packageResolver
-	Artifacts artifactResolver
-	Presigner artifactPresigner
+	Hosts    hostResolver
+	Packages packageResolver
 }
 
 // NewRepositoryService returns the Munki repository renderer.
 func NewRepositoryService(deps Dependencies) *RepositoryService {
 	return &RepositoryService{
-		hosts:     deps.Hosts,
-		packages:  deps.Packages,
-		artifacts: deps.Artifacts,
-		presigner: deps.Presigner,
+		hosts:    deps.Hosts,
+		packages: deps.Packages,
 	}
 }
 
@@ -124,65 +109,49 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	return encodePlist(s.catalogItems(pkgs))
 }
 
-// ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
-func (s *RepositoryService) ArtifactRedirect(
+// ResolvePackageArtifact authorizes a package installer/uninstaller storage key
+// for a client and returns it for serving.
+func (s *RepositoryService) ResolvePackageArtifact(
 	ctx context.Context,
 	client ClientHost,
-	kind artifacts.ArtifactKind,
-	location string,
+	key string,
 ) (string, error) {
-	location = strings.TrimSpace(location)
-	if !artifacts.ValidArtifactKind(kind) || !validResourcePath(location) {
+	key = strings.TrimSpace(key)
+	if key == "" {
 		return "", ErrNotFound
 	}
-	artifact, err := s.artifacts.GetByLocation(ctx, kind, location)
-	if errors.Is(err, dbutil.ErrNotFound) {
-		return "", ErrNotFound
-	}
+	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return "", err
-	}
-	if kind == artifacts.ArtifactKindPackage {
-		ok, err := s.clientCanFetchPackageArtifact(ctx, client.ID, *artifact)
-		if err != nil {
-			return "", err
-		}
-		if !ok {
-			return "", ErrNotFound
-		}
-	}
-	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(storageURL) == "" {
-		return "", artifacts.ErrUnavailable
-	}
-	return storageURL, nil
-}
-
-func (s *RepositoryService) clientCanFetchPackageArtifact(
-	ctx context.Context,
-	hostID int64,
-	artifact artifacts.Artifact,
-) (bool, error) {
-	pkgs, err := s.effectivePackages(ctx, hostID)
-	if err != nil {
-		return false, err
 	}
 	for _, pkg := range pkgs {
-		if pkg.Package.InstallerArtifactID != nil &&
-			*pkg.Package.InstallerArtifactID == artifact.ID &&
-			pkg.Package.InstallerArtifactLocation == artifact.Location {
-			return true, nil
-		}
-		if pkg.Package.UninstallerArtifactID != nil &&
-			*pkg.Package.UninstallerArtifactID == artifact.ID &&
-			pkg.Package.UninstallerArtifactLocation == artifact.Location {
-			return true, nil
+		if pkg.Package.InstallerObjectLocation == key || pkg.Package.UninstallerObjectLocation == key {
+			return key, nil
 		}
 	}
-	return false, nil
+	return "", ErrNotFound
+}
+
+// ResolveIconArtifact authorizes a software icon storage key for a client.
+func (s *RepositoryService) ResolveIconArtifact(
+	ctx context.Context,
+	client ClientHost,
+	key string,
+) (string, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", ErrNotFound
+	}
+	pkgs, err := s.effectivePackages(ctx, client.ID)
+	if err != nil {
+		return "", err
+	}
+	for _, pkg := range pkgs {
+		if pkg.SoftwareIcon.ObjectLocation == key {
+			return key, nil
+		}
+	}
+	return "", ErrNotFound
 }
 
 func (s *RepositoryService) effectivePackages(
@@ -231,15 +200,15 @@ func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePack
 		}
 		seen[pkg.Package.ID] = true
 		item := packages.Pkginfo(pkg.Package, pkg.SoftwareIcon)
-		if pkg.Package.InstallerArtifactID != nil {
-			if pkg.Package.InstallerArtifactLocation != "" {
-				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation
+		if pkg.Package.InstallerObjectID != nil {
+			if pkg.Package.InstallerObjectLocation != "" {
+				item["installer_item_location"] = pkg.Package.InstallerObjectLocation
 			}
 		}
 		if pkg.Package.UninstallMethod == packages.UninstallMethodUninstallPackage &&
-			pkg.Package.UninstallerArtifactID != nil &&
-			pkg.Package.UninstallerArtifactLocation != "" {
-			item["uninstaller_item_location"] = pkg.Package.UninstallerArtifactLocation
+			pkg.Package.UninstallerObjectID != nil &&
+			pkg.Package.UninstallerObjectLocation != "" {
+			item["uninstaller_item_location"] = pkg.Package.UninstallerObjectLocation
 		}
 		items = append(items, item)
 	}

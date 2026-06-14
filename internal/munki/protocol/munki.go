@@ -4,6 +4,7 @@ package protocol
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/httpauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const plistContentType = "application/x-plist"
@@ -23,12 +24,14 @@ type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
 	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
 	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
-	ArtifactRedirect(context.Context, munki.ClientHost, artifacts.ArtifactKind, string) (string, error)
+	ResolvePackageArtifact(context.Context, munki.ClientHost, string) (string, error)
+	ResolveIconArtifact(context.Context, munki.ClientHost, string) (string, error)
 }
 
 type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
+	store          storage.Store
 	logger         *slog.Logger
 }
 
@@ -37,11 +40,13 @@ func RegisterMunkiRoutes(
 	r chi.Router,
 	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
+	store storage.Store,
 	logger *slog.Logger,
 ) {
 	h := handler{
 		secretVerifier: secretVerifier,
 		repository:     repository,
+		store:          store,
 		logger:         logger,
 	}
 	r.Get("/munki/manifests/{name}", h.manifest)
@@ -69,14 +74,18 @@ func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) packageArtifact(w http.ResponseWriter, r *http.Request) {
-	h.artifact(w, r, artifacts.ArtifactKindPackage)
+	h.serveArtifact(w, r, h.repository.ResolvePackageArtifact)
 }
 
 func (h handler) iconArtifact(w http.ResponseWriter, r *http.Request) {
-	h.artifact(w, r, artifacts.ArtifactKindIcon)
+	h.serveArtifact(w, r, h.repository.ResolveIconArtifact)
 }
 
-func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts.ArtifactKind) {
+func (h handler) serveArtifact(
+	w http.ResponseWriter,
+	r *http.Request,
+	resolve func(context.Context, munki.ClientHost, string) (string, error),
+) {
 	authorized, err := h.authorized(r)
 	if err != nil {
 		h.log(r, "artifact", err)
@@ -97,17 +106,13 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if h.repository == nil {
+	if h.repository == nil || h.store == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	location, err := h.repository.ArtifactRedirect(r.Context(), client, kind, chi.URLParam(r, "*"))
+	key, err := resolve(r.Context(), client, chi.URLParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if errors.Is(err, artifacts.ErrUnavailable) {
-		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 	if err != nil {
@@ -115,8 +120,40 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//nolint:gosec // G710: location is a presigned storage URL from the repository, not user input
-	http.Redirect(w, r, location, http.StatusFound)
+	h.deliver(w, r, key)
+}
+
+// deliver sends the blob to the client: a redirect to a presigned URL when the
+// backend supports it (S3), otherwise a direct stream (file).
+func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
+	if presigner, ok := h.store.(storage.Presigner); ok {
+		url, err := presigner.PresignGet(r.Context(), key, 0)
+		if err != nil {
+			h.log(r, "artifact", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		//nolint:gosec // G710: url is a presigned storage URL derived from an authorized key
+		http.Redirect(w, r, url, http.StatusFound)
+		return
+	}
+	reader, info, err := h.store.Open(r.Context(), key)
+	if errors.Is(err, storage.ErrObjectNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log(r, "artifact", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer reader.Close()
+	if info.ContentType != "" {
+		w.Header().Set("Content-Type", info.ContentType)
+	}
+	if _, err := io.Copy(w, reader); err != nil {
+		h.log(r, "artifact", err)
+	}
 }
 
 func (h handler) writePlist(

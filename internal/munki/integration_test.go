@@ -195,15 +195,15 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	}
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:             "1.0",
-		InstallerArtifactID: &artifact.ID,
-		Eligible:            true,
+		Version:           "1.0",
+		InstallerObjectID: &artifact.ID,
+		Eligible:          true,
 	})
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
-	if pkg.InstallerArtifactID == nil || *pkg.InstallerArtifactID != artifact.ID {
-		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerArtifactID, artifact.ID)
+	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != artifact.ID {
+		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerObjectID, artifact.ID)
 	}
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
@@ -213,7 +213,7 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve effective packages: %v", err)
 	}
-	if len(effective) != 1 || effective[0].Package.InstallerArtifactLocation != "apps/ArtifactApp.pkg" {
+	if len(effective) != 1 || effective[0].Package.InstallerObjectLocation != "apps/ArtifactApp.pkg" {
 		t.Fatalf("effective packages = %+v, want artifact location", effective)
 	}
 }
@@ -289,9 +289,9 @@ func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	}
 
 	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:             "1.0",
-		InstallerArtifactID: &artifact.ID,
-		Eligible:            true,
+		Version:           "1.0",
+		InstallerObjectID: &artifact.ID,
+		Eligible:          true,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want invalid input", err)
@@ -304,14 +304,14 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 
 	icon := createMunkiIconArtifact(t, ctx, stores, "icons/SharedApp.png", "d")
 	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
-		Name:           "SharedIconApp",
-		IconArtifactID: &icon.ID,
+		Name:         "SharedIconApp",
+		IconObjectID: &icon.ID,
 	})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	if title.IconArtifactID == nil || *title.IconArtifactID != icon.ID {
-		t.Fatalf("title icon artifact id = %v, want %d", title.IconArtifactID, icon.ID)
+	if title.IconObjectID == nil || *title.IconObjectID != icon.ID {
+		t.Fatalf("title icon artifact id = %v, want %d", title.IconObjectID, icon.ID)
 	}
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
@@ -323,8 +323,8 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.SoftwareIcon.ArtifactID == nil || *pkg.SoftwareIcon.ArtifactID != icon.ID {
-		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIcon.ArtifactID, icon.ID)
+	if pkg.SoftwareIcon.ObjectID == nil || *pkg.SoftwareIcon.ObjectID != icon.ID {
+		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIcon.ObjectID, icon.ID)
 	}
 }
 
@@ -703,11 +703,11 @@ func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact.pkg", "b")
 	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact-uninstall.pkg", "c")
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:               "1.0",
-		InstallerArtifactID:   &installerArtifact.ID,
-		UninstallMethod:       packages.UninstallMethodUninstallPackage,
-		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Eligible:              true,
+		Version:             "1.0",
+		InstallerObjectID:   &installerArtifact.ID,
+		UninstallMethod:     packages.UninstallMethodUninstallPackage,
+		UninstallerObjectID: &uninstallerArtifact.ID,
+		Eligible:            true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
@@ -848,20 +848,20 @@ func TestCreatePackageAcceptsUninstallerArtifact(t *testing.T) {
 	}
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:               "1.0",
-		InstallerArtifactID:   &installerArtifact.ID,
-		UninstallMethod:       packages.UninstallMethodUninstallPackage,
-		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Eligible:              true,
+		Version:             "1.0",
+		InstallerObjectID:   &installerArtifact.ID,
+		UninstallMethod:     packages.UninstallMethodUninstallPackage,
+		UninstallerObjectID: &uninstallerArtifact.ID,
+		Eligible:            true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.InstallerArtifactID == nil || *pkg.InstallerArtifactID != installerArtifact.ID {
-		t.Fatalf("installer artifact id = %v, want %d", pkg.InstallerArtifactID, installerArtifact.ID)
+	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerArtifact.ID {
+		t.Fatalf("installer artifact id = %v, want %d", pkg.InstallerObjectID, installerArtifact.ID)
 	}
-	if pkg.UninstallerArtifactID == nil || *pkg.UninstallerArtifactID != uninstallerArtifact.ID {
-		t.Fatalf("uninstaller artifact id = %v, want %d", pkg.UninstallerArtifactID, uninstallerArtifact.ID)
+	if pkg.UninstallerObjectID == nil || *pkg.UninstallerObjectID != uninstallerArtifact.ID {
+		t.Fatalf("uninstaller artifact id = %v, want %d", pkg.UninstallerObjectID, uninstallerArtifact.ID)
 	}
 	if pkg.UninstallMethod != packages.UninstallMethodUninstallPackage {
 		t.Fatalf("uninstall method = %q, want uninstall_package", pkg.UninstallMethod)
@@ -898,11 +898,11 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 	}
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:               "1.0",
-		InstallerArtifactID:   &installerArtifact.ID,
-		UninstallMethod:       packages.UninstallMethodUninstallPackage,
-		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Eligible:              true,
+		Version:             "1.0",
+		InstallerObjectID:   &installerArtifact.ID,
+		UninstallMethod:     packages.UninstallMethodUninstallPackage,
+		UninstallerObjectID: &uninstallerArtifact.ID,
+		Eligible:            true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
@@ -919,11 +919,11 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 	if err != nil {
 		t.Fatalf("update package: %v", err)
 	}
-	if updated.InstallerArtifactID != nil {
-		t.Fatalf("installer artifact id = %v, want cleared", updated.InstallerArtifactID)
+	if updated.InstallerObjectID != nil {
+		t.Fatalf("installer artifact id = %v, want cleared", updated.InstallerObjectID)
 	}
-	if updated.UninstallerArtifactID != nil {
-		t.Fatalf("uninstaller artifact id = %v, want cleared", updated.UninstallerArtifactID)
+	if updated.UninstallerObjectID != nil {
+		t.Fatalf("uninstaller artifact id = %v, want cleared", updated.UninstallerObjectID)
 	}
 	if updated.InstallerType != packages.InstallerTypeNoPkg ||
 		updated.UninstallMethod != packages.UninstallMethodNone {
@@ -1249,11 +1249,11 @@ func softwareTargetMutation(
 	excludeLabelIDs []int64,
 ) munkisoftware.Mutation {
 	return munkisoftware.Mutation{
-		Name:           title.Name,
-		Description:    title.Description,
-		Category:       title.Category,
-		Developer:      title.Developer,
-		IconArtifactID: title.IconArtifactID,
+		Name:         title.Name,
+		Description:  title.Description,
+		Category:     title.Category,
+		Developer:    title.Developer,
+		IconObjectID: title.IconObjectID,
 		Targets: munkisoftware.Targets{
 			Include: includes,
 			Exclude: labelRefs(excludeLabelIDs),

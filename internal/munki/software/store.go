@@ -11,12 +11,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-type artifactStore interface {
-	GetByID(context.Context, int64) (*artifacts.Artifact, error)
+// objectPrefixIcons namespaces software icon blobs in storage.
+const objectPrefixIcons = "munki/icons"
+
+type objectStore interface {
+	GetByID(context.Context, int64) (*storage.Object, error)
 }
 
 type packageStore interface {
@@ -25,14 +28,14 @@ type packageStore interface {
 }
 
 type Store struct {
-	db        *database.DB
-	q         *sqlc.Queries
-	artifacts artifactStore
-	packages  packageStore
+	db       *database.DB
+	q        *sqlc.Queries
+	objects  objectStore
+	packages packageStore
 }
 
-func NewStore(db *database.DB, artifacts artifactStore, packages packageStore) *Store {
-	return &Store{db: db, q: db.Queries(), artifacts: artifacts, packages: packages}
+func NewStore(db *database.DB, objects objectStore, packages packageStore) *Store {
+	return &Store{db: db, q: db.Queries(), objects: objects, packages: packages}
 }
 
 func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) {
@@ -46,13 +49,13 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		row, err := qtx.CreateMunkiSoftware(ctx, sqlc.CreateMunkiSoftwareParams{
-			Name:           params.Name,
-			Description:    params.Description,
-			Category:       params.Category,
-			Developer:      params.Developer,
-			IconName:       params.IconName,
-			IconHash:       params.IconHash,
-			IconArtifactID: params.IconArtifactID,
+			Name:         params.Name,
+			Description:  params.Description,
+			Category:     params.Category,
+			Developer:    params.Developer,
+			IconName:     params.IconName,
+			IconHash:     params.IconHash,
+			IconObjectID: params.IconObjectID,
 		})
 		if err != nil {
 			return err
@@ -76,14 +79,14 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		row, err := qtx.UpdateMunkiSoftware(ctx, sqlc.UpdateMunkiSoftwareParams{
-			Name:           params.Name,
-			Description:    params.Description,
-			Category:       params.Category,
-			Developer:      params.Developer,
-			IconName:       params.IconName,
-			IconHash:       params.IconHash,
-			IconArtifactID: params.IconArtifactID,
-			ID:             id,
+			Name:         params.Name,
+			Description:  params.Description,
+			Category:     params.Category,
+			Developer:    params.Developer,
+			IconName:     params.IconName,
+			IconHash:     params.IconHash,
+			IconObjectID: params.IconObjectID,
+			ID:           id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
@@ -202,21 +205,24 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 }
 
 func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, error) {
-	if params.IconArtifactID == nil {
+	if params.IconObjectID == nil {
 		return params, nil
 	}
-	artifact, err := s.artifacts.GetByID(ctx, *params.IconArtifactID)
+	obj, err := s.objects.GetByID(ctx, *params.IconObjectID)
 	if err != nil {
 		return params, err
 	}
-	if artifact.Kind != artifacts.ArtifactKindIcon {
+	if obj.Prefix != objectPrefixIcons {
 		return params, fmt.Errorf(
-			"%w: icon_artifact_id must reference an icon artifact",
+			"%w: icon_object_id must reference an icon",
 			dbutil.ErrInvalidInput,
 		)
 	}
-	params.IconName = artifact.Location
-	params.IconHash = artifact.SHA256
+	params.IconName = obj.Filename
+	params.IconHash = ""
+	if obj.SHA256 != nil {
+		params.IconHash = *obj.SHA256
+	}
 	return params, nil
 }
 
@@ -233,17 +239,17 @@ func cleanMutation(params Mutation) Mutation {
 
 func softwareFromSQLC(row sqlc.MunkiSoftware) Software {
 	return Software{
-		ID:             row.ID,
-		Name:           row.Name,
-		DisplayName:    row.Name,
-		Description:    row.Description,
-		Category:       row.Category,
-		Developer:      row.Developer,
-		IconName:       row.IconName,
-		IconHash:       row.IconHash,
-		IconArtifactID: row.IconArtifactID,
-		CreatedAt:      row.CreatedAt,
-		UpdatedAt:      row.UpdatedAt,
+		ID:           row.ID,
+		Name:         row.Name,
+		DisplayName:  row.Name,
+		Description:  row.Description,
+		Category:     row.Category,
+		Developer:    row.Developer,
+		IconName:     row.IconName,
+		IconHash:     row.IconHash,
+		IconObjectID: row.IconObjectID,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
 	}
 }
 
@@ -270,7 +276,7 @@ SELECT
 	st.developer,
 	st.icon_name,
 	st.icon_hash,
-	st.icon_artifact_id,
+	st.icon_object_id,
 	st.created_at,
 	st.updated_at
 FROM munki_software st`

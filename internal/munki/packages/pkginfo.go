@@ -178,7 +178,7 @@ func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 		VersionScript:            pkg.VersionScript,
 		PreinstallAlert:          munkiAlert(pkg.PreinstallAlert),
 		PreuninstallAlert:        munkiAlert(pkg.PreuninstallAlert),
-		IconName:                 softwareIcon.Name,
+		IconName:                 softwareIcon.ObjectLocation,
 		IconHash:                 softwareIcon.Hash,
 	}
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
