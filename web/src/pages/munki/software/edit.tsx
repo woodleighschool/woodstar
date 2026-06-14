@@ -91,6 +91,7 @@ function MunkiSoftwareDetailForm({
   );
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
+  const [pickedIcon, setPickedIcon] = useState<{ id: number; url: string } | null>(null);
   const [excludeForm, setExcludeForm] = useState<number[]>(() =>
     excludeLabelIDsFromTargets(software),
   );
@@ -109,7 +110,11 @@ function MunkiSoftwareDetailForm({
         id: software.id,
         body: {
           ...data,
-          icon_object_id: iconCleared ? undefined : (software.icon_object_id ?? undefined),
+          icon_object_id: pickedIcon
+            ? pickedIcon.id
+            : iconCleared
+              ? undefined
+              : (software.icon_object_id ?? undefined),
           targets: {
             include: targetRows.map(munkiSoftwareInclude),
             exclude: excludeForm.map((label_id) => ({ label_id })),
@@ -121,6 +126,7 @@ function MunkiSoftwareDetailForm({
       }
       setIconFile(null);
       setIconCleared(false);
+      setPickedIcon(null);
       await refetchSoftware();
     },
   );
@@ -151,6 +157,7 @@ function MunkiSoftwareDetailForm({
     softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
     setIconFile(null);
     setIconCleared(false);
+    setPickedIcon(null);
     setTargetRows(targetRowsFromIncludes(includes));
     setExcludeForm(excludeLabelIDs);
   }
@@ -202,15 +209,22 @@ function MunkiSoftwareDetailForm({
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
           icon={{
-            iconUrl: iconCleared ? undefined : software.icon_url,
+            iconUrl: pickedIcon ? pickedIcon.url : iconCleared ? undefined : software.icon_url,
             file: iconFile,
-            clearable: !!iconFile || (!iconCleared && !!software.icon_object_id),
+            clearable: !!iconFile || !!pickedIcon || (!iconCleared && !!software.icon_object_id),
             onFileChange: (file) => {
               setIconFile(file);
+              setPickedIcon(null);
+              setIconCleared(false);
+            },
+            onPickExisting: (object) => {
+              setPickedIcon(object);
+              setIconFile(null);
               setIconCleared(false);
             },
             onClear: () => {
               setIconFile(null);
+              setPickedIcon(null);
               setIconCleared(!!software.icon_object_id);
             },
           }}

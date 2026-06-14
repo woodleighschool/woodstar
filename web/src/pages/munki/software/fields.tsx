@@ -59,6 +59,7 @@ export type MunkiSoftwareIconProps = {
   file: File | null;
   clearable: boolean;
   onFileChange: (file: File | null) => void;
+  onPickExisting: (object: { id: number; url: string }) => void;
   onClear: () => void;
 };
 
@@ -85,6 +86,7 @@ export function MunkiSoftwareOptionsFields({
           file={icon.file}
           clearable={icon.clearable}
           onFileChange={icon.onFileChange}
+          onPickExisting={icon.onPickExisting}
           onClear={icon.onClear}
         />
         <div className="min-w-0 flex-1">

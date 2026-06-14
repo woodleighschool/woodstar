@@ -32,9 +32,14 @@ export function MunkiSoftwareCreatePage() {
     [titles.data?.items],
   );
   const [iconFile, setIconFile] = useState<File | null>(null);
+  const [pickedIcon, setPickedIcon] = useState<{ id: number; url: string } | null>(null);
   const form = useMunkiSoftwareForm(emptyMunkiSoftwareForm(), async (value) => {
     const data = munkiSoftwareSchema.parse(value);
-    const title = await create.mutateAsync({ ...data, targets: { include: [], exclude: [] } });
+    const title = await create.mutateAsync({
+      ...data,
+      icon_object_id: pickedIcon?.id,
+      targets: { include: [], exclude: [] },
+    });
     if (iconFile) {
       await iconUpload.upload({ softwareId: title.id, file: iconFile });
     }
@@ -50,10 +55,21 @@ export function MunkiSoftwareCreatePage() {
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
           icon={{
+            iconUrl: pickedIcon?.url,
             file: iconFile,
-            clearable: !!iconFile,
-            onFileChange: setIconFile,
-            onClear: () => setIconFile(null),
+            clearable: !!iconFile || !!pickedIcon,
+            onFileChange: (file) => {
+              setIconFile(file);
+              setPickedIcon(null);
+            },
+            onPickExisting: (object) => {
+              setPickedIcon(object);
+              setIconFile(null);
+            },
+            onClear: () => {
+              setIconFile(null);
+              setPickedIcon(null);
+            },
           }}
         />
       ),

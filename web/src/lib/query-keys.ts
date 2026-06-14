@@ -42,6 +42,8 @@ export const queryKeys = {
   munkiSoftwareDetail: (id: number | null) => ["munki", "software", id] as const,
   munkiPackages: (params?: unknown) => ["munki", "packages", params ?? {}] as const,
   munkiPackage: (id: number | null) => ["munki", "packages", id] as const,
+  storageObjectsAll: ["storage", "objects"] as const,
+  storageObjects: (params?: unknown) => ["storage", "objects", params ?? {}] as const,
   agentSecrets: ["agent-secrets"] as const,
   santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
   santaConfiguration: (id: number | null) => ["santa", "configurations", id] as const,
