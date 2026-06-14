@@ -73,17 +73,17 @@ version = "1.69.0"
 backend = "npm:oxlint"
 
 [[tools.pnpm]]
-version = "11.5.3"
+version = "11.6.0"
 backend = "aqua:pnpm/pnpm"
 
 [tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:a360e22e34ebe3fc77f26750f1e570d0fae3a0f6f9d2bfcd1c80e78263766205"
-url = "https://github.com/pnpm/pnpm/releases/download/v11.5.3/pnpm-linux-x64.tar.gz"
+checksum = "sha256:74d64c1646385fb21691f32f0ab6aca1a9f5c829ba54d3cda3a24838a228e68c"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.6.0/pnpm-linux-x64.tar.gz"
 provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:252d9a126d37bcdf640275ac40946f7f9d4ab5d801811f66207ad97d7a9aa7ee"
-url = "https://github.com/pnpm/pnpm/releases/download/v11.5.3/pnpm-darwin-arm64.tar.gz"
+checksum = "sha256:87c901635a14481fb30566a3749041134ffd4317bc6fe866c345b69fdf9b6b85"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.6.0/pnpm-darwin-arm64.tar.gz"
 provenance = "github-attestations"
 
 [[tools.zizmor]]

@@ -3,7 +3,7 @@ experimental_monorepo_root = true
 [tools]
 go = "1.26.4"
 node = "26.3.0"
-pnpm = "11.5.3"
+pnpm = "11.6.0"
 golangci-lint = "2.12.2"
 air = "1.65.3"
 lefthook = "2.1.9"
