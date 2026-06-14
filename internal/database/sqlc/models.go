@@ -1427,6 +1427,18 @@ type SoftwareTitle struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type StorageObject struct {
+	ID          int64      `json:"id"`
+	Prefix      string     `json:"prefix"`
+	Filename    string     `json:"filename"`
+	ContentType string     `json:"content_type"`
+	SizeBytes   *int64     `json:"size_bytes"`
+	Sha256      *string    `json:"sha256"`
+	AvailableAt *time.Time `json:"available_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
 type User struct {
 	ID                int64           `json:"id"`
 	Email             string          `json:"email"`
