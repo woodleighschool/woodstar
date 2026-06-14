@@ -3,18 +3,20 @@ package protocol
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
@@ -480,14 +482,15 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 
 func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	repository := newStaticRepository()
-	repository.artifactURL = "https://storage.example/GoogleChrome.pkg?signature=test"
+	store := &fakeStore{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
+		store,
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/apps/GoogleChrome.pkg", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/munki/packages/42/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	req.Header.Set("Serial", "C02MUNKI")
 
@@ -496,12 +499,15 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
 	}
-	if got := rec.Header().Get("Location"); got != repository.artifactURL {
-		t.Fatalf("Location = %q, want %q", got, repository.artifactURL)
+	if got := rec.Header().Get("Location"); got != store.presignURL {
+		t.Fatalf("Location = %q, want %q", got, store.presignURL)
 	}
-	if repository.artifactKind != artifacts.ArtifactKindPackage ||
-		repository.artifactLocation != "apps/GoogleChrome.pkg" {
-		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
+	if repository.artifactClass != "package" ||
+		repository.artifactKey != "munki/packages/42/GoogleChrome.pkg" {
+		t.Fatalf("artifact request = class %q key %q", repository.artifactClass, repository.artifactKey)
+	}
+	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
+		t.Fatalf("presigned key = %q", store.gotKey)
 	}
 	if repository.serial != "C02MUNKI" {
 		t.Fatalf("serial = %q, want C02MUNKI", repository.serial)
@@ -510,14 +516,15 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 
 func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
-	repository.artifactURL = "https://storage.example/icons/aaaaaaaaaaaa/GoogleChrome.png?signature=test"
+	store := &fakeStore{presignURL: "https://storage.example/icon.png?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
+		store,
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/icons/aaaaaaaaaaaa/GoogleChrome.png", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/icons/munki/icons/7/GoogleChrome.png", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	req.Header.Set("Serial", "C02MUNKI")
 
@@ -526,29 +533,9 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
 	}
-	if repository.artifactKind != artifacts.ArtifactKindIcon ||
-		repository.artifactLocation != "aaaaaaaaaaaa/GoogleChrome.png" {
-		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
-	}
-}
-
-func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
-	repository := newStaticRepository()
-	repository.artifactErr = artifacts.ErrUnavailable
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		repository,
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/apps/GoogleChrome.pkg", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	if repository.artifactClass != "icon" ||
+		repository.artifactKey != "munki/icons/7/GoogleChrome.png" {
+		t.Fatalf("artifact request = class %q key %q", repository.artifactClass, repository.artifactKey)
 	}
 }
 
@@ -566,10 +553,49 @@ func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 	}
 }
 
-func newMunkiContractRouter(verifier agentauth.SecretVerifier, repository Repository) chi.Router {
+func newMunkiContractRouter(
+	verifier agentauth.SecretVerifier,
+	repository Repository,
+	store ...storage.Store,
+) chi.Router {
+	var s storage.Store
+	if len(store) > 0 {
+		s = store[0]
+	}
 	r := chi.NewRouter()
-	RegisterMunkiRoutes(r, verifier, repository, nil)
+	RegisterMunkiRoutes(r, verifier, repository, s, nil)
 	return r
+}
+
+type fakeStore struct {
+	presignURL string
+	gotKey     string
+}
+
+func (f *fakeStore) Open(context.Context, string) (io.ReadCloser, storage.ObjectInfo, error) {
+	return nil, storage.ObjectInfo{}, storage.ErrObjectNotFound
+}
+
+func (f *fakeStore) Put(context.Context, string, io.Reader, storage.PutOptions) error { return nil }
+
+func (f *fakeStore) Delete(context.Context, string) error { return nil }
+
+func (f *fakeStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
+	return storage.ObjectInfo{}, nil
+}
+
+func (f *fakeStore) PresignGet(_ context.Context, key string, _ time.Duration) (string, error) {
+	f.gotKey = key
+	return f.presignURL, nil
+}
+
+func (f *fakeStore) PresignPut(
+	context.Context,
+	string,
+	time.Duration,
+	storage.PutOptions,
+) (storage.UploadTarget, error) {
+	return storage.UploadTarget{}, nil
 }
 
 type staticVerifier struct {
@@ -598,13 +624,13 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service          *munki.RepositoryService
-	want             string
-	serial           string
-	artifactURL      string
-	artifactErr      error
-	artifactKind     artifacts.ArtifactKind
-	artifactLocation string
+	service       *munki.RepositoryService
+	want          string
+	serial        string
+	artifactURL   string
+	artifactErr   error
+	artifactClass string
+	artifactKey   string
 }
 
 func newStaticRepository() *staticRepository {
@@ -634,21 +660,29 @@ func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost,
 	return r.service.Catalog(ctx, client, name)
 }
 
-func (r *staticRepository) ArtifactRedirect(
+func (r *staticRepository) ResolvePackageArtifact(
 	_ context.Context,
 	_ munki.ClientHost,
-	kind artifacts.ArtifactKind,
-	location string,
+	key string,
 ) (string, error) {
-	r.artifactKind = kind
-	r.artifactLocation = location
+	return r.resolve("package", key)
+}
+
+func (r *staticRepository) ResolveIconArtifact(
+	_ context.Context,
+	_ munki.ClientHost,
+	key string,
+) (string, error) {
+	return r.resolve("icon", key)
+}
+
+func (r *staticRepository) resolve(class, key string) (string, error) {
+	r.artifactClass = class
+	r.artifactKey = key
 	if r.artifactErr != nil {
 		return "", r.artifactErr
 	}
-	if r.artifactURL == "" {
-		return "", munki.ErrNotFound
-	}
-	return r.artifactURL, nil
+	return key, nil
 }
 
 type staticPackageResolver struct {

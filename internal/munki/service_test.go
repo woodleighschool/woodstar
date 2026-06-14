@@ -5,30 +5,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
-func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
-	artifactID := int64(42)
-	store := serviceArtifactStore{
-		artifacts: map[string]artifacts.Artifact{
-			"package/apps/GoogleChrome.pkg": {
-				ID:         artifactID,
-				Kind:       artifacts.ArtifactKindPackage,
-				Location:   "apps/GoogleChrome.pkg",
-				StorageKey: "apps/GoogleChrome.pkg",
-			},
-			"package/apps/Blocked.pkg": {
-				ID:         43,
-				Kind:       artifacts.ArtifactKindPackage,
-				Location:   "apps/Blocked.pkg",
-				StorageKey: "apps/Blocked.pkg",
-			},
-		},
+func TestResolvePackageArtifactRequiresEffectivePackage(t *testing.T) {
+	installerID := int64(42)
+	store := servicePackageStore{
 		packages: []munkisoftware.EffectivePackage{
 			{
 				TargetID:   1,
@@ -38,61 +22,34 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 				Package: packages.Package{
 					ID:                      10,
 					SoftwareName:            "GoogleChrome",
-					InstallerObjectID:       &artifactID,
-					InstallerObjectLocation: "apps/GoogleChrome.pkg",
+					InstallerObjectID:       &installerID,
+					InstallerObjectLocation: "munki/packages/42/GoogleChrome.pkg",
 				},
 			},
 		},
 	}
-	presigner := serviceArtifactPresigner{url: "https://storage.example/apps/GoogleChrome.pkg?sig=1"}
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages:  store,
-		Artifacts: store,
-		Presigner: presigner,
-	})
+	service := munki.NewRepositoryService(munki.Dependencies{Packages: store})
+	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	location, err := service.ArtifactRedirect(
-		context.Background(),
-		munki.ClientHost{ID: 1, Serial: "C02MUNKI"},
-		artifacts.ArtifactKindPackage,
-		"apps/GoogleChrome.pkg",
-	)
+	key, err := service.ResolvePackageArtifact(context.Background(), client, "munki/packages/42/GoogleChrome.pkg")
 	if err != nil {
-		t.Fatalf("ArtifactRedirect allowed package: %v", err)
+		t.Fatalf("ResolvePackageArtifact allowed package: %v", err)
 	}
-	if location != presigner.url {
-		t.Fatalf("location = %q, want presigned URL", location)
+	if key != "munki/packages/42/GoogleChrome.pkg" {
+		t.Fatalf("key = %q, want the installer key", key)
 	}
 
-	_, err = service.ArtifactRedirect(
-		context.Background(),
-		munki.ClientHost{ID: 1, Serial: "C02MUNKI"},
-		artifacts.ArtifactKindPackage,
-		"apps/Blocked.pkg",
-	)
+	_, err = service.ResolvePackageArtifact(context.Background(), client, "munki/packages/99/Blocked.pkg")
 	if !errors.Is(err, munki.ErrNotFound) {
-		t.Fatalf("ArtifactRedirect blocked package error = %v, want ErrNotFound", err)
+		t.Fatalf("blocked key error = %v, want ErrNotFound", err)
 	}
 }
 
-type serviceArtifactStore struct {
-	artifacts map[string]artifacts.Artifact
-	packages  []munkisoftware.EffectivePackage
+type servicePackageStore struct {
+	packages []munkisoftware.EffectivePackage
 }
 
-func (s serviceArtifactStore) GetByLocation(
-	_ context.Context,
-	kind artifacts.ArtifactKind,
-	location string,
-) (*artifacts.Artifact, error) {
-	artifact, ok := s.artifacts[string(kind)+"/"+location]
-	if !ok {
-		return nil, dbutil.ErrNotFound
-	}
-	return &artifact, nil
-}
-
-func (s serviceArtifactStore) EffectivePackagesForHost(
+func (s servicePackageStore) EffectivePackagesForHost(
 	_ context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
@@ -101,20 +58,3 @@ func (s serviceArtifactStore) EffectivePackagesForHost(
 	}
 	return s.packages, nil
 }
-
-type serviceArtifactPresigner struct {
-	url string
-}
-
-func (p serviceArtifactPresigner) PresignGet(_ context.Context, _ artifacts.Artifact) (string, error) {
-	return p.url, nil
-}
-
-var _ interface {
-	GetByLocation(context.Context, artifacts.ArtifactKind, string) (*artifacts.Artifact, error)
-	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
-} = serviceArtifactStore{}
-
-var _ interface {
-	PresignGet(context.Context, artifacts.Artifact) (string, error)
-} = serviceArtifactPresigner{}

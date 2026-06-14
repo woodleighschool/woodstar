@@ -46,7 +46,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		},
 		Receipts:                 []PackageReceipt{{PackageID: "com.example.pkg", Version: "1.2.3", Optional: true}},
 		SuppressBundleRelocation: true,
-	}, IconRef{Name: "icons/Example.png", Hash: "abc123"})
+	}, IconRef{ObjectLocation: "munki/icons/7/Example.png", Hash: "abc123"})
 
 	if got["name"] != "7" || got["display_name"] != "Example App" || got["OnDemand"] != true {
 		t.Fatalf("pkginfo identity = %+v, want Munki keys and casing", got)
@@ -57,7 +57,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	if _, ok := got["RestartAction"]; ok {
 		t.Fatalf("RestartAction = %v, want omitted when none", got["RestartAction"])
 	}
-	if got["icon_name"] != "icons/Example.png" || got["icon_hash"] != "abc123" {
+	if got["icon_name"] != "munki/icons/7/Example.png" || got["icon_hash"] != "abc123" {
 		t.Fatalf("icon fields = %v/%v, want software icon projection", got["icon_name"], got["icon_hash"])
 	}
 	if got["force_install_after_date"] != forceInstallAfter {

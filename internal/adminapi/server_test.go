@@ -1,7 +1,6 @@
 package adminapi
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -27,7 +26,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -36,6 +34,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -237,7 +236,6 @@ func TestOrdinaryAdminResourcePolicy(t *testing.T) {
 			"/api/santa/events",
 			"/api/munki/software",
 			"/api/munki/packages",
-			"/api/munki/artifacts",
 		} {
 			rec := adminAPIRequest(t, server, viewerCookie, http.MethodGet, path, "")
 			if rec.Code != http.StatusOK {
@@ -608,130 +606,6 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 }
 
-func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
-	if _, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "munki-upload@example.test",
-		Name:     "Munki Upload",
-		Password: testUserPassword,
-		Role:     directory.RoleAdmin,
-	}); err != nil {
-		t.Fatalf("create admin user: %v", err)
-	}
-
-	deps := testDependencies(testConfig())
-	deps.Runtime.DB = database
-	deps.Auth.UserService = userService
-	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	wireMunkiTestDeps(&deps, database)
-	deps.Munki.ArtifactStorage = fakeMunkiStorage{}
-	server := NewServer(deps)
-	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "munki-upload@example.test")
-	sha := strings.Repeat("a", 64)
-
-	upload := postMunkiJSON[struct {
-		UploadURL string                     `json:"upload_url"`
-		Headers   map[string]string          `json:"headers"`
-		Artifact  artifacts.ArtifactMutation `json:"artifact"`
-	}](
-		t,
-		server,
-		cookie,
-		"/api/munki/artifact-uploads",
-		fmt.Sprintf(
-			`{"kind":"icon","filename":"GoogleChrome.png","content_type":"image/png","size_bytes":123,"sha256":%q}`,
-			sha,
-		),
-	)
-	if upload.UploadURL == "" || upload.Artifact.StorageKey == "" {
-		t.Fatalf("upload = %+v, want presigned URL and finalize payload", upload)
-	}
-	if upload.Artifact.Location != "aaaaaaaaaaaa/GoogleChrome.png" {
-		t.Fatalf("artifact location = %q", upload.Artifact.Location)
-	}
-
-	body, err := json.Marshal(upload.Artifact)
-	if err != nil {
-		t.Fatalf("marshal artifact: %v", err)
-	}
-	artifact := postMunkiJSON[artifacts.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
-	if artifact.Kind != artifacts.ArtifactKindIcon || artifact.SHA256 != sha {
-		t.Fatalf("artifact = %+v, want finalized icon artifact", artifact)
-	}
-	again := postMunkiJSON[artifacts.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
-	if again.ID != artifact.ID {
-		t.Fatalf("repeat artifact finalize id = %d, want %d", again.ID, artifact.ID)
-	}
-
-	contentRec := httptest.NewRecorder()
-	contentReq := httptest.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
-		fmt.Sprintf("/api/munki/artifacts/%d/content", artifact.ID),
-		nil,
-	)
-	contentReq.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(contentRec, contentReq)
-	if contentRec.Code != http.StatusFound {
-		t.Fatalf("content status = %d, want %d; body = %q", contentRec.Code, http.StatusFound, contentRec.Body.String())
-	}
-	if location := contentRec.Header().Get("Location"); location != "https://storage.example/"+artifact.StorageKey {
-		t.Fatalf("content location = %q, want fake storage URL", location)
-	}
-}
-
-func TestMunkiArtifactUploadEndpointReportsUnavailableStorage(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
-	if _, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "munki-disabled-storage@example.test",
-		Name:     "Munki Disabled Storage",
-		Password: testUserPassword,
-		Role:     directory.RoleAdmin,
-	}); err != nil {
-		t.Fatalf("create admin user: %v", err)
-	}
-
-	deps := testDependencies(testConfig())
-	deps.Runtime.DB = database
-	deps.Auth.UserService = userService
-	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	wireMunkiTestDeps(&deps, database)
-	deps.Munki.ArtifactStorage = unavailableMunkiStorage{}
-	server := NewServer(deps)
-	cookie := loginTestUserWithEmail(
-		t,
-		deps.Auth.AuthService,
-		deps.Runtime.SessionManager,
-		"munki-disabled-storage@example.test",
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(
-		context.Background(),
-		http.MethodPost,
-		"/api/munki/artifact-uploads",
-		strings.NewReader(
-			fmt.Sprintf(
-				`{"kind":"icon","filename":"GoogleChrome.png","content_type":"image/png","size_bytes":123,"sha256":%q}`,
-				strings.Repeat("a", 64),
-			),
-		),
-	)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
-	}
-	if !bytes.Contains(rec.Body.Bytes(), []byte("Munki artifact storage is not configured")) {
-		t.Fatalf("body = %q, want storage unavailable message", rec.Body.String())
-	}
-}
-
 func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
 	for _, secret := range secrets {
 		if secret.ID == id && secret.Agent == agent && secret.Value == value {
@@ -741,65 +615,23 @@ func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agenta
 	return false
 }
 
-type fakeMunkiStorage struct{}
-
-func (fakeMunkiStorage) PresignGet(_ context.Context, artifact artifacts.Artifact) (string, error) {
-	return "https://storage.example/" + artifact.StorageKey, nil
-}
-
-func (fakeMunkiStorage) PresignPut(
-	_ context.Context,
-	storageKey string,
-	contentType string,
-	sha256 string,
-) (artifacts.ArtifactUploadURL, error) {
-	return artifacts.ArtifactUploadURL{
-		URL:     "https://storage.example/" + storageKey,
-		Headers: map[string]string{"Content-Type": contentType, "x-amz-meta-woodstar-sha256": sha256},
-	}, nil
-}
-
-func (fakeMunkiStorage) Stat(_ context.Context, _ string) (artifacts.ArtifactObject, error) {
-	return artifacts.ArtifactObject{ContentType: "image/png", SizeBytes: 123, SHA256: strings.Repeat("a", 64)}, nil
-}
-
-type unavailableMunkiStorage struct{}
-
-func (unavailableMunkiStorage) PresignGet(context.Context, artifacts.Artifact) (string, error) {
-	return "", artifacts.ErrUnavailable
-}
-
-func (unavailableMunkiStorage) PresignPut(
-	context.Context,
-	string,
-	string,
-	string,
-) (artifacts.ArtifactUploadURL, error) {
-	return artifacts.ArtifactUploadURL{}, artifacts.ErrUnavailable
-}
-
-func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.ArtifactObject, error) {
-	return artifacts.ArtifactObject{}, artifacts.ErrUnavailable
-}
-
 type munkiTestStores struct {
-	artifacts *artifacts.Store
+	objects   *storage.ObjectStore
 	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
 
 func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
-	artifactStore := artifacts.NewStore(db)
-	packageStore := packages.NewStore(db, artifactStore)
-	softwareStore := munkisoftware.NewStore(db, artifactStore, packageStore)
+	objectStore := storage.NewObjectStore(db)
+	packageStore := packages.NewStore(db, objectStore)
+	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	stores := munkiTestStores{
-		artifacts: artifactStore,
+		objects:   objectStore,
 		hoststate: munki.NewStore(db),
 		packages:  packageStore,
 		software:  softwareStore,
 	}
-	deps.Munki.Artifacts = stores.artifacts
 	deps.Munki.HostState = stores.hoststate
 	deps.Munki.Packages = stores.packages
 	deps.Munki.Software = stores.software

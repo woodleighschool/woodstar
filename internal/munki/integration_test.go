@@ -12,29 +12,49 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 type munkiStores struct {
-	artifacts *artifacts.Store
+	objects   *storage.ObjectStore
 	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
 
 func newMunkiStores(db *database.DB) munkiStores {
-	artifactStore := artifacts.NewStore(db)
-	packageStore := packages.NewStore(db, artifactStore)
-	softwareStore := munkisoftware.NewStore(db, artifactStore, packageStore)
+	objectStore := storage.NewObjectStore(db)
+	packageStore := packages.NewStore(db, objectStore)
+	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
-		artifacts: artifactStore,
+		objects:   objectStore,
 		hoststate: munki.NewStore(db),
 		packages:  packageStore,
 		software:  softwareStore,
 	}
+}
+
+// createMunkiStorageObject inserts a confirmed (available) storage object under
+// prefix and returns it for use as an installer or icon in tests.
+func createMunkiStorageObject(
+	t *testing.T,
+	ctx context.Context,
+	stores munkiStores,
+	prefix, filename, hashChar string,
+) *storage.Object {
+	t.Helper()
+	obj, err := stores.objects.CreatePending(ctx, prefix, filename, "application/octet-stream")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+	confirmed, err := stores.objects.Confirm(ctx, obj.ID, 512, "", strings.Repeat(hashChar, 64))
+	if err != nil {
+		t.Fatalf("confirm object: %v", err)
+	}
+	return confirmed
 }
 
 func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
@@ -157,42 +177,7 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	artifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:        artifacts.ArtifactKindPackage,
-		DisplayName: "Artifact App Installer",
-		Location:    "apps/ArtifactApp.pkg",
-		ContentType: "application/octet-stream",
-		SizeBytes:   1234,
-		SHA256:      strings.Repeat("a", 64),
-		StorageKey:  "pkgs/ArtifactApp.pkg",
-	})
-	if err != nil {
-		t.Fatalf("create artifact: %v", err)
-	}
-	if artifact.DisplayName != "Artifact App Installer" || artifact.Location != "apps/ArtifactApp.pkg" {
-		t.Fatalf("artifact = %+v", artifact)
-	}
-	loadedArtifact, err := stores.artifacts.GetByID(ctx, artifact.ID)
-	if err != nil {
-		t.Fatalf("get artifact: %v", err)
-	}
-	if loadedArtifact.StorageKey != "pkgs/ArtifactApp.pkg" {
-		t.Fatalf("storage key = %q", loadedArtifact.StorageKey)
-	}
-	loadedByLocation, err := stores.artifacts.GetByLocation(ctx, artifacts.ArtifactKindPackage, "apps/ArtifactApp.pkg")
-	if err != nil {
-		t.Fatalf("get artifact by location: %v", err)
-	}
-	if loadedByLocation.ID != artifact.ID {
-		t.Fatalf("artifact by location id = %d, want %d", loadedByLocation.ID, artifact.ID)
-	}
-	artifactRows, artifactCount, err := stores.artifacts.List(ctx, dbutil.ListParams{})
-	if err != nil {
-		t.Fatalf("list artifacts: %v", err)
-	}
-	if artifactCount != 1 || len(artifactRows) != 1 || artifactRows[0].ID != artifact.ID {
-		t.Fatalf("artifacts = %+v count = %d, want created artifact", artifactRows, artifactCount)
-	}
+	artifact := createMunkiPackageArtifact(t, ctx, stores, "ArtifactApp.pkg", "a")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:           "1.0",
@@ -253,22 +238,6 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	}
 }
 
-func TestCreateArtifactBadSizeFallsThroughToInvalidInput(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	_, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   "apps/BadSize.pkg",
-		SizeBytes:  -1,
-		SHA256:     strings.Repeat("a", 64),
-		StorageKey: "pkgs/BadSize.pkg",
-	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("CreateArtifact error = %v, want ErrInvalidInput", err)
-	}
-}
-
 func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -277,16 +246,7 @@ func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	artifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindIcon,
-		Location:   "IconApp.png",
-		SizeBytes:  256,
-		SHA256:     strings.Repeat("b", 64),
-		StorageKey: "icons/IconApp.png",
-	})
-	if err != nil {
-		t.Fatalf("create icon artifact: %v", err)
-	}
+	artifact := createMunkiIconArtifact(t, ctx, stores, "IconApp.png", "b")
 
 	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:           "1.0",
@@ -721,7 +681,7 @@ func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 		{name: "uninstaller", id: uninstallerArtifact.ID},
 	}
 	for _, ref := range references {
-		if err := stores.artifacts.Delete(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
+		if err := stores.objects.DeleteByID(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
 			t.Fatalf("delete referenced %s artifact error = %v, want ErrConflict", ref.name, err)
 		}
 	}
@@ -729,7 +689,7 @@ func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 		t.Fatalf("delete package: %v", err)
 	}
 	for _, ref := range references {
-		if err := stores.artifacts.Delete(ctx, ref.id); err != nil {
+		if err := stores.objects.DeleteByID(ctx, ref.id); err != nil {
 			t.Fatalf("delete unreferenced %s artifact: %v", ref.name, err)
 		}
 	}
@@ -826,26 +786,8 @@ func TestCreatePackageAcceptsUninstallerArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerArtifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   "apps/UninstallerApp.pkg",
-		SizeBytes:  1024,
-		SHA256:     strings.Repeat("d", 64),
-		StorageKey: "packages/apps/UninstallerApp.pkg",
-	})
-	if err != nil {
-		t.Fatalf("create installer artifact: %v", err)
-	}
-	uninstallerArtifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   "apps/UninstallerApp-uninstall.pkg",
-		SizeBytes:  512,
-		SHA256:     strings.Repeat("e", 64),
-		StorageKey: "packages/apps/UninstallerApp-uninstall.pkg",
-	})
-	if err != nil {
-		t.Fatalf("create uninstaller artifact: %v", err)
-	}
+	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "UninstallerApp.pkg", "d")
+	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "UninstallerApp-uninstall.pkg", "e")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
@@ -876,26 +818,8 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerArtifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   "apps/SwitchableApp.pkg",
-		SizeBytes:  1024,
-		SHA256:     strings.Repeat("f", 64),
-		StorageKey: "packages/apps/SwitchableApp.pkg",
-	})
-	if err != nil {
-		t.Fatalf("create installer artifact: %v", err)
-	}
-	uninstallerArtifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   "apps/SwitchableApp-uninstall.pkg",
-		SizeBytes:  512,
-		SHA256:     strings.Repeat("a", 64),
-		StorageKey: "packages/apps/SwitchableApp-uninstall.pkg",
-	})
-	if err != nil {
-		t.Fatalf("create uninstaller artifact: %v", err)
-	}
+	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "SwitchableApp.pkg", "f")
+	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "SwitchableApp-uninstall.pkg", "a")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
@@ -1336,19 +1260,9 @@ func createMunkiPackageArtifact(
 	stores munkiStores,
 	location string,
 	hashChar string,
-) *artifacts.Artifact {
+) *storage.Object {
 	t.Helper()
-	artifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindPackage,
-		Location:   location,
-		SizeBytes:  512,
-		SHA256:     strings.Repeat(hashChar, 64),
-		StorageKey: location,
-	})
-	if err != nil {
-		t.Fatalf("create package artifact: %v", err)
-	}
-	return artifact
+	return createMunkiStorageObject(t, ctx, stores, "munki/packages", location, hashChar)
 }
 
 func assertBlockingApplications(t *testing.T, pkg packages.Package, want []string) {
@@ -1393,17 +1307,7 @@ func createMunkiIconArtifact(
 	stores munkiStores,
 	location string,
 	hashChar string,
-) *artifacts.Artifact {
+) *storage.Object {
 	t.Helper()
-	artifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindIcon,
-		Location:   location,
-		SizeBytes:  256,
-		SHA256:     strings.Repeat(hashChar, 64),
-		StorageKey: location,
-	})
-	if err != nil {
-		t.Fatalf("create icon artifact: %v", err)
-	}
-	return artifact
+	return createMunkiStorageObject(t, ctx, stores, "munki/icons", location, hashChar)
 }
