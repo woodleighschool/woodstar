@@ -40,6 +40,10 @@ type munkiPackageDeleteInput struct {
 	PackageID int64 `path:"id"`
 }
 
+type munkiPackageBulkDeleteInput struct {
+	Body apitypes.BulkIDsBody
+}
+
 type munkiPackageListOutput struct {
 	Body apitypes.Page[MunkiPackage]
 }
@@ -69,6 +73,7 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerGetMunkiPackage(api, store)
 	registerPutMunkiPackage(api, store)
 	registerDeleteMunkiPackage(api, store)
+	registerBulkDeleteMunkiPackages(api, store)
 }
 
 func registerListMunkiPackages(api huma.API, store *Store) {
@@ -164,6 +169,22 @@ func registerDeleteMunkiPackage(api huma.API, store *Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.PackageID); err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteMunkiPackages(api huma.API, store *Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-munki-packages",
+		Method:      http.MethodPost,
+		Path:        munkiPackagePath + "/bulk-delete",
+		Tags:        []string{munkiTag},
+		Summary:     "Delete Munki packages",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
+	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
+		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &struct{}{}, nil

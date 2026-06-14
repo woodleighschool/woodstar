@@ -91,3 +91,15 @@ export function useUpdateMunkiPackage() {
     },
   });
 }
+
+export function useBulkDeleteMunkiPackages() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) =>
+      unwrap(apiClient.POST("/api/munki/packages/bulk-delete", { body: { ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
+    },
+  });
+}

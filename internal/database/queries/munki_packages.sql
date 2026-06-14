@@ -185,6 +185,15 @@ WHERE p.id = @id;
 DELETE FROM munki_packages
 WHERE id = @id;
 
+-- name: DeleteMunkiPackageRelationsByPackageIDs :exec
+DELETE FROM munki_package_relations
+WHERE package_id = ANY(@ids::bigint[]);
+
+-- name: DeleteMunkiPackages :many
+DELETE FROM munki_packages
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
+
 -- name: DeleteMunkiPackageRelationsByKind :exec
 DELETE FROM munki_package_relations
 WHERE package_id = @package_id

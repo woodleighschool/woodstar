@@ -625,6 +625,73 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 	}
 }
 
+func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkDeletePackageApp"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
+	dependentPackage, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:       "2.0",
+		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
+		Requires: []packages.PackageReference{
+			{SoftwareID: title.ID, PackageID: targetPackage.ID},
+		},
+		Eligible: true,
+	})
+	if err != nil {
+		t.Fatalf("create dependent package: %v", err)
+	}
+
+	deleted, err := stores.packages.DeleteMany(
+		ctx,
+		[]int64{targetPackage.ID, dependentPackage.ID, dependentPackage.ID + 999},
+	)
+	if err != nil {
+		t.Fatalf("bulk delete packages: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("bulk deleted = %d, want 2", deleted)
+	}
+	if _, err := stores.packages.GetByID(ctx, targetPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("target package after bulk delete error = %v, want ErrNotFound", err)
+	}
+	if _, err := stores.packages.GetByID(ctx, dependentPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("dependent package after bulk delete error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkDeleteConflictApp"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
+	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:       "2.0",
+		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
+		Requires: []packages.PackageReference{
+			{SoftwareID: title.ID, PackageID: targetPackage.ID},
+		},
+		Eligible: true,
+	})
+	if err != nil {
+		t.Fatalf("create dependent package: %v", err)
+	}
+
+	if _, err := stores.packages.DeleteMany(ctx, []int64{targetPackage.ID}); !errors.Is(err, dbutil.ErrConflict) {
+		t.Fatalf("bulk delete referenced package error = %v, want ErrConflict", err)
+	}
+}
+
 func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)

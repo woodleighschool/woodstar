@@ -3,19 +3,25 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { PackageCheck, Plus } from "lucide-react";
 import * as React from "react";
 
+import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
-import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type MunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
+import {
+  type MunkiPackage,
+  useBulkDeleteMunkiPackages,
+  useMunkiPackages,
+} from "@/hooks/use-munki-packages";
 import { formatRelative } from "@/lib/utils";
 
 export function MunkiPackageListPage() {
@@ -35,8 +41,9 @@ export function MunkiPackageListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<MunkiPackage>[]>(
-    () => [
+  const columns = React.useMemo<ColumnDef<MunkiPackage>[]>(() => {
+    const baseColumns: ColumnDef<MunkiPackage>[] = [
+      selectColumn<MunkiPackage>(),
       {
         id: "package",
         accessorKey: "software_name",
@@ -82,9 +89,9 @@ export function MunkiPackageListPage() {
         cell: ({ row }) => formatRelative(row.original.updated_at),
         meta: { label: "Updated" },
       },
-    ],
-    [isAdmin],
-  );
+    ];
+    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+  }, [isAdmin]);
 
   const { table } = useDataTable({
     data: packages,
@@ -116,10 +123,20 @@ export function MunkiPackageListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={4} />
+        <DataTableSkeleton columnCount={5} />
       ) : (
         <DataTable
           table={table}
+          actionBar={
+            isAdmin ? (
+              <BulkDeleteActionBar
+                table={table}
+                useBulkDelete={useBulkDeleteMunkiPackages}
+                noun="package"
+                description="Packages still referenced by targeting or other packages cannot be deleted."
+              />
+            ) : undefined
+          }
           empty={
             <DataTableEmpty
               icon={<PackageCheck />}

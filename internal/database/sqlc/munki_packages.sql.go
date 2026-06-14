@@ -352,6 +352,50 @@ func (q *Queries) DeleteMunkiPackageRelationsByKind(ctx context.Context, arg Del
 	return err
 }
 
+const deleteMunkiPackageRelationsByPackageIDs = `-- name: DeleteMunkiPackageRelationsByPackageIDs :exec
+DELETE FROM munki_package_relations
+WHERE package_id = ANY($1::bigint[])
+`
+
+type DeleteMunkiPackageRelationsByPackageIDsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteMunkiPackageRelationsByPackageIDs(ctx context.Context, arg DeleteMunkiPackageRelationsByPackageIDsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiPackageRelationsByPackageIDs, arg.Ids)
+	return err
+}
+
+const deleteMunkiPackages = `-- name: DeleteMunkiPackages :many
+DELETE FROM munki_packages
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteMunkiPackagesParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteMunkiPackages(ctx context.Context, arg DeleteMunkiPackagesParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteMunkiPackages, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
 SELECT
     p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.installable_condition, p.blocking_applications_manual_quit_only, p.blocking_applications_quit_script, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.installer_artifact_id, p.uninstaller_artifact_id, p.eligible, p.created_at, p.updated_at,

@@ -2995,6 +2995,51 @@ export type CreateMunkiPackageResponses = {
 
 export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
 
+export type BulkDeleteMunkiPackagesData = {
+    body: BulkIdsBody;
+    path?: never;
+    query?: never;
+    url: '/api/munki/packages/bulk-delete';
+};
+
+export type BulkDeleteMunkiPackagesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteMunkiPackagesError = BulkDeleteMunkiPackagesErrors[keyof BulkDeleteMunkiPackagesErrors];
+
+export type BulkDeleteMunkiPackagesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteMunkiPackagesResponse = BulkDeleteMunkiPackagesResponses[keyof BulkDeleteMunkiPackagesResponses];
+
 export type DeleteMunkiPackageData = {
     body?: never;
     path: {

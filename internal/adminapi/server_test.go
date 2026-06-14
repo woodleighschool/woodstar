@@ -308,6 +308,7 @@ func TestOrdinaryAdminResourcePolicy(t *testing.T) {
 				path:   "/api/munki/software",
 				body:   `{"name":"Viewer App","targets":{"include":[],"exclude":[]}}`,
 			},
+			{method: http.MethodPost, path: "/api/munki/packages/bulk-delete", body: `{"ids":[1]}`},
 			{
 				method: http.MethodPost,
 				path:   "/api/users",

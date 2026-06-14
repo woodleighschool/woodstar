@@ -153,6 +153,30 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	var deleted int
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		if err := qtx.DeleteMunkiPackageRelationsByPackageIDs(
+			ctx,
+			sqlc.DeleteMunkiPackageRelationsByPackageIDsParams{Ids: ids},
+		); err != nil {
+			return err
+		}
+		deletedIDs, err := qtx.DeleteMunkiPackages(ctx, sqlc.DeleteMunkiPackagesParams{Ids: ids})
+		if err != nil {
+			return dbutil.DeleteConflict(err, "Munki package is still referenced")
+		}
+		deleted = len(deletedIDs)
+		return nil
+	})
+	return deleted, err
+}
+
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]PackageRecord, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := packageListWhere(params)
