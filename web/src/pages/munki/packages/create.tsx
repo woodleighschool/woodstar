@@ -14,7 +14,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
+import { useUploadMunkiInstaller, useUploadMunkiUninstaller } from "@/hooks/use-munki-uploads";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 
@@ -33,7 +33,8 @@ export function MunkiPackageCreatePage() {
     typeof search.software_id === "number" && search.software_id > 0 ? search.software_id : null;
   const [softwareID, setSoftwareID] = useState<number | null>(initialSoftwareID);
   const create = useCreateMunkiPackage();
-  const packageUpload = useUploadMunkiArtifact("package");
+  const installerUpload = useUploadMunkiInstaller();
+  const uninstallerUpload = useUploadMunkiUninstaller();
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
@@ -51,21 +52,16 @@ export function MunkiPackageCreatePage() {
       toast.error(validationError);
       return;
     }
-    const installerArtifact =
-      value.installer_type !== "nopkg" && installerFile
-        ? await packageUpload.upload(installerFile)
-        : null;
-    const uninstallerArtifact =
-      value.uninstall_method === "uninstall_package" && uninstallerFile
-        ? await packageUpload.upload(uninstallerFile)
-        : null;
-    await create.mutateAsync({
+    const pkg = await create.mutateAsync({
       software_id: softwareID,
-      ...packageMutationFromForm(value, {
-        installerArtifactID: installerArtifact?.id,
-        uninstallerArtifactID: uninstallerArtifact?.id,
-      }),
+      ...packageMutationFromForm(value),
     });
+    if (value.installer_type !== "nopkg" && installerFile) {
+      await installerUpload.upload({ packageId: pkg.id, file: installerFile });
+    }
+    if (value.uninstall_method === "uninstall_package" && uninstallerFile) {
+      await uninstallerUpload.upload({ packageId: pkg.id, file: uninstallerFile });
+    }
     void navigate({ to: "/munki/packages" });
   });
   const softwareRows = software.data?.items ?? [];

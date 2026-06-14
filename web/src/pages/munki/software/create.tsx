@@ -6,12 +6,8 @@ import { FormActions } from "@/components/form-actions";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
-import {
-  type MunkiSoftwareMutation,
-  useCreateMunkiSoftware,
-  useMunkiSoftware,
-} from "@/hooks/use-munki-software";
+import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
+import { useCreateMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 import { uniqueOptions } from "@/lib/form-validation";
 
 import {
@@ -24,7 +20,7 @@ import {
 export function MunkiSoftwareCreatePage() {
   const navigate = useNavigate();
   const create = useCreateMunkiSoftware();
-  const iconUpload = useUploadMunkiArtifact("icon");
+  const iconUpload = useUploadMunkiIcon();
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
   const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const categoryOptions = useMemo(
@@ -38,13 +34,10 @@ export function MunkiSoftwareCreatePage() {
   const [iconFile, setIconFile] = useState<File | null>(null);
   const form = useMunkiSoftwareForm(emptyMunkiSoftwareForm(), async (value) => {
     const data = munkiSoftwareSchema.parse(value);
-    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    const body: MunkiSoftwareMutation = {
-      ...data,
-      icon_artifact_id: iconArtifact?.id,
-      targets: { include: [], exclude: [] },
-    };
-    const title = await create.mutateAsync(body);
+    const title = await create.mutateAsync({ ...data, targets: { include: [], exclude: [] } });
+    if (iconFile) {
+      await iconUpload.upload({ softwareId: title.id, file: iconFile });
+    }
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(title.id) } });
   });
   const tabs = [

@@ -163,20 +163,12 @@ export function packageSubmitPreflightError(
   return undefined;
 }
 
-export function packageMutationFromForm(
-  form: PackageFormState,
-  artifacts: {
-    installerArtifactID?: number;
-    uninstallerArtifactID?: number;
-  },
-): MunkiPackageMutation {
+export function packageMutationFromForm(form: PackageFormState): MunkiPackageMutation {
   const installerType = form.installer_type;
   const uninstallMethod = form.uninstall_method;
-  const usesInstallerArtifact = installerType !== "nopkg";
   const usesInstallerOptions = installerType !== "nopkg";
   const usesItemsToCopy =
     installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
-  const usesUninstallerArtifact = uninstallMethod === "uninstall_package";
   const blockingApplications = cleanStringRows(form.blocking_applications);
 
   return {
@@ -231,8 +223,6 @@ export function packageMutationFromForm(
     version_script: nonEmpty(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
-    installer_artifact_id: usesInstallerArtifact ? artifacts.installerArtifactID : undefined,
-    uninstaller_artifact_id: usesUninstallerArtifact ? artifacts.uninstallerArtifactID : undefined,
   };
 }
 

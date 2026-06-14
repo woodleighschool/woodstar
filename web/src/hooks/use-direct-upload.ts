@@ -13,18 +13,18 @@ interface DirectUploadIntentRequest {
   headers?: Record<string, string>;
 }
 
-interface DirectUploadOptions<TIntent, TResult> {
+interface DirectUploadOptions<TIntent, TResult, TVars extends { file: File }> {
   mutationKey: MutationKey;
-  createIntent: (file: File) => Promise<TIntent>;
-  uploadRequest: (intent: TIntent, file: File) => DirectUploadIntentRequest;
-  completeUpload: (intent: TIntent, file: File) => Promise<TResult>;
+  createIntent: (vars: TVars) => Promise<TIntent>;
+  uploadRequest: (intent: TIntent, vars: TVars) => DirectUploadIntentRequest;
+  completeUpload: (intent: TIntent, vars: TVars) => Promise<TResult>;
   loadingText?: UploadText;
   successText?: UploadText;
   errorText?: UploadText;
   errorSurface?: UploadErrorSurface;
 }
 
-export function useDirectUpload<TIntent, TResult>({
+export function useDirectUpload<TIntent, TResult, TVars extends { file: File } = { file: File }>({
   mutationKey,
   createIntent,
   uploadRequest,
@@ -33,14 +33,15 @@ export function useDirectUpload<TIntent, TResult>({
   successText,
   errorText,
   errorSurface = "toast",
-}: DirectUploadOptions<TIntent, TResult>) {
+}: DirectUploadOptions<TIntent, TResult, TVars>) {
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const lastToastPercent = useRef<number | null>(null);
 
-  const mutation = useMutation<TResult, Error, File>({
+  const mutation = useMutation<TResult, Error, TVars>({
     mutationKey,
     onError: () => undefined,
-    mutationFn: async (file) => {
+    mutationFn: async (vars) => {
+      const { file } = vars;
       lastToastPercent.current = null;
       setProgress({ loaded: 0, total: file.size, percent: 0 });
 
@@ -48,10 +49,10 @@ export function useDirectUpload<TIntent, TResult>({
       const toastID = toast.loading(loadingTitle, { description: "Preparing upload" });
 
       try {
-        const intent = await createIntent(file);
+        const intent = await createIntent(vars);
         toast.loading(loadingTitle, { id: toastID, description: "0%" });
         await uploadWithProgress({
-          ...uploadRequest(intent, file),
+          ...uploadRequest(intent, vars),
           file,
           onProgress: (next) => {
             setProgress(next);
@@ -65,7 +66,7 @@ export function useDirectUpload<TIntent, TResult>({
         });
         setProgress({ loaded: file.size, total: file.size, percent: 100 });
         toast.loading(loadingTitle, { id: toastID, description: "Finalizing" });
-        const result = await completeUpload(intent, file);
+        const result = await completeUpload(intent, vars);
         toast.success(uploadText(successText, file, "Upload complete"), { id: toastID });
         return result;
       } catch (error) {

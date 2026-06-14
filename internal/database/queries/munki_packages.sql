@@ -154,8 +154,8 @@ SET
     preuninstall_alert_detail = @preuninstall_alert_detail,
     preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
-    installer_object_id = sqlc.narg(installer_object_id)::bigint,
-    uninstaller_object_id = sqlc.narg(uninstaller_object_id)::bigint,
+    installer_object_id = COALESCE(sqlc.narg(installer_object_id)::bigint, installer_object_id),
+    uninstaller_object_id = COALESCE(sqlc.narg(uninstaller_object_id)::bigint, uninstaller_object_id),
     eligible = @eligible,
     updated_at = now()
 WHERE id = @id

@@ -656,8 +656,8 @@ SET
     preuninstall_alert_detail = $44,
     preuninstall_alert_ok_label = $45,
     preuninstall_alert_cancel_label = $46,
-    installer_object_id = $47::bigint,
-    uninstaller_object_id = $48::bigint,
+    installer_object_id = COALESCE($47::bigint, installer_object_id),
+    uninstaller_object_id = COALESCE($48::bigint, uninstaller_object_id),
     eligible = $49,
     updated_at = now()
 WHERE id = $50

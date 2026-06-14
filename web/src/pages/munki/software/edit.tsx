@@ -15,11 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
+import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import {
   type MunkiSoftwareDetail,
-  type MunkiSoftwareMutation,
   useMunkiSoftware,
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
@@ -86,7 +85,7 @@ function MunkiSoftwareDetailForm({
 }) {
   const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const updateSoftware = useUpdateMunkiSoftware();
-  const iconUpload = useUploadMunkiArtifact("icon");
+  const iconUpload = useUploadMunkiIcon();
   const [targetRows, setTargetRows] = useState<MunkiSoftwareTargetRow[]>(() =>
     targetRowsFromIncludes(software.targets.include),
   );
@@ -106,16 +105,20 @@ function MunkiSoftwareDetailForm({
     munkiSoftwareFormFromSoftware(software),
     async (value) => {
       const data = munkiSoftwareSchema.parse(value);
-      const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-      const body: MunkiSoftwareMutation = {
-        ...data,
-        icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
-        targets: {
-          include: targetRows.map(munkiSoftwareInclude),
-          exclude: excludeForm.map((label_id) => ({ label_id })),
+      await updateSoftware.mutateAsync({
+        id: software.id,
+        body: {
+          ...data,
+          icon_object_id: iconCleared ? undefined : (software.icon_object_id ?? undefined),
+          targets: {
+            include: targetRows.map(munkiSoftwareInclude),
+            exclude: excludeForm.map((label_id) => ({ label_id })),
+          },
         },
-      };
-      await updateSoftware.mutateAsync({ id: software.id, body });
+      });
+      if (iconFile) {
+        await iconUpload.upload({ softwareId: software.id, file: iconFile });
+      }
       setIconFile(null);
       setIconCleared(false);
       await refetchSoftware();
@@ -201,14 +204,14 @@ function MunkiSoftwareDetailForm({
           icon={{
             iconUrl: iconCleared ? undefined : software.icon_url,
             file: iconFile,
-            clearable: !!iconFile || (!iconCleared && !!software.icon_artifact_id),
+            clearable: !!iconFile || (!iconCleared && !!software.icon_object_id),
             onFileChange: (file) => {
               setIconFile(file);
               setIconCleared(false);
             },
             onClear: () => {
               setIconFile(null);
-              setIconCleared(!!software.icon_artifact_id);
+              setIconCleared(!!software.icon_object_id);
             },
           }}
         />
