@@ -121,8 +121,6 @@ function MunkiSoftwareDetailForm({
       await refetchSoftware();
     },
   );
-  const pageError = updateSoftware.error?.message ?? iconUpload.error?.message;
-
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
@@ -291,12 +289,7 @@ function MunkiSoftwareDetailForm({
           ))}
         </ScrollableTabs>
 
-        <FormActions
-          pending={updateSoftware.isPending}
-          disabled={iconUpload.isUploading}
-          error={pageError}
-          onCancel={resetTargetPage}
-        />
+        <FormActions form={softwareOptionsForm} requireDirty={false} onCancel={resetTargetPage} />
       </form>
     </PageShell>
   );

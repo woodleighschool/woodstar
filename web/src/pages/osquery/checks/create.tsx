@@ -12,8 +12,6 @@ export function CheckCreatePage() {
       initial={emptyCheck}
       title="New Check"
       submitLabel="Create"
-      pending={create.isPending}
-      error={create.error}
       onCancel={() => void navigate({ to: "/osquery/checks" })}
       onSubmit={async (value) => {
         const saved = await create.mutateAsync(value);

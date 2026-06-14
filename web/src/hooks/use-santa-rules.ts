@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Page, Rule, RuleMutation, RuleReferenceCandidate } from "@/lib/api";
@@ -70,8 +71,8 @@ export function useCreateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, SantaRuleMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/santa/rules", { body })),
-    meta: { inlineError: true },
     onSuccess: (rule) => {
+      toast.success("Rule created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });
     },
@@ -83,8 +84,8 @@ export function useUpdateSantaRule() {
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
-    meta: { inlineError: true },
     onSuccess: (rule) => {
+      toast.success("Rule saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });
     },

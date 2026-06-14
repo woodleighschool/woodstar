@@ -12,8 +12,6 @@ export function ReportCreatePage() {
       initial={emptyReport}
       title="New Report"
       submitLabel="Create"
-      pending={create.isPending}
-      error={create.error}
       onCancel={() => void navigate({ to: "/osquery/reports" })}
       onSubmit={async (value) => {
         const saved = await create.mutateAsync(value);

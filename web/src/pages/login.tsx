@@ -1,10 +1,9 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
-import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
@@ -21,8 +20,9 @@ export function LoginPage() {
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
+    validationLogic: revalidateLogic(),
     validators: {
-      onSubmit: z.object({
+      onDynamic: z.object({
         email: z.email("Enter a valid email."),
         password: requiredString("Password"),
       }),
@@ -86,7 +86,13 @@ export function LoginPage() {
               </form.Field>
 
               <Field>
-                <SubmitButton pending={login.isPending}>Login</SubmitButton>
+                <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
+                  {([canSubmit, isDefaultValue]) => (
+                    <Button type="submit" disabled={!canSubmit || isDefaultValue}>
+                      Login
+                    </Button>
+                  )}
+                </form.Subscribe>
 
                 {search.sso_error || login.error ? (
                   <FieldError>{search.sso_error ?? login.error?.message}</FieldError>

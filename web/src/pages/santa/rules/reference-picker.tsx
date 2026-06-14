@@ -1,12 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+import { FreeTextCombobox } from "@/components/free-text-combobox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   type SantaRuleReference,
@@ -20,107 +13,93 @@ import { type RuleFormState, ruleIdentifierHint } from "./form-state";
 export function RuleReferencePicker({
   form,
   identifierError,
-  identifierInvalid,
+  onBlur,
   onChange,
 }: {
   form: RuleFormState;
   identifierError?: string;
-  identifierInvalid: boolean;
+  onBlur?: () => void;
   onChange: (form: RuleFormState) => void;
 }) {
-  const references = useSantaRuleReferences({ rule_type: form.rule_type, limit: 50 });
+  const identifierInvalid = identifierError !== undefined;
+  const references = useSantaRuleReferences({
+    q: form.identifier,
+    rule_type: form.rule_type,
+    limit: 50,
+  });
   const rows = references.data ?? [];
   const selected =
     rows.find(
       (candidate) =>
         candidate.rule_type === form.rule_type && candidate.identifier === form.identifier,
-    ) ?? currentRuleReferenceCandidate(form);
-  const items =
-    selected &&
-    !rows.some(
-      (candidate) =>
-        candidate.rule_type === selected.rule_type && candidate.identifier === selected.identifier,
-    )
-      ? [selected, ...rows]
-      : rows;
+    ) ?? null;
+  const description = ruleReferenceDescription(selected, form.rule_type);
+  const showDescription = identifierError !== description;
 
   return (
-    <Field data-invalid={identifierInvalid}>
-      <FieldLabel htmlFor="santa-rule-reference" required>
+    <Field data-invalid={identifierInvalid || undefined}>
+      <FieldLabel htmlFor="santa-rule-identifier" required>
         Identifier
       </FieldLabel>
-      <Combobox
-        items={items}
-        value={selected}
-        itemToStringLabel={referenceLabel}
-        itemToStringValue={(candidate) => candidate.identifier}
-        onValueChange={(candidate) => {
-          if (!candidate) {
-            onChange({ ...form, identifier: "" });
-            return;
-          }
+      <FreeTextCombobox
+        id="santa-rule-identifier"
+        name="identifier"
+        value={form.identifier}
+        items={rows}
+        placeholder="Enter identifier"
+        invalid={identifierInvalid ? true : undefined}
+        onBlur={onBlur}
+        emptyText={
+          references.error
+            ? references.error.message
+            : references.isLoading
+              ? "Loading Suggestions..."
+              : "No Suggestions Found."
+        }
+        noResultsText="No Suggestions Found."
+        itemToStringValue={(reference) => reference.identifier}
+        freeTextItem={(identifier) => currentRuleReferenceCandidate(identifier, form.rule_type)}
+        itemKey={(reference) => `${reference.rule_type}:${reference.identifier}`}
+        itemDisabled={(reference) => reference.rule_type === "bundle" && !reference.complete}
+        renderItem={ruleReferenceItem}
+        onChange={(identifier) => onChange({ ...form, identifier })}
+        onSelectItem={(reference) =>
           onChange({
             ...form,
-            rule_type: candidate.rule_type,
-            identifier: candidate.identifier,
+            rule_type: reference.rule_type,
+            identifier: reference.identifier,
             name:
-              form.name.trim() === "" && candidate.display_name
-                ? candidate.display_name
+              form.name.trim() === "" && reference.display_name
+                ? reference.display_name
                 : form.name,
-          });
-        }}
-      >
-        <ComboboxInput
-          id="santa-rule-reference"
-          required
-          aria-invalid={identifierInvalid ? true : undefined}
-          showClear
-          disabled={references.isLoading}
-          placeholder={references.isLoading ? "Loading References" : "Select Identifier"}
-        />
-        <ComboboxContent>
-          <ComboboxEmpty>
-            {references.error
-              ? references.error.message
-              : references.isLoading
-                ? "Loading References..."
-                : "No References Found."}
-          </ComboboxEmpty>
-          <ComboboxList>{ruleReferenceItem}</ComboboxList>
-        </ComboboxContent>
-      </Combobox>
-      <FieldDescription>{ruleReferenceDescription(selected, form.rule_type)}</FieldDescription>
-      {identifierInvalid && identifierError ? <FieldError>{identifierError}</FieldError> : null}
+          })
+        }
+      />
+      {showDescription ? <FieldDescription>{description}</FieldDescription> : null}
+      {identifierError ? <FieldError>{identifierError}</FieldError> : null}
     </Field>
   );
 }
 
-function currentRuleReferenceCandidate(form: RuleFormState): SantaRuleReference | null {
-  const identifier = form.identifier.trim();
-  if (identifier === "") return null;
+function currentRuleReferenceCandidate(
+  identifier: string,
+  ruleType: SantaRuleType,
+): SantaRuleReference {
   return {
-    rule_type: form.rule_type,
+    rule_type: ruleType,
     identifier,
     rule_count: 0,
     complete: true,
   };
 }
 
-function referenceLabel(reference: SantaRuleReference) {
-  return reference.identifier;
-}
-
 function ruleReferenceItem(reference: SantaRuleReference) {
   const disabled = reference.rule_type === "bundle" && !reference.complete;
   const secondary = ruleReferenceSecondary(reference);
   return (
-    <ComboboxItem
-      key={`${reference.rule_type}:${reference.identifier}`}
-      value={reference}
-      disabled={disabled}
-    >
+    <>
       <span className="min-w-0 flex-1">
-        <span className="block leading-snug break-all">{referenceLabel(reference)}</span>
+        <span className="block leading-snug break-all">{reference.identifier}</span>
         {secondary ? (
           <span className="block truncate text-xs text-muted-foreground">{secondary}</span>
         ) : null}
@@ -135,7 +114,7 @@ function ruleReferenceItem(reference: SantaRuleReference) {
           {ruleTypeLabel(reference.rule_type)}
         </Badge>
       </span>
-    </ComboboxItem>
+    </>
   );
 }
 

@@ -1,9 +1,9 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
-import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -56,27 +56,27 @@ const userFormSchema = z.object({
 export function UserForm({
   user,
   initial,
-  pending,
-  error,
   onSubmit,
 }: {
   user: User;
   initial: UserFormState;
-  pending: boolean;
-  error?: { message?: string } | null;
   onSubmit: (body: UserMutation) => Promise<void> | void;
 }) {
   const isLocal = user.source === "local";
 
   const form = useForm({
     defaultValues: initial,
-    validators: { onSubmit: userFormSchema },
-    onSubmit: async ({ value }) =>
-      onSubmit({
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: userFormSchema },
+    onSubmit: async ({ value, formApi }) => {
+      await onSubmit({
         name: isLocal ? value.name.trim() : user.name,
         role: userMutationRole(value.role),
         password: isLocal && value.password.trim() !== "" ? value.password : undefined,
-      }),
+      });
+      // Re-baseline so the saved values count as "unchanged" and Save disables again.
+      formApi.reset({ ...value, password: "" });
+    },
   });
 
   return (
@@ -177,29 +177,20 @@ export function UserForm({
             </form.Field>
           </FieldGroup>
         </CardContent>
-        <CardFooter className="flex flex-col items-stretch gap-2 pt-6">
-          <div className="flex justify-between gap-3">
-            <p
-              className="text-xs text-muted-foreground"
-              title={new Date(user.updated_at).toLocaleString()}
-            >
-              Updated {formatRelative(user.updated_at)}
-            </p>
-            <form.Subscribe selector={(state) => state.values}>
-              {(values) => {
-                const changed =
-                  (isLocal && values.name !== initial.name) ||
-                  userMutationRole(values.role) !== user.role ||
-                  (isLocal && values.password.trim() !== "");
-                return (
-                  <SubmitButton pending={pending} disabled={!changed} size="sm">
-                    Save
-                  </SubmitButton>
-                );
-              }}
-            </form.Subscribe>
-          </div>
-          {error ? <FieldError>{error.message}</FieldError> : null}
+        <CardFooter className="flex items-center justify-between gap-3 pt-6">
+          <p
+            className="text-xs text-muted-foreground"
+            title={new Date(user.updated_at).toLocaleString()}
+          >
+            Updated {formatRelative(user.updated_at)}
+          </p>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
+            {([canSubmit, isDefaultValue]) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || isDefaultValue}>
+                Save
+              </Button>
+            )}
+          </form.Subscribe>
         </CardFooter>
       </form>
     </Card>

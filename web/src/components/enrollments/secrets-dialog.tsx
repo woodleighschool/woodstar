@@ -1,5 +1,5 @@
-import { useForm } from "@tanstack/react-form";
-import { Copy, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { Copy, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -7,7 +7,6 @@ import { z } from "zod";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
 import { QueryError } from "@/components/query-error";
-import { SubmitButton } from "@/components/submit-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -312,7 +311,7 @@ function SecretRow({
           <Pencil />
         </SecretAction>
         <SecretAction label="Delete Enrollment Secret" disabled={disabled} onClick={onDelete}>
-          {disabled ? <Loader2 className="animate-spin" /> : <Trash2 />}
+          <Trash2 />
         </SecretAction>
       </InputGroupAddon>
     </InputGroup>
@@ -363,7 +362,8 @@ function SecretValueDialog({
 }) {
   const form = useForm({
     defaultValues: { value: initialValue },
-    validators: { onChange: z.object({ value: secretValueSchema }) },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: z.object({ value: secretValueSchema }) },
     onSubmit: async ({ value }) => {
       await onSave(value.value.trim());
     },
@@ -425,9 +425,9 @@ function SecretValueDialog({
             </Button>
             <form.Subscribe selector={(state) => state.canSubmit}>
               {(canSubmit) => (
-                <SubmitButton pending={pending} size="sm" disabled={!canSubmit}>
+                <Button type="submit" size="sm" disabled={!canSubmit}>
                   {saveLabel}
-                </SubmitButton>
+                </Button>
               )}
             </form.Subscribe>
           </DialogFooter>
@@ -468,18 +468,18 @@ function SecretDeleteDialog({
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <SubmitButton
+            <Button
               type="button"
               variant="destructive"
               size="sm"
-              pending={pending}
+              disabled={pending}
               onClick={(event) => {
                 event.preventDefault();
                 void onConfirm();
               }}
             >
               Delete
-            </SubmitButton>
+            </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

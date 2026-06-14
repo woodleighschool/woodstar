@@ -42,7 +42,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
 import type { PackageAlert } from "@/lib/api";
-import { requiredString } from "@/lib/form-validation";
 import { cn } from "@/lib/utils";
 
 import {
@@ -669,7 +668,7 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
 
 function VersionField({ form }: { form: PackageEditorForm }) {
   return (
-    <form.Field name="version" validators={{ onSubmit: requiredString("Version") }}>
+    <form.Field name="version">
       {(field) => (
         <FormField field={field} label="Version" htmlFor="munki-package-version" required>
           {(control) => (

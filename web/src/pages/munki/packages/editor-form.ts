@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 
 import { type PackageFormState, validatePackageForm } from "./form-state";
 
@@ -8,9 +8,8 @@ export function usePackageEditorForm(
 ) {
   return useForm({
     defaultValues: initial,
-    validators: {
-      onSubmit: validatePackageForm,
-    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: validatePackageForm },
     onSubmit: ({ value }) => onSubmit(value),
   });
 }

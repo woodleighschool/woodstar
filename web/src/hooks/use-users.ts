@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Department, Page, User, UserCreate, UserMutation } from "@/lib/api";
@@ -87,8 +88,8 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
-    meta: { inlineError: true },
     onSuccess: async () => {
+      toast.success("User created");
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });
     },
   });
@@ -104,8 +105,8 @@ export function useUpdateUser() {
           body,
         }),
       ),
-    meta: { inlineError: true },
     onSuccess: async (user, variables) => {
+      toast.success("User saved");
       queryClient.setQueryData(queryKeys.user(variables.id), user);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.usersAll }),

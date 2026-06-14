@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Check, CheckHostStatus, CheckMutation, Page } from "@/lib/api";
@@ -65,8 +66,8 @@ export function useCreateCheck() {
   const queryClient = useQueryClient();
   return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/checks", { body })),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Check created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
   });
@@ -82,8 +83,8 @@ export function useUpdateCheck(id: number | null) {
           body,
         }),
       ),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Check saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.check(id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.checkHosts(id) });

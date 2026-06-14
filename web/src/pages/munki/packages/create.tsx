@@ -1,6 +1,7 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -12,7 +13,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { useUploadMunkiArtifact } from "@/hooks/use-munki-artifacts";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
@@ -37,19 +38,17 @@ export function MunkiPackageCreatePage() {
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
-  const [preflightError, setPreflightError] = useState<string | undefined>();
   const form = usePackageEditorForm(emptyPackageForm(), async (value) => {
     if (softwareID === null) {
-      setPreflightError("Pick software.");
+      toast.error("Pick software.");
       return;
     }
-    setPreflightError(undefined);
     const validationError = packageSubmitPreflightError(value, {
       hasInstallerArtifact: !!installerFile,
       hasUninstallerArtifact: !!uninstallerFile,
     });
     if (validationError) {
-      setPreflightError(validationError);
+      toast.error(validationError);
       return;
     }
     const installerArtifact =
@@ -71,7 +70,6 @@ export function MunkiPackageCreatePage() {
   });
   const softwareRows = software.data?.items ?? [];
   const selectedSoftware = softwareRows.find((item) => item.id === softwareID) ?? null;
-  const softwareError = preflightError === "Pick software." ? preflightError : undefined;
   const softwareInfo: SoftwareInfo | null = selectedSoftware
     ? {
         name: selectedSoftware.name,
@@ -91,7 +89,7 @@ export function MunkiPackageCreatePage() {
         }}
       >
         <PageHeader title="New Package" />
-        <Field data-invalid={softwareError ? true : undefined} className="max-w-xl">
+        <Field className="max-w-xl">
           <FieldLabel htmlFor="munki-package-software" required>
             Software
           </FieldLabel>
@@ -107,7 +105,6 @@ export function MunkiPackageCreatePage() {
               className="w-full"
               placeholder={software.isLoading ? "Loading Software..." : "Select Software"}
               required
-              aria-invalid={softwareError ? true : undefined}
             />
             <ComboboxContent>
               <ComboboxEmpty>
@@ -122,7 +119,6 @@ export function MunkiPackageCreatePage() {
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {softwareError ? <FieldError>{softwareError}</FieldError> : null}
         </Field>
         <PackageEditorTabs
           form={form}
@@ -136,13 +132,8 @@ export function MunkiPackageCreatePage() {
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
-          pending={create.isPending}
-          disabled={softwareID === null || packageUpload.isUploading}
-          error={
-            softwareError
-              ? undefined
-              : (preflightError ?? create.error?.message ?? packageUpload.error?.message)
-          }
+          form={form}
+          requireDirty={false}
           onCancel={() => void navigate({ to: "/munki/packages" })}
         />
       </form>

@@ -1,9 +1,9 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
-import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,9 @@ export function SetupPage() {
 
   const form = useForm({
     defaultValues: { email: "", name: "", password: "" },
+    validationLogic: revalidateLogic(),
     validators: {
-      onSubmit: z.object({
+      onDynamic: z.object({
         email: z.email("Enter a valid email."),
         name: requiredString("Display name"),
         password: z.string().min(12, "Password must be at least 12 characters."),
@@ -117,7 +118,13 @@ export function SetupPage() {
               </form.Field>
 
               <Field>
-                <SubmitButton pending={setup.isPending}>Create Account</SubmitButton>
+                <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
+                  {([canSubmit, isDefaultValue]) => (
+                    <Button type="submit" disabled={!canSubmit || isDefaultValue}>
+                      Create Account
+                    </Button>
+                  )}
+                </form.Subscribe>
                 {setup.error ? <FieldError>{setup.error.message}</FieldError> : null}
               </Field>
             </FieldGroup>

@@ -1,9 +1,9 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
+import { FreeTextCombobox } from "@/components/free-text-combobox";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
-import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,9 +46,8 @@ export function useMunkiSoftwareForm(
 ) {
   return useForm({
     defaultValues: initial,
-    validators: {
-      onSubmit: munkiSoftwareSchema,
-    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: munkiSoftwareSchema },
     onSubmit: ({ value }) => onSubmit(value),
   });
 }
@@ -130,7 +129,10 @@ export function MunkiSoftwareOptionsFields({
                   id={control.id}
                   name={field.name}
                   value={field.state.value}
-                  options={categoryOptions}
+                  items={categoryOptions}
+                  itemToStringValue={(option) => option}
+                  freeTextItem={freeTextOption}
+                  emptyText="No Values Available."
                   invalid={control["aria-invalid"]}
                   onBlur={field.handleBlur}
                   onChange={field.handleChange}
@@ -147,7 +149,10 @@ export function MunkiSoftwareOptionsFields({
                   id={control.id}
                   name={field.name}
                   value={field.state.value}
-                  options={developerOptions}
+                  items={developerOptions}
+                  itemToStringValue={(option) => option}
+                  freeTextItem={freeTextOption}
+                  emptyText="No Values Available."
                   invalid={control["aria-invalid"]}
                   onBlur={field.handleBlur}
                   onChange={field.handleChange}
@@ -159,6 +164,10 @@ export function MunkiSoftwareOptionsFields({
       </div>
     </FieldGroup>
   );
+}
+
+function freeTextOption(value: string) {
+  return value;
 }
 
 export const LATEST_PACKAGE_VALUE = "latest";

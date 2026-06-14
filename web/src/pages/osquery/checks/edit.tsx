@@ -33,8 +33,6 @@ export function CheckEditPage() {
       key={check.id}
       initial={checkFromDetail(check)}
       submitLabel="Save"
-      pending={update.isPending}
-      error={update.error}
       headerContext={
         <>
           <SettingItem label="Pass">

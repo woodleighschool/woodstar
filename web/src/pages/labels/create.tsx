@@ -12,8 +12,6 @@ export function LabelCreatePage() {
       initial={emptyLabel}
       title="New Label"
       submitLabel="Create"
-      pending={create.isPending}
-      error={create.error}
       onCancel={() => void navigate({ to: "/labels" })}
       onSubmit={async (body) => {
         await create.mutateAsync(body);

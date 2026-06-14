@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
@@ -125,16 +125,12 @@ export function LabelForm({
   initial,
   title,
   submitLabel,
-  pending,
-  error,
   onSubmit,
   onCancel,
 }: {
   initial: LabelFormValue;
   title: string;
   submitLabel: string;
-  pending: boolean;
-  error?: { message?: string } | null;
   onSubmit: (body: LabelMutation) => Promise<void> | void;
   onCancel?: () => void;
 }) {
@@ -143,7 +139,8 @@ export function LabelForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validators: { onSubmit: labelFormSchema },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: labelFormSchema },
     onSubmit: async ({ value }) => onSubmit(toBody(value)),
   });
 
@@ -361,8 +358,7 @@ export function LabelForm({
 
         <FormActions
           className="max-w-5xl"
-          pending={pending}
-          error={error?.message}
+          form={form}
           submitLabel={submitLabel}
           onCancel={onCancel}
         />

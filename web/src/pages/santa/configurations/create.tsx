@@ -12,8 +12,6 @@ export function ConfigurationCreatePage() {
       initial={emptyConfigurationForm}
       title="New Configuration"
       submitLabel="Create"
-      pending={create.isPending}
-      error={create.error}
       onCancel={() => void navigate({ to: "/santa/configurations" })}
       onSubmit={async (body) => {
         const saved = await create.mutateAsync(body);

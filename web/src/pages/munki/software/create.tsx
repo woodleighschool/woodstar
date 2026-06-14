@@ -92,9 +92,8 @@ export function MunkiSoftwareCreatePage() {
           ))}
         </ScrollableTabs>
         <FormActions
-          pending={create.isPending}
-          disabled={iconUpload.isUploading}
-          error={create.error?.message ?? iconUpload.error?.message}
+          form={form}
+          requireDirty={false}
           onCancel={() => void navigate({ to: "/munki/software" })}
         />
       </form>

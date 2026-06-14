@@ -35,9 +35,10 @@ Frontend rules for AI agents working under `web/`.
 - Lists use `components/data-table` and its search, filter, column, bulk, skeleton, and empty-state helpers.
 - A first-class resource list renders its empty state as chrome (icon + title + description). Subresources, tabs, nested tables, and detail-page sections use plain text instead.
 - Query load failures render `QueryError` with retry. Detail/form first-load can return `null` instead of flashing a skeleton.
-- Forms use `@tanstack/react-form`, zod, `components/form-field.tsx`, and `components/submit-button.tsx`.
-- Create/edit submit errors render inline near the submit button and set mutation `meta: { inlineError: true }`.
-- Pure actions such as delete, copy, rotate, reorder, bulk operations, and profile saves call `toast.success` at the call site. Their errors ride the global `MutationCache`.
+- Forms use `@tanstack/react-form` with `validationLogic: revalidateLogic()` and one form-level `validators: { onDynamic: schema }` (a zod schema, or a function returning `{ fields }` when the schema only covers a subset of the values). Validation runs on submit, then live on change. Build fields with `components/form-field.tsx` and the submit/cancel footer with `components/form-actions.tsx`.
+- `FormActions` gates the submit button on the form's own state (`canSubmit`, `isDefaultValue`); there are no save spinners. Forms that keep part of their state outside the form (uploads, separate editors) pass `requireDirty={false}`.
+- Mutations report their own outcome. Create/edit hooks `toast.success` in `onSuccess`; errors ride the global `MutationCache` toast. Pure actions such as delete, copy, rotate, reorder, and bulk operations `toast.success` at the call site.
+- Field validation shows inline under each field; submit and server errors toast. Only the pre-auth login/setup forms keep an inline error, via mutation `meta: { inlineError: true }`.
 
 ## React Effects
 

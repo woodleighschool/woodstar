@@ -47,8 +47,6 @@ export function LabelEditPage() {
       initial={labelFromDetail(label)}
       title="Edit Label"
       submitLabel="Save"
-      pending={update.isPending}
-      error={update.error}
       onCancel={() => void navigate({ to: "/labels" })}
       onSubmit={async (body) => {
         await update.mutateAsync(body);

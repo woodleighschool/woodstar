@@ -35,8 +35,6 @@ export function ConfigurationEditPage() {
       key={configuration.id}
       initial={formFromConfiguration(configuration)}
       submitLabel="Save"
-      pending={update.isPending}
-      error={update.error}
       onSubmit={async (body) => {
         const saved = await update.mutateAsync({ id: configuration.id, body });
         void navigate({

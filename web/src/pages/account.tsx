@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -7,7 +7,7 @@ import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -57,16 +57,18 @@ function AccountProfileCard({ account }: { account: Account }) {
 
   const form = useForm({
     defaultValues: { name: user.name, password: "" },
+    validationLogic: revalidateLogic(),
     validators: {
-      onSubmit: z.object({ name: z.string(), password: z.string() }),
+      onDynamic: z.object({ name: z.string(), password: z.string() }),
     },
     onSubmit: async ({ value }) => {
       await update.mutateAsync({
         name: value.name.trim(),
         password: value.password.trim() !== "" ? value.password : undefined,
       });
-      form.setFieldValue("password", "");
-      toast.success("Account updated");
+      // Re-baseline so the saved values count as "unchanged" and Save disables again.
+      form.reset({ name: value.name, password: "" });
+      toast.success("Account saved");
     },
   });
 
@@ -149,16 +151,12 @@ function AccountProfileCard({ account }: { account: Account }) {
           >
             Updated {formatRelative(user.updated_at)}
           </p>
-          <form.Subscribe selector={(state) => state.values}>
-            {(values) => {
-              const canSubmit =
-                isLocal && (values.name !== user.name || values.password.trim() !== "");
-              return (
-                <SubmitButton pending={update.isPending} disabled={!canSubmit} size="sm">
-                  Save
-                </SubmitButton>
-              );
-            }}
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
+            {([canSubmit, isDefaultValue]) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || isDefaultValue}>
+                Save
+              </Button>
+            )}
           </form.Subscribe>
         </CardFooter>
       </form>

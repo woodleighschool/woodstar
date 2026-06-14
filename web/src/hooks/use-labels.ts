@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Label, LabelMutation, Page } from "@/lib/api";
@@ -52,8 +53,8 @@ export function useCreateLabel() {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/labels", { body })),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Label created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
@@ -65,8 +66,8 @@ export function useUpdateLabel(id: number | null) {
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) =>
       unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: id ?? 0 } }, body })),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Label saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },

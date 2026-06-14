@@ -3,7 +3,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/query-error";
-import { SubmitButton } from "@/components/submit-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -76,14 +76,9 @@ export function APIKeyCard() {
         <CardDescription>For CLI and automation access.</CardDescription>
         {!isLoading && !apiKey ? (
           <CardAction>
-            <SubmitButton
-              type="button"
-              pending={pending}
-              size="sm"
-              onClick={() => void handleRotate()}
-            >
+            <Button type="button" size="sm" disabled={pending} onClick={() => void handleRotate()}>
               Generate
-            </SubmitButton>
+            </Button>
           </CardAction>
         ) : null}
       </CardHeader>

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
@@ -116,10 +117,10 @@ export function useSetHostUserAffinity() {
     mutationFn: ({ id, body }) =>
       unwrap(apiClient.PUT("/api/hosts/{id}/user-affinity", { params: { path: { id } }, body })),
     onSuccess: async (host) => {
+      toast.success("User affinity set");
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
-    meta: { inlineError: true },
   });
 }
 
@@ -129,10 +130,10 @@ export function useClearHostUserAffinity() {
     mutationFn: (id) =>
       unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
     onSuccess: async (host) => {
+      toast.success("User affinity cleared");
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
-    meta: { inlineError: true },
   });
 }
 

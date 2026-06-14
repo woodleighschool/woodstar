@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
@@ -58,8 +59,8 @@ export function useCreateSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<SantaConfiguration, ApiError, SantaConfigurationMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/santa/configurations", { body })),
-    meta: { inlineError: true },
     onSuccess: (configuration) => {
+      toast.success("Configuration created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.santaConfiguration(configuration.id),
@@ -82,8 +83,8 @@ export function useUpdateSantaConfiguration() {
           body,
         }),
       ),
-    meta: { inlineError: true },
     onSuccess: (configuration) => {
+      toast.success("Configuration saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.santaConfiguration(configuration.id),

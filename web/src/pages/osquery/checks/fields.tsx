@@ -1,6 +1,7 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { type ReactNode, useCallback, useRef, useState } from "react";
+import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -17,7 +18,11 @@ import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { Check, CheckMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
-import { emptyLabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
+import {
+  emptyLabelTargetSet,
+  labelTargetSetSchema,
+  normalizeLabelTargetSet,
+} from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 export const emptyCheck: CheckMutation = {
@@ -40,6 +45,12 @@ const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, {
   message: invalidSQLSyntaxMessage,
 });
 
+const checkFormSchema = z.object({
+  name: requiredString("Name"),
+  query: checkQuerySchema,
+  targets: labelTargetSetSchema,
+});
+
 function trimCheck(value: CheckMutation): CheckMutation {
   return {
     ...value,
@@ -54,8 +65,6 @@ export function CheckForm({
   initial,
   title,
   submitLabel,
-  pending,
-  error,
   onSubmit,
   onCancel,
   headerContext,
@@ -64,8 +73,6 @@ export function CheckForm({
   initial: CheckMutation;
   title?: string;
   submitLabel: string;
-  pending: boolean;
-  error?: { message?: string } | null;
   onSubmit: (value: CheckMutation) => Promise<void> | void;
   onCancel?: () => void;
   headerContext?: ReactNode;
@@ -76,6 +83,8 @@ export function CheckForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: checkFormSchema },
     onSubmit: async ({ value }) => onSubmit(trimCheck(value)),
   });
 
@@ -130,7 +139,7 @@ export function CheckForm({
           <TabsContent value="options" className="min-w-0">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
-                <form.Field name="name" validators={{ onSubmit: requiredString("Name") }}>
+                <form.Field name="name">
                   {(field) => (
                     <FormField field={field} label="Name" htmlFor="check-name" required>
                       {(control) => (
@@ -165,7 +174,7 @@ export function CheckForm({
                 </form.Field>
               </FieldGroup>
 
-              <form.Field name="query" validators={{ onSubmit: checkQuerySchema }}>
+              <form.Field name="query">
                 {(field) => {
                   const error = firstErrorMessage(field.state.meta.errors);
                   return (
@@ -199,12 +208,7 @@ export function CheckForm({
           </TabsContent>
         </ScrollableTabs>
 
-        <FormActions
-          pending={pending}
-          error={error?.message}
-          submitLabel={submitLabel}
-          onCancel={onCancel}
-        />
+        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
 
         <SchemaSidebar
           open={schemaOpen}

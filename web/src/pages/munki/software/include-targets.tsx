@@ -284,7 +284,7 @@ export function MunkiIncludeTargets({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialog(null)}>
-              Close
+              Cancel
             </Button>
             <Button type="button" onClick={save} disabled={!canSave}>
               {dialog?.mode === "edit" ? "Save" : "Add"}

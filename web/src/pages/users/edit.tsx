@@ -52,8 +52,6 @@ function UserEdit({ user }: { user: User }) {
       <UserForm
         initial={userFromDetail(user)}
         user={user}
-        pending={update.isPending}
-        error={update.error}
         onSubmit={async (body) => {
           const saved = await update.mutateAsync({ id: user.id, body });
           void navigate({

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
@@ -63,8 +64,8 @@ export function useCreateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, MunkiSoftwareMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/munki/software", { body })),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Software created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
     },
   });
@@ -75,8 +76,8 @@ export function useUpdateMunkiSoftware() {
   return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiSoftwareMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(apiClient.PUT("/api/munki/software/{id}", { params: { path: { id } }, body })),
-    meta: { inlineError: true },
     onSuccess: (title) => {
+      toast.success("Software saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(title.id) });
     },

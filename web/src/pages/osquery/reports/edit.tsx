@@ -33,8 +33,6 @@ export function ReportEditPage() {
       key={report.id}
       initial={reportFromDetail(report)}
       submitLabel="Save"
-      pending={update.isPending}
-      error={update.error}
       resultsReportId={id}
       headerActions={<LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />}
       onSubmit={async (value) => {

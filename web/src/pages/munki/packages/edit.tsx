@@ -1,6 +1,7 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -68,7 +69,6 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
-  const [preflightError, setPreflightError] = useState<string | undefined>();
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const softwareInfo: SoftwareInfo = {
     name: pkg.software_name,
@@ -77,13 +77,12 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
     developer: pkg.software_developer,
   };
   const form = usePackageEditorForm(initial, async (value) => {
-    setPreflightError(undefined);
     const validationError = packageSubmitPreflightError(value, {
       hasInstallerArtifact: !!installerFile || !!pkg.installer_artifact_id,
       hasUninstallerArtifact: !!uninstallerFile || !!pkg.uninstaller_artifact_id,
     });
     if (validationError) {
-      setPreflightError(validationError);
+      toast.error(validationError);
       return;
     }
     const installerArtifact =
@@ -124,9 +123,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
-          pending={update.isPending}
-          disabled={packageUpload.isUploading}
-          error={preflightError ?? update.error?.message ?? packageUpload.error?.message}
+          form={form}
+          requireDirty={false}
           onCancel={() => void navigate({ to: "/munki/packages" })}
         />
       </form>

@@ -1,7 +1,8 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { type ReactNode, useCallback, useRef, useState } from "react";
+import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
@@ -36,7 +37,11 @@ import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { Report, ReportMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
-import { emptyLabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
+import {
+  emptyLabelTargetSet,
+  labelTargetSetSchema,
+  normalizeLabelTargetSet,
+} from "@/lib/targeting";
 import { cn, nonEmpty } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -75,6 +80,12 @@ const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, {
   message: invalidSQLSyntaxMessage,
 });
 
+const reportFormSchema = z.object({
+  name: requiredString("Name"),
+  query: reportQuerySchema,
+  targets: labelTargetSetSchema,
+});
+
 function trimReport(value: ReportMutation): ReportMutation {
   return {
     ...value,
@@ -90,8 +101,6 @@ export function ReportForm({
   initial,
   title,
   submitLabel,
-  pending,
-  error,
   onSubmit,
   onCancel,
   headerActions,
@@ -100,8 +109,6 @@ export function ReportForm({
   initial: ReportMutation;
   title?: string;
   submitLabel: string;
-  pending: boolean;
-  error?: { message?: string } | null;
   onSubmit: (value: ReportMutation) => Promise<void> | void;
   onCancel?: () => void;
   headerActions?: ReactNode;
@@ -112,6 +119,8 @@ export function ReportForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: reportFormSchema },
     onSubmit: async ({ value }) => onSubmit(trimReport(value)),
   });
 
@@ -163,7 +172,7 @@ export function ReportForm({
           <TabsContent value="options" className="min-w-0">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
-                <form.Field name="name" validators={{ onSubmit: requiredString("Name") }}>
+                <form.Field name="name">
                   {(field) => (
                     <FormField field={field} label="Name" htmlFor="report-name" required>
                       {(control) => (
@@ -249,7 +258,7 @@ export function ReportForm({
                 </div>
               </FieldGroup>
 
-              <form.Field name="query" validators={{ onSubmit: reportQuerySchema }}>
+              <form.Field name="query">
                 {(field) => {
                   const error = firstErrorMessage(field.state.meta.errors);
                   return (
@@ -291,12 +300,7 @@ export function ReportForm({
           ) : null}
         </ScrollableTabs>
 
-        <FormActions
-          pending={pending}
-          error={error?.message}
-          submitLabel={submitLabel}
-          onCancel={onCancel}
-        />
+        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
 
         <SchemaSidebar
           open={schemaOpen}

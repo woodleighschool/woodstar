@@ -58,6 +58,44 @@ func TestSantaRuleReferencesEndpointReturnsCandidates(t *testing.T) {
 	}
 }
 
+func TestSantaRuleEndpointCreatesSigningIDWithoutTargets(t *testing.T) {
+	db, _ := dbtest.Open(t)
+	router := santaRulesAPI(t, func(api huma.API) {
+		rules.RegisterAdminRoutes(api, rules.NewStore(db))
+	})
+
+	rec := santaRulesRequest(
+		t,
+		router,
+		http.MethodPost,
+		"/api/santa/rules",
+		`{
+			"name": "Google Chrome Signing ID",
+			"rule_type": "signingid",
+			"identifier": "EQHXZ8M8AV:com.google.Chrome",
+			"targets": {
+				"include": [],
+				"exclude": []
+			}
+		}`,
+	)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	var created rules.Rule
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created rule: %v", err)
+	}
+	if created.RuleType != rules.RuleTypeSigningID ||
+		created.Identifier != "EQHXZ8M8AV:com.google.Chrome" ||
+		created.Name != "Google Chrome Signing ID" {
+		t.Fatalf("created rule = %+v, want Chrome signing ID rule", created)
+	}
+	if len(created.Targets.Include) != 0 || len(created.Targets.Exclude) != 0 {
+		t.Fatalf("created targets = %+v, want empty targets", created.Targets)
+	}
+}
+
 func TestSantaRuleEndpointReplacesTargetsOnPut(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {

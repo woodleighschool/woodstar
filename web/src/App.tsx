@@ -8,6 +8,14 @@ import { toast, Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { router } from "@/router";
 
+declare module "@tanstack/react-query" {
+  // Typed mutation meta. inlineError renders a mutation's error on the form
+  // instead of the global toast (the pre-auth login/setup forms).
+  interface Register {
+    mutationMeta: { inlineError?: boolean };
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -17,9 +25,9 @@ const queryClient = new QueryClient({
       retryOnMount: false,
     },
   },
-  // Unhandled mutation errors surface as a toast. Resource forms that render their
-  // submit error inline opt out with meta: { inlineError: true }; mutations with an
-  // explicit onError handle it themselves.
+  // Mutation errors surface as a toast unless the mutation handles them itself:
+  // an explicit onError, or meta.inlineError for the auth forms that render the
+  // error in place.
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.inlineError || mutation.options.onError) return;

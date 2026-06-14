@@ -33,8 +33,6 @@ export function RuleEditPage() {
       key={rule.id}
       initial={formFromRule(rule)}
       submitLabel="Save"
-      pending={update.isPending}
-      error={update.error}
       onSubmit={async (body) => {
         const saved = await update.mutateAsync({ id: rule.id, body });
         void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(saved.id) } });

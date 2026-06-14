@@ -14,8 +14,6 @@ export function RuleCreatePage() {
       initial={formFromSearch(search)}
       title="New Rule"
       submitLabel="Create"
-      pending={create.isPending}
-      error={create.error}
       onCancel={() => void navigate({ to: "/santa/rules" })}
       onSubmit={async (body) => {
         const saved = await create.mutateAsync(body);

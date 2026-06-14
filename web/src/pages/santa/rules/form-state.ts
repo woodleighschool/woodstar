@@ -42,7 +42,7 @@ const includeSchema = z
 export const ruleFormSchema = z
   .object({
     rule_type: z.enum(RULE_TYPE_VALUES),
-    identifier: requiredString("Target"),
+    identifier: requiredString("Identifier"),
     name: requiredString("Name"),
     description: z.string().trim(),
     custom_message: z.string().trim(),
@@ -63,8 +63,6 @@ export const ruleFormSchema = z
       ctx.addIssue({ code: "custom", message: rule.hint, path: ["identifier"] });
     }
   });
-
-export type RuleFormParse = ReturnType<typeof ruleFormSchema.safeParse>;
 
 export interface RuleIncludeForm {
   id: number;
@@ -165,9 +163,4 @@ export function selectedIncludeLabelIDs(includeRows: RuleIncludeForm[]) {
 
 export function ruleIdentifierHint(ruleType: SantaRuleType) {
   return RULE_IDENTIFIER_RULES[ruleType].hint;
-}
-
-export function identifierErrorFor(result: RuleFormParse): string | undefined {
-  if (result.success) return undefined;
-  return result.error.issues.find((issue) => issue.path[0] === "identifier")?.message;
 }

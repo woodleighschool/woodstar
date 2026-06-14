@@ -13,7 +13,6 @@ import { EnumStatus } from "@/components/enum-status";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { SubmitButton } from "@/components/submit-button";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import {
   AlertDialog,
@@ -296,15 +295,14 @@ function ConfigurationReorder({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
-        <SubmitButton
+        <Button
           type="button"
-          pending={reorder.isPending}
           size="sm"
-          disabled={truncated}
+          disabled={reorder.isPending || truncated}
           onClick={saveOrder}
         >
           Save
-        </SubmitButton>
+        </Button>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>
           Cancel
         </Button>

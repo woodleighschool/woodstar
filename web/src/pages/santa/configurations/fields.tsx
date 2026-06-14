@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
@@ -40,7 +40,7 @@ import {
   MEDIA_ACTION_VALUES,
   type SantaMediaAction,
 } from "@/lib/santa-configurations";
-import { emptyLabelTargetSet } from "@/lib/targeting";
+import { emptyLabelTargetSet, labelTargetSetSchema } from "@/lib/targeting";
 
 interface ConfigurationFormState {
   name: string;
@@ -67,18 +67,7 @@ const configurationFormSchema = z
     name: requiredString("Name"),
     description: z.string().trim(),
     client_mode: z.enum(CLIENT_MODE_VALUES),
-    targets: z.object({
-      include: z.array(
-        z.object({
-          label_id: z.number().int("Label selection is invalid.").positive("Select a label."),
-        }),
-      ),
-      exclude: z.array(
-        z.object({
-          label_id: z.number().int("Label selection is invalid.").positive("Select a label."),
-        }),
-      ),
-    }),
+    targets: labelTargetSetSchema,
     enable_bundles: z.boolean(),
     enable_transitive_rules: z.boolean(),
     enable_all_event_upload: z.boolean(),
@@ -142,24 +131,19 @@ export function ConfigurationForm({
   initial,
   title,
   submitLabel,
-  pending,
-  error,
   onSubmit,
   onCancel,
 }: {
   initial: ConfigurationFormState;
   title?: string;
   submitLabel: string;
-  pending: boolean;
-  error?: { message?: string } | null;
   onSubmit: (body: SantaConfigurationMutation) => Promise<void> | void;
   onCancel?: () => void;
 }) {
   const form = useForm({
     defaultValues: initial,
-    validators: {
-      onSubmit: configurationFormSchema,
-    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: configurationFormSchema },
     onSubmit: async ({ value }) =>
       onSubmit(configurationBody(configurationFormSchema.parse(value))),
   });
@@ -443,12 +427,7 @@ export function ConfigurationForm({
           </TabsContent>
         </ScrollableTabs>
 
-        <FormActions
-          pending={pending}
-          error={error?.message}
-          submitLabel={submitLabel}
-          onCancel={onCancel}
-        />
+        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
       </form>
     </PageShell>
   );

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Page, Report, ReportMutation, ReportResult } from "@/lib/api";
@@ -65,8 +66,8 @@ export function useCreateReport() {
   const queryClient = useQueryClient();
   return useMutation<Report, ApiError, ReportMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/reports", { body })),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Report created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
@@ -82,8 +83,8 @@ export function useUpdateReport(id: number | null) {
           body,
         }),
       ),
-    meta: { inlineError: true },
     onSuccess: () => {
+      toast.success("Report saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.report(id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.reportResults(id) });

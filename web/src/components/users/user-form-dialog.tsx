@@ -1,8 +1,7 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
-import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -47,8 +46,9 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
 
   const form = useForm({
     defaultValues: { email: "", name: "", role: "viewer" as UserRole, password: "" },
+    validationLogic: revalidateLogic(),
     validators: {
-      onSubmit: z.object({
+      onDynamic: z.object({
         email: z.email("Enter a valid email."),
         name: z.string().trim(),
         role: z.enum(["admin", "viewer"]),
@@ -166,17 +166,19 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
           </form.Field>
         </FieldGroup>
 
-        {create.error ? <FieldError>{create.error.message}</FieldError> : null}
-
         <DialogFooter className="pt-2">
           <DialogClose asChild>
             <Button type="button" variant="ghost" size="sm" disabled={create.isPending}>
               Cancel
             </Button>
           </DialogClose>
-          <SubmitButton pending={create.isPending} size="sm">
-            Create
-          </SubmitButton>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
+            {([canSubmit, isDefaultValue]) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || isDefaultValue}>
+                Create
+              </Button>
+            )}
+          </form.Subscribe>
         </DialogFooter>
       </form>
     </>

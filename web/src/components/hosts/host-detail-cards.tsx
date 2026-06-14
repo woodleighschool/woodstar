@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
@@ -10,7 +10,6 @@ import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
 import { LabelChips } from "@/components/labels/label-chips";
-import { SubmitButton } from "@/components/submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -282,11 +281,11 @@ function HostUserMappingDialog({
   const setMapping = useSetHostUserAffinity();
   const clearMapping = useClearHostUserAffinity();
   const pending = setMapping.isPending || clearMapping.isPending;
-  const submitError = setMapping.error ?? clearMapping.error;
 
   const form = useForm({
     defaultValues: { email: manual?.email ?? host.user_affinity.primary?.email ?? "" },
-    validators: { onSubmit: z.object({ email: requiredString("Email / UPN") }) },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: z.object({ email: requiredString("Email / UPN") }) },
     onSubmit: async ({ value }) => {
       await setMapping.mutateAsync({ id: host.id, body: { email: value.email } });
       onOpenChange(false);
@@ -334,8 +333,6 @@ function HostUserMappingDialog({
             </form.Field>
           </FieldGroup>
 
-          {submitError ? <FieldError>{submitError.message}</FieldError> : null}
-
           <DialogFooter className="pt-2">
             {manual ? (
               <Button
@@ -358,9 +355,13 @@ function HostUserMappingDialog({
             >
               Cancel
             </Button>
-            <SubmitButton pending={pending} size="sm">
-              Save
-            </SubmitButton>
+            <form.Subscribe selector={(state) => state.canSubmit}>
+              {(canSubmit) => (
+                <Button type="submit" size="sm" disabled={!canSubmit}>
+                  Save
+                </Button>
+              )}
+            </form.Subscribe>
           </DialogFooter>
         </form>
       </DialogContent>
