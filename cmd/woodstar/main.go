@@ -297,6 +297,7 @@ func newServer(
 		Munki: adminapi.MunkiDependencies{
 			Repository: munkiRepo,
 			Store:      storageBackend,
+			Objects:    storageObjects,
 			HostState:  munkiHostStateStore,
 			Packages:   munkiPackageStore,
 			Software:   munkiSoftwareStore,

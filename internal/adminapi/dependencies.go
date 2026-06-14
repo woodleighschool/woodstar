@@ -88,6 +88,7 @@ type OsqueryDependencies struct {
 type MunkiDependencies struct {
 	Repository *munki.RepositoryService
 	Store      storage.Store
+	Objects    *storage.ObjectStore
 	HostState  *munki.Store
 	Packages   *packages.Store
 	Software   *munkisoftware.Store
