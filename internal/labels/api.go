@@ -76,7 +76,7 @@ func registerListLabels(api huma.API, labelStore *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(labelResource, err)
 		}
-		return &labelListOutput{Body: apitypes.Page[Label]{Items: rows, Count: count}}, nil
+		return &labelListOutput{Body: apitypes.Page[Label]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 

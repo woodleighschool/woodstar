@@ -36,8 +36,8 @@ type BulkIDsBody struct {
 }
 
 type Page[T any] struct {
-	Items []T `json:"items" nullable:"false"`
-	Count int `json:"count"`
+	Items []T   `json:"items" nullable:"false"`
+	Count int32 `json:"count"`
 }
 
 // MarshalJSON renders an empty page as items: [] rather than null, matching the
@@ -48,8 +48,8 @@ func (p Page[T]) MarshalJSON() ([]byte, error) {
 		items = make([]T, 0)
 	}
 	return json.Marshal(struct {
-		Items []T `json:"items"`
-		Count int `json:"count"`
+		Items []T   `json:"items"`
+		Count int32 `json:"count"`
 	}{Items: items, Count: p.Count})
 }
 
@@ -59,13 +59,13 @@ func (p Page[T]) MarshalJSON() ([]byte, error) {
 // their own query fields, keyed by column ID.
 type ListQueryInput struct {
 	Q       string `query:"q,omitempty"`
-	Page    int    `query:"page,omitempty"     minimum:"1"`
-	PerPage int    `query:"per_page,omitempty" minimum:"1" maximum:"1000"`
+	Page    int32  `query:"page,omitempty"     minimum:"1"`
+	PerPage int32  `query:"per_page,omitempty" minimum:"1" maximum:"1000"`
 	Sort    string `query:"sort,omitempty"`
 }
 
 func (input ListQueryInput) Params() dbutil.ListParams {
-	pageIndex := 0
+	var pageIndex int32
 	if input.Page > 1 {
 		pageIndex = input.Page - 1
 	}

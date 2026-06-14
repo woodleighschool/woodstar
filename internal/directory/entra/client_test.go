@@ -60,14 +60,14 @@ func TestClientFetchBatchesUserGroupMembership(t *testing.T) {
 		http: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			switch {
 			case req.URL.Path == "/v1.0/users":
-				return jsonResponse(http.StatusOK, map[string]any{
+				return jsonResponse(map[string]any{
 					"value": []map[string]any{
 						{"id": "u-1", "userPrincipalName": "one@example.com", "displayName": "One"},
 						{"id": "u-2", "userPrincipalName": "two@example.com", "displayName": "Two"},
 					},
 				}), nil
 			case req.URL.Path == "/v1.0/groups":
-				return jsonResponse(http.StatusOK, map[string]any{
+				return jsonResponse(map[string]any{
 					"value": []map[string]any{
 						{"id": "g-1", "displayName": "Group 1"},
 						{"id": "g-2", "displayName": "Group 2"},
@@ -82,7 +82,7 @@ func TestClientFetchBatchesUserGroupMembership(t *testing.T) {
 				if len(body.Requests) != 2 {
 					t.Fatalf("batch request count = %d, want 2", len(body.Requests))
 				}
-				return jsonResponse(http.StatusOK, map[string]any{
+				return jsonResponse(map[string]any{
 					"responses": []map[string]any{
 						{
 							"id":     body.Requests[1].ID,
@@ -102,7 +102,7 @@ func TestClientFetchBatchesUserGroupMembership(t *testing.T) {
 				}), nil
 			case strings.Contains(req.URL.Path, "/memberOf/"):
 				directMembershipCalls++
-				return jsonResponse(http.StatusOK, map[string]any{"value": []map[string]any{}}), nil
+				return jsonResponse(map[string]any{"value": []map[string]any{}}), nil
 			default:
 				t.Fatalf("unexpected Graph request: %s", req.URL.String())
 				return nil, errors.New("unexpected Graph request")
@@ -135,14 +135,14 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func jsonResponse(status int, body any) *http.Response {
+func jsonResponse(body any) *http.Response {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(body); err != nil {
 		panic(err)
 	}
 	return &http.Response{
-		StatusCode: status,
-		Status:     http.StatusText(status),
+		StatusCode: http.StatusOK,
+		Status:     http.StatusText(http.StatusOK),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(&buf),
 	}

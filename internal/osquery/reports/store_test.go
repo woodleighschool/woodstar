@@ -74,7 +74,7 @@ func TestUpdateReplacesTargets(t *testing.T) {
 
 func TestScheduledForHostUsesTargetRows(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-target-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-target-host")
 	matching := createManualLabel(t, ctx, labelStore, "Report match")
 	other := createManualLabel(t, ctx, labelStore, "Report other")
 	excluded := createManualLabel(t, ctx, labelStore, "Report excluded")
@@ -121,7 +121,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 
 func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-requires-include-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-requires-include-host")
 	excluded := createManualLabel(t, ctx, labelStore, "Report requires include excluded")
 	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
 		t.Fatalf("set excluded label membership: %v", err)
@@ -176,7 +176,7 @@ func TestCreateReportRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 
 func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	if _, err := store.Create(ctx, ReportMutation{
@@ -220,7 +220,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 
 func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
@@ -376,13 +376,12 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
 	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: osqueryVersion}},
+		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"}},
 	})
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)

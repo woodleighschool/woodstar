@@ -34,7 +34,7 @@ type Handle struct {
 	ID                int64     `json:"id"`
 	SQL               string    `json:"sql"`
 	StartedAt         time.Time `json:"started_at"`
-	ResolvedHostCount int       `json:"resolved_host_count"`
+	ResolvedHostCount int32     `json:"resolved_host_count"`
 }
 
 // Event is published to subscribers for SSE delivery.
@@ -107,7 +107,7 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 		ID:                id,
 		SQL:               sql,
 		StartedAt:         q.startedAt,
-		ResolvedHostCount: len(hostIDs),
+		ResolvedHostCount: int32(len(hostIDs)),
 	}
 }
 

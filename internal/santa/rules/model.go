@@ -112,7 +112,7 @@ type RuleStatusListParams struct {
 type RuleReferenceListParams struct {
 	Q        string
 	RuleType RuleType
-	Limit    int
+	Limit    int32
 }
 
 type RuleReferenceCandidate struct {

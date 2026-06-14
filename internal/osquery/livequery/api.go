@@ -32,9 +32,9 @@ type liveQueryTargetCountBody struct {
 }
 
 type liveQueryTargetCountOutputBody struct {
-	TargetsCount   int `json:"targets_count"`
-	TargetsOnline  int `json:"targets_online"`
-	TargetsOffline int `json:"targets_offline"`
+	TargetsCount   int32 `json:"targets_count"`
+	TargetsOnline  int32 `json:"targets_online"`
+	TargetsOffline int32 `json:"targets_offline"`
 }
 
 type liveQueryCreateInput struct {

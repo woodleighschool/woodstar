@@ -96,7 +96,7 @@ type PackageInstallerEnvironmentVariable struct {
 type PackageInstallerChoice struct {
 	ChoiceIdentifier string `json:"choice_identifier,omitempty"`
 	ChoiceAttribute  string `json:"choice_attribute,omitempty"`
-	AttributeSetting int    `json:"attribute_setting"`
+	AttributeSetting int32  `json:"attribute_setting"`
 }
 
 // PackageInstallItemType describes the Munki installs item matcher shape.

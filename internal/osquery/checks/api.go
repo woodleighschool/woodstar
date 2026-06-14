@@ -76,7 +76,7 @@ func registerListChecks(api huma.API, checkStore *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}
-		return &checkListOutput{Body: apitypes.Page[Check]{Items: items, Count: count}}, nil
+		return &checkListOutput{Body: apitypes.Page[Check]{Items: items, Count: int32(count)}}, nil
 	})
 }
 

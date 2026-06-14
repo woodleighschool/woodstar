@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-const ruleDownloadPageSize = 500
+const ruleDownloadPageSize int32 = 500
 
 // SyncService coordinates Santa sync protocol stages.
 type SyncService struct {
@@ -66,7 +66,7 @@ type syncStore interface {
 		syncstate.RuleCounts,
 		bool,
 	) (syncstate.SyncType, error)
-	LoadPendingPayloadPage(context.Context, int64, string, int) (syncstate.PayloadRulePage, error)
+	LoadPendingPayloadPage(context.Context, int64, string, int32) (syncstate.PayloadRulePage, error)
 	PromotePending(context.Context, int64, string, int32, int32) error
 }
 

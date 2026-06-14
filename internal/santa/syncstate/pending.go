@@ -48,7 +48,7 @@ type PayloadRulePage struct {
 }
 
 type pageCursor struct {
-	Offset int `json:"offset"`
+	Offset int32 `json:"offset"`
 }
 
 func (target Target) key() string {
@@ -195,11 +195,12 @@ func (s *Store) LoadPendingPayloadPage(
 	ctx context.Context,
 	hostID int64,
 	cursor string,
-	limit int,
+	limit int32,
 ) (PayloadRulePage, error) {
 	if limit <= 0 {
 		return PayloadRulePage{}, dbutil.ErrInvalidInput
 	}
+	limitRows := int(limit)
 	offset, err := decodeCursor(cursor)
 	if err != nil {
 		return PayloadRulePage{}, err
@@ -207,8 +208,8 @@ func (s *Store) LoadPendingPayloadPage(
 
 	rows, err := s.q.ListSantaPendingPayloadPage(ctx, sqlc.ListSantaPendingPayloadPageParams{
 		HostID:      hostID,
-		LimitCount:  int32(limit + 1),
-		OffsetCount: int32(offset),
+		LimitCount:  limit + 1,
+		OffsetCount: offset,
 	})
 	if err != nil {
 		return PayloadRulePage{}, err
@@ -219,8 +220,8 @@ func (s *Store) LoadPendingPayloadPage(
 		rules[i] = payloadRuleFromSQLC(row)
 	}
 	nextCursor := ""
-	if len(rules) > limit {
-		rules = rules[:limit]
+	if len(rules) > limitRows {
+		rules = rules[:limitRows]
 		nextCursor, err = encodeCursor(offset + limit)
 		if err != nil {
 			return PayloadRulePage{}, err
@@ -509,7 +510,7 @@ func payloadRuleFromSQLC(row sqlc.ListSantaPendingPayloadPageRow) PayloadRule {
 	}
 }
 
-func decodeCursor(cursor string) (int, error) {
+func decodeCursor(cursor string) (int32, error) {
 	if cursor == "" {
 		return 0, nil
 	}
@@ -527,7 +528,7 @@ func decodeCursor(cursor string) (int, error) {
 	return decoded.Offset, nil
 }
 
-func encodeCursor(offset int) (string, error) {
+func encodeCursor(offset int32) (string, error) {
 	payload, err := json.Marshal(pageCursor{Offset: offset})
 	if err != nil {
 		return "", err

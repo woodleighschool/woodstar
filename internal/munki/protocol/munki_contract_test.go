@@ -20,7 +20,7 @@ import (
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munkisoftware.EffectivePackage{
+		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -225,7 +225,7 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munkisoftware.EffectivePackage{
+		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -288,7 +288,7 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munkisoftware.EffectivePackage{
+		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -341,7 +341,7 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munkisoftware.EffectivePackage{
+		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
 				TargetID:   10,
 				SoftwareID: 1,
@@ -375,7 +375,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository("C02MUNKI"),
+		newStaticRepository(),
 	)
 
 	cases := []struct {
@@ -410,7 +410,7 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository("C02MUNKI"),
+		newStaticRepository(),
 	)
 
 	cases := []struct {
@@ -442,7 +442,7 @@ func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
 func TestMunkiHTTPUsesSerialHeaderNotManifestName(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository("C02MUNKI"),
+		newStaticRepository(),
 	)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/site_default", nil)
@@ -458,7 +458,7 @@ func TestMunkiHTTPUsesSerialHeaderNotManifestName(t *testing.T) {
 
 func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 	verifier := &recordingVerifier{token: "munki-secret"}
-	repository := newStaticRepository("C02MUNKI")
+	repository := newStaticRepository()
 	router := newMunkiContractRouter(verifier, repository)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
@@ -479,7 +479,7 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 }
 
 func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
-	repository := newStaticRepository("C02MUNKI")
+	repository := newStaticRepository()
 	repository.artifactURL = "https://storage.example/GoogleChrome.pkg?signature=test"
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -509,7 +509,7 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 }
 
 func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
-	repository := newStaticRepository("C02MUNKI")
+	repository := newStaticRepository()
 	repository.artifactURL = "https://storage.example/icons/aaaaaaaaaaaa/GoogleChrome.png?signature=test"
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -533,7 +533,7 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 }
 
 func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
-	repository := newStaticRepository("C02MUNKI")
+	repository := newStaticRepository()
 	repository.artifactErr = artifacts.ErrUnavailable
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -553,7 +553,7 @@ func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
 }
 
 func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
-	router := newMunkiContractRouter(errorVerifier{}, newStaticRepository("C02MUNKI"))
+	router := newMunkiContractRouter(errorVerifier{}, newStaticRepository())
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
@@ -607,14 +607,14 @@ type staticRepository struct {
 	artifactLocation string
 }
 
-func newStaticRepository(serial string) *staticRepository {
-	return newStaticRepositoryWithPackages(serial, nil)
+func newStaticRepository() *staticRepository {
+	return newStaticRepositoryWithPackages(nil)
 }
 
-func newStaticRepositoryWithPackages(serial string, packages []munkisoftware.EffectivePackage) *staticRepository {
+func newStaticRepositoryWithPackages(packages []munkisoftware.EffectivePackage) *staticRepository {
 	return &staticRepository{
 		service: munki.NewRepositoryService(munki.Dependencies{Packages: staticPackageResolver{packages: packages}}),
-		want:    serial,
+		want:    "C02MUNKI",
 	}
 }
 

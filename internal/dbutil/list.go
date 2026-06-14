@@ -14,8 +14,8 @@ const (
 // PageIndex is 0-indexed to match TanStack Table pagination state.
 type ListParams struct {
 	Q         string
-	PageIndex int
-	PageSize  int
+	PageIndex int32
+	PageSize  int32
 	Sort      string
 }
 

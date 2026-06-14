@@ -124,7 +124,7 @@ type munkiPkginfoItemToCopy struct {
 type munkiPkginfoChoice struct {
 	ChoiceIdentifier string `json:"choiceIdentifier,omitempty"`
 	ChoiceAttribute  string `json:"choiceAttribute,omitempty"`
-	AttributeSetting int    `json:"attributeSetting"`
+	AttributeSetting int32  `json:"attributeSetting"`
 }
 
 type munkiPkginfoAlert struct {

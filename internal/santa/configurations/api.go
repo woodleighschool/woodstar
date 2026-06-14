@@ -86,7 +86,7 @@ func registerListSantaConfigurations(api huma.API, store *Store) {
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &santaConfigurationListOutput{
-			Body: apitypes.Page[Configuration]{Items: rows, Count: count},
+			Body: apitypes.Page[Configuration]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }

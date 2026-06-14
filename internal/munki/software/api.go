@@ -99,7 +99,7 @@ func registerListMunkiSoftware(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return &munkiSoftwareListOutput{
-			Body: apitypes.Page[munkiSoftware]{Items: munkiSoftwareFromDomain(rows), Count: count},
+			Body: apitypes.Page[munkiSoftware]{Items: munkiSoftwareFromDomain(rows), Count: int32(count)},
 		}, nil
 	})
 }

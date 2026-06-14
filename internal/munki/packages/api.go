@@ -90,7 +90,7 @@ func registerListMunkiPackages(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromRecords(rows), Count: count},
+			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromRecords(rows), Count: int32(count)},
 		}, nil
 	})
 }

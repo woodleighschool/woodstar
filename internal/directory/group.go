@@ -13,7 +13,7 @@ type Group struct {
 	ExternalID   string    `json:"external_id"`
 	DisplayName  string    `json:"display_name"`
 	MailNickname string    `json:"mail_nickname,omitempty"`
-	MemberCount  int       `json:"member_count"`
+	MemberCount  int32     `json:"member_count"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

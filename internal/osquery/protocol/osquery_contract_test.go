@@ -71,9 +71,9 @@ func TestOsqueryHTTPReturnsNodeInvalidForUnknownNodeKey(t *testing.T) {
 	router := newOsqueryContractRouter(newOsqueryContractStores(database))
 
 	var body osquery.ConfigResponse
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/config", osquery.ConfigRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/config", osquery.ConfigRequest{
 		NodeKey: "unknown-node-key",
-	}, http.StatusOK, &body)
+	}, &body)
 	if !body.NodeInvalid {
 		t.Fatal("config with unknown node key did not return node_invalid")
 	}
@@ -116,9 +116,9 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	nodeKey := enrollOsqueryContractHost(t, router, secret.Value, hardwareUUID)
 	var body osquery.ConfigResponse
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/config", osquery.ConfigRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/config", osquery.ConfigRequest{
 		NodeKey: nodeKey,
-	}, http.StatusOK, &body)
+	}, &body)
 
 	for _, entry := range body.Schedule {
 		if entry.Query == "select 42;" {
@@ -170,7 +170,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		t.Fatalf("get host by osquery node key: %v", err)
 	}
 
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/log", osquery.LogRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/log", osquery.LogRequest{
 		NodeKey: nodeKey,
 		LogType: "result",
 		Data: json.RawMessage(`[
@@ -184,7 +184,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 				]
 			}
 		]`),
-	}, http.StatusOK, nil)
+	}, nil)
 
 	results, lastFetched, err := stores.reports.HostResults(ctx, host.ID, report.ID)
 	if err != nil {
@@ -272,7 +272,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 func enrollOsqueryContractHost(t *testing.T, router http.Handler, secret string, hardwareUUID string) string {
 	t.Helper()
 	var body osquery.EnrollResponse
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/enroll", osquery.EnrollRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/enroll", osquery.EnrollRequest{
 		EnrollSecret:   secret,
 		HostIdentifier: hardwareUUID,
 		HostDetails: map[string]map[string]string{
@@ -296,7 +296,7 @@ func enrollOsqueryContractHost(t *testing.T, router http.Handler, secret string,
 			},
 			"platform_info": {"extra": "Darwin Kernel Version 25.5.0"},
 		},
-	}, http.StatusOK, &body)
+	}, &body)
 	if body.NodeKey == "" {
 		t.Fatal("enroll returned empty osquery node key")
 	}
@@ -306,9 +306,9 @@ func enrollOsqueryContractHost(t *testing.T, router http.Handler, secret string,
 func readOsqueryContractWork(t *testing.T, router http.Handler, nodeKey string) map[string]string {
 	t.Helper()
 	var body osquery.DistributedReadResponse
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/distributed/read", osquery.DistributedReadRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/distributed/read", osquery.DistributedReadRequest{
 		NodeKey: nodeKey,
-	}, http.StatusOK, &body)
+	}, &body)
 	if body.NodeInvalid {
 		t.Fatal("distributed read returned node_invalid")
 	}
@@ -431,11 +431,11 @@ func writeOsqueryContractDetails(
 		statuses[name] = json.RawMessage(`0`)
 	}
 
-	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/distributed/write", osquery.DistributedWriteRequest{
+	doOsqueryJSON(t, router, "/api/v1/osquery/distributed/write", osquery.DistributedWriteRequest{
 		NodeKey:  nodeKey,
 		Queries:  queryRows,
 		Statuses: statuses,
-	}, http.StatusOK, nil)
+	}, nil)
 }
 
 func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
@@ -571,10 +571,8 @@ func cleanupOsqueryContractRows(
 func doOsqueryJSON(
 	t *testing.T,
 	router http.Handler,
-	method string,
 	path string,
 	payload any,
-	wantStatus int,
 	out any,
 ) {
 	t.Helper()
@@ -585,19 +583,26 @@ func doOsqueryJSON(
 			t.Fatalf("encode request body: %v", err)
 		}
 	}
-	req := httptest.NewRequest(method, path, &body)
+	req := httptest.NewRequest(http.MethodPost, path, &body)
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != wantStatus {
-		t.Fatalf("%s %s status = %d, want %d; body: %s", method, path, rec.Code, wantStatus, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"%s %s status = %d, want %d; body: %s",
+			http.MethodPost,
+			path,
+			rec.Code,
+			http.StatusOK,
+			rec.Body.String(),
+		)
 	}
 	if out != nil {
 		if err := json.NewDecoder(rec.Body).Decode(out); err != nil {
-			t.Fatalf("decode %s %s response: %v; body: %s", method, path, err, rec.Body.String())
+			t.Fatalf("decode %s %s response: %v; body: %s", http.MethodPost, path, err, rec.Body.String())
 		}
 	}
 }

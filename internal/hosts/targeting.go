@@ -18,9 +18,9 @@ type TargetSelection struct {
 
 // TargetMetrics counts the current status split for a resolved target set.
 type TargetMetrics struct {
-	Total   int
-	Online  int
-	Offline int
+	Total   int32
+	Online  int32
+	Offline int32
 }
 
 // ResolveSelectedTargets returns active host ids for a live target selection.
@@ -83,9 +83,9 @@ func (s *Store) CountSelectedTargets(
 	if err != nil {
 		return TargetMetrics{}, err
 	}
-	metrics.Total = int(counts.Total)
-	metrics.Online = int(counts.Online)
-	metrics.Offline = int(counts.Offline)
+	metrics.Total = counts.Total
+	metrics.Online = counts.Online
+	metrics.Offline = counts.Offline
 	return metrics, nil
 }
 

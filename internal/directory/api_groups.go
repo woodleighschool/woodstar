@@ -59,7 +59,7 @@ func registerListGroups(api huma.API, groupStore *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(groupResource, err)
 		}
-		return &groupListOutput{Body: apitypes.Page[Group]{Items: list, Count: count}}, nil
+		return &groupListOutput{Body: apitypes.Page[Group]{Items: list, Count: int32(count)}}, nil
 	})
 }
 

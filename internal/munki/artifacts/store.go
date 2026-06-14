@@ -49,8 +49,8 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Artifact,
 		return nil, 0, err
 	}
 	rows, err := s.q.ListMunkiArtifacts(ctx, sqlc.ListMunkiArtifactsParams{
-		OffsetRows: int32(params.PageIndex * params.PageSize),
-		LimitRows:  int32(params.PageSize),
+		OffsetRows: params.PageIndex * params.PageSize,
+		LimitRows:  params.PageSize,
 	})
 	if err != nil {
 		return nil, 0, err

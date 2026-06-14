@@ -192,7 +192,7 @@ components:
         mail_nickname:
           type: string
         member_count:
-          format: int64
+          format: int32
           type: integer
         source:
           enum:
@@ -1490,7 +1490,7 @@ components:
       additionalProperties: false
       properties:
         attribute_setting:
-          format: int64
+          format: int32
           type: integer
         choice_attribute:
           type: string
@@ -1943,7 +1943,7 @@ components:
           format: int64
           type: integer
         resolved_host_count:
-          format: int64
+          format: int32
           type: integer
         sql:
           type: string
@@ -2092,13 +2092,13 @@ components:
       additionalProperties: false
       properties:
         targets_count:
-          format: int64
+          format: int32
           type: integer
         targets_offline:
-          format: int64
+          format: int32
           type: integer
         targets_online:
-          format: int64
+          format: int32
           type: integer
       required:
         - targets_count
@@ -2210,7 +2210,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2224,7 +2224,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2238,7 +2238,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2252,7 +2252,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2266,7 +2266,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2280,7 +2280,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2294,7 +2294,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2308,7 +2308,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2322,7 +2322,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2336,7 +2336,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2350,7 +2350,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2364,7 +2364,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2378,7 +2378,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2392,7 +2392,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2406,7 +2406,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2420,7 +2420,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -2434,7 +2434,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int64
+          format: int32
           type: integer
         items:
           items:
@@ -4090,14 +4090,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -4200,14 +4200,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -4588,14 +4588,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -4663,14 +4663,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -4852,14 +4852,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -5407,14 +5407,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -5669,14 +5669,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -6005,14 +6005,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -6323,14 +6323,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -6671,14 +6671,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -7019,14 +7019,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -7382,14 +7382,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -7540,14 +7540,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -7691,7 +7691,7 @@ paths:
           in: query
           name: limit
           schema:
-            format: int64
+            format: int32
             maximum: 50
             minimum: 1
             type: integer
@@ -7746,14 +7746,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -8125,14 +8125,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -8279,14 +8279,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer
@@ -8423,14 +8423,14 @@ paths:
           in: query
           name: page
           schema:
-            format: int64
+            format: int32
             minimum: 1
             type: integer
         - explode: false
           in: query
           name: per_page
           schema:
-            format: int64
+            format: int32
             maximum: 1000
             minimum: 1
             type: integer

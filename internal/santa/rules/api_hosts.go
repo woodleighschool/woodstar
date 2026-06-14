@@ -48,7 +48,7 @@ func RegisterHostAdminRoutes(api huma.API, ruleStore *Store, hostStore *hosts.St
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
 		return &hostSantaRulesOutput{
-			Body: apitypes.Page[RuleStatus]{Items: rows, Count: count},
+			Body: apitypes.Page[RuleStatus]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }

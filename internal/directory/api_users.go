@@ -100,7 +100,7 @@ func registerListUsers(api huma.API, userService *UserService) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(userResource, err)
 		}
-		return &userListOutput{Body: apitypes.Page[User]{Items: list, Count: count}}, nil
+		return &userListOutput{Body: apitypes.Page[User]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
@@ -117,7 +117,7 @@ func registerListUserDepartments(api huma.API, userService *UserService) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("department", err)
 		}
-		return &departmentListOutput{Body: apitypes.Page[Department]{Items: list, Count: count}}, nil
+		return &departmentListOutput{Body: apitypes.Page[Department]{Items: list, Count: int32(count)}}, nil
 	})
 }
 

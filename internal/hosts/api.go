@@ -141,7 +141,7 @@ func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFi
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("host", err)
 		}
-		return &hostListOutput{Body: apitypes.Page[Host]{Items: rows, Count: count}}, nil
+		return &hostListOutput{Body: apitypes.Page[Host]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 

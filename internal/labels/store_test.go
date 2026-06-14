@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -396,9 +397,17 @@ SELECT EXISTS (
 
 func expectLabelSQLState(t testing.TB, err error, code string) {
 	t.Helper()
-	if got := database.SQLState(err); got != code {
-		t.Fatalf("SQLState = %q, want %q from err %v", got, code, err)
+	if got := labelSQLState(err); got != code {
+		t.Fatalf("SQL state = %q, want %q from err %v", got, code, err)
 	}
+}
+
+func labelSQLState(err error) string {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return ""
+	}
+	return pgErr.Code
 }
 
 func equalInt64s(a []int64, b []int64) bool {

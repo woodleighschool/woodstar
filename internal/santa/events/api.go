@@ -112,7 +112,7 @@ func registerListSantaEvents(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: apitypes.Page[ExecutionEvent]{Items: events, Count: count}}, nil
+		return &santaEventListOutput{Body: apitypes.Page[ExecutionEvent]{Items: events, Count: int32(count)}}, nil
 	})
 }
 
@@ -150,7 +150,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: apitypes.Page[FileAccessEvent]{Items: events, Count: count},
+			Body: apitypes.Page[FileAccessEvent]{Items: events, Count: int32(count)},
 		}, nil
 	})
 }

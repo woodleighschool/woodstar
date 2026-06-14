@@ -24,7 +24,7 @@ type santaRuleListInput struct {
 type santaRuleReferenceListInput struct {
 	Q        string   `query:"q,omitempty"`
 	RuleType RuleType `query:"rule_type,omitempty"`
-	Limit    int      `query:"limit,omitempty"     minimum:"1" maximum:"50"`
+	Limit    int32    `query:"limit,omitempty"     minimum:"1" maximum:"50"`
 }
 
 type santaRuleGetInput struct {
@@ -94,7 +94,7 @@ func registerListSantaRules(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleListOutput{Body: apitypes.Page[Rule]{Items: rules, Count: count}}, nil
+		return &santaRuleListOutput{Body: apitypes.Page[Rule]{Items: rules, Count: int32(count)}}, nil
 	})
 }
 

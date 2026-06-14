@@ -76,7 +76,7 @@ func registerListReports(api huma.API, reportStore *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
-		return &reportListOutput{Body: apitypes.Page[Report]{Items: items, Count: count}}, nil
+		return &reportListOutput{Body: apitypes.Page[Report]{Items: items, Count: int32(count)}}, nil
 	})
 }
 

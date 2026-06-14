@@ -101,7 +101,7 @@ func registerListMunkiArtifacts(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
 		}
 		return &munkiArtifactListOutput{
-			Body: apitypes.Page[Artifact]{Items: rows, Count: count},
+			Body: apitypes.Page[Artifact]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }

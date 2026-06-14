@@ -207,7 +207,7 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	}
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
-	}, nil)
+	})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -239,7 +239,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	createMunkiPackage(t, ctx, stores, title.ID, "LatestApp", "2.0")
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
-	}, nil)
+	})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -366,7 +366,7 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(sac.ID, munkisoftware.ActionManagedUninstalls),
 		includeTarget(allStudents.ID, munkisoftware.ActionManagedInstalls),
-	}, nil)
+	})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -423,7 +423,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeSpecificTarget(installLabel.ID, munkisoftware.ActionManagedInstalls, installPackage.ID),
 		includeSpecificTarget(removeLabel.ID, munkisoftware.ActionManagedUninstalls, removePackage.ID),
-	}, nil)
+	})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -954,7 +954,7 @@ func TestCreateTargetTargetsAllHostsLabel(t *testing.T) {
 	createMunkiPackage(t, ctx, stores, title.ID, "AllDevicesApp", "1.0")
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
-	}, nil)
+	})
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("resolve effective packages: %v", err)
@@ -1062,7 +1062,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	firstPkg := createMunkiPackage(t, ctx, stores, first.ID, "DeletePinnedApp", "1.0")
 	replaceTargets(t, ctx, stores, first, []munkisoftware.Include{
 		includeSpecificTarget(labelID, munkisoftware.ActionManagedInstalls, firstPkg.ID),
-	}, nil)
+	})
 
 	if err := stores.software.Delete(ctx, first.ID); err != nil {
 		t.Fatalf("delete first software: %v", err)
@@ -1082,7 +1082,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	secondPkg := createMunkiPackage(t, ctx, stores, second.ID, "BulkPinnedApp", "1.0")
 	replaceTargets(t, ctx, stores, second, []munkisoftware.Include{
 		includeSpecificTarget(labelID, munkisoftware.ActionManagedInstalls, secondPkg.ID),
-	}, nil)
+	})
 	third, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkPlainApp"})
 	if err != nil {
 		t.Fatalf("create third software: %v", err)
@@ -1227,13 +1227,12 @@ func replaceTargets(
 	stores munkiStores,
 	title *munkisoftware.Software,
 	includes []munkisoftware.Include,
-	excludeLabelIDs []int64,
 ) munkisoftware.Targets {
 	t.Helper()
 	if _, err := stores.software.Update(
 		ctx,
 		title.ID,
-		softwareTargetMutation(title, includes, excludeLabelIDs),
+		softwareTargetMutation(title, includes, nil),
 	); err != nil {
 		t.Fatalf("replace software targets: %v", err)
 	}

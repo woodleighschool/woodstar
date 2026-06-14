@@ -16,8 +16,8 @@ func TestListIncludesTargets(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Check A")
 	labelB := createManualLabel(t, ctx, labelStore, "Check B")
-	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-passing-host", "5.22.1")
-	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host", "5.22.1")
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-passing-host")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host")
 
 	check, err := store.Create(ctx, CheckMutation{
 		Name:    "Targeted check",
@@ -83,7 +83,7 @@ func TestUpdateReplacesTargets(t *testing.T) {
 
 func TestApplicableForHostUsesTargetRows(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-target-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-target-host")
 	matching := createManualLabel(t, ctx, labelStore, "Check match")
 	other := createManualLabel(t, ctx, labelStore, "Check other")
 	excluded := createManualLabel(t, ctx, labelStore, "Check excluded")
@@ -127,7 +127,7 @@ func TestApplicableForHostUsesTargetRows(t *testing.T) {
 
 func TestApplicableForHostRequiresIncludeTarget(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-requires-include-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-requires-include-host")
 	excluded := createManualLabel(t, ctx, labelStore, "Check requires include excluded")
 	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
 		t.Fatalf("set excluded label membership: %v", err)
@@ -179,7 +179,7 @@ func TestCreateCheckRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 
 func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	matching, err := store.Create(ctx, CheckMutation{
@@ -206,7 +206,7 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 
 func TestHostChecksIncludeMembershipState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	passing, err := store.Create(ctx, CheckMutation{
@@ -289,9 +289,9 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
-	failingHost := enrollTestHostDetail(t, ctx, hostStore, "aaa-failing-host", "5.22.1")
-	notRunHost := enrollTestHostDetail(t, ctx, hostStore, "bbb-not-run-host", "5.22.1")
-	passingHost := enrollTestHostDetail(t, ctx, hostStore, "ccc-passing-host", "5.22.1")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "aaa-failing-host")
+	notRunHost := enrollTestHostDetail(t, ctx, hostStore, "bbb-not-run-host")
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "ccc-passing-host")
 
 	fails := false
 	if err := store.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
@@ -342,9 +342,9 @@ func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
-	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-passing", "5.22.1")
-	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-failing", "5.22.1")
-	unevaluatedHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-unevaluated", "5.22.1")
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-passing")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-failing")
+	unevaluatedHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-unevaluated")
 
 	passes := true
 	if err := store.UpsertMembership(ctx, check.ID, passingHost.ID, &passes); err != nil {
@@ -426,13 +426,12 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
 	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: osqueryVersion}},
+		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"}},
 	})
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)

@@ -96,7 +96,7 @@ func (s *Store) ListRuleReferences(
 	rows, err := s.q.ListSantaRuleReferences(ctx, sqlc.ListSantaRuleReferencesParams{
 		Q:          params.Q,
 		RuleType:   string(params.RuleType),
-		LimitCount: int32(params.Limit),
+		LimitCount: params.Limit,
 	})
 	if err != nil {
 		return nil, err
@@ -228,6 +228,9 @@ func (s *Store) ListRuleStatusesForHost(
 	if params.PageSize <= 0 {
 		params.PageSize = 100
 	}
+	if params.PageIndex < 0 {
+		params.PageIndex = 0
+	}
 
 	count, err := s.q.CountSantaRulesForHost(
 		ctx,
@@ -236,13 +239,12 @@ func (s *Store) ListRuleStatusesForHost(
 	if err != nil {
 		return nil, 0, err
 	}
-	offset := params.PageIndex * params.PageSize
 	rows, err := s.q.ListSantaRulesForHostPage(
 		ctx,
 		sqlc.ListSantaRulesForHostPageParams{
 			HostID:      hostID,
-			LimitCount:  int32(params.PageSize),
-			OffsetCount: int32(offset),
+			LimitCount:  params.PageSize,
+			OffsetCount: params.PageIndex * params.PageSize,
 		},
 	)
 	if err != nil {

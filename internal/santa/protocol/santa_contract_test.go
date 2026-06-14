@@ -105,7 +105,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		ClientMode:       syncv1.ClientMode_MONITOR,
 		RequestCleanSync: true,
 		RulesHash:        "client-hash-before",
-	}, http.StatusOK, &preflight)
+	}, &preflight)
 	if preflight.GetSyncType() != syncv1.SyncType_CLEAN {
 		t.Fatalf("sync type = %v, want CLEAN", preflight.GetSyncType())
 	}
@@ -118,7 +118,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 
 	var download syncv1.RuleDownloadResponse
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/ruledownload/"+machineID,
-		&syncv1.RuleDownloadRequest{}, http.StatusOK, &download)
+		&syncv1.RuleDownloadRequest{}, &download)
 	if len(download.GetRules()) != 1 {
 		t.Fatalf("downloaded rules = %+v, want one", download.GetRules())
 	}
@@ -134,7 +134,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		RulesHash:      "client-hash-after",
 		RulesReceived:  uint32(len(download.GetRules())),
 		RulesProcessed: uint32(len(download.GetRules())),
-	}, http.StatusOK, &syncv1.PostflightResponse{})
+	}, &syncv1.PostflightResponse{})
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
 		Events: []*syncv1.Event{{
@@ -160,7 +160,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 				Cdhash:     "process-cdhash",
 			}},
 		}},
-	}, http.StatusOK, &syncv1.EventUploadResponse{})
+	}, &syncv1.EventUploadResponse{})
 
 	events, _, err := stores.events.ListEvents(ctx, santaevents.ExecutionEventListParams{
 		EventListParams: santaevents.EventListParams{HostID: host.ID},
@@ -661,7 +661,6 @@ func doSantaContractProto(
 	token string,
 	path string,
 	request proto.Message,
-	wantStatus int,
 	response proto.Message,
 ) {
 	t.Helper()
@@ -670,8 +669,8 @@ func doSantaContractProto(
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != wantStatus {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, wantStatus, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
 	if response != nil {
 		mustReadProtoResponse(t, rec.Body.Bytes(), response)

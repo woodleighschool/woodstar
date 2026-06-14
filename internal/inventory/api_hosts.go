@@ -52,6 +52,6 @@ func RegisterHostAdminRoutes(api huma.API, softwareStore *Store, hostStore *host
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("software", err)
 		}
-		return &hostSoftwareOutput{Body: apitypes.Page[HostSoftwareRow]{Items: rows, Count: count}}, nil
+		return &hostSoftwareOutput{Body: apitypes.Page[HostSoftwareRow]{Items: rows, Count: int32(count)}}, nil
 	})
 }

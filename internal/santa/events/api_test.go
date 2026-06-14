@@ -94,7 +94,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
 	events.RegisterAdminRoutes(api, eventsStore)
 
-	rec := santaEventsRequest(t, router, http.MethodGet, "/api/santa/events?decisions=blocked&page_size=1", "")
+	rec := santaEventsRequest(t, router, "/api/santa/events?decisions=blocked&page_size=1")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -108,7 +108,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		t.Fatalf("body = %q, want count=2 for normal pagination", rec.Body.String())
 	}
 
-	rec = santaEventsRequest(t, router, http.MethodGet, "/api/santa/events?q=Allowed&decisions=allowed", "")
+	rec = santaEventsRequest(t, router, "/api/santa/events?q=Allowed&decisions=allowed")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("search status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -116,7 +116,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		t.Fatalf("search response = %q, want only allowed event", rec.Body.String())
 	}
 
-	rec = santaEventsRequest(t, router, http.MethodGet, "/api/santa/events?user=alice", "")
+	rec = santaEventsRequest(t, router, "/api/santa/events?user=alice")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -133,7 +133,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		}
 	}
 
-	rec = santaEventsRequest(t, router, http.MethodGet, "/api/santa/file-access-events?decisions=denied", "")
+	rec = santaEventsRequest(t, router, "/api/santa/file-access-events?decisions=denied")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file access status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -151,9 +151,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	rec = santaEventsRequest(
 		t,
 		router,
-		http.MethodGet,
 		fmt.Sprintf("/api/santa/file-access-events/%d", fileAccessList.Items[0].ID),
-		"",
 	)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file access detail status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
@@ -167,14 +165,11 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	}
 }
 
-func santaEventsRequest(t *testing.T, router *chi.Mux, method, path, body string) *httptest.ResponseRecorder {
+func santaEventsRequest(t *testing.T, router *chi.Mux, path string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader(body))
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 	router.ServeHTTP(rec, req)
 	return rec
 }

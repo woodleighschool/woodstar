@@ -52,7 +52,7 @@ func RegisterAdminRoutes(api huma.API, softwareStore *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: apitypes.Page[SoftwareTitle]{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: apitypes.Page[SoftwareTitle]{Items: titles, Count: int32(count)}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

@@ -354,7 +354,7 @@ type graphBatchResponseBody struct {
 
 type graphBatchResponse struct {
 	ID     string          `json:"id"`
-	Status int             `json:"status"`
+	Status int32           `json:"status"`
 	Body   json.RawMessage `json:"body"`
 }
 
