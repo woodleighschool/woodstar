@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -89,34 +90,55 @@ type objectContentInput struct {
 	ID int64 `path:"id"`
 }
 
-type objectContentOutput struct {
-	Status   int    `json:"-" default:"302"`
-	Location string `                       header:"Location"`
-}
-
+// registerObjectContent serves an object's bytes: a redirect to a presigned URL
+// when the backend supports it (S3), otherwise a direct stream (file).
 func registerObjectContent(api huma.API, objects *ObjectStore, store Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-storage-object-content",
 		Method:      http.MethodGet,
 		Path:        objectContentPath,
 		Tags:        []string{storageTag},
-		Summary:     "Redirect to a storage object's content URL",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusServiceUnavailable},
-	}, func(ctx context.Context, input *objectContentInput) (*objectContentOutput, error) {
+		Summary:     "Serve a storage object's content",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *objectContentInput) (*huma.StreamResponse, error) {
 		obj, err := objects.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(objectLabel, err)
 		}
-		presigner, ok := store.(Presigner)
-		if !ok {
-			return nil, huma.Error503ServiceUnavailable("content serving requires a presigning backend")
-		}
-		url, err := presigner.PresignGet(ctx, obj.Key(), 0)
-		if err != nil {
-			return nil, err
-		}
-		return &objectContentOutput{Status: http.StatusFound, Location: url}, nil
+		return &huma.StreamResponse{Body: func(hctx huma.Context) {
+			serveContent(hctx, store, obj.Key())
+		}}, nil
 	})
+}
+
+// serveContent redirects to a presigned URL (S3) or streams bytes from the
+// backend (file).
+func serveContent(ctx huma.Context, store Store, key string) {
+	if presigner, ok := store.(Presigner); ok {
+		url, err := presigner.PresignGet(ctx.Context(), key, 0)
+		if err != nil {
+			ctx.SetStatus(http.StatusInternalServerError)
+			return
+		}
+		ctx.SetHeader("Location", url)
+		ctx.SetStatus(http.StatusFound)
+		return
+	}
+	reader, info, err := store.Open(ctx.Context(), key)
+	if errors.Is(err, ErrObjectNotFound) {
+		ctx.SetStatus(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		ctx.SetStatus(http.StatusInternalServerError)
+		return
+	}
+	defer reader.Close()
+	if info.ContentType != "" {
+		ctx.SetHeader("Content-Type", info.ContentType)
+	}
+	ctx.SetStatus(http.StatusOK)
+	_, _ = io.Copy(ctx.BodyWriter(), reader)
 }
 
 type confirmObjectInput struct {

@@ -2,6 +2,7 @@ package adminapi
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -55,7 +56,6 @@ func registerMunkiUploadRoutes(api huma.API, deps Dependencies) {
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusNotFound,
-			http.StatusServiceUnavailable,
 		},
 	}, func(ctx context.Context, input *munkiPackageUploadInput) (*munkiUploadOutput, error) {
 		return attachMunkiUpload(
@@ -81,7 +81,6 @@ func registerMunkiUploadRoutes(api huma.API, deps Dependencies) {
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusNotFound,
-			http.StatusServiceUnavailable,
 		},
 	}, func(ctx context.Context, input *munkiPackageUploadInput) (*munkiUploadOutput, error) {
 		return attachMunkiUpload(
@@ -107,7 +106,6 @@ func registerMunkiUploadRoutes(api huma.API, deps Dependencies) {
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusNotFound,
-			http.StatusServiceUnavailable,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
 		return attachMunkiUpload(
@@ -138,9 +136,17 @@ func attachMunkiUpload(
 	if err := link(obj.ID); err != nil {
 		return nil, apitypes.ResourceMutationError(munkiUploadLabel, err)
 	}
+
+	// Presigning backends (S3) hand the client a direct upload URL; backends
+	// without one (file) take the bytes through woodstar's streaming receiver.
 	presigner, ok := store.(storage.Presigner)
 	if !ok {
-		return nil, huma.Error503ServiceUnavailable("uploads require a presigning backend")
+		return &munkiUploadOutput{Body: munkiUploadTarget{
+			ObjectID:  obj.ID,
+			Key:       obj.Key(),
+			UploadURL: fmt.Sprintf("/api/storage/objects/%d/content", obj.ID),
+			Method:    http.MethodPut,
+		}}, nil
 	}
 	target, err := presigner.PresignPut(ctx, obj.Key(), 0, storage.PutOptions{ContentType: req.ContentType})
 	if err != nil {

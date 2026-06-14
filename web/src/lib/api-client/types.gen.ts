@@ -2937,10 +2937,6 @@ export type AttachMunkiPackageInstallerErrors = {
      * Internal Server Error
      */
     500: ErrorModel;
-    /**
-     * Service Unavailable
-     */
-    503: ErrorModel;
 };
 
 export type AttachMunkiPackageInstallerError = AttachMunkiPackageInstallerErrors[keyof AttachMunkiPackageInstallerErrors];
@@ -2984,10 +2980,6 @@ export type AttachMunkiPackageUninstallerErrors = {
      * Internal Server Error
      */
     500: ErrorModel;
-    /**
-     * Service Unavailable
-     */
-    503: ErrorModel;
 };
 
 export type AttachMunkiPackageUninstallerError = AttachMunkiPackageUninstallerErrors[keyof AttachMunkiPackageUninstallerErrors];
@@ -3292,10 +3284,6 @@ export type AttachMunkiSoftwareIconErrors = {
      * Internal Server Error
      */
     500: ErrorModel;
-    /**
-     * Service Unavailable
-     */
-    503: ErrorModel;
 };
 
 export type AttachMunkiSoftwareIconError = AttachMunkiSoftwareIconErrors[keyof AttachMunkiSoftwareIconErrors];
@@ -4933,22 +4921,16 @@ export type GetStorageObjectContentErrors = {
      * Internal Server Error
      */
     500: ErrorModel;
-    /**
-     * Service Unavailable
-     */
-    503: ErrorModel;
 };
 
 export type GetStorageObjectContentError = GetStorageObjectContentErrors[keyof GetStorageObjectContentErrors];
 
 export type GetStorageObjectContentResponses = {
     /**
-     * No Content
+     * OK
      */
-    204: void;
+    200: unknown;
 };
-
-export type GetStorageObjectContentResponse = GetStorageObjectContentResponses[keyof GetStorageObjectContentResponses];
 
 export type ListUsersData = {
     body?: never;

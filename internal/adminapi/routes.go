@@ -60,6 +60,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	munkisoftware.RegisterAdminRoutes(ordinary, deps.Munki.Software, deps.Munki.Packages)
 	munkipackages.RegisterAdminRoutes(ordinary, deps.Munki.Packages)
 	storage.RegisterAdminRoutes(ordinary, deps.Munki.Objects, deps.Munki.Store)
+	registerStorageContentUpload(r, deps)
 	registerMunkiUploadRoutes(ordinary, deps)
 }
 
