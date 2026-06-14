@@ -42,10 +42,6 @@ export type CertificateName = {
     organizational_unit: string;
 };
 
-export type ConfirmObjectInputBody = {
-    sha256: string;
-};
-
 export type Criteria = {
     attribute: string;
     values: Array<string> | null;
@@ -357,11 +353,18 @@ export type MunkiMutation = {
     category?: string;
     description?: string;
     developer?: string;
-    icon_hash?: string;
-    icon_name?: string;
     icon_object_id?: number;
     name: string;
     targets: MunkiTargets;
+};
+
+export type MunkiObjectView = {
+    content_type: string;
+    content_url?: string;
+    filename: string;
+    id: number;
+    sha256?: string;
+    size_bytes?: number;
 };
 
 export type MunkiPackage = {
@@ -373,6 +376,7 @@ export type MunkiPackage = {
     created_at: string;
     eligible: boolean;
     force_install_after_date?: string;
+    icon_object_id?: number;
     icon_url?: string;
     id: number;
     installable_condition: string;
@@ -381,7 +385,6 @@ export type MunkiPackage = {
     installer_choices_xml: Array<MunkiPackageInstallerChoice> | null;
     installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
     installer_object_id?: number;
-    installer_object_location?: string;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<MunkiPackageInstallItem> | null;
     items_to_copy: Array<MunkiPackageItemToCopy> | null;
@@ -414,7 +417,6 @@ export type MunkiPackage = {
     uninstall_script: string;
     uninstallcheck_script: string;
     uninstaller_object_id?: number;
-    uninstaller_object_location?: string;
     update_for: Array<MunkiPackageReference> | null;
     updated_at: string;
     version: string;
@@ -579,9 +581,6 @@ export type MunkiSoftware = {
     description: string;
     developer: string;
     display_name: string;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
@@ -595,9 +594,6 @@ export type MunkiSoftwareDetail = {
     description: string;
     developer: string;
     display_name: string;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
@@ -621,22 +617,9 @@ export type MunkiUploadTarget = {
     headers?: {
         [key: string]: string;
     };
-    key: string;
     method: string;
     object_id: number;
     upload_url: string;
-};
-
-export type ObjectView = {
-    available: boolean;
-    content_type: string;
-    content_url: string;
-    filename: string;
-    id: number;
-    key: string;
-    prefix: string;
-    sha256?: string;
-    size_bytes?: number;
 };
 
 export type OsqueryCheck = {
@@ -820,6 +803,11 @@ export type PageLabel = {
     items: Array<Label>;
 };
 
+export type PageMunkiObjectView = {
+    count: number;
+    items: Array<MunkiObjectView>;
+};
+
 export type PageMunkiPackage = {
     count: number;
     items: Array<MunkiPackage>;
@@ -828,11 +816,6 @@ export type PageMunkiPackage = {
 export type PageMunkiSoftware = {
     count: number;
     items: Array<MunkiSoftware>;
-};
-
-export type PageObjectView = {
-    count: number;
-    items: Array<ObjectView>;
 };
 
 export type PageReport = {
@@ -2637,6 +2620,81 @@ export type StreamLiveQueryResponses = {
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
 
+export type ListMunkiIconsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+    };
+    url: '/api/munki/icons';
+};
+
+export type ListMunkiIconsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiIconsError = ListMunkiIconsErrors[keyof ListMunkiIconsErrors];
+
+export type ListMunkiIconsResponses = {
+    /**
+     * OK
+     */
+    200: PageMunkiObjectView;
+};
+
+export type ListMunkiIconsResponse = ListMunkiIconsResponses[keyof ListMunkiIconsResponses];
+
+export type GetMunkiIconContentData = {
+    body?: never;
+    path: {
+        object_id: number;
+    };
+    query?: never;
+    url: '/api/munki/icons/{object_id}/content';
+};
+
+export type GetMunkiIconContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetMunkiIconContentError = GetMunkiIconContentErrors[keyof GetMunkiIconContentErrors];
+
+export type GetMunkiIconContentResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
 export type ListMunkiPackagesData = {
     body?: never;
     path?: never;
@@ -2907,7 +2965,7 @@ export type UpdateMunkiPackageResponses = {
 
 export type UpdateMunkiPackageResponse = UpdateMunkiPackageResponses[keyof UpdateMunkiPackageResponses];
 
-export type AttachMunkiPackageInstallerData = {
+export type CreateMunkiPackageInstallerUploadData = {
     body: MunkiUploadRequest;
     path: {
         id: number;
@@ -2916,7 +2974,7 @@ export type AttachMunkiPackageInstallerData = {
     url: '/api/munki/packages/{id}/installer';
 };
 
-export type AttachMunkiPackageInstallerErrors = {
+export type CreateMunkiPackageInstallerUploadErrors = {
     /**
      * Bad Request
      */
@@ -2939,18 +2997,62 @@ export type AttachMunkiPackageInstallerErrors = {
     500: ErrorModel;
 };
 
-export type AttachMunkiPackageInstallerError = AttachMunkiPackageInstallerErrors[keyof AttachMunkiPackageInstallerErrors];
+export type CreateMunkiPackageInstallerUploadError = CreateMunkiPackageInstallerUploadErrors[keyof CreateMunkiPackageInstallerUploadErrors];
 
-export type AttachMunkiPackageInstallerResponses = {
+export type CreateMunkiPackageInstallerUploadResponses = {
     /**
      * Created
      */
     201: MunkiUploadTarget;
 };
 
-export type AttachMunkiPackageInstallerResponse = AttachMunkiPackageInstallerResponses[keyof AttachMunkiPackageInstallerResponses];
+export type CreateMunkiPackageInstallerUploadResponse = CreateMunkiPackageInstallerUploadResponses[keyof CreateMunkiPackageInstallerUploadResponses];
 
-export type AttachMunkiPackageUninstallerData = {
+export type ConfirmMunkiPackageInstallerUploadData = {
+    body?: never;
+    path: {
+        id: number;
+        object_id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{id}/installer/{object_id}/confirm';
+};
+
+export type ConfirmMunkiPackageInstallerUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ConfirmMunkiPackageInstallerUploadError = ConfirmMunkiPackageInstallerUploadErrors[keyof ConfirmMunkiPackageInstallerUploadErrors];
+
+export type ConfirmMunkiPackageInstallerUploadResponses = {
+    /**
+     * OK
+     */
+    200: MunkiObjectView;
+};
+
+export type ConfirmMunkiPackageInstallerUploadResponse = ConfirmMunkiPackageInstallerUploadResponses[keyof ConfirmMunkiPackageInstallerUploadResponses];
+
+export type CreateMunkiPackageUninstallerUploadData = {
     body: MunkiUploadRequest;
     path: {
         id: number;
@@ -2959,7 +3061,7 @@ export type AttachMunkiPackageUninstallerData = {
     url: '/api/munki/packages/{id}/uninstaller';
 };
 
-export type AttachMunkiPackageUninstallerErrors = {
+export type CreateMunkiPackageUninstallerUploadErrors = {
     /**
      * Bad Request
      */
@@ -2982,16 +3084,60 @@ export type AttachMunkiPackageUninstallerErrors = {
     500: ErrorModel;
 };
 
-export type AttachMunkiPackageUninstallerError = AttachMunkiPackageUninstallerErrors[keyof AttachMunkiPackageUninstallerErrors];
+export type CreateMunkiPackageUninstallerUploadError = CreateMunkiPackageUninstallerUploadErrors[keyof CreateMunkiPackageUninstallerUploadErrors];
 
-export type AttachMunkiPackageUninstallerResponses = {
+export type CreateMunkiPackageUninstallerUploadResponses = {
     /**
      * Created
      */
     201: MunkiUploadTarget;
 };
 
-export type AttachMunkiPackageUninstallerResponse = AttachMunkiPackageUninstallerResponses[keyof AttachMunkiPackageUninstallerResponses];
+export type CreateMunkiPackageUninstallerUploadResponse = CreateMunkiPackageUninstallerUploadResponses[keyof CreateMunkiPackageUninstallerUploadResponses];
+
+export type ConfirmMunkiPackageUninstallerUploadData = {
+    body?: never;
+    path: {
+        id: number;
+        object_id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{id}/uninstaller/{object_id}/confirm';
+};
+
+export type ConfirmMunkiPackageUninstallerUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ConfirmMunkiPackageUninstallerUploadError = ConfirmMunkiPackageUninstallerUploadErrors[keyof ConfirmMunkiPackageUninstallerUploadErrors];
+
+export type ConfirmMunkiPackageUninstallerUploadResponses = {
+    /**
+     * OK
+     */
+    200: MunkiObjectView;
+};
+
+export type ConfirmMunkiPackageUninstallerUploadResponse = ConfirmMunkiPackageUninstallerUploadResponses[keyof ConfirmMunkiPackageUninstallerUploadResponses];
 
 export type ListMunkiSoftwareData = {
     body?: never;
@@ -3254,7 +3400,7 @@ export type UpdateMunkiSoftwareResponses = {
 
 export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
 
-export type AttachMunkiSoftwareIconData = {
+export type CreateMunkiSoftwareIconUploadData = {
     body: MunkiUploadRequest;
     path: {
         id: number;
@@ -3263,7 +3409,7 @@ export type AttachMunkiSoftwareIconData = {
     url: '/api/munki/software/{id}/icon';
 };
 
-export type AttachMunkiSoftwareIconErrors = {
+export type CreateMunkiSoftwareIconUploadErrors = {
     /**
      * Bad Request
      */
@@ -3286,16 +3432,60 @@ export type AttachMunkiSoftwareIconErrors = {
     500: ErrorModel;
 };
 
-export type AttachMunkiSoftwareIconError = AttachMunkiSoftwareIconErrors[keyof AttachMunkiSoftwareIconErrors];
+export type CreateMunkiSoftwareIconUploadError = CreateMunkiSoftwareIconUploadErrors[keyof CreateMunkiSoftwareIconUploadErrors];
 
-export type AttachMunkiSoftwareIconResponses = {
+export type CreateMunkiSoftwareIconUploadResponses = {
     /**
      * Created
      */
     201: MunkiUploadTarget;
 };
 
-export type AttachMunkiSoftwareIconResponse = AttachMunkiSoftwareIconResponses[keyof AttachMunkiSoftwareIconResponses];
+export type CreateMunkiSoftwareIconUploadResponse = CreateMunkiSoftwareIconUploadResponses[keyof CreateMunkiSoftwareIconUploadResponses];
+
+export type ConfirmMunkiSoftwareIconUploadData = {
+    body?: never;
+    path: {
+        id: number;
+        object_id: number;
+    };
+    query?: never;
+    url: '/api/munki/software/{id}/icon/{object_id}/confirm';
+};
+
+export type ConfirmMunkiSoftwareIconUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ConfirmMunkiSoftwareIconUploadError = ConfirmMunkiSoftwareIconUploadErrors[keyof ConfirmMunkiSoftwareIconUploadErrors];
+
+export type ConfirmMunkiSoftwareIconUploadResponses = {
+    /**
+     * OK
+     */
+    200: MunkiObjectView;
+};
+
+export type ConfirmMunkiSoftwareIconUploadResponse = ConfirmMunkiSoftwareIconUploadResponses[keyof ConfirmMunkiSoftwareIconUploadResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;
@@ -4812,125 +5002,6 @@ export type GetSoftwareSantaReferenceResponses = {
 };
 
 export type GetSoftwareSantaReferenceResponse = GetSoftwareSantaReferenceResponses[keyof GetSoftwareSantaReferenceResponses];
-
-export type ListStorageObjectsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        q?: string;
-        page?: number;
-        per_page?: number;
-        sort?: string;
-        prefix?: string;
-    };
-    url: '/api/storage/objects';
-};
-
-export type ListStorageObjectsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListStorageObjectsError = ListStorageObjectsErrors[keyof ListStorageObjectsErrors];
-
-export type ListStorageObjectsResponses = {
-    /**
-     * OK
-     */
-    200: PageObjectView;
-};
-
-export type ListStorageObjectsResponse = ListStorageObjectsResponses[keyof ListStorageObjectsResponses];
-
-export type ConfirmStorageObjectData = {
-    body: ConfirmObjectInputBody;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/storage/objects/{id}/confirm';
-};
-
-export type ConfirmStorageObjectErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ConfirmStorageObjectError = ConfirmStorageObjectErrors[keyof ConfirmStorageObjectErrors];
-
-export type ConfirmStorageObjectResponses = {
-    /**
-     * OK
-     */
-    200: ObjectView;
-};
-
-export type ConfirmStorageObjectResponse = ConfirmStorageObjectResponses[keyof ConfirmStorageObjectResponses];
-
-export type GetStorageObjectContentData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/storage/objects/{id}/content';
-};
-
-export type GetStorageObjectContentErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetStorageObjectContentError = GetStorageObjectContentErrors[keyof GetStorageObjectContentErrors];
-
-export type GetStorageObjectContentResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
 
 export type ListUsersData = {
     body?: never;

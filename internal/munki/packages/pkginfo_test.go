@@ -3,12 +3,18 @@ package packages
 import (
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const munkiReceiptPackageIDKey = "package" + "id"
 
 func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	forceInstallAfter := time.Date(2026, 6, 9, 10, 30, 0, 0, time.UTC)
+	installerHash := "installer-sha"
+	iconHash := "abc123"
+	installerSize := int64(1536)
+	installerID := int64(50)
 	got := Pkginfo(Package{
 		ID:                     12,
 		SoftwareID:             7,
@@ -46,7 +52,22 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		},
 		Receipts:                 []PackageReceipt{{PackageID: "com.example.pkg", Version: "1.2.3", Optional: true}},
 		SuppressBundleRelocation: true,
-	}, IconRef{ObjectLocation: "munki/icons/7/Example.png", Hash: "abc123"})
+		InstallerObjectID:        &installerID,
+	}, PkginfoObjects{
+		Installer: &storage.Object{
+			ID:        installerID,
+			Prefix:    ObjectPrefix,
+			Filename:  "Example.pkg",
+			SizeBytes: &installerSize,
+			SHA256:    &installerHash,
+		},
+		Icon: &storage.Object{
+			ID:       7,
+			Prefix:   "munki/icons",
+			Filename: "Example.png",
+			SHA256:   &iconHash,
+		},
+	})
 
 	if got["name"] != "7" || got["display_name"] != "Example App" || got["OnDemand"] != true {
 		t.Fatalf("pkginfo identity = %+v, want Munki keys and casing", got)
@@ -57,8 +78,18 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	if _, ok := got["RestartAction"]; ok {
 		t.Fatalf("RestartAction = %v, want omitted when none", got["RestartAction"])
 	}
-	if got["icon_name"] != "munki/icons/7/Example.png" || got["icon_hash"] != "abc123" {
+	if got["icon_name"] != "7-Example.png" || got["icon_hash"] != "abc123" {
 		t.Fatalf("icon fields = %v/%v, want software icon projection", got["icon_name"], got["icon_hash"])
+	}
+	if got["installer_item_location"] != "packages/12/installer/Example.pkg" ||
+		got["installer_item_hash"] != installerHash ||
+		got["installer_item_size"] != int64(2) {
+		t.Fatalf(
+			"installer projection = %v/%v/%v, want object-derived Munki metadata",
+			got["installer_item_location"],
+			got["installer_item_hash"],
+			got["installer_item_size"],
+		)
 	}
 	if got["force_install_after_date"] != forceInstallAfter {
 		t.Fatalf("force_install_after_date = %#v, want time.Time", got["force_install_after_date"])
@@ -98,7 +129,7 @@ func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 		SoftwareName:  "Example App",
 		Version:       "1.2.3",
 		InstallerType: InstallerTypePkg,
-	}, IconRef{})
+	}, PkginfoObjects{})
 
 	for _, key := range []string{
 		"installer_choices_xml",
@@ -124,21 +155,21 @@ func TestPkginfoPreservesBlockingApplicationStates(t *testing.T) {
 		InstallerType: InstallerTypePkg,
 	}
 
-	omitted := Pkginfo(base, IconRef{})
+	omitted := Pkginfo(base, PkginfoObjects{})
 	if _, ok := omitted["blocking_applications"]; ok {
 		t.Fatalf("blocking_applications rendered for nil state: %+v", omitted)
 	}
 
 	emptyPackage := base
 	emptyPackage.BlockingApplications = []string{}
-	empty := Pkginfo(emptyPackage, IconRef{})
+	empty := Pkginfo(emptyPackage, PkginfoObjects{})
 	if values, ok := empty["blocking_applications"].([]string); !ok || len(values) != 0 {
 		t.Fatalf("blocking_applications = %#v, want explicit empty list", empty["blocking_applications"])
 	}
 
 	populatedPackage := base
 	populatedPackage.BlockingApplications = []string{"Example App"}
-	populated := Pkginfo(populatedPackage, IconRef{})
+	populated := Pkginfo(populatedPackage, PkginfoObjects{})
 	if values, ok := populated["blocking_applications"].([]string); !ok ||
 		len(values) != 1 ||
 		values[0] != "Example App" {

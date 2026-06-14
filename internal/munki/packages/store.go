@@ -16,11 +16,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-// objectPrefixPackages namespaces installer/uninstaller blobs in storage.
-const objectPrefixPackages = "munki/packages"
+// ObjectPrefix namespaces installer/uninstaller objects in storage.
+const ObjectPrefix = "munki/packages"
 
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
+	DeleteUnreferenced(context.Context, ...int64) error
 }
 
 type Store struct {
@@ -37,15 +38,7 @@ func NewStore(db *database.DB, objects objectStore) *Store {
 	}
 }
 
-func keyPtr(id *int64, prefix, filename *string) *string {
-	if id == nil || prefix == nil || filename == nil {
-		return nil
-	}
-	key := storage.Key(*prefix, *id, *filename)
-	return &key
-}
-
-func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMutation) (*PackageRecord, error) {
+func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMutation) (*Package, error) {
 	if softwareID <= 0 {
 		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
@@ -53,6 +46,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 	if err != nil {
 		return nil, err
 	}
+	params = carryExistingObjects(params, Package{})
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -88,7 +82,7 @@ func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMuta
 	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*PackageRecord, error) {
+func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
 	params, fields, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
@@ -100,10 +94,19 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	qtx := s.q.WithTx(tx)
-	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))
+	existingRow, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
+	existing := Package{
+		InstallerObjectID:   existingRow.InstallerObjectID,
+		UninstallerObjectID: existingRow.UninstallerObjectID,
+	}
+	params = carryExistingObjects(params, existing)
+	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -128,10 +131,15 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	replacedIDs := replacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
+	replacedIDs = append(replacedIDs, replacedObjectIDs(existing.UninstallerObjectID, params.UninstallerObjectID)...)
+	if err := s.objects.DeleteUnreferenced(ctx, replacedIDs...); err != nil {
+		return nil, err
+	}
 	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) GetByID(ctx context.Context, id int64) (*PackageRecord, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
@@ -142,18 +150,25 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*PackageRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	record, err := packageRecordFromRecord(packageRecordFromSQLC(row))
+	pkg, err := packageFromRecord(packageFromSQLCRow(row))
 	if err != nil {
 		return nil, err
 	}
-	records, err := s.attachRecordRelations(ctx, []PackageRecord{record})
+	packages, err := s.AttachRelations(ctx, []Package{pkg})
 	if err != nil {
 		return nil, err
 	}
-	return &records[0], nil
+	return &packages[0], nil
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
+	objectIDs, err := s.q.ListMunkiPackageObjectIDsByIDs(
+		ctx,
+		sqlc.ListMunkiPackageObjectIDsByIDsParams{Ids: []int64{id}},
+	)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.DeleteMunkiPackage(ctx, sqlc.DeleteMunkiPackageParams{ID: id})
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Munki package is still referenced")
@@ -161,7 +176,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	if rows == 0 {
 		return dbutil.ErrNotFound
 	}
-	return nil
+	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
 }
 
 // DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
@@ -170,8 +185,17 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		return 0, nil
 	}
 	var deleted int
+	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
+		rows, err := qtx.ListMunkiPackageObjectIDsByIDs(
+			ctx,
+			sqlc.ListMunkiPackageObjectIDsByIDsParams{Ids: ids},
+		)
+		if err != nil {
+			return err
+		}
+		objectIDs = append(objectIDs, rows...)
 		if err := qtx.DeleteMunkiPackageRelationsByPackageIDs(
 			ctx,
 			sqlc.DeleteMunkiPackageRelationsByPackageIDsParams{Ids: ids},
@@ -185,10 +209,13 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		deleted = len(deletedIDs)
 		return nil
 	})
-	return deleted, err
+	if err != nil {
+		return deleted, err
+	}
+	return deleted, s.objects.DeleteUnreferenced(ctx, objectIDs...)
 }
 
-func (s *Store) List(ctx context.Context, params PackageListParams) ([]PackageRecord, int, error) {
+func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := packageListWhere(params)
 	listQuery := dbutil.ListQuery{
@@ -220,15 +247,15 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]PackageRe
 	if err != nil {
 		return nil, 0, err
 	}
-	packageRecords, err := packageRecordsFromRecords(records)
+	packages, err := packagesFromRecords(records)
 	if err != nil {
 		return nil, 0, err
 	}
-	packageRecords, err = s.attachRecordRelations(ctx, packageRecords)
+	packages, err = s.AttachRelations(ctx, packages)
 	if err != nil {
 		return nil, 0, err
 	}
-	return packageRecords, count, nil
+	return packages, count, nil
 }
 
 func (s *Store) prepareMutation(
@@ -264,45 +291,104 @@ func (s *Store) normalizePackageObjects(ctx context.Context, params PackageMutat
 	return params, nil
 }
 
+func carryExistingObjects(params PackageMutation, existing Package) PackageMutation {
+	if params.InstallerType == InstallerTypeNoPkg {
+		params.InstallerObjectID = nil
+	} else if params.InstallerObjectID == nil {
+		params.InstallerObjectID = existing.InstallerObjectID
+	}
+	if params.UninstallMethod != UninstallMethodUninstallPackage {
+		params.UninstallerObjectID = nil
+	} else if params.UninstallerObjectID == nil {
+		params.UninstallerObjectID = existing.UninstallerObjectID
+	}
+	return params
+}
+
 func (s *Store) requirePackageObject(ctx context.Context, id int64, field string) error {
 	obj, err := s.objects.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	if obj.Prefix != objectPrefixPackages {
+	if obj.Prefix != ObjectPrefix {
 		return fmt.Errorf("%w: %s must reference a package installer", dbutil.ErrInvalidInput, field)
+	}
+	if !obj.Available() {
+		return fmt.Errorf("%w: %s must reference an uploaded object", dbutil.ErrInvalidInput, field)
 	}
 	return nil
 }
 
 // SetInstallerObject points a package at an installer storage object.
 func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int64) error {
-	rows, err := s.q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-		ID:       packageID,
-		ObjectID: &objectID,
+	return s.setPackageObject(ctx, packageID, objectID, packageObjectSetter{
+		field: "installer_object_id",
+		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
+			return row.InstallerObjectID
+		},
+		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
+			return q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
+				ID:       packageID,
+				ObjectID: objectID,
+			})
+		},
 	})
-	if err != nil {
-		return dbutil.MutationError(err)
-	}
-	if rows == 0 {
-		return dbutil.ErrNotFound
-	}
-	return nil
 }
 
 // SetUninstallerObject points a package at an uninstaller storage object.
 func (s *Store) SetUninstallerObject(ctx context.Context, packageID, objectID int64) error {
-	rows, err := s.q.SetMunkiPackageUninstallerObject(ctx, sqlc.SetMunkiPackageUninstallerObjectParams{
-		ID:       packageID,
-		ObjectID: &objectID,
+	return s.setPackageObject(ctx, packageID, objectID, packageObjectSetter{
+		field: "uninstaller_object_id",
+		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
+			return row.UninstallerObjectID
+		},
+		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
+			return q.SetMunkiPackageUninstallerObject(ctx, sqlc.SetMunkiPackageUninstallerObjectParams{
+				ID:       packageID,
+				ObjectID: objectID,
+			})
+		},
+	})
+}
+
+type packageObjectSetter struct {
+	field       string
+	oldObjectID func(sqlc.GetMunkiPackageByIDRow) *int64
+	set         func(context.Context, *sqlc.Queries, int64, *int64) (int64, error)
+}
+
+func (s *Store) setPackageObject(
+	ctx context.Context,
+	packageID, objectID int64,
+	setter packageObjectSetter,
+) error {
+	if err := s.requirePackageObject(ctx, objectID, setter.field); err != nil {
+		return err
+	}
+	var oldObjectID *int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return dbutil.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		oldObjectID = setter.oldObjectID(existing)
+		rows, err := setter.set(ctx, qtx, packageID, &objectID)
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		if rows == 0 {
+			return dbutil.ErrNotFound
+		}
+		return nil
 	})
 	if err != nil {
-		return dbutil.MutationError(err)
+		return err
 	}
-	if rows == 0 {
-		return dbutil.ErrNotFound
-	}
-	return nil
+	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, &objectID)...)
 }
 
 func cleanMutation(params PackageMutation) PackageMutation {
@@ -417,34 +503,18 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		PreinstallAlert:          row.PreinstallAlert(),
 		PreuninstallAlert:        row.PreuninstallAlert(),
 		InstallerObjectID:        row.InstallerObjectID,
-		InstallerObjectLocation: stringPtrValue(
-			keyPtr(row.InstallerObjectID, row.InstallerObjectPrefix, row.InstallerObjectFilename),
-		),
-		UninstallerObjectID: row.UninstallerObjectID,
-		UninstallerObjectLocation: stringPtrValue(
-			keyPtr(row.UninstallerObjectID, row.UninstallerObjectPrefix, row.UninstallerObjectFilename),
-		),
-		Eligible:  row.Eligible,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		UninstallerObjectID:      row.UninstallerObjectID,
+		IconObjectID:             row.IconObjectID,
+		Eligible:                 row.Eligible,
+		CreatedAt:                row.CreatedAt,
+		UpdatedAt:                row.UpdatedAt,
 	}, nil
 }
 
-func packageRecordFromRecord(row packageRecord) (PackageRecord, error) {
-	pkg, err := packageFromRecord(row)
-	if err != nil {
-		return PackageRecord{}, err
-	}
-	return PackageRecord{
-		Package:      pkg,
-		SoftwareIcon: softwareIconFromRecord(row),
-	}, nil
-}
-
-func packageRecordsFromRecords(records []packageRecord) ([]PackageRecord, error) {
-	packages := make([]PackageRecord, len(records))
+func packagesFromRecords(records []packageRecord) ([]Package, error) {
+	packages := make([]Package, len(records))
 	for i, row := range records {
-		pkg, err := packageRecordFromRecord(row)
+		pkg, err := packageFromRecord(row)
 		if err != nil {
 			return nil, err
 		}
@@ -453,35 +523,9 @@ func packageRecordsFromRecords(records []packageRecord) ([]PackageRecord, error)
 	return packages, nil
 }
 
-func softwareIconFromRecord(row packageRecord) IconRef {
-	return IconRef{
-		Name:     row.SoftwareIconName,
-		Hash:     row.SoftwareIconHash,
-		ObjectID: row.SoftwareIconObjectID,
-		ObjectLocation: stringPtrValue(
-			keyPtr(row.SoftwareIconObjectID, row.SoftwareIconObjectPrefix, row.SoftwareIconObjectFilename),
-		),
-	}
-}
-
-func (s *Store) attachRecordRelations(ctx context.Context, records []PackageRecord) ([]PackageRecord, error) {
-	pkgs := make([]Package, len(records))
-	for i, record := range records {
-		pkgs[i] = record.Package
-	}
-	pkgs, err := s.AttachRelations(ctx, pkgs)
-	if err != nil {
-		return nil, err
-	}
-	for i := range records {
-		records[i].Package = pkgs[i]
-	}
-	return records, nil
-}
-
-// FromEffectiveRow maps the host-effective package query row into a joined package read model.
-func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (PackageRecord, error) {
-	return packageRecordFromRecord(packageRecordFromEffectiveSQLC(row))
+// FromEffectiveRow maps the host-effective package query row into a package read model.
+func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (Package, error) {
+	return packageFromRecord(packageRecordFromEffectiveSQLC(row))
 }
 
 func packageListWhere(params PackageListParams) (string, []any) {
@@ -743,16 +787,8 @@ type packageRecord struct {
 	PreuninstallAlertOKLabel     string `db:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel string
 	InstallerObjectID            *int64
-	InstallerObjectPrefix        *string
-	InstallerObjectFilename      *string
 	UninstallerObjectID          *int64
-	UninstallerObjectPrefix      *string
-	UninstallerObjectFilename    *string
-	SoftwareIconName             string
-	SoftwareIconHash             string
-	SoftwareIconObjectID         *int64
-	SoftwareIconObjectPrefix     *string
-	SoftwareIconObjectFilename   *string
+	IconObjectID                 *int64 `db:"software_icon_object_id"`
 	Eligible                     bool
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
@@ -778,7 +814,7 @@ func (row packageRecord) PreuninstallAlert() PackageAlert {
 	}
 }
 
-func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
+func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 	return packageRecord{
 		ID:                           row.ID,
 		SoftwareID:                   row.SoftwareID,
@@ -786,11 +822,7 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		SoftwareDescription:          row.SoftwareDescription,
 		SoftwareCategory:             row.SoftwareCategory,
 		SoftwareDeveloper:            row.SoftwareDeveloper,
-		SoftwareIconName:             row.SoftwareIconName,
-		SoftwareIconHash:             row.SoftwareIconHash,
-		SoftwareIconObjectID:         row.SoftwareIconObjectID,
-		SoftwareIconObjectPrefix:     row.SoftwareIconObjectPrefix,
-		SoftwareIconObjectFilename:   row.SoftwareIconObjectFilename,
+		IconObjectID:                 row.SoftwareIconObjectID,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
@@ -838,11 +870,7 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		InstallerObjectPrefix:        row.InstallerObjectPrefix,
-		InstallerObjectFilename:      row.InstallerObjectFilename,
 		UninstallerObjectID:          row.UninstallerObjectID,
-		UninstallerObjectPrefix:      row.UninstallerObjectPrefix,
-		UninstallerObjectFilename:    row.UninstallerObjectFilename,
 		Eligible:                     row.Eligible,
 		CreatedAt:                    row.CreatedAt,
 		UpdatedAt:                    row.UpdatedAt,
@@ -857,11 +885,7 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		SoftwareDescription:          row.SoftwareDescription,
 		SoftwareCategory:             row.SoftwareCategory,
 		SoftwareDeveloper:            row.SoftwareDeveloper,
-		SoftwareIconName:             row.SoftwareIconName,
-		SoftwareIconHash:             row.SoftwareIconHash,
-		SoftwareIconObjectID:         row.SoftwareIconObjectID,
-		SoftwareIconObjectPrefix:     row.SoftwareIconObjectPrefix,
-		SoftwareIconObjectFilename:   row.SoftwareIconObjectFilename,
+		IconObjectID:                 row.SoftwareIconObjectID,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
@@ -909,11 +933,7 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		InstallerObjectPrefix:        row.InstallerObjectPrefix,
-		InstallerObjectFilename:      row.InstallerObjectFilename,
 		UninstallerObjectID:          row.UninstallerObjectID,
-		UninstallerObjectPrefix:      row.UninstallerObjectPrefix,
-		UninstallerObjectFilename:    row.UninstallerObjectFilename,
 		Eligible:                     true,
 	}
 }
@@ -926,8 +946,6 @@ SELECT
 	s.description AS software_description,
 	s.category AS software_category,
 	s.developer AS software_developer,
-	s.icon_name AS software_icon_name,
-	s.icon_hash AS software_icon_hash,
 	s.icon_object_id AS software_icon_object_id,
 	p.version,
 	p.installer_type,
@@ -976,21 +994,12 @@ SELECT
 	p.preuninstall_alert_ok_label,
 	p.preuninstall_alert_cancel_label,
 	p.installer_object_id,
-	installer_obj.prefix AS installer_object_prefix,
-	installer_obj.filename AS installer_object_filename,
 	p.uninstaller_object_id,
-	uninstaller_obj.prefix AS uninstaller_object_prefix,
-	uninstaller_obj.filename AS uninstaller_object_filename,
-	icon_obj.prefix AS software_icon_object_prefix,
-	icon_obj.filename AS software_icon_object_filename,
 	p.eligible,
 	p.created_at,
 	p.updated_at
 FROM munki_packages p
-JOIN munki_software s ON s.id = p.software_id
-LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
-LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
-LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id`
+JOIN munki_software s ON s.id = p.software_id`
 
 func replacePackageRelations(
 	ctx context.Context,
@@ -1239,9 +1248,12 @@ func nonNilStrings(values []string) []string {
 	return values
 }
 
-func stringPtrValue(value *string) string {
-	if value == nil {
-		return ""
+func replacedObjectIDs(oldID, newID *int64) []int64 {
+	if oldID == nil {
+		return nil
 	}
-	return *value
+	if newID != nil && *oldID == *newID {
+		return nil
+	}
+	return []int64{*oldID}
 }

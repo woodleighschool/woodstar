@@ -7,7 +7,6 @@ package sqlc
 
 import (
 	"context"
-	"time"
 )
 
 const confirmStorageObject = `-- name: ConfirmStorageObject :one
@@ -141,20 +140,18 @@ func (q *Queries) GetStorageObjectByID(ctx context.Context, arg GetStorageObject
 	return i, err
 }
 
-const listPendingStorageObjectsBefore = `-- name: ListPendingStorageObjectsBefore :many
+const listStorageObjectsByIDs = `-- name: ListStorageObjectsByIDs :many
 SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at
 FROM storage_objects
-WHERE available_at IS NULL
-  AND created_at < $1
-ORDER BY id
+WHERE id = ANY($1::bigint[])
 `
 
-type ListPendingStorageObjectsBeforeParams struct {
-	Cutoff time.Time `json:"cutoff"`
+type ListStorageObjectsByIDsParams struct {
+	Ids []int64 `json:"ids"`
 }
 
-func (q *Queries) ListPendingStorageObjectsBefore(ctx context.Context, arg ListPendingStorageObjectsBeforeParams) ([]StorageObject, error) {
-	rows, err := q.db.Query(ctx, listPendingStorageObjectsBefore, arg.Cutoff)
+func (q *Queries) ListStorageObjectsByIDs(ctx context.Context, arg ListStorageObjectsByIDsParams) ([]StorageObject, error) {
+	rows, err := q.db.Query(ctx, listStorageObjectsByIDs, arg.Ids)
 	if err != nil {
 		return nil, err
 	}

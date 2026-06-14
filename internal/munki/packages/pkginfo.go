@@ -1,11 +1,14 @@
 package packages
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 var timeType = reflect.TypeFor[time.Time]()
@@ -38,8 +41,16 @@ func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string 
 	return name + "--" + version
 }
 
-func Pkginfo(pkg Package, softwareIcon IconRef) map[string]any {
-	return munkiPkginfoFromPackage(pkg, softwareIcon).Map()
+// Pkginfo renders the Munki pkginfo shape for a Woodstar package.
+func Pkginfo(pkg Package, objects PkginfoObjects) map[string]any {
+	return munkiPkginfoFromPackage(pkg, objects).Map()
+}
+
+// PkginfoObjects are storage objects needed only while rendering Munki pkginfo.
+type PkginfoObjects struct {
+	Installer   *storage.Object
+	Uninstaller *storage.Object
+	Icon        *storage.Object
 }
 
 type munkiPkginfo struct {
@@ -72,6 +83,9 @@ type munkiPkginfo struct {
 	SuppressBundleRelocation bool                      `json:"suppress_bundle_relocation,omitempty"`
 	ForceInstallAfterDate    *time.Time                `json:"force_install_after_date,omitempty"`
 	InstalledSize            int64                     `json:"installed_size,omitempty"`
+	InstallerItemLocation    string                    `json:"installer_item_location,omitempty"`
+	InstallerItemHash        string                    `json:"installer_item_hash,omitempty"`
+	InstallerItemSize        int64                     `json:"installer_item_size,omitempty"`
 	PackagePath              string                    `json:"package_path,omitempty"`
 	InstallerChoicesXML      []munkiPkginfoChoice      `json:"installer_choices_xml,omitempty"`
 	InstallerEnvironment     map[string]string         `json:"installer_environment,omitempty"`
@@ -85,6 +99,7 @@ type munkiPkginfo struct {
 	PostinstallScript        string                    `json:"postinstall_script,omitempty"`
 	PreuninstallScript       string                    `json:"preuninstall_script,omitempty"`
 	PostuninstallScript      string                    `json:"postuninstall_script,omitempty"`
+	UninstallerItemLocation  string                    `json:"uninstaller_item_location,omitempty"`
 	UninstallScript          string                    `json:"uninstall_script,omitempty"`
 	VersionScript            string                    `json:"version_script,omitempty"`
 	PreinstallAlert          *munkiPkginfoAlert        `json:"preinstall_alert,omitempty"`
@@ -134,7 +149,7 @@ type munkiPkginfoAlert struct {
 	CancelLabel string `json:"cancel_label,omitempty"`
 }
 
-func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
+func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
 		Name:                     MunkiName(pkg),
 		Version:                  pkg.Version,
@@ -178,8 +193,18 @@ func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 		VersionScript:            pkg.VersionScript,
 		PreinstallAlert:          munkiAlert(pkg.PreinstallAlert),
 		PreuninstallAlert:        munkiAlert(pkg.PreuninstallAlert),
-		IconName:                 softwareIcon.ObjectLocation,
-		IconHash:                 softwareIcon.Hash,
+	}
+	if pkg.InstallerType != InstallerTypeNoPkg && objects.Installer != nil {
+		item.InstallerItemLocation = InstallerItemLocation(pkg, *objects.Installer)
+		item.InstallerItemHash = objectHash(*objects.Installer)
+		item.InstallerItemSize = objectSizeKB(*objects.Installer)
+	}
+	if pkg.UninstallMethod == UninstallMethodUninstallPackage && objects.Uninstaller != nil {
+		item.UninstallerItemLocation = UninstallerItemLocation(pkg, *objects.Uninstaller)
+	}
+	if objects.Icon != nil {
+		item.IconName = IconName(*objects.Icon)
+		item.IconHash = objectHash(*objects.Icon)
 	}
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
 		item.InstallerType = pkg.InstallerType
@@ -192,6 +217,45 @@ func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
 		item.RestartAction = pkg.RestartAction
 	}
 	return item
+}
+
+// InstallerItemLocation returns the Munki repository path for a package installer.
+func InstallerItemLocation(pkg Package, obj storage.Object) string {
+	return packageObjectLocation(pkg.ID, "installer", obj)
+}
+
+// UninstallerItemLocation returns the Munki repository path for a package uninstaller.
+func UninstallerItemLocation(pkg Package, obj storage.Object) string {
+	return packageObjectLocation(pkg.ID, "uninstaller", obj)
+}
+
+// IconName returns the Munki icon filename for a storage object.
+func IconName(obj storage.Object) string {
+	if obj.ID <= 0 || obj.Filename == "" {
+		return ""
+	}
+	return fmt.Sprintf("%d-%s", obj.ID, obj.Filename)
+}
+
+func packageObjectLocation(packageID int64, role string, obj storage.Object) string {
+	if packageID <= 0 || obj.ID <= 0 || obj.Filename == "" {
+		return ""
+	}
+	return fmt.Sprintf("packages/%d/%s/%s", packageID, role, obj.Filename)
+}
+
+func objectHash(obj storage.Object) string {
+	if obj.SHA256 == nil {
+		return ""
+	}
+	return *obj.SHA256
+}
+
+func objectSizeKB(obj storage.Object) int64 {
+	if obj.SizeBytes == nil || *obj.SizeBytes <= 0 {
+		return 0
+	}
+	return (*obj.SizeBytes + 1023) / 1024
 }
 
 func (item munkiPkginfo) Map() map[string]any {

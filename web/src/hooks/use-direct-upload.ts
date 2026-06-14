@@ -9,7 +9,7 @@ type UploadErrorSurface = "toast" | "inline";
 
 interface DirectUploadIntentRequest {
   url: string;
-  method?: "PUT";
+  method?: string;
   headers?: Record<string, string>;
 }
 

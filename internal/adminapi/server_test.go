@@ -3,6 +3,8 @@ package adminapi
 import (
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -606,6 +608,120 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 }
 
+func TestMunkiPackageInstallerUploadConfirmsAndAttaches(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
+		Email:    "admin@example.test",
+		Name:     "Munki Upload Admin",
+		Password: testUserPassword,
+		Role:     directory.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+	fileStore, err := storage.New(ctx, storage.Config{Kind: storage.KindFile, FileRoot: t.TempDir()})
+	if err != nil {
+		t.Fatalf("create file storage: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Munki.Store = fileStore
+	wireMunkiTestDeps(&deps, database)
+	server := NewServer(deps)
+	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+
+	title := postMunkiJSON[munkisoftware.Software](
+		t,
+		server,
+		cookie,
+		"/api/munki/software",
+		`{"name":"Upload App","targets":{"include":[],"exclude":[]}}`,
+	)
+	pkg := postMunkiJSON[packages.Package](
+		t,
+		server,
+		cookie,
+		"/api/munki/packages",
+		fmt.Sprintf(`{"software_id":%d,"version":"1.0","installer_type":"pkg","eligible":true}`, title.ID),
+	)
+
+	intentRec := adminAPIRequest(
+		t,
+		server,
+		cookie,
+		http.MethodPost,
+		fmt.Sprintf("/api/munki/packages/%d/installer", pkg.ID),
+		`{"filename":"UploadApp.pkg","content_type":"application/octet-stream"}`,
+	)
+	if intentRec.Code != http.StatusCreated {
+		t.Fatalf(
+			"upload intent status = %d, want %d; body = %q",
+			intentRec.Code,
+			http.StatusCreated,
+			intentRec.Body.String(),
+		)
+	}
+	var intent struct {
+		ObjectID  int64  `json:"object_id"`
+		UploadURL string `json:"upload_url"`
+		Method    string `json:"method"`
+	}
+	if err := json.NewDecoder(intentRec.Body).Decode(&intent); err != nil {
+		t.Fatalf("decode upload intent: %v", err)
+	}
+	if intent.ObjectID == 0 || intent.UploadURL == "" || intent.Method != http.MethodPut {
+		t.Fatalf("upload intent = %+v, want object id, url, PUT", intent)
+	}
+
+	const body = "installer bytes"
+	uploadRec := adminAPIRequest(t, server, cookie, http.MethodPut, intent.UploadURL, body)
+	if uploadRec.Code != http.StatusNoContent {
+		t.Fatalf(
+			"upload status = %d, want %d; body = %q",
+			uploadRec.Code,
+			http.StatusNoContent,
+			uploadRec.Body.String(),
+		)
+	}
+
+	confirmRec := adminAPIRequest(
+		t,
+		server,
+		cookie,
+		http.MethodPost,
+		fmt.Sprintf("/api/munki/packages/%d/installer/%d/confirm", pkg.ID, intent.ObjectID),
+		"",
+	)
+	if confirmRec.Code != http.StatusOK {
+		t.Fatalf("confirm status = %d, want %d; body = %q", confirmRec.Code, http.StatusOK, confirmRec.Body.String())
+	}
+	var confirmed struct {
+		ID        int64   `json:"id"`
+		SizeBytes *int64  `json:"size_bytes"`
+		SHA256    *string `json:"sha256"`
+	}
+	if err := json.NewDecoder(confirmRec.Body).Decode(&confirmed); err != nil {
+		t.Fatalf("decode confirmed object: %v", err)
+	}
+	wantHashBytes := sha256.Sum256([]byte(body))
+	wantHash := hex.EncodeToString(wantHashBytes[:])
+	if confirmed.ID != intent.ObjectID || confirmed.SizeBytes == nil || *confirmed.SizeBytes != int64(len(body)) ||
+		confirmed.SHA256 == nil || *confirmed.SHA256 != wantHash {
+		t.Fatalf("confirmed object = %+v, want server-derived size/hash", confirmed)
+	}
+
+	attached, err := deps.Munki.Packages.GetByID(ctx, pkg.ID)
+	if err != nil {
+		t.Fatalf("load attached package: %v", err)
+	}
+	if attached.InstallerObjectID == nil || *attached.InstallerObjectID != intent.ObjectID {
+		t.Fatalf("installer object id = %v, want %d", attached.InstallerObjectID, intent.ObjectID)
+	}
+}
+
 func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
 	for _, secret := range secrets {
 		if secret.ID == id && secret.Agent == agent && secret.Value == value {
@@ -623,7 +739,7 @@ type munkiTestStores struct {
 }
 
 func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
-	objectStore := storage.NewObjectStore(db)
+	objectStore := storage.NewObjectStore(db, deps.Munki.Store)
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	stores := munkiTestStores{
@@ -632,6 +748,7 @@ func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 		packages:  packageStore,
 		software:  softwareStore,
 	}
+	deps.Munki.Objects = stores.objects
 	deps.Munki.HostState = stores.hoststate
 	deps.Munki.Packages = stores.packages
 	deps.Munki.Software = stores.software

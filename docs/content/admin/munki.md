@@ -12,7 +12,7 @@ Four objects make it work.
 
 ## Software titles
 
-A title is the human-owned grouping for one managed thing, "Google Chrome", say. It carries the name, description, category, developer, and icon. Everything else hangs off a title.
+A title is the human-owned grouping for one managed thing, "Google Chrome", say. It carries the name, description, category, developer, and icon. The icon can be a fresh upload or one picked from those already in use by other titles. Everything else hangs off a title.
 
 ## Packages
 
@@ -33,8 +33,8 @@ Deployments are ordered, because a host can match more than one and the order de
 
 ## Artifacts
 
-An artifact is the actual file: the package payload or an icon. The metadata is a stable Woodstar row; the bytes live in S3-compatible object storage when that's configured.
+An artifact is the actual file: the package payload or an icon. The metadata is a stable Woodstar row; the bytes live in a storage backend, local files by default or an S3-compatible bucket.
 
-There are two ways an artifact gets in. Either you register one that already sits at a known storage location, or you ask Woodstar for a temporary upload URL, push the file to storage, and attach it. The upload-URL path needs storage configured; without it you can hold metadata but not move bytes. See [Munki Storage](../configuration/storage) for how that's wired, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
+An artifact gets in create-first: the title or package exists first, then you attach an upload, push the bytes, and confirm them. Storage always works (the default `file` backend needs no setup), so the only real choice is whether bytes stream through Woodstar or go straight to a bucket. See [Munki Storage](../configuration/storage) for how the backends differ, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
 
 Endpoints are in the [API reference](../api/overview).

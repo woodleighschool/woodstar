@@ -26,7 +26,7 @@ func newFileStore(root string) (*fileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve storage file root: %w", err)
 	}
-	if err := os.MkdirAll(abs, 0o755); err != nil {
+	if err := os.MkdirAll(abs, 0o750); err != nil {
 		return nil, fmt.Errorf("create storage file root: %w", err)
 	}
 	return &fileStore{root: abs}, nil
@@ -70,7 +70,7 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 		return err
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create dir for %q: %w", key, err)
 	}
 	tmp, err := os.CreateTemp(dir, ".upload-*")
@@ -86,7 +86,7 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %q: %w", key, err)
 	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
+	if err := os.Chmod(tmpName, 0o600); err != nil {
 		return fmt.Errorf("chmod %q: %w", key, err)
 	}
 	if err := os.Rename(tmpName, path); err != nil {

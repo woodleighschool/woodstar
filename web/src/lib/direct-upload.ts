@@ -7,7 +7,7 @@ export interface UploadProgress {
 export interface DirectUploadRequest {
   url: string;
   file: File;
-  method?: "PUT";
+  method?: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onProgress?: (progress: UploadProgress) => void;
@@ -66,11 +66,4 @@ export function uploadWithProgress({
     }
     xhr.send(file);
   });
-}
-
-export async function fileSHA256(file: File) {
-  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }

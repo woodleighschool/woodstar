@@ -20,7 +20,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -59,7 +58,6 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	rules.RegisterHostAdminRoutes(ordinary, deps.Santa.Rules, deps.Inventory.Hosts)
 	munkisoftware.RegisterAdminRoutes(ordinary, deps.Munki.Software, deps.Munki.Packages)
 	munkipackages.RegisterAdminRoutes(ordinary, deps.Munki.Packages)
-	storage.RegisterAdminRoutes(ordinary, deps.Munki.Objects, deps.Munki.Store)
 	registerStorageContentUpload(r, deps)
 	registerMunkiUploadRoutes(ordinary, deps)
 }

@@ -2,29 +2,29 @@ package packages
 
 import "testing"
 
-func TestMunkiPackageFromRecordUsesSoftwareIconURL(t *testing.T) {
+func TestMunkiPackageFromPackageUsesIconURL(t *testing.T) {
 	softwareIconID := int64(41)
 
 	tests := []struct {
 		name        string
-		record      PackageRecord
+		pkg         Package
 		wantIconURL string
 	}{
 		{
 			name:        "software icon",
-			record:      PackageRecord{SoftwareIcon: IconRef{ObjectID: &softwareIconID}},
-			wantIconURL: "/api/storage/objects/41/content",
+			pkg:         Package{IconObjectID: &softwareIconID},
+			wantIconURL: "/api/munki/icons/41/content",
 		},
 		{
 			name:        "no icon",
-			record:      PackageRecord{},
+			pkg:         Package{},
 			wantIconURL: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := MunkiPackageFromRecord(tt.record)
+			got := MunkiPackageFromPackage(tt.pkg)
 			if got.IconURL != tt.wantIconURL {
 				t.Fatalf("icon url = %q, want %q", got.IconURL, tt.wantIconURL)
 			}

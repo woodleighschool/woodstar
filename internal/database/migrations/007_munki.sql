@@ -25,8 +25,6 @@ CREATE TABLE munki_software (
     description TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
     developer TEXT NOT NULL DEFAULT '',
-    icon_name TEXT NOT NULL DEFAULT '',
-    icon_hash TEXT NOT NULL DEFAULT '',
     icon_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

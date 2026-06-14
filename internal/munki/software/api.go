@@ -210,13 +210,13 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 
 func munkiSoftwareDetailFromDomain(
 	title Software,
-	packageRows []packages.PackageRecord,
+	packageRows []packages.Package,
 	targets Targets,
 ) munkiSoftwareDetail {
 	return munkiSoftwareDetail{
 		Software: title,
 		IconURL:  munkiSoftwareIconURL(title),
-		Packages: packages.MunkiPackagesFromRecords(packageRows),
+		Packages: packages.MunkiPackagesFromPackages(packageRows),
 		Targets:  targets,
 	}
 }
@@ -266,5 +266,5 @@ func munkiSoftwareIconURL(title Software) string {
 	if title.IconObjectID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/storage/objects/%d/content", *title.IconObjectID)
+	return fmt.Sprintf("/api/munki/icons/%d/content", *title.IconObjectID)
 }

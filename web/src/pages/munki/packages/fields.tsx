@@ -94,8 +94,8 @@ export function PackageEditorTabs({
   packageOptions,
   installerFile,
   uninstallerFile,
-  installerArtifactLocation,
-  uninstallerArtifactLocation,
+  hasInstallerObject,
+  hasUninstallerObject,
   onInstallerFileChange,
   onUninstallerFileChange,
 }: {
@@ -104,8 +104,8 @@ export function PackageEditorTabs({
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   uninstallerFile: File | null;
-  installerArtifactLocation: string;
-  uninstallerArtifactLocation: string;
+  hasInstallerObject: boolean;
+  hasUninstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
   onUninstallerFileChange: (file: File | null) => void;
 }) {
@@ -132,7 +132,7 @@ export function PackageEditorTabs({
         <InstallationTab
           form={form}
           installerFile={installerFile}
-          installerArtifactLocation={installerArtifactLocation}
+          hasInstallerObject={hasInstallerObject}
           onInstallerFileChange={onInstallerFileChange}
         />
       ),
@@ -144,7 +144,7 @@ export function PackageEditorTabs({
         <UninstallTab
           form={form}
           uninstallerFile={uninstallerFile}
-          uninstallerArtifactLocation={uninstallerArtifactLocation}
+          hasUninstallerObject={hasUninstallerObject}
           onUninstallerFileChange={onUninstallerFileChange}
         />
       ),
@@ -396,12 +396,12 @@ function RequirementsTab({
 function InstallationTab({
   form,
   installerFile,
-  installerArtifactLocation,
+  hasInstallerObject,
   onInstallerFileChange,
 }: {
   form: PackageEditorForm;
   installerFile: File | null;
-  installerArtifactLocation: string;
+  hasInstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
 }) {
   return (
@@ -413,8 +413,10 @@ function InstallationTab({
               <FieldLegend>Installer</FieldLegend>
               <PackageFileField
                 id="munki-package-installer-file"
-                label="Installer Artifact"
-                description={installerArtifactLocation || "No installer artifact selected."}
+                label="Installer File"
+                description={
+                  hasInstallerObject ? "Installer file attached." : "No installer file selected."
+                }
                 icon={<FileArchive className="size-4" />}
                 file={installerFile}
                 onChange={onInstallerFileChange}
@@ -480,12 +482,12 @@ function InstallationTab({
 function UninstallTab({
   form,
   uninstallerFile,
-  uninstallerArtifactLocation,
+  hasUninstallerObject,
   onUninstallerFileChange,
 }: {
   form: PackageEditorForm;
   uninstallerFile: File | null;
-  uninstallerArtifactLocation: string;
+  hasUninstallerObject: boolean;
   onUninstallerFileChange: (file: File | null) => void;
 }) {
   return (
@@ -507,8 +509,12 @@ function UninstallTab({
               {method === "uninstall_package" ? (
                 <PackageFileField
                   id="munki-package-uninstaller-file"
-                  label="Uninstaller Artifact"
-                  description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
+                  label="Uninstaller File"
+                  description={
+                    hasUninstallerObject
+                      ? "Uninstaller file attached."
+                      : "No uninstaller file selected."
+                  }
                   icon={<FileArchive className="size-4" />}
                   file={uninstallerFile}
                   onChange={onUninstallerFileChange}

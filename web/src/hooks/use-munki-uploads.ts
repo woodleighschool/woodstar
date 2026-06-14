@@ -1,15 +1,13 @@
 import { useDirectUpload } from "@/hooks/use-direct-upload";
-import type { MunkiUploadTarget, StorageObject } from "@/lib/api";
+import type { MunkiObject, MunkiUploadTarget } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
-import { fileSHA256 } from "@/lib/direct-upload";
 
 type IconUploadVars = { softwareId: number; file: File };
 type PackageUploadVars = { packageId: number; file: File };
 
-// useUploadMunkiIcon attaches an icon to existing software: create a pending
-// object, upload to the presigned URL, then confirm.
+// useUploadMunkiIcon attaches an icon to existing software.
 export function useUploadMunkiIcon() {
-  return useDirectUpload<MunkiUploadTarget, StorageObject, IconUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObject, IconUploadVars>({
     mutationKey: ["munki-icon-upload"],
     loadingText: "Uploading icon",
     successText: "Icon uploaded",
@@ -21,14 +19,19 @@ export function useUploadMunkiIcon() {
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
-    uploadRequest: (intent) => ({ url: intent.upload_url, headers: intent.headers ?? {} }),
-    completeUpload: (intent, { file }) => confirmObject(intent.object_id, file),
+    uploadRequest: uploadRequestFromIntent,
+    completeUpload: (intent, { softwareId }) =>
+      unwrap(
+        apiClient.POST("/api/munki/software/{id}/icon/{object_id}/confirm", {
+          params: { path: { id: softwareId, object_id: intent.object_id } },
+        }),
+      ),
   });
 }
 
 // useUploadMunkiInstaller attaches an installer to an existing package.
 export function useUploadMunkiInstaller() {
-  return useDirectUpload<MunkiUploadTarget, StorageObject, PackageUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObject, PackageUploadVars>({
     mutationKey: ["munki-installer-upload"],
     loadingText: "Uploading installer",
     successText: "Installer uploaded",
@@ -40,14 +43,19 @@ export function useUploadMunkiInstaller() {
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
-    uploadRequest: (intent) => ({ url: intent.upload_url, headers: intent.headers ?? {} }),
-    completeUpload: (intent, { file }) => confirmObject(intent.object_id, file),
+    uploadRequest: uploadRequestFromIntent,
+    completeUpload: (intent, { packageId }) =>
+      unwrap(
+        apiClient.POST("/api/munki/packages/{id}/installer/{object_id}/confirm", {
+          params: { path: { id: packageId, object_id: intent.object_id } },
+        }),
+      ),
   });
 }
 
 // useUploadMunkiUninstaller attaches an uninstaller to an existing package.
 export function useUploadMunkiUninstaller() {
-  return useDirectUpload<MunkiUploadTarget, StorageObject, PackageUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObject, PackageUploadVars>({
     mutationKey: ["munki-uninstaller-upload"],
     loadingText: "Uploading uninstaller",
     successText: "Uninstaller uploaded",
@@ -59,17 +67,20 @@ export function useUploadMunkiUninstaller() {
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
-    uploadRequest: (intent) => ({ url: intent.upload_url, headers: intent.headers ?? {} }),
-    completeUpload: (intent, { file }) => confirmObject(intent.object_id, file),
+    uploadRequest: uploadRequestFromIntent,
+    completeUpload: (intent, { packageId }) =>
+      unwrap(
+        apiClient.POST("/api/munki/packages/{id}/uninstaller/{object_id}/confirm", {
+          params: { path: { id: packageId, object_id: intent.object_id } },
+        }),
+      ),
   });
 }
 
-async function confirmObject(objectId: number, file: File): Promise<StorageObject> {
-  const sha256 = await fileSHA256(file);
-  return unwrap(
-    apiClient.POST("/api/storage/objects/{id}/confirm", {
-      params: { path: { id: objectId } },
-      body: { sha256 },
-    }),
-  );
+function uploadRequestFromIntent(intent: MunkiUploadTarget) {
+  return {
+    url: intent.upload_url,
+    method: intent.method,
+    headers: intent.headers ?? {},
+  };
 }

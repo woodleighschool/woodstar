@@ -2,8 +2,11 @@ package storage
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -47,13 +50,14 @@ func (o Object) Available() bool {
 
 // ObjectStore is the database registry of stored objects.
 type ObjectStore struct {
-	db *database.DB
-	q  *sqlc.Queries
+	db      *database.DB
+	q       *sqlc.Queries
+	backend Store
 }
 
 // NewObjectStore returns a registry backed by db.
-func NewObjectStore(db *database.DB) *ObjectStore {
-	return &ObjectStore{db: db, q: db.Queries()}
+func NewObjectStore(db *database.DB, backend Store) *ObjectStore {
+	return &ObjectStore{db: db, q: db.Queries(), backend: backend}
 }
 
 // CreatePending inserts a pending object and returns it with its assigned id.
@@ -94,6 +98,36 @@ func (s *ObjectStore) Confirm(ctx context.Context, id, size int64, contentType, 
 	return &obj, nil
 }
 
+// ConfirmUploaded verifies the bytes in the configured backend and marks the
+// object available with server-derived size and SHA-256 metadata.
+func (s *ObjectStore) ConfirmUploaded(ctx context.Context, id int64) (*Object, error) {
+	if s.backend == nil {
+		return nil, errors.New("storage backend is not configured")
+	}
+	obj, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// Re-download the whole object to hash it. pkginfo wants a real SHA-256.
+	// Needs to be done somewhere...
+	reader, info, err := s.backend.Open(ctx, obj.Key())
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	hash := sha256.New()
+	size, err := io.Copy(hash, reader)
+	if err != nil {
+		return nil, fmt.Errorf("hash %q: %w", obj.Key(), err)
+	}
+	contentType := info.ContentType
+	if contentType == "" {
+		contentType = obj.ContentType
+	}
+	return s.Confirm(ctx, obj.ID, size, contentType, hex.EncodeToString(hash.Sum(nil)))
+}
+
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 	row, err := s.q.GetStorageObjectByID(ctx, sqlc.GetStorageObjectByIDParams{ID: id})
@@ -105,6 +139,20 @@ func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 	}
 	obj := objectFromSQLC(row)
 	return &obj, nil
+}
+
+// ListByIDs returns objects keyed by id. Missing IDs are ignored.
+func (s *ObjectStore) ListByIDs(ctx context.Context, ids []int64) (map[int64]Object, error) {
+	rows, err := s.q.ListStorageObjectsByIDs(ctx, sqlc.ListStorageObjectsByIDsParams{Ids: ids})
+	if err != nil {
+		return nil, err
+	}
+	objects := make(map[int64]Object, len(rows))
+	for _, row := range rows {
+		obj := objectFromSQLC(row)
+		objects[obj.ID] = obj
+	}
+	return objects, nil
 }
 
 // ListByPrefix returns available objects under a prefix, newest first.
@@ -142,6 +190,31 @@ func (s *ObjectStore) DeleteByID(ctx context.Context, id int64) error {
 	}
 	if rows == 0 {
 		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+// DeleteUnreferenced deletes backend bytes and rows for objects that no Munki
+// resource references anymore. Failed backend deletes leave rows in place so the
+// database does not claim cleanup happened when bytes still exist.
+func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) error {
+	rows, err := s.q.ListUnreferencedStorageObjects(
+		ctx,
+		sqlc.ListUnreferencedStorageObjectsParams{Ids: ids},
+	)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		key := Key(row.Prefix, row.ID, row.Filename)
+		if s.backend != nil {
+			if err := s.backend.Delete(ctx, key); err != nil {
+				return err
+			}
+		}
+		if err := s.DeleteByID(ctx, row.ID); err != nil && !errors.Is(err, dbutil.ErrNotFound) {
+			return err
+		}
 	}
 	return nil
 }

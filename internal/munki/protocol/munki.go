@@ -24,8 +24,8 @@ type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
 	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
 	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
-	ResolvePackageArtifact(context.Context, munki.ClientHost, string) (string, error)
-	ResolveIconArtifact(context.Context, munki.ClientHost, string) (string, error)
+	ResolvePackageFile(context.Context, munki.ClientHost, string) (string, error)
+	ResolveIconFile(context.Context, munki.ClientHost, string) (string, error)
 }
 
 type handler struct {
@@ -51,8 +51,8 @@ func RegisterMunkiRoutes(
 	}
 	r.Get("/munki/manifests/{name}", h.manifest)
 	r.Get("/munki/catalogs/{name}", h.catalog)
-	r.Get("/munki/pkgs/*", h.packageArtifact)
-	r.Get("/munki/icons/*", h.iconArtifact)
+	r.Get("/munki/pkgs/*", h.packageFile)
+	r.Get("/munki/icons/*", h.iconFile)
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
@@ -73,22 +73,22 @@ func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h handler) packageArtifact(w http.ResponseWriter, r *http.Request) {
-	h.serveArtifact(w, r, h.repository.ResolvePackageArtifact)
+func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
+	h.serveFile(w, r, h.repository.ResolvePackageFile)
 }
 
-func (h handler) iconArtifact(w http.ResponseWriter, r *http.Request) {
-	h.serveArtifact(w, r, h.repository.ResolveIconArtifact)
+func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
+	h.serveFile(w, r, h.repository.ResolveIconFile)
 }
 
-func (h handler) serveArtifact(
+func (h handler) serveFile(
 	w http.ResponseWriter,
 	r *http.Request,
 	resolve func(context.Context, munki.ClientHost, string) (string, error),
 ) {
 	authorized, err := h.authorized(r)
 	if err != nil {
-		h.log(r, "artifact", err)
+		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -102,7 +102,7 @@ func (h handler) serveArtifact(
 		return
 	}
 	if err != nil {
-		h.log(r, "artifact", err)
+		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -116,7 +116,7 @@ func (h handler) serveArtifact(
 		return
 	}
 	if err != nil {
-		h.log(r, "artifact", err)
+		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -129,11 +129,10 @@ func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
 	if presigner, ok := h.store.(storage.Presigner); ok {
 		url, err := presigner.PresignGet(r.Context(), key, 0)
 		if err != nil {
-			h.log(r, "artifact", err)
+			h.log(r, "file", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		//nolint:gosec // G710: url is a presigned storage URL derived from an authorized key
 		http.Redirect(w, r, url, http.StatusFound)
 		return
 	}
@@ -143,7 +142,7 @@ func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
 		return
 	}
 	if err != nil {
-		h.log(r, "artifact", err)
+		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -152,7 +151,7 @@ func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
 		w.Header().Set("Content-Type", info.ContentType)
 	}
 	if _, err := io.Copy(w, reader); err != nil {
-		h.log(r, "artifact", err)
+		h.log(r, "file", err)
 	}
 }
 

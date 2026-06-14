@@ -154,8 +154,8 @@ SET
     preuninstall_alert_detail = @preuninstall_alert_detail,
     preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
-    installer_object_id = COALESCE(sqlc.narg(installer_object_id)::bigint, installer_object_id),
-    uninstaller_object_id = COALESCE(sqlc.narg(uninstaller_object_id)::bigint, uninstaller_object_id),
+    installer_object_id = sqlc.narg(installer_object_id)::bigint,
+    uninstaller_object_id = sqlc.narg(uninstaller_object_id)::bigint,
     eligible = @eligible,
     updated_at = now()
 WHERE id = @id
@@ -168,25 +168,22 @@ SELECT
     s.description AS software_description,
     s.category AS software_category,
     s.developer AS software_developer,
-    s.icon_name AS software_icon_name,
-    s.icon_hash AS software_icon_hash,
-    s.icon_object_id AS software_icon_object_id,
-    installer_obj.prefix AS installer_object_prefix,
-    installer_obj.filename AS installer_object_filename,
-    uninstaller_obj.prefix AS uninstaller_object_prefix,
-    uninstaller_obj.filename AS uninstaller_object_filename,
-    icon_obj.prefix AS software_icon_object_prefix,
-    icon_obj.filename AS software_icon_object_filename
+    s.icon_object_id AS software_icon_object_id
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
-LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
-LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
-LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
 WHERE p.id = @id;
 
 -- name: DeleteMunkiPackage :execrows
 DELETE FROM munki_packages
 WHERE id = @id;
+
+-- name: ListMunkiPackageObjectIDsByIDs :many
+SELECT refs.object_id::bigint AS object_id
+FROM munki_packages p
+CROSS JOIN LATERAL unnest(
+    array_remove(ARRAY[p.installer_object_id, p.uninstaller_object_id], NULL)::bigint[]
+) AS refs(object_id)
+WHERE p.id = ANY(@ids::bigint[]);
 
 -- name: DeleteMunkiPackageRelationsByPackageIDs :exec
 DELETE FROM munki_package_relations

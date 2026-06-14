@@ -8,9 +8,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestResolvePackageArtifactRequiresEffectivePackage(t *testing.T) {
+func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 	installerID := int64(42)
 	store := servicePackageStore{
 		packages: []munkisoftware.EffectivePackage{
@@ -20,29 +21,46 @@ func TestResolvePackageArtifactRequiresEffectivePackage(t *testing.T) {
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
-					ID:                      10,
-					SoftwareName:            "GoogleChrome",
-					InstallerObjectID:       &installerID,
-					InstallerObjectLocation: "munki/packages/42/GoogleChrome.pkg",
+					ID:                10,
+					SoftwareName:      "GoogleChrome",
+					InstallerType:     packages.InstallerTypePkg,
+					InstallerObjectID: &installerID,
 				},
 			},
 		},
 	}
-	service := munki.NewRepositoryService(munki.Dependencies{Packages: store})
+	objects := serviceObjectStore{objects: map[int64]storage.Object{
+		installerID: {ID: installerID, Prefix: packages.ObjectPrefix, Filename: "GoogleChrome.pkg"},
+	}}
+	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	key, err := service.ResolvePackageArtifact(context.Background(), client, "munki/packages/42/GoogleChrome.pkg")
+	key, err := service.ResolvePackageFile(context.Background(), client, "packages/10/installer/GoogleChrome.pkg")
 	if err != nil {
-		t.Fatalf("ResolvePackageArtifact allowed package: %v", err)
+		t.Fatalf("ResolvePackageFile allowed package: %v", err)
 	}
 	if key != "munki/packages/42/GoogleChrome.pkg" {
 		t.Fatalf("key = %q, want the installer key", key)
 	}
 
-	_, err = service.ResolvePackageArtifact(context.Background(), client, "munki/packages/99/Blocked.pkg")
+	_, err = service.ResolvePackageFile(context.Background(), client, "munki/packages/99/Blocked.pkg")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("blocked key error = %v, want ErrNotFound", err)
 	}
+}
+
+type serviceObjectStore struct {
+	objects map[int64]storage.Object
+}
+
+func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64]storage.Object, error) {
+	out := make(map[int64]storage.Object, len(ids))
+	for _, id := range ids {
+		if obj, ok := s.objects[id]; ok {
+			out[id] = obj
+		}
+	}
+	return out, nil
 }
 
 type servicePackageStore struct {

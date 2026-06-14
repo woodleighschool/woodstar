@@ -7,7 +7,7 @@ from autopkglib import Processor, ProcessorError
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from WoodstarLib.Client import client_from_env, find_exact  # noqa: E402
+from WoodstarLib.Client import client_from_env, find_exact, needs_object, truthy  # noqa: E402
 
 __all__ = ["WoodstarMunkiAppUploader"]
 
@@ -48,11 +48,15 @@ class WoodstarMunkiAppUploader(Processor):
             "required": False,
             "description": "Optional full targets object with include and exclude label entries.",
         },
+        "force": {
+            "required": False,
+            "description": "Re-upload the icon even when the software already has one.",
+            "default": False,
+        },
     }
     output_variables = {
         "woodstar_software": {"description": "Munki software response."},
         "woodstar_software_id": {"description": "Woodstar Munki software ID."},
-        "woodstar_icon_artifact": {"description": "Uploaded icon artifact response."},
         "woodstar_targets": {"description": "Munki software targets."},
         "woodstarmunkiappuploader_summary_result": {
             "description": "Summary of Woodstar app changes.",
@@ -67,19 +71,20 @@ class WoodstarMunkiAppUploader(Processor):
         if not name:
             raise ProcessorError("name is required")
 
-        icon_artifact = None
-        icon_path = self.env.get("icon_path")
-        if icon_path:
-            icon_artifact = client.upload_artifact("icon", icon_path, os.path.basename(icon_path))
-            self.env["woodstar_icon_artifact"] = icon_artifact
+        software, changed, action = self.upsert_software(client, pkginfo, name)
 
-        software, changed, action = self.upsert_software(client, pkginfo, name, icon_artifact)
+        icon_path = self.env.get("icon_path")
+        icon_uploaded = False
+        if icon_path and needs_object(software, "icon", truthy(self.env.get("force", False))):
+            client.attach_object(f"/api/munki/software/{software['id']}/icon", icon_path)
+            software = client.get(f"/api/munki/software/{software['id']}")
+            icon_uploaded = True
         targets = software.get("targets") or empty_targets()
 
         self.env["woodstar_software"] = software
         self.env["woodstar_software_id"] = software["id"]
         self.env["woodstar_targets"] = targets
-        if changed:
+        if changed or icon_uploaded:
             self.env["woodstarmunkiappuploader_summary_result"] = {
                 "summary_text": "Woodstar Munki app updated",
                 "report_fields": ["id", "name", "action"],
@@ -91,7 +96,7 @@ class WoodstarMunkiAppUploader(Processor):
             }
         self.output(f"{action} Woodstar Munki software {software['id']}: {software['name']}")
 
-    def upsert_software(self, client, pkginfo, name, icon_artifact):
+    def upsert_software(self, client, pkginfo, name):
         body = {
             "name": name,
             "description": self.env.get("description") or pkginfo.get("description") or "",
@@ -102,10 +107,10 @@ class WoodstarMunkiAppUploader(Processor):
         existing_detail = None
         if existing:
             existing_detail = client.get(f"/api/munki/software/{existing['id']}")
-        if icon_artifact:
-            body["icon_artifact_id"] = icon_artifact["id"]
-        elif existing_detail and existing_detail.get("icon_artifact_id"):
-            body["icon_artifact_id"] = existing_detail["icon_artifact_id"]
+        # Preserve the current icon through a metadata update; a new icon is
+        # attached separately after the upsert.
+        if existing_detail and existing_detail.get("icon_object_id"):
+            body["icon_object_id"] = existing_detail["icon_object_id"]
         body["targets"] = self.target_body(client, existing_detail)
         if existing:
             if self.software_matches(existing_detail, body):

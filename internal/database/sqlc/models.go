@@ -1054,8 +1054,6 @@ type MunkiSoftware struct {
 	Description  string    `json:"description"`
 	Category     string    `json:"category"`
 	Developer    string    `json:"developer"`
-	IconName     string    `json:"icon_name"`
-	IconHash     string    `json:"icon_hash"`
 	IconObjectID *int64    `json:"icon_object_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

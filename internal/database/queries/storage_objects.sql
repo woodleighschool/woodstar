@@ -18,6 +18,11 @@ SELECT *
 FROM storage_objects
 WHERE id = @id;
 
+-- name: ListStorageObjectsByIDs :many
+SELECT *
+FROM storage_objects
+WHERE id = ANY(@ids::bigint[]);
+
 -- name: ListStorageObjectsByPrefix :many
 SELECT *
 FROM storage_objects
@@ -35,10 +40,3 @@ WHERE prefix = @prefix
 -- name: DeleteStorageObject :execrows
 DELETE FROM storage_objects
 WHERE id = @id;
-
--- name: ListPendingStorageObjectsBefore :many
-SELECT *
-FROM storage_objects
-WHERE available_at IS NULL
-  AND created_at < @cutoff
-ORDER BY id;

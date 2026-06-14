@@ -68,12 +68,11 @@ var actionValues = []Action{
 
 // EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
 type EffectivePackage struct {
-	TargetID   int64
-	SoftwareID int64
-	Actions    []Action
-	Package    packages.Package
-	// SoftwareIcon is software-owned pkginfo context projected with the package.
-	SoftwareIcon packages.IconRef
+	TargetID     int64
+	SoftwareID   int64
+	Actions      []Action
+	Package      packages.Package
+	IconObjectID *int64
 	Selector     PackageSelector
 }
 

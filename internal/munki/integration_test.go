@@ -26,7 +26,7 @@ type munkiStores struct {
 }
 
 func newMunkiStores(db *database.DB) munkiStores {
-	objectStore := storage.NewObjectStore(db)
+	objectStore := storage.NewObjectStore(db, nil)
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
@@ -160,35 +160,35 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	}
 }
 
-func TestArtifactsCreateListAndBindPackage(t *testing.T) {
+func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "munki-artifact-host-uuid", Serial: "C02MUNKIART"},
-		OrbitNodeKey: "munki-artifact-orbit",
+		Hardware:     hosts.HostHardware{UUID: "munki-object-host-uuid", Serial: "C02MUNKIOBJ"},
+		OrbitNodeKey: "munki-object-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "ArtifactApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "ObjectApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	artifact := createMunkiPackageArtifact(t, ctx, stores, "ArtifactApp.pkg", "a")
+	installerObject := createMunkiPackageObject(t, ctx, stores, "ObjectApp.pkg", "a")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:           "1.0",
-		InstallerObjectID: &artifact.ID,
+		InstallerObjectID: &installerObject.ID,
 		Eligible:          true,
 	})
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
-	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != artifact.ID {
-		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerObjectID, artifact.ID)
+	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerObject.ID {
+		t.Fatalf("pkg installer object id = %v, want %d", pkg.InstallerObjectID, installerObject.ID)
 	}
 	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
 		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
@@ -198,8 +198,10 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve effective packages: %v", err)
 	}
-	if len(effective) != 1 || effective[0].Package.InstallerObjectLocation != "apps/ArtifactApp.pkg" {
-		t.Fatalf("effective packages = %+v, want artifact location", effective)
+	if len(effective) != 1 ||
+		effective[0].Package.InstallerObjectID == nil ||
+		*effective[0].Package.InstallerObjectID != installerObject.ID {
+		t.Fatalf("effective packages = %+v, want installer object id", effective)
 	}
 }
 
@@ -238,7 +240,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	}
 }
 
-func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
+func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -246,11 +248,11 @@ func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	artifact := createMunkiIconArtifact(t, ctx, stores, "IconApp.png", "b")
+	iconObject := createMunkiIconObject(t, ctx, stores, "IconApp.png", "b")
 
 	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:           "1.0",
-		InstallerObjectID: &artifact.ID,
+		InstallerObjectID: &iconObject.ID,
 		Eligible:          true,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -262,7 +264,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	icon := createMunkiIconArtifact(t, ctx, stores, "icons/SharedApp.png", "d")
+	icon := createMunkiIconObject(t, ctx, stores, "icons/SharedApp.png", "d")
 	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
 		Name:         "SharedIconApp",
 		IconObjectID: &icon.ID,
@@ -271,7 +273,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 	if title.IconObjectID == nil || *title.IconObjectID != icon.ID {
-		t.Fatalf("title icon artifact id = %v, want %d", title.IconObjectID, icon.ID)
+		t.Fatalf("title icon object id = %v, want %d", title.IconObjectID, icon.ID)
 	}
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
@@ -283,8 +285,8 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.SoftwareIcon.ObjectID == nil || *pkg.SoftwareIcon.ObjectID != icon.ID {
-		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIcon.ObjectID, icon.ID)
+	if pkg.IconObjectID == nil || *pkg.IconObjectID != icon.ID {
+		t.Fatalf("package icon object id = %v, want %d", pkg.IconObjectID, icon.ID)
 	}
 }
 
@@ -479,9 +481,9 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 		t.Fatalf("target software: %v", err)
 	}
 
-	assertBlockingApplications(t, unset.Package, nil)
-	assertBlockingApplications(t, empty.Package, []string{})
-	assertBlockingApplications(t, populated.Package, []string{"Blocking App"})
+	assertBlockingApplications(t, *unset, nil)
+	assertBlockingApplications(t, *empty, []string{})
+	assertBlockingApplications(t, *populated, []string{"Blocking App"})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -652,21 +654,21 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 	}
 }
 
-func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
+func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "DeleteArtifactApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "DeleteObjectApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact.pkg", "b")
-	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact-uninstall.pkg", "c")
+	installerObject := createMunkiPackageObject(t, ctx, stores, "apps/DeleteObject.pkg", "b")
+	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "apps/DeleteObject-uninstall.pkg", "c")
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
-		InstallerObjectID:   &installerArtifact.ID,
+		InstallerObjectID:   &installerObject.ID,
 		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerArtifact.ID,
+		UninstallerObjectID: &uninstallerObject.ID,
 		Eligible:            true,
 	})
 	if err != nil {
@@ -677,20 +679,20 @@ func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 		name string
 		id   int64
 	}{
-		{name: "installer", id: installerArtifact.ID},
-		{name: "uninstaller", id: uninstallerArtifact.ID},
+		{name: "installer", id: installerObject.ID},
+		{name: "uninstaller", id: uninstallerObject.ID},
 	}
 	for _, ref := range references {
 		if err := stores.objects.DeleteByID(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
-			t.Fatalf("delete referenced %s artifact error = %v, want ErrConflict", ref.name, err)
+			t.Fatalf("delete referenced %s object error = %v, want ErrConflict", ref.name, err)
 		}
 	}
 	if err := stores.packages.Delete(ctx, pkg.ID); err != nil {
 		t.Fatalf("delete package: %v", err)
 	}
 	for _, ref := range references {
-		if err := stores.objects.DeleteByID(ctx, ref.id); err != nil {
-			t.Fatalf("delete unreferenced %s artifact: %v", ref.name, err)
+		if _, err := stores.objects.GetByID(ctx, ref.id); !errors.Is(err, dbutil.ErrNotFound) {
+			t.Fatalf("post-delete %s object lookup error = %v, want ErrNotFound", ref.name, err)
 		}
 	}
 }
@@ -778,7 +780,7 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	}
 }
 
-func TestCreatePackageAcceptsUninstallerArtifact(t *testing.T) {
+func TestCreatePackageAcceptsUninstallerObject(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -786,31 +788,31 @@ func TestCreatePackageAcceptsUninstallerArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "UninstallerApp.pkg", "d")
-	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "UninstallerApp-uninstall.pkg", "e")
+	installerObject := createMunkiPackageObject(t, ctx, stores, "UninstallerApp.pkg", "d")
+	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "UninstallerApp-uninstall.pkg", "e")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
-		InstallerObjectID:   &installerArtifact.ID,
+		InstallerObjectID:   &installerObject.ID,
 		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerArtifact.ID,
+		UninstallerObjectID: &uninstallerObject.ID,
 		Eligible:            true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerArtifact.ID {
-		t.Fatalf("installer artifact id = %v, want %d", pkg.InstallerObjectID, installerArtifact.ID)
+	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerObject.ID {
+		t.Fatalf("installer object id = %v, want %d", pkg.InstallerObjectID, installerObject.ID)
 	}
-	if pkg.UninstallerObjectID == nil || *pkg.UninstallerObjectID != uninstallerArtifact.ID {
-		t.Fatalf("uninstaller artifact id = %v, want %d", pkg.UninstallerObjectID, uninstallerArtifact.ID)
+	if pkg.UninstallerObjectID == nil || *pkg.UninstallerObjectID != uninstallerObject.ID {
+		t.Fatalf("uninstaller object id = %v, want %d", pkg.UninstallerObjectID, uninstallerObject.ID)
 	}
 	if pkg.UninstallMethod != packages.UninstallMethodUninstallPackage {
 		t.Fatalf("uninstall method = %q, want uninstall_package", pkg.UninstallMethod)
 	}
 }
 
-func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T) {
+func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -818,14 +820,14 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "SwitchableApp.pkg", "f")
-	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "SwitchableApp-uninstall.pkg", "a")
+	installerObject := createMunkiPackageObject(t, ctx, stores, "SwitchableApp.pkg", "f")
+	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "SwitchableApp-uninstall.pkg", "a")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
-		InstallerObjectID:   &installerArtifact.ID,
+		InstallerObjectID:   &installerObject.ID,
 		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerArtifact.ID,
+		UninstallerObjectID: &uninstallerObject.ID,
 		Eligible:            true,
 	})
 	if err != nil {
@@ -844,10 +846,10 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 		t.Fatalf("update package: %v", err)
 	}
 	if updated.InstallerObjectID != nil {
-		t.Fatalf("installer artifact id = %v, want cleared", updated.InstallerObjectID)
+		t.Fatalf("installer object id = %v, want cleared", updated.InstallerObjectID)
 	}
 	if updated.UninstallerObjectID != nil {
-		t.Fatalf("uninstaller artifact id = %v, want cleared", updated.UninstallerObjectID)
+		t.Fatalf("uninstaller object id = %v, want cleared", updated.UninstallerObjectID)
 	}
 	if updated.InstallerType != packages.InstallerTypeNoPkg ||
 		updated.UninstallMethod != packages.UninstallMethodNone {
@@ -1251,10 +1253,10 @@ func createMunkiPackage(
 	if err != nil {
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
-	return pkg.Package
+	return *pkg
 }
 
-func createMunkiPackageArtifact(
+func createMunkiPackageObject(
 	t *testing.T,
 	ctx context.Context,
 	stores munkiStores,
@@ -1301,7 +1303,7 @@ func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores
 	}
 }
 
-func createMunkiIconArtifact(
+func createMunkiIconObject(
 	t *testing.T,
 	ctx context.Context,
 	stores munkiStores,

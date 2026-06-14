@@ -8,12 +8,12 @@ description: "The Munki repository surface: manifests, catalogs, and artifact re
 
 To a Munki client, Woodstar looks like a Munki repository. It serves the same shape of URLs a static repo would, but the manifests and catalogs are rendered on the fly from the software, packages, deployments, and artifacts you've set up.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/munki/manifests/{name}` | Render the manifest plist for the requesting host. |
-| `GET` | `/munki/catalogs/{name}` | Render a catalog plist. The `production` catalog is the one in use. |
-| `GET` | `/munki/pkgs/*` | Redirect to a package artifact, if this host is allowed it. |
-| `GET` | `/munki/icons/*` | Redirect to an icon artifact. |
+| Method | Path                      | Purpose                                                             |
+| ------ | ------------------------- | ------------------------------------------------------------------- |
+| `GET`  | `/munki/manifests/{name}` | Render the manifest plist for the requesting host.                  |
+| `GET`  | `/munki/catalogs/{name}`  | Render a catalog plist. The `production` catalog is the one in use. |
+| `GET`  | `/munki/pkgs/*`           | Redirect to a package artifact, if this host is allowed it.         |
+| `GET`  | `/munki/icons/*`          | Redirect to an icon artifact.                                       |
 
 ## Request identity
 
@@ -40,6 +40,6 @@ The catalog is built from the same effective set. When more than one version of 
 
 ## Artifacts
 
-Artifacts are stable Woodstar rows; the package and icon routes redirect to object storage when the S3 presigner is configured.
+Artifacts are stable Woodstar rows; the package and icon routes hand back the bytes by redirecting to a presigned URL on the S3 backend, or streaming them directly on the file backend.
 
-Two failure cases are worth knowing. If the artifact exists but no storage backend can serve it, the route returns `503`. If a package artifact isn't part of this host's effective set, it returns `404`, even if the file is sitting in storage. A Mac only gets the bytes for software it's actually assigned. The storage wiring is in [Munki Storage](../configuration/storage).
+The failure case worth knowing: if a package artifact isn't part of this host's effective set, the route returns `404`, even if the file is sitting in storage. A Mac only gets the bytes for software it's actually assigned. The storage wiring is in [Munki Storage](../configuration/storage).

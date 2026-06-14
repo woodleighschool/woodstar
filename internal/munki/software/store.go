@@ -15,15 +15,16 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-// objectPrefixIcons namespaces software icon blobs in storage.
-const objectPrefixIcons = "munki/icons"
+// IconObjectPrefix namespaces software icon objects in storage.
+const IconObjectPrefix = "munki/icons"
 
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
+	DeleteUnreferenced(context.Context, ...int64) error
 }
 
 type packageStore interface {
-	GetByID(context.Context, int64) (*packages.PackageRecord, error)
+	GetByID(context.Context, int64) (*packages.Package, error)
 	AttachRelations(context.Context, []packages.Package) ([]packages.Package, error)
 }
 
@@ -53,8 +54,6 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 			Description:  params.Description,
 			Category:     params.Category,
 			Developer:    params.Developer,
-			IconName:     params.IconName,
-			IconHash:     params.IconHash,
 			IconObjectID: params.IconObjectID,
 		})
 		if err != nil {
@@ -76,21 +75,25 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	if err != nil {
 		return nil, err
 	}
+	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
+		existing, err := qtx.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: id})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return dbutil.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		oldIconObjectID = existing.IconObjectID
 		row, err := qtx.UpdateMunkiSoftware(ctx, sqlc.UpdateMunkiSoftwareParams{
 			Name:         params.Name,
 			Description:  params.Description,
 			Category:     params.Category,
 			Developer:    params.Developer,
-			IconName:     params.IconName,
-			IconHash:     params.IconHash,
 			IconObjectID: params.IconObjectID,
 			ID:           id,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
 			return err
 		}
@@ -98,6 +101,11 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	})
 	if err != nil {
 		return nil, dbutil.MutationError(err)
+	}
+	if err := s.objects.DeleteUnreferenced(
+		ctx,
+		replacedObjectIDs(oldIconObjectID, params.IconObjectID)...); err != nil {
+		return nil, err
 	}
 	return s.GetByID(ctx, id)
 }
@@ -121,20 +129,30 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return dbutil.ErrNotFound
 	}
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	var objectIDs []int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
+		var err error
+		objectIDs, err = qtx.ListMunkiSoftwareIconObjectIDsByIDs(
+			ctx,
+			sqlc.ListMunkiSoftwareIconObjectIDsByIDsParams{Ids: []int64{id}},
+		)
+		if err != nil {
+			return err
+		}
 		if err := qtx.DeleteMunkiSoftwareTargetsBySoftware(
 			ctx,
 			sqlc.DeleteMunkiSoftwareTargetsBySoftwareParams{SoftwareID: id},
 		); err != nil {
 			return err
 		}
-		_, err := qtx.DeleteMunkiSoftwareByID(ctx, sqlc.DeleteMunkiSoftwareByIDParams{ID: id})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
+		_, err = qtx.DeleteMunkiSoftwareByID(ctx, sqlc.DeleteMunkiSoftwareByIDParams{ID: id})
 		return err
 	})
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
 }
 
 // DeleteMany removes multiple software rows. Missing IDs are ignored for bulk idempotency.
@@ -143,8 +161,17 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		return 0, nil
 	}
 	var deleted int
+	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
+		rows, err := qtx.ListMunkiSoftwareIconObjectIDsByIDs(
+			ctx,
+			sqlc.ListMunkiSoftwareIconObjectIDsByIDsParams{Ids: ids},
+		)
+		if err != nil {
+			return err
+		}
+		objectIDs = append(objectIDs, rows...)
 		if err := qtx.DeleteMunkiSoftwareTargetsBySoftwareIDs(
 			ctx,
 			sqlc.DeleteMunkiSoftwareTargetsBySoftwareIDsParams{Ids: ids},
@@ -158,7 +185,10 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		deleted = len(deletedIDs)
 		return nil
 	})
-	return deleted, err
+	if err != nil {
+		return deleted, err
+	}
+	return deleted, s.objects.DeleteUnreferenced(ctx, objectIDs...)
 }
 
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
@@ -212,33 +242,57 @@ func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, e
 	if err != nil {
 		return params, err
 	}
-	if obj.Prefix != objectPrefixIcons {
+	if obj.Prefix != IconObjectPrefix {
 		return params, fmt.Errorf(
 			"%w: icon_object_id must reference an icon",
 			dbutil.ErrInvalidInput,
 		)
 	}
-	params.IconName = obj.Filename
-	params.IconHash = ""
-	if obj.SHA256 != nil {
-		params.IconHash = *obj.SHA256
+	if !obj.Available() {
+		return params, fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
 	}
 	return params, nil
 }
 
 // SetIcon points software at an icon storage object.
 func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
-	rows, err := s.q.SetMunkiSoftwareIconObject(ctx, sqlc.SetMunkiSoftwareIconObjectParams{
-		ID:       softwareID,
-		ObjectID: &objectID,
+	obj, err := s.objects.GetByID(ctx, objectID)
+	if err != nil {
+		return err
+	}
+	if obj.Prefix != IconObjectPrefix {
+		return fmt.Errorf("%w: icon_object_id must reference an icon", dbutil.ErrInvalidInput)
+	}
+	if !obj.Available() {
+		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
+	}
+	var oldIconObjectID *int64
+	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		existing, err := qtx.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: softwareID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return dbutil.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		oldIconObjectID = existing.IconObjectID
+		rows, err := qtx.SetMunkiSoftwareIconObject(ctx, sqlc.SetMunkiSoftwareIconObjectParams{
+			ID:       softwareID,
+			ObjectID: &objectID,
+		})
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		if rows == 0 {
+			return dbutil.ErrNotFound
+		}
+		return nil
 	})
 	if err != nil {
-		return dbutil.MutationError(err)
+		return err
 	}
-	if rows == 0 {
-		return dbutil.ErrNotFound
-	}
-	return nil
+	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldIconObjectID, &objectID)...)
 }
 
 func cleanMutation(params Mutation) Mutation {
@@ -246,10 +300,18 @@ func cleanMutation(params Mutation) Mutation {
 	params.Description = strings.TrimSpace(params.Description)
 	params.Category = strings.TrimSpace(params.Category)
 	params.Developer = strings.TrimSpace(params.Developer)
-	params.IconName = strings.TrimSpace(params.IconName)
-	params.IconHash = strings.TrimSpace(params.IconHash)
 	params.Targets = normalizeTargets(params.Targets)
 	return params
+}
+
+func replacedObjectIDs(oldID, newID *int64) []int64 {
+	if oldID == nil {
+		return nil
+	}
+	if newID != nil && *oldID == *newID {
+		return nil
+	}
+	return []int64{*oldID}
 }
 
 func softwareFromSQLC(row sqlc.MunkiSoftware) Software {
@@ -260,8 +322,6 @@ func softwareFromSQLC(row sqlc.MunkiSoftware) Software {
 		Description:  row.Description,
 		Category:     row.Category,
 		Developer:    row.Developer,
-		IconName:     row.IconName,
-		IconHash:     row.IconHash,
 		IconObjectID: row.IconObjectID,
 		CreatedAt:    row.CreatedAt,
 		UpdatedAt:    row.UpdatedAt,
@@ -289,8 +349,6 @@ SELECT
 	st.description,
 	st.category,
 	st.developer,
-	st.icon_name,
-	st.icon_hash,
 	st.icon_object_id,
 	st.created_at,
 	st.updated_at

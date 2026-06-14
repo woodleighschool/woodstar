@@ -45,8 +45,8 @@ export function MunkiPackageCreatePage() {
       return;
     }
     const validationError = packageSubmitPreflightError(value, {
-      hasInstallerArtifact: !!installerFile,
-      hasUninstallerArtifact: !!uninstallerFile,
+      hasInstallerFile: !!installerFile,
+      hasUninstallerFile: !!uninstallerFile,
     });
     if (validationError) {
       toast.error(validationError);
@@ -122,8 +122,8 @@ export function MunkiPackageCreatePage() {
           packageOptions={packages.data?.items ?? []}
           installerFile={installerFile}
           uninstallerFile={uninstallerFile}
-          installerArtifactLocation=""
-          uninstallerArtifactLocation=""
+          hasInstallerObject={false}
+          hasUninstallerObject={false}
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
         />

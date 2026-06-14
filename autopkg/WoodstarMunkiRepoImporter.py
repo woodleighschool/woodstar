@@ -8,7 +8,7 @@ from autopkglib import Processor, ProcessorError
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from WoodstarLib.Client import artifact_index, client_from_env, find_exact, truthy  # noqa: E402
+from WoodstarLib.Client import client_from_env, find_exact, truthy  # noqa: E402
 from WoodstarMunkiAppUploader import WoodstarMunkiAppUploader  # noqa: E402
 from WoodstarMunkiPackageUploader import WoodstarMunkiPackageUploader  # noqa: E402
 
@@ -49,7 +49,6 @@ class WoodstarMunkiRepoImporter(Processor):
         client = client_from_env(self.env)
         munki_repo = self.munki_repo()
         force = truthy(self.env.get("force", False))
-        artifacts = artifact_index(client)
 
         counts = import_counts()
 
@@ -59,7 +58,7 @@ class WoodstarMunkiRepoImporter(Processor):
             self.output(f"Skipping {skipped_duplicates} duplicate Munki pkginfo item(s)")
 
         for pkginfo_path, pkginfo in entries:
-            self.import_pkginfo(client, munki_repo, pkginfo_path, pkginfo, force, artifacts, counts)
+            self.import_pkginfo(client, munki_repo, pkginfo_path, pkginfo, force, counts)
 
         self.env["woodstar_imported_pkginfo_count"] = counts["pkginfos"]
         if changed_count(counts):
@@ -93,7 +92,7 @@ class WoodstarMunkiRepoImporter(Processor):
             raise ProcessorError(f"MUNKI_REPO pkgsinfo directory was not found: {munki_repo}")
         return munki_repo
 
-    def import_pkginfo(self, client, munki_repo, pkginfo_path, pkginfo, force, artifacts, counts):
+    def import_pkginfo(self, client, munki_repo, pkginfo_path, pkginfo, force, counts):
         counts["pkginfos"] += 1
         app = WoodstarMunkiAppUploader()
         app.env = {
@@ -106,7 +105,7 @@ class WoodstarMunkiRepoImporter(Processor):
         if not name:
             raise ProcessorError(f"name is required for pkginfo {pkginfo_path}")
         self.output(f"Importing Munki pkginfo: {name} {pkginfo.get('version') or ''}")
-        software, software_created = self.software_for_pkginfo(client, munki_repo, pkginfo, name, artifacts)
+        software, software_created = self.software_for_pkginfo(client, munki_repo, pkginfo, name)
         if software_created:
             counts["software_created"] += 1
 
@@ -127,50 +126,19 @@ class WoodstarMunkiRepoImporter(Processor):
             package.env["uninstaller_pkg_path"] = uninstaller_path
 
         installer_path, uninstaller_path = package.artifact_paths(pkginfo)
-        installer_artifact = None
-        installer_uploaded = False
-        if installer_path:
-            installer_artifact, installer_uploaded = client.upload_artifact_status(
-                "package",
-                installer_path,
-                os.path.basename(installer_path),
-                force=force,
-                artifact_index=artifacts,
-            )
-        uninstaller_artifact = None
-        uninstaller_uploaded = False
-        if uninstaller_path:
-            uninstaller_artifact, uninstaller_uploaded = client.upload_artifact_status(
-                "package",
-                uninstaller_path,
-                os.path.basename(uninstaller_path),
-                force=force,
-                artifact_index=artifacts,
-            )
-
-        body = package.package_body(pkginfo, int(software["id"]), installer_artifact, uninstaller_artifact)
-        _package, package_action, package_changed = package.save_package(client, int(software["id"]), body)
+        body = package.package_body(pkginfo, int(software["id"]))
+        saved, package_action, package_changed = package.save_package(client, int(software["id"]), body)
         if package_changed:
             increment_action(counts, "packages", package_action)
-        if installer_uploaded or uninstaller_uploaded:
-            counts["package_binaries_uploaded"] += int(installer_uploaded) + int(uninstaller_uploaded)
-        elif installer_artifact or uninstaller_artifact:
-            counts["package_binaries_skipped"] += int(bool(installer_artifact)) + int(bool(uninstaller_artifact))
 
-    def software_for_pkginfo(self, client, munki_repo, pkginfo, name, artifacts):
+        installer_uploaded = package.attach_binary(client, saved, "installer", installer_path, force)
+        uninstaller_uploaded = package.attach_binary(client, saved, "uninstaller", uninstaller_path, force)
+        counts["package_binaries_uploaded"] += int(installer_uploaded) + int(uninstaller_uploaded)
+
+    def software_for_pkginfo(self, client, munki_repo, pkginfo, name):
         existing = find_exact(client, "/api/munki/software", "name", name)
         if existing:
             return client.get(f"/api/munki/software/{existing['id']}"), False
-
-        icon_artifact = None
-        icon_path = repo_icon_path(munki_repo, pkginfo)
-        if icon_path:
-            icon_artifact, _uploaded = client.upload_artifact_status(
-                "icon",
-                icon_path,
-                os.path.basename(icon_path),
-                artifact_index=artifacts,
-            )
 
         body = {
             "name": name,
@@ -179,10 +147,14 @@ class WoodstarMunkiRepoImporter(Processor):
             "developer": pkginfo.get("developer") or "",
             "targets": {"include": [], "exclude": []},
         }
-        if icon_artifact:
-            body["icon_artifact_id"] = icon_artifact["id"]
         self.output(f"Creating Woodstar Munki software: {name}")
-        return client.post("/api/munki/software", body), True
+        software = client.post("/api/munki/software", body)
+
+        icon_path = repo_icon_path(munki_repo, pkginfo)
+        if icon_path:
+            client.attach_object(f"/api/munki/software/{software['id']}/icon", icon_path)
+            software = client.get(f"/api/munki/software/{software['id']}")
+        return software, True
 
 
 def pkginfo_entries(munki_repo):

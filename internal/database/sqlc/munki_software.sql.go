@@ -28,8 +28,6 @@ INSERT INTO munki_software (
     description,
     category,
     developer,
-    icon_name,
-    icon_hash,
     icon_object_id
 )
 VALUES (
@@ -37,11 +35,9 @@ VALUES (
     $2,
     $3,
     $4,
-    $5,
-    $6,
-    $7::bigint
+    $5::bigint
 )
-RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_object_id, created_at, updated_at
+RETURNING id, name, description, category, developer, icon_object_id, created_at, updated_at
 `
 
 type CreateMunkiSoftwareParams struct {
@@ -49,8 +45,6 @@ type CreateMunkiSoftwareParams struct {
 	Description  string `json:"description"`
 	Category     string `json:"category"`
 	Developer    string `json:"developer"`
-	IconName     string `json:"icon_name"`
-	IconHash     string `json:"icon_hash"`
 	IconObjectID *int64 `json:"icon_object_id"`
 }
 
@@ -60,8 +54,6 @@ func (q *Queries) CreateMunkiSoftware(ctx context.Context, arg CreateMunkiSoftwa
 		arg.Description,
 		arg.Category,
 		arg.Developer,
-		arg.IconName,
-		arg.IconHash,
 		arg.IconObjectID,
 	)
 	var i MunkiSoftware
@@ -71,8 +63,6 @@ func (q *Queries) CreateMunkiSoftware(ctx context.Context, arg CreateMunkiSoftwa
 		&i.Description,
 		&i.Category,
 		&i.Developer,
-		&i.IconName,
-		&i.IconHash,
 		&i.IconObjectID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -212,49 +202,8 @@ func (q *Queries) DeleteMunkiSoftwareTargetsBySoftwareIDs(ctx context.Context, a
 	return err
 }
 
-const deleteUnreferencedStorageObjects = `-- name: DeleteUnreferencedStorageObjects :many
-DELETE FROM storage_objects o
-WHERE o.id = ANY($1::bigint[])
-  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
-  AND NOT EXISTS (
-      SELECT 1 FROM munki_packages p
-      WHERE p.installer_object_id = o.id OR p.uninstaller_object_id = o.id
-  )
-RETURNING o.prefix, o.id, o.filename
-`
-
-type DeleteUnreferencedStorageObjectsParams struct {
-	Ids []int64 `json:"ids"`
-}
-
-type DeleteUnreferencedStorageObjectsRow struct {
-	Prefix   string `json:"prefix"`
-	ID       int64  `json:"id"`
-	Filename string `json:"filename"`
-}
-
-func (q *Queries) DeleteUnreferencedStorageObjects(ctx context.Context, arg DeleteUnreferencedStorageObjectsParams) ([]DeleteUnreferencedStorageObjectsRow, error) {
-	rows, err := q.db.Query(ctx, deleteUnreferencedStorageObjects, arg.Ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []DeleteUnreferencedStorageObjectsRow{}
-	for rows.Next() {
-		var i DeleteUnreferencedStorageObjectsRow
-		if err := rows.Scan(&i.Prefix, &i.ID, &i.Filename); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getMunkiSoftwareByID = `-- name: GetMunkiSoftwareByID :one
-SELECT id, name, description, category, developer, icon_name, icon_hash, icon_object_id, created_at, updated_at
+SELECT id, name, description, category, developer, icon_object_id, created_at, updated_at
 FROM munki_software
 WHERE id = $1
 `
@@ -272,8 +221,6 @@ func (q *Queries) GetMunkiSoftwareByID(ctx context.Context, arg GetMunkiSoftware
 		&i.Description,
 		&i.Category,
 		&i.Developer,
-		&i.IconName,
-		&i.IconHash,
 		&i.IconObjectID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -311,8 +258,6 @@ SELECT
     s.description AS software_description,
     s.category AS software_category,
     s.developer AS software_developer,
-    s.icon_name AS software_icon_name,
-    s.icon_hash AS software_icon_hash,
     s.icon_object_id AS software_icon_object_id,
     COALESCE(p.version, '') AS version,
     COALESCE(p.installer_type, 'pkg') AS installer_type,
@@ -361,13 +306,7 @@ SELECT
     COALESCE(p.preuninstall_alert_ok_label, '') AS preuninstall_alert_ok_label,
     COALESCE(p.preuninstall_alert_cancel_label, '') AS preuninstall_alert_cancel_label,
     p.installer_object_id,
-    installer_obj.prefix AS installer_object_prefix,
-    installer_obj.filename AS installer_object_filename,
-    p.uninstaller_object_id,
-    uninstaller_obj.prefix AS uninstaller_object_prefix,
-    uninstaller_obj.filename AS uninstaller_object_filename,
-    icon_obj.prefix AS software_icon_object_prefix,
-    icon_obj.filename AS software_icon_object_filename
+    p.uninstaller_object_id
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
 JOIN munki_software s ON s.id = a.software_id
@@ -375,13 +314,13 @@ JOIN munki_packages p ON p.software_id = a.software_id
     AND (
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
         OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
-    )
+)
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
 LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
-LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
 WHERE a.direction = 'include'
   AND p.eligible
-  AND installer_obj.available_at IS NOT NULL
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+  AND (p.uninstall_method <> 'uninstall_package' OR uninstaller_obj.available_at IS NOT NULL)
   AND NOT EXISTS (
       SELECT 1
       FROM munki_software_targets excluded
@@ -411,8 +350,6 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	SoftwareDescription                string                `json:"software_description"`
 	SoftwareCategory                   string                `json:"software_category"`
 	SoftwareDeveloper                  string                `json:"software_developer"`
-	SoftwareIconName                   string                `json:"software_icon_name"`
-	SoftwareIconHash                   string                `json:"software_icon_hash"`
 	SoftwareIconObjectID               *int64                `json:"software_icon_object_id"`
 	Version                            string                `json:"version"`
 	InstallerType                      string                `json:"installer_type"`
@@ -461,13 +398,7 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	PreuninstallAlertOkLabel           string                `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string                `json:"preuninstall_alert_cancel_label"`
 	InstallerObjectID                  *int64                `json:"installer_object_id"`
-	InstallerObjectPrefix              *string               `json:"installer_object_prefix"`
-	InstallerObjectFilename            *string               `json:"installer_object_filename"`
 	UninstallerObjectID                *int64                `json:"uninstaller_object_id"`
-	UninstallerObjectPrefix            *string               `json:"uninstaller_object_prefix"`
-	UninstallerObjectFilename          *string               `json:"uninstaller_object_filename"`
-	SoftwareIconObjectPrefix           *string               `json:"software_icon_object_prefix"`
-	SoftwareIconObjectFilename         *string               `json:"software_icon_object_filename"`
 }
 
 func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg ListEffectiveMunkiPackagesForHostParams) ([]ListEffectiveMunkiPackagesForHostRow, error) {
@@ -492,8 +423,6 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.SoftwareDescription,
 			&i.SoftwareCategory,
 			&i.SoftwareDeveloper,
-			&i.SoftwareIconName,
-			&i.SoftwareIconHash,
 			&i.SoftwareIconObjectID,
 			&i.Version,
 			&i.InstallerType,
@@ -542,13 +471,7 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.PreuninstallAlertOkLabel,
 			&i.PreuninstallAlertCancelLabel,
 			&i.InstallerObjectID,
-			&i.InstallerObjectPrefix,
-			&i.InstallerObjectFilename,
 			&i.UninstallerObjectID,
-			&i.UninstallerObjectPrefix,
-			&i.UninstallerObjectFilename,
-			&i.SoftwareIconObjectPrefix,
-			&i.SoftwareIconObjectFilename,
 		); err != nil {
 			return nil, err
 		}
@@ -561,7 +484,7 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 }
 
 const listMunkiSoftware = `-- name: ListMunkiSoftware :many
-SELECT id, name, description, category, developer, icon_name, icon_hash, icon_object_id, created_at, updated_at
+SELECT id, name, description, category, developer, icon_object_id, created_at, updated_at
 FROM munki_software
 ORDER BY lower(name), id
 LIMIT $2 OFFSET $1
@@ -587,8 +510,6 @@ func (q *Queries) ListMunkiSoftware(ctx context.Context, arg ListMunkiSoftwarePa
 			&i.Description,
 			&i.Category,
 			&i.Developer,
-			&i.IconName,
-			&i.IconHash,
 			&i.IconObjectID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -633,6 +554,38 @@ func (q *Queries) ListMunkiSoftwareExcludeLabels(ctx context.Context, arg ListMu
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMunkiSoftwareIconObjectIDsByIDs = `-- name: ListMunkiSoftwareIconObjectIDsByIDs :many
+SELECT refs.object_id::bigint AS object_id
+FROM munki_software s
+CROSS JOIN LATERAL unnest(ARRAY[s.icon_object_id]::bigint[]) AS refs(object_id)
+WHERE s.id = ANY($1::bigint[])
+  AND refs.object_id IS NOT NULL
+`
+
+type ListMunkiSoftwareIconObjectIDsByIDsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) ListMunkiSoftwareIconObjectIDsByIDs(ctx context.Context, arg ListMunkiSoftwareIconObjectIDsByIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiSoftwareIconObjectIDsByIDs, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var object_id int64
+		if err := rows.Scan(&object_id); err != nil {
+			return nil, err
+		}
+		items = append(items, object_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -708,12 +661,10 @@ SET
     description = $2,
     category = $3,
     developer = $4,
-    icon_name = $5,
-    icon_hash = $6,
-    icon_object_id = $7::bigint,
+    icon_object_id = $5::bigint,
     updated_at = now()
-WHERE id = $8
-RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_object_id, created_at, updated_at
+WHERE id = $6
+RETURNING id, name, description, category, developer, icon_object_id, created_at, updated_at
 `
 
 type UpdateMunkiSoftwareParams struct {
@@ -721,8 +672,6 @@ type UpdateMunkiSoftwareParams struct {
 	Description  string `json:"description"`
 	Category     string `json:"category"`
 	Developer    string `json:"developer"`
-	IconName     string `json:"icon_name"`
-	IconHash     string `json:"icon_hash"`
 	IconObjectID *int64 `json:"icon_object_id"`
 	ID           int64  `json:"id"`
 }
@@ -733,8 +682,6 @@ func (q *Queries) UpdateMunkiSoftware(ctx context.Context, arg UpdateMunkiSoftwa
 		arg.Description,
 		arg.Category,
 		arg.Developer,
-		arg.IconName,
-		arg.IconHash,
 		arg.IconObjectID,
 		arg.ID,
 	)
@@ -745,8 +692,6 @@ func (q *Queries) UpdateMunkiSoftware(ctx context.Context, arg UpdateMunkiSoftwa
 		&i.Description,
 		&i.Category,
 		&i.Developer,
-		&i.IconName,
-		&i.IconHash,
 		&i.IconObjectID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -90,7 +90,7 @@ func registerListMunkiPackages(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromRecords(rows), Count: int32(count)},
+			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromPackages(rows), Count: int32(count)},
 		}, nil
 	})
 }
@@ -115,7 +115,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
@@ -132,7 +132,7 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
@@ -155,7 +155,7 @@ func registerPutMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
@@ -191,30 +191,26 @@ func registerBulkDeleteMunkiPackages(api huma.API, store *Store) {
 	})
 }
 
-// MunkiPackageFromRecord maps a joined package read model to the admin API shape.
-func MunkiPackageFromRecord(record PackageRecord) MunkiPackage {
+// MunkiPackageFromPackage maps a package read model to the admin API shape.
+func MunkiPackageFromPackage(pkg Package) MunkiPackage {
 	return MunkiPackage{
-		Package: record.Package,
-		IconURL: munkiPackageIconURL(record.SoftwareIcon),
+		Package: pkg,
+		IconURL: objectContentURL(pkg.IconObjectID),
 	}
 }
 
-// MunkiPackagesFromRecords maps joined package read models to the admin API shape.
-func MunkiPackagesFromRecords(rows []PackageRecord) []MunkiPackage {
+// MunkiPackagesFromPackages maps package read models to the admin API shape.
+func MunkiPackagesFromPackages(rows []Package) []MunkiPackage {
 	items := make([]MunkiPackage, len(rows))
 	for i, row := range rows {
-		items[i] = MunkiPackageFromRecord(row)
+		items[i] = MunkiPackageFromPackage(row)
 	}
 	return items
-}
-
-func munkiPackageIconURL(softwareIcon IconRef) string {
-	return objectContentURL(softwareIcon.ObjectID)
 }
 
 func objectContentURL(objectID *int64) string {
 	if objectID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/storage/objects/%d/content", *objectID)
+	return fmt.Sprintf("/api/munki/icons/%d/content", *objectID)
 }

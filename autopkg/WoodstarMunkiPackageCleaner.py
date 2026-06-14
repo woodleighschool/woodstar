@@ -54,26 +54,19 @@ class WoodstarMunkiPackageCleaner(Processor):
         )
         packages = sorted(packages, key=lambda item: int(item["id"]), reverse=True)
         delete_packages = packages[keep_count:]
-        artifact_ids = artifact_ids_for_packages(delete_packages)
 
         for package in delete_packages:
             client.delete(f"/api/munki/packages/{package['id']}")
-
-        deleted_artifacts = 0
-        for artifact_id in artifact_ids:
-            if self.delete_artifact(client, artifact_id):
-                deleted_artifacts += 1
 
         deleted_packages = len(delete_packages)
         self.env["woodstar_deleted_package_count"] = deleted_packages
         if deleted_packages:
             self.env["woodstarmunkipackagecleaner_summary_result"] = {
                 "summary_text": "Woodstar Munki packages cleaned",
-                "report_fields": ["software_id", "deleted_packages", "deleted_artifacts"],
+                "report_fields": ["software_id", "deleted_packages"],
                 "data": {
                     "software_id": str(software_id),
                     "deleted_packages": str(deleted_packages),
-                    "deleted_artifacts": str(deleted_artifacts),
                 },
             }
         self.output(f"Deleted {deleted_packages} Woodstar package(s) for software {software_id}")
@@ -96,27 +89,6 @@ class WoodstarMunkiPackageCleaner(Processor):
         if keep_count < 1:
             raise ProcessorError("keep_version_count must be at least 1")
         return keep_count
-
-    @staticmethod
-    def delete_artifact(client, artifact_id):
-        try:
-            client.delete(f"/api/munki/artifacts/{artifact_id}")
-        except ProcessorError as err:
-            message = str(err)
-            if "HTTP 404" in message or "HTTP 409" in message:
-                return False
-            raise
-        return True
-
-
-def artifact_ids_for_packages(packages):
-    ids = []
-    for package in packages:
-        for key in ("installer_artifact_id", "uninstaller_artifact_id"):
-            artifact_id = package.get(key)
-            if artifact_id and artifact_id not in ids:
-                ids.append(artifact_id)
-    return ids
 
 
 if __name__ == "__main__":

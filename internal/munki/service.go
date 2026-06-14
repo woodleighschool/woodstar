@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // ErrNotFound reports that a requested Munki repository object does not exist.
@@ -25,6 +26,10 @@ type packageResolver interface {
 	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
 }
 
+type objectResolver interface {
+	ListByIDs(context.Context, []int64) (map[int64]storage.Object, error)
+}
+
 // ClientHost identifies the existing Woodstar host making a Munki request.
 type ClientHost struct {
 	ID          int64
@@ -36,12 +41,14 @@ type ClientHost struct {
 type RepositoryService struct {
 	hosts    hostResolver
 	packages packageResolver
+	objects  objectResolver
 }
 
 // Dependencies are the collaborators the Munki repository renderer needs.
 type Dependencies struct {
 	Hosts    hostResolver
 	Packages packageResolver
+	Objects  objectResolver
 }
 
 // NewRepositoryService returns the Munki repository renderer.
@@ -49,6 +56,7 @@ func NewRepositoryService(deps Dependencies) *RepositoryService {
 	return &RepositoryService{
 		hosts:    deps.Hosts,
 		packages: deps.Packages,
+		objects:  deps.Objects,
 	}
 }
 
@@ -106,12 +114,16 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	if err != nil {
 		return nil, err
 	}
-	return encodePlist(s.catalogItems(pkgs))
+	items, err := s.catalogItems(ctx, pkgs)
+	if err != nil {
+		return nil, err
+	}
+	return encodePlist(items)
 }
 
-// ResolvePackageArtifact authorizes a package installer/uninstaller storage key
-// for a client and returns it for serving.
-func (s *RepositoryService) ResolvePackageArtifact(
+// ResolvePackageFile authorizes a package installer/uninstaller Munki path
+// for a client and returns the private object key for serving.
+func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
 	client ClientHost,
 	key string,
@@ -124,16 +136,30 @@ func (s *RepositoryService) ResolvePackageArtifact(
 	if err != nil {
 		return "", err
 	}
+	objects, err := s.objectsForPackages(ctx, pkgs)
+	if err != nil {
+		return "", err
+	}
 	for _, pkg := range pkgs {
-		if pkg.Package.InstallerObjectLocation == key || pkg.Package.UninstallerObjectLocation == key {
-			return key, nil
+		if pkg.Package.InstallerType != packages.InstallerTypeNoPkg {
+			if obj := objectByID(objects, pkg.Package.InstallerObjectID); obj != nil &&
+				packages.InstallerItemLocation(pkg.Package, *obj) == key {
+				return obj.Key(), nil
+			}
+		}
+		if pkg.Package.UninstallMethod == packages.UninstallMethodUninstallPackage {
+			if obj := objectByID(objects, pkg.Package.UninstallerObjectID); obj != nil &&
+				packages.UninstallerItemLocation(pkg.Package, *obj) == key {
+				return obj.Key(), nil
+			}
 		}
 	}
 	return "", ErrNotFound
 }
 
-// ResolveIconArtifact authorizes a software icon storage key for a client.
-func (s *RepositoryService) ResolveIconArtifact(
+// ResolveIconFile authorizes a software icon name for a client and returns
+// the private object key for serving.
+func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
 	client ClientHost,
 	key string,
@@ -146,9 +172,14 @@ func (s *RepositoryService) ResolveIconArtifact(
 	if err != nil {
 		return "", err
 	}
+	objects, err := s.objectsForPackages(ctx, pkgs)
+	if err != nil {
+		return "", err
+	}
 	for _, pkg := range pkgs {
-		if pkg.SoftwareIcon.ObjectLocation == key {
-			return key, nil
+		if obj := objectByID(objects, pkg.IconObjectID); obj != nil &&
+			packages.IconName(*obj) == key {
+			return obj.Key(), nil
 		}
 	}
 	return "", ErrNotFound
@@ -191,7 +222,14 @@ func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	return packages.MunkiName(pkg.Package)
 }
 
-func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePackage) []map[string]any {
+func (s *RepositoryService) catalogItems(
+	ctx context.Context,
+	effective []munkisoftware.EffectivePackage,
+) ([]map[string]any, error) {
+	objects, err := s.objectsForPackages(ctx, effective)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]map[string]any, 0, len(effective))
 	seen := make(map[int64]bool, len(effective))
 	for _, pkg := range effective {
@@ -199,20 +237,57 @@ func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePack
 			continue
 		}
 		seen[pkg.Package.ID] = true
-		item := packages.Pkginfo(pkg.Package, pkg.SoftwareIcon)
-		if pkg.Package.InstallerObjectID != nil {
-			if pkg.Package.InstallerObjectLocation != "" {
-				item["installer_item_location"] = pkg.Package.InstallerObjectLocation
-			}
-		}
-		if pkg.Package.UninstallMethod == packages.UninstallMethodUninstallPackage &&
-			pkg.Package.UninstallerObjectID != nil &&
-			pkg.Package.UninstallerObjectLocation != "" {
-			item["uninstaller_item_location"] = pkg.Package.UninstallerObjectLocation
-		}
-		items = append(items, item)
+		items = append(items, packages.Pkginfo(pkg.Package, packageObjects(pkg, objects)))
 	}
-	return items
+	return items, nil
+}
+
+func (s *RepositoryService) objectsForPackages(
+	ctx context.Context,
+	effective []munkisoftware.EffectivePackage,
+) (map[int64]storage.Object, error) {
+	ids := make([]int64, 0, len(effective)*3)
+	for _, pkg := range effective {
+		ids = appendObjectID(ids, pkg.Package.InstallerObjectID)
+		ids = appendObjectID(ids, pkg.Package.UninstallerObjectID)
+		ids = appendObjectID(ids, pkg.IconObjectID)
+	}
+	if len(ids) == 0 {
+		return map[int64]storage.Object{}, nil
+	}
+	if s.objects == nil {
+		return nil, errors.New("munki object resolver is not configured")
+	}
+	return s.objects.ListByIDs(ctx, ids)
+}
+
+func packageObjects(
+	pkg munkisoftware.EffectivePackage,
+	objects map[int64]storage.Object,
+) packages.PkginfoObjects {
+	return packages.PkginfoObjects{
+		Installer:   objectByID(objects, pkg.Package.InstallerObjectID),
+		Uninstaller: objectByID(objects, pkg.Package.UninstallerObjectID),
+		Icon:        objectByID(objects, pkg.IconObjectID),
+	}
+}
+
+func objectByID(objects map[int64]storage.Object, id *int64) *storage.Object {
+	if id == nil {
+		return nil
+	}
+	obj, ok := objects[*id]
+	if !ok {
+		return nil
+	}
+	return &obj
+}
+
+func appendObjectID(ids []int64, id *int64) []int64 {
+	if id == nil {
+		return ids
+	}
+	return append(ids, *id)
 }
 
 func appendUnique(values []string, value string) []string {

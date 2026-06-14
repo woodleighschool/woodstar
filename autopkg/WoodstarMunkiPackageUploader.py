@@ -8,7 +8,7 @@ from autopkglib import Processor, ProcessorError
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from WoodstarLib.Client import client_from_env, list_items, truthy  # noqa: E402
+from WoodstarLib.Client import client_from_env, list_items, needs_object, truthy  # noqa: E402
 
 __all__ = ["WoodstarMunkiPackageUploader"]
 
@@ -82,8 +82,6 @@ PACKAGE_DEFAULTS = {
     "version_script": "",
     "preinstall_alert": {"enabled": False},
     "preuninstall_alert": {"enabled": False},
-    "installer_artifact_id": None,
-    "uninstaller_artifact_id": None,
 }
 
 
@@ -131,10 +129,6 @@ class WoodstarMunkiPackageUploader(Processor):
         },
     }
     output_variables = {
-        "woodstar_package_artifact": {"description": "Uploaded package artifact response."},
-        "woodstar_uninstaller_package_artifact": {
-            "description": "Uploaded uninstaller package artifact response.",
-        },
         "woodstar_package": {"description": "Woodstar package response."},
         "woodstar_package_id": {"description": "Woodstar package ID."},
         "woodstarmunkipackageuploader_summary_result": {
@@ -150,32 +144,14 @@ class WoodstarMunkiPackageUploader(Processor):
         installer_path, uninstaller_path = self.artifact_paths(pkginfo)
         force = truthy(self.env.get("force", False))
 
-        installer_artifact = None
-        installer_uploaded = False
-        if installer_path:
-            installer_artifact, installer_uploaded = client.upload_artifact_status(
-                "package",
-                installer_path,
-                os.path.basename(installer_path),
-                force=force,
-            )
-
-        uninstaller_artifact = None
-        uninstaller_uploaded = False
-        if uninstaller_path:
-            uninstaller_artifact, uninstaller_uploaded = client.upload_artifact_status(
-                "package",
-                uninstaller_path,
-                os.path.basename(uninstaller_path),
-                force=force,
-            )
-
-        body = self.package_body(pkginfo, software_id, installer_artifact, uninstaller_artifact)
+        body = self.package_body(pkginfo, software_id)
         package, action, package_changed = self.save_package(client, software_id, body)
-        if installer_artifact:
-            self.env["woodstar_package_artifact"] = installer_artifact
-        if uninstaller_artifact:
-            self.env["woodstar_uninstaller_package_artifact"] = uninstaller_artifact
+
+        installer_uploaded = self.attach_binary(client, package, "installer", installer_path, force)
+        uninstaller_uploaded = self.attach_binary(client, package, "uninstaller", uninstaller_path, force)
+        if installer_uploaded or uninstaller_uploaded:
+            package = client.get(f"/api/munki/packages/{package['id']}")
+
         self.env["woodstar_package"] = package
         self.env["woodstar_package_id"] = package["id"]
         if package_changed or installer_uploaded or uninstaller_uploaded:
@@ -198,6 +174,12 @@ class WoodstarMunkiPackageUploader(Processor):
             }
         self.output(
             f"{action} Woodstar package {package['id']}: {package.get('software_name', '')} {package['version']}")
+
+    def attach_binary(self, client, package, kind, file_path, force):
+        if not file_path or not needs_object(package, kind, force):
+            return False
+        client.attach_object(f"/api/munki/packages/{package['id']}/{kind}", file_path)
+        return True
 
     def software_id(self):
         software_id = self.env.get("software_id") or self.env.get("woodstar_software_id")
@@ -312,14 +294,10 @@ class WoodstarMunkiPackageUploader(Processor):
     def needs_uninstaller_artifact(self, pkginfo):
         return self.uninstall_method(pkginfo) == "uninstall_package"
 
-    def package_body(self, pkginfo, software_id, installer_artifact, uninstaller_artifact):
+    def package_body(self, pkginfo, software_id):
         body = self.package_mutation_from_pkginfo(pkginfo)
         body["software_id"] = software_id
         body["eligible"] = truthy(self.env.get("eligible", True))
-        if installer_artifact:
-            body["installer_artifact_id"] = installer_artifact["id"]
-        if uninstaller_artifact:
-            body["uninstaller_artifact_id"] = uninstaller_artifact["id"]
         return body
 
     def package_mutation_from_pkginfo(self, pkginfo):

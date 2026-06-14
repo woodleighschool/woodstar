@@ -5,7 +5,6 @@ import json
 import mimetypes
 import os
 import posixpath
-from urllib.parse import urlsplit
 
 import requests
 from autopkglib import ProcessorError
@@ -54,55 +53,52 @@ class WoodstarClient:
             return None
         return response.json()
 
-    def upload_artifact(self, kind, file_path, display_name=None):
-        artifact, _uploaded = self.upload_artifact_status(kind, file_path, display_name, force=True)
-        return artifact
-
-    def upload_artifact_status(self, kind, file_path, display_name=None, force=False, artifact_index=None):
-        target = artifact_target(kind, file_path, display_name)
-        if not force:
-            existing = find_artifact(self, target, artifact_index)
-            if existing:
-                return existing, False
-
-        upload = self.post(
-            "/api/munki/artifact-uploads",
-            {
-                "kind": target["kind"],
-                "filename": target["filename"],
-                "display_name": target["display_name"],
-                "content_type": target["content_type"],
-                "size_bytes": target["size_bytes"],
-                "sha256": target["sha256"],
-            },
+    def attach_object(self, attach_path, file_path, display_name=None):
+        """Upload a file to a resource via the create-first storage lifecycle:
+        create a pending object on the resource, PUT the bytes, then confirm.
+        attach_path is the resource upload endpoint, for example
+        /api/munki/packages/12/installer. Returns the confirmed object."""
+        file_path = os.path.abspath(file_path)
+        if not os.path.isfile(file_path):
+            raise ProcessorError(f"upload file does not exist: {file_path}")
+        filename = clean_upload_filename(display_name or os.path.basename(file_path))
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        target = self.post(attach_path, {"filename": filename, "content_type": content_type})
+        self.upload_bytes(target, file_path)
+        return self.post(
+            f"/api/storage/objects/{target['object_id']}/confirm",
+            {"sha256": sha256sum(file_path)},
         )
-        put_file(upload["upload_url"], target["file_path"], upload.get("headers") or {})
-        artifact = self.post("/api/munki/artifacts", upload["artifact"])
-        if artifact_index is not None:
-            artifact_index[artifact_index_key(artifact)] = artifact
-        return artifact, True
+
+    def upload_bytes(self, target, file_path):
+        url = target.get("upload_url")
+        if not url:
+            raise ProcessorError("upload target is missing upload_url")
+        method = (target.get("method") or "PUT").upper()
+        headers = dict(target.get("headers") or {})
+        headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
+        with open(file_path, "rb") as handle:
+            try:
+                if url.startswith("/"):
+                    # Woodstar's own receiver (file backend) is session-authed;
+                    # resolve the relative path against the base URL.
+                    response = self.session.request(
+                        method, f"{self.base_url}{url}", data=handle, headers=headers
+                    )
+                else:
+                    # Presigned URL (s3): auth rides in the signature, so send a
+                    # bare request without the session's Authorization header.
+                    response = requests.request(method, url, data=handle, headers=headers)
+            except requests.RequestException as err:
+                raise ProcessorError(f"upload to {url} failed: {err}") from err
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ProcessorError(f"upload to {url} failed: HTTP {response.status_code}: {response.text}")
 
 
-def artifact_target(kind, file_path, display_name=None):
-    file_path = os.path.abspath(file_path)
-    if not os.path.isfile(file_path):
-        raise ProcessorError(f"Artifact file does not exist: {file_path}")
-    filename = clean_upload_filename(os.path.basename(file_path))
-    size_bytes = os.path.getsize(file_path)
-    sha256 = sha256sum(file_path)
-    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    location = artifact_location(sha256, filename)
-    return {
-        "kind": kind,
-        "file_path": file_path,
-        "filename": filename,
-        "display_name": display_name or filename,
-        "location": location,
-        "content_type": content_type,
-        "size_bytes": size_bytes,
-        "sha256": sha256,
-        "storage_key": artifact_storage_key(kind, location),
-    }
+def needs_object(resource, kind, force=False):
+    """True when a resource still needs its installer/uninstaller/icon uploaded
+    (or force re-uploads it). resource is a package or software response."""
+    return bool(force) or not resource.get(f"{kind}_object_id")
 
 
 def client_from_env(env):
@@ -146,52 +142,11 @@ def list_items(client, path, query=None, per_page=1000):
     return items
 
 
-def find_artifact(client, target, artifact_index=None):
-    if artifact_index is not None:
-        return artifact_index.get(artifact_index_key(target))
-    for artifact in list_items(client, "/api/munki/artifacts"):
-        if (
-            artifact.get("kind") == target["kind"]
-            and artifact.get("location") == target["location"]
-            and artifact.get("sha256") == target["sha256"]
-            and int(artifact.get("size_bytes") or 0) == int(target["size_bytes"])
-        ):
-            return artifact
-    return None
-
-
-def artifact_index(client):
-    return {artifact_index_key(artifact): artifact for artifact in list_items(client, "/api/munki/artifacts")}
-
-
-def artifact_index_key(artifact):
-    return (
-        artifact.get("kind"),
-        artifact.get("location"),
-        artifact.get("sha256"),
-        int(artifact.get("size_bytes") or 0),
-    )
-
-
 def clean_upload_filename(filename):
     filename = posixpath.basename(str(filename).strip().replace("\\", "/"))
     if filename in {"", ".", "/"}:
-        raise ProcessorError("artifact filename is required")
+        raise ProcessorError("upload filename is required")
     return filename
-
-
-def artifact_location(sha256, filename):
-    if len(sha256) >= 12:
-        return f"{sha256[:12]}/{filename}"
-    return filename
-
-
-def artifact_storage_key(kind, location):
-    if kind == "package":
-        return f"pkgs/{location}"
-    if kind == "icon":
-        return f"icons/{location}"
-    return f"{kind}/{location}"
 
 
 def sha256sum(file_path):
@@ -200,24 +155,6 @@ def sha256sum(file_path):
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def put_file(url, file_path, headers):
-    parts = urlsplit(url)
-    if parts.scheme not in {"http", "https"}:
-        raise ProcessorError(f"unsupported artifact upload URL scheme: {parts.scheme}")
-    if not parts.hostname:
-        raise ProcessorError("artifact upload URL is missing a host")
-
-    headers = dict(headers)
-    headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
-    with open(file_path, "rb") as handle:
-        try:
-            response = requests.put(url, data=handle, headers=headers)
-        except requests.RequestException as err:
-            raise ProcessorError(f"PUT artifact failed: {err}") from err
-        if response.status_code < 200 or response.status_code >= 300:
-            raise ProcessorError(f"PUT artifact failed: HTTP {response.status_code} {response.text}")
 
 
 def http_error_message(method, path, response):

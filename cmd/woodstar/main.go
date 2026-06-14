@@ -192,7 +192,7 @@ func newServer(
 	liveQueries := livequery.NewManager()
 
 	// Munki stores.
-	storageObjects := storage.NewObjectStore(db)
+	storageObjects := storage.NewObjectStore(db, storageBackend)
 	munkiPackageStore := packages.NewStore(db, storageObjects)
 	munkiSoftwareStore := munkisoftware.NewStore(db, storageObjects, munkiPackageStore)
 	munkiHostStateStore := munki.NewStore(db)
@@ -235,7 +235,7 @@ func newServer(
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	munkiRepo := newMunki(hostStore, munkiSoftwareStore)
+	munkiRepo := newMunki(hostStore, munkiSoftwareStore, storageObjects)
 
 	santaSync := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -358,10 +358,15 @@ func newAuth(
 	return service
 }
 
-func newMunki(hosts *hosts.Store, softwareStore *munkisoftware.Store) *munki.RepositoryService {
+func newMunki(
+	hosts *hosts.Store,
+	softwareStore *munkisoftware.Store,
+	objects *storage.ObjectStore,
+) *munki.RepositoryService {
 	return munki.NewRepositoryService(munki.Dependencies{
 		Hosts:    hosts,
 		Packages: softwareStore,
+		Objects:  objects,
 	})
 }
 

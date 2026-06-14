@@ -11,12 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useStorageObjects } from "@/hooks/use-storage-objects";
+import { useMunkiIcons } from "@/hooks/use-munki-icons";
 import { cn } from "@/lib/utils";
 
 export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/icns,.icns";
-
-const ICON_OBJECT_PREFIX = "munki/icons";
 
 interface EditableMunkiIconProps {
   title: string;
@@ -131,7 +129,7 @@ function IconPickerDialog({
   onUpload: () => void;
   onPick: (object: { id: number; url: string }) => void;
 }) {
-  const icons = useStorageObjects(ICON_OBJECT_PREFIX, open);
+  const icons = useMunkiIcons(open);
   const items = icons.data?.items ?? [];
 
   return (
@@ -147,8 +145,13 @@ function IconPickerDialog({
                 key={object.id}
                 type="button"
                 title={object.filename}
+                disabled={!object.content_url}
                 className="flex items-center justify-center rounded-lg border p-2 outline-none hover:border-ring focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                onClick={() => onPick({ id: object.id, url: object.content_url })}
+                onClick={() =>
+                  object.content_url
+                    ? onPick({ id: object.id, url: object.content_url })
+                    : undefined
+                }
               >
                 <MunkiIcon iconUrl={object.content_url} size="lg" />
               </button>

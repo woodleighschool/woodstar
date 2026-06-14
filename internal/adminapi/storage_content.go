@@ -22,7 +22,7 @@ func registerStorageContentUpload(r chi.Router, deps Dependencies) {
 	store := deps.Munki.Store
 	authService := deps.Auth.AuthService
 
-	r.Put("/api/storage/objects/{id}/content", func(w http.ResponseWriter, req *http.Request) {
+	r.Put("/api/objects/{id}/content", func(w http.ResponseWriter, req *http.Request) {
 		user, err := authService.Authenticate(req.Context(), req.Header.Get("Authorization"))
 		if err != nil {
 			status := http.StatusInternalServerError
@@ -45,6 +45,10 @@ func registerStorageContentUpload(r chi.Router, deps Dependencies) {
 		obj, err := objects.GetByID(req.Context(), id)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		if obj.Available() {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 		if err := store.Put(

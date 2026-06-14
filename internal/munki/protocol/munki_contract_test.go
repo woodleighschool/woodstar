@@ -89,8 +89,8 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
-	artifactID := int64(42)
+func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
+	objectID := int64(42)
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -99,15 +99,17 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
-					ID:                      20,
-					SoftwareID:              1,
-					SoftwareName:            "GoogleChrome",
-					Version:                 "148.0.0.1",
-					InstallerType:           packages.InstallerTypeNoPkg,
-					InstallerObjectID:       &artifactID,
-					InstallerObjectLocation: "apps/GoogleChrome.pkg",
+					ID:                20,
+					SoftwareID:        1,
+					SoftwareName:      "GoogleChrome",
+					Version:           "148.0.0.1",
+					InstallerType:     packages.InstallerTypePkg,
+					InstallerObjectID: &objectID,
 				},
 			},
+		}},
+		Objects: staticObjectResolver{objects: map[int64]storage.Object{
+			objectID: {ID: objectID, Prefix: packages.ObjectPrefix, Filename: "GoogleChrome.pkg"},
 		}},
 	})
 
@@ -123,8 +125,8 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 	if len(decoded) != 1 {
 		t.Fatalf("catalog items = %d, want 1", len(decoded))
 	}
-	if got := decoded[0]["installer_item_location"]; got != "apps/GoogleChrome.pkg" {
-		t.Fatalf("installer_item_location = %q, want artifact location", got)
+	if got := decoded[0]["installer_item_location"]; got != "packages/20/installer/GoogleChrome.pkg" {
+		t.Fatalf("installer_item_location = %q, want package item location", got)
 	}
 	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
 		t.Fatalf("PackageCompleteURL should not override the client's SoftwareRepoURL: %+v", decoded[0])
@@ -134,7 +136,7 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
+func TestMunkiCatalogOmitsPackageURLsWithoutInstallerItemLocation(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -160,10 +162,10 @@ func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 		t.Fatalf("catalog items = %d, want 1", len(decoded))
 	}
 	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
-		t.Fatalf("PackageCompleteURL rendered without an artifact: %+v", decoded[0])
+		t.Fatalf("PackageCompleteURL rendered without an installer item location: %+v", decoded[0])
 	}
 	if _, ok := decoded[0]["PackageURL"]; ok {
-		t.Fatalf("PackageURL rendered without an artifact: %+v", decoded[0])
+		t.Fatalf("PackageURL rendered without an installer item location: %+v", decoded[0])
 	}
 }
 
@@ -480,8 +482,9 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
+func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
 	repository := newStaticRepository()
+	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
 	store := &fakeStore{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -490,7 +493,7 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/munki/packages/42/GoogleChrome.pkg", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	req.Header.Set("Serial", "C02MUNKI")
 
@@ -502,9 +505,9 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	if got := rec.Header().Get("Location"); got != store.presignURL {
 		t.Fatalf("Location = %q, want %q", got, store.presignURL)
 	}
-	if repository.artifactClass != "package" ||
-		repository.artifactKey != "munki/packages/42/GoogleChrome.pkg" {
-		t.Fatalf("artifact request = class %q key %q", repository.artifactClass, repository.artifactKey)
+	if repository.fileClass != "package" ||
+		repository.fileKey != "packages/20/installer/GoogleChrome.pkg" {
+		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
 	}
 	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
 		t.Fatalf("presigned key = %q", store.gotKey)
@@ -514,8 +517,9 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
+func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
+	repository.fileURL = "munki/icons/7/GoogleChrome.png"
 	store := &fakeStore{presignURL: "https://storage.example/icon.png?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -524,7 +528,7 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/icons/munki/icons/7/GoogleChrome.png", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/icons/7-GoogleChrome.png", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	req.Header.Set("Serial", "C02MUNKI")
 
@@ -533,9 +537,12 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
 	}
-	if repository.artifactClass != "icon" ||
-		repository.artifactKey != "munki/icons/7/GoogleChrome.png" {
-		t.Fatalf("artifact request = class %q key %q", repository.artifactClass, repository.artifactKey)
+	if repository.fileClass != "icon" ||
+		repository.fileKey != "7-GoogleChrome.png" {
+		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
+	}
+	if store.gotKey != "munki/icons/7/GoogleChrome.png" {
+		t.Fatalf("presigned key = %q", store.gotKey)
 	}
 }
 
@@ -624,13 +631,13 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service       *munki.RepositoryService
-	want          string
-	serial        string
-	artifactURL   string
-	artifactErr   error
-	artifactClass string
-	artifactKey   string
+	service   *munki.RepositoryService
+	want      string
+	serial    string
+	fileURL   string
+	fileErr   error
+	fileClass string
+	fileKey   string
 }
 
 func newStaticRepository() *staticRepository {
@@ -660,7 +667,7 @@ func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost,
 	return r.service.Catalog(ctx, client, name)
 }
 
-func (r *staticRepository) ResolvePackageArtifact(
+func (r *staticRepository) ResolvePackageFile(
 	_ context.Context,
 	_ munki.ClientHost,
 	key string,
@@ -668,7 +675,7 @@ func (r *staticRepository) ResolvePackageArtifact(
 	return r.resolve("package", key)
 }
 
-func (r *staticRepository) ResolveIconArtifact(
+func (r *staticRepository) ResolveIconFile(
 	_ context.Context,
 	_ munki.ClientHost,
 	key string,
@@ -677,10 +684,13 @@ func (r *staticRepository) ResolveIconArtifact(
 }
 
 func (r *staticRepository) resolve(class, key string) (string, error) {
-	r.artifactClass = class
-	r.artifactKey = key
-	if r.artifactErr != nil {
-		return "", r.artifactErr
+	r.fileClass = class
+	r.fileKey = key
+	if r.fileErr != nil {
+		return "", r.fileErr
+	}
+	if r.fileURL != "" {
+		return r.fileURL, nil
 	}
 	return key, nil
 }
@@ -694,6 +704,23 @@ func (r staticPackageResolver) EffectivePackagesForHost(
 	_ int64,
 ) ([]munkisoftware.EffectivePackage, error) {
 	return munkisoftware.ResolveEffectivePackages(r.packages), nil
+}
+
+type staticObjectResolver struct {
+	objects map[int64]storage.Object
+}
+
+func (r staticObjectResolver) ListByIDs(
+	_ context.Context,
+	ids []int64,
+) (map[int64]storage.Object, error) {
+	objects := make(map[int64]storage.Object, len(ids))
+	for _, id := range ids {
+		if obj, ok := r.objects[id]; ok {
+			objects[id] = obj
+		}
+	}
+	return objects, nil
 }
 
 func staticMunkiPackage(id int64, softwareID int64, name string, version string) packages.Package {

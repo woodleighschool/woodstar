@@ -181,7 +181,7 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	}
 	effective := make([]EffectivePackage, 0, len(rows))
 	for _, row := range rows {
-		record, err := packages.FromEffectiveRow(row)
+		pkg, err := packages.FromEffectiveRow(row)
 		if err != nil {
 			return nil, err
 		}
@@ -189,8 +189,8 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			TargetID:     row.TargetID,
 			SoftwareID:   row.TargetSoftwareID,
 			Actions:      actionsFromStorage(row.Actions),
-			Package:      record.Package,
-			SoftwareIcon: record.SoftwareIcon,
+			Package:      pkg,
+			IconObjectID: pkg.IconObjectID,
 			Selector:     packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}

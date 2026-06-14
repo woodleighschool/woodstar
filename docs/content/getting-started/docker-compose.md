@@ -10,11 +10,11 @@ The root `docker-compose.yml` is a local stack, not a production chart. It build
 
 ## Services
 
-| Service | Purpose | Published Ports |
-| --- | --- | --- |
-| `woodstar` | Go server plus built frontend | `8080:8080` |
-| `postgres` | Woodstar database | `5432:5432` |
-| `garage` | Local object storage for Munki artifacts | `3900`, `3901`, `3902`, `3903` |
+| Service    | Purpose                                  | Published Ports                |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `woodstar` | Go server plus built frontend            | `8080:8080`                    |
+| `postgres` | Woodstar database                        | `5432:5432`                    |
+| `garage`   | Local object storage for Munki artifacts | `3900`, `3901`, `3902`, `3903` |
 
 ## Start The Stack
 
@@ -27,17 +27,18 @@ The compose file overrides `WOODSTAR_DATABASE_URL` so the app talks to `postgres
 
 ## Munki Object Storage Defaults
 
-The local Garage defaults are development credentials:
+The compose stack runs Garage as the S3 backend, so it sets `WOODSTAR_STORAGE_KIND=s3` and points at Garage with development credentials:
 
 ```bash
-WOODSTAR_MUNKI_S3_BUCKET=woodstar-munki
-WOODSTAR_MUNKI_S3_REGION=garage
-WOODSTAR_MUNKI_S3_ENDPOINT=http://garage:3900
-WOODSTAR_MUNKI_S3_PUBLIC_ENDPOINT=http://127.0.0.1:3900
-WOODSTAR_MUNKI_S3_PATH_STYLE=true
+WOODSTAR_STORAGE_KIND=s3
+WOODSTAR_STORAGE_S3_BUCKET=woodstar-munki
+WOODSTAR_STORAGE_S3_REGION=garage
+WOODSTAR_STORAGE_S3_ENDPOINT=http://garage:3900
+WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT=http://127.0.0.1:3900
+WOODSTAR_STORAGE_S3_PATH_STYLE=true
 ```
 
-Do not carry those credentials into a real deployment. They exist so artifact upload and redirect paths can be exercised locally without another storage service.
+Do not carry those credentials into a real deployment. They exist so artifact upload and redirect paths can be exercised locally without another storage service. Drop `WOODSTAR_STORAGE_KIND` (or set it to `file`) and Woodstar falls back to the on-disk backend, which needs no bucket at all.
 
 ## Volumes
 

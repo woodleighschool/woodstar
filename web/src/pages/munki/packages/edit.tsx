@@ -79,8 +79,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   };
   const form = usePackageEditorForm(initial, async (value) => {
     const validationError = packageSubmitPreflightError(value, {
-      hasInstallerArtifact: !!installerFile || !!pkg.installer_object_id,
-      hasUninstallerArtifact: !!uninstallerFile || !!pkg.uninstaller_object_id,
+      hasInstallerFile: !!installerFile || !!pkg.installer_object_id,
+      hasUninstallerFile: !!uninstallerFile || !!pkg.uninstaller_object_id,
     });
     if (validationError) {
       toast.error(validationError);
@@ -112,8 +112,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
           packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
           installerFile={installerFile}
           uninstallerFile={uninstallerFile}
-          installerArtifactLocation={pkg.installer_object_location ?? ""}
-          uninstallerArtifactLocation={pkg.uninstaller_object_location ?? ""}
+          hasInstallerObject={pkg.installer_object_id != null}
+          hasUninstallerObject={pkg.uninstaller_object_id != null}
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
         />
