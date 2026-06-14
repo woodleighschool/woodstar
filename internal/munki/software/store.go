@@ -226,6 +226,21 @@ func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, e
 	return params, nil
 }
 
+// SetIcon points software at an icon storage object.
+func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
+	rows, err := s.q.SetMunkiSoftwareIconObject(ctx, sqlc.SetMunkiSoftwareIconObjectParams{
+		ID:       softwareID,
+		ObjectID: &objectID,
+	})
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if rows == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
 func cleanMutation(params Mutation) Mutation {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)

@@ -567,6 +567,46 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 	return i, err
 }
 
+const setMunkiPackageInstallerObject = `-- name: SetMunkiPackageInstallerObject :execrows
+UPDATE munki_packages
+SET installer_object_id = $1,
+    updated_at = now()
+WHERE id = $2
+`
+
+type SetMunkiPackageInstallerObjectParams struct {
+	ObjectID *int64 `json:"object_id"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetMunkiPackageInstallerObject(ctx context.Context, arg SetMunkiPackageInstallerObjectParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setMunkiPackageInstallerObject, arg.ObjectID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setMunkiPackageUninstallerObject = `-- name: SetMunkiPackageUninstallerObject :execrows
+UPDATE munki_packages
+SET uninstaller_object_id = $1,
+    updated_at = now()
+WHERE id = $2
+`
+
+type SetMunkiPackageUninstallerObjectParams struct {
+	ObjectID *int64 `json:"object_id"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetMunkiPackageUninstallerObject(ctx context.Context, arg SetMunkiPackageUninstallerObjectParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setMunkiPackageUninstallerObject, arg.ObjectID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateMunkiPackage = `-- name: UpdateMunkiPackage :one
 UPDATE munki_packages
 SET

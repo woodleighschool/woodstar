@@ -275,6 +275,36 @@ func (s *Store) requirePackageObject(ctx context.Context, id int64, field string
 	return nil
 }
 
+// SetInstallerObject points a package at an installer storage object.
+func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int64) error {
+	rows, err := s.q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
+		ID:       packageID,
+		ObjectID: &objectID,
+	})
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if rows == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+// SetUninstallerObject points a package at an uninstaller storage object.
+func (s *Store) SetUninstallerObject(ctx context.Context, packageID, objectID int64) error {
+	rows, err := s.q.SetMunkiPackageUninstallerObject(ctx, sqlc.SetMunkiPackageUninstallerObjectParams{
+		ID:       packageID,
+		ObjectID: &objectID,
+	})
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if rows == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
 func cleanMutation(params PackageMutation) PackageMutation {
 	params.Version = strings.TrimSpace(params.Version)
 	params.InstallerType = InstallerType(strings.TrimSpace(string(params.InstallerType)))

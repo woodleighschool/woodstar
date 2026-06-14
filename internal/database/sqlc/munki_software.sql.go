@@ -681,6 +681,26 @@ func (q *Queries) ListUnreferencedStorageObjects(ctx context.Context, arg ListUn
 	return items, nil
 }
 
+const setMunkiSoftwareIconObject = `-- name: SetMunkiSoftwareIconObject :execrows
+UPDATE munki_software
+SET icon_object_id = $1,
+    updated_at = now()
+WHERE id = $2
+`
+
+type SetMunkiSoftwareIconObjectParams struct {
+	ObjectID *int64 `json:"object_id"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetMunkiSoftwareIconObject(ctx context.Context, arg SetMunkiSoftwareIconObjectParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setMunkiSoftwareIconObject, arg.ObjectID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateMunkiSoftware = `-- name: UpdateMunkiSoftware :one
 UPDATE munki_software
 SET

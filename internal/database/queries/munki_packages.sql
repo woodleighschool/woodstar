@@ -217,3 +217,15 @@ VALUES (
     sqlc.narg(target_package_id)::bigint,
     @position::integer
 );
+
+-- name: SetMunkiPackageInstallerObject :execrows
+UPDATE munki_packages
+SET installer_object_id = @object_id,
+    updated_at = now()
+WHERE id = @id;
+
+-- name: SetMunkiPackageUninstallerObject :execrows
+UPDATE munki_packages
+SET uninstaller_object_id = @object_id,
+    updated_at = now()
+WHERE id = @id;

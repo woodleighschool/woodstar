@@ -218,3 +218,9 @@ WHERE o.id = ANY(@ids::bigint[])
       SELECT 1 FROM munki_packages p
       WHERE p.installer_object_id = o.id OR p.uninstaller_object_id = o.id
   );
+
+-- name: SetMunkiSoftwareIconObject :execrows
+UPDATE munki_software
+SET icon_object_id = @object_id,
+    updated_at = now()
+WHERE id = @id;
