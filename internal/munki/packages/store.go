@@ -370,59 +370,63 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		return Package{}, err
 	}
 	return Package{
-		ID:                        row.ID,
-		SoftwareID:                row.SoftwareID,
-		SoftwareName:              row.SoftwareName,
-		SoftwareDescription:       row.SoftwareDescription,
-		SoftwareCategory:          row.SoftwareCategory,
-		SoftwareDeveloper:         row.SoftwareDeveloper,
-		Version:                   row.Version,
-		InstallerType:             InstallerType(row.InstallerType),
-		UnattendedInstall:         row.UnattendedInstall,
-		UnattendedUninstall:       row.UnattendedUninstall,
-		UninstallMethod:           UninstallMethod(row.UninstallMethod),
-		RestartAction:             RestartAction(row.RestartAction),
-		MinimumMunkiVersion:       row.MinimumMunkiVersion,
-		MinimumOSVersion:          row.MinimumOSVersion,
-		MaximumOSVersion:          row.MaximumOSVersion,
-		SupportedArchitectures:    nonNilStrings(row.SupportedArchitectures),
-		BlockingApplications:      row.BlockingApplications,
-		InstallableCondition:      row.InstallableCondition,
-		BlockingAppsManualQuit:    row.BlockingAppsManualQuit,
-		BlockingAppsQuitScript:    row.BlockingAppsQuitScript,
-		Requires:                  []PackageReference{},
-		UpdateFor:                 []PackageReference{},
-		OnDemand:                  row.OnDemand,
-		Precache:                  row.Precache,
-		Autoremove:                row.Autoremove,
-		AppleItem:                 row.AppleItem,
-		SuppressBundleRelocation:  row.SuppressBundleRelocation,
-		ForceInstallAfterDate:     row.ForceInstallAfterDate,
-		InstalledSize:             row.InstalledSize,
-		PackagePath:               row.PackagePath,
-		InstallerChoicesXML:       installerChoices,
-		InstallerEnvironment:      installerEnvironment,
-		Installs:                  installs,
-		Receipts:                  receipts,
-		ItemsToCopy:               itemsToCopy,
-		Notes:                     row.Notes,
-		InstallcheckScript:        row.InstallcheckScript,
-		UninstallcheckScript:      row.UninstallcheckScript,
-		PreinstallScript:          row.PreinstallScript,
-		PostinstallScript:         row.PostinstallScript,
-		PreuninstallScript:        row.PreuninstallScript,
-		PostuninstallScript:       row.PostuninstallScript,
-		UninstallScript:           row.UninstallScript,
-		VersionScript:             row.VersionScript,
-		PreinstallAlert:           row.PreinstallAlert(),
-		PreuninstallAlert:         row.PreuninstallAlert(),
-		InstallerObjectID:         row.InstallerObjectID,
-		InstallerObjectLocation:   stringPtrValue(row.InstallerObjectLocation),
-		UninstallerObjectID:       row.UninstallerObjectID,
-		UninstallerObjectLocation: stringPtrValue(row.UninstallerObjectLocation),
-		Eligible:                  row.Eligible,
-		CreatedAt:                 row.CreatedAt,
-		UpdatedAt:                 row.UpdatedAt,
+		ID:                       row.ID,
+		SoftwareID:               row.SoftwareID,
+		SoftwareName:             row.SoftwareName,
+		SoftwareDescription:      row.SoftwareDescription,
+		SoftwareCategory:         row.SoftwareCategory,
+		SoftwareDeveloper:        row.SoftwareDeveloper,
+		Version:                  row.Version,
+		InstallerType:            InstallerType(row.InstallerType),
+		UnattendedInstall:        row.UnattendedInstall,
+		UnattendedUninstall:      row.UnattendedUninstall,
+		UninstallMethod:          UninstallMethod(row.UninstallMethod),
+		RestartAction:            RestartAction(row.RestartAction),
+		MinimumMunkiVersion:      row.MinimumMunkiVersion,
+		MinimumOSVersion:         row.MinimumOSVersion,
+		MaximumOSVersion:         row.MaximumOSVersion,
+		SupportedArchitectures:   nonNilStrings(row.SupportedArchitectures),
+		BlockingApplications:     row.BlockingApplications,
+		InstallableCondition:     row.InstallableCondition,
+		BlockingAppsManualQuit:   row.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:   row.BlockingAppsQuitScript,
+		Requires:                 []PackageReference{},
+		UpdateFor:                []PackageReference{},
+		OnDemand:                 row.OnDemand,
+		Precache:                 row.Precache,
+		Autoremove:               row.Autoremove,
+		AppleItem:                row.AppleItem,
+		SuppressBundleRelocation: row.SuppressBundleRelocation,
+		ForceInstallAfterDate:    row.ForceInstallAfterDate,
+		InstalledSize:            row.InstalledSize,
+		PackagePath:              row.PackagePath,
+		InstallerChoicesXML:      installerChoices,
+		InstallerEnvironment:     installerEnvironment,
+		Installs:                 installs,
+		Receipts:                 receipts,
+		ItemsToCopy:              itemsToCopy,
+		Notes:                    row.Notes,
+		InstallcheckScript:       row.InstallcheckScript,
+		UninstallcheckScript:     row.UninstallcheckScript,
+		PreinstallScript:         row.PreinstallScript,
+		PostinstallScript:        row.PostinstallScript,
+		PreuninstallScript:       row.PreuninstallScript,
+		PostuninstallScript:      row.PostuninstallScript,
+		UninstallScript:          row.UninstallScript,
+		VersionScript:            row.VersionScript,
+		PreinstallAlert:          row.PreinstallAlert(),
+		PreuninstallAlert:        row.PreuninstallAlert(),
+		InstallerObjectID:        row.InstallerObjectID,
+		InstallerObjectLocation: stringPtrValue(
+			keyPtr(row.InstallerObjectID, row.InstallerObjectPrefix, row.InstallerObjectFilename),
+		),
+		UninstallerObjectID: row.UninstallerObjectID,
+		UninstallerObjectLocation: stringPtrValue(
+			keyPtr(row.UninstallerObjectID, row.UninstallerObjectPrefix, row.UninstallerObjectFilename),
+		),
+		Eligible:  row.Eligible,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
 	}, nil
 }
 
@@ -451,10 +455,12 @@ func packageRecordsFromRecords(records []packageRecord) ([]PackageRecord, error)
 
 func softwareIconFromRecord(row packageRecord) IconRef {
 	return IconRef{
-		Name:           row.SoftwareIconName,
-		Hash:           row.SoftwareIconHash,
-		ObjectID:       row.SoftwareIconObjectID,
-		ObjectLocation: stringPtrValue(row.SoftwareIconObjectLocation),
+		Name:     row.SoftwareIconName,
+		Hash:     row.SoftwareIconHash,
+		ObjectID: row.SoftwareIconObjectID,
+		ObjectLocation: stringPtrValue(
+			keyPtr(row.SoftwareIconObjectID, row.SoftwareIconObjectPrefix, row.SoftwareIconObjectFilename),
+		),
 	}
 }
 
@@ -737,13 +743,16 @@ type packageRecord struct {
 	PreuninstallAlertOKLabel     string `db:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel string
 	InstallerObjectID            *int64
-	InstallerObjectLocation      *string
+	InstallerObjectPrefix        *string
+	InstallerObjectFilename      *string
 	UninstallerObjectID          *int64
-	UninstallerObjectLocation    *string
+	UninstallerObjectPrefix      *string
+	UninstallerObjectFilename    *string
 	SoftwareIconName             string
 	SoftwareIconHash             string
 	SoftwareIconObjectID         *int64
-	SoftwareIconObjectLocation   *string
+	SoftwareIconObjectPrefix     *string
+	SoftwareIconObjectFilename   *string
 	Eligible                     bool
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
@@ -771,20 +780,17 @@ func (row packageRecord) PreuninstallAlert() PackageAlert {
 
 func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 	return packageRecord{
-		ID:                   row.ID,
-		SoftwareID:           row.SoftwareID,
-		SoftwareName:         row.SoftwareName,
-		SoftwareDescription:  row.SoftwareDescription,
-		SoftwareCategory:     row.SoftwareCategory,
-		SoftwareDeveloper:    row.SoftwareDeveloper,
-		SoftwareIconName:     row.SoftwareIconName,
-		SoftwareIconHash:     row.SoftwareIconHash,
-		SoftwareIconObjectID: row.SoftwareIconObjectID,
-		SoftwareIconObjectLocation: keyPtr(
-			row.SoftwareIconObjectID,
-			row.SoftwareIconObjectPrefix,
-			row.SoftwareIconObjectFilename,
-		),
+		ID:                           row.ID,
+		SoftwareID:                   row.SoftwareID,
+		SoftwareName:                 row.SoftwareName,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
+		SoftwareIconName:             row.SoftwareIconName,
+		SoftwareIconHash:             row.SoftwareIconHash,
+		SoftwareIconObjectID:         row.SoftwareIconObjectID,
+		SoftwareIconObjectPrefix:     row.SoftwareIconObjectPrefix,
+		SoftwareIconObjectFilename:   row.SoftwareIconObjectFilename,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
@@ -832,39 +838,30 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		InstallerObjectLocation: keyPtr(
-			row.InstallerObjectID,
-			row.InstallerObjectPrefix,
-			row.InstallerObjectFilename,
-		),
-		UninstallerObjectID: row.UninstallerObjectID,
-		UninstallerObjectLocation: keyPtr(
-			row.UninstallerObjectID,
-			row.UninstallerObjectPrefix,
-			row.UninstallerObjectFilename,
-		),
-		Eligible:  row.Eligible,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		InstallerObjectPrefix:        row.InstallerObjectPrefix,
+		InstallerObjectFilename:      row.InstallerObjectFilename,
+		UninstallerObjectID:          row.UninstallerObjectID,
+		UninstallerObjectPrefix:      row.UninstallerObjectPrefix,
+		UninstallerObjectFilename:    row.UninstallerObjectFilename,
+		Eligible:                     row.Eligible,
+		CreatedAt:                    row.CreatedAt,
+		UpdatedAt:                    row.UpdatedAt,
 	}
 }
 
 func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRow) packageRecord {
 	return packageRecord{
-		ID:                   row.PackageID,
-		SoftwareID:           row.SoftwareID,
-		SoftwareName:         row.SoftwareName,
-		SoftwareDescription:  row.SoftwareDescription,
-		SoftwareCategory:     row.SoftwareCategory,
-		SoftwareDeveloper:    row.SoftwareDeveloper,
-		SoftwareIconName:     row.SoftwareIconName,
-		SoftwareIconHash:     row.SoftwareIconHash,
-		SoftwareIconObjectID: row.SoftwareIconObjectID,
-		SoftwareIconObjectLocation: keyPtr(
-			row.SoftwareIconObjectID,
-			row.SoftwareIconObjectPrefix,
-			row.SoftwareIconObjectFilename,
-		),
+		ID:                           row.PackageID,
+		SoftwareID:                   row.SoftwareID,
+		SoftwareName:                 row.SoftwareName,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
+		SoftwareIconName:             row.SoftwareIconName,
+		SoftwareIconHash:             row.SoftwareIconHash,
+		SoftwareIconObjectID:         row.SoftwareIconObjectID,
+		SoftwareIconObjectPrefix:     row.SoftwareIconObjectPrefix,
+		SoftwareIconObjectFilename:   row.SoftwareIconObjectFilename,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
@@ -912,18 +909,12 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		InstallerObjectLocation: keyPtr(
-			row.InstallerObjectID,
-			row.InstallerObjectPrefix,
-			row.InstallerObjectFilename,
-		),
-		UninstallerObjectID: row.UninstallerObjectID,
-		UninstallerObjectLocation: keyPtr(
-			row.UninstallerObjectID,
-			row.UninstallerObjectPrefix,
-			row.UninstallerObjectFilename,
-		),
-		Eligible: true,
+		InstallerObjectPrefix:        row.InstallerObjectPrefix,
+		InstallerObjectFilename:      row.InstallerObjectFilename,
+		UninstallerObjectID:          row.UninstallerObjectID,
+		UninstallerObjectPrefix:      row.UninstallerObjectPrefix,
+		UninstallerObjectFilename:    row.UninstallerObjectFilename,
+		Eligible:                     true,
 	}
 }
 
@@ -985,18 +976,21 @@ SELECT
 	p.preuninstall_alert_ok_label,
 	p.preuninstall_alert_cancel_label,
 	p.installer_object_id,
-	art.location AS installer_object_location,
+	installer_obj.prefix AS installer_object_prefix,
+	installer_obj.filename AS installer_object_filename,
 	p.uninstaller_object_id,
-	uninstaller.location AS uninstaller_object_location,
-	software_icon.location AS software_icon_artifact_location,
+	uninstaller_obj.prefix AS uninstaller_object_prefix,
+	uninstaller_obj.filename AS uninstaller_object_filename,
+	icon_obj.prefix AS software_icon_object_prefix,
+	icon_obj.filename AS software_icon_object_filename,
 	p.eligible,
 	p.created_at,
 	p.updated_at
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
-LEFT JOIN munki_artifacts art ON art.id = p.installer_object_id
-LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_object_id
-LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_object_id`
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
+LEFT JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id`
 
 func replacePackageRelations(
 	ctx context.Context,
