@@ -13,6 +13,9 @@
 __pycache__/
 build-errors.log
 
+# Local file-backend blob storage (WOODSTAR_STORAGE_KIND=file)
+/data/
+
 # Go workspace overrides
 go.work
 go.work.sum

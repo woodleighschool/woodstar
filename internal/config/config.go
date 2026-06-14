@@ -46,14 +46,16 @@ type Config struct {
 	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
 	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     envDefault:"1h"`
 
-	MunkiS3Bucket         string        `env:"MUNKI_S3_BUCKET"`
-	MunkiS3Region         string        `env:"MUNKI_S3_REGION"`
-	MunkiS3Endpoint       string        `env:"MUNKI_S3_ENDPOINT"`
-	MunkiS3PublicEndpoint string        `env:"MUNKI_S3_PUBLIC_ENDPOINT"`
-	MunkiS3AccessKey      string        `env:"MUNKI_S3_ACCESS_KEY"`
-	MunkiS3SecretKey      string        `env:"MUNKI_S3_SECRET_KEY"`
-	MunkiS3PathStyle      bool          `env:"MUNKI_S3_PATH_STYLE"`
-	MunkiS3PresignTTL     time.Duration `env:"MUNKI_S3_PRESIGN_TTL"     envDefault:"15m"`
+	StorageKind             string        `env:"STORAGE_KIND"               envDefault:"file"`
+	StorageFileRoot         string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage"`
+	StorageS3Bucket         string        `env:"STORAGE_S3_BUCKET"`
+	StorageS3Region         string        `env:"STORAGE_S3_REGION"`
+	StorageS3Endpoint       string        `env:"STORAGE_S3_ENDPOINT"`
+	StorageS3PublicEndpoint string        `env:"STORAGE_S3_PUBLIC_ENDPOINT"`
+	StorageS3AccessKey      string        `env:"STORAGE_S3_ACCESS_KEY"`
+	StorageS3SecretKey      string        `env:"STORAGE_S3_SECRET_KEY"`
+	StorageS3PathStyle      bool          `env:"STORAGE_S3_PATH_STYLE"`
+	StorageS3PresignTTL     time.Duration `env:"STORAGE_S3_PRESIGN_TTL"     envDefault:"15m"`
 
 	publicURLScheme string
 }
@@ -66,14 +68,6 @@ func (cfg *Config) OIDCEnabled() bool {
 // EntraEnabled reports whether the required Entra sync settings are present.
 func (cfg *Config) EntraEnabled() bool {
 	return cfg.EntraTenantID != "" && cfg.EntraClientID != "" && cfg.EntraClientSecret != ""
-}
-
-// MunkiS3Enabled reports whether Munki artifact redirects can use S3.
-func (cfg *Config) MunkiS3Enabled() bool {
-	return cfg.MunkiS3Bucket != "" &&
-		cfg.MunkiS3Region != "" &&
-		cfg.MunkiS3AccessKey != "" &&
-		cfg.MunkiS3SecretKey != ""
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.
@@ -97,7 +91,7 @@ func (cfg *Config) normalize() error {
 	if len(cfg.SessionSecret) < minSessionSecretLength {
 		return fmt.Errorf("WOODSTAR_SESSION_SECRET must be at least %d characters", minSessionSecretLength)
 	}
-	if err := cfg.normalizeMunkiS3(); err != nil {
+	if err := cfg.normalizeStorage(); err != nil {
 		return err
 	}
 
@@ -131,30 +125,30 @@ func (cfg *Config) IsHTTPS() bool {
 	return cfg.publicURLScheme == "https"
 }
 
-func (cfg *Config) normalizeMunkiS3() error {
-	cfg.MunkiS3Bucket = strings.TrimSpace(cfg.MunkiS3Bucket)
-	cfg.MunkiS3Region = strings.TrimSpace(cfg.MunkiS3Region)
-	cfg.MunkiS3Endpoint = strings.TrimSpace(cfg.MunkiS3Endpoint)
-	cfg.MunkiS3PublicEndpoint = strings.TrimSpace(cfg.MunkiS3PublicEndpoint)
-	cfg.MunkiS3AccessKey = strings.TrimSpace(cfg.MunkiS3AccessKey)
-	cfg.MunkiS3SecretKey = strings.TrimSpace(cfg.MunkiS3SecretKey)
-	if !cfg.munkiS3Configured() {
-		return nil
-	}
-	if !cfg.MunkiS3Enabled() {
-		return errors.New("incomplete WOODSTAR_MUNKI_S3 configuration")
-	}
-	if cfg.MunkiS3PresignTTL <= 0 {
-		return errors.New("WOODSTAR_MUNKI_S3_PRESIGN_TTL must be positive")
+func (cfg *Config) normalizeStorage() error {
+	cfg.StorageKind = strings.TrimSpace(cfg.StorageKind)
+	cfg.StorageFileRoot = strings.TrimSpace(cfg.StorageFileRoot)
+	cfg.StorageS3Bucket = strings.TrimSpace(cfg.StorageS3Bucket)
+	cfg.StorageS3Region = strings.TrimSpace(cfg.StorageS3Region)
+	cfg.StorageS3Endpoint = strings.TrimSpace(cfg.StorageS3Endpoint)
+	cfg.StorageS3PublicEndpoint = strings.TrimSpace(cfg.StorageS3PublicEndpoint)
+	cfg.StorageS3AccessKey = strings.TrimSpace(cfg.StorageS3AccessKey)
+	cfg.StorageS3SecretKey = strings.TrimSpace(cfg.StorageS3SecretKey)
+	switch cfg.StorageKind {
+	case "file":
+		if cfg.StorageFileRoot == "" {
+			return errors.New("WOODSTAR_STORAGE_FILE_ROOT is required when WOODSTAR_STORAGE_KIND=file")
+		}
+	case "s3":
+		if cfg.StorageS3Bucket == "" || cfg.StorageS3Region == "" ||
+			cfg.StorageS3AccessKey == "" || cfg.StorageS3SecretKey == "" {
+			return errors.New("incomplete WOODSTAR_STORAGE_S3 configuration")
+		}
+		if cfg.StorageS3PresignTTL <= 0 {
+			return errors.New("WOODSTAR_STORAGE_S3_PRESIGN_TTL must be positive")
+		}
+	default:
+		return fmt.Errorf("WOODSTAR_STORAGE_KIND must be file or s3, got %q", cfg.StorageKind)
 	}
 	return nil
-}
-
-func (cfg *Config) munkiS3Configured() bool {
-	return cfg.MunkiS3Bucket != "" ||
-		cfg.MunkiS3Region != "" ||
-		cfg.MunkiS3Endpoint != "" ||
-		cfg.MunkiS3PublicEndpoint != "" ||
-		cfg.MunkiS3AccessKey != "" ||
-		cfg.MunkiS3SecretKey != ""
 }

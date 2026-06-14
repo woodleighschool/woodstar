@@ -95,45 +95,47 @@ func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {
 	}
 }
 
-func TestApplyEnvironmentReadsMunkiS3Config(t *testing.T) {
+func TestApplyEnvironmentReadsStorageS3Config(t *testing.T) {
 	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
-	t.Setenv("WOODSTAR_MUNKI_S3_BUCKET", "woodstar-munki")
-	t.Setenv("WOODSTAR_MUNKI_S3_REGION", "ap-southeast-2")
-	t.Setenv("WOODSTAR_MUNKI_S3_ENDPOINT", " https://storage.example ")
-	t.Setenv("WOODSTAR_MUNKI_S3_PUBLIC_ENDPOINT", " https://downloads.example ")
-	t.Setenv("WOODSTAR_MUNKI_S3_ACCESS_KEY", "access")
-	t.Setenv("WOODSTAR_MUNKI_S3_SECRET_KEY", "secret")
-	t.Setenv("WOODSTAR_MUNKI_S3_PATH_STYLE", "true")
-	t.Setenv("WOODSTAR_MUNKI_S3_PRESIGN_TTL", "10m")
+	t.Setenv("WOODSTAR_STORAGE_KIND", "s3")
+	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
+	t.Setenv("WOODSTAR_STORAGE_S3_REGION", "ap-southeast-2")
+	t.Setenv("WOODSTAR_STORAGE_S3_ENDPOINT", " https://storage.example ")
+	t.Setenv("WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT", " https://downloads.example ")
+	t.Setenv("WOODSTAR_STORAGE_S3_ACCESS_KEY", "access")
+	t.Setenv("WOODSTAR_STORAGE_S3_SECRET_KEY", "secret")
+	t.Setenv("WOODSTAR_STORAGE_S3_PATH_STYLE", "true")
+	t.Setenv("WOODSTAR_STORAGE_S3_PRESIGN_TTL", "10m")
 
 	cfg := Config{}
 	if err := ApplyEnvironment(&cfg); err != nil {
 		t.Fatalf("ApplyEnvironment returned error: %v", err)
 	}
 
-	if !cfg.MunkiS3Enabled() {
-		t.Fatal("MunkiS3Enabled = false, want true")
+	if cfg.StorageKind != "s3" {
+		t.Fatalf("StorageKind = %q, want s3", cfg.StorageKind)
 	}
-	if cfg.MunkiS3Endpoint != "https://storage.example" {
-		t.Fatalf("MunkiS3Endpoint = %q", cfg.MunkiS3Endpoint)
+	if cfg.StorageS3Endpoint != "https://storage.example" {
+		t.Fatalf("StorageS3Endpoint = %q", cfg.StorageS3Endpoint)
 	}
-	if cfg.MunkiS3PublicEndpoint != "https://downloads.example" {
-		t.Fatalf("MunkiS3PublicEndpoint = %q", cfg.MunkiS3PublicEndpoint)
+	if cfg.StorageS3PublicEndpoint != "https://downloads.example" {
+		t.Fatalf("StorageS3PublicEndpoint = %q", cfg.StorageS3PublicEndpoint)
 	}
-	if cfg.MunkiS3PresignTTL.String() != "10m0s" {
-		t.Fatalf("MunkiS3PresignTTL = %s", cfg.MunkiS3PresignTTL)
+	if cfg.StorageS3PresignTTL.String() != "10m0s" {
+		t.Fatalf("StorageS3PresignTTL = %s", cfg.StorageS3PresignTTL)
 	}
 }
 
-func TestApplyEnvironmentRejectsPartialMunkiS3Config(t *testing.T) {
+func TestApplyEnvironmentRejectsPartialStorageS3Config(t *testing.T) {
 	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
-	t.Setenv("WOODSTAR_MUNKI_S3_BUCKET", "woodstar-munki")
+	t.Setenv("WOODSTAR_STORAGE_KIND", "s3")
+	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
 
 	err := ApplyEnvironment(&Config{})
 	if err == nil {
-		t.Fatal("ApplyEnvironment returned nil error, want partial Munki S3 rejection")
+		t.Fatal("ApplyEnvironment returned nil error, want partial storage S3 rejection")
 	}
 }
 
