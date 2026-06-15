@@ -110,10 +110,10 @@ export const RULE_IDENTIFIER_RULES: Record<SantaRuleType, { pattern: RegExp; hin
   },
 };
 
-export function ruleTypeLabel(ruleType: string) {
+export function ruleTypeLabel(ruleType: SantaRuleType) {
   return enumLabel(RULE_TYPES, ruleType);
 }
 
-export function policyLabel(policy: string) {
+export function policyLabel(policy: SantaRulePolicy) {
   return enumLabel(POLICIES, policy);
 }

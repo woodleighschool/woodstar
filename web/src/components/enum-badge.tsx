@@ -1,23 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { EnumMetadata, EnumMetadataMap } from "@/lib/enum-metadata";
-
-const FALLBACK: EnumMetadata = {
-  name: "Unknown",
-  description: "Woodstar does not recognize this value yet.",
-  variant: "secondary",
-};
+import type { EnumMetadataMap } from "@/lib/enum-metadata";
 
 export function EnumBadge<T extends string>({
   value,
   metadata,
-  fallback = FALLBACK,
 }: {
-  value: T | string;
-  metadata: Partial<EnumMetadataMap<T>>;
-  fallback?: EnumMetadata;
+  value: T;
+  metadata: EnumMetadataMap<T>;
 }) {
-  const item = metadata[value as T] ?? fallback;
+  const item = metadata[value];
   const badge = <Badge variant={item.variant ?? "secondary"}>{item.name}</Badge>;
 
   if (!item.description) return badge;

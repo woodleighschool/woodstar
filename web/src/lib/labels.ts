@@ -44,7 +44,7 @@ export const LABEL_DERIVED_ATTRIBUTES = {
 
 export const LABEL_DERIVED_ATTRIBUTE_OPTIONS = enumOptions(LABEL_DERIVED_ATTRIBUTES);
 
-export function labelMembershipLabel(value: string | null | undefined) {
+export function labelMembershipLabel(value: LabelMembershipType) {
   return enumLabel(LABEL_MEMBERSHIP_TYPES, value);
 }
 

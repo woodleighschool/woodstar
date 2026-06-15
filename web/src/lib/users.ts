@@ -29,7 +29,7 @@ export const USER_ACCESS_ROLES = {
 export const USER_ROLE_OPTIONS = enumOptions(USER_ROLES);
 export const USER_ACCESS_ROLE_OPTIONS = enumOptions(USER_ACCESS_ROLES);
 
-export function userRoleLabel(value: string | null | undefined) {
+export function userRoleLabel(value: UserRole) {
   return enumLabel(USER_ROLES, value);
 }
 

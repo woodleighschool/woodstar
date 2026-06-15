@@ -31,11 +31,6 @@ export function enumOptions<T extends string>(
   }));
 }
 
-export function enumLabel<T extends string>(
-  metadata: Partial<Record<T, EnumLabel>>,
-  value: T | string | null | undefined,
-  fallback = "Unknown",
-) {
-  if (!value) return fallback;
-  return metadata[value as T]?.name ?? fallback;
+export function enumLabel<T extends string>(metadata: Record<T, EnumLabel>, value: T): string {
+  return metadata[value].name;
 }

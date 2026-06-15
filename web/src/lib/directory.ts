@@ -18,6 +18,6 @@ export const DIRECTORY_SOURCES = {
 
 export const DIRECTORY_SOURCE_OPTIONS = enumOptions(DIRECTORY_SOURCES);
 
-export function directorySourceLabel(source: string | null | undefined) {
+export function directorySourceLabel(source: DirectorySource) {
   return enumLabel(DIRECTORY_SOURCES, source);
 }

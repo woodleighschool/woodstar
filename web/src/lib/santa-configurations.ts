@@ -63,6 +63,6 @@ export const MEDIA_ACTIONS = {
 
 export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS);
 
-export function clientModeLabel(mode: string | null | undefined) {
+export function clientModeLabel(mode: SantaClientMode) {
   return enumLabel(CLIENT_MODES, mode);
 }

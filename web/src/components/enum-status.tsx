@@ -1,23 +1,15 @@
 import { Status, StatusLabel } from "@/components/ui/status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { StatusMetadata, StatusMetadataMap } from "@/lib/enum-metadata";
-
-const FALLBACK: StatusMetadata = {
-  name: "Unknown",
-  description: "Woodstar does not recognize this value yet.",
-  variant: "default",
-};
+import type { StatusMetadataMap } from "@/lib/enum-metadata";
 
 export function EnumStatus<T extends string>({
   value,
   metadata,
-  fallback = FALLBACK,
 }: {
-  value: T | string;
-  metadata: Partial<StatusMetadataMap<T>>;
-  fallback?: StatusMetadata;
+  value: T;
+  metadata: StatusMetadataMap<T>;
 }) {
-  const item = metadata[value as T] ?? fallback;
+  const item = metadata[value];
   const status = (
     <Status variant={item.variant ?? "default"}>
       <StatusLabel>{item.name}</StatusLabel>
