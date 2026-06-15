@@ -619,6 +619,7 @@ export type MunkiUploadTarget = {
     };
     method: string;
     object_id: number;
+    upload_kind: 'proxy' | 'presigned';
     upload_url: string;
 };
 

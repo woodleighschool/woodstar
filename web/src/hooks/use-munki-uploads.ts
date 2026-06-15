@@ -1,6 +1,7 @@
 import { useDirectUpload } from "@/hooks/use-direct-upload";
 import type { MunkiObject, MunkiUploadTarget } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
+import type { UploadTransport } from "@/lib/direct-upload";
 
 type IconUploadVars = { softwareId: number; file: File };
 type PackageUploadVars = { packageId: number; file: File };
@@ -80,7 +81,12 @@ export function useUploadMunkiUninstaller() {
 function uploadRequestFromIntent(intent: MunkiUploadTarget) {
   return {
     url: intent.upload_url,
+    transport: uploadTransportFromIntent(intent),
     method: intent.method,
     headers: intent.headers ?? {},
   };
+}
+
+function uploadTransportFromIntent(intent: MunkiUploadTarget): UploadTransport {
+  return intent.upload_kind === "presigned" ? "uppy-s3" : "xhr";
 }

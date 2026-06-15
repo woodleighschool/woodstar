@@ -248,7 +248,6 @@ export function MunkiIncludeTargets({
               value={draft.label_id}
               onChange={(label_id) => setDraft((current) => ({ ...current, label_id }))}
               unavailableLabelIDs={unavailableLabelIDs}
-              includeBuiltins={false}
             />
           )}
 

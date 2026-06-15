@@ -1,6 +1,5 @@
 #!/usr/local/autopkg/python
 
-import hashlib
 import json
 import mimetypes
 import os
@@ -65,16 +64,11 @@ class WoodstarClient:
         content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         target = self.post(attach_path, {"filename": filename, "content_type": content_type})
         self.upload_bytes(target, file_path)
-        return self.post(
-            f"/api/storage/objects/{target['object_id']}/confirm",
-            {"sha256": sha256sum(file_path)},
-        )
+        return self.post(f"{attach_path}/{target['object_id']}/confirm")
 
     def upload_bytes(self, target, file_path):
-        url = target.get("upload_url")
-        if not url:
-            raise ProcessorError("upload target is missing upload_url")
-        method = (target.get("method") or "PUT").upper()
+        url = target["upload_url"]
+        method = target["method"].upper()
         headers = dict(target.get("headers") or {})
         headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
         with open(file_path, "rb") as handle:
@@ -147,14 +141,6 @@ def clean_upload_filename(filename):
     if filename in {"", ".", "/"}:
         raise ProcessorError("upload filename is required")
     return filename
-
-
-def sha256sum(file_path):
-    digest = hashlib.sha256()
-    with open(file_path, "rb", buffering=0) as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def http_error_message(method, path, response):

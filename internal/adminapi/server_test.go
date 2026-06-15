@@ -665,15 +665,17 @@ func TestMunkiPackageInstallerUploadConfirmsAndAttaches(t *testing.T) {
 		)
 	}
 	var intent struct {
-		ObjectID  int64  `json:"object_id"`
-		UploadURL string `json:"upload_url"`
-		Method    string `json:"method"`
+		ObjectID   int64  `json:"object_id"`
+		UploadKind string `json:"upload_kind"`
+		UploadURL  string `json:"upload_url"`
+		Method     string `json:"method"`
 	}
 	if err := json.NewDecoder(intentRec.Body).Decode(&intent); err != nil {
 		t.Fatalf("decode upload intent: %v", err)
 	}
-	if intent.ObjectID == 0 || intent.UploadURL == "" || intent.Method != http.MethodPut {
-		t.Fatalf("upload intent = %+v, want object id, url, PUT", intent)
+	if intent.ObjectID == 0 || intent.UploadKind != "proxy" || intent.UploadURL == "" ||
+		intent.Method != http.MethodPut {
+		t.Fatalf("upload intent = %+v, want object id, proxy, url, PUT", intent)
 	}
 
 	const body = "installer bytes"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 	munkipackages "github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -23,11 +24,28 @@ type munkiUploadRequest struct {
 	ContentType string `json:"content_type,omitempty"`
 }
 
+type munkiUploadKind string
+
+const (
+	munkiUploadKindProxy     munkiUploadKind = "proxy"
+	munkiUploadKindPresigned munkiUploadKind = "presigned"
+)
+
+var munkiUploadKindValues = []munkiUploadKind{
+	munkiUploadKindProxy,
+	munkiUploadKindPresigned,
+}
+
+func (munkiUploadKind) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(munkiUploadKindValues...)
+}
+
 type munkiUploadTarget struct {
-	ObjectID  int64             `json:"object_id"`
-	UploadURL string            `json:"upload_url"`
-	Method    string            `json:"method"`
-	Headers   map[string]string `json:"headers,omitempty"`
+	ObjectID   int64             `json:"object_id"`
+	UploadKind munkiUploadKind   `json:"upload_kind"`
+	UploadURL  string            `json:"upload_url"`
+	Method     string            `json:"method"`
+	Headers    map[string]string `json:"headers,omitempty"`
 }
 
 type munkiObjectView struct {
@@ -285,9 +303,10 @@ func createMunkiUpload(
 	presigner, ok := store.(storage.Presigner)
 	if !ok {
 		return &munkiUploadOutput{Body: munkiUploadTarget{
-			ObjectID:  obj.ID,
-			UploadURL: fmt.Sprintf("/api/objects/%d/content", obj.ID),
-			Method:    http.MethodPut,
+			ObjectID:   obj.ID,
+			UploadKind: munkiUploadKindProxy,
+			UploadURL:  fmt.Sprintf("/api/objects/%d/content", obj.ID),
+			Method:     http.MethodPut,
 		}}, nil
 	}
 	target, err := presigner.PresignPut(ctx, obj.Key(), 0, storage.PutOptions{ContentType: req.ContentType})
@@ -295,10 +314,11 @@ func createMunkiUpload(
 		return nil, err
 	}
 	return &munkiUploadOutput{Body: munkiUploadTarget{
-		ObjectID:  obj.ID,
-		UploadURL: target.URL,
-		Method:    target.Method,
-		Headers:   target.Headers,
+		ObjectID:   obj.ID,
+		UploadKind: munkiUploadKindPresigned,
+		UploadURL:  target.URL,
+		Method:     target.Method,
+		Headers:    target.Headers,
 	}}, nil
 }
 

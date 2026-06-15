@@ -1750,10 +1750,16 @@ components:
         object_id:
           format: int64
           type: integer
+        upload_kind:
+          enum:
+            - proxy
+            - presigned
+          type: string
         upload_url:
           type: string
       required:
         - object_id
+        - upload_kind
         - upload_url
         - method
       type: object

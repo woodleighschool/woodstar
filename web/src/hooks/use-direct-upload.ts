@@ -2,15 +2,22 @@ import { type MutationKey, useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { type UploadProgress, uploadWithProgress } from "@/lib/direct-upload";
+import {
+  type DirectMultipartUploadRequest,
+  type UploadProgress,
+  type UploadTransport,
+  uploadWithProgress,
+} from "@/lib/direct-upload";
 
 type UploadText = string | ((file: File) => string);
 type UploadErrorSurface = "toast" | "inline";
 
 interface DirectUploadIntentRequest {
   url: string;
+  transport: UploadTransport;
   method?: string;
   headers?: Record<string, string>;
+  multipart?: DirectMultipartUploadRequest;
 }
 
 interface DirectUploadOptions<TIntent, TResult, TVars extends { file: File }> {
