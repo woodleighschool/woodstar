@@ -62,7 +62,7 @@ func NewRepositoryService(deps Dependencies) *RepositoryService {
 
 // ResolveClient resolves the Munki request identity to an existing host.
 func (s *RepositoryService) ResolveClient(ctx context.Context, serial string) (ClientHost, error) {
-	host, err := s.hosts.GetByHardwareSerial(ctx, strings.TrimSpace(serial))
+	host, err := s.hosts.GetByHardwareSerial(ctx, serial)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return ClientHost{}, ErrNotFound
 	}
