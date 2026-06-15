@@ -264,7 +264,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	icon := createMunkiIconObject(t, ctx, stores, "icons/SharedApp.png", "d")
+	icon := createMunkiIconObject(t, ctx, stores, "SharedApp.png", "d")
 	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
 		Name:         "SharedIconApp",
 		IconObjectID: &icon.ID,
@@ -662,8 +662,8 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	installerObject := createMunkiPackageObject(t, ctx, stores, "apps/DeleteObject.pkg", "b")
-	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "apps/DeleteObject-uninstall.pkg", "c")
+	installerObject := createMunkiPackageObject(t, ctx, stores, "DeleteObject.pkg", "b")
+	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "DeleteObject-uninstall.pkg", "c")
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
 		Version:             "1.0",
 		InstallerObjectID:   &installerObject.ID,

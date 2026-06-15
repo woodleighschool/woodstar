@@ -311,7 +311,7 @@ func (m PackageMutation) validateEnums() error {
 
 func validateArchitectures(architectures []string) error {
 	for _, arch := range architectures {
-		switch strings.TrimSpace(arch) {
+		switch arch {
 		case "arm64", "x86_64":
 		default:
 			return fmt.Errorf(
@@ -344,6 +344,21 @@ func (m PackageMutation) validateCollections() error {
 				"%w: items_to_copy entries require source_item and destination_path",
 				dbutil.ErrInvalidInput,
 			)
+		}
+	}
+	for _, variable := range m.InstallerEnvironment {
+		if strings.TrimSpace(variable.Name) == "" {
+			return fmt.Errorf("%w: installer_environment entries require name", dbutil.ErrInvalidInput)
+		}
+	}
+	for _, app := range m.BlockingApplications {
+		if strings.TrimSpace(app) == "" {
+			return fmt.Errorf("%w: blocking_applications entries must not be blank", dbutil.ErrInvalidInput)
+		}
+	}
+	for _, choice := range m.InstallerChoicesXML {
+		if strings.TrimSpace(choice.ChoiceIdentifier) == "" {
+			return fmt.Errorf("%w: installer_choices_xml entries require choice_identifier", dbutil.ErrInvalidInput)
 		}
 	}
 	return nil
@@ -382,28 +397,4 @@ func validateReferences(field string, references []PackageReference) error {
 		}
 	}
 	return nil
-}
-
-func cleanStringList(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
-}
-
-func cleanOptionalStringList(values []string) []string {
-	if values == nil {
-		return nil
-	}
-	return cleanStringList(values)
 }

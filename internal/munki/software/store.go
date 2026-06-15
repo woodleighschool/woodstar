@@ -40,9 +40,10 @@ func NewStore(db *database.DB, objects objectStore, packages packageStore) *Stor
 }
 
 func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) {
-	var err error
-	params = cleanMutation(params)
-	params, err = s.normalizeIcon(ctx, params)
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
+	params, err := s.normalizeIcon(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +70,10 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Software, error) {
-	var err error
-	params = cleanMutation(params)
-	params, err = s.normalizeIcon(ctx, params)
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
+	params, err := s.normalizeIcon(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -295,13 +297,11 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldIconObjectID, &objectID)...)
 }
 
-func cleanMutation(params Mutation) Mutation {
-	params.Name = strings.TrimSpace(params.Name)
-	params.Description = strings.TrimSpace(params.Description)
-	params.Category = strings.TrimSpace(params.Category)
-	params.Developer = strings.TrimSpace(params.Developer)
-	params.Targets = normalizeTargets(params.Targets)
-	return params
+func (m Mutation) validate() error {
+	if strings.TrimSpace(m.Name) == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 func replacedObjectIDs(oldID, newID *int64) []int64 {

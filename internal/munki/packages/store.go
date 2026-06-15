@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -262,11 +261,11 @@ func (s *Store) prepareMutation(
 	ctx context.Context,
 	params PackageMutation,
 ) (PackageMutation, packageJSONFields, error) {
-	params = cleanMutation(params)
+	params = applyDefaults(params)
 	if err := params.Validate(); err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
-	params, err := s.normalizePackageObjects(ctx, params)
+	params, err := s.validatePackageObjects(ctx, params)
 	if err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
@@ -277,7 +276,7 @@ func (s *Store) prepareMutation(
 	return params, fields, nil
 }
 
-func (s *Store) normalizePackageObjects(ctx context.Context, params PackageMutation) (PackageMutation, error) {
+func (s *Store) validatePackageObjects(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	if params.InstallerObjectID != nil {
 		if err := s.requirePackageObject(ctx, *params.InstallerObjectID, "installer_object_id"); err != nil {
 			return params, err
@@ -391,47 +390,21 @@ func (s *Store) setPackageObject(
 	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, &objectID)...)
 }
 
-func cleanMutation(params PackageMutation) PackageMutation {
-	params.Version = strings.TrimSpace(params.Version)
-	params.InstallerType = InstallerType(strings.TrimSpace(string(params.InstallerType)))
+func applyDefaults(params PackageMutation) PackageMutation {
 	if params.InstallerType == "" {
 		params.InstallerType = InstallerTypePkg
 	}
-	params.UninstallMethod = UninstallMethod(strings.TrimSpace(string(params.UninstallMethod)))
 	if params.UninstallMethod == "" {
 		params.UninstallMethod = UninstallMethodNone
 	}
-	params.RestartAction = RestartAction(strings.TrimSpace(string(params.RestartAction)))
-	params.MinimumMunkiVersion = strings.TrimSpace(params.MinimumMunkiVersion)
-	params.MinimumOSVersion = strings.TrimSpace(params.MinimumOSVersion)
-	params.MaximumOSVersion = strings.TrimSpace(params.MaximumOSVersion)
-	params.SupportedArchitectures = cleanStringList(params.SupportedArchitectures)
-	params.BlockingApplications = cleanOptionalStringList(params.BlockingApplications)
-	params.Requires = cleanReferences(params.Requires)
-	params.UpdateFor = cleanReferences(params.UpdateFor)
-	params.PackagePath = strings.TrimSpace(params.PackagePath)
-	params.Notes = strings.TrimSpace(params.Notes)
-	params.InstallerChoicesXML = cleanInstallerChoices(params.InstallerChoicesXML)
-	params.InstallerEnvironment = cleanInstallerEnvironment(params.InstallerEnvironment)
-	params.Installs = cleanInstallItems(params.Installs)
-	params.Receipts = cleanReceipts(params.Receipts)
-	params.ItemsToCopy = cleanItemsToCopy(params.ItemsToCopy)
-	params.PreinstallAlert = cleanAlert(params.PreinstallAlert)
-	params.PreuninstallAlert = cleanAlert(params.PreuninstallAlert)
-	if strings.TrimSpace(params.UninstallScript) != "" && params.UninstallMethod == UninstallMethodNone {
+	if params.UninstallScript != "" && params.UninstallMethod == UninstallMethodNone {
 		params.UninstallMethod = UninstallMethodUninstallScript
 	}
-	return params
-}
-
-func cleanInstallerChoices(values []PackageInstallerChoice) []PackageInstallerChoice {
-	out := make([]PackageInstallerChoice, 0, len(values))
-	for _, value := range values {
-		value.ChoiceIdentifier = strings.TrimSpace(value.ChoiceIdentifier)
-		value.ChoiceAttribute = strings.TrimSpace(value.ChoiceAttribute)
-		out = append(out, value)
+	// supported_architectures is NOT NULL; nil means no architecture restriction.
+	if params.SupportedArchitectures == nil {
+		params.SupportedArchitectures = []string{}
 	}
-	return out
+	return params
 }
 
 func packageFromRecord(row packageRecord) (Package, error) {
@@ -1122,33 +1095,6 @@ func packageIDs(packages []Package) []int64 {
 	return ids
 }
 
-func cleanReferences(values []PackageReference) []PackageReference {
-	out := make([]PackageReference, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		key := packageReferenceKey(value)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, PackageReference{
-			SoftwareID: value.SoftwareID,
-			PackageID:  value.PackageID,
-		})
-	}
-	return out
-}
-
-func packageReferenceKey(ref PackageReference) string {
-	if ref.PackageID > 0 {
-		return fmt.Sprintf("package:%d", ref.PackageID)
-	}
-	if ref.SoftwareID > 0 {
-		return fmt.Sprintf("software:%d", ref.SoftwareID)
-	}
-	return fmt.Sprintf("invalid:%d:%d", ref.SoftwareID, ref.PackageID)
-}
-
 func optionalPositiveInt64(value int64) *int64 {
 	if value <= 0 {
 		return nil
@@ -1161,84 +1107,6 @@ func nonNilReferences(values []PackageReference) []PackageReference {
 		return []PackageReference{}
 	}
 	return values
-}
-
-func cleanInstallerEnvironment(
-	values []PackageInstallerEnvironmentVariable,
-) []PackageInstallerEnvironmentVariable {
-	out := make([]PackageInstallerEnvironmentVariable, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		name := strings.TrimSpace(value.Name)
-		if name == "" {
-			continue
-		}
-		if _, ok := seen[name]; ok {
-			continue
-		}
-		seen[name] = struct{}{}
-		out = append(out, PackageInstallerEnvironmentVariable{Name: name, Value: value.Value})
-	}
-	return out
-}
-
-func cleanInstallItems(values []PackageInstallItem) []PackageInstallItem {
-	out := make([]PackageInstallItem, 0, len(values))
-	for _, value := range values {
-		value.Type = PackageInstallItemType(strings.TrimSpace(string(value.Type)))
-		if value.Type == "" {
-			value.Type = PackageInstallItemFile
-		}
-		value.Path = strings.TrimSpace(value.Path)
-		value.BundleIdentifier = strings.TrimSpace(value.BundleIdentifier)
-		value.BundleName = strings.TrimSpace(value.BundleName)
-		value.BundleShortVersion = strings.TrimSpace(value.BundleShortVersion)
-		value.BundleVersion = strings.TrimSpace(value.BundleVersion)
-		value.VersionComparisonKey = strings.TrimSpace(value.VersionComparisonKey)
-		value.MD5Checksum = strings.TrimSpace(value.MD5Checksum)
-		value.MinimumOSVersion = strings.TrimSpace(value.MinimumOSVersion)
-		value.InstallerItemLocation = strings.TrimSpace(value.InstallerItemLocation)
-		if value.Path != "" {
-			out = append(out, value)
-		}
-	}
-	return out
-}
-
-func cleanReceipts(values []PackageReceipt) []PackageReceipt {
-	out := make([]PackageReceipt, 0, len(values))
-	for _, value := range values {
-		value.PackageID = strings.TrimSpace(value.PackageID)
-		value.Version = strings.TrimSpace(value.Version)
-		if value.PackageID != "" {
-			out = append(out, value)
-		}
-	}
-	return out
-}
-
-func cleanItemsToCopy(values []PackageItemToCopy) []PackageItemToCopy {
-	out := make([]PackageItemToCopy, 0, len(values))
-	for _, value := range values {
-		value.SourceItem = strings.TrimSpace(value.SourceItem)
-		value.DestinationPath = strings.TrimSpace(value.DestinationPath)
-		value.DestinationItem = strings.TrimSpace(value.DestinationItem)
-		value.User = strings.TrimSpace(value.User)
-		value.Group = strings.TrimSpace(value.Group)
-		value.Mode = strings.TrimSpace(value.Mode)
-		if value.SourceItem != "" || value.DestinationPath != "" {
-			out = append(out, value)
-		}
-	}
-	return out
-}
-
-func cleanAlert(alert PackageAlert) PackageAlert {
-	alert.Title = strings.TrimSpace(alert.Title)
-	alert.Detail = strings.TrimSpace(alert.Detail)
-	alert.OKLabel = strings.TrimSpace(alert.OKLabel)
-	alert.CancelLabel = strings.TrimSpace(alert.CancelLabel)
-	return alert
 }
 
 func nonNilStrings(values []string) []string {
