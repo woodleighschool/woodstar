@@ -13,9 +13,12 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type {
   SantaConfiguration,
   SantaConfigurationMutation,
@@ -38,7 +42,10 @@ import {
   CLIENT_MODE_VALUES,
   MEDIA_ACTION_OPTIONS,
   MEDIA_ACTION_VALUES,
+  REMOUNT_FLAG_OPTIONS,
+  REMOUNT_FLAG_VALUES,
   type SantaMediaAction,
+  type SantaRemountFlag,
 } from "@/lib/santa-configurations";
 import { emptyLabelTargetSet, labelTargetSetSchema } from "@/lib/targeting";
 
@@ -55,9 +62,9 @@ interface ConfigurationFormState {
   allowed_path_regex: string;
   blocked_path_regex: string;
   removable_media_action: SantaMediaAction;
-  removable_media_remount_flags: string;
+  removable_media_remount_flags: SantaRemountFlag[];
   encrypted_removable_media_action: SantaMediaAction;
-  encrypted_removable_media_remount_flags: string;
+  encrypted_removable_media_remount_flags: SantaRemountFlag[];
   event_detail_url: string;
   event_detail_text: string;
 }
@@ -76,16 +83,16 @@ const configurationFormSchema = z
     allowed_path_regex: z.string().trim(),
     blocked_path_regex: z.string().trim(),
     removable_media_action: z.enum(MEDIA_ACTION_VALUES),
-    removable_media_remount_flags: z.string().trim(),
+    removable_media_remount_flags: z.array(z.enum(REMOUNT_FLAG_VALUES)),
     encrypted_removable_media_action: z.enum(MEDIA_ACTION_VALUES),
-    encrypted_removable_media_remount_flags: z.string().trim(),
+    encrypted_removable_media_remount_flags: z.array(z.enum(REMOUNT_FLAG_VALUES)),
     event_detail_url: z.string().trim(),
     event_detail_text: z.string().trim(),
   })
   .superRefine((value, ctx) => {
     if (
       value.removable_media_action === "remount" &&
-      splitWords(value.removable_media_remount_flags).length === 0
+      value.removable_media_remount_flags.length === 0
     ) {
       ctx.addIssue({
         code: "custom",
@@ -95,7 +102,7 @@ const configurationFormSchema = z
     }
     if (
       value.encrypted_removable_media_action === "remount" &&
-      splitWords(value.encrypted_removable_media_remount_flags).length === 0
+      value.encrypted_removable_media_remount_flags.length === 0
     ) {
       ctx.addIssue({
         code: "custom",
@@ -120,9 +127,9 @@ export const emptyConfigurationForm: ConfigurationFormState = {
   allowed_path_regex: "",
   blocked_path_regex: "",
   removable_media_action: "none",
-  removable_media_remount_flags: "",
+  removable_media_remount_flags: [],
   encrypted_removable_media_action: "none",
-  encrypted_removable_media_remount_flags: "",
+  encrypted_removable_media_remount_flags: [],
   event_detail_url: "",
   event_detail_text: "",
 };
@@ -471,44 +478,50 @@ function MediaActionField({
   label: string;
   description?: string;
   action: SantaMediaAction;
-  flags: string;
+  flags: SantaRemountFlag[];
   flagsError?: string;
   onActionChange: (value: SantaMediaAction) => void;
-  onFlagsChange: (value: string) => void;
+  onFlagsChange: (value: SantaRemountFlag[]) => void;
 }) {
   return (
     <Field data-invalid={flagsError ? true : undefined}>
-      <FieldLabel htmlFor={`${id}-action`}>{label}</FieldLabel>
-      <Select value={action} onValueChange={(value) => onActionChange(value as SantaMediaAction)}>
-        <SelectTrigger id={`${id}-action`} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {MEDIA_ACTION_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <FieldLabel>{label}</FieldLabel>
+      <ToggleGroup
+        type="single"
+        value={action}
+        variant="outline"
+        className="flex-wrap"
+        onValueChange={(value) => {
+          if (value) onActionChange(value as SantaMediaAction);
+        }}
+      >
+        {MEDIA_ACTION_OPTIONS.map((option) => (
+          <ToggleGroupItem key={option.value} value={option.value}>
+            {option.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
       {action === "remount" ? (
-        <div className="flex flex-col gap-1">
-          <FieldLabel htmlFor={`${id}-flags`} required>
-            Mount Flags
-          </FieldLabel>
-          <Input
-            id={`${id}-flags`}
-            placeholder="remount flags"
-            required
-            aria-invalid={flagsError ? true : undefined}
-            value={flags}
-            onChange={(event) => onFlagsChange(event.target.value)}
-          />
-          <FieldDescription>Separate mount options with commas or spaces.</FieldDescription>
-        </div>
+        <FieldSet aria-invalid={flagsError ? true : undefined}>
+          <FieldLegend variant="label">
+            Mount Flags <span className="text-destructive">*</span>
+          </FieldLegend>
+          <FieldGroup data-slot="checkbox-group" className="grid gap-3 sm:grid-cols-2">
+            {REMOUNT_FLAG_OPTIONS.map((option) => (
+              <Field key={option.value} orientation="horizontal">
+                <Checkbox
+                  id={`${id}-flag-${option.value}`}
+                  checked={flags.includes(option.value)}
+                  onCheckedChange={(checked) =>
+                    onFlagsChange(toggleRemountFlag(flags, option.value, checked === true))
+                  }
+                />
+                <FieldLabel htmlFor={`${id}-flag-${option.value}`}>{option.label}</FieldLabel>
+              </Field>
+            ))}
+          </FieldGroup>
+        </FieldSet>
       ) : null}
       {flagsError ? <FieldError>{flagsError}</FieldError> : null}
     </Field>
@@ -529,14 +542,14 @@ export function formFromConfiguration(configuration: SantaConfiguration): Config
     allowed_path_regex: configuration.allowed_path_regex ?? "",
     blocked_path_regex: configuration.blocked_path_regex ?? "",
     removable_media_action: configuration.removable_media_policy?.action ?? "none",
-    removable_media_remount_flags: (configuration.removable_media_policy?.remount_flags ?? []).join(
-      " ",
+    removable_media_remount_flags: filterRemountFlags(
+      configuration.removable_media_policy?.remount_flags ?? [],
     ),
     encrypted_removable_media_action:
       configuration.encrypted_removable_media_policy?.action ?? "none",
-    encrypted_removable_media_remount_flags: (
-      configuration.encrypted_removable_media_policy?.remount_flags ?? []
-    ).join(" "),
+    encrypted_removable_media_remount_flags: filterRemountFlags(
+      configuration.encrypted_removable_media_policy?.remount_flags ?? [],
+    ),
     event_detail_url: configuration.event_detail_url ?? "",
     event_detail_text: configuration.event_detail_text ?? "",
   };
@@ -568,14 +581,18 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
   };
 }
 
-function removableMediaPolicyBody(action: SantaMediaAction, flags: string) {
+function removableMediaPolicyBody(action: SantaMediaAction, flags: SantaRemountFlag[]) {
   if (action === "none") return undefined;
-  return { action, remount_flags: splitWords(flags) };
+  return { action, remount_flags: flags };
 }
 
-function splitWords(value: string) {
-  return value
-    .split(/[\s,]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+function toggleRemountFlag(flags: SantaRemountFlag[], flag: SantaRemountFlag, checked: boolean) {
+  if (checked) return flags.includes(flag) ? flags : [...flags, flag];
+  return flags.filter((value) => value !== flag);
+}
+
+function filterRemountFlags(flags: string[]) {
+  return flags.filter((flag): flag is SantaRemountFlag =>
+    (REMOUNT_FLAG_VALUES as readonly string[]).includes(flag),
+  );
 }

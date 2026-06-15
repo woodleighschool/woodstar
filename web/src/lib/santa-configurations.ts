@@ -63,6 +63,24 @@ export const MEDIA_ACTIONS = {
 
 export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS);
 
+export const REMOUNT_FLAG_VALUES = [
+  "rdonly",
+  "noexec",
+  "nosuid",
+  "nobrowse",
+  "noowners",
+  "nodev",
+  "async",
+  "-j",
+] as const;
+
+export type SantaRemountFlag = (typeof REMOUNT_FLAG_VALUES)[number];
+
+export const REMOUNT_FLAG_OPTIONS = REMOUNT_FLAG_VALUES.map((value) => ({
+  label: value,
+  value,
+}));
+
 export function clientModeLabel(mode: SantaClientMode) {
   return enumLabel(CLIENT_MODES, mode);
 }
