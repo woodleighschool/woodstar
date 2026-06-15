@@ -72,8 +72,7 @@ export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}
 
   return useQuery<SantaRuleReferenceListResult, ApiError>({
     queryKey: queryKeys.santaRuleReferences(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(listSantaRuleReferences({ query: queryParams, signal })).then((rows) => rows ?? []),
+    queryFn: ({ signal }) => unwrap(listSantaRuleReferences({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }

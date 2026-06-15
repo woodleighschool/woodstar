@@ -104,7 +104,11 @@ export const getSession = <ThrowOnError extends boolean = false>(options?: Optio
 /**
  * List directory groups
  */
-export const listGroups = <ThrowOnError extends boolean = false>(options?: Options<ListGroupsData, ThrowOnError>): RequestResult<ListGroupsResponses, ListGroupsErrors, ThrowOnError> => (options?.client ?? client).get<ListGroupsResponses, ListGroupsErrors, ThrowOnError>({ url: '/api/groups', ...options });
+export const listGroups = <ThrowOnError extends boolean = false>(options?: Options<ListGroupsData, ThrowOnError>): RequestResult<ListGroupsResponses, ListGroupsErrors, ThrowOnError> => (options?.client ?? client).get<ListGroupsResponses, ListGroupsErrors, ThrowOnError>({
+    querySerializer: { parameters: { values: { array: { explode: false } } } },
+    url: '/api/groups',
+    ...options
+});
 
 /**
  * Get a directory group
@@ -114,7 +118,11 @@ export const getGroup = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * List enrolled hosts
  */
-export const listHosts = <ThrowOnError extends boolean = false>(options?: Options<ListHostsData, ThrowOnError>): RequestResult<ListHostsResponses, ListHostsErrors, ThrowOnError> => (options?.client ?? client).get<ListHostsResponses, ListHostsErrors, ThrowOnError>({ url: '/api/hosts', ...options });
+export const listHosts = <ThrowOnError extends boolean = false>(options?: Options<ListHostsData, ThrowOnError>): RequestResult<ListHostsResponses, ListHostsErrors, ThrowOnError> => (options?.client ?? client).get<ListHostsResponses, ListHostsErrors, ThrowOnError>({
+    querySerializer: { parameters: { ids: { array: { explode: false } } } },
+    url: '/api/hosts',
+    ...options
+});
 
 /**
  * Delete enrolled hosts
@@ -161,7 +169,11 @@ export const listHostSantaRules = <ThrowOnError extends boolean = false>(options
 /**
  * List software installed on a host
  */
-export const listHostSoftware = <ThrowOnError extends boolean = false>(options: Options<ListHostSoftwareData, ThrowOnError>): RequestResult<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError> => (options.client ?? client).get<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError>({ url: '/api/hosts/{id}/software', ...options });
+export const listHostSoftware = <ThrowOnError extends boolean = false>(options: Options<ListHostSoftwareData, ThrowOnError>): RequestResult<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError> => (options.client ?? client).get<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError>({
+    querySerializer: { parameters: { source: { array: { explode: false } } } },
+    url: '/api/hosts/{id}/software',
+    ...options
+});
 
 /**
  * Clear the host user affinity
@@ -594,7 +606,11 @@ export const updateSantaConfiguration = <ThrowOnError extends boolean = false>(o
 /**
  * List Santa execution events
  */
-export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaEventsData, ThrowOnError>): RequestResult<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError>({ url: '/api/santa/events', ...options });
+export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaEventsData, ThrowOnError>): RequestResult<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError>({
+    querySerializer: { parameters: { decisions: { array: { explode: false } } } },
+    url: '/api/santa/events',
+    ...options
+});
 
 /**
  * Get a Santa execution event
@@ -604,7 +620,11 @@ export const getSantaEvent = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List Santa file access events
  */
-export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaFileAccessEventsData, ThrowOnError>): RequestResult<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError>({ url: '/api/santa/file-access-events', ...options });
+export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaFileAccessEventsData, ThrowOnError>): RequestResult<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError>({
+    querySerializer: { parameters: { decisions: { array: { explode: false } } } },
+    url: '/api/santa/file-access-events',
+    ...options
+});
 
 /**
  * Get a Santa file access event
@@ -682,7 +702,11 @@ export const completeSetup = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List software titles
  */
-export const listSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListSoftwareData, ThrowOnError>): RequestResult<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError>({ url: '/api/software', ...options });
+export const listSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListSoftwareData, ThrowOnError>): RequestResult<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError>({
+    querySerializer: { parameters: { source: { array: { explode: false } } } },
+    url: '/api/software',
+    ...options
+});
 
 /**
  * Get a software title
@@ -697,7 +721,11 @@ export const getSoftwareSantaReference = <ThrowOnError extends boolean = false>(
 /**
  * List Woodstar users
  */
-export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({ url: '/api/users', ...options });
+export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
+    querySerializer: { parameters: { values: { array: { explode: false } } } },
+    url: '/api/users',
+    ...options
+});
 
 /**
  * Create a Woodstar user
@@ -714,7 +742,11 @@ export const createUser = <ThrowOnError extends boolean = false>(options: Option
 /**
  * List directory user departments
  */
-export const listUserDepartments = <ThrowOnError extends boolean = false>(options?: Options<ListUserDepartmentsData, ThrowOnError>): RequestResult<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError>({ url: '/api/users/departments', ...options });
+export const listUserDepartments = <ThrowOnError extends boolean = false>(options?: Options<ListUserDepartmentsData, ThrowOnError>): RequestResult<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError>({
+    querySerializer: { parameters: { values: { array: { explode: false } } } },
+    url: '/api/users/departments',
+    ...options
+});
 
 /**
  * Delete a Woodstar user

@@ -32,7 +32,7 @@ export type AgentSecretMutation = {
 };
 
 export type BulkIdsBody = {
-    ids: Array<number> | null;
+    ids: Array<number>;
 };
 
 export type CertificateName = {
@@ -44,7 +44,7 @@ export type CertificateName = {
 
 export type Criteria = {
     attribute: string;
-    values: Array<string> | null;
+    values: Array<string>;
 };
 
 export type Department = {
@@ -74,7 +74,7 @@ export type ErrorModel = {
     /**
      * Optional list of individual error details
      */
-    errors?: Array<ErrorDetail> | null;
+    errors?: Array<ErrorDetail>;
     /**
      * A URI reference that identifies the specific occurrence of the problem.
      */
@@ -170,15 +170,15 @@ export type HostCertificate = {
 
 export type HostDetail = {
     agents: HostAgents;
-    batteries: Array<HostBattery> | null;
-    certificates: Array<HostCertificate> | null;
+    batteries: Array<HostBattery>;
+    certificates: Array<HostCertificate>;
     computer_name: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
     hostname: string;
     id: number;
-    labels: Array<Label> | null;
+    labels: Array<Label>;
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
@@ -187,7 +187,7 @@ export type HostDetail = {
     storage: HostStorage;
     timestamps: HostTimestamps;
     user_affinity: HostUserAffinity;
-    users: Array<HostUser> | null;
+    users: Array<HostUser>;
 };
 
 export type HostEnrollment = {
@@ -230,9 +230,9 @@ export type HostOsqueryAgent = {
 
 export type HostSoftwareInstalledVersion = {
     bundle_identifier: string;
-    installed_paths: Array<string> | null;
+    installed_paths: Array<string>;
     last_opened_at?: string;
-    signature_information: Array<PathSignatureInformation> | null;
+    signature_information: Array<PathSignatureInformation>;
     version: string;
 };
 
@@ -240,7 +240,7 @@ export type HostSoftwareRow = {
     display_name: string;
     extension_for: string;
     id: number;
-    installed_versions: Array<HostSoftwareInstalledVersion> | null;
+    installed_versions: Array<HostSoftwareInstalledVersion>;
     name: string;
     source: string;
 };
@@ -267,7 +267,7 @@ export type HostUser = {
 };
 
 export type HostUserAffinity = {
-    mappings: Array<HostUserAffinityMapping> | null;
+    mappings: Array<HostUserAffinityMapping>;
     primary?: HostUserAffinityPrimary;
 };
 
@@ -279,7 +279,7 @@ export type HostUserAffinityMapping = {
 export type HostUserAffinityPrimary = {
     department: string;
     email: string;
-    groups: Array<string> | null;
+    groups: Array<string>;
     name: string;
     source: 'manual' | 'orbit_profile' | 'santa_primary_user';
     username: string;
@@ -294,7 +294,7 @@ export type Label = {
     created_at?: string;
     criteria?: Criteria;
     description: string;
-    host_ids?: Array<number> | null;
+    host_ids?: Array<number>;
     hosts_count: number;
     id: number;
     label_membership_type: 'dynamic' | 'manual' | 'derived';
@@ -307,7 +307,7 @@ export type Label = {
 export type LabelMutation = {
     criteria?: Criteria;
     description?: string;
-    host_ids?: Array<number> | null;
+    host_ids?: Array<number>;
     label_membership_type?: 'dynamic' | 'manual' | 'derived';
     name: string;
     query?: string;
@@ -323,16 +323,16 @@ export type LoginInputBody = {
 };
 
 export type MunkiHostState = {
-    errors: Array<string> | null;
-    items: Array<MunkiItem> | null;
+    errors: Array<string>;
+    items: Array<MunkiItem>;
     last_seen_at: string;
     manifest_name: string;
-    problem_installs: Array<string> | null;
+    problem_installs: Array<string>;
     run_ended_at?: string;
     run_started_at?: string;
     success?: boolean;
     version: string;
-    warnings: Array<string> | null;
+    warnings: Array<string>;
 };
 
 export type MunkiInclude = {
@@ -370,7 +370,7 @@ export type MunkiObjectView = {
 export type MunkiPackage = {
     apple_item: boolean;
     autoremove: boolean;
-    blocking_applications: Array<string> | null;
+    blocking_applications: Array<string>;
     blocking_applications_manual_quit_only: boolean;
     blocking_applications_quit_script: string;
     created_at: string;
@@ -382,12 +382,12 @@ export type MunkiPackage = {
     installable_condition: string;
     installcheck_script: string;
     installed_size: number;
-    installer_choices_xml: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment: Array<MunkiPackageInstallerEnvironmentVariable> | null;
+    installer_choices_xml: Array<MunkiPackageInstallerChoice>;
+    installer_environment: Array<MunkiPackageInstallerEnvironmentVariable>;
     installer_object_id?: number;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs: Array<MunkiPackageInstallItem> | null;
-    items_to_copy: Array<MunkiPackageItemToCopy> | null;
+    installs: Array<MunkiPackageInstallItem>;
+    items_to_copy: Array<MunkiPackageItemToCopy>;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
@@ -401,15 +401,15 @@ export type MunkiPackage = {
     preinstall_script: string;
     preuninstall_alert: MunkiPackageAlert;
     preuninstall_script: string;
-    receipts: Array<MunkiPackageReceipt> | null;
-    requires: Array<MunkiPackageReference> | null;
+    receipts: Array<MunkiPackageReceipt>;
+    requires: Array<MunkiPackageReference>;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_category: string;
     software_description: string;
     software_developer: string;
     software_id: number;
     software_name: string;
-    supported_architectures: Array<string> | null;
+    supported_architectures: Array<string>;
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
@@ -417,7 +417,7 @@ export type MunkiPackage = {
     uninstall_script: string;
     uninstallcheck_script: string;
     uninstaller_object_id?: number;
-    update_for: Array<MunkiPackageReference> | null;
+    update_for: Array<MunkiPackageReference>;
     updated_at: string;
     version: string;
     version_script: string;
@@ -434,7 +434,7 @@ export type MunkiPackageAlert = {
 export type MunkiPackageCreateMutation = {
     apple_item?: boolean;
     autoremove?: boolean;
-    blocking_applications?: Array<string> | null;
+    blocking_applications?: Array<string>;
     blocking_applications_manual_quit_only?: boolean;
     blocking_applications_quit_script?: string;
     eligible: boolean;
@@ -442,12 +442,12 @@ export type MunkiPackageCreateMutation = {
     installable_condition?: string;
     installcheck_script?: string;
     installed_size?: number;
-    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice>;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable>;
     installer_object_id?: number;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<MunkiPackageInstallItem> | null;
-    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem>;
+    items_to_copy?: Array<MunkiPackageItemToCopy>;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -461,11 +461,11 @@ export type MunkiPackageCreateMutation = {
     preinstall_script?: string;
     preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<MunkiPackageReceipt> | null;
-    requires?: Array<MunkiPackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt>;
+    requires?: Array<MunkiPackageReference>;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
-    supported_architectures?: Array<string> | null;
+    supported_architectures?: Array<string>;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
@@ -473,7 +473,7 @@ export type MunkiPackageCreateMutation = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_object_id?: number;
-    update_for?: Array<MunkiPackageReference> | null;
+    update_for?: Array<MunkiPackageReference>;
     version: string;
     version_script?: string;
 };
@@ -514,7 +514,7 @@ export type MunkiPackageItemToCopy = {
 export type MunkiPackageMutation = {
     apple_item?: boolean;
     autoremove?: boolean;
-    blocking_applications?: Array<string> | null;
+    blocking_applications?: Array<string>;
     blocking_applications_manual_quit_only?: boolean;
     blocking_applications_quit_script?: string;
     eligible: boolean;
@@ -522,12 +522,12 @@ export type MunkiPackageMutation = {
     installable_condition?: string;
     installcheck_script?: string;
     installed_size?: number;
-    installer_choices_xml?: Array<MunkiPackageInstallerChoice> | null;
-    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable> | null;
+    installer_choices_xml?: Array<MunkiPackageInstallerChoice>;
+    installer_environment?: Array<MunkiPackageInstallerEnvironmentVariable>;
     installer_object_id?: number;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
-    installs?: Array<MunkiPackageInstallItem> | null;
-    items_to_copy?: Array<MunkiPackageItemToCopy> | null;
+    installs?: Array<MunkiPackageInstallItem>;
+    items_to_copy?: Array<MunkiPackageItemToCopy>;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
@@ -541,10 +541,10 @@ export type MunkiPackageMutation = {
     preinstall_script?: string;
     preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
-    receipts?: Array<MunkiPackageReceipt> | null;
-    requires?: Array<MunkiPackageReference> | null;
+    receipts?: Array<MunkiPackageReceipt>;
+    requires?: Array<MunkiPackageReference>;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    supported_architectures?: Array<string> | null;
+    supported_architectures?: Array<string>;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
@@ -552,7 +552,7 @@ export type MunkiPackageMutation = {
     uninstall_script?: string;
     uninstallcheck_script?: string;
     uninstaller_object_id?: number;
-    update_for?: Array<MunkiPackageReference> | null;
+    update_for?: Array<MunkiPackageReference>;
     version: string;
     version_script?: string;
 };
@@ -598,7 +598,7 @@ export type MunkiSoftwareDetail = {
     icon_url?: string;
     id: number;
     name: string;
-    packages: Array<MunkiPackage> | null;
+    packages: Array<MunkiPackage>;
     targets: MunkiTargets;
     updated_at: string;
 };
@@ -678,7 +678,7 @@ export type OsqueryHostReport = {
 export type OsqueryHostReportResultsBody = {
     host_id: number;
     host_name: string;
-    items: Array<OsqueryReportResult> | null;
+    items: Array<OsqueryReportResult>;
     last_fetched?: string;
     report_id: number;
 };
@@ -706,8 +706,8 @@ export type OsqueryLiveQueryResultEvent = {
 };
 
 export type OsqueryLiveQuerySelectedBody = {
-    hosts?: Array<number> | null;
-    labels?: Array<number> | null;
+    hosts?: Array<number>;
+    labels?: Array<number>;
 };
 
 export type OsqueryLiveQueryTargetCountBody = {
@@ -940,7 +940,7 @@ export type SantaConfigurationMutation = {
 };
 
 export type SantaConfigurationReorderBody = {
-    ordered_ids: Array<number> | null;
+    ordered_ids: Array<number>;
 };
 
 export type SantaConfigurationTargets = {
@@ -967,7 +967,7 @@ export type SantaExecutable = {
     id: number;
     secure_signing_time?: string;
     sha256: string;
-    signing_chain?: Array<SantaSigningChainEntry> | null;
+    signing_chain?: Array<SantaSigningChainEntry>;
     signing_id: string;
     signing_status: 'unspecified' | 'unsigned' | 'invalid' | 'adhoc' | 'development' | 'production';
     signing_time?: string;
@@ -988,7 +988,7 @@ export type SantaExecutableReference = {
 };
 
 export type SantaExecutionEvent = {
-    current_sessions: Array<string> | null;
+    current_sessions: Array<string>;
     decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
     executable: SantaExecutable;
     executing_user: string;
@@ -997,7 +997,7 @@ export type SantaExecutionEvent = {
     host_id: number;
     id: number;
     ingested_at: string;
-    logged_in_users: Array<string> | null;
+    logged_in_users: Array<string>;
     occurred_at: string;
     parent_name: string;
     pid: number;
@@ -1012,7 +1012,7 @@ export type SantaFileAccessEvent = {
     ingested_at: string;
     occurred_at: string;
     primary_process: SantaProcess;
-    process_chain?: Array<SantaProcess> | null;
+    process_chain?: Array<SantaProcess>;
     rule_name: string;
     rule_version: string;
     target: string;
@@ -1053,7 +1053,7 @@ export type SantaProcess = {
     file_path: string;
     file_sha256: string;
     pid: number;
-    signing_chain?: Array<SantaSigningChainEntry> | null;
+    signing_chain?: Array<SantaSigningChainEntry>;
     signing_id: string;
     team_id: string;
 };
@@ -1063,7 +1063,7 @@ export type SantaRemovableMediaPolicy = {
     /**
      * Mount flags required when action is remount.
      */
-    remount_flags?: Array<string> | null;
+    remount_flags?: Array<string>;
 };
 
 export type SantaRule = {
@@ -1168,12 +1168,12 @@ export type SantaSigningIdentityReference = {
 
 export type SantaSoftwareReference = {
     block_count: number;
-    bundles: Array<SantaBundleReference> | null;
-    certificates: Array<SantaCertificateReference> | null;
-    executables: Array<SantaExecutableReference> | null;
+    bundles: Array<SantaBundleReference>;
+    certificates: Array<SantaCertificateReference>;
+    executables: Array<SantaExecutableReference>;
     execution_count: number;
-    rules: Array<SantaRuleReference> | null;
-    signing_identities: Array<SantaSigningIdentityReference> | null;
+    rules: Array<SantaRuleReference>;
+    signing_identities: Array<SantaSigningIdentityReference>;
 };
 
 export type SessionBody = {
@@ -1198,7 +1198,7 @@ export type SoftwareTitle = {
     id: number;
     name: string;
     source: string;
-    versions: Array<SoftwareVersion> | null;
+    versions: Array<SoftwareVersion>;
     versions_count: number;
 };
 
@@ -1242,15 +1242,15 @@ export type UserMutation = {
 
 export type HostDetailWritable = {
     agents: HostAgents;
-    batteries: Array<HostBattery> | null;
-    certificates: Array<HostCertificate> | null;
+    batteries: Array<HostBattery>;
+    certificates: Array<HostCertificate>;
     computer_name: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
     hostname: string;
     id: number;
-    labels: Array<LabelWritable> | null;
+    labels: Array<LabelWritable>;
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
@@ -1259,14 +1259,14 @@ export type HostDetailWritable = {
     storage: HostStorage;
     timestamps: HostTimestamps;
     user_affinity: HostUserAffinity;
-    users: Array<HostUser> | null;
+    users: Array<HostUser>;
 };
 
 export type LabelWritable = {
     created_at?: string;
     criteria?: Criteria;
     description: string;
-    host_ids?: Array<number> | null;
+    host_ids?: Array<number>;
     hosts_count: number;
     id: number;
     label_membership_type: 'dynamic' | 'manual' | 'derived';
@@ -1437,7 +1437,7 @@ export type ListAgentSecretsResponses = {
     /**
      * OK
      */
-    200: Array<AgentSecret> | null;
+    200: Array<AgentSecret>;
 };
 
 export type ListAgentSecretsResponse = ListAgentSecretsResponses[keyof ListAgentSecretsResponses];
@@ -1676,7 +1676,7 @@ export type ListGroupsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        values?: Array<string> | null;
+        values?: Array<string>;
     };
     url: '/api/groups';
 };
@@ -1758,7 +1758,7 @@ export type ListHostsData = {
         label_id?: number;
         software_title_id?: number;
         software_id?: number;
-        ids?: Array<number> | null;
+        ids?: Array<number>;
         check_id?: number;
         check_response?: 'pass' | 'fail';
     };
@@ -1948,7 +1948,7 @@ export type ListHostOsqueryChecksResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryCheckHostStatus> | null;
+    200: Array<OsqueryCheckHostStatus>;
 };
 
 export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
@@ -1987,7 +1987,7 @@ export type ListHostOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryHostReport> | null;
+    200: Array<OsqueryHostReport>;
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
@@ -2090,7 +2090,7 @@ export type ListHostSoftwareData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        source?: Array<string> | null;
+        source?: Array<string>;
     };
     url: '/api/hosts/{id}/software';
 };
@@ -3771,7 +3771,7 @@ export type ListOsqueryCheckHostsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryCheckHostStatus> | null;
+    200: Array<OsqueryCheckHostStatus>;
 };
 
 export type ListOsqueryCheckHostsResponse = ListOsqueryCheckHostsResponses[keyof ListOsqueryCheckHostsResponses];
@@ -4059,7 +4059,7 @@ export type ListOsqueryReportResultsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryReportResult> | null;
+    200: Array<OsqueryReportResult>;
 };
 
 export type ListOsqueryReportResultsResponse = ListOsqueryReportResultsResponses[keyof ListOsqueryReportResultsResponses];
@@ -4375,7 +4375,7 @@ export type ListSantaEventsData = {
         per_page?: number;
         sort?: string;
         host_id?: number;
-        decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary'> | null;
+        decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary'>;
         since?: string;
         user?: string;
     };
@@ -4464,7 +4464,7 @@ export type ListSantaFileAccessEventsData = {
         per_page?: number;
         sort?: string;
         host_id?: number;
-        decisions?: Array<'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only'> | null;
+        decisions?: Array<'unknown' | 'denied' | 'denied_invalid_signature' | 'audit_only'>;
         since?: string;
     };
     url: '/api/santa/file-access-events';
@@ -4579,7 +4579,7 @@ export type ListSantaRuleReferencesResponses = {
     /**
      * OK
      */
-    200: Array<SantaRuleReferenceCandidate> | null;
+    200: Array<SantaRuleReferenceCandidate>;
 };
 
 export type ListSantaRuleReferencesResponse = ListSantaRuleReferencesResponses[keyof ListSantaRuleReferencesResponses];
@@ -4895,7 +4895,7 @@ export type ListSoftwareData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        source?: Array<string> | null;
+        source?: Array<string>;
     };
     url: '/api/software';
 };
@@ -5012,7 +5012,7 @@ export type ListUsersData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        values?: Array<string> | null;
+        values?: Array<string>;
         role?: 'admin' | 'viewer' | 'none';
         source?: 'local' | 'entra';
         group_id?: number;
@@ -5099,7 +5099,7 @@ export type ListUserDepartmentsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        values?: Array<string> | null;
+        values?: Array<string>;
     };
     url: '/api/users/departments';
 };

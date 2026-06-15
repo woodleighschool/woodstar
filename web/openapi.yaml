@@ -78,9 +78,7 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - ids
       type: object
@@ -109,9 +107,7 @@ components:
         values:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - attribute
         - values
@@ -148,9 +144,7 @@ components:
           description: Optional list of individual error details
           items:
             $ref: "#/components/schemas/ErrorDetail"
-          type:
-            - array
-            - "null"
+          type: array
         instance:
           description: A URI reference that identifies the specific occurrence of the problem.
           examples:
@@ -390,15 +384,11 @@ components:
         batteries:
           items:
             $ref: "#/components/schemas/HostBattery"
-          type:
-            - array
-            - "null"
+          type: array
         certificates:
           items:
             $ref: "#/components/schemas/HostCertificate"
-          type:
-            - array
-            - "null"
+          type: array
         computer_name:
           type: string
         display_name:
@@ -415,9 +405,7 @@ components:
         labels:
           items:
             $ref: "#/components/schemas/Label"
-          type:
-            - array
-            - "null"
+          type: array
         munki:
           $ref: "#/components/schemas/MunkiHostState"
         network:
@@ -437,9 +425,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/HostUser"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - labels
         - users
@@ -558,18 +544,14 @@ components:
         installed_paths:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         last_opened_at:
           format: date-time
           type: string
         signature_information:
           items:
             $ref: "#/components/schemas/PathSignatureInformation"
-          type:
-            - array
-            - "null"
+          type: array
         version:
           type: string
       required:
@@ -591,9 +573,7 @@ components:
         installed_versions:
           items:
             $ref: "#/components/schemas/HostSoftwareInstalledVersion"
-          type:
-            - array
-            - "null"
+          type: array
         name:
           type: string
         source:
@@ -665,9 +645,7 @@ components:
         mappings:
           items:
             $ref: "#/components/schemas/HostUserAffinityMapping"
-          type:
-            - array
-            - "null"
+          type: array
         primary:
           $ref: "#/components/schemas/HostUserAffinityPrimary"
       required:
@@ -698,9 +676,7 @@ components:
         groups:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         name:
           type: string
         source:
@@ -748,9 +724,7 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
         hosts_count:
           format: int32
           type: integer
@@ -794,9 +768,7 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
         label_membership_type:
           enum:
             - dynamic
@@ -839,15 +811,11 @@ components:
         errors:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         items:
           items:
             $ref: "#/components/schemas/MunkiItem"
-          type:
-            - array
-            - "null"
+          type: array
         last_seen_at:
           format: date-time
           type: string
@@ -856,9 +824,7 @@ components:
         problem_installs:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         run_ended_at:
           type: string
         run_started_at:
@@ -870,9 +836,7 @@ components:
         warnings:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - version
         - manifest_name
@@ -981,9 +945,7 @@ components:
         blocking_applications:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         blocking_applications_manual_quit_only:
           type: boolean
         blocking_applications_quit_script:
@@ -1014,15 +976,11 @@ components:
         installer_choices_xml:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerChoice"
-          type:
-            - array
-            - "null"
+          type: array
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"
-          type:
-            - array
-            - "null"
+          type: array
         installer_object_id:
           format: int64
           type: integer
@@ -1035,15 +993,11 @@ components:
         installs:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallItem"
-          type:
-            - array
-            - "null"
+          type: array
         items_to_copy:
           items:
             $ref: "#/components/schemas/MunkiPackageItemToCopy"
-          type:
-            - array
-            - "null"
+          type: array
         maximum_os_version:
           type: string
         minimum_munki_version:
@@ -1073,15 +1027,11 @@ components:
         receipts:
           items:
             $ref: "#/components/schemas/MunkiPackageReceipt"
-          type:
-            - array
-            - "null"
+          type: array
         requires:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         restart_action:
           enum:
             - None
@@ -1104,9 +1054,7 @@ components:
         supported_architectures:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         suppress_bundle_relocation:
           type: boolean
         unattended_install:
@@ -1131,9 +1079,7 @@ components:
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         updated_at:
           format: date-time
           type: string
@@ -1216,9 +1162,7 @@ components:
         blocking_applications:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         blocking_applications_manual_quit_only:
           type: boolean
         blocking_applications_quit_script:
@@ -1238,15 +1182,11 @@ components:
         installer_choices_xml:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerChoice"
-          type:
-            - array
-            - "null"
+          type: array
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"
-          type:
-            - array
-            - "null"
+          type: array
         installer_object_id:
           format: int64
           type: integer
@@ -1259,15 +1199,11 @@ components:
         installs:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallItem"
-          type:
-            - array
-            - "null"
+          type: array
         items_to_copy:
           items:
             $ref: "#/components/schemas/MunkiPackageItemToCopy"
-          type:
-            - array
-            - "null"
+          type: array
         maximum_os_version:
           type: string
         minimum_munki_version:
@@ -1297,15 +1233,11 @@ components:
         receipts:
           items:
             $ref: "#/components/schemas/MunkiPackageReceipt"
-          type:
-            - array
-            - "null"
+          type: array
         requires:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         restart_action:
           enum:
             - None
@@ -1321,9 +1253,7 @@ components:
         supported_architectures:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         suppress_bundle_relocation:
           type: boolean
         unattended_install:
@@ -1348,9 +1278,7 @@ components:
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         version:
           minLength: 1
           type: string
@@ -1446,9 +1374,7 @@ components:
         blocking_applications:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         blocking_applications_manual_quit_only:
           type: boolean
         blocking_applications_quit_script:
@@ -1468,15 +1394,11 @@ components:
         installer_choices_xml:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerChoice"
-          type:
-            - array
-            - "null"
+          type: array
         installer_environment:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallerEnvironmentVariable"
-          type:
-            - array
-            - "null"
+          type: array
         installer_object_id:
           format: int64
           type: integer
@@ -1489,15 +1411,11 @@ components:
         installs:
           items:
             $ref: "#/components/schemas/MunkiPackageInstallItem"
-          type:
-            - array
-            - "null"
+          type: array
         items_to_copy:
           items:
             $ref: "#/components/schemas/MunkiPackageItemToCopy"
-          type:
-            - array
-            - "null"
+          type: array
         maximum_os_version:
           type: string
         minimum_munki_version:
@@ -1527,15 +1445,11 @@ components:
         receipts:
           items:
             $ref: "#/components/schemas/MunkiPackageReceipt"
-          type:
-            - array
-            - "null"
+          type: array
         requires:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         restart_action:
           enum:
             - None
@@ -1547,9 +1461,7 @@ components:
         supported_architectures:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         suppress_bundle_relocation:
           type: boolean
         unattended_install:
@@ -1574,9 +1486,7 @@ components:
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
-          type:
-            - array
-            - "null"
+          type: array
         version:
           minLength: 1
           type: string
@@ -1693,9 +1603,7 @@ components:
         packages:
           items:
             $ref: "#/components/schemas/MunkiPackage"
-          type:
-            - array
-            - "null"
+          type: array
         targets:
           $ref: "#/components/schemas/MunkiTargets"
         updated_at:
@@ -1919,9 +1827,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/OsqueryReportResult"
-          type:
-            - array
-            - "null"
+          type: array
         last_fetched:
           format: date-time
           type: string
@@ -1994,16 +1900,12 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
         labels:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
       type: object
     OsqueryLiveQueryTargetCountBody:
       additionalProperties: false
@@ -2651,9 +2553,7 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - ordered_ids
       type: object
@@ -2717,9 +2617,7 @@ components:
         signing_chain:
           items:
             $ref: "#/components/schemas/SantaSigningChainEntry"
-          type:
-            - array
-            - "null"
+          type: array
         signing_id:
           type: string
         signing_status:
@@ -2792,9 +2690,7 @@ components:
         current_sessions:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         decision:
           enum:
             - unknown
@@ -2834,9 +2730,7 @@ components:
         logged_in_users:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         occurred_at:
           format: date-time
           type: string
@@ -2893,9 +2787,7 @@ components:
         process_chain:
           items:
             $ref: "#/components/schemas/SantaProcess"
-          type:
-            - array
-            - "null"
+          type: array
         rule_name:
           type: string
         rule_version:
@@ -3013,9 +2905,7 @@ components:
         signing_chain:
           items:
             $ref: "#/components/schemas/SantaSigningChainEntry"
-          type:
-            - array
-            - "null"
+          type: array
         signing_id:
           type: string
         team_id:
@@ -3042,9 +2932,7 @@ components:
           description: Mount flags required when action is remount.
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
       type: object
     SantaRule:
       additionalProperties: false
@@ -3368,36 +3256,26 @@ components:
         bundles:
           items:
             $ref: "#/components/schemas/SantaBundleReference"
-          type:
-            - array
-            - "null"
+          type: array
         certificates:
           items:
             $ref: "#/components/schemas/SantaCertificateReference"
-          type:
-            - array
-            - "null"
+          type: array
         executables:
           items:
             $ref: "#/components/schemas/SantaExecutableReference"
-          type:
-            - array
-            - "null"
+          type: array
         execution_count:
           format: int32
           type: integer
         rules:
           items:
             $ref: "#/components/schemas/SantaRuleReference"
-          type:
-            - array
-            - "null"
+          type: array
         signing_identities:
           items:
             $ref: "#/components/schemas/SantaSigningIdentityReference"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - execution_count
         - block_count
@@ -3464,9 +3342,7 @@ components:
         versions:
           items:
             $ref: "#/components/schemas/SoftwareVersion"
-          type:
-            - array
-            - "null"
+          type: array
         versions_count:
           format: int32
           type: integer
@@ -3734,9 +3610,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/AgentSecret"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "401":
           content:
@@ -4038,9 +3912,7 @@ paths:
           schema:
             items:
               type: string
-            type:
-              - array
-              - "null"
+            type: array
       responses:
         "200":
           content:
@@ -4172,9 +4044,7 @@ paths:
             items:
               format: int64
               type: integer
-            type:
-              - array
-              - "null"
+            type: array
         - explode: false
           in: query
           name: check_id
@@ -4369,9 +4239,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/OsqueryCheckHostStatus"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "401":
           content:
@@ -4418,9 +4286,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/OsqueryHostReport"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "401":
           content:
@@ -4617,9 +4483,7 @@ paths:
           schema:
             items:
               type: string
-            type:
-              - array
-              - "null"
+            type: array
       responses:
         "200":
           content:
@@ -6669,9 +6533,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/OsqueryCheckHostStatus"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "401":
           content:
@@ -7017,9 +6879,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/OsqueryReportResult"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "401":
           content:
@@ -7471,9 +7331,7 @@ paths:
                 - block_cdhash
                 - bundle_binary
               type: string
-            type:
-              - array
-              - "null"
+            type: array
         - explode: false
           in: query
           name: since
@@ -7615,9 +7473,7 @@ paths:
                 - denied_invalid_signature
                 - audit_only
               type: string
-            type:
-              - array
-              - "null"
+            type: array
         - explode: false
           in: query
           name: since
@@ -7744,9 +7600,7 @@ paths:
               schema:
                 items:
                   $ref: "#/components/schemas/SantaRuleReferenceCandidate"
-                type:
-                  - array
-                  - "null"
+                type: array
           description: OK
         "400":
           content:
@@ -8189,9 +8043,7 @@ paths:
           schema:
             items:
               type: string
-            type:
-              - array
-              - "null"
+            type: array
       responses:
         "200":
           content:
@@ -8343,9 +8195,7 @@ paths:
           schema:
             items:
               type: string
-            type:
-              - array
-              - "null"
+            type: array
         - explode: false
           in: query
           name: role
@@ -8487,9 +8337,7 @@ paths:
           schema:
             items:
               type: string
-            type:
-              - array
-              - "null"
+            type: array
       responses:
         "200":
           content:

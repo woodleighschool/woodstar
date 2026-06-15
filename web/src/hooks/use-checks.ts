@@ -71,7 +71,7 @@ export function useCheckHosts(id: number | null) {
           path: { id: id ?? 0 },
           signal,
         }),
-      ).then((rows) => rows ?? []),
+      ),
     enabled: id !== null,
   });
 }
