@@ -49,14 +49,6 @@ export function RuleReferencePicker({
         placeholder="Enter identifier"
         invalid={identifierInvalid ? true : undefined}
         onBlur={onBlur}
-        emptyText={
-          references.error
-            ? references.error.message
-            : references.isLoading
-              ? "Loading Suggestions..."
-              : "No Suggestions Found."
-        }
-        noResultsText="No Suggestions Found."
         itemToStringValue={(reference) => reference.identifier}
         freeTextItem={(identifier) => currentRuleReferenceCandidate(identifier, form.rule_type)}
         itemKey={(reference) => `${reference.rule_type}:${reference.identifier}`}

@@ -172,9 +172,9 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
               Cancel
             </Button>
           </DialogClose>
-          <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
-            {([canSubmit, isDefaultValue]) => (
-              <Button type="submit" size="sm" disabled={!canSubmit || isDefaultValue}>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+            {([canSubmit, isSubmitting]) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || isSubmitting}>
                 Create
               </Button>
             )}

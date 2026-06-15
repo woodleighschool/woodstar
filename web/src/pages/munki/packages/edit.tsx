@@ -72,10 +72,12 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const softwareInfo: SoftwareInfo = {
+    id: pkg.software_id,
     name: pkg.software_name,
     description: pkg.software_description,
     category: pkg.software_category,
     developer: pkg.software_developer,
+    iconUrl: pkg.icon_url,
   };
   const form = usePackageEditorForm(initial, async (value) => {
     const validationError = packageSubmitPreflightError(value, {
@@ -119,7 +121,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
         />
         <FormActions
           form={form}
-          requireDirty={false}
+          submitLabel="Save"
           onCancel={() => void navigate({ to: "/munki/packages" })}
         />
       </form>

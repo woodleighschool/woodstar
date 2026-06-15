@@ -134,7 +134,6 @@ export function MunkiSoftwareOptionsFields({
                   items={categoryOptions}
                   itemToStringValue={(option) => option}
                   freeTextItem={freeTextOption}
-                  emptyText="No Values Available."
                   invalid={control["aria-invalid"]}
                   onBlur={field.handleBlur}
                   onChange={field.handleChange}
@@ -154,7 +153,6 @@ export function MunkiSoftwareOptionsFields({
                   items={developerOptions}
                   itemToStringValue={(option) => option}
                   freeTextItem={freeTextOption}
-                  emptyText="No Values Available."
                   invalid={control["aria-invalid"]}
                   onBlur={field.handleBlur}
                   onChange={field.handleChange}

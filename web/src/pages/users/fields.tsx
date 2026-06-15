@@ -184,9 +184,9 @@ export function UserForm({
           >
             Updated {formatRelative(user.updated_at)}
           </p>
-          <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
-            {([canSubmit, isDefaultValue]) => (
-              <Button type="submit" size="sm" disabled={!canSubmit || isDefaultValue}>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+            {([canSubmit, isSubmitting]) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || isSubmitting}>
                 Save
               </Button>
             )}

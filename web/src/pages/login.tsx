@@ -86,9 +86,9 @@ export function LoginPage() {
               </form.Field>
 
               <Field>
-                <form.Subscribe selector={(state) => [state.canSubmit, state.isDefaultValue]}>
-                  {([canSubmit, isDefaultValue]) => (
-                    <Button type="submit" disabled={!canSubmit || isDefaultValue}>
+                <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+                  {([canSubmit, isSubmitting]) => (
+                    <Button type="submit" disabled={!canSubmit || isSubmitting}>
                       Login
                     </Button>
                   )}

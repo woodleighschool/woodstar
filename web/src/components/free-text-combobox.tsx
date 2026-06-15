@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Combobox,
+  ComboboxAnchor,
+  ComboboxCancel,
   ComboboxContent,
-  ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
-  ComboboxList,
+  ComboboxSeparator,
+  ComboboxTrigger,
 } from "@/components/ui/combobox";
 
 export function FreeTextCombobox<TItem>({
@@ -18,8 +20,6 @@ export function FreeTextCombobox<TItem>({
   placeholder,
   invalid,
   disabled,
-  emptyText,
-  noResultsText = "No Values Found.",
   itemToStringValue,
   freeTextItem,
   itemKey,
@@ -36,8 +36,6 @@ export function FreeTextCombobox<TItem>({
   placeholder?: string;
   invalid?: boolean;
   disabled?: boolean;
-  emptyText?: ReactNode;
-  noResultsText?: ReactNode;
   itemToStringValue: (item: TItem) => string;
   freeTextItem: (value: string) => TItem;
   itemKey?: (item: TItem) => string;
@@ -47,53 +45,95 @@ export function FreeTextCombobox<TItem>({
   onChange: (value: string) => void;
   onSelectItem?: (item: TItem) => void;
 }) {
-  const selected = useMemo(
-    () =>
-      items.find((item) => itemToStringValue(item) === value) ??
-      (value ? freeTextItem(value) : null),
-    [freeTextItem, itemToStringValue, items, value],
+  const [addedItems, setAddedItems] = useState<TItem[]>([]);
+  const options = useMemo(
+    () => uniqueItems([...items, ...addedItems], itemToStringValue),
+    [addedItems, itemToStringValue, items],
   );
+  const selected = useMemo(
+    () => options.find((item) => itemToStringValue(item) === value) ?? null,
+    [itemToStringValue, options, value],
+  );
+  const newValue = value.trim();
+  const addItem =
+    newValue !== "" && !options.some((item) => itemToStringValue(item) === newValue)
+      ? freeTextItem(newValue)
+      : null;
+  const renderedOptions = addItem ? [...options, addItem] : options;
+  const hasRenderedOptions = renderedOptions.length > 0;
 
   return (
     <Combobox
-      items={items}
-      value={selected}
+      value={selected ? itemToStringValue(selected) : ""}
       inputValue={value}
-      itemToStringLabel={itemToStringValue}
-      itemToStringValue={itemToStringValue}
       onInputValueChange={onChange}
       onValueChange={(next) => {
         if (!next) {
           return;
         }
-        onChange(itemToStringValue(next));
-        onSelectItem?.(next);
+        const item =
+          renderedOptions.find((candidate) => itemToStringValue(candidate) === next) ??
+          freeTextItem(next);
+        const itemValue = itemToStringValue(item);
+
+        if (!options.some((candidate) => itemToStringValue(candidate) === itemValue)) {
+          setAddedItems((current) => uniqueItems([...current, item], itemToStringValue));
+        }
+
+        onChange(itemValue);
+        onSelectItem?.(item);
       }}
+      preserveInputOnBlur
     >
-      <ComboboxInput
-        id={id}
-        name={name}
-        className="w-full"
-        placeholder={placeholder}
-        showClear={value !== ""}
-        disabled={disabled}
-        aria-invalid={invalid}
-        onBlur={onBlur}
-      />
-      <ComboboxContent>
-        <ComboboxEmpty>{items.length === 0 ? emptyText : noResultsText}</ComboboxEmpty>
-        <ComboboxList>
-          {(item: TItem) => (
-            <ComboboxItem
-              key={itemKey?.(item) ?? itemToStringValue(item)}
-              value={item}
-              disabled={itemDisabled?.(item)}
-            >
-              {renderItem?.(item) ?? itemToStringValue(item)}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
+      <ComboboxAnchor className="w-full">
+        <ComboboxInput
+          id={id}
+          name={name}
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-invalid={invalid}
+          onBlur={onBlur}
+        />
+        {value !== "" ? <ComboboxCancel aria-label="Clear value" /> : null}
+        <ComboboxTrigger aria-label="Open values" />
+      </ComboboxAnchor>
+      {hasRenderedOptions ? (
+        <ComboboxContent>
+          {options.map((item) => {
+            const itemValue = itemToStringValue(item);
+            return (
+              <ComboboxItem
+                key={itemKey?.(item) ?? itemValue}
+                value={itemValue}
+                label={itemValue}
+                disabled={itemDisabled?.(item)}
+              >
+                {renderItem?.(item) ?? itemValue}
+              </ComboboxItem>
+            );
+          })}
+          {addItem ? (
+            <>
+              {options.length > 0 ? <ComboboxSeparator /> : null}
+              <ComboboxItem value={newValue} label={newValue}>
+                <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
+              </ComboboxItem>
+            </>
+          ) : null}
+        </ComboboxContent>
+      ) : null}
     </Combobox>
   );
+}
+
+function uniqueItems<TItem>(items: TItem[], itemToStringValue: (item: TItem) => string): TItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const value = itemToStringValue(item);
+    if (seen.has(value)) {
+      return false;
+    }
+    seen.add(value);
+    return true;
+  });
 }

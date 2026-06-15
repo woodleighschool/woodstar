@@ -1,40 +1,67 @@
-import type { AnyFormApi } from "@tanstack/react-form";
-import { useStore } from "@tanstack/react-form";
+import type {
+  FormAsyncValidateOrFn,
+  FormValidateOrFn,
+  ReactFormExtendedApi,
+} from "@tanstack/react-form";
 
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
-// Submit/cancel footer for every form. Submit is gated on the form's own state:
-// disabled while submitting or invalid (canSubmit), and while nothing has changed
-// from the initial values (isDefaultValue). Forms that keep part of their state
-// outside the form (uploads, separate editors) pass requireDirty={false} so the
-// dirty check doesn't suppress those changes. Outcomes are reported by toast, so
-// there is no spinner or inline error here.
-export function FormActions({
+// Submit/cancel footer for mutable resource forms. It follows TanStack's
+// form.Subscribe submit pattern and leaves dirty-state policy out of the footer.
+export function FormActions<
+  TFormData,
+  TOnMount extends undefined | FormValidateOrFn<TFormData>,
+  TOnChange extends undefined | FormValidateOrFn<TFormData>,
+  TOnChangeAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
+  TOnBlur extends undefined | FormValidateOrFn<TFormData>,
+  TOnBlurAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
+  TOnSubmit extends undefined | FormValidateOrFn<TFormData>,
+  TOnSubmitAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
+  TOnDynamic extends undefined | FormValidateOrFn<TFormData>,
+  TOnDynamicAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
+  TOnServer extends undefined | FormAsyncValidateOrFn<TFormData>,
+  TSubmitMeta,
+>({
   form,
-  submitLabel = "Save",
+  submitLabel,
   onCancel,
   className,
-  requireDirty = true,
 }: {
-  form: AnyFormApi;
-  submitLabel?: string;
+  form: ReactFormExtendedApi<
+    TFormData,
+    TOnMount,
+    TOnChange,
+    TOnChangeAsync,
+    TOnBlur,
+    TOnBlurAsync,
+    TOnSubmit,
+    TOnSubmitAsync,
+    TOnDynamic,
+    TOnDynamicAsync,
+    TOnServer,
+    TSubmitMeta
+  >;
+  submitLabel: string;
   onCancel?: () => void;
   className?: string;
-  requireDirty?: boolean;
 }) {
-  const canSubmit = useStore(form.store, (state) => state.canSubmit);
-  const isDefaultValue = useStore(form.store, (state) => state.isDefaultValue);
   return (
-    <div className={cn("flex items-center gap-2 border-t pt-4", className)}>
-      <Button type="submit" size="sm" disabled={!canSubmit || (requireDirty && isDefaultValue)}>
-        {submitLabel}
-      </Button>
-      {onCancel ? (
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-      ) : null}
-    </div>
+    <form.Subscribe
+      selector={(state) => [state.canSubmit, state.isSubmitting] as const}
+      children={([canSubmit, isSubmitting]) => (
+        <Field orientation="horizontal" className={cn("justify-start", className)}>
+          <Button type="submit" size="sm" disabled={!canSubmit || isSubmitting}>
+            {submitLabel}
+          </Button>
+          {onCancel ? (
+            <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+              Cancel
+            </Button>
+          ) : null}
+        </Field>
+      )}
+    />
   );
 }

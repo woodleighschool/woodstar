@@ -1,14 +1,15 @@
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { isValidElement, useState } from "react";
+import { isValidElement, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import {
   Combobox,
+  ComboboxAnchor,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
-  ComboboxList,
+  ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -136,28 +137,38 @@ function TableSelector({
   onChange: (name: string) => void;
 }) {
   const tableNames = tables.map((table) => table.name);
+  const [inputValue, setInputValue] = useState(value ?? "");
+
+  useEffect(() => {
+    setInputValue(value ?? "");
+  }, [value]);
 
   return (
     <Combobox
-      items={tableNames}
-      value={value ?? null}
+      value={value ?? ""}
+      inputValue={inputValue}
       onValueChange={(next) => {
-        if (next) onChange(next);
+        if (next) {
+          onChange(next);
+          setInputValue(next);
+        }
       }}
       onInputValueChange={(next) => {
+        setInputValue(next);
         if (tableNames.includes(next)) onChange(next);
       }}
     >
-      <ComboboxInput placeholder="Select a Table" className="w-full text-sm" />
+      <ComboboxAnchor className="w-full">
+        <ComboboxInput placeholder="Select a Table" className="text-sm" />
+        <ComboboxTrigger aria-label="Open tables" />
+      </ComboboxAnchor>
       <ComboboxContent>
         <ComboboxEmpty>No Tables Found.</ComboboxEmpty>
-        <ComboboxList>
-          {(item: string) => (
-            <ComboboxItem key={item} value={item} className="text-sm">
-              {item}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
+        {tableNames.map((item) => (
+          <ComboboxItem key={item} value={item} label={item} className="text-sm">
+            {item}
+          </ComboboxItem>
+        ))}
       </ComboboxContent>
     </Combobox>
   );

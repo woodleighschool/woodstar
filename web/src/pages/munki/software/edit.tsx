@@ -306,7 +306,7 @@ function MunkiSoftwareDetailForm({
           ))}
         </ScrollableTabs>
 
-        <FormActions form={softwareOptionsForm} requireDirty={false} onCancel={resetTargetPage} />
+        <FormActions form={softwareOptionsForm} submitLabel="Save" onCancel={resetTargetPage} />
       </form>
     </PageShell>
   );

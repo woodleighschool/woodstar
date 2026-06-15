@@ -102,7 +102,7 @@ export function MunkiSoftwareCreatePage() {
         </ScrollableTabs>
         <FormActions
           form={form}
-          requireDirty={false}
+          submitLabel="Create"
           onCancel={() => void navigate({ to: "/munki/software" })}
         />
       </form>

@@ -1,15 +1,10 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ColumnDef } from "@tanstack/react-table";
-import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
-import {
-  AssignmentLabelField,
-  AssignmentLabelStatic,
-} from "@/components/targeting/assignment-label-field";
+import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -29,6 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useLabels } from "@/hooks/use-labels";
 import { type SantaRulePolicy } from "@/hooks/use-santa-rules";
 import { POLICY_OPTIONS } from "@/lib/santa-rules";
@@ -102,66 +112,6 @@ export function SantaIncludeTargets({
     setDialog(null);
   }
 
-  const columns = useMemo<ColumnDef<RuleIncludeForm>[]>(
-    () => [
-      {
-        id: "label",
-        header: "Label",
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.original.label_id === null
-            ? "-"
-            : (labelsByID.get(row.original.label_id) ?? `Label ${row.original.label_id}`),
-      },
-      {
-        id: "policy",
-        header: "Policy",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2">
-            <Badge variant="secondary" className="font-normal">
-              {POLICY_LABELS.get(row.original.policy) ?? row.original.policy}
-            </Badge>
-            {row.original.policy === "cel" && row.original.cel_expression ? (
-              <code className="min-w-0 truncate text-xs text-muted-foreground">
-                {row.original.cel_expression}
-              </code>
-            ) : null}
-          </div>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Edit include"
-              onClick={() => openEdit(row.original)}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Remove include"
-              onClick={() => onChange(include.filter((item) => item.id !== row.original.id))}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    // openEdit/onChange/include captured fresh each render; columns rebuild on data change.
-    [include, labelsByID, onChange],
-  );
-
   return (
     <TargetSection
       title="Include"
@@ -173,7 +123,44 @@ export function SantaIncludeTargets({
       }
     >
       {include.length > 0 ? (
-        <DataTableStatic columns={columns} data={include} />
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead>Policy</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {include.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>{includeLabel(row, labelsByID)}</TableCell>
+                  <TableCell className="max-w-[28rem]">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Badge variant="secondary" className="font-normal">
+                        {POLICY_LABELS.get(row.policy) ?? row.policy}
+                      </Badge>
+                      {row.policy === "cel" && row.cel_expression ? (
+                        <code className="min-w-0 truncate text-xs text-muted-foreground">
+                          {row.cel_expression}
+                        </code>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-12">
+                    <SantaIncludeRowActions
+                      onEdit={() => openEdit(row)}
+                      onRemove={() => onChange(include.filter((item) => item.id !== row.id))}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <EmptyPanel>No includes yet</EmptyPanel>
       )}
@@ -184,17 +171,13 @@ export function SantaIncludeTargets({
             <DialogTitle>{dialog?.mode === "edit" ? "Edit Include" : "Add Include"}</DialogTitle>
           </DialogHeader>
 
-          {dialog?.mode === "edit" ? (
-            <AssignmentLabelStatic
-              name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`}
-            />
-          ) : (
+          {dialog?.mode === "add" ? (
             <AssignmentLabelField
               value={draft.label_id}
               onChange={(label_id) => setDraft((current) => ({ ...current, label_id }))}
               unavailableLabelIDs={unavailableLabelIDs}
             />
-          )}
+          ) : null}
 
           <Field>
             <FieldLabel htmlFor="santa-include-policy">Policy</FieldLabel>
@@ -241,7 +224,7 @@ export function SantaIncludeTargets({
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
               >
                 <ExternalLink className="size-3" />
-                Northpole CEL
+                CEL Handbook
               </a>
             </Field>
           ) : null}
@@ -262,6 +245,39 @@ export function SantaIncludeTargets({
 
 function emptyDraft(): IncludeDraft {
   return { label_id: null, policy: "allowlist", cel_expression: "" };
+}
+
+function SantaIncludeRowActions({
+  onEdit,
+  onRemove,
+}: {
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Open include actions">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+function includeLabel(row: RuleIncludeForm, labelsByID: Map<number, string>) {
+  if (row.label_id === null) return "-";
+  return labelsByID.get(row.label_id) ?? `Label ${row.label_id}`;
 }
 
 function celDraftError(draft: IncludeDraft): string | undefined {

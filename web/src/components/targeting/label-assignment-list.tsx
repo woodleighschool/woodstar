@@ -1,8 +1,6 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
@@ -14,6 +12,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
@@ -56,35 +69,6 @@ export function LabelAssignmentList({
     setAdding(false);
   }
 
-  const columns = useMemo<ColumnDef<LabelRef>[]>(
-    () => [
-      {
-        id: "label",
-        header: "Label",
-        enableSorting: false,
-        cell: ({ row }) =>
-          labelsByID.get(row.original.label_id) ?? `Label ${row.original.label_id}`,
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Remove ${title.toLowerCase()}`}
-            onClick={() => onChange(rows.filter((item) => item.label_id !== row.original.label_id))}
-          >
-            <Trash2 />
-          </Button>
-        ),
-      },
-    ],
-    [labelsByID, onChange, rows, title],
-  );
-
   return (
     <TargetSection
       title={title}
@@ -104,7 +88,33 @@ export function LabelAssignmentList({
       }
     >
       {rows.length > 0 ? (
-        <DataTableStatic columns={columns} data={rows} />
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.label_id}>
+                  <TableCell>{labelsByID.get(row.label_id) ?? `Label ${row.label_id}`}</TableCell>
+                  <TableCell className="w-12">
+                    <LabelAssignmentRowActions
+                      title={title}
+                      onRemove={() =>
+                        onChange(rows.filter((item) => item.label_id !== row.label_id))
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <EmptyPanel>{emptyText}</EmptyPanel>
       )}
@@ -131,5 +141,31 @@ export function LabelAssignmentList({
         </DialogContent>
       </Dialog>
     </TargetSection>
+  );
+}
+
+function LabelAssignmentRowActions({ title, onRemove }: { title: string; onRemove: () => void }) {
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Open ${title.toLowerCase()} actions`}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuGroup>
+            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

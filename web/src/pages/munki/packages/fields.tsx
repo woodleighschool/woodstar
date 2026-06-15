@@ -1,6 +1,7 @@
 import { StreamLanguage } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
+import { Link } from "@tanstack/react-router";
 import { FileArchive, Plus, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
 
@@ -8,6 +9,7 @@ import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
+import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -82,15 +84,18 @@ const generalScriptFields = scriptFields.filter((script) => script.key !== "unin
 type PackageFieldName = keyof PackageFormState;
 
 export type SoftwareInfo = {
+  id: number;
   name: string;
   description: string;
   category: string;
   developer: string;
+  iconUrl?: string;
 };
 
 export function PackageEditorTabs({
   form,
   softwareInfo,
+  softwareSelector,
   packageOptions,
   installerFile,
   uninstallerFile,
@@ -101,6 +106,7 @@ export function PackageEditorTabs({
 }: {
   form: PackageEditorForm;
   softwareInfo: SoftwareInfo | null;
+  softwareSelector?: ReactNode;
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   uninstallerFile: File | null;
@@ -113,7 +119,9 @@ export function PackageEditorTabs({
     {
       value: "basic",
       label: "Basic Info",
-      content: <BasicInfoTab form={form} software={softwareInfo} />,
+      content: (
+        <BasicInfoTab form={form} software={softwareInfo} softwareSelector={softwareSelector} />
+      ),
     },
     {
       value: "contents",
@@ -187,13 +195,15 @@ export function PackageEditorTabs({
 function BasicInfoTab({
   form,
   software,
+  softwareSelector,
 }: {
   form: PackageEditorForm;
   software: SoftwareInfo | null;
+  softwareSelector?: ReactNode;
 }) {
   return (
     <FieldGroup>
-      <InheritedSummary software={software} />
+      <ParentSoftwarePanel software={software} selector={softwareSelector} />
 
       <FieldSet>
         <FieldLegend>Package</FieldLegend>
@@ -267,22 +277,48 @@ function BasicInfoTab({
   );
 }
 
-function InheritedSummary({ software }: { software: SoftwareInfo | null }) {
+function ParentSoftwarePanel({
+  software,
+  selector,
+}: {
+  software: SoftwareInfo | null;
+  selector?: ReactNode;
+}) {
   return (
     <div className="rounded-md border bg-muted/30 p-4">
-      <p className="mb-3 text-xs font-medium text-muted-foreground">
-        Inherited from the parent software
-      </p>
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <InheritedItem label="Name" value={software?.name} />
-        <InheritedItem label="Category" value={software?.category} />
-        <InheritedItem label="Developer" value={software?.developer} />
-        <InheritedItem
-          label="Description"
-          value={software?.description}
-          className="sm:col-span-2"
-        />
-      </dl>
+      <div className="mb-4 flex min-w-0 items-center gap-3">
+        <MunkiIcon iconUrl={software?.iconUrl} size="md" loading="eager" />
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Parent software</p>
+          {software && !selector ? (
+            <Link
+              to="/munki/software/$softwareId"
+              params={{ softwareId: String(software.id) }}
+              className="block truncate text-sm font-medium hover:underline"
+            >
+              {software.name}
+            </Link>
+          ) : software ? (
+            <p className="truncate text-sm font-medium">{software.name}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select software</p>
+          )}
+        </div>
+      </div>
+
+      {selector ? <div className="mb-4 max-w-xl">{selector}</div> : null}
+
+      {software ? (
+        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <InheritedItem label="Category" value={software.category} />
+          <InheritedItem label="Developer" value={software.developer} />
+          <InheritedItem
+            label="Description"
+            value={software.description}
+            className="sm:col-span-2"
+          />
+        </dl>
+      ) : null}
     </div>
   );
 }

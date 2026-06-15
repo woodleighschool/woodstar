@@ -1,17 +1,18 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   Combobox,
+  ComboboxAnchor,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
-  ComboboxList,
+  ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { useUploadMunkiInstaller, useUploadMunkiUninstaller } from "@/hooks/use-munki-uploads";
@@ -66,14 +67,58 @@ export function MunkiPackageCreatePage() {
   });
   const softwareRows = software.data?.items ?? [];
   const selectedSoftware = softwareRows.find((item) => item.id === softwareID) ?? null;
+  const [softwareInputValue, setSoftwareInputValue] = useState(selectedSoftware?.name ?? "");
+
+  useEffect(() => {
+    setSoftwareInputValue(selectedSoftware?.name ?? "");
+  }, [selectedSoftware?.id, selectedSoftware?.name]);
+
   const softwareInfo: SoftwareInfo | null = selectedSoftware
     ? {
+        id: selectedSoftware.id,
         name: selectedSoftware.name,
         description: selectedSoftware.description,
         category: selectedSoftware.category,
         developer: selectedSoftware.developer,
+        iconUrl: selectedSoftware.icon_url,
       }
     : null;
+  const softwareSelector = (
+    <Field>
+      <FieldLabel htmlFor="munki-package-software" required>
+        Software
+      </FieldLabel>
+      <Combobox
+        value={selectedSoftware ? String(selectedSoftware.id) : ""}
+        inputValue={softwareInputValue}
+        onInputValueChange={setSoftwareInputValue}
+        onValueChange={(next) => {
+          const item = softwareRows.find((candidate) => String(candidate.id) === next);
+          setSoftwareID(item?.id ?? null);
+          setSoftwareInputValue(item?.name ?? "");
+        }}
+      >
+        <ComboboxAnchor className="w-full">
+          <ComboboxInput
+            id="munki-package-software"
+            placeholder={software.isLoading ? "Loading Software..." : "Select Software"}
+            required
+          />
+          <ComboboxTrigger aria-label="Open software" />
+        </ComboboxAnchor>
+        <ComboboxContent>
+          <ComboboxEmpty>
+            {softwareRows.length === 0 ? "No Software Available." : "No Software Found."}
+          </ComboboxEmpty>
+          {softwareRows.map((item: MunkiSoftware) => (
+            <ComboboxItem key={item.id} value={String(item.id)} label={item.name}>
+              {item.name}
+            </ComboboxItem>
+          ))}
+        </ComboboxContent>
+      </Combobox>
+    </Field>
+  );
 
   return (
     <PageShell asChild>
@@ -85,40 +130,10 @@ export function MunkiPackageCreatePage() {
         }}
       >
         <PageHeader title="New Package" />
-        <Field className="max-w-xl">
-          <FieldLabel htmlFor="munki-package-software" required>
-            Software
-          </FieldLabel>
-          <Combobox
-            items={softwareRows}
-            value={selectedSoftware}
-            itemToStringLabel={(item) => item.name}
-            itemToStringValue={(item) => String(item.id)}
-            onValueChange={(next) => setSoftwareID(next?.id ?? null)}
-          >
-            <ComboboxInput
-              id="munki-package-software"
-              className="w-full"
-              placeholder={software.isLoading ? "Loading Software..." : "Select Software"}
-              required
-            />
-            <ComboboxContent>
-              <ComboboxEmpty>
-                {softwareRows.length === 0 ? "No Software Available." : "No Software Found."}
-              </ComboboxEmpty>
-              <ComboboxList>
-                {(item: MunkiSoftware) => (
-                  <ComboboxItem key={item.id} value={item}>
-                    {item.name}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </Field>
         <PackageEditorTabs
           form={form}
           softwareInfo={softwareInfo}
+          softwareSelector={softwareSelector}
           packageOptions={packages.data?.items ?? []}
           installerFile={installerFile}
           uninstallerFile={uninstallerFile}
@@ -129,7 +144,7 @@ export function MunkiPackageCreatePage() {
         />
         <FormActions
           form={form}
-          requireDirty={false}
+          submitLabel="Create"
           onCancel={() => void navigate({ to: "/munki/packages" })}
         />
       </form>

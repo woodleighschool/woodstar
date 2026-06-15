@@ -1,25 +1,22 @@
 import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { EmptyPanel } from "@/components/empty-panel";
-import {
-  AssignmentLabelField,
-  AssignmentLabelStatic,
-} from "@/components/targeting/assignment-label-field";
+import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
+  ComboboxAnchor,
+  ComboboxBadgeItem,
+  ComboboxBadgeList,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxInput,
   ComboboxItem,
-  ComboboxList,
-  ComboboxValue,
+  ComboboxTrigger,
 } from "@/components/ui/combobox";
 import {
   Dialog,
@@ -28,6 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -162,7 +166,7 @@ export function MunkiIncludeTargets({
                   <TableHead>Label</TableHead>
                   <TableHead>Package</TableHead>
                   <TableHead>Actions</TableHead>
-                  <TableHead className="w-20" />
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <SortableContent asChild>
@@ -199,27 +203,11 @@ export function MunkiIncludeTargets({
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell className="w-20">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Edit include"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Remove include"
-                              onClick={() => onChange(rows.filter((item) => item.id !== row.id))}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </div>
+                        <TableCell className="w-12">
+                          <MunkiIncludeRowActions
+                            onEdit={() => openEdit(row)}
+                            onRemove={() => onChange(rows.filter((item) => item.id !== row.id))}
+                          />
                         </TableCell>
                       </TableRow>
                     </SortableItem>
@@ -239,17 +227,13 @@ export function MunkiIncludeTargets({
             <DialogTitle>{dialog?.mode === "edit" ? "Edit Include" : "Add Include"}</DialogTitle>
           </DialogHeader>
 
-          {dialog?.mode === "edit" ? (
-            <AssignmentLabelStatic
-              name={labelsByID.get(draft.label_id ?? -1) ?? `Label ${draft.label_id ?? ""}`}
-            />
-          ) : (
+          {dialog?.mode === "add" ? (
             <AssignmentLabelField
               value={draft.label_id}
               onChange={(label_id) => setDraft((current) => ({ ...current, label_id }))}
               unavailableLabelIDs={unavailableLabelIDs}
             />
-          )}
+          ) : null}
 
           <Field>
             <FieldLabel htmlFor="munki-target-package">Package</FieldLabel>
@@ -295,6 +279,34 @@ export function MunkiIncludeTargets({
   );
 }
 
+function MunkiIncludeRowActions({
+  onEdit,
+  onRemove,
+}: {
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Open include actions">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 function TargetActionsField({
   value,
   onChange,
@@ -309,33 +321,38 @@ function TargetActionsField({
     <Field>
       <FieldLabel>Actions</FieldLabel>
       <Combobox
-        items={MUNKI_SOFTWARE_ACTION_OPTIONS}
         multiple
-        value={selected}
-        itemToStringLabel={(option) => option.label}
-        itemToStringValue={(option) => option.value}
-        onValueChange={(next) => onChange(next.map((option) => option.value))}
+        value={value}
+        onValueChange={(next) =>
+          onChange(
+            next.filter((action): action is SoftwareInclude["actions"][number] =>
+              MUNKI_SOFTWARE_ACTION_OPTIONS.some((option) => option.value === action),
+            ),
+          )
+        }
       >
-        <ComboboxChips>
-          <ComboboxValue>
+        <ComboboxAnchor className="h-auto min-h-9 flex-wrap py-1.5 pr-2">
+          <ComboboxBadgeList>
             {selected.map((option) => (
-              <ComboboxChip key={option.value}>{option.label}</ComboboxChip>
+              <ComboboxBadgeItem key={option.value} value={option.value}>
+                {option.label}
+              </ComboboxBadgeItem>
             ))}
-          </ComboboxValue>
-          <ComboboxChipsInput
+          </ComboboxBadgeList>
+          <ComboboxInput
+            className="h-[calc(--spacing(5.5))] min-w-16 flex-1 px-0 py-0 text-sm"
             placeholder={selected.length === 0 ? "Pick actions" : ""}
             required={selected.length === 0}
           />
-        </ComboboxChips>
+          <ComboboxTrigger aria-label="Open actions" className="ml-auto" />
+        </ComboboxAnchor>
         <ComboboxContent>
           <ComboboxEmpty>No Actions Found.</ComboboxEmpty>
-          <ComboboxList>
-            {(option: (typeof MUNKI_SOFTWARE_ACTION_OPTIONS)[number]) => (
-              <ComboboxItem key={option.value} value={option}>
-                <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              </ComboboxItem>
-            )}
-          </ComboboxList>
+          {MUNKI_SOFTWARE_ACTION_OPTIONS.map((option) => (
+            <ComboboxItem key={option.value} value={option.value} label={option.label}>
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+            </ComboboxItem>
+          ))}
         </ComboboxContent>
       </Combobox>
       {warning ? <p className="text-xs text-warning">{warning}</p> : null}
@@ -344,7 +361,7 @@ function TargetActionsField({
 }
 
 function emptyDraft(): TargetDraft {
-  return { label_id: null, package: { strategy: "latest" }, actions: ["managed_installs"] };
+  return { label_id: null, package: { strategy: "latest" }, actions: [] };
 }
 
 function packageLabel(pkg: SoftwareInclude["package"], packages: MunkiPackage[]) {
