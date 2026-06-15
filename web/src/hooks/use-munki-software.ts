@@ -9,7 +9,15 @@ import type {
   MunkiSoftwareMutation,
   MunkiSoftwarePage,
 } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteMunkiSoftware,
+  createMunkiSoftware,
+  deleteMunkiSoftware,
+  getMunkiSoftware,
+  listMunkiSoftware,
+  unwrap,
+  updateMunkiSoftware,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -35,13 +43,7 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
   const query = queryParams(params);
   return useQuery<MunkiSoftwarePage, ApiError>({
     queryKey: queryKeys.munkiSoftware(query),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/munki/software", {
-          params: { query },
-          signal,
-        }),
-      ),
+    queryFn: ({ signal }) => unwrap(listMunkiSoftware({ query, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -49,13 +51,7 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
 export function useMunkiSoftwareDetail(id: number | null) {
   return useQuery<MunkiSoftwareDetail, ApiError>({
     queryKey: queryKeys.munkiSoftwareDetail(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/munki/software/{id}", {
-          params: { path: { id: id ?? 0 } },
-          signal,
-        }),
-      ),
+    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: { id: id ?? 0 }, signal })),
     enabled: id !== null,
   });
 }
@@ -63,7 +59,7 @@ export function useMunkiSoftwareDetail(id: number | null) {
 export function useCreateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, MunkiSoftwareMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/software", { body })),
+    mutationFn: (body) => unwrap(createMunkiSoftware({ body })),
     onSuccess: () => {
       toast.success("Software created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
@@ -74,8 +70,7 @@ export function useCreateMunkiSoftware() {
 export function useUpdateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiSoftwareMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/munki/software/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
     onSuccess: (title) => {
       toast.success("Software saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
@@ -87,8 +82,7 @@ export function useUpdateMunkiSoftware() {
 export function useDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/munki/software/{id}", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteMunkiSoftware({ path: { id } })),
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(id) });
@@ -99,8 +93,7 @@ export function useDeleteMunkiSoftware() {
 export function useBulkDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) =>
-      unwrap(apiClient.POST("/api/munki/software/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteMunkiSoftware({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
     },

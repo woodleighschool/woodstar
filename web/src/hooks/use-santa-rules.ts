@@ -3,7 +3,16 @@ import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Page, Rule, RuleMutation, RuleReferenceCandidate } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteSantaRules,
+  createSantaRule,
+  deleteSantaRule,
+  getSantaRule,
+  listSantaRuleReferences,
+  listSantaRules,
+  unwrap,
+  updateSantaRule,
+} from "@/lib/api";
 import type { ListSantaRuleReferencesData, ListSantaRulesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -30,8 +39,7 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
 
   return useQuery<SantaRuleListResult, ApiError>({
     queryKey: queryKeys.santaRules(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/rules", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) => unwrap(listSantaRules({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -41,8 +49,8 @@ export function useSantaRule(id: number | null) {
     queryKey: queryKeys.santaRule(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/rules/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getSantaRule({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -60,9 +68,7 @@ export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}
   return useQuery<SantaRuleReferenceListResult, ApiError>({
     queryKey: queryKeys.santaRuleReferences(queryParams),
     queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/santa/rule-references", { params: { query: queryParams }, signal }),
-      ),
+      unwrap(listSantaRuleReferences({ query: queryParams, signal })).then((rows) => rows ?? []),
     placeholderData: keepPreviousData,
   });
 }
@@ -70,7 +76,7 @@ export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}
 export function useCreateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, SantaRuleMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/santa/rules", { body })),
+    mutationFn: (body) => unwrap(createSantaRule({ body })),
     onSuccess: (rule) => {
       toast.success("Rule created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
@@ -82,8 +88,7 @@ export function useCreateSantaRule() {
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(updateSantaRule({ path: { id }, body })),
     onSuccess: (rule) => {
       toast.success("Rule saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
@@ -95,8 +100,7 @@ export function useUpdateSantaRule() {
 export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteSantaRule({ path: { id } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },
@@ -106,7 +110,7 @@ export function useDeleteSantaRule() {
 export function useBulkDeleteSantaRules() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(apiClient.POST("/api/santa/rules/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteSantaRules({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },

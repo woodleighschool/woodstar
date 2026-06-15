@@ -2,7 +2,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, ExecutionEvent, FileAccessEvent, HostSummary, Page } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  getSantaEvent,
+  getSantaFileAccessEvent,
+  listSantaEvents,
+  listSantaFileAccessEvents,
+  unwrap,
+} from "@/lib/api";
 import type {
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
@@ -38,8 +44,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
 
   return useQuery<SantaEventListResult, ApiError>({
     queryKey: queryKeys.santaEvents(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) => unwrap(listSantaEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -49,8 +54,8 @@ export function useSantaEvent(id: number | null) {
     queryKey: queryKeys.santaEvent(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/events/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getSantaEvent({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -71,10 +76,7 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
 
   return useQuery<SantaFileAccessEventListResult, ApiError>({
     queryKey: queryKeys.santaFileAccessEvents(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/santa/file-access-events", { params: { query: queryParams }, signal }),
-      ),
+    queryFn: ({ signal }) => unwrap(listSantaFileAccessEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -84,8 +86,8 @@ export function useSantaFileAccessEvent(id: number | null) {
     queryKey: queryKeys.santaFileAccessEvent(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/file-access-events/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getSantaFileAccessEvent({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),

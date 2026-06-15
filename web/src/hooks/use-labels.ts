@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Label, LabelMutation, Page } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -26,8 +26,8 @@ export function useLabels(params: LabelListParams = {}) {
     queryKey: queryKeys.labels(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/labels", {
-          params: { query: queryParams },
+        listLabels({
+          query: queryParams,
           signal,
         }),
       ),
@@ -40,8 +40,8 @@ export function useLabel(id: number | null) {
     queryKey: queryKeys.label(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/labels/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getLabel({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -52,7 +52,7 @@ export function useLabel(id: number | null) {
 export function useCreateLabel() {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/labels", { body })),
+    mutationFn: (body) => unwrap(createLabel({ body })),
     onSuccess: () => {
       toast.success("Label created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
@@ -64,8 +64,7 @@ export function useCreateLabel() {
 export function useUpdateLabel(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) =>
-      unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: id ?? 0 } }, body })),
+    mutationFn: (body) => unwrap(updateLabel({ path: { id: id ?? 0 }, body })),
     onSuccess: () => {
       toast.success("Label saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
@@ -77,7 +76,7 @@ export function useUpdateLabel(id: number | null) {
 export function useDeleteLabel() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/labels/{id}", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteLabel({ path: { id } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });

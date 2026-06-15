@@ -12,7 +12,19 @@ import type {
   Page,
   RuleStatus,
 } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteHosts,
+  deleteHost,
+  deleteHostUserAffinity,
+  getHost,
+  listHostOsqueryChecks,
+  listHostOsqueryReports,
+  listHosts,
+  listHostSantaRules,
+  listHostSoftware,
+  putHostUserAffinity,
+  unwrap,
+} from "@/lib/api";
 import type { ListHostSantaRulesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -68,8 +80,8 @@ export function useHosts(params: HostListParams = {}) {
     queryKey: queryKeys.hosts(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts", {
-          params: { query: queryParams },
+        listHosts({
+          query: queryParams,
           signal,
         }),
       ),
@@ -82,8 +94,8 @@ export function useHost(id: number | null) {
     queryKey: queryKeys.host(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getHost({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -94,7 +106,7 @@ export function useHost(id: number | null) {
 export function useDeleteHost() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
@@ -104,7 +116,7 @@ export function useDeleteHost() {
 export function useBulkDeleteHosts() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(apiClient.POST("/api/hosts/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteHosts({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
@@ -114,8 +126,7 @@ export function useBulkDeleteHosts() {
 export function useSetHostUserAffinity() {
   const queryClient = useQueryClient();
   return useMutation<HostDetail, ApiError, { id: number; body: HostUserAffinityMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/hosts/{id}/user-affinity", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(putHostUserAffinity({ path: { id }, body })),
     onSuccess: async (host) => {
       toast.success("User affinity set");
       queryClient.setQueryData(queryKeys.host(host.id), host);
@@ -127,8 +138,7 @@ export function useSetHostUserAffinity() {
 export function useClearHostUserAffinity() {
   const queryClient = useQueryClient();
   return useMutation<HostDetail, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteHostUserAffinity({ path: { id } })),
     onSuccess: async (host) => {
       toast.success("User affinity cleared");
       queryClient.setQueryData(queryKeys.host(host.id), host);
@@ -154,8 +164,9 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
     queryKey: queryKeys.hostSoftware(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/software", {
-          params: { path: { id: id ?? 0 }, query: queryParams },
+        listHostSoftware({
+          path: { id: id ?? 0 },
+          query: queryParams,
           signal,
         }),
       ),
@@ -169,11 +180,11 @@ export function useHostReports(id: number | null) {
     queryKey: queryKeys.hostReports(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/osquery/reports", {
-          params: { path: { id: id ?? 0 } },
+        listHostOsqueryReports({
+          path: { id: id ?? 0 },
           signal,
         }),
-      ),
+      ).then((rows) => rows ?? []),
     enabled: id !== null,
   });
 }
@@ -183,11 +194,11 @@ export function useHostChecks(id: number | null) {
     queryKey: queryKeys.hostChecks(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/osquery/checks", {
-          params: { path: { id: id ?? 0 } },
+        listHostOsqueryChecks({
+          path: { id: id ?? 0 },
           signal,
         }),
-      ),
+      ).then((rows) => rows ?? []),
     enabled: id !== null,
   });
 }
@@ -203,8 +214,9 @@ export function useHostSantaRules(id: number | null, params: HostSantaRulesParam
     queryKey: queryKeys.hostSantaRules(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/santa/rules", {
-          params: { path: { id: id ?? 0 }, query: queryParams },
+        listHostSantaRules({
+          path: { id: id ?? 0 },
+          query: queryParams,
           signal,
         }),
       ),

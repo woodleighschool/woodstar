@@ -3,7 +3,16 @@ import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Check, CheckHostStatus, CheckMutation, Page } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteOsqueryChecks,
+  createOsqueryCheck,
+  deleteOsqueryCheck,
+  getOsqueryCheck,
+  listOsqueryCheckHosts,
+  listOsqueryChecks,
+  unwrap,
+  updateOsqueryCheck,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -28,8 +37,7 @@ export function useChecks(params: CheckListParams = {}) {
 
   return useQuery<CheckListResult, ApiError>({
     queryKey: queryKeys.checks(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/checks", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) => unwrap(listOsqueryChecks({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -39,8 +47,8 @@ export function useCheck(id: number | null) {
     queryKey: queryKeys.check(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/checks/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getOsqueryCheck({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -53,11 +61,11 @@ export function useCheckHosts(id: number | null) {
     queryKey: queryKeys.checkHosts(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/checks/{id}/hosts", {
-          params: { path: { id: id ?? 0 } },
+        listOsqueryCheckHosts({
+          path: { id: id ?? 0 },
           signal,
         }),
-      ),
+      ).then((rows) => rows ?? []),
     enabled: id !== null,
   });
 }
@@ -65,7 +73,7 @@ export function useCheckHosts(id: number | null) {
 export function useCreateCheck() {
   const queryClient = useQueryClient();
   return useMutation<Check, ApiError, CheckMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/checks", { body })),
+    mutationFn: (body) => unwrap(createOsqueryCheck({ body })),
     onSuccess: () => {
       toast.success("Check created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
@@ -78,8 +86,8 @@ export function useUpdateCheck(id: number | null) {
   return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) =>
       unwrap(
-        apiClient.PUT("/api/osquery/checks/{id}", {
-          params: { path: { id: id ?? 0 } },
+        updateOsqueryCheck({
+          path: { id: id ?? 0 },
           body,
         }),
       ),
@@ -95,8 +103,7 @@ export function useUpdateCheck(id: number | null) {
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(deleteOsqueryCheck({ path: { id } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },
@@ -106,8 +113,7 @@ export function useDeleteCheck() {
 export function useBulkDeleteChecks() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) =>
-      unwrap(apiClient.POST("/api/osquery/checks/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteOsqueryChecks({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },

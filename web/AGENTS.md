@@ -25,7 +25,7 @@ Frontend rules for AI agents working under `web/`.
 - Read-only resources use `list.tsx` and `detail.tsx`.
 - Routes live in `src/routes`. Paginated index routes spread `tableSearchSchema.shape` into `validateSearch`.
 - Hooks live flat in `src/hooks/use-<resource>.ts`. Do not create per-capability hook folders or pack unrelated resources into one hook file.
-- All API fetching goes through `apiClient` and `unwrap` from `src/lib/api`.
+- All API fetching uses the generated operation functions and `unwrap`, both re-exported from `src/lib/api`.
 - Query keys and invalidation use `src/lib/query-keys`; do not inline query key arrays.
 - `src/lib/` is for resource-agnostic technical utilities and cross-capability domain surfaces. Capability-private schemas, metadata, and sub-components stay in the owning feature folder.
 - Use real generated/domain types directly. Do not add alias-only local types just to shorten names.

@@ -9,7 +9,14 @@ import type {
   MunkiPackageMutation,
   MunkiPackagePage,
 } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteMunkiPackages,
+  createMunkiPackage,
+  getMunkiPackage,
+  listMunkiPackages,
+  unwrap,
+  updateMunkiPackage,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -37,13 +44,7 @@ export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
   const query = softwareQueryParams(params);
   return useQuery<MunkiPackagePage, ApiError>({
     queryKey: queryKeys.munkiPackages(query),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/munki/packages", {
-          params: { query },
-          signal,
-        }),
-      ),
+    queryFn: ({ signal }) => unwrap(listMunkiPackages({ query, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -51,13 +52,7 @@ export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
 export function useMunkiPackage(id: number | null) {
   return useQuery<MunkiPackage, ApiError>({
     queryKey: queryKeys.munkiPackage(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/munki/packages/{id}", {
-          params: { path: { id: id ?? 0 } },
-          signal,
-        }),
-      ),
+    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: { id: id ?? 0 }, signal })),
     enabled: id !== null,
   });
 }
@@ -65,7 +60,7 @@ export function useMunkiPackage(id: number | null) {
 export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<MunkiPackage, ApiError, MunkiPackageCreateMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages", { body })),
+    mutationFn: (body) => unwrap(createMunkiPackage({ body })),
     onSuccess: (pkg) => {
       toast.success("Package created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
@@ -79,8 +74,7 @@ export function useCreateMunkiPackage() {
 export function useUpdateMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<MunkiPackage, ApiError, { id: number; body: MunkiPackageMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/munki/packages/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(updateMunkiPackage({ path: { id }, body })),
     onSuccess: (pkg) => {
       toast.success("Package saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
@@ -95,8 +89,7 @@ export function useUpdateMunkiPackage() {
 export function useBulkDeleteMunkiPackages() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) =>
-      unwrap(apiClient.POST("/api/munki/packages/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteMunkiPackages({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });

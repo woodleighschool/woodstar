@@ -1,6 +1,14 @@
 import { useDirectUpload } from "@/hooks/use-direct-upload";
 import type { MunkiObject, MunkiUploadTarget } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  confirmMunkiPackageInstallerUpload,
+  confirmMunkiPackageUninstallerUpload,
+  confirmMunkiSoftwareIconUpload,
+  createMunkiPackageInstallerUpload,
+  createMunkiPackageUninstallerUpload,
+  createMunkiSoftwareIconUpload,
+  unwrap,
+} from "@/lib/api";
 import type { UploadTransport } from "@/lib/direct-upload";
 
 type IconUploadVars = { softwareId: number; file: File };
@@ -15,16 +23,16 @@ export function useUploadMunkiIcon() {
     errorSurface: "inline",
     createIntent: ({ softwareId, file }) =>
       unwrap(
-        apiClient.POST("/api/munki/software/{id}/icon", {
-          params: { path: { id: softwareId } },
+        createMunkiSoftwareIconUpload({
+          path: { id: softwareId },
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
     uploadRequest: uploadRequestFromIntent,
     completeUpload: (intent, { softwareId }) =>
       unwrap(
-        apiClient.POST("/api/munki/software/{id}/icon/{object_id}/confirm", {
-          params: { path: { id: softwareId, object_id: intent.object_id } },
+        confirmMunkiSoftwareIconUpload({
+          path: { id: softwareId, object_id: intent.object_id },
         }),
       ),
   });
@@ -39,16 +47,16 @@ export function useUploadMunkiInstaller() {
     errorSurface: "inline",
     createIntent: ({ packageId, file }) =>
       unwrap(
-        apiClient.POST("/api/munki/packages/{id}/installer", {
-          params: { path: { id: packageId } },
+        createMunkiPackageInstallerUpload({
+          path: { id: packageId },
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
     uploadRequest: uploadRequestFromIntent,
     completeUpload: (intent, { packageId }) =>
       unwrap(
-        apiClient.POST("/api/munki/packages/{id}/installer/{object_id}/confirm", {
-          params: { path: { id: packageId, object_id: intent.object_id } },
+        confirmMunkiPackageInstallerUpload({
+          path: { id: packageId, object_id: intent.object_id },
         }),
       ),
   });
@@ -63,16 +71,16 @@ export function useUploadMunkiUninstaller() {
     errorSurface: "inline",
     createIntent: ({ packageId, file }) =>
       unwrap(
-        apiClient.POST("/api/munki/packages/{id}/uninstaller", {
-          params: { path: { id: packageId } },
+        createMunkiPackageUninstallerUpload({
+          path: { id: packageId },
           body: { filename: file.name, content_type: file.type || undefined },
         }),
       ),
     uploadRequest: uploadRequestFromIntent,
     completeUpload: (intent, { packageId }) =>
       unwrap(
-        apiClient.POST("/api/munki/packages/{id}/uninstaller/{object_id}/confirm", {
-          params: { path: { id: packageId, object_id: intent.object_id } },
+        confirmMunkiPackageUninstallerUpload({
+          path: { id: packageId, object_id: intent.object_id },
         }),
       ),
   });

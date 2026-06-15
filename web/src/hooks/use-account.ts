@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Account, AccountMutation, ApiError, Session } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  getAccount,
+  revokeAccountApiKey,
+  rotateAccountApiKey,
+  unwrap,
+  updateAccount,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type { Account, AccountMutation };
@@ -9,7 +15,7 @@ export type { Account, AccountMutation };
 export function useAccount() {
   return useQuery<Account, ApiError>({
     queryKey: queryKeys.account,
-    queryFn: async ({ signal }) => unwrap(apiClient.GET("/api/account", { signal })),
+    queryFn: async ({ signal }) => unwrap(getAccount({ signal })),
     staleTime: 30_000,
   });
 }
@@ -17,7 +23,7 @@ export function useAccount() {
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
   return useMutation<Account, ApiError, AccountMutation>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/account", { body })),
+    mutationFn: (body) => unwrap(updateAccount({ body })),
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
       queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
@@ -32,7 +38,7 @@ export function useUpdateAccount() {
 export function useRotateAPIKey() {
   const queryClient = useQueryClient();
   return useMutation<Account, ApiError>({
-    mutationFn: () => unwrap(apiClient.POST("/api/account/api-key")),
+    mutationFn: () => unwrap(rotateAccountApiKey()),
     onSuccess: (account) => {
       queryClient.setQueryData(queryKeys.account, account);
     },
@@ -42,7 +48,7 @@ export function useRotateAPIKey() {
 export function useRevokeAPIKey() {
   const queryClient = useQueryClient();
   return useMutation<Account, ApiError>({
-    mutationFn: () => unwrap(apiClient.DELETE("/api/account/api-key")),
+    mutationFn: () => unwrap(revokeAccountApiKey()),
     onSuccess: (account) => {
       queryClient.setQueryData(queryKeys.account, account);
     },

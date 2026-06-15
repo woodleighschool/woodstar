@@ -9,7 +9,7 @@ import type {
   LiveQueryTargetCount,
   LiveQueryTargetSelection,
 } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import { countLiveQueryTargets, createLiveQuery, stopLiveQuery, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type LiveQueryHandle = Handle;
@@ -56,14 +56,14 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
 
 export function useCreateLiveQuery() {
   return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/live-queries", { body })),
+    mutationFn: (body) => unwrap(createLiveQuery({ body })),
   });
 }
 
 export function useStopLiveQuery() {
   return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
-      await unwrap(apiClient.POST("/api/live-queries/{id}/stop", { params: { path: { id } } }));
+      await unwrap(stopLiveQuery({ path: { id } }));
     },
   });
 }
@@ -71,7 +71,7 @@ export function useStopLiveQuery() {
 export function useLiveQueryTargetCount(body: LiveQueryTargetSelection, enabled: boolean) {
   return useQuery<LiveQueryTargetCount, ApiError>({
     queryKey: queryKeys.liveQueryTargetCount(body),
-    queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
+    queryFn: () => unwrap(countLiveQueryTargets({ body })),
     enabled,
   });
 }

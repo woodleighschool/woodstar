@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Page, SoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import { getSoftware, getSoftwareSantaReference, listSoftware, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -31,8 +31,8 @@ export function useSoftware(params: SoftwareListParams = {}) {
     queryKey: queryKeys.software(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/software", {
-          params: { query: queryParams },
+        listSoftware({
+          query: queryParams,
           signal,
         }),
       ),
@@ -45,8 +45,8 @@ export function useSoftwareTitle(id: number | null) {
     queryKey: queryKeys.softwareTitle(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/software/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getSoftware({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -59,8 +59,8 @@ export function useSoftwareSantaReference(id: number | null) {
     queryKey: queryKeys.softwareSantaReference(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/software/{id}/santa", {
-          params: { path: { id: id ?? 0 } },
+        getSoftwareSantaReference({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),

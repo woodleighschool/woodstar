@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Group, Page } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import { getGroup, listGroups, unwrap } from "@/lib/api";
 import type { ListGroupsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -27,8 +27,8 @@ export function useGroups(params: GroupListParams = {}) {
     queryKey: queryKeys.groups(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/groups", {
-          params: { query: queryParams },
+        listGroups({
+          query: queryParams,
           signal,
         }),
       ),
@@ -41,8 +41,8 @@ export function useGroup(id: number | null) {
     queryKey: queryKeys.group(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/groups/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getGroup({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),

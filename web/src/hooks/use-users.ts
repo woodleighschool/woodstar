@@ -3,7 +3,15 @@ import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type { ApiError, Department, Page, User, UserCreate, UserMutation } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  createUser,
+  deleteUser,
+  getUser,
+  listUserDepartments,
+  listUsers,
+  unwrap,
+  updateUser,
+} from "@/lib/api";
 import type { ListUserDepartmentsData, ListUsersData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -47,8 +55,8 @@ export function useUsers(params: UserListParams = {}) {
     queryKey: queryKeys.users(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/users", {
-          params: { query: queryParams },
+        listUsers({
+          query: queryParams,
           signal,
         }),
       ),
@@ -62,8 +70,8 @@ export function useUserDepartments(params: DepartmentListParams = {}) {
     queryKey: queryKeys.userDepartments(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/users/departments", {
-          params: { query: queryParams },
+        listUserDepartments({
+          query: queryParams,
           signal,
         }),
       ),
@@ -76,8 +84,8 @@ export function useUser(id: number | null) {
     queryKey: queryKeys.user(id),
     queryFn: async ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/users/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getUser({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -87,7 +95,7 @@ export function useUser(id: number | null) {
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreate>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
+    mutationFn: (body) => unwrap(createUser({ body })),
     onSuccess: async () => {
       toast.success("User created");
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });
@@ -100,8 +108,8 @@ export function useUpdateUser() {
   return useMutation<User, ApiError, { id: number; body: UserMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(
-        apiClient.PUT("/api/users/{id}", {
-          params: { path: { id } },
+        updateUser({
+          path: { id },
           body,
         }),
       ),
@@ -122,8 +130,8 @@ export function useDeleteUser() {
   return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
       await unwrap(
-        apiClient.DELETE("/api/users/{id}", {
-          params: { path: { id } },
+        deleteUser({
+          path: { id },
         }),
       );
     },

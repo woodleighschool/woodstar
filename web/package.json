@@ -10,7 +10,7 @@
     "lint": "oxlint . && tsc -b",
     "typecheck": "tsc -b",
     "format": "oxfmt",
-    "openapi:types": "openapi-ts -i ./openapi.yaml -o ./src/lib/api-client -c @hey-api/client-fetch --plugins @hey-api/typescript"
+    "openapi:types": "openapi-ts -i ./openapi.yaml -o ./src/lib/api-client -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

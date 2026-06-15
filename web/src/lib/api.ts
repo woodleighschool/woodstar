@@ -1,6 +1,8 @@
 import { client } from "@/lib/api-client/client.gen";
 import type * as API from "@/lib/api-client/types.gen";
 
+export * from "@/lib/api-client/sdk.gen";
+
 export type Page<T> = {
   items: T[];
   count: number;
@@ -87,46 +89,11 @@ client.interceptors.request.use((request) => {
   return request;
 });
 
-type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-interface RequestOptions {
-  body?: unknown;
-  params?: {
-    path?: Record<string, unknown>;
-    query?: Record<string, unknown>;
-  };
-  signal?: AbortSignal;
-}
-
 type APIResponse<T> = Promise<{
   data?: T;
   error?: unknown;
   response?: Response;
 }>;
-
-function request<T = unknown>(
-  method: Method,
-  url: string,
-  options: RequestOptions = {},
-): APIResponse<T> {
-  return client.request({
-    method,
-    url,
-    body: options.body,
-    path: options.params?.path,
-    query: options.params?.query,
-    signal: options.signal,
-  }) as unknown as APIResponse<T>;
-}
-
-export const apiClient = {
-  DELETE: <T = unknown>(url: string, options?: RequestOptions) =>
-    request<T>("DELETE", url, options),
-  GET: <T = unknown>(url: string, options?: RequestOptions) => request<T>("GET", url, options),
-  PATCH: <T = unknown>(url: string, options?: RequestOptions) => request<T>("PATCH", url, options),
-  POST: <T = unknown>(url: string, options?: RequestOptions) => request<T>("POST", url, options),
-  PUT: <T = unknown>(url: string, options?: RequestOptions) => request<T>("PUT", url, options),
-};
 
 export class ApiError extends Error {
   readonly status: number;

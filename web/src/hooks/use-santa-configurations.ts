@@ -9,7 +9,16 @@ import type {
   Page,
   SantaHostState,
 } from "@/lib/api";
-import { apiClient, unwrap } from "@/lib/api";
+import {
+  bulkDeleteSantaConfigurations,
+  createSantaConfiguration,
+  deleteSantaConfiguration,
+  getSantaConfiguration,
+  listSantaConfigurations,
+  reorderSantaConfigurations,
+  unwrap,
+  updateSantaConfiguration,
+} from "@/lib/api";
 import type { ListSantaConfigurationsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -33,10 +42,7 @@ export function useSantaConfigurations(params: SantaListParams = {}) {
 
   return useQuery<SantaConfigurationListResult, ApiError>({
     queryKey: queryKeys.santaConfigurations(queryParams),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/santa/configurations", { params: { query: queryParams }, signal }),
-      ),
+    queryFn: ({ signal }) => unwrap(listSantaConfigurations({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -46,8 +52,8 @@ export function useSantaConfiguration(id: number | null) {
     queryKey: queryKeys.santaConfiguration(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/configurations/{id}", {
-          params: { path: { id: id ?? 0 } },
+        getSantaConfiguration({
+          path: { id: id ?? 0 },
           signal,
         }),
       ),
@@ -58,7 +64,7 @@ export function useSantaConfiguration(id: number | null) {
 export function useCreateSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<SantaConfiguration, ApiError, SantaConfigurationMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/santa/configurations", { body })),
+    mutationFn: (body) => unwrap(createSantaConfiguration({ body })),
     onSuccess: (configuration) => {
       toast.success("Configuration created");
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
@@ -78,8 +84,8 @@ export function useUpdateSantaConfiguration() {
   >({
     mutationFn: ({ id, body }) =>
       unwrap(
-        apiClient.PUT("/api/santa/configurations/{id}", {
-          params: { path: { id } },
+        updateSantaConfiguration({
+          path: { id },
           body,
         }),
       ),
@@ -98,8 +104,8 @@ export function useDeleteSantaConfiguration() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) =>
       unwrap(
-        apiClient.DELETE("/api/santa/configurations/{id}", {
-          params: { path: { id } },
+        deleteSantaConfiguration({
+          path: { id },
         }),
       ),
     onSuccess: () => {
@@ -111,8 +117,7 @@ export function useDeleteSantaConfiguration() {
 export function useBulkDeleteSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) =>
-      unwrap(apiClient.POST("/api/santa/configurations/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteSantaConfigurations({ body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },
@@ -122,8 +127,7 @@ export function useBulkDeleteSantaConfigurations() {
 export function useReorderSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ordered_ids) =>
-      unwrap(apiClient.PUT("/api/santa/configurations/order", { body: { ordered_ids } })),
+    mutationFn: (ordered_ids) => unwrap(reorderSantaConfigurations({ body: { ordered_ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },
