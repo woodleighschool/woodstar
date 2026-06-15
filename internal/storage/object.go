@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -66,7 +67,8 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, conte
 	if !prefixPattern.MatchString(prefix) {
 		return nil, fmt.Errorf("%w: invalid storage prefix %q", dbutil.ErrInvalidInput, prefix)
 	}
-	if err := validateFilename(filename); err != nil {
+	filename, err := cleanUploadFilename(filename)
+	if err != nil {
 		return nil, err
 	}
 	row, err := s.q.CreateStorageObject(ctx, sqlc.CreateStorageObjectParams{
@@ -239,30 +241,21 @@ func objectFromSQLC(row sqlc.StorageObject) Object {
 // segments that make up a key namespace.
 var prefixPattern = regexp.MustCompile(`^[a-z0-9]+(/[a-z0-9]+)*$`)
 
-// maxFilenameLen caps a filename at the common single-component filesystem limit.
-const maxFilenameLen = 255
+// cleanUploadFilename reduces a client filename to a safe key segment. It takes
+// the base name (tolerating directory components and Windows separators) and
+// trims surrounding space, then rejects what cannot be a usable single segment.
+func cleanUploadFilename(name string) (string, error) {
+	name = strings.ReplaceAll(name, `\`, `/`)
+	name = path.Base(name)
+	name = strings.TrimSpace(name)
 
-// validateFilename reports whether name is usable verbatim as both a storage key
-// segment and a display name. It rejects malformed names instead of repairing
-// them: the client owns the filename, so a bad one is a client error, not
-// something the registry should silently rewrite.
-func validateFilename(name string) error {
-	switch {
-	case name == "":
-		return fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
-	case len(name) > maxFilenameLen:
-		return fmt.Errorf("%w: filename exceeds %d bytes", dbutil.ErrInvalidInput, maxFilenameLen)
-	case strings.TrimSpace(name) != name:
-		return fmt.Errorf("%w: filename has leading or trailing whitespace", dbutil.ErrInvalidInput)
-	case name == "." || name == "..":
-		return fmt.Errorf("%w: filename %q is not allowed", dbutil.ErrInvalidInput, name)
-	case strings.ContainsAny(name, `/\`):
-		return fmt.Errorf("%w: filename must not contain path separators", dbutil.ErrInvalidInput)
+	if name == "" || name == "." || name == ".." || name == "/" {
+		return "", fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
 	}
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
-			return fmt.Errorf("%w: filename contains control characters", dbutil.ErrInvalidInput)
+			return "", fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
 		}
 	}
-	return nil
+	return name, nil
 }

@@ -15,36 +15,42 @@ func TestObjectKey(t *testing.T) {
 	}
 }
 
-func TestValidateFilenameAccepts(t *testing.T) {
+func TestCleanUploadFilename(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{
-		"Firefox-120.0.dmg",
-		"Acmé Café.png",
-		"name with spaces.pkg",
-		"weird+name(1).png",
-	} {
-		if err := validateFilename(name); err != nil {
-			t.Errorf("validateFilename(%q) = %v, want nil", name, err)
+	cases := map[string]string{
+		"Firefox-120.0.dmg":   "Firefox-120.0.dmg",
+		"/tmp/Firefox.dmg":    "Firefox.dmg",
+		`C:\Users\me\App.pkg`: "App.pkg",
+		"  Spaced.icns  ":     "Spaced.icns",
+		"Acmé Café.png":       "Acmé Café.png",
+		"sub/dir/file.pkg":    "file.pkg",
+		"../../etc/passwd":    "passwd",
+	}
+	for in, want := range cases {
+		got, err := cleanUploadFilename(in)
+		if err != nil {
+			t.Errorf("cleanUploadFilename(%q) error = %v, want nil", in, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("cleanUploadFilename(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
 
-func TestValidateFilenameRejects(t *testing.T) {
+func TestCleanUploadFilenameRejects(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{
+	for _, in := range []string{
 		"",
 		"   ",
-		" leading.dmg",
-		"trailing.dmg ",
 		".",
 		"..",
-		"a/b/c.pkg",
-		`a\b.pkg`,
-		"../../etc/passwd",
+		"/",
+		"a/b/..",
 		"with\x00null.pkg",
 	} {
-		if err := validateFilename(name); !errors.Is(err, dbutil.ErrInvalidInput) {
-			t.Errorf("validateFilename(%q) = %v, want ErrInvalidInput", name, err)
+		if _, err := cleanUploadFilename(in); !errors.Is(err, dbutil.ErrInvalidInput) {
+			t.Errorf("cleanUploadFilename(%q) error = %v, want ErrInvalidInput", in, err)
 		}
 	}
 }
