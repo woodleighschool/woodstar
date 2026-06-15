@@ -1,11 +1,11 @@
 import { redirect } from "@tanstack/react-router";
 
-import { getSession, type Session, unwrap } from "@/lib/api";
+import { getSession, type SessionBody, unwrap } from "@/lib/api";
 
-export type { Session };
-export type SessionUser = NonNullable<Session["user"]>;
+export type { SessionBody };
+export type SessionUser = NonNullable<SessionBody["user"]>;
 
-async function loadSession(): Promise<Session> {
+async function loadSession(): Promise<SessionBody> {
   return unwrap(getSession());
 }
 

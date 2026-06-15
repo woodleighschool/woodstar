@@ -2,7 +2,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Check, CheckHostStatus, CheckMutation, Page } from "@/lib/api";
+import type {
+  ApiError,
+  OsqueryCheck,
+  OsqueryCheckHostStatus,
+  OsqueryCheckMutation,
+  Page,
+} from "@/lib/api";
 import {
   bulkDeleteOsqueryChecks,
   createOsqueryCheck,
@@ -16,9 +22,9 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type { Check, CheckHostStatus, CheckMutation };
-export type CheckListResult = Page<Check>;
-export type CheckHosts = CheckHostStatus[];
+export type { OsqueryCheck, OsqueryCheckHostStatus, OsqueryCheckMutation };
+export type CheckListResult = Page<OsqueryCheck>;
+export type CheckHosts = OsqueryCheckHostStatus[];
 
 export interface CheckListParams {
   q?: string;
@@ -43,7 +49,7 @@ export function useChecks(params: CheckListParams = {}) {
 }
 
 export function useCheck(id: number | null) {
-  return useQuery<Check, ApiError>({
+  return useQuery<OsqueryCheck, ApiError>({
     queryKey: queryKeys.check(id),
     queryFn: ({ signal }) =>
       unwrap(
@@ -72,7 +78,7 @@ export function useCheckHosts(id: number | null) {
 
 export function useCreateCheck() {
   const queryClient = useQueryClient();
-  return useMutation<Check, ApiError, CheckMutation>({
+  return useMutation<OsqueryCheck, ApiError, OsqueryCheckMutation>({
     mutationFn: (body) => unwrap(createOsqueryCheck({ body })),
     onSuccess: () => {
       toast.success("Check created");
@@ -83,7 +89,7 @@ export function useCreateCheck() {
 
 export function useUpdateCheck(id: number | null) {
   const queryClient = useQueryClient();
-  return useMutation<Check, ApiError, CheckMutation>({
+  return useMutation<OsqueryCheck, ApiError, OsqueryCheckMutation>({
     mutationFn: (body) =>
       unwrap(
         updateOsqueryCheck({

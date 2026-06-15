@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
   ApiError,
-  Configuration,
-  ConfigurationMutation,
   Page,
+  SantaConfiguration,
+  SantaConfigurationMutation,
   SantaHostState,
 } from "@/lib/api";
 import {
@@ -23,8 +23,7 @@ import type { ListSantaConfigurationsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SantaConfiguration = Configuration;
-export type SantaConfigurationMutation = ConfigurationMutation;
+export type { SantaConfiguration, SantaConfigurationMutation };
 export type SantaConfigurationListResult = Page<SantaConfiguration>;
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]

@@ -1,13 +1,13 @@
 import type { MunkiPackageMutation } from "@/hooks/use-munki-packages";
-import type { PackageInstallItem, SoftwareInclude } from "@/lib/api";
+import type { MunkiInclude, MunkiPackageInstallItem } from "@/lib/api";
 import { type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
 export type MunkiUninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
-export type MunkiInstallItemType = PackageInstallItem["type"];
-export type MunkiSoftwareAction = SoftwareInclude["actions"][number];
-export type MunkiPackageStrategy = SoftwareInclude["package"]["strategy"];
+export type MunkiInstallItemType = MunkiPackageInstallItem["type"];
+export type MunkiSoftwareAction = MunkiInclude["actions"][number];
+export type MunkiPackageStrategy = MunkiInclude["package"]["strategy"];
 
 function rawEnumOptions<T extends string>(values: readonly T[]) {
   return values.map((value) => ({ value, label: value }));

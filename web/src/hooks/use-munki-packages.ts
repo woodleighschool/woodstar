@@ -7,7 +7,7 @@ import type {
   MunkiPackage,
   MunkiPackageCreateMutation,
   MunkiPackageMutation,
-  MunkiPackagePage,
+  PageMunkiPackage,
 } from "@/lib/api";
 import {
   bulkDeleteMunkiPackages,
@@ -42,7 +42,7 @@ function softwareQueryParams(params: MunkiSoftwareListParams) {
 
 export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
   const query = softwareQueryParams(params);
-  return useQuery<MunkiPackagePage, ApiError>({
+  return useQuery<PageMunkiPackage, ApiError>({
     queryKey: queryKeys.munkiPackages(query),
     queryFn: ({ signal }) => unwrap(listMunkiPackages({ query, signal })),
     placeholderData: keepPreviousData,

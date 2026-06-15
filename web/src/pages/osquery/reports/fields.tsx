@@ -34,7 +34,7 @@ import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import type { Report, ReportMutation } from "@/lib/api";
+import type { OsqueryReport, OsqueryReportMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import {
@@ -57,7 +57,7 @@ const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 604800, label: "1 Week" },
 ];
 
-export const emptyReport: ReportMutation = {
+export const emptyReport: OsqueryReportMutation = {
   name: "",
   description: "",
   query: "select * from os_version;",
@@ -65,7 +65,7 @@ export const emptyReport: ReportMutation = {
   targets: emptyLabelTargetSet(),
 };
 
-export function reportFromDetail(detail: Report): ReportMutation {
+export function reportFromDetail(detail: OsqueryReport): OsqueryReportMutation {
   return {
     name: detail.name,
     description: detail.description,
@@ -86,7 +86,7 @@ const reportFormSchema = z.object({
   targets: labelTargetSetSchema,
 });
 
-function trimReport(value: ReportMutation): ReportMutation {
+function trimReport(value: OsqueryReportMutation): OsqueryReportMutation {
   return {
     ...value,
     name: value.name.trim(),
@@ -106,10 +106,10 @@ export function ReportForm({
   headerActions,
   resultsReportId,
 }: {
-  initial: ReportMutation;
+  initial: OsqueryReportMutation;
   title?: string;
   submitLabel: string;
-  onSubmit: (value: ReportMutation) => Promise<void> | void;
+  onSubmit: (value: OsqueryReportMutation) => Promise<void> | void;
   onCancel?: () => void;
   headerActions?: ReactNode;
   resultsReportId?: number;

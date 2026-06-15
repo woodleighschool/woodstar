@@ -2,7 +2,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Page, Rule, RuleMutation, RuleReferenceCandidate } from "@/lib/api";
+import type {
+  ApiError,
+  Page,
+  SantaRule,
+  SantaRuleMutation,
+  SantaRuleReferenceCandidate,
+} from "@/lib/api";
 import {
   bulkDeleteSantaRules,
   createSantaRule,
@@ -17,10 +23,9 @@ import type { ListSantaRuleReferencesData, ListSantaRulesData } from "@/lib/api-
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SantaRule = Rule;
-export type SantaRuleMutation = RuleMutation;
+export type { SantaRule, SantaRuleMutation };
 export type SantaRuleListResult = Page<SantaRule>;
-export type SantaRuleReference = RuleReferenceCandidate;
+export type SantaRuleReference = SantaRuleReferenceCandidate;
 export type SantaRuleReferenceListResult = SantaRuleReference[];
 export type SantaRuleType = SantaRule["rule_type"];
 export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];

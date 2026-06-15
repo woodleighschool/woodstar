@@ -16,7 +16,7 @@ import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type Report, useBulkDeleteReports, useReports } from "@/hooks/use-reports";
+import { type OsqueryReport, useBulkDeleteReports, useReports } from "@/hooks/use-reports";
 import { formatInterval } from "@/lib/utils";
 
 export function ReportListPage() {
@@ -36,7 +36,10 @@ export function ReportListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<Report>[]>(() => reportColumns(isAdmin), [isAdmin]);
+  const columns = React.useMemo<ColumnDef<OsqueryReport>[]>(
+    () => reportColumns(isAdmin),
+    [isAdmin],
+  );
 
   const { table } = useDataTable({
     data: reports,
@@ -102,9 +105,9 @@ export function ReportListPage() {
   );
 }
 
-function reportColumns(isAdmin: boolean): ColumnDef<Report>[] {
-  const columns: ColumnDef<Report>[] = [
-    selectColumn<Report>(),
+function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
+  const columns: ColumnDef<OsqueryReport>[] = [
+    selectColumn<OsqueryReport>(),
     {
       id: "name",
       accessorKey: "name",

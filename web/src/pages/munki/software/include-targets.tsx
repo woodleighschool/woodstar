@@ -58,7 +58,7 @@ import {
 } from "@/components/ui/table";
 import { useLabels } from "@/hooks/use-labels";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
-import type { SoftwareInclude } from "@/lib/api";
+import type { MunkiInclude } from "@/lib/api";
 
 import {
   LATEST_PACKAGE_VALUE,
@@ -72,14 +72,14 @@ export interface MunkiSoftwareTargetRow {
   id: number;
   label_id: number | null;
   priority: number;
-  package: SoftwareInclude["package"];
-  actions: SoftwareInclude["actions"];
+  package: MunkiInclude["package"];
+  actions: MunkiInclude["actions"];
 }
 
 interface TargetDraft {
   label_id: number | null;
-  package: SoftwareInclude["package"];
-  actions: SoftwareInclude["actions"];
+  package: MunkiInclude["package"];
+  actions: MunkiInclude["actions"];
 }
 
 type DialogState = { mode: "add" } | { mode: "edit"; id: number } | null;
@@ -311,8 +311,8 @@ function TargetActionsField({
   value,
   onChange,
 }: {
-  value: SoftwareInclude["actions"];
-  onChange: (actions: SoftwareInclude["actions"]) => void;
+  value: MunkiInclude["actions"];
+  onChange: (actions: MunkiInclude["actions"]) => void;
 }) {
   const selected = MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) => value.includes(option.value));
   const warning = targetActionWarning(value);
@@ -325,7 +325,7 @@ function TargetActionsField({
         value={value}
         onValueChange={(next) =>
           onChange(
-            next.filter((action): action is SoftwareInclude["actions"][number] =>
+            next.filter((action): action is MunkiInclude["actions"][number] =>
               MUNKI_SOFTWARE_ACTION_OPTIONS.some((option) => option.value === action),
             ),
           )
@@ -364,7 +364,7 @@ function emptyDraft(): TargetDraft {
   return { label_id: null, package: { strategy: "latest" }, actions: [] };
 }
 
-function packageLabel(pkg: SoftwareInclude["package"], packages: MunkiPackage[]) {
+function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
   if (pkg.strategy === "specific") {
     return (
       packages.find((item) => item.id === pkg.package_id)?.version ?? `Package ${pkg.package_id}`
@@ -373,7 +373,7 @@ function packageLabel(pkg: SoftwareInclude["package"], packages: MunkiPackage[])
   return "Latest";
 }
 
-function targetActionWarning(actions: SoftwareInclude["actions"]) {
+function targetActionWarning(actions: MunkiInclude["actions"]) {
   if (actions.includes("featured_items") && !actions.includes("optional_installs")) {
     return "Munki ignores featured items unless the item is also optional.";
   }

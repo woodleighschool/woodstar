@@ -3,18 +3,22 @@ import { useEffect, useReducer } from "react";
 
 import type {
   ApiError,
-  Handle,
-  LiveQueryCreate,
-  LiveQueryResultEvent,
-  LiveQueryTargetCount,
-  LiveQueryTargetSelection,
+  OsqueryHandle,
+  OsqueryLiveQueryCreateBody,
+  OsqueryLiveQueryResultEvent,
+  OsqueryLiveQueryTargetCountBody,
+  OsqueryLiveQueryTargetCountOutputBody,
 } from "@/lib/api";
 import { countLiveQueryTargets, createLiveQuery, stopLiveQuery, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type LiveQueryHandle = Handle;
-export type LiveQueryResult = LiveQueryResultEvent;
-export type { LiveQueryCreate, LiveQueryTargetCount, LiveQueryTargetSelection };
+export type LiveQueryHandle = OsqueryHandle;
+export type LiveQueryResult = OsqueryLiveQueryResultEvent;
+export type {
+  OsqueryLiveQueryCreateBody,
+  OsqueryLiveQueryTargetCountBody,
+  OsqueryLiveQueryTargetCountOutputBody,
+};
 
 export type LiveQueryRow = LiveQueryResult & {
   // monotonic per-stream id for stable React keys; not from the server
@@ -55,7 +59,7 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
 }
 
 export function useCreateLiveQuery() {
-  return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
+  return useMutation<LiveQueryHandle, ApiError, OsqueryLiveQueryCreateBody>({
     mutationFn: (body) => unwrap(createLiveQuery({ body })),
   });
 }
@@ -68,8 +72,8 @@ export function useStopLiveQuery() {
   });
 }
 
-export function useLiveQueryTargetCount(body: LiveQueryTargetSelection, enabled: boolean) {
-  return useQuery<LiveQueryTargetCount, ApiError>({
+export function useLiveQueryTargetCount(body: OsqueryLiveQueryTargetCountBody, enabled: boolean) {
+  return useQuery<OsqueryLiveQueryTargetCountOutputBody, ApiError>({
     queryKey: queryKeys.liveQueryTargetCount(body),
     queryFn: () => unwrap(countLiveQueryTargets({ body })),
     enabled,

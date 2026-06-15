@@ -2,7 +2,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Page, Report, ReportMutation, ReportResult } from "@/lib/api";
+import type {
+  ApiError,
+  OsqueryReport,
+  OsqueryReportMutation,
+  OsqueryReportResult,
+  Page,
+} from "@/lib/api";
 import {
   bulkDeleteOsqueryReports,
   createOsqueryReport,
@@ -16,9 +22,9 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type { Report, ReportMutation };
-export type ReportListResult = Page<Report>;
-export type ReportResults = ReportResult[];
+export type { OsqueryReport, OsqueryReportMutation };
+export type ReportListResult = Page<OsqueryReport>;
+export type ReportResults = OsqueryReportResult[];
 
 export interface ReportListParams {
   q?: string;
@@ -43,7 +49,7 @@ export function useReports(params: ReportListParams = {}) {
 }
 
 export function useReport(id: number | null) {
-  return useQuery<Report, ApiError>({
+  return useQuery<OsqueryReport, ApiError>({
     queryKey: queryKeys.report(id),
     queryFn: ({ signal }) =>
       unwrap(
@@ -72,7 +78,7 @@ export function useReportResults(id: number | null) {
 
 export function useCreateReport() {
   const queryClient = useQueryClient();
-  return useMutation<Report, ApiError, ReportMutation>({
+  return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) => unwrap(createOsqueryReport({ body })),
     onSuccess: () => {
       toast.success("Report created");
@@ -83,7 +89,7 @@ export function useCreateReport() {
 
 export function useUpdateReport(id: number | null) {
   const queryClient = useQueryClient();
-  return useMutation<Report, ApiError, ReportMutation>({
+  return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) =>
       unwrap(
         updateOsqueryReport({

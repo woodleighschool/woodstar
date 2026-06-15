@@ -27,11 +27,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { type Host, useHosts } from "@/hooks/use-hosts";
 import { type Label, useLabels } from "@/hooks/use-labels";
 import {
-  type LiveQueryCreate,
+  type OsqueryLiveQueryCreateBody,
   type LiveQueryResult,
   type LiveQueryRow,
-  type LiveQueryTargetCount,
-  type LiveQueryTargetSelection,
+  type OsqueryLiveQueryTargetCountOutputBody,
+  type OsqueryLiveQueryTargetCountBody,
   useCreateLiveQuery,
   useLiveQueryStream,
   useLiveQueryTargetCount,
@@ -71,7 +71,7 @@ export function LiveRunner({
   const selectedLabelIDs = useMemo(() => selectedLabels.map((label) => label.id), [selectedLabels]);
   const targetCount = selectedLabels.length + selectedHosts.length;
   const hasTargets = targetCount > 0;
-  const targetSelection = useMemo<LiveQueryTargetSelection>(
+  const targetSelection = useMemo<OsqueryLiveQueryTargetCountBody>(
     () => ({
       report_id: kind === "report" ? itemId : undefined,
       selected: {
@@ -98,7 +98,7 @@ export function LiveRunner({
     create.reset();
     stop.reset();
     setStopRequested(false);
-    const body: LiveQueryCreate = {
+    const body: OsqueryLiveQueryCreateBody = {
       sql,
       report_id: targetSelection.report_id,
       selected: targetSelection.selected,
@@ -209,7 +209,7 @@ function TargetRunPanel({
 }: {
   selectedCount: number;
   hasTargets: boolean;
-  metrics?: LiveQueryTargetCount;
+  metrics?: OsqueryLiveQueryTargetCountOutputBody;
   isLoading: boolean;
   error?: string;
   canRun: boolean;
@@ -251,7 +251,7 @@ function TargetSummary({
 }: {
   selectedCount: number;
   hasTargets: boolean;
-  metrics?: LiveQueryTargetCount;
+  metrics?: OsqueryLiveQueryTargetCountOutputBody;
   isLoading: boolean;
   error?: string;
 }) {

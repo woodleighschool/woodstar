@@ -2,13 +2,13 @@ import { z } from "zod";
 
 import type { MunkiPackage, MunkiPackageMutation } from "@/hooks/use-munki-packages";
 import type {
-  PackageAlert,
-  PackageInstallerChoice,
-  PackageInstallerEnvironmentVariable,
-  PackageInstallItem,
-  PackageItemToCopy,
-  PackageReceipt,
-  PackageReference,
+  MunkiPackageAlert,
+  MunkiPackageInstallerChoice,
+  MunkiPackageInstallerEnvironmentVariable,
+  MunkiPackageInstallItem,
+  MunkiPackageItemToCopy,
+  MunkiPackageReceipt,
+  MunkiPackageReference,
 } from "@/lib/api";
 import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { nonEmpty } from "@/lib/utils";
@@ -29,7 +29,10 @@ export type ScriptKey =
   | "uninstall_script"
   | "version_script";
 
-export interface PackageReferenceRow extends Omit<PackageReference, "package_id" | "software_id"> {
+export interface PackageReferenceRow extends Omit<
+  MunkiPackageReference,
+  "package_id" | "software_id"
+> {
   software_id?: number;
   package_id?: number;
   rowID: string;
@@ -40,19 +43,19 @@ export interface StringRow {
   value: string;
 }
 
-export interface InstallerEnvironmentRow extends PackageInstallerEnvironmentVariable {
+export interface InstallerEnvironmentRow extends MunkiPackageInstallerEnvironmentVariable {
   rowID: string;
 }
 
-export interface InstallItemRow extends PackageInstallItem {
+export interface InstallItemRow extends MunkiPackageInstallItem {
   rowID: string;
 }
 
-export interface ReceiptRow extends PackageReceipt {
+export interface ReceiptRow extends MunkiPackageReceipt {
   rowID: string;
 }
 
-export interface ItemToCopyRow extends PackageItemToCopy {
+export interface ItemToCopyRow extends MunkiPackageItemToCopy {
   rowID: string;
 }
 
@@ -97,8 +100,8 @@ export interface PackageFormState {
   postuninstall_script: string;
   uninstall_script: string;
   version_script: string;
-  preinstall_alert: PackageAlert;
-  preuninstall_alert: PackageAlert;
+  preinstall_alert: MunkiPackageAlert;
+  preuninstall_alert: MunkiPackageAlert;
 }
 
 export const scriptFields: { key: ScriptKey; label: string }[] = [
@@ -320,7 +323,7 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
   };
 }
 
-function emptyAlert(): PackageAlert {
+function emptyAlert(): MunkiPackageAlert {
   return { enabled: false };
 }
 
@@ -348,7 +351,7 @@ export function emptyItemToCopyRow(): ItemToCopyRow {
   return { rowID: rowID(), source_item: "", destination_path: "" };
 }
 
-function packageReferenceRows(values: PackageReference[]): PackageReferenceRow[] {
+function packageReferenceRows(values: MunkiPackageReference[]): PackageReferenceRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
@@ -357,25 +360,25 @@ function stringRows(values: string[]): StringRow[] {
 }
 
 function installerEnvironmentRows(
-  values: PackageInstallerEnvironmentVariable[],
+  values: MunkiPackageInstallerEnvironmentVariable[],
 ): InstallerEnvironmentRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
-function installItemRows(values: PackageInstallItem[]): InstallItemRow[] {
+function installItemRows(values: MunkiPackageInstallItem[]): InstallItemRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
-function receiptRows(values: PackageReceipt[]): ReceiptRow[] {
+function receiptRows(values: MunkiPackageReceipt[]): ReceiptRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
-function itemToCopyRows(values: PackageItemToCopy[]): ItemToCopyRow[] {
+function itemToCopyRows(values: MunkiPackageItemToCopy[]): ItemToCopyRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
-function cleanPackageReferences(rows: PackageReferenceRow[]): PackageReference[] {
-  const out: PackageReference[] = [];
+function cleanPackageReferences(rows: PackageReferenceRow[]): MunkiPackageReference[] {
+  const out: MunkiPackageReference[] = [];
   for (const row of rows) {
     if (row.software_id) {
       out.push({
@@ -389,7 +392,7 @@ function cleanPackageReferences(rows: PackageReferenceRow[]): PackageReference[]
 
 function cleanInstallerEnvironment(
   rows: InstallerEnvironmentRow[],
-): PackageInstallerEnvironmentVariable[] {
+): MunkiPackageInstallerEnvironmentVariable[] {
   return rows.flatMap((row) => {
     const name = row.name.trim();
     return name ? [{ name, value: row.value }] : [];
@@ -405,7 +408,7 @@ function parseInstallerChoicesError(value: string) {
   }
 }
 
-function parseInstallerChoices(value: string): PackageInstallerChoice[] {
+function parseInstallerChoices(value: string): MunkiPackageInstallerChoice[] {
   const text = value.trim();
   if (text === "") return [];
   const parsed = JSON.parse(text) as unknown;
@@ -415,7 +418,7 @@ function parseInstallerChoices(value: string): PackageInstallerChoice[] {
   return parsed.map((item) => installerChoice(item));
 }
 
-function installerChoice(value: unknown): PackageInstallerChoice {
+function installerChoice(value: unknown): MunkiPackageInstallerChoice {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Installer choice entries must be JSON objects.");
   }
@@ -433,18 +436,18 @@ function installerChoice(value: unknown): PackageInstallerChoice {
   };
 }
 
-function installerChoicesText(values: PackageInstallerChoice[]) {
+function installerChoicesText(values: MunkiPackageInstallerChoice[]) {
   return values.length === 0 ? "" : JSON.stringify(values, null, 2);
 }
 
-function cleanInstallItems(rows: InstallItemRow[]): PackageInstallItem[] {
+function cleanInstallItems(rows: InstallItemRow[]): MunkiPackageInstallItem[] {
   return rows.flatMap((row) => {
     const path = row.path.trim();
     return path ? [{ ...stripRowID(row), path }] : [];
   });
 }
 
-function cleanReceipts(rows: ReceiptRow[]): PackageReceipt[] {
+function cleanReceipts(rows: ReceiptRow[]): MunkiPackageReceipt[] {
   return rows.flatMap((row) => {
     const packageID = row.package_id.trim();
     return packageID
@@ -459,7 +462,7 @@ function cleanReceipts(rows: ReceiptRow[]): PackageReceipt[] {
   });
 }
 
-function cleanItemsToCopy(rows: ItemToCopyRow[]): PackageItemToCopy[] {
+function cleanItemsToCopy(rows: ItemToCopyRow[]): MunkiPackageItemToCopy[] {
   return rows.flatMap((row) => {
     const sourceItem = row.source_item.trim();
     const destinationPath = row.destination_path.trim();
@@ -469,7 +472,7 @@ function cleanItemsToCopy(rows: ItemToCopyRow[]): PackageItemToCopy[] {
   });
 }
 
-function cleanAlert(alert: PackageAlert): PackageAlert {
+function cleanAlert(alert: MunkiPackageAlert): MunkiPackageAlert {
   if (!alert.enabled) return { enabled: false };
   return {
     enabled: true,

@@ -43,7 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
-import type { PackageAlert } from "@/lib/api";
+import type { MunkiPackageAlert } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import {
@@ -1616,8 +1616,8 @@ function AlertEditor({
 }: {
   id: string;
   legend: string;
-  alert: PackageAlert;
-  onChange: (alert: PackageAlert) => void;
+  alert: MunkiPackageAlert;
+  onChange: (alert: MunkiPackageAlert) => void;
 }) {
   return (
     <FieldSet>

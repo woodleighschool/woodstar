@@ -1,84 +1,12 @@
 import { client } from "@/lib/api-client/client.gen";
-import type * as API from "@/lib/api-client/types.gen";
 
 export * from "@/lib/api-client/sdk.gen";
+export type * from "@/lib/api-client/types.gen";
 
 export type Page<T> = {
   items: T[];
   count: number;
 };
-
-export type Account = API.Account;
-export type AccountMutation = API.AccountMutation;
-export type AgentSecret = API.AgentSecret;
-export type AgentSecretCreate = API.AgentSecretCreate;
-export type AgentSecretMutation = API.AgentSecretMutation;
-export type BundleReference = API.SantaBundleReference;
-export type CertificateReference = API.SantaCertificateReference;
-export type Check = API.OsqueryCheck;
-export type CheckHostStatus = API.OsqueryCheckHostStatus;
-export type CheckMutation = API.OsqueryCheckMutation;
-export type Configuration = API.SantaConfiguration;
-export type ConfigurationMutation = API.SantaConfigurationMutation;
-export type Department = API.Department;
-export type ExecutionEvent = API.SantaExecutionEvent;
-export type FileAccessEvent = API.SantaFileAccessEvent;
-export type Group = API.Group;
-export type Handle = API.OsqueryHandle;
-export type Host = API.Host;
-export type HostDetail = API.HostDetail;
-export type HostReport = API.OsqueryHostReport;
-export type HostSoftwareInstalledVersion = API.HostSoftwareInstalledVersion;
-export type HostSoftwareRow = API.HostSoftwareRow;
-export type HostSummary = API.SantaHostSummary;
-export type HostUserAffinity = API.HostUserAffinity;
-export type Label = API.Label;
-export type LabelMutation = API.LabelMutation;
-export type LabelRef = API.LabelRef;
-export type LiveQueryCreate = API.OsqueryLiveQueryCreateBody;
-export type LiveQueryResultEvent = API.OsqueryLiveQueryResultEvent;
-export type LiveQueryTargetCount = API.OsqueryLiveQueryTargetCountOutputBody;
-export type LiveQueryTargetSelection = API.OsqueryLiveQueryTargetCountBody;
-export type LoginInput = API.LoginInputBody;
-export type MunkiHostState = API.MunkiHostState;
-export type MunkiObject = API.MunkiObjectView;
-export type MunkiUploadTarget = API.MunkiUploadTarget;
-export type MunkiPackage = API.MunkiPackage;
-export type MunkiPackageCreateMutation = API.MunkiPackageCreateMutation;
-export type MunkiPackageMutation = API.MunkiPackageMutation;
-export type MunkiPackagePage = API.PageMunkiPackage;
-export type PackageAlert = API.MunkiPackageAlert;
-export type PackageInstallerChoice = API.MunkiPackageInstallerChoice;
-export type PackageInstallItem = API.MunkiPackageInstallItem;
-export type PackageInstallerEnvironmentVariable = API.MunkiPackageInstallerEnvironmentVariable;
-export type PackageItemToCopy = API.MunkiPackageItemToCopy;
-export type PackageReceipt = API.MunkiPackageReceipt;
-export type PackageReference = API.MunkiPackageReference;
-export type MunkiSoftware = API.MunkiSoftware;
-export type MunkiSoftwareDetail = API.MunkiSoftwareDetail;
-export type MunkiSoftwareMutation = API.MunkiMutation;
-export type MunkiSoftwarePage = API.PageMunkiSoftware;
-export type PathSignatureInformation = API.PathSignatureInformation;
-export type Report = API.OsqueryReport;
-export type ReportMutation = API.OsqueryReportMutation;
-export type ReportResult = API.OsqueryReportResult;
-export type Rule = API.SantaRule;
-export type RuleMutation = API.SantaRuleMutation;
-export type RuleReference = API.SantaRuleReference;
-export type RuleStatus = API.SantaRuleStatus;
-export type RuleReferenceCandidate = API.SantaRuleReferenceCandidate;
-export type SantaHostState = API.SantaHostState;
-export type Session = API.SessionBody;
-export type SetupInput = API.SetupInputBody;
-export type SigningIdentityReference = API.SantaSigningIdentityReference;
-export type SoftwareReference = API.SantaSoftwareReference;
-export type SoftwareInclude = API.MunkiInclude;
-export type MunkiSoftwareTargets = API.MunkiTargets;
-export type SoftwareTitle = API.SoftwareTitle;
-export type SoftwareVersion = API.SoftwareVersion;
-export type User = API.User;
-export type UserCreate = API.UserCreate;
-export type UserMutation = API.UserMutation;
 
 client.setConfig({
   credentials: "same-origin",

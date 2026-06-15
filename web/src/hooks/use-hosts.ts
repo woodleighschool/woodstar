@@ -4,13 +4,13 @@ import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import type {
   ApiError,
-  CheckHostStatus,
   Host,
   HostDetail,
-  HostReport,
   HostSoftwareRow,
+  OsqueryCheckHostStatus,
+  OsqueryHostReport,
   Page,
-  RuleStatus,
+  SantaRuleStatus,
 } from "@/lib/api";
 import {
   bulkDeleteHosts,
@@ -29,15 +29,15 @@ import type { ListHostSantaRulesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type { Host, HostDetail, HostReport };
+export type { Host, HostDetail, OsqueryHostReport };
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 
 type HostListResult = Page<Host>;
 type HostSoftwareListResult = Page<HostSoftwareRow>;
-type HostReportsResult = HostReport[];
-type HostChecksResult = CheckHostStatus[];
-type HostSantaRulesResult = Page<RuleStatus>;
+type HostReportsResult = OsqueryHostReport[];
+type HostChecksResult = OsqueryCheckHostStatus[];
+type HostSantaRulesResult = Page<SantaRuleStatus>;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 interface HostUserAffinityMutation {

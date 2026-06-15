@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
 import { type HostDetail, useHostSantaRules } from "@/hooks/use-hosts";
-import type { RuleStatus } from "@/lib/api";
+import type { SantaRuleStatus } from "@/lib/api";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
@@ -42,7 +42,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     "-"
   );
 
-  const columns = useMemo<ColumnDef<RuleStatus>[]>(
+  const columns = useMemo<ColumnDef<SantaRuleStatus>[]>(
     () => [
       {
         accessorKey: "name",

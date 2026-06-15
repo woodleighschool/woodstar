@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import type { ReportResult } from "@/lib/api";
+import type { OsqueryReportResult } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 export type ReportTableRow = {
@@ -13,7 +13,7 @@ export type ReportTableRow = {
   columns: Record<string, string>;
 };
 
-export function reportRows(rows: ReportResult[] | null | undefined): ReportTableRow[] {
+export function reportRows(rows: OsqueryReportResult[] | null | undefined): ReportTableRow[] {
   return (rows ?? []).map((row, index) => ({
     id: `${row.report_id}-${row.host_id}-${index}`,
     reportId: row.report_id,

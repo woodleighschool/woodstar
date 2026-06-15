@@ -1,5 +1,5 @@
 import { useDirectUpload } from "@/hooks/use-direct-upload";
-import type { MunkiObject, MunkiUploadTarget } from "@/lib/api";
+import type { MunkiObjectView, MunkiUploadTarget } from "@/lib/api";
 import {
   confirmMunkiPackageInstallerUpload,
   confirmMunkiPackageUninstallerUpload,
@@ -16,7 +16,7 @@ type PackageUploadVars = { packageId: number; file: File };
 
 // useUploadMunkiIcon attaches an icon to existing software.
 export function useUploadMunkiIcon() {
-  return useDirectUpload<MunkiUploadTarget, MunkiObject, IconUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObjectView, IconUploadVars>({
     mutationKey: ["munki-icon-upload"],
     loadingText: "Uploading icon",
     successText: "Icon uploaded",
@@ -40,7 +40,7 @@ export function useUploadMunkiIcon() {
 
 // useUploadMunkiInstaller attaches an installer to an existing package.
 export function useUploadMunkiInstaller() {
-  return useDirectUpload<MunkiUploadTarget, MunkiObject, PackageUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObjectView, PackageUploadVars>({
     mutationKey: ["munki-installer-upload"],
     loadingText: "Uploading installer",
     successText: "Installer uploaded",
@@ -64,7 +64,7 @@ export function useUploadMunkiInstaller() {
 
 // useUploadMunkiUninstaller attaches an uninstaller to an existing package.
 export function useUploadMunkiUninstaller() {
-  return useDirectUpload<MunkiUploadTarget, MunkiObject, PackageUploadVars>({
+  return useDirectUpload<MunkiUploadTarget, MunkiObjectView, PackageUploadVars>({
     mutationKey: ["munki-uninstaller-upload"],
     loadingText: "Uploading uninstaller",
     successText: "Uninstaller uploaded",

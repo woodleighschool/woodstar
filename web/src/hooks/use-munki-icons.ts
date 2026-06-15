@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, MunkiObject } from "@/lib/api";
+import type { ApiError, MunkiObjectView } from "@/lib/api";
 import { listMunkiIcons, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 interface MunkiIconsPage {
-  items: MunkiObject[];
+  items: MunkiObjectView[];
   count: number;
 }
 

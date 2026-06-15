@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { Account, AccountMutation, ApiError, Session } from "@/lib/api";
+import type { Account, AccountMutation, ApiError, SessionBody } from "@/lib/api";
 import {
   getAccount,
   revokeAccountApiKey,
@@ -27,7 +27,7 @@ export function useUpdateAccount() {
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
       queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
-      queryClient.setQueryData(queryKeys.session, (session: Session | undefined) =>
+      queryClient.setQueryData(queryKeys.session, (session: SessionBody | undefined) =>
         session ? { ...session, user: account.user } : session,
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });

@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
-import type { CheckHostStatus } from "@/hooks/use-checks";
+import type { OsqueryCheckHostStatus } from "@/hooks/use-checks";
 
 export function CheckStatusBadge({
   response,
 }: {
-  response: CheckHostStatus["response"] | undefined;
+  response: OsqueryCheckHostStatus["response"] | undefined;
 }) {
   if (response === "pass") {
     return (

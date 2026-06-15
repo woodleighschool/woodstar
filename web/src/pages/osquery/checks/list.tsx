@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { selectColumn } from "@/components/data-table/select-column";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
-import { type Check, useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
+import { type OsqueryCheck, useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
 
@@ -35,7 +35,7 @@ export function CheckListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<Check>[]>(() => checkColumns(isAdmin), [isAdmin]);
+  const columns = React.useMemo<ColumnDef<OsqueryCheck>[]>(() => checkColumns(isAdmin), [isAdmin]);
 
   const { table } = useDataTable({
     data: checks,
@@ -97,9 +97,9 @@ export function CheckListPage() {
   );
 }
 
-function checkColumns(isAdmin: boolean): ColumnDef<Check>[] {
-  const columns: ColumnDef<Check>[] = [
-    selectColumn<Check>(),
+function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
+  const columns: ColumnDef<OsqueryCheck>[] = [
+    selectColumn<OsqueryCheck>(),
     {
       id: "name",
       accessorKey: "name",

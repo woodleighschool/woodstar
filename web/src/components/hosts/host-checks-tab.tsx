@@ -7,10 +7,10 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { QueryError } from "@/components/query-error";
 import { useHostChecks } from "@/hooks/use-hosts";
-import type { CheckHostStatus } from "@/lib/api";
+import type { OsqueryCheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
-const checkColumns: ColumnDef<CheckHostStatus>[] = [
+const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "check_name",
     header: () => "Check",

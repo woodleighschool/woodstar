@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import type { Check, CheckMutation } from "@/lib/api";
+import type { OsqueryCheck, OsqueryCheckMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import {
@@ -25,14 +25,14 @@ import {
 } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
-export const emptyCheck: CheckMutation = {
+export const emptyCheck: OsqueryCheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
   targets: emptyLabelTargetSet(),
 };
 
-export function checkFromDetail(detail: Check): CheckMutation {
+export function checkFromDetail(detail: OsqueryCheck): OsqueryCheckMutation {
   return {
     name: detail.name,
     description: detail.description,
@@ -51,7 +51,7 @@ const checkFormSchema = z.object({
   targets: labelTargetSetSchema,
 });
 
-function trimCheck(value: CheckMutation): CheckMutation {
+function trimCheck(value: OsqueryCheckMutation): OsqueryCheckMutation {
   return {
     ...value,
     name: value.name.trim(),
@@ -70,10 +70,10 @@ export function CheckForm({
   headerContext,
   headerActions,
 }: {
-  initial: CheckMutation;
+  initial: OsqueryCheckMutation;
   title?: string;
   submitLabel: string;
-  onSubmit: (value: CheckMutation) => Promise<void> | void;
+  onSubmit: (value: OsqueryCheckMutation) => Promise<void> | void;
   onCancel?: () => void;
   headerContext?: ReactNode;
   headerActions?: ReactNode;

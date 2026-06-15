@@ -8,7 +8,7 @@ import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiSoftwareDetail } from "@/hooks/use-munki-software";
-import type { SoftwareInclude } from "@/lib/api";
+import type { MunkiInclude } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 
 import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";
@@ -198,11 +198,11 @@ export const munkiSoftwareTargetSchema = z
 export interface MunkiSoftwareTargetMutation {
   priority: number;
   label_id: number | null;
-  package: SoftwareInclude["package"];
-  actions: SoftwareInclude["actions"];
+  package: MunkiInclude["package"];
+  actions: MunkiInclude["actions"];
 }
 
-export function munkiSoftwareInclude(target: MunkiSoftwareTargetMutation): SoftwareInclude {
+export function munkiSoftwareInclude(target: MunkiSoftwareTargetMutation): MunkiInclude {
   return {
     label_id: target.label_id ?? 0,
     package: target.package,
@@ -210,14 +210,14 @@ export function munkiSoftwareInclude(target: MunkiSoftwareTargetMutation): Softw
   };
 }
 
-export function targetPackageValue(selector: SoftwareInclude["package"]) {
+export function targetPackageValue(selector: MunkiInclude["package"]) {
   if (selector.strategy === "specific" && selector.package_id) {
     return String(selector.package_id);
   }
   return LATEST_PACKAGE_VALUE;
 }
 
-export function targetPackageFromValue(value: string): SoftwareInclude["package"] {
+export function targetPackageFromValue(value: string): MunkiInclude["package"] {
   if (value === LATEST_PACKAGE_VALUE) {
     return { strategy: "latest" };
   }

@@ -23,7 +23,7 @@ import {
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
 } from "@/hooks/use-munki-software";
-import type { SoftwareInclude } from "@/lib/api";
+import type { MunkiInclude } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
 import { formatRelative } from "@/lib/utils";
 
@@ -316,7 +316,7 @@ function excludeLabelIDsFromTargets(software: MunkiSoftwareDetail) {
   return software.targets.exclude.map((target) => target.label_id);
 }
 
-function targetRowsFromIncludes(includes: SoftwareInclude[]): MunkiSoftwareTargetRow[] {
+function targetRowsFromIncludes(includes: MunkiInclude[]): MunkiSoftwareTargetRow[] {
   return includes.map((include, index) => ({ ...include, id: index + 1, priority: index + 1 }));
 }
 
