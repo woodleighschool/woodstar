@@ -316,6 +316,9 @@ class WoodstarMunkiPackageUploader(Processor):
         for key in PACKAGE_DIRECT_KEYS:
             if key in pkginfo:
                 body[key] = pkginfo[key]
+        force_date = body.get("force_install_after_date")
+        if hasattr(force_date, "isoformat"):
+            body["force_install_after_date"] = force_date.isoformat()
         if "RestartAction" in pkginfo:
             body["restart_action"] = pkginfo["RestartAction"]
         if "OnDemand" in pkginfo:

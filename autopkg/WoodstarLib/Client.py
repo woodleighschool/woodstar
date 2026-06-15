@@ -3,7 +3,6 @@
 import json
 import mimetypes
 import os
-import posixpath
 
 import requests
 from autopkglib import ProcessorError
@@ -40,7 +39,7 @@ class WoodstarClient:
         if query:
             request_kwargs["params"] = query
         if body is not None:
-            request_kwargs["json"] = json_safe(body)
+            request_kwargs["json"] = body
         try:
             response = self.session.request(method, f"{self.base_url}{path}", **request_kwargs)
             response.raise_for_status()
@@ -60,7 +59,7 @@ class WoodstarClient:
         file_path = os.path.abspath(file_path)
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
-        filename = clean_upload_filename(display_name or os.path.basename(file_path))
+        filename = display_name or os.path.basename(file_path)
         content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         target = self.post(attach_path, {"filename": filename, "content_type": content_type})
         self.upload_bytes(target, file_path)
@@ -136,13 +135,6 @@ def list_items(client, path, query=None, per_page=1000):
     return items
 
 
-def clean_upload_filename(filename):
-    filename = posixpath.basename(str(filename).strip().replace("\\", "/"))
-    if filename in {"", ".", "/"}:
-        raise ProcessorError("upload filename is required")
-    return filename
-
-
 def http_error_message(method, path, response):
     body = response.text
     try:
@@ -155,17 +147,12 @@ def http_error_message(method, path, response):
     return f"{method} {path} failed: HTTP {response.status_code}: {message}"
 
 
-def json_safe(value):
-    if isinstance(value, dict):
-        return {str(key): json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [json_safe(item) for item in value]
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
-    return value
-
-
 def truthy(value):
     if isinstance(value, bool):
         return value
-    return str(value).strip().lower() not in {"", "0", "false", "no", "none"}
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no", ""}:
+        return False
+    raise ProcessorError(f"expected a boolean value, got {value!r}")
