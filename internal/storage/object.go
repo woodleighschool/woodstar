@@ -63,13 +63,15 @@ func NewObjectStore(db *database.DB, backend Store) *ObjectStore {
 // CreatePending inserts a pending object and returns it with its assigned id.
 // The caller uploads to Object.Key() and then calls Confirm.
 func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, contentType string) (*Object, error) {
-	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
 	if !prefixPattern.MatchString(prefix) {
-		return nil, fmt.Errorf("invalid storage prefix %q", prefix)
+		return nil, fmt.Errorf("%w: invalid storage prefix %q", dbutil.ErrInvalidInput, prefix)
+	}
+	if err := validateFilename(filename); err != nil {
+		return nil, err
 	}
 	row, err := s.q.CreateStorageObject(ctx, sqlc.CreateStorageObjectParams{
 		Prefix:      prefix,
-		Filename:    sanitizeFilename(filename),
+		Filename:    filename,
 		ContentType: contentType,
 	})
 	if err != nil {
@@ -233,24 +235,34 @@ func objectFromSQLC(row sqlc.StorageObject) Object {
 	}
 }
 
-var (
-	prefixPattern  = regexp.MustCompile(`^[a-z0-9]+(/[a-z0-9]+)*$`)
-	filenameUnsafe = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
-	dashAroundDot  = regexp.MustCompile(`-*\.-*`)
-)
+// prefixPattern constrains a storage prefix to the lowercase slash-separated
+// segments that make up a key namespace.
+var prefixPattern = regexp.MustCompile(`^[a-z0-9]+(/[a-z0-9]+)*$`)
 
-// sanitizeFilename reduces a client filename to a safe key segment, keeping the
-// extension readable. It never returns empty.
-func sanitizeFilename(name string) string {
-	name = strings.TrimSpace(name)
-	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
-		name = name[i+1:]
+// maxFilenameLen caps a filename at the common single-component filesystem limit.
+const maxFilenameLen = 255
+
+// validateFilename reports whether name is usable verbatim as both a storage key
+// segment and a display name. It rejects malformed names instead of repairing
+// them: the client owns the filename, so a bad one is a client error, not
+// something the registry should silently rewrite.
+func validateFilename(name string) error {
+	switch {
+	case name == "":
+		return fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
+	case len(name) > maxFilenameLen:
+		return fmt.Errorf("%w: filename exceeds %d bytes", dbutil.ErrInvalidInput, maxFilenameLen)
+	case strings.TrimSpace(name) != name:
+		return fmt.Errorf("%w: filename has leading or trailing whitespace", dbutil.ErrInvalidInput)
+	case name == "." || name == "..":
+		return fmt.Errorf("%w: filename %q is not allowed", dbutil.ErrInvalidInput, name)
+	case strings.ContainsAny(name, `/\`):
+		return fmt.Errorf("%w: filename must not contain path separators", dbutil.ErrInvalidInput)
 	}
-	name = filenameUnsafe.ReplaceAllString(name, "-")
-	name = dashAroundDot.ReplaceAllString(name, ".")
-	name = strings.Trim(name, "-.")
-	if name == "" {
-		return "file"
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("%w: filename contains control characters", dbutil.ErrInvalidInput)
+		}
 	}
-	return name
+	return nil
 }

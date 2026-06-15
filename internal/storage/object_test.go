@@ -1,6 +1,11 @@
 package storage
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+)
 
 func TestObjectKey(t *testing.T) {
 	t.Parallel()
@@ -10,21 +15,36 @@ func TestObjectKey(t *testing.T) {
 	}
 }
 
-func TestSanitizeFilename(t *testing.T) {
+func TestValidateFilenameAccepts(t *testing.T) {
 	t.Parallel()
-	cases := map[string]string{
-		"Firefox 120.dmg":  "Firefox-120.dmg",
-		"../../etc/passwd": "passwd",
-		`weird*name?.png`:  "weird-name.png",
-		"  spaced .icns ":  "spaced.icns",
-		"":                 "file",
-		"...":              "file",
-		"a/b/c.pkg":        "c.pkg",
-		"Acmé Café.png":    "Acm-Caf.png",
+	for _, name := range []string{
+		"Firefox-120.0.dmg",
+		"Acmé Café.png",
+		"name with spaces.pkg",
+		"weird+name(1).png",
+	} {
+		if err := validateFilename(name); err != nil {
+			t.Errorf("validateFilename(%q) = %v, want nil", name, err)
+		}
 	}
-	for in, want := range cases {
-		if got := sanitizeFilename(in); got != want {
-			t.Errorf("sanitizeFilename(%q) = %q, want %q", in, got, want)
+}
+
+func TestValidateFilenameRejects(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{
+		"",
+		"   ",
+		" leading.dmg",
+		"trailing.dmg ",
+		".",
+		"..",
+		"a/b/c.pkg",
+		`a\b.pkg`,
+		"../../etc/passwd",
+		"with\x00null.pkg",
+	} {
+		if err := validateFilename(name); !errors.Is(err, dbutil.ErrInvalidInput) {
+			t.Errorf("validateFilename(%q) = %v, want ErrInvalidInput", name, err)
 		}
 	}
 }
