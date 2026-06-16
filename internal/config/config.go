@@ -134,6 +134,9 @@ func (cfg *Config) normalizeStorage() error {
 	cfg.StorageS3PublicEndpoint = strings.TrimSpace(cfg.StorageS3PublicEndpoint)
 	cfg.StorageS3AccessKey = strings.TrimSpace(cfg.StorageS3AccessKey)
 	cfg.StorageS3SecretKey = strings.TrimSpace(cfg.StorageS3SecretKey)
+	if cfg.StorageS3PresignTTL <= 0 {
+		return errors.New("WOODSTAR_STORAGE_S3_PRESIGN_TTL must be positive")
+	}
 	switch cfg.StorageKind {
 	case "file":
 		if cfg.StorageFileRoot == "" {
@@ -143,9 +146,6 @@ func (cfg *Config) normalizeStorage() error {
 		if cfg.StorageS3Bucket == "" || cfg.StorageS3Region == "" ||
 			cfg.StorageS3AccessKey == "" || cfg.StorageS3SecretKey == "" {
 			return errors.New("incomplete WOODSTAR_STORAGE_S3 configuration")
-		}
-		if cfg.StorageS3PresignTTL <= 0 {
-			return errors.New("WOODSTAR_STORAGE_S3_PRESIGN_TTL must be positive")
 		}
 	default:
 		return fmt.Errorf("WOODSTAR_STORAGE_KIND must be file or s3, got %q", cfg.StorageKind)

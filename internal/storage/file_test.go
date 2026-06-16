@@ -5,17 +5,19 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
 func TestFileStoreRoundTrip(t *testing.T) {
 	t.Parallel()
-	store, err := newFileStore(t.TempDir())
-	if err != nil {
-		t.Fatalf("newFileStore: %v", err)
-	}
+	store := newTestFileStore(t)
 	ctx := context.Background()
 	key := "munki/packages/42/installer.pkg"
 	want := []byte("installer bytes")
@@ -56,10 +58,7 @@ func TestFileStoreRoundTrip(t *testing.T) {
 func TestFileStoreDeletePrunesEmptyDir(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	store, err := newFileStore(root)
-	if err != nil {
-		t.Fatalf("newFileStore: %v", err)
-	}
+	store := newTestFileStoreAt(t, root)
 	ctx := context.Background()
 	if err := store.Put(ctx, "munki/icons/7/icon.png", bytes.NewReader([]byte("x")), PutOptions{}); err != nil {
 		t.Fatalf("Put: %v", err)
@@ -74,12 +73,89 @@ func TestFileStoreDeletePrunesEmptyDir(t *testing.T) {
 
 func TestFileStoreRejectsTraversal(t *testing.T) {
 	t.Parallel()
-	store, err := newFileStore(t.TempDir())
-	if err != nil {
-		t.Fatalf("newFileStore: %v", err)
-	}
+	store := newTestFileStore(t)
 	if err := store.Put(context.Background(), "../escape", bytes.NewReader([]byte("x")), PutOptions{}); err == nil {
 		t.Fatal("Put with traversal key returned nil error, want rejection")
+	}
+}
+
+func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
+	t.Parallel()
+	store := newTestFileStore(t)
+	now := time.Now()
+
+	rawURL, err := store.PresignGet(
+		context.Background(),
+		"munki/icons/7/icon.png",
+		time.Minute,
+		GetOptions{ContentType: "image/png"},
+	)
+	if err != nil {
+		t.Fatalf("PresignGet: %v", err)
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse URL: %v", err)
+	}
+	if got := parsed.Scheme + "://" + parsed.Host + parsed.Path; got != "https://woodstar.example/storage/blob" {
+		t.Fatalf("blob URL = %q, want https://woodstar.example/storage/blob", got)
+	}
+	claims, err := capability.Verify(
+		testCapabilityKey,
+		parsed.Query().Get("cap"),
+		capability.OpGet,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if claims.Key != "munki/icons/7/icon.png" {
+		t.Fatalf("key = %q, want object key", claims.Key)
+	}
+	if claims.ContentType != "image/png" {
+		t.Fatalf("content type = %q, want image/png", claims.ContentType)
+	}
+}
+
+func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
+	t.Parallel()
+	store := newTestFileStore(t)
+	now := time.Now()
+
+	target, err := store.PresignPut(
+		context.Background(),
+		"munki/packages/42/Installer.pkg",
+		time.Minute,
+		PutOptions{ContentType: "application/octet-stream"},
+	)
+	if err != nil {
+		t.Fatalf("PresignPut: %v", err)
+	}
+	if target.Method != "PUT" {
+		t.Fatalf("method = %q, want PUT", target.Method)
+	}
+	if target.Transport != UploadTransportWoodstar {
+		t.Fatalf("transport = %q, want woodstar", target.Transport)
+	}
+	if !strings.HasPrefix(target.URL, "https://woodstar.example/storage/blob?cap=") {
+		t.Fatalf("url = %q, want blob capability URL", target.URL)
+	}
+	parsed, err := url.Parse(target.URL)
+	if err != nil {
+		t.Fatalf("parse URL: %v", err)
+	}
+	claims, err := capability.Verify(
+		testCapabilityKey,
+		parsed.Query().Get("cap"),
+		capability.OpPut,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if claims.Key != "munki/packages/42/Installer.pkg" {
+		t.Fatalf("key = %q, want object key", claims.Key)
 	}
 }
 
@@ -89,3 +165,19 @@ func TestNewRejectsUnknownKind(t *testing.T) {
 		t.Fatal("New with unknown kind returned nil error")
 	}
 }
+
+func newTestFileStore(t *testing.T) *fileStore {
+	t.Helper()
+	return newTestFileStoreAt(t, t.TempDir())
+}
+
+func newTestFileStoreAt(t *testing.T, root string) *fileStore {
+	t.Helper()
+	store, err := newFileStore(root, "https://woodstar.example", testCapabilityKey, time.Minute)
+	if err != nil {
+		t.Fatalf("newFileStore: %v", err)
+	}
+	return store
+}
+
+var testCapabilityKey = []byte("storage capability test key")

@@ -85,5 +85,10 @@ function uploadRequestFromIntent(intent: MunkiUploadTarget) {
 }
 
 function uploadTransportFromIntent(intent: MunkiUploadTarget): UploadTransport {
-  return intent.upload_kind === "presigned" ? "uppy-s3" : "xhr";
+  switch (intent.upload_transport) {
+    case "s3":
+      return "uppy-s3";
+    case "woodstar":
+      return "xhr";
+  }
 }

@@ -5,19 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
-// fileStore keeps blobs under a local directory. Keys map to paths beneath root;
-// woodstar proxies transfers, so it implements Store but not Presigner.
+// fileStore keeps blobs under a local directory. Keys map to paths beneath root.
 type fileStore struct {
-	root string
+	root          string
+	publicURL     string
+	capabilityKey []byte
+	ttl           time.Duration
 }
 
-func newFileStore(root string) (*fileStore, error) {
+func newFileStore(root string, publicURL string, capabilityKey []byte, ttl time.Duration) (*fileStore, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
 		return nil, errors.New("storage file root is empty")
@@ -29,7 +36,12 @@ func newFileStore(root string) (*fileStore, error) {
 	if err := os.MkdirAll(abs, 0o750); err != nil {
 		return nil, fmt.Errorf("create storage file root: %w", err)
 	}
-	return &fileStore{root: abs}, nil
+	return &fileStore{
+		root:          abs,
+		publicURL:     publicURL,
+		capabilityKey: slices.Clone(capabilityKey),
+		ttl:           ttl,
+	}, nil
 }
 
 // resolve maps a storage key to a path under root, rejecting traversal.
@@ -125,4 +137,62 @@ func (s *fileStore) Stat(_ context.Context, key string) (ObjectInfo, error) {
 		return ObjectInfo{}, fmt.Errorf("stat %q: %w", key, err)
 	}
 	return ObjectInfo{Size: info.Size()}, nil
+}
+
+func (s *fileStore) PresignGet(
+	_ context.Context,
+	key string,
+	ttl time.Duration,
+	opts GetOptions,
+) (string, error) {
+	return s.blobURL(capability.Claims{
+		Op:          capability.OpGet,
+		Key:         key,
+		Exp:         time.Now().Add(s.expires(ttl)).Unix(),
+		ContentType: opts.ContentType,
+	})
+}
+
+func (s *fileStore) PresignPut(
+	_ context.Context,
+	key string,
+	ttl time.Duration,
+	opts PutOptions,
+) (UploadTarget, error) {
+	url, err := s.blobURL(capability.Claims{
+		Op:          capability.OpPut,
+		Key:         key,
+		Exp:         time.Now().Add(s.expires(ttl)).Unix(),
+		ContentType: opts.ContentType,
+	})
+	if err != nil {
+		return UploadTarget{}, err
+	}
+	return UploadTarget{
+		URL:       url,
+		Method:    http.MethodPut,
+		Transport: UploadTransportWoodstar,
+	}, nil
+}
+
+func (s *fileStore) blobURL(claims capability.Claims) (string, error) {
+	token, err := capability.Sign(s.capabilityKey, claims)
+	if err != nil {
+		return "", err
+	}
+	blobURL, err := url.Parse(s.publicURL + "/storage/blob")
+	if err != nil {
+		return "", err
+	}
+	values := blobURL.Query()
+	values.Set("cap", token)
+	blobURL.RawQuery = values.Encode()
+	return blobURL.String(), nil
+}
+
+func (s *fileStore) expires(ttl time.Duration) time.Duration {
+	if ttl <= 0 {
+		return s.ttl
+	}
+	return ttl
 }

@@ -35,7 +35,7 @@ type munkiIconContentInput struct {
 	ObjectID int64 `path:"object_id"`
 }
 
-func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectStore, store storage.Store) {
+func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectStore, store storage.Presigner) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software-icon-upload",
 		Method:        http.MethodPost,
@@ -128,7 +128,7 @@ func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectSt
 			)
 		}
 		return &huma.StreamResponse{Body: func(hctx huma.Context) {
-			storage.ServeContent(hctx, store, obj.Key())
+			storage.ServeContent(hctx, store, obj.Key(), storage.GetOptions{ContentType: obj.ContentType})
 		}}, nil
 	})
 }

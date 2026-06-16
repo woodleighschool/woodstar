@@ -624,7 +624,7 @@ export type MunkiUploadTarget = {
     };
     method: string;
     object_id: number;
-    upload_kind: 'proxy' | 'presigned';
+    upload_transport: 'woodstar' | 's3';
     upload_url: string;
 };
 

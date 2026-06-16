@@ -78,7 +78,7 @@ func installerTypeFilterValues(types []InstallerType) []string {
 }
 
 // RegisterAdminRoutes registers Munki package admin endpoints.
-func RegisterAdminRoutes(api huma.API, store *Store, objects *storage.ObjectStore, storageStore storage.Store) {
+func RegisterAdminRoutes(api huma.API, store *Store, objects *storage.ObjectStore, storageStore storage.Presigner) {
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)

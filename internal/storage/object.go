@@ -112,8 +112,7 @@ func (s *ObjectStore) ConfirmUploaded(ctx context.Context, id int64) (*Object, e
 	if err != nil {
 		return nil, err
 	}
-	// Re-download the whole object to hash it. pkginfo wants a real SHA-256.
-	// Needs to be done somewhere...
+	// Re-read the whole object to compute its SHA-256; pkginfo needs a real one.
 	reader, info, err := s.backend.Open(ctx, obj.Key())
 	if err != nil {
 		return nil, err

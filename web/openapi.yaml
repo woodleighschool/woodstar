@@ -1666,18 +1666,18 @@ components:
         object_id:
           format: int64
           type: integer
-        upload_kind:
+        upload_transport:
           enum:
-            - proxy
-            - presigned
+            - woodstar
+            - s3
           type: string
         upload_url:
           type: string
       required:
         - object_id
-        - upload_kind
         - upload_url
         - method
+        - upload_transport
       type: object
     OsqueryCheck:
       additionalProperties: false

@@ -25,7 +25,7 @@ type munkiPackageConfirmInput struct {
 	ObjectID  int64 `path:"object_id"`
 }
 
-func registerObjectRoutes(api huma.API, packages *Store, objects *storage.ObjectStore, store storage.Store) {
+func registerObjectRoutes(api huma.API, packages *Store, objects *storage.ObjectStore, store storage.Presigner) {
 	objectPath := munkiPackagePath + "/{id}/installer"
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package-installer-upload",

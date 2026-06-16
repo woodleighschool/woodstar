@@ -3,7 +3,6 @@ package protocol
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -485,7 +484,7 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
-	store := &fakeStore{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
+	store := &fakePresigner{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
@@ -520,7 +519,7 @@ func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
 func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/icons/7/GoogleChrome.png"
-	store := &fakeStore{presignURL: "https://storage.example/icon.png?signature=test"}
+	store := &fakePresigner{presignURL: "https://storage.example/icon.png?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
@@ -563,9 +562,9 @@ func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 func newMunkiContractRouter(
 	verifier agentauth.SecretVerifier,
 	repository Repository,
-	store ...storage.Store,
+	store ...storage.Presigner,
 ) chi.Router {
-	var s storage.Store
+	var s storage.Presigner
 	if len(store) > 0 {
 		s = store[0]
 	}
@@ -574,29 +573,22 @@ func newMunkiContractRouter(
 	return r
 }
 
-type fakeStore struct {
+type fakePresigner struct {
 	presignURL string
 	gotKey     string
 }
 
-func (f *fakeStore) Open(context.Context, string) (io.ReadCloser, storage.ObjectInfo, error) {
-	return nil, storage.ObjectInfo{}, storage.ErrObjectNotFound
-}
-
-func (f *fakeStore) Put(context.Context, string, io.Reader, storage.PutOptions) error { return nil }
-
-func (f *fakeStore) Delete(context.Context, string) error { return nil }
-
-func (f *fakeStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
-	return storage.ObjectInfo{}, nil
-}
-
-func (f *fakeStore) PresignGet(_ context.Context, key string, _ time.Duration) (string, error) {
+func (f *fakePresigner) PresignGet(
+	_ context.Context,
+	key string,
+	_ time.Duration,
+	_ storage.GetOptions,
+) (string, error) {
 	f.gotKey = key
 	return f.presignURL, nil
 }
 
-func (f *fakeStore) PresignPut(
+func (f *fakePresigner) PresignPut(
 	context.Context,
 	string,
 	time.Duration,

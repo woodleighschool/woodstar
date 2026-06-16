@@ -17,9 +17,12 @@ const (
 
 // Config selects and configures a backend.
 type Config struct {
-	Kind     Kind
-	FileRoot string
-	S3       S3Config
+	Kind          Kind
+	FileRoot      string
+	PublicURL     string
+	CapabilityKey []byte
+	PresignTTL    time.Duration
+	S3            S3Config
 }
 
 // S3Config holds the settings for the S3 backend.
@@ -35,10 +38,10 @@ type S3Config struct {
 }
 
 // New builds the configured backend.
-func New(ctx context.Context, cfg Config) (Store, error) {
+func New(ctx context.Context, cfg Config) (Backend, error) {
 	switch cfg.Kind {
 	case KindFile:
-		return newFileStore(cfg.FileRoot)
+		return newFileStore(cfg.FileRoot, cfg.PublicURL, cfg.CapabilityKey, cfg.PresignTTL)
 	case KindS3:
 		return newS3Store(ctx, cfg.S3)
 	default:

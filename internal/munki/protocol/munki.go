@@ -4,7 +4,6 @@ package protocol
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -31,7 +30,7 @@ type Repository interface {
 type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
-	store          storage.Store
+	store          storage.Presigner
 	logger         *slog.Logger
 }
 
@@ -40,7 +39,7 @@ func RegisterMunkiRoutes(
 	r chi.Router,
 	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
-	store storage.Store,
+	store storage.Presigner,
 	logger *slog.Logger,
 ) {
 	h := handler{
@@ -123,36 +122,15 @@ func (h handler) serveFile(
 	h.deliver(w, r, key)
 }
 
-// deliver sends the blob to the client: a redirect to a presigned URL when the
-// backend supports it (S3), otherwise a direct stream (file).
+// deliver sends the blob to the client through a short-lived transfer URL.
 func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
-	if presigner, ok := h.store.(storage.Presigner); ok {
-		url, err := presigner.PresignGet(r.Context(), key, 0)
-		if err != nil {
-			h.log(r, "file", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, url, http.StatusFound)
-		return
-	}
-	reader, info, err := h.store.Open(r.Context(), key)
-	if errors.Is(err, storage.ErrObjectNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
+	url, err := h.store.PresignGet(r.Context(), key, 0, storage.GetOptions{})
 	if err != nil {
 		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer reader.Close()
-	if info.ContentType != "" {
-		w.Header().Set("Content-Type", info.ContentType)
-	}
-	if _, err := io.Copy(w, reader); err != nil {
-		h.log(r, "file", err)
-	}
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h handler) writePlist(

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"net"
@@ -117,12 +119,13 @@ func serve(parent context.Context, cfg config.Config) error {
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
 
-	storageBackend, err := storage.New(ctx, storageConfig(cfg))
+	storageCapabilityKey := assetCapabilityKey(cfg.SessionSecret)
+	storageBackend, err := storage.New(ctx, storageConfig(cfg, storageCapabilityKey))
 	if err != nil {
 		return fmt.Errorf("init storage: %w", err)
 	}
 
-	server, starts := newServer(ctx, cfg, db, sessions, logger, storageBackend)
+	server, starts := newServer(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
 
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
 	if err != nil {
@@ -180,9 +183,10 @@ func newServer(
 	db *database.DB,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
-	storageBackend storage.Store,
+	storageBackend storage.Backend,
+	storageCapabilityKey []byte,
 ) (*adminapi.Server, []starter) {
-	w := buildWiring(ctx, cfg, db, sessions, logger, storageBackend)
+	w := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
 	return adminapi.NewServer(w.serverDependencies()), w.starters()
 }
 
@@ -194,7 +198,8 @@ type wiring struct {
 	logger         *slog.Logger
 	db             *database.DB
 	sessions       *scs.SessionManager
-	storageBackend storage.Store
+	storageBackend storage.Backend
+	storageKey     []byte
 
 	auth           *auth.Service
 	users          *directory.UserService
@@ -232,7 +237,8 @@ func buildWiring(
 	db *database.DB,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
-	storageBackend storage.Store,
+	storageBackend storage.Backend,
+	storageCapabilityKey []byte,
 ) *wiring {
 	w := &wiring{
 		cfg:            cfg,
@@ -240,6 +246,7 @@ func buildWiring(
 		db:             db,
 		sessions:       sessions,
 		storageBackend: storageBackend,
+		storageKey:     slices.Clone(storageCapabilityKey),
 	}
 
 	// Core stores.
@@ -363,19 +370,15 @@ func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 		func(g adminapi.AdminGroups) {
 			packages.RegisterAdminRoutes(g.Ordinary, w.munkiPackages, w.storageObjects, w.storageBackend)
 		},
-		func(g adminapi.AdminGroups) {
-			storage.RegisterContentAdminRoutes(
-				g.Router.With(adminapi.RequireHTTPAuth(w.auth), adminapi.RequireHTTPAdmin()),
-				w.storageObjects,
-				w.storageBackend,
-			)
-		},
 	}
 }
 
 // protocolRegistrars returns one registrar per agent-facing protocol.
 func (w *wiring) protocolRegistrars() []adminapi.ProtocolRegistrar {
 	return []adminapi.ProtocolRegistrar{
+		func(r chi.Router) {
+			storage.RegisterBlobRoutes(r, w.storageBackend, w.storageKey)
+		},
 		func(r chi.Router) {
 			orbitprotocol.RegisterOrbitRoutes(r, w.orbitAgent, w.logger.With("component", "orbit"))
 		},
@@ -450,10 +453,13 @@ func newMunki(
 	})
 }
 
-func storageConfig(cfg config.Config) storage.Config {
+func storageConfig(cfg config.Config, capabilityKey []byte) storage.Config {
 	return storage.Config{
-		Kind:     storage.Kind(cfg.StorageKind),
-		FileRoot: cfg.StorageFileRoot,
+		Kind:          storage.Kind(cfg.StorageKind),
+		FileRoot:      cfg.StorageFileRoot,
+		PublicURL:     cfg.PublicURL,
+		CapabilityKey: slices.Clone(capabilityKey),
+		PresignTTL:    cfg.StorageS3PresignTTL,
 		S3: storage.S3Config{
 			Bucket:         cfg.StorageS3Bucket,
 			Region:         cfg.StorageS3Region,
@@ -465,6 +471,12 @@ func storageConfig(cfg config.Config) storage.Config {
 			PresignTTL:     cfg.StorageS3PresignTTL,
 		},
 	}
+}
+
+func assetCapabilityKey(sessionSecret string) []byte {
+	mac := hmac.New(sha256.New, []byte(sessionSecret))
+	_, _ = mac.Write([]byte("woodstar-storage-capability-v1"))
+	return mac.Sum(nil)
 }
 
 func santaCleanup(

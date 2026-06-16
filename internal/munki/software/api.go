@@ -78,7 +78,7 @@ func RegisterAdminRoutes(
 	store *Store,
 	packageStore *packages.Store,
 	objects *storage.ObjectStore,
-	storageStore storage.Store,
+	storageStore storage.Presigner,
 ) {
 	registerListMunkiSoftware(api, store)
 	registerCreateMunkiSoftware(api, store, packageStore)

@@ -126,7 +126,12 @@ func (s *s3Store) Stat(ctx context.Context, key string) (ObjectInfo, error) {
 	}, nil
 }
 
-func (s *s3Store) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
+func (s *s3Store) PresignGet(
+	ctx context.Context,
+	key string,
+	ttl time.Duration,
+	_ GetOptions,
+) (string, error) {
 	output, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
@@ -155,9 +160,10 @@ func (s *s3Store) PresignPut(
 		return UploadTarget{}, fmt.Errorf("presign put %q: %w", key, err)
 	}
 	return UploadTarget{
-		URL:     output.URL,
-		Method:  http.MethodPut,
-		Headers: singleValueHeaders(output.SignedHeader),
+		URL:       output.URL,
+		Method:    http.MethodPut,
+		Transport: UploadTransportS3,
+		Headers:   singleValueHeaders(output.SignedHeader),
 	}, nil
 }
 
@@ -201,6 +207,7 @@ func singleValueHeaders(headers http.Header) map[string]string {
 
 var (
 	_ Store     = (*fileStore)(nil)
+	_ Presigner = (*fileStore)(nil)
 	_ Store     = (*s3Store)(nil)
 	_ Presigner = (*s3Store)(nil)
 )

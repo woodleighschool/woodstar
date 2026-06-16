@@ -14,7 +14,12 @@ import (
 // metadata, which is the integrity guarantee installer uploads rely on.
 func TestConfirmUploadedDerivesSizeAndSHA256FromBackend(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	backend, err := New(ctx, Config{Kind: KindFile, FileRoot: t.TempDir()})
+	backend, err := New(ctx, Config{
+		Kind:          KindFile,
+		FileRoot:      t.TempDir(),
+		PublicURL:     "https://woodstar.example",
+		CapabilityKey: testCapabilityKey,
+	})
 	if err != nil {
 		t.Fatalf("create file storage: %v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -20,28 +19,23 @@ type MunkiUploadRequest struct {
 	ContentType string `json:"content_type,omitempty"`
 }
 
-type MunkiUploadKind string
+type MunkiUploadTransport storage.UploadTransport
 
-const (
-	MunkiUploadKindProxy     MunkiUploadKind = "proxy"
-	MunkiUploadKindPresigned MunkiUploadKind = "presigned"
-)
-
-var uploadKindValues = []MunkiUploadKind{
-	MunkiUploadKindProxy,
-	MunkiUploadKindPresigned,
+var uploadTransportValues = []MunkiUploadTransport{
+	MunkiUploadTransport(storage.UploadTransportWoodstar),
+	MunkiUploadTransport(storage.UploadTransportS3),
 }
 
-func (MunkiUploadKind) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(uploadKindValues...)
+func (MunkiUploadTransport) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(uploadTransportValues...)
 }
 
 type MunkiUploadTarget struct {
-	ObjectID   int64             `json:"object_id"`
-	UploadKind MunkiUploadKind   `json:"upload_kind"`
-	UploadURL  string            `json:"upload_url"`
-	Method     string            `json:"method"`
-	Headers    map[string]string `json:"headers,omitempty"`
+	ObjectID        int64                `json:"object_id"`
+	UploadURL       string               `json:"upload_url"`
+	Method          string               `json:"method"`
+	UploadTransport MunkiUploadTransport `json:"upload_transport"`
+	Headers         map[string]string    `json:"headers,omitempty"`
 }
 
 type MunkiObjectView struct {
@@ -64,7 +58,7 @@ type ObjectOutput struct {
 func Create(
 	ctx context.Context,
 	objects *storage.ObjectStore,
-	store storage.Store,
+	presigner storage.Presigner,
 	prefix string,
 	req MunkiUploadRequest,
 ) (*UploadOutput, error) {
@@ -73,25 +67,16 @@ func Create(
 		return nil, err
 	}
 
-	presigner, ok := store.(storage.Presigner)
-	if !ok {
-		return &UploadOutput{Body: MunkiUploadTarget{
-			ObjectID:   obj.ID,
-			UploadKind: MunkiUploadKindProxy,
-			UploadURL:  fmt.Sprintf("/api/objects/%d/content", obj.ID),
-			Method:     http.MethodPut,
-		}}, nil
-	}
 	target, err := presigner.PresignPut(ctx, obj.Key(), 0, storage.PutOptions{ContentType: req.ContentType})
 	if err != nil {
 		return nil, err
 	}
 	return &UploadOutput{Body: MunkiUploadTarget{
-		ObjectID:   obj.ID,
-		UploadKind: MunkiUploadKindPresigned,
-		UploadURL:  target.URL,
-		Method:     target.Method,
-		Headers:    target.Headers,
+		ObjectID:        obj.ID,
+		UploadURL:       target.URL,
+		Method:          target.Method,
+		UploadTransport: MunkiUploadTransport(target.Transport),
+		Headers:         target.Headers,
 	}}, nil
 }
 

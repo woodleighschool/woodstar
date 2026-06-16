@@ -68,20 +68,16 @@ class WoodstarClient:
     def upload_bytes(self, target, file_path):
         url = target["upload_url"]
         method = target["method"].upper()
+        transport = target["upload_transport"]
+        if transport not in ("woodstar", "s3"):
+            raise ProcessorError(f"unsupported upload transport: {transport}")
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise ProcessorError(f"upload URL must be absolute: {url}")
         headers = dict(target.get("headers") or {})
         headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
         with open(file_path, "rb") as handle:
             try:
-                if url.startswith("/"):
-                    # Woodstar's own receiver (file backend) is session-authed;
-                    # resolve the relative path against the base URL.
-                    response = self.session.request(
-                        method, f"{self.base_url}{url}", data=handle, headers=headers
-                    )
-                else:
-                    # Presigned URL (s3): auth rides in the signature, so send a
-                    # bare request without the session's Authorization header.
-                    response = requests.request(method, url, data=handle, headers=headers)
+                response = requests.request(method, url, data=handle, headers=headers)
             except requests.RequestException as err:
                 raise ProcessorError(f"upload to {url} failed: {err}") from err
         if response.status_code < 200 or response.status_code >= 300:

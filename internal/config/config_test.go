@@ -139,6 +139,17 @@ func TestApplyEnvironmentRejectsPartialStorageS3Config(t *testing.T) {
 	}
 }
 
+func TestApplyEnvironmentRejectsNonPositivePresignTTL(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
+	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_S3_PRESIGN_TTL", "0s")
+
+	err := ApplyEnvironment(&Config{})
+	if err == nil {
+		t.Fatal("ApplyEnvironment returned nil error, want presign TTL rejection")
+	}
+}
+
 func TestApplyEnvironmentRejectsURLWithPath(t *testing.T) {
 	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/woodstar")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))

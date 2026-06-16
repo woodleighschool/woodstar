@@ -20,11 +20,16 @@ type Store interface {
 	Stat(ctx context.Context, key string) (ObjectInfo, error)
 }
 
-// Presigner hands a client a URL to transfer bytes directly. The S3 backend
-// implements it; the file backend does not, so callers type-assert for it and
-// fall back to proxying through woodstar's own routes.
+// Backend is a configured storage backend. All runtime backends can read/write
+// bytes and mint direct transfer capabilities.
+type Backend interface {
+	Store
+	Presigner
+}
+
+// Presigner hands a client a URL to transfer bytes directly.
 type Presigner interface {
-	PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error)
+	PresignGet(ctx context.Context, key string, ttl time.Duration, opts GetOptions) (string, error)
 	PresignPut(ctx context.Context, key string, ttl time.Duration, opts PutOptions) (UploadTarget, error)
 }
 
@@ -41,9 +46,23 @@ type PutOptions struct {
 	ContentType string
 }
 
+// GetOptions carries optional hints for a presigned read.
+type GetOptions struct {
+	ContentType string
+}
+
+// UploadTransport tells clients which upload implementation should send bytes.
+type UploadTransport string
+
+const (
+	UploadTransportWoodstar UploadTransport = "woodstar"
+	UploadTransportS3       UploadTransport = "s3"
+)
+
 // UploadTarget tells a client where and how to upload an object's bytes.
 type UploadTarget struct {
-	URL     string
-	Method  string
-	Headers map[string]string
+	URL       string
+	Method    string
+	Transport UploadTransport
+	Headers   map[string]string
 }
