@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -127,38 +126,27 @@ func (s *AgentService) dispatchWriteResults(
 		var err error
 		switch kind { //nolint:exhaustive // parseQueryName already narrowed to the four dispatched kinds
 		case kindDetail:
-			err = handleDetailResult(
-				ctx,
-				s.logger,
-				s.inventoryProjector,
-				host.ID,
-				suffix,
-				rows,
-				status,
-				message,
-				details,
-			)
+			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, message, details)
 		case kindLabel:
-			handleLabelResult(ctx, s.logger, host.ID, suffix, rows, status, message, labels)
+			s.handleLabelResult(ctx, host.ID, suffix, rows, status, message, labels)
 		case kindCheck:
-			err = handleCheckResult(ctx, s.logger, s.checkStore, host.ID, suffix, rows, status, message)
+			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, message)
 		case kindLive:
-			err = handleLiveResult(s.liveQueries, host, suffix, rows, status, message)
+			err = s.handleLiveResult(host, suffix, rows, status, message)
 		}
 		if err != nil {
 			return fmt.Errorf("ingest %s: %w", name, err)
 		}
 	}
 
-	if err := finalizeDetailPass(ctx, s.logger, s.inventoryProjector, host, details); err != nil {
+	if err := s.finalizeDetailPass(ctx, host, details); err != nil {
 		return err
 	}
-	return finalizeLabelPass(ctx, s.labelEvaluator, host, labels)
+	return s.finalizeLabelPass(ctx, host, labels)
 }
 
-func handleLabelResult(
+func (s *AgentService) handleLabelResult(
 	ctx context.Context,
-	logger *slog.Logger,
 	hostID int64,
 	suffix string,
 	rows []map[string]string,
@@ -172,7 +160,7 @@ func handleLabelResult(
 	}
 	matched, ok := rowPresenceResult(status, rows)
 	if !ok {
-		logger.WarnContext(
+		s.logger.WarnContext(
 			ctx,
 			"osquery label query failed", "operation", "label_evaluation",
 			"host_id", hostID,
@@ -185,19 +173,16 @@ func handleLabelResult(
 	pass.results = append(pass.results, ingest.LabelResult{LabelID: labelID, Matched: matched})
 }
 
-func finalizeLabelPass(
+func (s *AgentService) finalizeLabelPass(
 	ctx context.Context,
-	labelEvaluator labelEvaluator,
 	host *hosts.Host,
 	pass *labelDispatchPass,
 ) error {
-	return labelEvaluator.Finalize(ctx, host, pass.results)
+	return s.labelEvaluator.Finalize(ctx, host, pass.results)
 }
 
-func handleDetailResult(
+func (s *AgentService) handleDetailResult(
 	ctx context.Context,
-	logger *slog.Logger,
-	inventoryProjector inventoryProjector,
 	hostID int64,
 	suffix string,
 	rows []map[string]string,
@@ -215,7 +200,7 @@ func handleDetailResult(
 		if !query.Optional {
 			pass.allSucceeded = false
 		}
-		logger.WarnContext(
+		s.logger.WarnContext(
 			ctx,
 			"osquery detail query failed", "operation", "distributed_write",
 			"host_id", hostID,
@@ -228,31 +213,29 @@ func handleDetailResult(
 	if query.Deferred() {
 		return nil
 	}
-	return inventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
+	return s.inventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
 }
 
-func finalizeDetailPass(
+func (s *AgentService) finalizeDetailPass(
 	ctx context.Context,
-	logger *slog.Logger,
-	inventoryProjector inventoryProjector,
 	host *hosts.Host,
 	pass *detailDispatchPass,
 ) error {
 	if softwareRows, ok := successfulSoftwareRows(pass); ok {
-		if err := inventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
+		if err := s.inventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if err := clearMissingOrFailedMunkiDetails(ctx, inventoryProjector, host.ID, pass); err != nil {
+	if err := s.clearMissingOrFailedMunkiDetails(ctx, host.ID, pass); err != nil {
 		return err
 	}
 	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
 		return nil
 	}
-	if err := inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
+	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
 		return err
 	}
-	logger.DebugContext(
+	s.logger.DebugContext(
 		ctx,
 		"osquery detail inventory refreshed", "operation", "inventory_refresh",
 		"host_id", host.ID,
@@ -261,9 +244,8 @@ func finalizeDetailPass(
 	return nil
 }
 
-func clearMissingOrFailedMunkiDetails(
+func (s *AgentService) clearMissingOrFailedMunkiDetails(
 	ctx context.Context,
-	inventoryProjector inventoryProjector,
 	hostID int64,
 	pass *detailDispatchPass,
 ) error {
@@ -279,7 +261,7 @@ func clearMissingOrFailedMunkiDetails(
 		if ok && statusOK(result.status) {
 			continue
 		}
-		if err := inventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
+		if err := s.inventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
 			return fmt.Errorf("clear stale %s detail: %w", name, err)
 		}
 	}
@@ -332,10 +314,8 @@ func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {
 	return true
 }
 
-func handleCheckResult(
+func (s *AgentService) handleCheckResult(
 	ctx context.Context,
-	logger *slog.Logger,
-	checkStore checkStore,
 	hostID int64,
 	suffix string,
 	rows []map[string]string,
@@ -351,7 +331,7 @@ func handleCheckResult(
 	if ok {
 		passes = &matched
 	} else {
-		logger.WarnContext(
+		s.logger.WarnContext(
 			ctx,
 			"osquery check query failed", "operation", "check_evaluation",
 			"host_id", hostID,
@@ -359,7 +339,7 @@ func handleCheckResult(
 			"message", message,
 		)
 	}
-	return checkStore.UpsertMembership(ctx, checkID, hostID, passes)
+	return s.checkStore.UpsertMembership(ctx, checkID, hostID, passes)
 }
 
 func rowPresenceResult(status json.RawMessage, rows []map[string]string) (bool, bool) {
@@ -369,8 +349,7 @@ func rowPresenceResult(status json.RawMessage, rows []map[string]string) (bool, 
 	return len(rows) > 0, true
 }
 
-func handleLiveResult(
-	liveQueries liveQueries,
+func (s *AgentService) handleLiveResult(
 	host *hosts.Host,
 	suffix string,
 	rows []map[string]string,
@@ -392,6 +371,6 @@ func handleLiveResult(
 	} else {
 		resultStatus = livequery.StatusError
 	}
-	liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
+	s.liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
 	return nil
 }
