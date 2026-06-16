@@ -70,6 +70,8 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 		return err
 	}
 	dir := filepath.Dir(path)
+	// #nosec G703 -- path comes from resolve, which rejects traversal and
+	// constrains keys to the configured storage root.
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create dir for %q: %w", key, err)
 	}
@@ -86,9 +88,11 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %q: %w", key, err)
 	}
+	// #nosec G703 -- tmpName is created under the already-resolved storage dir.
 	if err := os.Chmod(tmpName, 0o600); err != nil {
 		return fmt.Errorf("chmod %q: %w", key, err)
 	}
+	// #nosec G703 -- path comes from resolve, which keeps writes under root.
 	if err := os.Rename(tmpName, path); err != nil {
 		return fmt.Errorf("commit %q: %w", key, err)
 	}

@@ -5,7 +5,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
-import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
+import { type KeyValue, KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
@@ -40,7 +40,7 @@ import {
   useSetHostUserAffinity,
 } from "@/hooks/use-hosts";
 import { requiredString } from "@/lib/form-validation";
-import { cn, formatBytes, formatRelative } from "@/lib/utils";
+import { formatBytes, formatRelative } from "@/lib/utils";
 
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 
@@ -50,7 +50,7 @@ const certificateSourceLabels: Record<string, string> = {
 };
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
-  const tiles: DetailTile[] = [];
+  const tiles: KeyValue[] = [];
   const osqueryVersion = host.agents.osquery.version;
   const orbitVersion = host.agents.orbit.version;
 
@@ -136,7 +136,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   return (
     <Card>
       <CardContent>
-        <DetailTiles tiles={tiles} />
+        <KeyValueGrid items={tiles} />
       </CardContent>
     </Card>
   );
@@ -161,21 +161,21 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
         ) : null}
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-          <IdentityItem label="Name" value={displayValue(affinity?.name)} />
-          <IdentityItem label="Username" value={displayValue(affinity?.username)} />
-          <IdentityItem label="Email" value={displayValue(affinity?.email)} />
-          <IdentityItem label="Department" value={displayValue(affinity?.department)} />
-          <IdentityItem
+        <KeyValueGrid>
+          <KeyValueItem label="Name" value={displayValue(affinity?.name)} />
+          <KeyValueItem label="Username" value={displayValue(affinity?.username)} />
+          <KeyValueItem label="Email" value={displayValue(affinity?.email)} />
+          <KeyValueItem label="Department" value={displayValue(affinity?.department)} />
+          <KeyValueItem
             label="Source"
             value={affinity ? userAffinitySourceLabel(affinity.source) : "-"}
           />
-          <IdentityItem
+          <KeyValueItem
             label="Groups"
             value={<UserGroups groups={affinity?.groups ?? []} />}
             className="sm:col-span-2"
           />
-        </dl>
+        </KeyValueGrid>
       </CardContent>
       {dialogOpen ? <HostUserMappingDialog host={host} onOpenChange={setDialogOpen} /> : null}
     </Card>
@@ -231,23 +231,6 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function IdentityItem({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-      <dd className="text-sm break-words text-foreground">{value}</dd>
-    </div>
   );
 }
 

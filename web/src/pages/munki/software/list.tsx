@@ -84,8 +84,7 @@ export function MunkiSoftwareListPage() {
       {
         id: "updated_at",
         accessorKey: "updated_at",
-        header: () => "Updated",
-        enableSorting: false,
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
         cell: ({ row }) => formatRelative(row.original.updated_at),
         meta: { label: "Updated" },
       },

@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { useUploadMunkiInstaller, useUploadMunkiUninstaller } from "@/hooks/use-munki-uploads";
+import {
+  useDeleteMunkiInstaller,
+  useUploadMunkiInstaller,
+  useUploadMunkiUninstaller,
+} from "@/hooks/use-munki-uploads";
 import {
   type MunkiPackage,
   useMunkiPackage,
@@ -66,6 +70,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const navigate = useNavigate();
   const update = useUpdateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
+  const installerDelete = useDeleteMunkiInstaller();
   const uninstallerUpload = useUploadMunkiUninstaller();
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
@@ -113,10 +118,17 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
           softwareInfo={softwareInfo}
           packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
           installerFile={installerFile}
+          installerMetadata={pkg.installer_file}
           uninstallerFile={uninstallerFile}
           hasInstallerObject={pkg.installer_object_id != null}
           hasUninstallerObject={pkg.uninstaller_object_id != null}
           onInstallerFileChange={setInstallerFile}
+          onDeleteInstaller={async () => {
+            await installerDelete.mutateAsync(packageID);
+            setInstallerFile(null);
+            toast.success("Installer deleted");
+          }}
+          deletingInstaller={installerDelete.isPending}
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions

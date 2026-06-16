@@ -216,6 +216,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
+	installerTypes, err := normalizeInstallerTypeFilters(params.InstallerTypes)
+	if err != nil {
+		return nil, 0, err
+	}
+	params.InstallerTypes = installerTypes
 	where, args := packageListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: packageSelectSQL,
@@ -334,6 +339,23 @@ func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int6
 	})
 }
 
+// ClearInstallerObject detaches a package installer object and deletes its bytes
+// when no other Munki resource references it.
+func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error {
+	return s.clearPackageObject(ctx, packageID, packageObjectSetter{
+		field: "installer_object_id",
+		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
+			return row.InstallerObjectID
+		},
+		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
+			return q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
+				ID:       packageID,
+				ObjectID: objectID,
+			})
+		},
+	})
+}
+
 // SetUninstallerObject points a package at an uninstaller storage object.
 func (s *Store) SetUninstallerObject(ctx context.Context, packageID, objectID int64) error {
 	return s.setPackageObject(ctx, packageID, objectID, packageObjectSetter{
@@ -388,6 +410,40 @@ func (s *Store) setPackageObject(
 		return err
 	}
 	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, &objectID)...)
+}
+
+func (s *Store) clearPackageObject(
+	ctx context.Context,
+	packageID int64,
+	setter packageObjectSetter,
+) error {
+	var oldObjectID *int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return dbutil.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		oldObjectID = setter.oldObjectID(existing)
+		if oldObjectID == nil {
+			return nil
+		}
+		rows, err := setter.set(ctx, qtx, packageID, nil)
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		if rows == 0 {
+			return dbutil.ErrNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, nil)...)
 }
 
 func applyDefaults(params PackageMutation) PackageMutation {
@@ -458,6 +514,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		SuppressBundleRelocation: row.SuppressBundleRelocation,
 		ForceInstallAfterDate:    row.ForceInstallAfterDate,
 		InstalledSize:            row.InstalledSize,
+		InstallerFile:            row.InstallerFile(),
 		PackagePath:              row.PackagePath,
 		InstallerChoicesXML:      installerChoices,
 		InstallerEnvironment:     installerEnvironment,
@@ -506,6 +563,9 @@ func packageListWhere(params PackageListParams) (string, []any) {
 	if params.SoftwareID > 0 {
 		where.Add("p.software_id = " + where.Arg(params.SoftwareID))
 	}
+	if len(params.InstallerTypes) > 0 {
+		where.Add("p.installer_type = ANY(" + where.Arg(params.InstallerTypes) + "::text[])")
+	}
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
@@ -520,10 +580,23 @@ func packageListWhere(params PackageListParams) (string, []any) {
 	return where.Build()
 }
 
+func normalizeInstallerTypeFilters(raw []string) ([]string, error) {
+	values := dbutil.SplitListValues(raw)
+	for _, value := range values {
+		if !validInstallerType(InstallerType(value)) {
+			return nil, fmt.Errorf("%w: unsupported type %q", dbutil.ErrInvalidInput, value)
+		}
+	}
+	return values, nil
+}
+
 func packageOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
 		"name":       {SQL: "lower(s.name)"},
+		"package":    {SQL: "lower(s.name)"},
 		"version":    {SQL: "lower(p.version)"},
+		"type":       {SQL: "lower(p.installer_type)"},
+		"size":       {SQL: "COALESCE(installer_obj.size_bytes, 0)"},
 		"software":   {SQL: "lower(s.name)"},
 		"updated_at": {SQL: "p.updated_at"},
 	}
@@ -734,6 +807,9 @@ type packageRecord struct {
 	SuppressBundleRelocation     bool
 	ForceInstallAfterDate        *time.Time
 	InstalledSize                int64
+	InstallerFilename            *string
+	InstallerSizeBytes           *int64
+	InstallerSHA256              *string `db:"installer_sha256"`
 	PackagePath                  string
 	InstallerChoicesXML          []byte `db:"installer_choices_xml"`
 	InstallerEnvironment         []byte
@@ -787,6 +863,33 @@ func (row packageRecord) PreuninstallAlert() PackageAlert {
 	}
 }
 
+func (row packageRecord) InstallerFile() *InstallerFile {
+	if row.InstallerObjectID == nil || row.InstallerFilename == nil {
+		return nil
+	}
+	pkg := Package{ID: row.ID}
+	obj := storage.Object{
+		ID:        *row.InstallerObjectID,
+		Filename:  *row.InstallerFilename,
+		SizeBytes: row.InstallerSizeBytes,
+		SHA256:    row.InstallerSHA256,
+	}
+	var size int64
+	if row.InstallerSizeBytes != nil {
+		size = *row.InstallerSizeBytes
+	}
+	var sha string
+	if row.InstallerSHA256 != nil {
+		sha = *row.InstallerSHA256
+	}
+	return &InstallerFile{
+		Filename:              *row.InstallerFilename,
+		InstallerItemLocation: InstallerItemLocation(pkg, obj),
+		SizeBytes:             size,
+		SHA256:                sha,
+	}
+}
+
 func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 	return packageRecord{
 		ID:                           row.ID,
@@ -817,6 +920,9 @@ func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		SuppressBundleRelocation:     row.SuppressBundleRelocation,
 		ForceInstallAfterDate:        row.ForceInstallAfterDate,
 		InstalledSize:                row.InstalledSize,
+		InstallerFilename:            row.InstallerFilename,
+		InstallerSizeBytes:           row.InstallerSizeBytes,
+		InstallerSHA256:              row.InstallerSha256,
 		PackagePath:                  row.PackagePath,
 		InstallerChoicesXML:          row.InstallerChoicesXml,
 		InstallerEnvironment:         row.InstallerEnvironment,
@@ -941,6 +1047,9 @@ SELECT
 	p.suppress_bundle_relocation,
 	p.force_install_after_date,
 	p.installed_size,
+	installer_obj.filename AS installer_filename,
+	installer_obj.size_bytes AS installer_size_bytes,
+	installer_obj.sha256 AS installer_sha256,
 	p.package_path,
 	p.installer_choices_xml,
 	p.installer_environment,
@@ -972,7 +1081,8 @@ SELECT
 	p.created_at,
 	p.updated_at
 FROM munki_packages p
-JOIN munki_software s ON s.id = p.software_id`
+JOIN munki_software s ON s.id = p.software_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id`
 
 func replacePackageRelations(
 	ctx context.Context,

@@ -1,7 +1,7 @@
 import { useParams } from "@tanstack/react-router";
 import { Check, FileCode2, X } from "lucide-react";
 
-import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
+import { type KeyValue, KeyValueGrid } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -108,7 +108,7 @@ export function SantaEventDetailPage() {
 }
 
 function ExecutionCard({ event }: { event: SantaEvent }) {
-  const tiles: DetailTile[] = [
+  const tiles: KeyValue[] = [
     { label: "Host", value: <HostLink host={event.host} /> },
     { label: "Executing User", value: <ValueText value={event.executing_user} /> },
     { label: "PID", value: <ValueText value={formatNumber(event.pid)} /> },
@@ -127,7 +127,7 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
         <CardTitle>Execution</CardTitle>
       </CardHeader>
       <CardContent>
-        <DetailTiles tiles={tiles} />
+        <KeyValueGrid items={tiles} />
       </CardContent>
     </Card>
   );
@@ -135,7 +135,7 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
 
 function BinaryCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: DetailTile[] = [
+  const tiles: KeyValue[] = [
     {
       label: "File Name",
       value: <ValueText value={executable.file_name || fileName(event.file_path)} />,
@@ -166,7 +166,7 @@ function BinaryCard({ event }: { event: SantaEvent }) {
         <CardTitle>Binary</CardTitle>
       </CardHeader>
       <CardContent>
-        <DetailTiles tiles={tiles} />
+        <KeyValueGrid items={tiles} />
       </CardContent>
     </Card>
   );
@@ -174,7 +174,7 @@ function BinaryCard({ event }: { event: SantaEvent }) {
 
 function BundleCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: DetailTile[] = [
+  const tiles: KeyValue[] = [
     { label: "Bundle ID", value: <ValueText value={executable.file_bundle_id} /> },
     { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
     { label: "Path", value: <ValueText value={executable.file_bundle_path} /> },
@@ -201,7 +201,7 @@ function BundleCard({ event }: { event: SantaEvent }) {
         <CardTitle>Bundle</CardTitle>
       </CardHeader>
       <CardContent>
-        <DetailTiles tiles={tiles} />
+        <KeyValueGrid items={tiles} />
       </CardContent>
     </Card>
   );

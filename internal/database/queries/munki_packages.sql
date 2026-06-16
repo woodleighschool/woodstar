@@ -168,9 +168,13 @@ SELECT
     s.description AS software_description,
     s.category AS software_category,
     s.developer AS software_developer,
-    s.icon_object_id AS software_icon_object_id
+    s.icon_object_id AS software_icon_object_id,
+    installer_obj.filename AS installer_filename,
+    installer_obj.size_bytes AS installer_size_bytes,
+    installer_obj.sha256 AS installer_sha256
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
 WHERE p.id = @id;
 
 -- name: DeleteMunkiPackage :execrows

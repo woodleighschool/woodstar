@@ -1,5 +1,6 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDirectUpload } from "@/hooks/use-direct-upload";
-import type { MunkiObjectView, MunkiUploadTarget } from "@/lib/api";
+import type { ApiError, MunkiObjectView, MunkiUploadTarget } from "@/lib/api";
 import {
   confirmMunkiPackageInstallerUpload,
   confirmMunkiPackageUninstallerUpload,
@@ -7,9 +8,11 @@ import {
   createMunkiPackageInstallerUpload,
   createMunkiPackageUninstallerUpload,
   createMunkiSoftwareIconUpload,
+  deleteMunkiPackageInstaller,
   unwrap,
 } from "@/lib/api";
 import type { UploadTransport } from "@/lib/direct-upload";
+import { queryKeys } from "@/lib/query-keys";
 
 type IconUploadVars = { softwareId: number; file: File };
 type PackageUploadVars = { packageId: number; file: File };
@@ -59,6 +62,18 @@ export function useUploadMunkiInstaller() {
           path: { id: packageId, object_id: intent.object_id },
         }),
       ),
+  });
+}
+
+export function useDeleteMunkiInstaller() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationKey: ["munki-installer-delete"],
+    mutationFn: (packageId) => unwrap(deleteMunkiPackageInstaller({ path: { id: packageId } })),
+    onSuccess: (_data, packageId) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(packageId) });
+    },
   });
 }
 

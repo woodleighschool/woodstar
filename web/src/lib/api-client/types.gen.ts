@@ -341,6 +341,13 @@ export type MunkiInclude = {
     package: MunkiPackageSelector;
 };
 
+export type MunkiInstallerFile = {
+    filename: string;
+    installer_item_location: string;
+    sha256: string;
+    size_bytes: number;
+};
+
 export type MunkiItem = {
     installed: boolean;
     installed_version: string;
@@ -384,6 +391,7 @@ export type MunkiPackage = {
     installed_size: number;
     installer_choices_xml: Array<MunkiPackageInstallerChoice>;
     installer_environment: Array<MunkiPackageInstallerEnvironmentVariable>;
+    installer_file?: MunkiInstallerFile;
     installer_object_id?: number;
     installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<MunkiPackageInstallItem>;
@@ -2704,6 +2712,7 @@ export type ListMunkiPackagesData = {
         page?: number;
         per_page?: number;
         sort?: string;
+        type?: Array<'pkg' | 'nopkg' | 'copy_from_dmg'>;
         software_id?: number;
     };
     url: '/api/munki/packages';
@@ -2965,6 +2974,53 @@ export type UpdateMunkiPackageResponses = {
 };
 
 export type UpdateMunkiPackageResponse = UpdateMunkiPackageResponses[keyof UpdateMunkiPackageResponses];
+
+export type DeleteMunkiPackageInstallerData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{id}/installer';
+};
+
+export type DeleteMunkiPackageInstallerErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiPackageInstallerError = DeleteMunkiPackageInstallerErrors[keyof DeleteMunkiPackageInstallerErrors];
+
+export type DeleteMunkiPackageInstallerResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiPackageInstallerResponse = DeleteMunkiPackageInstallerResponses[keyof DeleteMunkiPackageInstallerResponses];
 
 export type CreateMunkiPackageInstallerUploadData = {
     body: MunkiUploadRequest;

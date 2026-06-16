@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/apitypes"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
@@ -20,7 +21,8 @@ const (
 type munkiPackageListInput struct {
 	apitypes.ListQueryInput
 
-	SoftwareID int64 `query:"software_id,omitempty"`
+	Types      []InstallerType `query:"type,omitempty"`
+	SoftwareID int64           `query:"software_id,omitempty"`
 }
 
 type munkiPackageGetInput struct {
@@ -61,19 +63,29 @@ type MunkiPackage struct {
 
 func (input munkiPackageListInput) params() PackageListParams {
 	return PackageListParams{
-		ListParams: input.ListQueryInput.Params(),
-		SoftwareID: input.SoftwareID,
+		ListParams:     input.ListQueryInput.Params(),
+		InstallerTypes: installerTypeFilterValues(input.Types),
+		SoftwareID:     input.SoftwareID,
 	}
 }
 
+func installerTypeFilterValues(types []InstallerType) []string {
+	values := make([]string, len(types))
+	for i, installerType := range types {
+		values[i] = string(installerType)
+	}
+	return values
+}
+
 // RegisterAdminRoutes registers Munki package admin endpoints.
-func RegisterAdminRoutes(api huma.API, store *Store) {
+func RegisterAdminRoutes(api huma.API, store *Store, objects *storage.ObjectStore, storageStore storage.Store) {
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
 	registerPutMunkiPackage(api, store)
 	registerDeleteMunkiPackage(api, store)
 	registerBulkDeleteMunkiPackages(api, store)
+	registerObjectRoutes(api, store, objects, storageStore)
 }
 
 func registerListMunkiPackages(api huma.API, store *Store) {

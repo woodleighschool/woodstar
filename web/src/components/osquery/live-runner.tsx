@@ -27,11 +27,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { type Host, useHosts } from "@/hooks/use-hosts";
 import { type Label, useLabels } from "@/hooks/use-labels";
 import {
-  type OsqueryLiveQueryCreateBody,
   type LiveQueryResult,
   type LiveQueryRow,
-  type OsqueryLiveQueryTargetCountOutputBody,
+  type OsqueryLiveQueryCreateBody,
   type OsqueryLiveQueryTargetCountBody,
+  type OsqueryLiveQueryTargetCountOutputBody,
   useCreateLiveQuery,
   useLiveQueryStream,
   useLiveQueryTargetCount,

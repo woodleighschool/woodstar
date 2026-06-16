@@ -218,6 +218,14 @@ type PackageCreateMutation struct {
 	SoftwareID int64 `json:"software_id" minimum:"1"`
 }
 
+// InstallerFile is the Munki-facing view of a package-owned installer object.
+type InstallerFile struct {
+	Filename              string `json:"filename"`
+	InstallerItemLocation string `json:"installer_item_location"`
+	SizeBytes             int64  `json:"size_bytes"`
+	SHA256                string `json:"sha256"`
+}
+
 // Package is one Woodstar-authored Munki package version available for targeting.
 type Package struct {
 	ID                       int64                                 `json:"id"`
@@ -249,6 +257,7 @@ type Package struct {
 	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
 	InstalledSize            int64                                 `json:"installed_size"`
+	InstallerFile            *InstallerFile                        `json:"installer_file,omitempty"`
 	PackagePath              string                                `json:"package_path"`
 	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml"`
 	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment"`
@@ -277,7 +286,8 @@ type Package struct {
 type PackageListParams struct {
 	dbutil.ListParams
 
-	SoftwareID int64
+	InstallerTypes []string
+	SoftwareID     int64
 }
 
 func (m PackageMutation) Validate() error {

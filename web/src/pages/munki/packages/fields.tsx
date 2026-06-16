@@ -8,9 +8,28 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { MunkiIcon } from "@/components/munki/munki-icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
@@ -44,7 +63,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
 import type { MunkiPackageAlert } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 import {
   MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
@@ -98,10 +117,13 @@ export function PackageEditorTabs({
   softwareSelector,
   packageOptions,
   installerFile,
+  installerMetadata,
   uninstallerFile,
   hasInstallerObject,
   hasUninstallerObject,
   onInstallerFileChange,
+  onDeleteInstaller,
+  deletingInstaller,
   onUninstallerFileChange,
 }: {
   form: PackageEditorForm;
@@ -109,10 +131,13 @@ export function PackageEditorTabs({
   softwareSelector?: ReactNode;
   packageOptions: MunkiPackage[];
   installerFile: File | null;
+  installerMetadata?: MunkiPackage["installer_file"];
   uninstallerFile: File | null;
   hasInstallerObject: boolean;
   hasUninstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
+  onDeleteInstaller?: () => Promise<void>;
+  deletingInstaller: boolean;
   onUninstallerFileChange: (file: File | null) => void;
 }) {
   const tabs = [
@@ -140,8 +165,11 @@ export function PackageEditorTabs({
         <InstallationTab
           form={form}
           installerFile={installerFile}
+          installerMetadata={installerMetadata}
           hasInstallerObject={hasInstallerObject}
           onInstallerFileChange={onInstallerFileChange}
+          onDeleteInstaller={onDeleteInstaller}
+          deletingInstaller={deletingInstaller}
         />
       ),
     },
@@ -236,26 +264,26 @@ function BasicInfoTab({
 
       <FieldSet>
         <FieldLegend>Behavior</FieldLegend>
-        <FieldGroup className="grid gap-4 md:grid-cols-2">
-          <FormSwitchField
+        <FieldGroup data-slot="checkbox-group" className="grid gap-4 md:grid-cols-2">
+          <FormCheckboxField
             form={form}
             name="unattended_install"
             id="munki-package-unattended-install"
             label="Unattended install"
           />
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="unattended_uninstall"
             id="munki-package-unattended-uninstall"
             label="Unattended uninstall"
           />
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="on_demand"
             id="munki-package-on-demand"
             label="On demand"
           />
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="autoremove"
             id="munki-package-autoremove"
@@ -285,11 +313,11 @@ function ParentSoftwarePanel({
   selector?: ReactNode;
 }) {
   return (
-    <div className="rounded-md border bg-muted/30 p-4">
-      <div className="mb-4 flex min-w-0 items-center gap-3">
+    <Card>
+      <CardHeader className="flex flex-row items-start gap-3">
         <MunkiIcon iconUrl={software?.iconUrl} size="md" loading="eager" />
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Parent software</p>
+          <CardDescription>Parent software</CardDescription>
           {software && !selector ? (
             <Link
               to="/munki/software/$softwareId"
@@ -304,42 +332,27 @@ function ParentSoftwarePanel({
             <p className="text-sm text-muted-foreground">Select software</p>
           )}
         </div>
-      </div>
+      </CardHeader>
 
-      {selector ? <div className="mb-4 max-w-xl">{selector}</div> : null}
+      {selector || software ? (
+        <CardContent className="flex flex-col gap-4">
+          {selector ? <div className="max-w-xl">{selector}</div> : null}
 
-      {software ? (
-        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-          <InheritedItem label="Category" value={software.category} />
-          <InheritedItem label="Developer" value={software.developer} />
-          <InheritedItem
-            label="Description"
-            value={software.description}
-            className="sm:col-span-2"
-          />
-        </dl>
+          {software ? (
+            <KeyValueGrid>
+              <KeyValueItem label="Category" value={displayValue(software.category)} />
+              <KeyValueItem label="Developer" value={displayValue(software.developer)} />
+              <KeyValueItem
+                label="Description"
+                value={displayValue(software.description)}
+                className="sm:col-span-2"
+                valueClassName="whitespace-pre-wrap"
+              />
+            </KeyValueGrid>
+          ) : null}
+        </CardContent>
       ) : null}
-    </div>
-  );
-}
-
-function InheritedItem({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value?: string;
-  className?: string;
-}) {
-  const hasValue = value !== undefined && value !== "";
-  return (
-    <div className={className}>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm whitespace-pre-wrap">
-        {hasValue ? value : <span className="text-muted-foreground">None</span>}
-      </dd>
-    </div>
+    </Card>
   );
 }
 
@@ -432,32 +445,33 @@ function RequirementsTab({
 function InstallationTab({
   form,
   installerFile,
+  installerMetadata,
   hasInstallerObject,
   onInstallerFileChange,
+  onDeleteInstaller,
+  deletingInstaller,
 }: {
   form: PackageEditorForm;
   installerFile: File | null;
+  installerMetadata?: MunkiPackage["installer_file"];
   hasInstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
+  onDeleteInstaller?: () => Promise<void>;
+  deletingInstaller: boolean;
 }) {
   return (
     <FieldGroup>
       <form.Subscribe selector={(state) => state.values.installer_type}>
         {(installerType) =>
           installerType === "nopkg" ? null : (
-            <FieldSet>
-              <FieldLegend>Installer</FieldLegend>
-              <PackageFileField
-                id="munki-package-installer-file"
-                label="Installer File"
-                description={
-                  hasInstallerObject ? "Installer file attached." : "No installer file selected."
-                }
-                icon={<FileArchive className="size-4" />}
-                file={installerFile}
-                onChange={onInstallerFileChange}
-              />
-            </FieldSet>
+            <InstallerFileCard
+              file={installerFile}
+              metadata={installerMetadata}
+              hasInstallerObject={hasInstallerObject}
+              deleting={deletingInstaller}
+              onFileChange={onInstallerFileChange}
+              onDelete={onDeleteInstaller}
+            />
           )
         }
       </form.Subscribe>
@@ -894,6 +908,147 @@ function FormSwitchField({
       )}
     />
   );
+}
+
+function FormCheckboxField({
+  form,
+  name,
+  id,
+  label,
+}: {
+  form: PackageEditorForm;
+  name: PackageFieldName;
+  id: string;
+  label: string;
+}) {
+  return (
+    <form.Field
+      name={name as never}
+      children={(field) => (
+        <CheckboxControl
+          id={id}
+          label={label}
+          checked={field.state.value === true}
+          onChange={(checked) => field.handleChange(checked as never)}
+        />
+      )}
+    />
+  );
+}
+
+function InstallerFileCard({
+  file,
+  metadata,
+  hasInstallerObject,
+  deleting,
+  onFileChange,
+  onDelete,
+}: {
+  file: File | null;
+  metadata?: MunkiPackage["installer_file"];
+  hasInstallerObject: boolean;
+  deleting: boolean;
+  onFileChange: (file: File | null) => void;
+  onDelete?: () => Promise<void>;
+}) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const canDelete = hasInstallerObject && onDelete !== undefined;
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Installer</CardTitle>
+          <CardDescription>
+            {hasInstallerObject
+              ? "Woodstar owns this installer file and publishes its Munki pkginfo metadata."
+              : "Upload an installer file for this package version."}
+          </CardDescription>
+          {canDelete ? (
+            <CardAction>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleting}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 data-icon="inline-start" />
+                Delete
+              </Button>
+            </CardAction>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          {metadata ? (
+            <KeyValueGrid>
+              <KeyValueItem label="Filename" value={displayValue(metadata.filename)} />
+              <KeyValueItem
+                label="Location"
+                value={metadata.installer_item_location}
+                className="sm:col-span-2"
+                valueClassName="font-mono text-xs break-all"
+              />
+              <KeyValueItem label="Size" value={installerItemSize(metadata.size_bytes)} />
+              <KeyValueItem
+                label="SHA-256"
+                value={displayValue(metadata.sha256)}
+                className="sm:col-span-2"
+                valueClassName="font-mono text-xs break-all"
+              />
+            </KeyValueGrid>
+          ) : hasInstallerObject ? (
+            <p className="text-sm text-muted-foreground">Installer metadata is not available.</p>
+          ) : (
+            <PackageFileField
+              id="munki-package-installer-file"
+              label="Installer File"
+              description="No installer file selected."
+              icon={<FileArchive />}
+              file={file}
+              onChange={onFileChange}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Installer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This detaches the installer from the package and deletes the stored file when it is no
+              longer referenced.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" size="sm" disabled={deleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              onClick={() => {
+                void onDelete?.();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function installerItemSize(bytes: number) {
+  if (bytes <= 0) return "-";
+  return `${Math.ceil(bytes / 1024)} KB (${formatBytes(bytes)})`;
+}
+
+function displayValue(value: string | null | undefined) {
+  return value && value.trim() !== "" ? value : "-";
 }
 
 function PackageFileField({

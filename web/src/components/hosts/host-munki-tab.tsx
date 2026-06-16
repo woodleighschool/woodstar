@@ -1,4 +1,4 @@
-import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
+import { type KeyValue, KeyValueGrid } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     ...problemRows("Problem Installs", munki.problem_installs),
   ];
 
-  const tiles: DetailTile[] = [
+  const tiles: KeyValue[] = [
     { label: "Version", value: munki.version || "-" },
     { label: "Manifest", value: munki.manifest_name || "-" },
     { label: "Status", value: <MunkiStatusBadge munki={munki} /> },
@@ -39,7 +39,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
-          <DetailTiles tiles={tiles} />
+          <KeyValueGrid items={tiles} />
         </CardContent>
       </Card>
 

@@ -136,10 +136,13 @@ export function MunkiPackageCreatePage() {
           softwareSelector={softwareSelector}
           packageOptions={packages.data?.items ?? []}
           installerFile={installerFile}
+          installerMetadata={undefined}
           uninstallerFile={uninstallerFile}
           hasInstallerObject={false}
           hasUninstallerObject={false}
           onInstallerFileChange={setInstallerFile}
+          onDeleteInstaller={undefined}
+          deletingInstaller={false}
           onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions

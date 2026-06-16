@@ -22,11 +22,14 @@ import { nonEmpty } from "@/lib/utils";
 
 export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
 
+type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
+
 interface MunkiSoftwareListParams {
   q?: string;
   page?: number;
   per_page?: number;
   sort?: string;
+  type?: MunkiInstallerType[];
   software_id?: number;
 }
 
@@ -36,6 +39,7 @@ function softwareQueryParams(params: MunkiSoftwareListParams) {
     page: params.page ?? 1,
     per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
+    type: params.type?.length ? params.type : undefined,
     software_id: params.software_id === 0 ? undefined : params.software_id,
   };
 }

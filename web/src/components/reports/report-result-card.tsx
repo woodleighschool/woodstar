@@ -40,7 +40,7 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
       </CardHeader>
       <CardContent>
         {values.length > 0 ? (
-          <KeyValueGrid values={values} />
+          <ReportValueGrid values={values} />
         ) : (
           <p className="text-sm text-muted-foreground">
             {report.last_fetched
@@ -53,7 +53,7 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
   );
 }
 
-function KeyValueGrid({ values }: { values: ReportResultValue[] }) {
+function ReportValueGrid({ values }: { values: ReportResultValue[] }) {
   return (
     <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-x-8 gap-y-5">
       {values.map((item) => (

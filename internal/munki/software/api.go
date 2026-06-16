@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
@@ -76,6 +77,8 @@ func RegisterAdminRoutes(
 	api huma.API,
 	store *Store,
 	packageStore *packages.Store,
+	objects *storage.ObjectStore,
+	storageStore storage.Store,
 ) {
 	registerListMunkiSoftware(api, store)
 	registerCreateMunkiSoftware(api, store, packageStore)
@@ -83,6 +86,7 @@ func RegisterAdminRoutes(
 	registerPutMunkiSoftware(api, store, packageStore)
 	registerDeleteMunkiSoftware(api, store)
 	registerBulkDeleteMunkiSoftware(api, store)
+	registerIconRoutes(api, store, objects, storageStore)
 }
 
 func registerListMunkiSoftware(api huma.API, store *Store) {

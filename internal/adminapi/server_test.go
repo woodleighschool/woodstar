@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
@@ -721,6 +723,37 @@ func TestMunkiPackageInstallerUploadConfirmsAndAttaches(t *testing.T) {
 	}
 	if attached.InstallerObjectID == nil || *attached.InstallerObjectID != intent.ObjectID {
 		t.Fatalf("installer object id = %v, want %d", attached.InstallerObjectID, intent.ObjectID)
+	}
+
+	deleteRec := adminAPIRequest(
+		t,
+		server,
+		cookie,
+		http.MethodDelete,
+		fmt.Sprintf("/api/munki/packages/%d/installer", pkg.ID),
+		"",
+	)
+	if deleteRec.Code != http.StatusNoContent {
+		t.Fatalf(
+			"delete installer status = %d, want %d; body = %q",
+			deleteRec.Code,
+			http.StatusNoContent,
+			deleteRec.Body.String(),
+		)
+	}
+	withoutInstaller, err := deps.Munki.Packages.GetByID(ctx, pkg.ID)
+	if err != nil {
+		t.Fatalf("load package after installer delete: %v", err)
+	}
+	if withoutInstaller.InstallerObjectID != nil || withoutInstaller.InstallerFile != nil {
+		t.Fatalf(
+			"installer after delete = object %v metadata %+v, want none",
+			withoutInstaller.InstallerObjectID,
+			withoutInstaller.InstallerFile,
+		)
+	}
+	if _, err := deps.Munki.Objects.GetByID(ctx, intent.ObjectID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("installer object after delete error = %v, want ErrNotFound", err)
 	}
 }
 

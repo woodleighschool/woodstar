@@ -105,14 +105,14 @@ export interface PackageFormState {
 }
 
 export const scriptFields: { key: ScriptKey; label: string }[] = [
+  { key: "preinstall_script", label: "Pre-install" },
+  { key: "postinstall_script", label: "Post-install" },
+  { key: "uninstall_script", label: "Uninstall" },
+  { key: "preuninstall_script", label: "Pre-uninstall" },
+  { key: "postuninstall_script", label: "Post-uninstall" },
+  { key: "version_script", label: "Version" },
   { key: "installcheck_script", label: "Install Check" },
   { key: "uninstallcheck_script", label: "Uninstall Check" },
-  { key: "preinstall_script", label: "Preinstall" },
-  { key: "postinstall_script", label: "Postinstall" },
-  { key: "preuninstall_script", label: "Preuninstall" },
-  { key: "postuninstall_script", label: "Postuninstall" },
-  { key: "uninstall_script", label: "Uninstall" },
-  { key: "version_script", label: "Version" },
 ];
 
 const packageIdentitySchema = z.object({

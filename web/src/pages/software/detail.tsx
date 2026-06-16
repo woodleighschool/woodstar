@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { type DetailTile, DetailTiles } from "@/components/detail-tiles";
+import { type KeyValue, KeyValueGrid } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
@@ -109,7 +109,7 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
 }
 
 function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
-  const tiles: DetailTile[] = [];
+  const tiles: KeyValue[] = [];
 
   if (title.bundle_identifier) {
     tiles.push({
@@ -134,7 +134,7 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
   return (
     <Card>
       <CardContent>
-        <DetailTiles tiles={tiles} />
+        <KeyValueGrid items={tiles} />
       </CardContent>
     </Card>
   );
