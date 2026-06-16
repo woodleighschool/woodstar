@@ -15,7 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-// ObjectPrefix namespaces installer/uninstaller objects in storage.
+// ObjectPrefix namespaces package installer objects in storage.
 const ObjectPrefix = "munki/packages"
 
 type objectStore interface {
@@ -101,8 +101,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		return nil, err
 	}
 	existing := Package{
-		InstallerObjectID:   existingRow.InstallerObjectID,
-		UninstallerObjectID: existingRow.UninstallerObjectID,
+		InstallerObjectID: existingRow.InstallerObjectID,
 	}
 	params = carryExistingObjects(params, existing)
 	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))
@@ -131,7 +130,6 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		return nil, err
 	}
 	replacedIDs := replacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
-	replacedIDs = append(replacedIDs, replacedObjectIDs(existing.UninstallerObjectID, params.UninstallerObjectID)...)
 	if err := s.objects.DeleteUnreferenced(ctx, replacedIDs...); err != nil {
 		return nil, err
 	}
@@ -287,11 +285,6 @@ func (s *Store) validatePackageObjects(ctx context.Context, params PackageMutati
 			return params, err
 		}
 	}
-	if params.UninstallerObjectID != nil {
-		if err := s.requirePackageObject(ctx, *params.UninstallerObjectID, "uninstaller_object_id"); err != nil {
-			return params, err
-		}
-	}
 	return params, nil
 }
 
@@ -300,11 +293,6 @@ func carryExistingObjects(params PackageMutation, existing Package) PackageMutat
 		params.InstallerObjectID = nil
 	} else if params.InstallerObjectID == nil {
 		params.InstallerObjectID = existing.InstallerObjectID
-	}
-	if params.UninstallMethod != UninstallMethodUninstallPackage {
-		params.UninstallerObjectID = nil
-	} else if params.UninstallerObjectID == nil {
-		params.UninstallerObjectID = existing.UninstallerObjectID
 	}
 	return params
 }
@@ -349,22 +337,6 @@ func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error
 		},
 		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
 			return q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-				ID:       packageID,
-				ObjectID: objectID,
-			})
-		},
-	})
-}
-
-// SetUninstallerObject points a package at an uninstaller storage object.
-func (s *Store) SetUninstallerObject(ctx context.Context, packageID, objectID int64) error {
-	return s.setPackageObject(ctx, packageID, objectID, packageObjectSetter{
-		field: "uninstaller_object_id",
-		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
-			return row.UninstallerObjectID
-		},
-		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
-			return q.SetMunkiPackageUninstallerObject(ctx, sqlc.SetMunkiPackageUninstallerObjectParams{
 				ID:       packageID,
 				ObjectID: objectID,
 			})
@@ -533,7 +505,6 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		PreinstallAlert:          row.PreinstallAlert(),
 		PreuninstallAlert:        row.PreuninstallAlert(),
 		InstallerObjectID:        row.InstallerObjectID,
-		UninstallerObjectID:      row.UninstallerObjectID,
 		IconObjectID:             row.IconObjectID,
 		Eligible:                 row.Eligible,
 		CreatedAt:                row.CreatedAt,
@@ -715,7 +686,6 @@ func createMunkiPackageParams(
 		PreuninstallAlertOkLabel:           params.PreuninstallAlert.OKLabel,
 		PreuninstallAlertCancelLabel:       params.PreuninstallAlert.CancelLabel,
 		InstallerObjectID:                  params.InstallerObjectID,
-		UninstallerObjectID:                params.UninstallerObjectID,
 		Eligible:                           params.Eligible,
 	}
 }
@@ -773,7 +743,6 @@ func updateMunkiPackageParams(
 		PreuninstallAlertOkLabel:           params.PreuninstallAlert.OKLabel,
 		PreuninstallAlertCancelLabel:       params.PreuninstallAlert.CancelLabel,
 		InstallerObjectID:                  params.InstallerObjectID,
-		UninstallerObjectID:                params.UninstallerObjectID,
 		Eligible:                           params.Eligible,
 		ID:                                 id,
 	}
@@ -836,7 +805,6 @@ type packageRecord struct {
 	PreuninstallAlertOKLabel     string `db:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel string
 	InstallerObjectID            *int64
-	UninstallerObjectID          *int64
 	IconObjectID                 *int64 `db:"software_icon_object_id"`
 	Eligible                     bool
 	CreatedAt                    time.Time
@@ -949,7 +917,6 @@ func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		UninstallerObjectID:          row.UninstallerObjectID,
 		Eligible:                     row.Eligible,
 		CreatedAt:                    row.CreatedAt,
 		UpdatedAt:                    row.UpdatedAt,
@@ -1012,7 +979,6 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
 		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerObjectID:            row.InstallerObjectID,
-		UninstallerObjectID:          row.UninstallerObjectID,
 		Eligible:                     true,
 	}
 }
@@ -1076,7 +1042,6 @@ SELECT
 	p.preuninstall_alert_ok_label,
 	p.preuninstall_alert_cancel_label,
 	p.installer_object_id,
-	p.uninstaller_object_id,
 	p.eligible,
 	p.created_at,
 	p.updated_at

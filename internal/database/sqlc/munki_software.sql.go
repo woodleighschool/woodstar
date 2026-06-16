@@ -305,8 +305,7 @@ SELECT
     COALESCE(p.preuninstall_alert_detail, '') AS preuninstall_alert_detail,
     COALESCE(p.preuninstall_alert_ok_label, '') AS preuninstall_alert_ok_label,
     COALESCE(p.preuninstall_alert_cancel_label, '') AS preuninstall_alert_cancel_label,
-    p.installer_object_id,
-    p.uninstaller_object_id
+    p.installer_object_id
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
 JOIN munki_software s ON s.id = a.software_id
@@ -316,11 +315,9 @@ JOIN munki_packages p ON p.software_id = a.software_id
         OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
 )
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
-LEFT JOIN storage_objects uninstaller_obj ON uninstaller_obj.id = p.uninstaller_object_id
 WHERE a.direction = 'include'
   AND p.eligible
   AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
-  AND (p.uninstall_method <> 'uninstall_package' OR uninstaller_obj.available_at IS NOT NULL)
   AND NOT EXISTS (
       SELECT 1
       FROM munki_software_targets excluded
@@ -398,7 +395,6 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	PreuninstallAlertOkLabel           string                `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string                `json:"preuninstall_alert_cancel_label"`
 	InstallerObjectID                  *int64                `json:"installer_object_id"`
-	UninstallerObjectID                *int64                `json:"uninstaller_object_id"`
 }
 
 func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg ListEffectiveMunkiPackagesForHostParams) ([]ListEffectiveMunkiPackagesForHostRow, error) {
@@ -471,7 +467,6 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.PreuninstallAlertOkLabel,
 			&i.PreuninstallAlertCancelLabel,
 			&i.InstallerObjectID,
-			&i.UninstallerObjectID,
 		); err != nil {
 			return nil, err
 		}
@@ -600,7 +595,7 @@ WHERE o.id = ANY($1::bigint[])
   AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
   AND NOT EXISTS (
       SELECT 1 FROM munki_packages p
-      WHERE p.installer_object_id = o.id OR p.uninstaller_object_id = o.id
+      WHERE p.installer_object_id = o.id
   )
 `
 

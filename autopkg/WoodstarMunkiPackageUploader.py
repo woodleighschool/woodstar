@@ -109,10 +109,6 @@ class WoodstarMunkiPackageUploader(Processor):
             "required": False,
             "description": "MunkiImporter package artifact path. Required for package-bearing pkginfo.",
         },
-        "uninstaller_pkg_path": {
-            "required": False,
-            "description": "Optional uninstaller package path for uninstall_package pkginfo.",
-        },
         "software_id": {
             "required": False,
             "description": "Existing Woodstar Munki software ID. Defaults to woodstar_software_id.",
@@ -141,20 +137,19 @@ class WoodstarMunkiPackageUploader(Processor):
         client = client_from_env(self.env)
         pkginfo = self.pkginfo()
         software_id = self.software_id()
-        installer_path, uninstaller_path = self.artifact_paths(pkginfo)
+        installer_path = self.installer_artifact_path(pkginfo)
         force = truthy(self.env.get("force", False))
 
         body = self.package_body(pkginfo, software_id)
         package, action, package_changed = self.save_package(client, software_id, body)
 
         installer_uploaded = self.attach_binary(client, package, "installer", installer_path, force)
-        uninstaller_uploaded = self.attach_binary(client, package, "uninstaller", uninstaller_path, force)
-        if installer_uploaded or uninstaller_uploaded:
+        if installer_uploaded:
             package = client.get(f"/api/munki/packages/{package['id']}")
 
         self.env["woodstar_package"] = package
         self.env["woodstar_package_id"] = package["id"]
-        if package_changed or installer_uploaded or uninstaller_uploaded:
+        if package_changed or installer_uploaded:
             self.env["woodstarmunkipackageuploader_summary_result"] = {
                 "summary_text": "Woodstar Munki package updated",
                 "report_fields": [
@@ -169,7 +164,7 @@ class WoodstarMunkiPackageUploader(Processor):
                     "software": package.get("software_name", ""),
                     "version": package["version"],
                     "action": action,
-                    "package_uploaded": str(installer_uploaded or uninstaller_uploaded),
+                    "package_uploaded": str(installer_uploaded),
                 },
             }
         self.output(
@@ -261,21 +256,10 @@ class WoodstarMunkiPackageUploader(Processor):
             return path
         raise ProcessorError("pkg_repo_path is required for package-bearing MunkiImporter pkginfo")
 
-    def uninstaller_package_path(self):
-        path = self.repo_path(self.env.get("uninstaller_pkg_path"))
-        if path and os.path.isfile(path):
-            return path
-        raise ProcessorError("uninstaller_pkg_path is required for uninstall_package pkginfo")
-
-    def artifact_paths(self, pkginfo):
-        installer_path = None
+    def installer_artifact_path(self, pkginfo):
         if self.needs_installer_artifact(pkginfo):
-            installer_path = self.package_path()
-
-        uninstaller_path = None
-        if self.needs_uninstaller_artifact(pkginfo):
-            uninstaller_path = self.uninstaller_package_path()
-        return installer_path, uninstaller_path
+            return self.package_path()
+        return None
 
     def repo_path(self, value):
         if not value:
@@ -290,9 +274,6 @@ class WoodstarMunkiPackageUploader(Processor):
 
     def needs_installer_artifact(self, pkginfo):
         return self.installer_type(pkginfo) != "nopkg"
-
-    def needs_uninstaller_artifact(self, pkginfo):
-        return self.uninstall_method(pkginfo) == "uninstall_package"
 
     def package_body(self, pkginfo, software_id):
         body = self.package_mutation_from_pkginfo(pkginfo)
@@ -388,6 +369,8 @@ class WoodstarMunkiPackageUploader(Processor):
         value = pkginfo.get("uninstall_method") or ""
         if not isinstance(value, str):
             raise ProcessorError("pkginfo uninstall_method must be a string")
+        if value == "uninstall_package":
+            raise ProcessorError("pkginfo uninstall_method uninstall_package is not supported")
         return value
 
     @staticmethod

@@ -48,7 +48,6 @@ INSERT INTO munki_packages (
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
     installer_object_id,
-    uninstaller_object_id,
     eligible
 )
 VALUES (
@@ -100,7 +99,6 @@ VALUES (
     @preuninstall_alert_ok_label,
     @preuninstall_alert_cancel_label,
     sqlc.narg(installer_object_id)::bigint,
-    sqlc.narg(uninstaller_object_id)::bigint,
     @eligible
 )
 RETURNING *;
@@ -155,7 +153,6 @@ SET
     preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
     installer_object_id = sqlc.narg(installer_object_id)::bigint,
-    uninstaller_object_id = sqlc.narg(uninstaller_object_id)::bigint,
     eligible = @eligible,
     updated_at = now()
 WHERE id = @id
@@ -184,9 +181,7 @@ WHERE id = @id;
 -- name: ListMunkiPackageObjectIDsByIDs :many
 SELECT refs.object_id::bigint AS object_id
 FROM munki_packages p
-CROSS JOIN LATERAL unnest(
-    array_remove(ARRAY[p.installer_object_id, p.uninstaller_object_id], NULL)::bigint[]
-) AS refs(object_id)
+CROSS JOIN LATERAL unnest(array_remove(ARRAY[p.installer_object_id], NULL)::bigint[]) AS refs(object_id)
 WHERE p.id = ANY(@ids::bigint[]);
 
 -- name: DeleteMunkiPackageRelationsByPackageIDs :exec
@@ -222,11 +217,5 @@ VALUES (
 -- name: SetMunkiPackageInstallerObject :execrows
 UPDATE munki_packages
 SET installer_object_id = @object_id,
-    updated_at = now()
-WHERE id = @id;
-
--- name: SetMunkiPackageUninstallerObject :execrows
-UPDATE munki_packages
-SET uninstaller_object_id = @object_id,
     updated_at = now()
 WHERE id = @id;

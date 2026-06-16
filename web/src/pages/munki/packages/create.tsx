@@ -15,7 +15,7 @@ import {
   ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { useUploadMunkiInstaller, useUploadMunkiUninstaller } from "@/hooks/use-munki-uploads";
+import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 
@@ -35,11 +35,9 @@ export function MunkiPackageCreatePage() {
   const [softwareID, setSoftwareID] = useState<number | null>(initialSoftwareID);
   const create = useCreateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
-  const uninstallerUpload = useUploadMunkiUninstaller();
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
-  const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const form = usePackageEditorForm(emptyPackageForm(), async (value) => {
     if (softwareID === null) {
       toast.error("Pick software.");
@@ -47,7 +45,6 @@ export function MunkiPackageCreatePage() {
     }
     const validationError = packageSubmitPreflightError(value, {
       hasInstallerFile: !!installerFile,
-      hasUninstallerFile: !!uninstallerFile,
     });
     if (validationError) {
       toast.error(validationError);
@@ -59,9 +56,6 @@ export function MunkiPackageCreatePage() {
     });
     if (value.installer_type !== "nopkg" && installerFile) {
       await installerUpload.upload({ packageId: pkg.id, file: installerFile });
-    }
-    if (value.uninstall_method === "uninstall_package" && uninstallerFile) {
-      await uninstallerUpload.upload({ packageId: pkg.id, file: uninstallerFile });
     }
     void navigate({ to: "/munki/packages" });
   });
@@ -137,13 +131,10 @@ export function MunkiPackageCreatePage() {
           packageOptions={packages.data?.items ?? []}
           installerFile={installerFile}
           installerMetadata={undefined}
-          uninstallerFile={uninstallerFile}
           hasInstallerObject={false}
-          hasUninstallerObject={false}
           onInstallerFileChange={setInstallerFile}
           onDeleteInstaller={undefined}
           deletingInstaller={false}
-          onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
           form={form}

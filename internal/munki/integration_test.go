@@ -663,13 +663,10 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 	installerObject := createMunkiPackageObject(t, ctx, stores, "DeleteObject.pkg", "b")
-	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "DeleteObject-uninstall.pkg", "c")
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:             "1.0",
-		InstallerObjectID:   &installerObject.ID,
-		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerObject.ID,
-		Eligible:            true,
+		Version:           "1.0",
+		InstallerObjectID: &installerObject.ID,
+		Eligible:          true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
@@ -680,7 +677,6 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		id   int64
 	}{
 		{name: "installer", id: installerObject.ID},
-		{name: "uninstaller", id: uninstallerObject.ID},
 	}
 	for _, ref := range references {
 		if err := stores.objects.DeleteByID(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
@@ -780,38 +776,6 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	}
 }
 
-func TestCreatePackageAcceptsUninstallerObject(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "Uninstaller App"})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	installerObject := createMunkiPackageObject(t, ctx, stores, "UninstallerApp.pkg", "d")
-	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "UninstallerApp-uninstall.pkg", "e")
-
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:             "1.0",
-		InstallerObjectID:   &installerObject.ID,
-		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerObject.ID,
-		Eligible:            true,
-	})
-	if err != nil {
-		t.Fatalf("create package: %v", err)
-	}
-	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerObject.ID {
-		t.Fatalf("installer object id = %v, want %d", pkg.InstallerObjectID, installerObject.ID)
-	}
-	if pkg.UninstallerObjectID == nil || *pkg.UninstallerObjectID != uninstallerObject.ID {
-		t.Fatalf("uninstaller object id = %v, want %d", pkg.UninstallerObjectID, uninstallerObject.ID)
-	}
-	if pkg.UninstallMethod != packages.UninstallMethodUninstallPackage {
-		t.Fatalf("uninstall method = %q, want uninstall_package", pkg.UninstallMethod)
-	}
-}
-
 func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -821,14 +785,11 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 		t.Fatalf("create software: %v", err)
 	}
 	installerObject := createMunkiPackageObject(t, ctx, stores, "SwitchableApp.pkg", "f")
-	uninstallerObject := createMunkiPackageObject(t, ctx, stores, "SwitchableApp-uninstall.pkg", "a")
 
 	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:             "1.0",
-		InstallerObjectID:   &installerObject.ID,
-		UninstallMethod:     packages.UninstallMethodUninstallPackage,
-		UninstallerObjectID: &uninstallerObject.ID,
-		Eligible:            true,
+		Version:           "1.0",
+		InstallerObjectID: &installerObject.ID,
+		Eligible:          true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
@@ -847,9 +808,6 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 	}
 	if updated.InstallerObjectID != nil {
 		t.Fatalf("installer object id = %v, want cleared", updated.InstallerObjectID)
-	}
-	if updated.UninstallerObjectID != nil {
-		t.Fatalf("uninstaller object id = %v, want cleared", updated.UninstallerObjectID)
 	}
 	if updated.InstallerType != packages.InstallerTypeNoPkg ||
 		updated.UninstallMethod != packages.UninstallMethodNone {

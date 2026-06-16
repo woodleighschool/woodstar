@@ -1087,15 +1087,11 @@ components:
             - removepackages
             - remove_copied_items
             - uninstall_script
-            - uninstall_package
           type: string
         uninstall_script:
           type: string
         uninstallcheck_script:
           type: string
-        uninstaller_object_id:
-          format: int64
-          type: integer
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
@@ -1286,15 +1282,11 @@ components:
             - removepackages
             - remove_copied_items
             - uninstall_script
-            - uninstall_package
           type: string
         uninstall_script:
           type: string
         uninstallcheck_script:
           type: string
-        uninstaller_object_id:
-          format: int64
-          type: integer
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
@@ -1494,15 +1486,11 @@ components:
             - removepackages
             - remove_copied_items
             - uninstall_script
-            - uninstall_package
           type: string
         uninstall_script:
           type: string
         uninstallcheck_script:
           type: string
-        uninstaller_object_id:
-          format: int64
-          type: integer
         update_for:
           items:
             $ref: "#/components/schemas/MunkiPackageReference"
@@ -5754,118 +5742,6 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Confirm and attach an installer upload to a Munki package
-      tags:
-        - Munki
-  /api/munki/packages/{id}/uninstaller:
-    post:
-      operationId: create-munki-package-uninstaller-upload
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiUploadTarget"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Create an uninstaller upload for a Munki package
-      tags:
-        - Munki
-  /api/munki/packages/{id}/uninstaller/{object_id}/confirm:
-    post:
-      operationId: confirm-munki-package-uninstaller-upload
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-        - in: path
-          name: object_id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiObjectView"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Confirm and attach an uninstaller upload to a Munki package
       tags:
         - Munki
   /api/munki/software:

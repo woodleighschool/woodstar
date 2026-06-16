@@ -421,10 +421,9 @@ export type MunkiPackage = {
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
+    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script: string;
     uninstallcheck_script: string;
-    uninstaller_object_id?: number;
     update_for: Array<MunkiPackageReference>;
     updated_at: string;
     version: string;
@@ -477,10 +476,9 @@ export type MunkiPackageCreateMutation = {
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
-    uninstaller_object_id?: number;
     update_for?: Array<MunkiPackageReference>;
     version: string;
     version_script?: string;
@@ -556,10 +554,9 @@ export type MunkiPackageMutation = {
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
-    uninstaller_object_id?: number;
     update_for?: Array<MunkiPackageReference>;
     version: string;
     version_script?: string;
@@ -3108,93 +3105,6 @@ export type ConfirmMunkiPackageInstallerUploadResponses = {
 };
 
 export type ConfirmMunkiPackageInstallerUploadResponse = ConfirmMunkiPackageInstallerUploadResponses[keyof ConfirmMunkiPackageInstallerUploadResponses];
-
-export type CreateMunkiPackageUninstallerUploadData = {
-    body: MunkiUploadRequest;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/packages/{id}/uninstaller';
-};
-
-export type CreateMunkiPackageUninstallerUploadErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiPackageUninstallerUploadError = CreateMunkiPackageUninstallerUploadErrors[keyof CreateMunkiPackageUninstallerUploadErrors];
-
-export type CreateMunkiPackageUninstallerUploadResponses = {
-    /**
-     * Created
-     */
-    201: MunkiUploadTarget;
-};
-
-export type CreateMunkiPackageUninstallerUploadResponse = CreateMunkiPackageUninstallerUploadResponses[keyof CreateMunkiPackageUninstallerUploadResponses];
-
-export type ConfirmMunkiPackageUninstallerUploadData = {
-    body?: never;
-    path: {
-        id: number;
-        object_id: number;
-    };
-    query?: never;
-    url: '/api/munki/packages/{id}/uninstaller/{object_id}/confirm';
-};
-
-export type ConfirmMunkiPackageUninstallerUploadErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ConfirmMunkiPackageUninstallerUploadError = ConfirmMunkiPackageUninstallerUploadErrors[keyof ConfirmMunkiPackageUninstallerUploadErrors];
-
-export type ConfirmMunkiPackageUninstallerUploadResponses = {
-    /**
-     * OK
-     */
-    200: MunkiObjectView;
-};
-
-export type ConfirmMunkiPackageUninstallerUploadResponse = ConfirmMunkiPackageUninstallerUploadResponses[keyof ConfirmMunkiPackageUninstallerUploadResponses];
 
 export type ListMunkiSoftwareData = {
     body?: never;

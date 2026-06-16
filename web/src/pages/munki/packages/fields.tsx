@@ -118,13 +118,10 @@ export function PackageEditorTabs({
   packageOptions,
   installerFile,
   installerMetadata,
-  uninstallerFile,
   hasInstallerObject,
-  hasUninstallerObject,
   onInstallerFileChange,
   onDeleteInstaller,
   deletingInstaller,
-  onUninstallerFileChange,
 }: {
   form: PackageEditorForm;
   softwareInfo: SoftwareInfo | null;
@@ -132,13 +129,10 @@ export function PackageEditorTabs({
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   installerMetadata?: MunkiPackage["installer_file"];
-  uninstallerFile: File | null;
   hasInstallerObject: boolean;
-  hasUninstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
   onDeleteInstaller?: () => Promise<void>;
   deletingInstaller: boolean;
-  onUninstallerFileChange: (file: File | null) => void;
 }) {
   const tabs = [
     {
@@ -176,14 +170,7 @@ export function PackageEditorTabs({
     {
       value: "uninstall",
       label: "Uninstall",
-      content: (
-        <UninstallTab
-          form={form}
-          uninstallerFile={uninstallerFile}
-          hasUninstallerObject={hasUninstallerObject}
-          onUninstallerFileChange={onUninstallerFileChange}
-        />
-      ),
+      content: <UninstallTab form={form} />,
     },
     {
       value: "scripts",
@@ -529,17 +516,7 @@ function InstallationTab({
   );
 }
 
-function UninstallTab({
-  form,
-  uninstallerFile,
-  hasUninstallerObject,
-  onUninstallerFileChange,
-}: {
-  form: PackageEditorForm;
-  uninstallerFile: File | null;
-  hasUninstallerObject: boolean;
-  onUninstallerFileChange: (file: File | null) => void;
-}) {
+function UninstallTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldSet>
       <FieldLegend>Uninstall</FieldLegend>
@@ -554,36 +531,20 @@ function UninstallTab({
           />
         </div>
         <form.Subscribe selector={(state) => state.values.uninstall_method}>
-          {(method) => (
-            <>
-              {method === "uninstall_package" ? (
-                <PackageFileField
-                  id="munki-package-uninstaller-file"
-                  label="Uninstaller File"
-                  description={
-                    hasUninstallerObject
-                      ? "Uninstaller file attached."
-                      : "No uninstaller file selected."
-                  }
-                  icon={<FileArchive className="size-4" />}
-                  file={uninstallerFile}
-                  onChange={onUninstallerFileChange}
-                />
-              ) : null}
-              {method === "uninstall_script" ? (
-                <form.Field
-                  name="uninstall_script"
-                  children={(field) => (
-                    <ScriptField
-                      label="Uninstall Script"
-                      value={field.state.value}
-                      onChange={(value) => field.handleChange(value)}
-                    />
-                  )}
-                />
-              ) : null}
-            </>
-          )}
+          {(method) =>
+            method === "uninstall_script" ? (
+              <form.Field
+                name="uninstall_script"
+                children={(field) => (
+                  <ScriptField
+                    label="Uninstall Script"
+                    value={field.state.value}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              />
+            ) : null
+          }
         </form.Subscribe>
       </FieldGroup>
     </FieldSet>

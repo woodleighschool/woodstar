@@ -32,7 +32,6 @@ export const MUNKI_UNINSTALL_METHOD_OPTIONS = rawEnumOptions<MunkiUninstallMetho
   "removepackages",
   "remove_copied_items",
   "uninstall_script",
-  "uninstall_package",
 ]);
 
 export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = rawEnumOptions<MunkiInstallItemType>([

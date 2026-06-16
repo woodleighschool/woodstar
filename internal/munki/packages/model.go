@@ -63,7 +63,6 @@ const (
 	UninstallMethodRemovePackages    UninstallMethod = "removepackages"
 	UninstallMethodRemoveCopiedItems UninstallMethod = "remove_copied_items"
 	UninstallMethodUninstallScript   UninstallMethod = "uninstall_script"
-	UninstallMethodUninstallPackage  UninstallMethod = "uninstall_package"
 )
 
 var uninstallMethodValues = []UninstallMethod{
@@ -71,7 +70,6 @@ var uninstallMethodValues = []UninstallMethod{
 	UninstallMethodRemovePackages,
 	UninstallMethodRemoveCopiedItems,
 	UninstallMethodUninstallScript,
-	UninstallMethodUninstallPackage,
 }
 
 func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
@@ -207,7 +205,6 @@ type PackageMutation struct {
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
-	UninstallerObjectID      *int64                                `json:"uninstaller_object_id,omitempty"`
 	Eligible                 bool                                  `json:"eligible"`
 }
 
@@ -276,7 +273,6 @@ type Package struct {
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
-	UninstallerObjectID      *int64                                `json:"uninstaller_object_id,omitempty"`
 	IconObjectID             *int64                                `json:"icon_object_id,omitempty"`
 	Eligible                 bool                                  `json:"eligible"`
 	CreatedAt                time.Time                             `json:"created_at"`

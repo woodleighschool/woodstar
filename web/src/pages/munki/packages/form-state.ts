@@ -127,7 +127,7 @@ export function validatePackageForm({ value }: { value: PackageFormState }) {
 
 export function packageSubmitPreflightError(
   form: PackageFormState,
-  files: { hasInstallerFile: boolean; hasUninstallerFile: boolean },
+  files: { hasInstallerFile: boolean },
 ) {
   if (form.installer_type !== "nopkg" && !files.hasInstallerFile) {
     return `${installerTypeLabel(form.installer_type)} packages require an installer file.`;
@@ -159,9 +159,6 @@ export function packageSubmitPreflightError(
     nonEmpty(form.uninstall_script) === undefined
   ) {
     return "Uninstall script method requires an uninstall script.";
-  }
-  if (form.uninstall_method === "uninstall_package" && !files.hasUninstallerFile) {
-    return "Uninstall package method requires an uninstaller file.";
   }
   return undefined;
 }

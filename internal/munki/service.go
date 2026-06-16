@@ -121,8 +121,8 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	return encodePlist(items)
 }
 
-// ResolvePackageFile authorizes a package installer/uninstaller Munki path
-// for a client and returns the private object key for serving.
+// ResolvePackageFile authorizes a package installer Munki path for a client
+// and returns the private object key for serving.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
 	client ClientHost,
@@ -144,12 +144,6 @@ func (s *RepositoryService) ResolvePackageFile(
 		if pkg.Package.InstallerType != packages.InstallerTypeNoPkg {
 			if obj := objectByID(objects, pkg.Package.InstallerObjectID); obj != nil &&
 				packages.InstallerItemLocation(pkg.Package, *obj) == key {
-				return obj.Key(), nil
-			}
-		}
-		if pkg.Package.UninstallMethod == packages.UninstallMethodUninstallPackage {
-			if obj := objectByID(objects, pkg.Package.UninstallerObjectID); obj != nil &&
-				packages.UninstallerItemLocation(pkg.Package, *obj) == key {
 				return obj.Key(), nil
 			}
 		}
@@ -249,7 +243,6 @@ func (s *RepositoryService) objectsForPackages(
 	ids := make([]int64, 0, len(effective)*3)
 	for _, pkg := range effective {
 		ids = appendObjectID(ids, pkg.Package.InstallerObjectID)
-		ids = appendObjectID(ids, pkg.Package.UninstallerObjectID)
 		ids = appendObjectID(ids, pkg.IconObjectID)
 	}
 	if len(ids) == 0 {
@@ -266,9 +259,8 @@ func packageObjects(
 	objects map[int64]storage.Object,
 ) packages.PkginfoObjects {
 	return packages.PkginfoObjects{
-		Installer:   objectByID(objects, pkg.Package.InstallerObjectID),
-		Uninstaller: objectByID(objects, pkg.Package.UninstallerObjectID),
-		Icon:        objectByID(objects, pkg.IconObjectID),
+		Installer: objectByID(objects, pkg.Package.InstallerObjectID),
+		Icon:      objectByID(objects, pkg.IconObjectID),
 	}
 }
 

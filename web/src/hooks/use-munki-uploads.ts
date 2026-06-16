@@ -3,10 +3,8 @@ import { useDirectUpload } from "@/hooks/use-direct-upload";
 import type { ApiError, MunkiObjectView, MunkiUploadTarget } from "@/lib/api";
 import {
   confirmMunkiPackageInstallerUpload,
-  confirmMunkiPackageUninstallerUpload,
   confirmMunkiSoftwareIconUpload,
   createMunkiPackageInstallerUpload,
-  createMunkiPackageUninstallerUpload,
   createMunkiSoftwareIconUpload,
   deleteMunkiPackageInstaller,
   unwrap,
@@ -74,30 +72,6 @@ export function useDeleteMunkiInstaller() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(packageId) });
     },
-  });
-}
-
-// useUploadMunkiUninstaller attaches an uninstaller to an existing package.
-export function useUploadMunkiUninstaller() {
-  return useDirectUpload<MunkiUploadTarget, MunkiObjectView, PackageUploadVars>({
-    mutationKey: ["munki-uninstaller-upload"],
-    loadingText: "Uploading uninstaller",
-    successText: "Uninstaller uploaded",
-    errorSurface: "inline",
-    createIntent: ({ packageId, file }) =>
-      unwrap(
-        createMunkiPackageUninstallerUpload({
-          path: { id: packageId },
-          body: { filename: file.name, content_type: file.type || undefined },
-        }),
-      ),
-    uploadRequest: uploadRequestFromIntent,
-    completeUpload: (intent, { packageId }) =>
-      unwrap(
-        confirmMunkiPackageUninstallerUpload({
-          path: { id: packageId, object_id: intent.object_id },
-        }),
-      ),
   });
 }
 

@@ -48,9 +48,8 @@ func Pkginfo(pkg Package, objects PkginfoObjects) map[string]any {
 
 // PkginfoObjects are storage objects needed only while rendering Munki pkginfo.
 type PkginfoObjects struct {
-	Installer   *storage.Object
-	Uninstaller *storage.Object
-	Icon        *storage.Object
+	Installer *storage.Object
+	Icon      *storage.Object
 }
 
 type munkiPkginfo struct {
@@ -99,7 +98,6 @@ type munkiPkginfo struct {
 	PostinstallScript        string                    `json:"postinstall_script,omitempty"`
 	PreuninstallScript       string                    `json:"preuninstall_script,omitempty"`
 	PostuninstallScript      string                    `json:"postuninstall_script,omitempty"`
-	UninstallerItemLocation  string                    `json:"uninstaller_item_location,omitempty"`
 	UninstallScript          string                    `json:"uninstall_script,omitempty"`
 	VersionScript            string                    `json:"version_script,omitempty"`
 	PreinstallAlert          *munkiPkginfoAlert        `json:"preinstall_alert,omitempty"`
@@ -199,9 +197,6 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 		item.InstallerItemHash = objectHash(*objects.Installer)
 		item.InstallerItemSize = objectSizeKB(*objects.Installer)
 	}
-	if pkg.UninstallMethod == UninstallMethodUninstallPackage && objects.Uninstaller != nil {
-		item.UninstallerItemLocation = UninstallerItemLocation(pkg, *objects.Uninstaller)
-	}
 	if objects.Icon != nil {
 		item.IconName = IconName(*objects.Icon)
 		item.IconHash = objectHash(*objects.Icon)
@@ -222,11 +217,6 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 // InstallerItemLocation returns the Munki repository path for a package installer.
 func InstallerItemLocation(pkg Package, obj storage.Object) string {
 	return packageObjectLocation(pkg.ID, "installer", obj)
-}
-
-// UninstallerItemLocation returns the Munki repository path for a package uninstaller.
-func UninstallerItemLocation(pkg Package, obj storage.Object) string {
-	return packageObjectLocation(pkg.ID, "uninstaller", obj)
 }
 
 // IconName returns the Munki icon filename for a storage object.

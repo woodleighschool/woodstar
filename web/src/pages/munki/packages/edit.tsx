@@ -6,11 +6,7 @@ import { toast } from "sonner";
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import {
-  useDeleteMunkiInstaller,
-  useUploadMunkiInstaller,
-  useUploadMunkiUninstaller,
-} from "@/hooks/use-munki-uploads";
+import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import {
   type MunkiPackage,
   useMunkiPackage,
@@ -71,10 +67,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const update = useUpdateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
   const installerDelete = useDeleteMunkiInstaller();
-  const uninstallerUpload = useUploadMunkiUninstaller();
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
-  const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const softwareInfo: SoftwareInfo = {
     id: pkg.software_id,
@@ -87,7 +81,6 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const form = usePackageEditorForm(initial, async (value) => {
     const validationError = packageSubmitPreflightError(value, {
       hasInstallerFile: !!installerFile || !!pkg.installer_object_id,
-      hasUninstallerFile: !!uninstallerFile || !!pkg.uninstaller_object_id,
     });
     if (validationError) {
       toast.error(validationError);
@@ -96,9 +89,6 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
     await update.mutateAsync({ id: packageID, body: packageMutationFromForm(value) });
     if (value.installer_type !== "nopkg" && installerFile) {
       await installerUpload.upload({ packageId: packageID, file: installerFile });
-    }
-    if (value.uninstall_method === "uninstall_package" && uninstallerFile) {
-      await uninstallerUpload.upload({ packageId: packageID, file: uninstallerFile });
     }
     void navigate({ to: "/munki/packages" });
   });
@@ -119,9 +109,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
           packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
           installerFile={installerFile}
           installerMetadata={pkg.installer_file}
-          uninstallerFile={uninstallerFile}
           hasInstallerObject={pkg.installer_object_id != null}
-          hasUninstallerObject={pkg.uninstaller_object_id != null}
           onInstallerFileChange={setInstallerFile}
           onDeleteInstaller={async () => {
             await installerDelete.mutateAsync(packageID);
@@ -129,7 +117,6 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
             toast.success("Installer deleted");
           }}
           deletingInstaller={installerDelete.isPending}
-          onUninstallerFileChange={setUninstallerFile}
         />
         <FormActions
           form={form}

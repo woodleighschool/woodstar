@@ -89,7 +89,7 @@ class WoodstarClient:
 
 
 def needs_object(resource, kind, force=False):
-    """True when a resource still needs its installer/uninstaller/icon uploaded
+    """True when a resource still needs its installer/icon uploaded
     (or force re-uploads it). resource is a package or software response."""
     return bool(force) or not resource.get(f"{kind}_object_id")
 

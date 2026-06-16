@@ -1031,7 +1031,6 @@ type MunkiPackage struct {
 	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
 	InstallerObjectID                  *int64     `json:"installer_object_id"`
-	UninstallerObjectID                *int64     `json:"uninstaller_object_id"`
 	Eligible                           bool       `json:"eligible"`
 	CreatedAt                          time.Time  `json:"created_at"`
 	UpdatedAt                          time.Time  `json:"updated_at"`
