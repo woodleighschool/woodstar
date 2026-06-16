@@ -1,214 +1,59 @@
 package adminapi
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/alexedwards/scs/v2"
-	"github.com/alexedwards/scs/v2/memstore"
-	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humachi"
-	"github.com/go-chi/chi/v5"
-
-	"github.com/woodleighschool/woodstar/internal/adminctx"
-	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/santa"
-	"github.com/woodleighschool/woodstar/internal/santa/configurations"
-	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
-func TestHostDetailRunsSantaEnricher(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	hostStore := hosts.NewStore(db)
-	santaStore := santa.NewStore(db)
+// The host detail contributors are adminapi's only job in host enrichment:
+// attach a capability's loaded host state onto the composite response, and stay
+// absent when the capability has no loader. The DB-backed state itself (santa
+// config matching, munki observations) is tested in those packages.
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware: hosts.HostHardware{
-			UUID:   "santa-enricher-host",
-			Serial: "ENRICH",
-		},
-		OrbitNodeKey: "santa-enricher-orbit",
-	})
-	if err != nil {
-		t.Fatalf("enroll host: %v", err)
-	}
-	seenAt := time.Date(2026, 5, 23, 11, 0, 0, 0, time.UTC)
-	if err := santaStore.UpsertHostObservation(ctx, santa.HostObservation{
-		HostID:             host.ID,
-		MachineID:          "santa-enricher-host",
-		SerialNumber:       "ENRICH",
-		Version:            "2026.2",
-		ClientModeReported: configurations.ReportedClientModeLockdown,
-		LastSeenAt:         &seenAt,
-	}); err != nil {
-		t.Fatalf("upsert santa observation: %v", err)
-	}
-	label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
-		Name:                "Enricher Label",
-		LabelMembershipType: labels.LabelMembershipTypeManual,
-	})
-	if err != nil {
-		t.Fatalf("create label: %v", err)
-	}
-	if err := labels.NewStore(db).SetMembership(ctx, label.ID, host.ID, true); err != nil {
-		t.Fatalf("set label membership: %v", err)
-	}
-	configuration, err := configurations.NewStore(db).CreateConfiguration(ctx, configurations.ConfigurationMutation{
-		Name:                    "Enricher Config",
-		ClientMode:              configurations.ClientModeMonitor,
-		FullSyncIntervalSeconds: 600,
-		BatchSize:               50,
-		Targets: configurations.ConfigurationTargets{
-			Include: []targeting.LabelRef{{LabelID: label.ID}},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create configuration: %v", err)
-	}
+type fakeSantaLoader struct{ state *santa.HostState }
 
-	hostState := santa.NewHostStateService(santaStore, configurations.NewStore(db))
-	router, cookie := santaAuthedRouter(t, db, "enricher-admin@example.test", func(api huma.API) {
-		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[HostDetail]{
-			Store:          hostStore,
-			UserAffinities: hosts.NewUserAffinityStore(db),
-			DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
-			Contributors: []hosts.DetailContributor[HostDetail]{
-				newSantaHostDetailContributor(hostState),
-			},
-		})
-	})
-	rec := santaAdminRequest(t, router, cookie, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
+func (f fakeSantaLoader) LoadHostState(context.Context, int64) (*santa.HostState, error) {
+	return f.state, nil
+}
 
-	var body struct {
-		Santa *struct {
-			Version            string `json:"version"`
-			ClientModeReported string `json:"client_mode_reported"`
-			Configuration      *struct {
-				ID              int64 `json:"id"`
-				MatchedViaLabel *struct {
-					ID int64 `json:"id"`
-				} `json:"matched_via_label"`
-				Targets configurations.ConfigurationTargets `json:"targets"`
-			} `json:"configuration"`
-		} `json:"santa"`
+type fakeMunkiLoader struct{ state *munki.HostState }
+
+func (f fakeMunkiLoader) LoadHostState(context.Context, int64) (*munki.HostState, error) {
+	return f.state, nil
+}
+
+func TestSantaContributorAttachesLoadedState(t *testing.T) {
+	state := &santa.HostState{Version: "2026.2"}
+	var body HostDetail
+	if err := newSantaHostDetailContributor(fakeSantaLoader{state}).
+		ContributeHostDetail(context.Background(), 7, &body); err != nil {
+		t.Fatalf("contribute santa detail: %v", err)
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode host detail: %v", err)
-	}
-	if body.Santa == nil {
-		t.Fatalf("enricher did not fire; body = %q", rec.Body.String())
-	}
-	if body.Santa.Version != "2026.2" || body.Santa.ClientModeReported != "lockdown" {
-		t.Fatalf("santa observation = %+v", body.Santa)
-	}
-	if body.Santa.Configuration == nil ||
-		body.Santa.Configuration.ID != configuration.ID ||
-		body.Santa.Configuration.MatchedViaLabel == nil ||
-		body.Santa.Configuration.MatchedViaLabel.ID != label.ID {
-		t.Fatalf("configuration = %+v, want id=%d via label=%d",
-			body.Santa.Configuration, configuration.ID, label.ID)
-	}
-	if len(body.Santa.Configuration.Targets.Include) != 1 ||
-		body.Santa.Configuration.Targets.Include[0].LabelID != label.ID ||
-		len(body.Santa.Configuration.Targets.Exclude) != 0 {
-		t.Fatalf("configuration targets = %+v, want canonical target set", body.Santa.Configuration.Targets)
+	if body.Santa != state {
+		t.Fatalf("body.Santa = %+v, want loaded state", body.Santa)
 	}
 }
 
-func santaAuthedRouter(t *testing.T, db *database.DB, email string, register func(huma.API)) (*chi.Mux, *http.Cookie) {
-	t.Helper()
-	router, protected, cookie := santaTestAPIWith(t, db, email)
-	register(protected)
-	return router, cookie
-}
-
-func santaTestAPIWith(t *testing.T, db *database.DB, email string) (*chi.Mux, huma.API, *http.Cookie) {
-	t.Helper()
-
-	userService := directory.NewUserService(directory.NewStore(db))
-	admin, err := userService.Create(context.Background(), directory.UserCreate{
-		Email:    email,
-		Name:     "Santa Test Admin",
-		Password: "correct-password",
-		Role:     directory.RoleAdmin,
-	})
-	if err != nil {
-		t.Fatalf("create admin user: %v", err)
+func TestMunkiContributorAttachesLoadedState(t *testing.T) {
+	state := &munki.HostState{Version: "7.1.2"}
+	var body HostDetail
+	if err := newMunkiHostDetailContributor(fakeMunkiLoader{state}).
+		ContributeHostDetail(context.Background(), 7, &body); err != nil {
+		t.Fatalf("contribute munki detail: %v", err)
 	}
-
-	sessionManager := testSessionManager()
-	authService := auth.NewService(userService, sessionManager)
-	router := chi.NewRouter()
-	router.Use(sessionManager.LoadAndSave)
-	api := humachi.New(router, humaConfig("test"))
-	protected := huma.NewGroup(api)
-	protected.UseMiddleware(santaTestWithUser(admin))
-
-	return router, protected, loginSantaTestUser(t, authService, sessionManager, email)
-}
-
-func santaTestWithUser(user *directory.User) func(huma.Context, func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		next(huma.WithContext(ctx, adminctx.WithUser(ctx.Context(), user)))
+	if body.Munki != state {
+		t.Fatalf("body.Munki = %+v, want loaded state", body.Munki)
 	}
 }
 
-func loginSantaTestUser(
-	t *testing.T,
-	authService *auth.Service,
-	sessionManager *scs.SessionManager,
-	email string,
-) *http.Cookie {
-	t.Helper()
-
-	ctx, err := sessionManager.Load(context.Background(), "")
-	if err != nil {
-		t.Fatalf("load session: %v", err)
+func TestHostDetailContributorsAbsentWithoutLoader(t *testing.T) {
+	if c := newSantaHostDetailContributor(nil); c != nil {
+		t.Fatalf("santa contributor = %v, want nil without a loader", c)
 	}
-	if _, err := authService.Login(ctx, email, "correct-password"); err != nil {
-		t.Fatalf("login test user: %v", err)
+	if c := newMunkiHostDetailContributor(nil); c != nil {
+		t.Fatalf("munki contributor = %v, want nil without a loader", c)
 	}
-	token, _, err := sessionManager.Commit(ctx)
-	if err != nil {
-		t.Fatalf("commit session: %v", err)
-	}
-	return &http.Cookie{Name: sessionManager.Cookie.Name, Value: token}
-}
-
-func testSessionManager() *scs.SessionManager {
-	sm := scs.New()
-	sm.Store = memstore.New()
-	return sm
-}
-
-func santaAdminRequest(
-	t *testing.T,
-	router *chi.Mux,
-	cookie *http.Cookie,
-	method, path, body string,
-) *httptest.ResponseRecorder {
-	t.Helper()
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), method, path, bytes.NewBufferString(body))
-	req.AddCookie(cookie)
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	router.ServeHTTP(rec, req)
-	return rec
 }
