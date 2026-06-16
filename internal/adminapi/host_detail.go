@@ -17,6 +17,33 @@ type HostDetail struct {
 	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
+// HostRoutesOptions assembles the host admin route options: the osquery check
+// status filter plus the munki and santa host-detail contributors. It lives
+// here, next to the adapters it builds, so the wiring layer hands it plain
+// stores rather than reaching into capability internals.
+func HostRoutesOptions(
+	store *hosts.Store,
+	userAffinities *hosts.UserAffinityStore,
+	checkStore *checks.Store,
+	munkiState munkiHostStateLoader,
+	santaState santaHostStateLoader,
+) hosts.AdminRoutesOptions[HostDetail] {
+	var checkFilter hosts.CheckStatusFilter
+	if checkStore != nil {
+		checkFilter = osqueryCheckFilter{store: checkStore}
+	}
+	return hosts.AdminRoutesOptions[HostDetail]{
+		Store:          store,
+		UserAffinities: userAffinities,
+		CheckFilter:    checkFilter,
+		DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
+		Contributors: []hosts.DetailContributor[HostDetail]{
+			newMunkiHostDetailContributor(munkiState),
+			newSantaHostDetailContributor(santaState),
+		},
+	}
+}
+
 type osqueryCheckFilter struct {
 	store *checks.Store
 }

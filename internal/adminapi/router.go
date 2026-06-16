@@ -22,7 +22,7 @@ func routes(deps Dependencies) http.Handler {
 		_, _ = w.Write([]byte("alive\n"))
 	})
 	r.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
-		if err := deps.Runtime.DB.Ping(req.Context()); err != nil {
+		if err := deps.DB.Ping(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}
@@ -40,15 +40,15 @@ func routes(deps Dependencies) http.Handler {
 }
 
 func browserRoutes(r chi.Router, deps Dependencies) {
-	r.Use(middleware.RequestLogger(deps.Runtime.Logger))
-	r.Use(compressionMiddleware(deps.Runtime.Logger))
-	if deps.Runtime.SessionManager != nil {
-		r.Use(deps.Runtime.SessionManager.LoadAndSave)
+	r.Use(middleware.RequestLogger(deps.Logger))
+	r.Use(compressionMiddleware(deps.Logger))
+	if deps.SessionManager != nil {
+		r.Use(deps.SessionManager.LoadAndSave)
 	}
 	r.Use(middleware.CrossOriginProtection())
 	Mount(r, deps)
-	if deps.Runtime.WebHandler != nil {
-		deps.Runtime.WebHandler.RegisterRoutes(r)
+	if deps.WebHandler != nil {
+		deps.WebHandler.RegisterRoutes(r)
 	}
 }
 

@@ -24,12 +24,12 @@ type Server struct {
 // NewServer returns an HTTP server.
 func NewServer(deps Dependencies) *Server {
 	server := &Server{
-		config:  deps.Runtime.Config,
-		logger:  deps.Runtime.Logger,
-		version: deps.Runtime.Version,
+		config:  deps.Config,
+		logger:  deps.Logger,
+		version: deps.Version,
 	}
 	server.httpServer = &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", deps.Runtime.Config.Host, deps.Runtime.Config.Port),
+		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
 		Handler:           routes(deps),
 		ReadHeaderTimeout: 15 * time.Second,
 		ReadTimeout:       60 * time.Second,

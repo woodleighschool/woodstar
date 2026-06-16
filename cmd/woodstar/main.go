@@ -14,6 +14,7 @@ import (
 
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi"
@@ -30,17 +31,21 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
+	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
+	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
@@ -169,7 +174,6 @@ func runHTTPServer(
 	}
 }
 
-//nolint:funlen // dependency-glass wiring: one linear store/service/route construction sequence
 func newServer(
 	ctx context.Context,
 	cfg config.Config,
@@ -178,147 +182,223 @@ func newServer(
 	logger *slog.Logger,
 	storageBackend storage.Store,
 ) (*adminapi.Server, []starter) {
+	w := buildWiring(ctx, cfg, db, sessions, logger, storageBackend)
+	return adminapi.NewServer(w.serverDependencies()), w.starters()
+}
+
+// wiring holds every constructed store and service. It is the dependency glass:
+// buildWiring fills it from config and the database, while its zero value drives
+// OpenAPI schema generation, which registers routes without touching a store.
+type wiring struct {
+	cfg            config.Config
+	logger         *slog.Logger
+	db             *database.DB
+	sessions       *scs.SessionManager
+	storageBackend storage.Store
+
+	auth           *auth.Service
+	users          *directory.UserService
+	directory      *directory.Store
+	hosts          *hosts.Store
+	userAffinities *hosts.UserAffinityStore
+	secrets        *agentauth.Store
+	software       *inventory.Store
+	labels         *labels.Store
+
+	reports      *reports.Store
+	checks       *checks.Store
+	liveQueries  *livequery.Manager
+	osqueryAgent *osquery.AgentService
+
+	orbitAgent *orbit.EnrollmentService
+
+	storageObjects *storage.ObjectStore
+	munkiPackages  *packages.Store
+	munkiSoftware  *munkisoftware.Store
+	munkiHostState *munki.Store
+	munkiRepo      *munki.RepositoryService
+
+	configurations *configurations.Store
+	events         *events.Store
+	rules          *rules.Store
+	references     *references.Store
+	santaSync      *santa.SyncService
+	santaState     *santa.HostStateService
+}
+
+func buildWiring(
+	ctx context.Context,
+	cfg config.Config,
+	db *database.DB,
+	sessions *scs.SessionManager,
+	logger *slog.Logger,
+	storageBackend storage.Store,
+) *wiring {
+	w := &wiring{
+		cfg:            cfg,
+		logger:         logger,
+		db:             db,
+		sessions:       sessions,
+		storageBackend: storageBackend,
+	}
+
 	// Core stores.
-	directoryStore := directory.NewStore(db)
-	hostStore := hosts.NewStore(db)
-	userAffinities := hosts.NewUserAffinityStore(db)
-	secretStore := agentauth.NewStore(db)
-	softwareStore := inventory.NewStore(db)
-	labelStore := labels.NewStore(db)
+	w.directory = directory.NewStore(db)
+	w.hosts = hosts.NewStore(db)
+	w.userAffinities = hosts.NewUserAffinityStore(db)
+	w.secrets = agentauth.NewStore(db)
+	w.software = inventory.NewStore(db)
+	w.labels = labels.NewStore(db)
 
 	// Osquery stores.
-	reportStore := reports.NewStore(db)
-	checkStore := checks.NewStore(db)
-	liveQueries := livequery.NewManager()
+	w.reports = reports.NewStore(db)
+	w.checks = checks.NewStore(db)
+	w.liveQueries = livequery.NewManager()
 
 	// Munki stores.
-	storageObjects := storage.NewObjectStore(db, storageBackend)
-	munkiPackageStore := packages.NewStore(db, storageObjects)
-	munkiSoftwareStore := munkisoftware.NewStore(db, storageObjects, munkiPackageStore)
-	munkiHostStateStore := munki.NewStore(db)
+	w.storageObjects = storage.NewObjectStore(db, storageBackend)
+	w.munkiPackages = packages.NewStore(db, w.storageObjects)
+	w.munkiSoftware = munkisoftware.NewStore(db, w.storageObjects, w.munkiPackages)
+	w.munkiHostState = munki.NewStore(db)
 
 	// Santa stores.
 	santaHostStore := santa.NewStore(db)
-	configurationStore := configurations.NewStore(db)
-	eventStore := events.NewStore(db)
-	ruleStore := rules.NewStore(db)
-	referenceStore := references.NewStore(db)
+	w.configurations = configurations.NewStore(db)
+	w.events = events.NewStore(db)
+	w.rules = rules.NewStore(db)
+	w.references = references.NewStore(db)
 	syncStore := syncstate.NewStore(db)
 
-	users := directory.NewUserService(directoryStore)
-	authn := newAuth(ctx, cfg, users, sessions, logger)
+	w.users = directory.NewUserService(w.directory)
+	w.auth = newAuth(ctx, cfg, w.users, sessions, logger)
+	w.orbitAgent = orbit.NewEnrollmentService(w.hosts, w.secrets, w.userAffinities)
 
-	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, userAffinities)
-
-	inventoryProjector := ingest.NewProjector(
-		hostStore,
-		softwareStore,
-		logger.With("component", "inventory"),
-	)
-	munkiIngestor := munki.NewDetailIngestor(munkiHostStateStore)
+	inventoryProjector := ingest.NewProjector(w.hosts, w.software, logger.With("component", "inventory"))
+	munkiIngestor := munki.NewDetailIngestor(w.munkiHostState)
 	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
 	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
-
-	labelEvaluator := ingest.NewLabelEvaluator(
-		labelStore,
-		logger.With("component", "labels"),
-	)
-
-	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
-		HostStore:          hostStore,
+	labelEvaluator := ingest.NewLabelEvaluator(w.labels, logger.With("component", "labels"))
+	w.osqueryAgent = osquery.NewAgentService(osquery.Dependencies{
+		HostStore:          w.hosts,
 		InventoryProjector: inventoryProjector,
 		LabelEvaluator:     labelEvaluator,
-		ReportStore:        reportStore,
-		CheckStore:         checkStore,
-		LiveQueries:        liveQueries,
-		SecretStore:        secretStore,
+		ReportStore:        w.reports,
+		CheckStore:         w.checks,
+		LiveQueries:        w.liveQueries,
+		SecretStore:        w.secrets,
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	munkiRepo := newMunki(hostStore, munkiSoftwareStore, storageObjects)
+	w.munkiRepo = newMunki(w.hosts, w.munkiSoftware, w.storageObjects)
 
-	santaSync := santa.NewSyncService(santa.Dependencies{
+	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
-		Configurations: configurationStore,
-		UserAffinities: userAffinities,
-		Events:         eventStore,
-		Rules:          ruleStore,
+		Configurations: w.configurations,
+		UserAffinities: w.userAffinities,
+		Events:         w.events,
+		Rules:          w.rules,
 		Sync:           syncStore,
 	})
+	w.santaState = santa.NewHostStateService(santaHostStore, w.configurations)
 
-	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
+	return w
+}
 
-	server := adminapi.NewServer(adminapi.Dependencies{
-		Runtime: adminapi.RuntimeDependencies{
-			Config:         cfg,
-			DB:             db,
-			Version:        buildinfo.Version,
-			Logger:         logger,
-			SessionManager: sessions,
-			WebHandler: webui.NewHandler(webui.HandlerOptions{
-				FS:        webdist.DistDirFS,
-				Version:   buildinfo.Version,
-				PublicURL: cfg.PublicURL,
-				Logger:    logger.With("component", "web"),
-			}),
-		},
-
-		Auth: adminapi.AuthDependencies{
-			AuthService: authn,
-			UserService: users,
-		},
-
-		Directory: adminapi.DirectoryDependencies{
-			Store: directoryStore,
-		},
-
-		Inventory: adminapi.InventoryDependencies{
-			Hosts:          hostStore,
-			UserAffinities: userAffinities,
-			Software:       softwareStore,
-			Labels:         labelStore,
-		},
-
-		AgentAuth: adminapi.AgentAuthDependencies{
-			Store: secretStore,
-		},
-
-		Orbit: adminapi.OrbitDependencies{
-			Agent: orbitAgent,
-		},
-
-		Osquery: adminapi.OsqueryDependencies{
-			Agent:       osqueryAgent,
-			LiveQueries: liveQueries,
-			Reports:     reportStore,
-			Checks:      checkStore,
-		},
-
-		Munki: adminapi.MunkiDependencies{
-			Repository: munkiRepo,
-			Store:      storageBackend,
-			Objects:    storageObjects,
-			HostState:  munkiHostStateStore,
-			Packages:   munkiPackageStore,
-			Software:   munkiSoftwareStore,
-		},
-
-		Santa: adminapi.SantaDependencies{
-			Sync:           santaSync,
-			HostState:      santaState,
-			Configurations: configurationStore,
-			Rules:          ruleStore,
-			Events:         eventStore,
-			References:     referenceStore,
-		},
-	})
-
-	starts := []starter{
-		santaCleanup(cfg, eventStore, logger),
-		entraSync(cfg, directoryStore, labelStore, logger),
+// serverDependencies projects the wiring into the HTTP server dependencies:
+// runtime concerns plus the protocol and admin route registrars.
+func (w *wiring) serverDependencies() adminapi.Dependencies {
+	return adminapi.Dependencies{
+		Config:         w.cfg,
+		DB:             w.db,
+		Version:        buildinfo.Version,
+		Logger:         w.logger,
+		SessionManager: w.sessions,
+		AuthService:    w.auth,
+		WebHandler: webui.NewHandler(webui.HandlerOptions{
+			FS:        webdist.DistDirFS,
+			Version:   buildinfo.Version,
+			PublicURL: w.cfg.PublicURL,
+			Logger:    w.logger.With("component", "web"),
+		}),
+		Protocols: w.protocolRegistrars(),
+		Admin:     w.adminRegistrars(),
 	}
+}
 
-	return server, starts
+// adminRegistrars returns one registrar per admin-API capability. The wiring
+// layer owns the mapping of capability to auth-posture group; adminapi just
+// runs the list. Registrars capture stores in closures and never dereference
+// them, so the zero-value wiring drives schema generation safely.
+func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
+	return []adminapi.AdminRegistrar{
+		func(g adminapi.AdminGroups) { auth.RegisterPublicAdminRoutes(g.Public, w.auth) },
+		func(g adminapi.AdminGroups) { adminapi.RegisterSSO(g.Router, w.auth) },
+		func(g adminapi.AdminGroups) { auth.RegisterAccountAdminRoutes(g.Protected, w.auth, w.users) },
+		func(g adminapi.AdminGroups) { directory.RegisterUserAdminRoutes(g.Ordinary, w.users) },
+		func(g adminapi.AdminGroups) { directory.RegisterGroupAdminRoutes(g.Ordinary, w.directory) },
+		func(g adminapi.AdminGroups) {
+			hosts.RegisterAdminRoutes(g.Ordinary, adminapi.HostRoutesOptions(
+				w.hosts, w.userAffinities, w.checks, w.munkiHostState, w.santaState,
+			))
+		},
+		func(g adminapi.AdminGroups) { inventory.RegisterAdminRoutes(g.Ordinary, w.software) },
+		func(g adminapi.AdminGroups) { inventory.RegisterHostAdminRoutes(g.Ordinary, w.software, w.hosts) },
+		func(g adminapi.AdminGroups) { references.RegisterSoftwareAdminRoutes(g.Ordinary, w.references) },
+		func(g adminapi.AdminGroups) { labels.RegisterAdminRoutes(g.Ordinary, w.labels) },
+		func(g adminapi.AdminGroups) { agentauth.RegisterAdminRoutes(g.Sensitive, w.secrets) },
+		func(g adminapi.AdminGroups) { reports.RegisterAdminRoutes(g.Ordinary, w.reports) },
+		func(g adminapi.AdminGroups) { reports.RegisterHostAdminRoutes(g.Ordinary, w.reports, w.hosts) },
+		func(g adminapi.AdminGroups) { checks.RegisterAdminRoutes(g.Ordinary, w.checks) },
+		func(g adminapi.AdminGroups) { checks.RegisterHostAdminRoutes(g.Ordinary, w.checks, w.hosts) },
+		func(g adminapi.AdminGroups) { livequery.RegisterAdminRoutes(g.Sensitive, w.liveQueries, w.hosts) },
+		func(g adminapi.AdminGroups) { configurations.RegisterAdminRoutes(g.Ordinary, w.configurations) },
+		func(g adminapi.AdminGroups) { rules.RegisterAdminRoutes(g.Ordinary, w.rules) },
+		func(g adminapi.AdminGroups) { events.RegisterAdminRoutes(g.Ordinary, w.events) },
+		func(g adminapi.AdminGroups) { rules.RegisterHostAdminRoutes(g.Ordinary, w.rules, w.hosts) },
+		func(g adminapi.AdminGroups) {
+			munkisoftware.RegisterAdminRoutes(
+				g.Ordinary, w.munkiSoftware, w.munkiPackages, w.storageObjects, w.storageBackend,
+			)
+		},
+		func(g adminapi.AdminGroups) {
+			packages.RegisterAdminRoutes(g.Ordinary, w.munkiPackages, w.storageObjects, w.storageBackend)
+		},
+		func(g adminapi.AdminGroups) {
+			storage.RegisterContentAdminRoutes(
+				g.Router.With(adminapi.RequireHTTPAuth(w.auth), adminapi.RequireHTTPAdmin()),
+				w.storageObjects,
+				w.storageBackend,
+			)
+		},
+	}
+}
+
+// protocolRegistrars returns one registrar per agent-facing protocol.
+func (w *wiring) protocolRegistrars() []adminapi.ProtocolRegistrar {
+	return []adminapi.ProtocolRegistrar{
+		func(r chi.Router) {
+			orbitprotocol.RegisterOrbitRoutes(r, w.orbitAgent, w.logger.With("component", "orbit"))
+		},
+		func(r chi.Router) {
+			osqueryprotocol.RegisterOsqueryRoutes(r, w.osqueryAgent, w.logger.With("component", "osquery"))
+		},
+		func(r chi.Router) {
+			munkiprotocol.RegisterMunkiRoutes(
+				r, w.secrets, w.munkiRepo, w.storageBackend, w.logger.With("component", "munki"),
+			)
+		},
+		func(r chi.Router) {
+			santaprotocol.RegisterSantaRoutes(r, w.secrets, w.santaSync, w.logger.With("component", "santa"))
+		},
+	}
+}
+
+// starters returns the background lifecycle jobs the server runs alongside HTTP.
+func (w *wiring) starters() []starter {
+	return []starter{
+		santaCleanup(w.cfg, w.events, w.logger),
+		entraSync(w.cfg, w.directory, w.labels, w.logger),
+	}
 }
 
 func newAuth(

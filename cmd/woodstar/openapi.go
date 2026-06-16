@@ -20,7 +20,7 @@ func openAPICommand() *cobra.Command {
 document as YAML to stdout (or to the path given by --output). Handlers are
 not invoked, so this command does not require a database.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			payload, err := adminapi.BuildSchemaAPI(buildinfo.Version).OpenAPI().YAML()
+			payload, err := adminapi.BuildSchemaAPI(buildinfo.Version, (&wiring{}).adminRegistrars()).OpenAPI().YAML()
 			if err != nil {
 				return fmt.Errorf("encode openapi: %w", err)
 			}

@@ -40,11 +40,12 @@ func humaConfig(version string) huma.Config {
 	return cfg
 }
 
-// BuildSchemaAPI builds the admin API for OpenAPI schema generation only.
-// Stores are nil; route functions are never invoked.
-func BuildSchemaAPI(version string) huma.API {
+// BuildSchemaAPI builds the admin API for OpenAPI schema generation only. It
+// runs the same admin registrars the server uses; callers pass registrars built
+// with nil dependencies so no database is touched and no handler is invoked.
+func BuildSchemaAPI(version string, admin []AdminRegistrar) huma.API {
 	r := chi.NewRouter()
 	humaAPI := humachi.New(r, humaConfig(version))
-	registerAdminRoutes(r, humaAPI, Dependencies{})
+	registerAdminRoutes(r, humaAPI, Dependencies{Version: version, Admin: admin})
 	return humaAPI
 }
