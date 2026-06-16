@@ -56,7 +56,7 @@ type inventoryProjector interface {
 }
 
 type labelEvaluator interface {
-	ApplicableLabels(context.Context, *hosts.Host) ([]labels.Label, error)
+	ApplicableLabels(context.Context) ([]labels.Label, error)
 	Finalize(context.Context, *hosts.Host, []ingest.LabelResult) error
 }
 
@@ -171,7 +171,7 @@ func (s *AgentService) DistributedRead(
 		detailDiscovery[detailQueryName(suffix)] = sql
 	}
 
-	labelCount, err := s.queueLabelQueries(ctx, host, detailQueries)
+	labelCount, err := s.queueLabelQueries(ctx, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
@@ -201,10 +201,9 @@ func (s *AgentService) DistributedRead(
 
 func (s *AgentService) queueLabelQueries(
 	ctx context.Context,
-	host *hosts.Host,
 	queryMap map[string]string,
 ) (int, error) {
-	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx, host)
+	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx)
 	if err != nil {
 		return 0, err
 	}
