@@ -61,6 +61,7 @@ func (s *fileStore) Open(_ context.Context, key string) (io.ReadCloser, ObjectIn
 	if err != nil {
 		return nil, ObjectInfo{}, err
 	}
+	// #nosec G703 -- path comes from resolve, which keeps reads under root.
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ObjectInfo{}, ErrObjectNotFound

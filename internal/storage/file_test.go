@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -132,7 +133,7 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PresignPut: %v", err)
 	}
-	if target.Method != "PUT" {
+	if target.Method != http.MethodPut {
 		t.Fatalf("method = %q, want PUT", target.Method)
 	}
 	if target.Transport != UploadTransportWoodstar {

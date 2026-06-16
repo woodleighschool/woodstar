@@ -37,6 +37,16 @@ FROM storage_objects
 WHERE prefix = @prefix
   AND available_at IS NOT NULL;
 
+-- name: ListUnreferencedStorageObjects :many
+SELECT o.prefix, o.id, o.filename
+FROM storage_objects o
+WHERE o.id = ANY(@ids::bigint[])
+  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_packages p
+      WHERE p.installer_object_id = o.id
+  );
+
 -- name: DeleteStorageObject :execrows
 DELETE FROM storage_objects
 WHERE id = @id;

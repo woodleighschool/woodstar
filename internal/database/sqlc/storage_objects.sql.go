@@ -224,3 +224,44 @@ func (q *Queries) ListStorageObjectsByPrefix(ctx context.Context, arg ListStorag
 	}
 	return items, nil
 }
+
+const listUnreferencedStorageObjects = `-- name: ListUnreferencedStorageObjects :many
+SELECT o.prefix, o.id, o.filename
+FROM storage_objects o
+WHERE o.id = ANY($1::bigint[])
+  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_packages p
+      WHERE p.installer_object_id = o.id
+  )
+`
+
+type ListUnreferencedStorageObjectsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+type ListUnreferencedStorageObjectsRow struct {
+	Prefix   string `json:"prefix"`
+	ID       int64  `json:"id"`
+	Filename string `json:"filename"`
+}
+
+func (q *Queries) ListUnreferencedStorageObjects(ctx context.Context, arg ListUnreferencedStorageObjectsParams) ([]ListUnreferencedStorageObjectsRow, error) {
+	rows, err := q.db.Query(ctx, listUnreferencedStorageObjects, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnreferencedStorageObjectsRow{}
+	for rows.Next() {
+		var i ListUnreferencedStorageObjectsRow
+		if err := rows.Scan(&i.Prefix, &i.ID, &i.Filename); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

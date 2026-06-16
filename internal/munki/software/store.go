@@ -135,9 +135,9 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		var err error
-		objectIDs, err = qtx.ListMunkiSoftwareIconObjectIDsByIDs(
+		objectIDs, err = qtx.ListMunkiSoftwareObjectIDsByIDs(
 			ctx,
-			sqlc.ListMunkiSoftwareIconObjectIDsByIDsParams{Ids: []int64{id}},
+			sqlc.ListMunkiSoftwareObjectIDsByIDsParams{Ids: []int64{id}},
 		)
 		if err != nil {
 			return err
@@ -166,9 +166,9 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		rows, err := qtx.ListMunkiSoftwareIconObjectIDsByIDs(
+		rows, err := qtx.ListMunkiSoftwareObjectIDsByIDs(
 			ctx,
-			sqlc.ListMunkiSoftwareIconObjectIDsByIDsParams{Ids: ids},
+			sqlc.ListMunkiSoftwareObjectIDsByIDsParams{Ids: ids},
 		)
 		if err != nil {
 			return err

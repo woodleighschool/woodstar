@@ -55,10 +55,13 @@ DELETE FROM munki_software
 WHERE id = @id
 RETURNING id;
 
--- name: ListMunkiSoftwareIconObjectIDsByIDs :many
-SELECT refs.object_id::bigint AS object_id
+-- name: ListMunkiSoftwareObjectIDsByIDs :many
+SELECT DISTINCT refs.object_id::bigint AS object_id
 FROM munki_software s
-CROSS JOIN LATERAL unnest(ARRAY[s.icon_object_id]::bigint[]) AS refs(object_id)
+LEFT JOIN munki_packages p ON p.software_id = s.id
+CROSS JOIN LATERAL unnest(
+    array_remove(ARRAY[s.icon_object_id, p.installer_object_id], NULL)::bigint[]
+) AS refs(object_id)
 WHERE s.id = ANY(@ids::bigint[])
   AND refs.object_id IS NOT NULL;
 
@@ -188,16 +191,6 @@ WHERE a.direction = 'include'
         AND excluded.direction = 'exclude'
   )
 ORDER BY a.software_id, a.position, p.id;
-
--- name: ListUnreferencedStorageObjects :many
-SELECT o.prefix, o.id, o.filename
-FROM storage_objects o
-WHERE o.id = ANY(@ids::bigint[])
-  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
-  AND NOT EXISTS (
-      SELECT 1 FROM munki_packages p
-      WHERE p.installer_object_id = o.id
-  );
 
 -- name: SetMunkiSoftwareIconObject :execrows
 UPDATE munki_software

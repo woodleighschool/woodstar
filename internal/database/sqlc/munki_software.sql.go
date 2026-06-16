@@ -556,20 +556,23 @@ func (q *Queries) ListMunkiSoftwareExcludeLabels(ctx context.Context, arg ListMu
 	return items, nil
 }
 
-const listMunkiSoftwareIconObjectIDsByIDs = `-- name: ListMunkiSoftwareIconObjectIDsByIDs :many
-SELECT refs.object_id::bigint AS object_id
+const listMunkiSoftwareObjectIDsByIDs = `-- name: ListMunkiSoftwareObjectIDsByIDs :many
+SELECT DISTINCT refs.object_id::bigint AS object_id
 FROM munki_software s
-CROSS JOIN LATERAL unnest(ARRAY[s.icon_object_id]::bigint[]) AS refs(object_id)
+LEFT JOIN munki_packages p ON p.software_id = s.id
+CROSS JOIN LATERAL unnest(
+    array_remove(ARRAY[s.icon_object_id, p.installer_object_id], NULL)::bigint[]
+) AS refs(object_id)
 WHERE s.id = ANY($1::bigint[])
   AND refs.object_id IS NOT NULL
 `
 
-type ListMunkiSoftwareIconObjectIDsByIDsParams struct {
+type ListMunkiSoftwareObjectIDsByIDsParams struct {
 	Ids []int64 `json:"ids"`
 }
 
-func (q *Queries) ListMunkiSoftwareIconObjectIDsByIDs(ctx context.Context, arg ListMunkiSoftwareIconObjectIDsByIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiSoftwareIconObjectIDsByIDs, arg.Ids)
+func (q *Queries) ListMunkiSoftwareObjectIDsByIDs(ctx context.Context, arg ListMunkiSoftwareObjectIDsByIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiSoftwareObjectIDsByIDs, arg.Ids)
 	if err != nil {
 		return nil, err
 	}
@@ -581,47 +584,6 @@ func (q *Queries) ListMunkiSoftwareIconObjectIDsByIDs(ctx context.Context, arg L
 			return nil, err
 		}
 		items = append(items, object_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUnreferencedStorageObjects = `-- name: ListUnreferencedStorageObjects :many
-SELECT o.prefix, o.id, o.filename
-FROM storage_objects o
-WHERE o.id = ANY($1::bigint[])
-  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
-  AND NOT EXISTS (
-      SELECT 1 FROM munki_packages p
-      WHERE p.installer_object_id = o.id
-  )
-`
-
-type ListUnreferencedStorageObjectsParams struct {
-	Ids []int64 `json:"ids"`
-}
-
-type ListUnreferencedStorageObjectsRow struct {
-	Prefix   string `json:"prefix"`
-	ID       int64  `json:"id"`
-	Filename string `json:"filename"`
-}
-
-func (q *Queries) ListUnreferencedStorageObjects(ctx context.Context, arg ListUnreferencedStorageObjectsParams) ([]ListUnreferencedStorageObjectsRow, error) {
-	rows, err := q.db.Query(ctx, listUnreferencedStorageObjects, arg.Ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListUnreferencedStorageObjectsRow{}
-	for rows.Next() {
-		var i ListUnreferencedStorageObjectsRow
-		if err := rows.Scan(&i.Prefix, &i.ID, &i.Filename); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
