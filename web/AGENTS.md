@@ -6,7 +6,7 @@ Frontend rules for AI agents working under `web/`.
 
 - React 19, Vite, TypeScript, Tailwind v4, TanStack Router/Form/Query/Table, shadcn-style components, lucide icons.
 - Source lives in `web/src`; static assets live in `web/public`; production bundle output is `web/dist`.
-- From repo root, prefer mise tasks: `mise run frontend`, `mise run frontend-lint`, `mise run frontend-format`, `mise run openapi-types`, `mise run test-openapi`.
+- From repo root, prefer mise tasks: `mise //web:dev`, `mise //web:build`, `mise //web:lint`, `mise //web:format`, `mise run openapi-types`, `mise run test-openapi`.
 - Inside `web/`, use `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm format`, and `pnpm openapi:types`.
 - `web/openapi.yaml` and `web/src/lib/api-client/` are generated contract files. Do not edit generated client files by hand.
 
@@ -58,6 +58,6 @@ Frontend rules for AI agents working under `web/`.
 ## Tests And Final Report
 
 - Add frontend tests only when existing tooling covers the behavior and the behavior is worth protecting. Do not introduce a new test stack for one trivial component.
-- Before handoff, run the narrowest useful checks, usually `mise run frontend-format`, `mise run frontend-lint`, and `mise run frontend` for frontend-only work.
+- Before handoff, run the narrowest useful checks, usually `mise //web:format`, `mise //web:lint`, and `mise //web:build` for frontend-only work.
 - For API contract changes, also run `mise run openapi-types` and `mise run test-openapi`.
 - Final responses should state checks run, checks skipped with a reason, and any unresolved failure.

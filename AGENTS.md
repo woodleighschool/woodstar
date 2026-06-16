@@ -23,17 +23,18 @@ Backend and repo-wide rules for AI agents working on Woodstar.
 
 ## Commands
 
-Use mise tasks as the repo contract.
+Use mise tasks as the repo contract. Root tasks are the normal product workflow: backend plus web. Docs are optional and explicit; root tasks do not install, lint, format, build, or gate docs.
 
-- Build: `mise run build`, backend only `mise run backend`, frontend only `mise run frontend`
-- Dev: `mise run dev`, `mise run dev-backend`, `mise run dev-frontend`
+- Build: `mise run build`, backend only `mise run backend`, web only `mise //web:build`
+- Dev: `mise run dev`, backend only `mise run dev-backend`, web only `mise //web:dev`
 - Fast Go suite: `mise run test`
 - DB/full Go suite: `mise run full-test`
 - Protocol/auth integration slice: `mise run test-integration`
-- Lint/format: `mise run lint`, `mise run backend-lint`, `mise run format`, `mise run backend-format`
+- Lint/format: `mise run lint`, Go only `mise run go-lint`, web only `mise //web:lint`, `mise run format`, Go only `mise run go-format`, web only `mise //web:format`
 - Generated artifacts: `mise run sqlc`, `mise run openapi-types`, or `mise run generate`
 - OpenAPI freshness: `mise run test-openapi`
 - Full local gate: `mise run precommit`
+- Docs when in scope: `mise //docs:check`, `mise //docs:format`, or work from `docs/`
 
 `mise run test` intentionally unsets `WOODSTAR_TEST_DATABASE_URL`, so DB-backed `dbtest` tests skip. `mise run full-test` and `mise run test-integration` provide the default local Postgres URL and should fail with the real database error when Postgres is unavailable.
 

@@ -23,11 +23,10 @@ config_roots = ["web", "docs"]
 postinstall = "lefthook install"
 
 [tasks.deps]
-description = "Install backend, web, and docs dependencies"
+description = "Install backend and web dependencies"
 run = """
 go mod download
 mise //web:deps
-mise //docs:deps
 """
 
 [tasks.dev]
@@ -108,28 +107,26 @@ mise run sqlc
 mise run openapi-types
 """
 
-[tasks.backend-lint]
-description = "Run backend linters"
+[tasks.go-lint]
+description = "Run Go linters"
 run = "golangci-lint run"
 
 [tasks.lint]
-description = "Run backend, web, and docs linters"
+description = "Run backend and web linters"
 run = """
-mise run backend-lint
+mise run go-lint
 mise //web:lint
-mise //docs:lint
 """
 
-[tasks.backend-format]
-description = "Format backend code"
+[tasks.go-format]
+description = "Format Go code"
 run = "golangci-lint fmt"
 
 [tasks.format]
-description = "Format backend, web, and docs code"
+description = "Format backend and web code"
 run = """
-mise run backend-format
+mise run go-format
 mise //web:format
-mise //docs:format
 """
 
 [tasks.fmt]
@@ -147,7 +144,7 @@ mise run test-openapi
 
 [tasks.clean]
 description = "Remove local build outputs"
-run = "rm -rf woodstar build tmp web/dist docs/build docs/.docusaurus docs/.cache-loader"
+run = "rm -rf woodstar build tmp web/dist"
 
 [tasks.schema-sync]
 description = "Refresh the osquery schema snapshot"
