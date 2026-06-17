@@ -4,7 +4,7 @@ import { Activity, FolderLock } from "lucide-react";
 import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
-import { KeyValueGrid } from "@/components/key-value";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +38,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     ) : (
       santa.configuration.name
     )
-  ) : (
-    "-"
-  );
+  ) : undefined;
 
   const columns = useMemo<ColumnDef<SantaRuleStatus>[]>(
     () => [
@@ -104,19 +102,17 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               </Link>
             </Button>
           </div>
-          <KeyValueGrid
-            items={[
-              { label: "Version", value: santa.version || "-" },
-              { label: "Client Mode", value: clientModeLabel(santa.client_mode_reported) },
-              { label: "Configuration", value: configurationValue },
-              { label: "Last Sync", value: formatRelative(santa.last_sync_at) },
-              {
-                label: "Rule Sync",
-                value: `${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`,
-              },
-              { label: "Pending Rules", value: String(santa.rule_sync.pending_count) },
-            ]}
-          />
+          <KeyValueGrid>
+            <KeyValueItem label="Version" value={santa.version} />
+            <KeyValueItem label="Client Mode" value={clientModeLabel(santa.client_mode_reported)} />
+            <KeyValueItem label="Configuration" value={configurationValue} />
+            <KeyValueItem label="Last Sync" value={formatRelative(santa.last_sync_at)} />
+            <KeyValueItem
+              label="Rule Sync"
+              value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
+            />
+            <KeyValueItem label="Pending Rules" value={santa.rule_sync.pending_count} />
+          </KeyValueGrid>
         </CardContent>
       </Card>
 

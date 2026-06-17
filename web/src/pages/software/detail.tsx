@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { type KeyValue, KeyValueGrid } from "@/components/key-value";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
@@ -109,32 +109,26 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
 }
 
 function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
-  const tiles: KeyValue[] = [];
-
-  if (title.bundle_identifier) {
-    tiles.push({
-      label: "Bundle Identifier",
-      value: title.bundle_identifier,
-    });
-  }
-  if (title.browser) {
-    tiles.push({ label: "Browser", value: title.browser });
-  }
-  if (title.extension_for) {
-    tiles.push({ label: "Extension for", value: title.extension_for });
-  }
-  tiles.push({ label: "Hosts", value: <span className="tabular-nums">{title.hosts_count}</span> });
-  tiles.push({
-    label: "Versions",
-    value: <span className="tabular-nums">{title.versions_count}</span>,
-  });
-
-  tiles.sort((a, b) => a.label.localeCompare(b.label));
-
   return (
     <Card>
       <CardContent>
-        <KeyValueGrid items={tiles} />
+        <KeyValueGrid>
+          {title.browser ? <KeyValueItem label="Browser" value={title.browser} /> : null}
+          {title.bundle_identifier ? (
+            <KeyValueItem label="Bundle Identifier" value={title.bundle_identifier} />
+          ) : null}
+          {title.extension_for ? (
+            <KeyValueItem label="Extension for" value={title.extension_for} />
+          ) : null}
+          <KeyValueItem
+            label="Hosts"
+            value={<span className="tabular-nums">{title.hosts_count}</span>}
+          />
+          <KeyValueItem
+            label="Versions"
+            value={<span className="tabular-nums">{title.versions_count}</span>}
+          />
+        </KeyValueGrid>
       </CardContent>
     </Card>
   );

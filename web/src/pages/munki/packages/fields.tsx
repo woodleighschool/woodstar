@@ -2,7 +2,7 @@ import { StreamLanguage } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import type { Extension } from "@codemirror/state";
 import { Link } from "@tanstack/react-router";
-import { FileArchive, Plus, Trash2 } from "lucide-react";
+import { FileArchive, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { CodeEditor } from "@/components/editor/code-editor";
@@ -22,15 +22,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxGroupLabel,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
@@ -42,11 +46,16 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -87,8 +96,6 @@ import {
   packageLabel,
   type PackageReferenceRow,
   type ReceiptRow,
-  removeAt,
-  replaceAt,
   scriptFields,
   type ScriptKey,
   type StringRow,
@@ -327,11 +334,11 @@ function ParentSoftwarePanel({
 
           {software ? (
             <KeyValueGrid>
-              <KeyValueItem label="Category" value={displayValue(software.category)} />
-              <KeyValueItem label="Developer" value={displayValue(software.developer)} />
+              <KeyValueItem label="Category" value={software.category} />
+              <KeyValueItem label="Developer" value={software.developer} />
               <KeyValueItem
                 label="Description"
-                value={displayValue(software.description)}
+                value={software.description}
                 className="sm:col-span-2"
                 valueClassName="whitespace-pre-wrap"
               />
@@ -348,14 +355,26 @@ function ContentsTab({ form }: { form: PackageEditorForm }) {
     <FieldGroup>
       <form.Field
         name="installs"
+        mode="array"
         children={(field) => (
-          <InstallsTable rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+          <InstallsTable
+            rows={field.state.value}
+            onAdd={() => field.pushValue(emptyInstallItemRow())}
+            onReplace={(index, row) => field.replaceValue(index, row)}
+            onRemove={(index) => field.removeValue(index)}
+          />
         )}
       />
       <form.Field
         name="receipts"
+        mode="array"
         children={(field) => (
-          <ReceiptsTable rows={field.state.value} onChange={(rows) => field.handleChange(rows)} />
+          <ReceiptsTable
+            rows={field.state.value}
+            onAdd={() => field.pushValue(emptyReceiptRow())}
+            onReplace={(index, row) => field.replaceValue(index, row)}
+            onRemove={(index) => field.removeValue(index)}
+          />
         )}
       />
     </FieldGroup>
@@ -373,25 +392,31 @@ function RequirementsTab({
     <FieldGroup>
       <form.Field
         name="requires"
+        mode="array"
         children={(field) => (
           <PackageReferenceEditor
             legend="Requires"
             addLabel="Add requirement"
             rows={field.state.value}
             packageOptions={packageOptions}
-            onChange={(rows) => field.handleChange(rows)}
+            onAdd={() => field.pushValue(emptyPackageReferenceRow())}
+            onReplace={(index, row) => field.replaceValue(index, row)}
+            onRemove={(index) => field.removeValue(index)}
           />
         )}
       />
       <form.Field
         name="update_for"
+        mode="array"
         children={(field) => (
           <PackageReferenceEditor
             legend="Update For"
             addLabel="Add update target"
             rows={field.state.value}
             packageOptions={packageOptions}
-            onChange={(rows) => field.handleChange(rows)}
+            onAdd={() => field.pushValue(emptyPackageReferenceRow())}
+            onReplace={(index, row) => field.replaceValue(index, row)}
+            onRemove={(index) => field.removeValue(index)}
           />
         )}
       />
@@ -465,10 +490,13 @@ function InstallationTab({
 
       <form.Field
         name="items_to_copy"
+        mode="array"
         children={(field) => (
           <ItemsToCopyEditor
             rows={field.state.value}
-            onChange={(rows) => field.handleChange(rows)}
+            onAdd={() => field.pushValue(emptyItemToCopyRow())}
+            onReplace={(index, row) => field.replaceValue(index, row)}
+            onRemove={(index) => field.removeValue(index)}
           />
         )}
       />
@@ -647,10 +675,13 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
         </FieldGroup>
         <form.Field
           name="installer_environment"
+          mode="array"
           children={(field) => (
             <InstallerEnvironmentEditor
               rows={field.state.value}
-              onChange={(rows) => field.handleChange(rows)}
+              onAdd={() => field.pushValue(emptyInstallerEnvironmentRow())}
+              onReplace={(index, row) => field.replaceValue(index, row)}
+              onRemove={(index) => field.removeValue(index)}
             />
           )}
         />
@@ -918,42 +949,29 @@ function InstallerFileCard({
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Installer</CardTitle>
-          <CardDescription>
-            {hasInstallerObject
-              ? "Woodstar owns this installer file and publishes its Munki pkginfo metadata."
-              : "Upload an installer file for this package version."}
-          </CardDescription>
           {canDelete ? (
-            <CardAction>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={deleting}
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            </CardAction>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
           ) : null}
         </CardHeader>
         <CardContent>
           {metadata ? (
             <KeyValueGrid>
-              <KeyValueItem label="Filename" value={displayValue(metadata.filename)} />
-              <KeyValueItem
-                label="Location"
-                value={metadata.installer_item_location}
-                className="sm:col-span-2"
-                valueClassName="font-mono text-xs break-all"
-              />
-              <KeyValueItem label="Size" value={installerItemSize(metadata.size_bytes)} />
+              <KeyValueItem label="Filename" value={metadata.filename} />
+              <KeyValueItem label="Size" value={formatBytes(metadata.size_bytes)} />
               <KeyValueItem
                 label="SHA-256"
-                value={displayValue(metadata.sha256)}
+                value={metadata.sha256}
                 className="sm:col-span-2"
                 valueClassName="font-mono text-xs break-all"
               />
@@ -1001,15 +1019,6 @@ function InstallerFileCard({
       </AlertDialog>
     </>
   );
-}
-
-function installerItemSize(bytes: number) {
-  if (bytes <= 0) return "-";
-  return `${Math.ceil(bytes / 1024)} KB (${formatBytes(bytes)})`;
-}
-
-function displayValue(value: string | null | undefined) {
-  return value && value.trim() !== "" ? value : "-";
 }
 
 function PackageFileField({
@@ -1155,21 +1164,28 @@ function ArchitectureEditor({
 
 function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }) {
   return (
-    <FieldSet>
-      <form.Field
-        name="blocking_applications"
-        children={(field) => (
-          <>
-            <CollectionHeader
-              title="Blocking Applications"
-              addLabel="Add application"
-              onAdd={() => field.handleChange([...field.state.value, emptyStringRow()])}
-            />
+    <form.Field
+      name="blocking_applications"
+      mode="array"
+      children={(field) => (
+        <FieldSet className="gap-4">
+          <FieldLegend variant="label">Blocking Applications</FieldLegend>
+          <FieldGroup className="gap-2">
             <StringArrayRows
               removeLabel="Remove application"
               rows={field.state.value}
-              onChange={(rows) => field.handleChange(rows)}
+              onReplace={(index, row) => field.replaceValue(index, row)}
+              onRemove={(index) => field.removeValue(index)}
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => field.pushValue(emptyStringRow())}
+            >
+              Add application
+            </Button>
             {field.state.value.length === 0 ? (
               <form.Field
                 name="include_empty_blocking_applications"
@@ -1192,38 +1208,47 @@ function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }) {
                 )}
               />
             ) : null}
-          </>
-        )}
-      />
-    </FieldSet>
+          </FieldGroup>
+        </FieldSet>
+      )}
+    />
   );
 }
 
 function StringArrayRows({
   removeLabel,
   rows,
-  onChange,
+  onReplace,
+  onRemove,
 }: {
   removeLabel: string;
   rows: StringRow[];
-  onChange: (rows: StringRow[]) => void;
+  onReplace: (index: number, row: StringRow) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 empty:hidden">
+    <>
       {rows.map((row, index) => (
-        <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-          <Input
+        <InputGroup key={row.rowID}>
+          <InputGroupInput
+            aria-label="Application"
             value={row.value}
-            onChange={(event) =>
-              onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
-            }
+            onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
           />
-          <IconButton label={removeLabel} onClick={() => onChange(removeAt(rows, index))}>
-            <Trash2 />
-          </IconButton>
-        </div>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={removeLabel}
+              onClick={() => onRemove(index)}
+            >
+              <Trash2 />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -1232,97 +1257,134 @@ function PackageReferenceEditor({
   addLabel,
   rows,
   packageOptions,
-  onChange,
+  onAdd,
+  onReplace,
+  onRemove,
 }: {
   legend: string;
   addLabel: string;
   rows: PackageReferenceRow[];
   packageOptions: MunkiPackage[];
-  onChange: (rows: PackageReferenceRow[]) => void;
+  onAdd: () => void;
+  onReplace: (index: number, row: PackageReferenceRow) => void;
+  onRemove: (index: number) => void;
 }) {
   const packageGroups = packageReferenceGroups(packageOptions);
 
   return (
-    <FieldSet>
-      <CollectionHeader
-        title={legend}
-        addLabel={addLabel}
-        onAdd={() => onChange([...rows, emptyPackageReferenceRow()])}
-      />
-      <div className="space-y-2 empty:hidden">
+    <FieldSet className="gap-4">
+      <FieldLegend variant="label">{legend}</FieldLegend>
+      <FieldGroup className="gap-2">
         {rows.map((row, index) => (
-          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-            <Select
-              value={packageReferenceValue(row)}
-              onValueChange={(value) =>
-                onChange(
-                  replaceAt(rows, index, {
-                    rowID: row.rowID,
-                    ...packageReferenceSelection(value, packageOptions),
-                  }),
-                )
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="select">Select package</SelectItem>
-                {packageGroups.map((group) => (
-                  <SelectGroup key={group.softwareID}>
-                    <SelectLabel>{group.softwareName}</SelectLabel>
-                    <SelectItem value={`software:${group.softwareID}`}>
-                      {group.softwareName} Latest
-                    </SelectItem>
-                    {group.packages.map((option) => (
-                      <SelectItem key={option.id} value={`package:${option.id}`}>
-                        {packageLabel(option)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-            <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-              <Trash2 />
-            </IconButton>
-          </div>
+          <PackageReferenceCombobox
+            key={row.rowID}
+            row={row}
+            packageGroups={packageGroups}
+            onChange={(next) => onReplace(index, next)}
+            onRemove={() => onRemove(index)}
+          />
         ))}
-      </div>
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
+          {addLabel}
+        </Button>
+      </FieldGroup>
     </FieldSet>
   );
 }
 
-function packageReferenceValue(row: PackageReferenceRow) {
-  if (row.package_id) return `package:${row.package_id}`;
-  if (row.software_id) return `software:${row.software_id}`;
-  return "select";
+function PackageReferenceCombobox({
+  row,
+  packageGroups,
+  onChange,
+  onRemove,
+}: {
+  row: PackageReferenceRow;
+  packageGroups: ReturnType<typeof packageReferenceGroups>;
+  onChange: (row: PackageReferenceRow) => void;
+  onRemove: () => void;
+}) {
+  const [inputValue, setInputValue] = useState(packageReferenceInputValue(row));
+  const selectedValue = row.package_id ? packageReferencePackageValue(row.package_id) : "";
+
+  return (
+    <Combobox
+      value={selectedValue}
+      inputValue={inputValue}
+      onInputValueChange={setInputValue}
+      onValueChange={(value) => {
+        const selection = packageReferenceSelection(value, packageGroups);
+        if (!selection) return;
+        onChange({ rowID: row.rowID, ...selection });
+        setInputValue(packageReferenceInputValue(selection));
+      }}
+    >
+      <ComboboxAnchor className="w-full">
+        <ComboboxInput placeholder="Select Package" />
+        <ComboboxTrigger aria-label="Open packages" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Remove package reference"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+        >
+          <Trash2 />
+        </Button>
+      </ComboboxAnchor>
+      <ComboboxContent>
+        <ComboboxEmpty>
+          {packageGroups.length === 0 ? "No Packages Available." : "No Packages Found."}
+        </ComboboxEmpty>
+        {packageGroups.map((group) => (
+          <ComboboxGroup key={group.softwareID}>
+            <ComboboxGroupLabel>{group.softwareName}</ComboboxGroupLabel>
+            {group.packages.map((option) => (
+              <ComboboxItem
+                key={option.id}
+                value={packageReferencePackageValue(option.id)}
+                label={packageLabel(option)}
+              >
+                {packageLabel(option)}
+              </ComboboxItem>
+            ))}
+          </ComboboxGroup>
+        ))}
+      </ComboboxContent>
+    </Combobox>
+  );
 }
 
-function packageReferenceSelection(value: string, packages: MunkiPackage[]) {
-  if (value.startsWith("package:")) {
-    const packageID = Number(value.slice("package:".length));
-    const pkg = packages.find((option) => option.id === packageID);
-    if (!pkg) return {};
-    return {
-      software_id: pkg.software_id,
-      software_name: pkg.software_name,
-      package_id: pkg.id,
-      package_version: pkg.version,
-    };
-  }
-  if (value.startsWith("software:")) {
-    const softwareID = Number(value.slice("software:".length));
-    const pkg = packages.find((option) => option.software_id === softwareID);
-    if (!pkg) return {};
-    return {
-      software_id: pkg.software_id,
-      software_name: pkg.software_name,
-      package_id: undefined,
-      package_version: undefined,
-    };
-  }
-  return {};
+function packageReferencePackageValue(packageID: number) {
+  return `package:${packageID}`;
+}
+
+function packageReferenceInputValue(
+  row: Pick<PackageReferenceRow, "software_name" | "package_version">,
+) {
+  if (!row.software_name) return "";
+  if (!row.package_version) return row.software_name;
+  return `${row.software_name} ${row.package_version}`;
+}
+
+function packageReferenceSelection(
+  value: string,
+  packageGroups: ReturnType<typeof packageReferenceGroups>,
+) {
+  if (!value.startsWith("package:")) return null;
+  const packageID = Number(value.slice("package:".length));
+  const pkg = packageGroups
+    .flatMap((group) => group.packages)
+    .find((option) => option.id === packageID);
+  if (!pkg) return null;
+  return {
+    software_id: pkg.software_id,
+    software_name: pkg.software_name,
+    package_id: pkg.id,
+    package_version: pkg.version,
+  };
 }
 
 function packageReferenceGroups(packages: MunkiPackage[]) {
@@ -1344,62 +1406,68 @@ function packageReferenceGroups(packages: MunkiPackage[]) {
 
 function InstallerEnvironmentEditor({
   rows,
-  onChange,
+  onAdd,
+  onReplace,
+  onRemove,
 }: {
   rows: InstallerEnvironmentRow[];
-  onChange: (rows: InstallerEnvironmentRow[]) => void;
+  onAdd: () => void;
+  onReplace: (index: number, row: InstallerEnvironmentRow) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
-    <FieldSet>
-      <CollectionHeader
-        title="Installer Environment"
-        addLabel="Add variable"
-        onAdd={() => onChange([...rows, emptyInstallerEnvironmentRow()])}
-      />
-      <div className="space-y-2 empty:hidden">
+    <FieldSet className="gap-4">
+      <FieldLegend variant="label">Installer Environment</FieldLegend>
+      <FieldGroup className="gap-2">
         {rows.map((row, index) => (
-          <div
-            key={row.rowID}
-            className="grid gap-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]"
-          >
+          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
             <Input
               aria-label="Name"
               value={row.name}
-              onChange={(event) =>
-                onChange(replaceAt(rows, index, { ...row, name: event.target.value }))
-              }
+              onChange={(event) => onReplace(index, { ...row, name: event.target.value })}
             />
-            <Input
-              aria-label="Value"
-              value={row.value}
-              onChange={(event) =>
-                onChange(replaceAt(rows, index, { ...row, value: event.target.value }))
-              }
-            />
-            <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-              <Trash2 />
-            </IconButton>
+            <InputGroup>
+              <InputGroupInput
+                aria-label="Value"
+                value={row.value}
+                onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Remove variable"
+                  onClick={() => onRemove(index)}
+                >
+                  <Trash2 />
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
           </div>
         ))}
-      </div>
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
+          Add variable
+        </Button>
+      </FieldGroup>
     </FieldSet>
   );
 }
 
 function InstallsTable({
   rows,
-  onChange,
+  onAdd,
+  onReplace,
+  onRemove,
 }: {
   rows: InstallItemRow[];
-  onChange: (rows: InstallItemRow[]) => void;
+  onAdd: () => void;
+  onReplace: (index: number, row: InstallItemRow) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
-    <FieldSet className="min-w-0">
-      <CollectionHeader
-        title="Installs"
-        addLabel="Add install item"
-        onAdd={() => onChange([...rows, emptyInstallItemRow()])}
-      />
+    <FieldSet className="min-w-0 gap-4">
+      <FieldLegend variant="label">Installs</FieldLegend>
       {rows.length > 0 ? (
         <div className="overflow-hidden rounded-md border">
           <Table>
@@ -1421,18 +1489,14 @@ function InstallsTable({
                     <CellInput
                       aria-label="Path"
                       value={row.path}
-                      onChange={(event) =>
-                        onChange(replaceAt(rows, index, { ...row, path: event.target.value }))
-                      }
+                      onChange={(event) => onReplace(index, { ...row, path: event.target.value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <Select
                       value={row.type}
                       onValueChange={(next) =>
-                        onChange(
-                          replaceAt(rows, index, { ...row, type: next as InstallItemRow["type"] }),
-                        )
+                        onReplace(index, { ...row, type: next as InstallItemRow["type"] })
                       }
                     >
                       <SelectTrigger
@@ -1457,9 +1521,7 @@ function InstallsTable({
                       aria-label="CFBundleName"
                       value={row.bundle_name ?? ""}
                       onChange={(event) =>
-                        onChange(
-                          replaceAt(rows, index, { ...row, bundle_name: event.target.value }),
-                        )
+                        onReplace(index, { ...row, bundle_name: event.target.value })
                       }
                     />
                   </TableCell>
@@ -1468,9 +1530,7 @@ function InstallsTable({
                       aria-label="CFBundleIdentifier"
                       value={row.bundle_identifier ?? ""}
                       onChange={(event) =>
-                        onChange(
-                          replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }),
-                        )
+                        onReplace(index, { ...row, bundle_identifier: event.target.value })
                       }
                     />
                   </TableCell>
@@ -1479,12 +1539,10 @@ function InstallsTable({
                       aria-label="CFBundleShortVersionString"
                       value={row.bundle_short_version ?? ""}
                       onChange={(event) =>
-                        onChange(
-                          replaceAt(rows, index, {
-                            ...row,
-                            bundle_short_version: event.target.value,
-                          }),
-                        )
+                        onReplace(index, {
+                          ...row,
+                          bundle_short_version: event.target.value,
+                        })
                       }
                     />
                   </TableCell>
@@ -1493,14 +1551,12 @@ function InstallsTable({
                       aria-label="CFBundleVersion"
                       value={row.bundle_version ?? ""}
                       onChange={(event) =>
-                        onChange(
-                          replaceAt(rows, index, { ...row, bundle_version: event.target.value }),
-                        )
+                        onReplace(index, { ...row, bundle_version: event.target.value })
                       }
                     />
                   </TableCell>
                   <TableCell className="w-9 p-0 pr-1 text-right">
-                    <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
+                    <IconButton label="Remove" onClick={() => onRemove(index)}>
                       <Trash2 />
                     </IconButton>
                   </TableCell>
@@ -1512,24 +1568,27 @@ function InstallsTable({
       ) : (
         <EmptyPanel>No installs</EmptyPanel>
       )}
+      <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
+        Add install item
+      </Button>
     </FieldSet>
   );
 }
 
 function ReceiptsTable({
   rows,
-  onChange,
+  onAdd,
+  onReplace,
+  onRemove,
 }: {
   rows: ReceiptRow[];
-  onChange: (rows: ReceiptRow[]) => void;
+  onAdd: () => void;
+  onReplace: (index: number, row: ReceiptRow) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
-    <FieldSet className="min-w-0">
-      <CollectionHeader
-        title="Receipts"
-        addLabel="Add receipt"
-        onAdd={() => onChange([...rows, emptyReceiptRow()])}
-      />
+    <FieldSet className="min-w-0 gap-4">
+      <FieldLegend variant="label">Receipts</FieldLegend>
       {rows.length > 0 ? (
         <div className="overflow-hidden rounded-md border">
           <Table>
@@ -1549,7 +1608,7 @@ function ReceiptsTable({
                       aria-label="Package ID"
                       value={row.package_id}
                       onChange={(event) =>
-                        onChange(replaceAt(rows, index, { ...row, package_id: event.target.value }))
+                        onReplace(index, { ...row, package_id: event.target.value })
                       }
                     />
                   </TableCell>
@@ -1558,7 +1617,7 @@ function ReceiptsTable({
                       aria-label="Version"
                       value={row.version ?? ""}
                       onChange={(event) =>
-                        onChange(replaceAt(rows, index, { ...row, version: event.target.value }))
+                        onReplace(index, { ...row, version: event.target.value })
                       }
                     />
                   </TableCell>
@@ -1567,12 +1626,12 @@ function ReceiptsTable({
                       aria-label="Optional"
                       checked={row.optional === true}
                       onCheckedChange={(value) =>
-                        onChange(replaceAt(rows, index, { ...row, optional: value === true }))
+                        onReplace(index, { ...row, optional: value === true })
                       }
                     />
                   </TableCell>
                   <TableCell className="w-9 p-0 pr-1 text-right">
-                    <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
+                    <IconButton label="Remove" onClick={() => onRemove(index)}>
                       <Trash2 />
                     </IconButton>
                   </TableCell>
@@ -1584,6 +1643,9 @@ function ReceiptsTable({
       ) : (
         <EmptyPanel>No receipts</EmptyPanel>
       )}
+      <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
+        Add receipt
+      </Button>
     </FieldSet>
   );
 }
@@ -1602,29 +1664,29 @@ function CellInput({ className, ...props }: ComponentProps<typeof Input>) {
 
 function ItemsToCopyEditor({
   rows,
-  onChange,
+  onAdd,
+  onReplace,
+  onRemove,
 }: {
   rows: ItemToCopyRow[];
-  onChange: (rows: ItemToCopyRow[]) => void;
+  onAdd: () => void;
+  onReplace: (index: number, row: ItemToCopyRow) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
-    <FieldSet>
-      <CollectionHeader
-        title="Items to Copy"
-        addLabel="Add copy item"
-        onAdd={() => onChange([...rows, emptyItemToCopyRow()])}
-      />
-      <div className="space-y-4 empty:hidden">
+    <FieldSet className="gap-4">
+      <FieldLegend variant="label">Items to Copy</FieldLegend>
+      <FieldGroup className="gap-4">
         {rows.map((row, index) => (
-          <div key={row.rowID} className="space-y-3 rounded-md border p-3">
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div key={row.rowID} className="flex flex-col gap-3 rounded-md border p-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor={`munki-copy-source-${row.rowID}`}>Source Item</FieldLabel>
                 <Input
                   id={`munki-copy-source-${row.rowID}`}
                   value={row.source_item}
                   onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, source_item: event.target.value }))
+                    onReplace(index, { ...row, source_item: event.target.value })
                   }
                 />
               </Field>
@@ -1632,21 +1694,27 @@ function ItemsToCopyEditor({
                 <FieldLabel htmlFor={`munki-copy-destination-${row.rowID}`}>
                   Destination Path
                 </FieldLabel>
-                <Input
-                  id={`munki-copy-destination-${row.rowID}`}
-                  value={row.destination_path}
-                  onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, { ...row, destination_path: event.target.value }),
-                    )
-                  }
-                />
+                <InputGroup>
+                  <InputGroupInput
+                    id={`munki-copy-destination-${row.rowID}`}
+                    value={row.destination_path}
+                    onChange={(event) =>
+                      onReplace(index, { ...row, destination_path: event.target.value })
+                    }
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="Remove copy item"
+                      onClick={() => onRemove(index)}
+                    >
+                      <Trash2 />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
               </Field>
-              <div className="flex items-end justify-end">
-                <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
-                  <Trash2 />
-                </IconButton>
-              </div>
             </div>
             <FieldGroup className="grid gap-3 md:grid-cols-4">
               <Field>
@@ -1657,9 +1725,7 @@ function ItemsToCopyEditor({
                   id={`munki-copy-destination-item-${row.rowID}`}
                   value={row.destination_item ?? ""}
                   onChange={(event) =>
-                    onChange(
-                      replaceAt(rows, index, { ...row, destination_item: event.target.value }),
-                    )
+                    onReplace(index, { ...row, destination_item: event.target.value })
                   }
                 />
               </Field>
@@ -1668,9 +1734,7 @@ function ItemsToCopyEditor({
                 <Input
                   id={`munki-copy-user-${row.rowID}`}
                   value={row.user ?? ""}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, user: event.target.value }))
-                  }
+                  onChange={(event) => onReplace(index, { ...row, user: event.target.value })}
                 />
               </Field>
               <Field>
@@ -1678,9 +1742,7 @@ function ItemsToCopyEditor({
                 <Input
                   id={`munki-copy-group-${row.rowID}`}
                   value={row.group ?? ""}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, group: event.target.value }))
-                  }
+                  onChange={(event) => onReplace(index, { ...row, group: event.target.value })}
                 />
               </Field>
               <Field>
@@ -1688,15 +1750,16 @@ function ItemsToCopyEditor({
                 <Input
                   id={`munki-copy-mode-${row.rowID}`}
                   value={row.mode ?? ""}
-                  onChange={(event) =>
-                    onChange(replaceAt(rows, index, { ...row, mode: event.target.value }))
-                  }
+                  onChange={(event) => onReplace(index, { ...row, mode: event.target.value })}
                 />
               </Field>
             </FieldGroup>
           </div>
         ))}
-      </div>
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
+          Add copy item
+        </Button>
+      </FieldGroup>
     </FieldSet>
   );
 }
@@ -1799,25 +1862,5 @@ function IconButton({
     <Button type="button" variant="ghost" size="icon-sm" title={label} onClick={onClick}>
       {children}
     </Button>
-  );
-}
-
-// Section header for a row collection: legend on the left, add button on the right.
-function CollectionHeader({
-  title,
-  addLabel,
-  onAdd,
-}: {
-  title: string;
-  addLabel: string;
-  onAdd: () => void;
-}) {
-  return (
-    <FieldLegend className="mb-0 flex w-full items-center justify-between gap-3">
-      <span>{title}</span>
-      <IconButton label={addLabel} onClick={onAdd}>
-        <Plus />
-      </IconButton>
-    </FieldLegend>
   );
 }

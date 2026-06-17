@@ -1,7 +1,7 @@
 import { useParams } from "@tanstack/react-router";
 import { Check, FileCode2, X } from "lucide-react";
 
-import { type KeyValue, KeyValueGrid } from "@/components/key-value";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -108,26 +108,21 @@ export function SantaEventDetailPage() {
 }
 
 function ExecutionCard({ event }: { event: SantaEvent }) {
-  const tiles: KeyValue[] = [
-    { label: "Host", value: <HostLink host={event.host} /> },
-    { label: "Executing User", value: <ValueText value={event.executing_user} /> },
-    { label: "PID", value: <ValueText value={formatNumber(event.pid)} /> },
-    { label: "Parent PID", value: <ValueText value={formatNumber(event.ppid)} /> },
-    { label: "Parent Process", value: <ValueText value={event.parent_name} /> },
-    {
-      label: "Occurred",
-      value: <Timestamp value={event.occurred_at} />,
-    },
-    { label: "Ingested", value: <ValueText value={formatDateTime(event.ingested_at)} /> },
-  ];
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Execution</CardTitle>
       </CardHeader>
       <CardContent>
-        <KeyValueGrid items={tiles} />
+        <KeyValueGrid>
+          <KeyValueItem label="Host" value={<HostLink host={event.host} />} />
+          <KeyValueItem label="Executing User" value={event.executing_user} />
+          <KeyValueItem label="PID" value={formatNumber(event.pid)} />
+          <KeyValueItem label="Parent PID" value={formatNumber(event.ppid)} />
+          <KeyValueItem label="Parent Process" value={event.parent_name} />
+          <KeyValueItem label="Occurred" value={<Timestamp value={event.occurred_at} />} />
+          <KeyValueItem label="Ingested" value={formatDateTime(event.ingested_at)} />
+        </KeyValueGrid>
       </CardContent>
     </Card>
   );
@@ -135,30 +130,6 @@ function ExecutionCard({ event }: { event: SantaEvent }) {
 
 function BinaryCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: KeyValue[] = [
-    {
-      label: "File Name",
-      value: <ValueText value={executable.file_name || fileName(event.file_path)} />,
-    },
-    { label: "Path", value: <ValueText value={event.file_path} /> },
-    { label: "SHA-256", value: <ValueText value={executable.sha256} /> },
-    { label: "CDHash", value: <ValueText value={executable.cdhash} /> },
-    { label: "Signing ID", value: <ValueText value={executable.signing_id} /> },
-    { label: "Team ID", value: <ValueText value={executable.team_id} /> },
-    {
-      label: "Signing Status",
-      value: <ValueText value={formatEnumValue(executable.signing_status)} />,
-    },
-    {
-      label: "CS Flags",
-      value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} />,
-    },
-    {
-      label: "Secure Signing Time",
-      value: <ValueText value={formatDateTime(executable.secure_signing_time)} />,
-    },
-    { label: "Signing Time", value: <ValueText value={formatDateTime(executable.signing_time)} /> },
-  ];
 
   return (
     <Card>
@@ -166,7 +137,27 @@ function BinaryCard({ event }: { event: SantaEvent }) {
         <CardTitle>Binary</CardTitle>
       </CardHeader>
       <CardContent>
-        <KeyValueGrid items={tiles} />
+        <KeyValueGrid>
+          <KeyValueItem
+            label="File Name"
+            value={executable.file_name || fileName(event.file_path)}
+          />
+          <KeyValueItem label="Path" value={event.file_path} />
+          <KeyValueItem label="SHA-256" value={executable.sha256} />
+          <KeyValueItem label="CDHash" value={executable.cdhash} />
+          <KeyValueItem label="Signing ID" value={executable.signing_id} />
+          <KeyValueItem label="Team ID" value={executable.team_id} />
+          <KeyValueItem label="Signing Status" value={formatEnumValue(executable.signing_status)} />
+          <KeyValueItem
+            label="CS Flags"
+            value={formatCodeSigningFlags(executable.codesigning_flags)}
+          />
+          <KeyValueItem
+            label="Secure Signing Time"
+            value={formatDateTime(executable.secure_signing_time)}
+          />
+          <KeyValueItem label="Signing Time" value={formatDateTime(executable.signing_time)} />
+        </KeyValueGrid>
       </CardContent>
     </Card>
   );
@@ -174,26 +165,6 @@ function BinaryCard({ event }: { event: SantaEvent }) {
 
 function BundleCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
-  const tiles: KeyValue[] = [
-    { label: "Bundle ID", value: <ValueText value={executable.file_bundle_id} /> },
-    { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
-    { label: "Path", value: <ValueText value={executable.file_bundle_path} /> },
-    {
-      label: "Executable Rel Path",
-      value: <ValueText value={executable.file_bundle_executable_rel_path} />,
-    },
-    { label: "Version", value: <ValueText value={executable.file_bundle_version} /> },
-    { label: "Version String", value: <ValueText value={executable.file_bundle_version_string} /> },
-    { label: "Bundle Hash", value: <ValueText value={executable.file_bundle_hash} /> },
-    {
-      label: "Binary Count",
-      value: <ValueText value={formatNumber(executable.file_bundle_binary_count)} />,
-    },
-    {
-      label: "Hash Time",
-      value: <ValueText value={formatMillis(executable.file_bundle_hash_millis)} />,
-    },
-  ];
 
   return (
     <Card>
@@ -201,7 +172,26 @@ function BundleCard({ event }: { event: SantaEvent }) {
         <CardTitle>Bundle</CardTitle>
       </CardHeader>
       <CardContent>
-        <KeyValueGrid items={tiles} />
+        <KeyValueGrid>
+          <KeyValueItem label="Bundle ID" value={executable.file_bundle_id} />
+          <KeyValueItem label="Name" value={executable.file_bundle_name} />
+          <KeyValueItem label="Path" value={executable.file_bundle_path} />
+          <KeyValueItem
+            label="Executable Rel Path"
+            value={executable.file_bundle_executable_rel_path}
+          />
+          <KeyValueItem label="Version" value={executable.file_bundle_version} />
+          <KeyValueItem label="Version String" value={executable.file_bundle_version_string} />
+          <KeyValueItem label="Bundle Hash" value={executable.file_bundle_hash} />
+          <KeyValueItem
+            label="Binary Count"
+            value={formatNumber(executable.file_bundle_binary_count)}
+          />
+          <KeyValueItem
+            label="Hash Time"
+            value={formatMillis(executable.file_bundle_hash_millis)}
+          />
+        </KeyValueGrid>
       </CardContent>
     </Card>
   );

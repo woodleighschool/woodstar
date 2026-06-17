@@ -1,4 +1,4 @@
-import { type KeyValue, KeyValueGrid } from "@/components/key-value";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,20 +26,18 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     ...problemRows("Problem Installs", munki.problem_installs),
   ];
 
-  const tiles: KeyValue[] = [
-    { label: "Version", value: munki.version || "-" },
-    { label: "Manifest", value: munki.manifest_name || "-" },
-    { label: "Status", value: <MunkiStatusBadge munki={munki} /> },
-    { label: "Last Seen", value: formatRelative(munki.last_seen_at) },
-    { label: "Last Run Started", value: formatRelative(munki.run_started_at) },
-    { label: "Last Run Ended", value: formatRelative(munki.run_ended_at) },
-  ];
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
-          <KeyValueGrid items={tiles} />
+          <KeyValueGrid>
+            <KeyValueItem label="Version" value={munki.version} />
+            <KeyValueItem label="Manifest" value={munki.manifest_name} />
+            <KeyValueItem label="Status" value={<MunkiStatusBadge munki={munki} />} />
+            <KeyValueItem label="Last Seen" value={formatRelative(munki.last_seen_at)} />
+            <KeyValueItem label="Last Run Started" value={formatRelative(munki.run_started_at)} />
+            <KeyValueItem label="Last Run Ended" value={formatRelative(munki.run_ended_at)} />
+          </KeyValueGrid>
         </CardContent>
       </Card>
 

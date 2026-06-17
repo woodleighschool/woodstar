@@ -5,7 +5,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
-import { type KeyValue, KeyValueGrid, KeyValueItem } from "@/components/key-value";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
@@ -50,93 +50,79 @@ const certificateSourceLabels: Record<string, string> = {
 };
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
-  const tiles: KeyValue[] = [];
   const osqueryVersion = host.agents.osquery.version;
   const orbitVersion = host.agents.orbit.version;
-
-  tiles.push({
-    label: "Agent",
-    value:
-      orbitVersion || osqueryVersion ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>{orbitVersion || osqueryVersion}</span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <div className="whitespace-pre-line">{`osquery: ${osqueryVersion || "-"}\nOrbit: ${orbitVersion || "-"}`}</div>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        "-"
-      ),
-  });
-
+  const agentVersion = orbitVersion || osqueryVersion;
   const battery = host.batteries?.[0];
-  if (battery?.health) {
-    tiles.push({ label: "Battery Condition", value: battery.health });
-  }
-
-  if (host.storage.boot_volume.available_bytes != null) {
-    tiles.push({
-      label: "Disk Space Available",
-      value: `${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`,
-    });
-  }
-
-  tiles.push({
-    label: "Enrolled",
-    value: host.enrollment.enrolled_at ? (
-      <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
-        {formatRelative(host.enrollment.enrolled_at)}
-      </span>
-    ) : (
-      "-"
-    ),
-  });
-
-  tiles.push({ label: "Hardware Model", value: host.hardware.model_identifier || "-" });
-
-  if (host.timestamps.last_restarted_at) {
-    tiles.push({
-      label: "Last Restarted",
-      value: (
-        <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
-          {formatRelative(host.timestamps.last_restarted_at)}
-        </span>
-      ),
-    });
-  }
-
-  tiles.push({
-    label: "MAC Address",
-    value: host.network.primary_mac || "-",
-  });
-
-  if (host.hardware.memory_bytes > 0) {
-    tiles.push({ label: "Memory", value: formatBytes(host.hardware.memory_bytes) });
-  }
-
-  tiles.push({ label: "Operating System", value: osDisplayName(host) });
-
-  tiles.push({ label: "Private IP Address", value: host.network.primary_ip ?? "-" });
-
-  if (host.hardware.cpu.brand || host.hardware.cpu.architecture) {
-    tiles.push({
-      label: "Processor Type",
-      value: host.hardware.cpu.brand || host.hardware.cpu.architecture,
-    });
-  }
-
-  tiles.push({ label: "Public IP Address", value: host.network.last_remote_ip ?? "-" });
-
-  tiles.push({ label: "Serial Number", value: host.hardware.serial || "-" });
-
-  tiles.sort((a, b) => a.label.localeCompare(b.label));
 
   return (
     <Card>
       <CardContent>
-        <KeyValueGrid items={tiles} />
+        <KeyValueGrid>
+          <KeyValueItem
+            label="Agent"
+            value={
+              agentVersion ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{agentVersion}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="whitespace-pre-line">{`osquery: ${osqueryVersion || "-"}\nOrbit: ${orbitVersion || "-"}`}</div>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                agentVersion
+              )
+            }
+          />
+          {battery?.health ? (
+            <KeyValueItem label="Battery Condition" value={battery.health} />
+          ) : null}
+          {host.storage.boot_volume.available_bytes != null ? (
+            <KeyValueItem
+              label="Disk Space Available"
+              value={`${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`}
+            />
+          ) : null}
+          <KeyValueItem
+            label="Enrolled"
+            value={
+              host.enrollment.enrolled_at ? (
+                <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
+                  {formatRelative(host.enrollment.enrolled_at)}
+                </span>
+              ) : (
+                host.enrollment.enrolled_at
+              )
+            }
+          />
+          <KeyValueItem label="Hardware Model" value={host.hardware.model_identifier} />
+          {host.timestamps.last_restarted_at ? (
+            <KeyValueItem
+              label="Last Restarted"
+              value={
+                <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
+                  {formatRelative(host.timestamps.last_restarted_at)}
+                </span>
+              }
+            />
+          ) : null}
+          <KeyValueItem label="MAC Address" value={host.network.primary_mac} />
+          {host.hardware.memory_bytes > 0 ? (
+            <KeyValueItem label="Memory" value={formatBytes(host.hardware.memory_bytes)} />
+          ) : null}
+          <KeyValueItem label="Operating System" value={osDisplayName(host)} />
+          <KeyValueItem label="Private IP Address" value={host.network.primary_ip} />
+          {host.hardware.cpu.brand || host.hardware.cpu.architecture ? (
+            <KeyValueItem
+              label="Processor Type"
+              value={host.hardware.cpu.brand || host.hardware.cpu.architecture}
+            />
+          ) : null}
+          <KeyValueItem label="Public IP Address" value={host.network.last_remote_ip} />
+          <KeyValueItem label="Serial Number" value={host.hardware.serial} />
+        </KeyValueGrid>
       </CardContent>
     </Card>
   );
@@ -162,17 +148,21 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
       </CardHeader>
       <CardContent>
         <KeyValueGrid>
-          <KeyValueItem label="Name" value={displayValue(affinity?.name)} />
-          <KeyValueItem label="Username" value={displayValue(affinity?.username)} />
-          <KeyValueItem label="Email" value={displayValue(affinity?.email)} />
-          <KeyValueItem label="Department" value={displayValue(affinity?.department)} />
+          <KeyValueItem label="Name" value={affinity?.name} />
+          <KeyValueItem label="Username" value={affinity?.username} />
+          <KeyValueItem label="Email" value={affinity?.email} />
+          <KeyValueItem label="Department" value={affinity?.department} />
           <KeyValueItem
             label="Source"
-            value={affinity ? userAffinitySourceLabel(affinity.source) : "-"}
+            value={affinity ? userAffinitySourceLabel(affinity.source) : undefined}
           />
           <KeyValueItem
             label="Groups"
-            value={<UserGroups groups={affinity?.groups ?? []} />}
+            value={
+              affinity?.groups && affinity.groups.length > 0 ? (
+                <UserGroups groups={affinity.groups} />
+              ) : undefined
+            }
             className="sm:col-span-2"
           />
         </KeyValueGrid>
@@ -235,11 +225,12 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
 }
 
 function UserGroups({ groups }: { groups: readonly string[] }) {
-  if (groups.length === 0) return <span>-</span>;
+  const uniqueGroups = [...new Set(groups)];
+  if (uniqueGroups.length === 0) return <span>-</span>;
   return (
     <div className="max-h-24 overflow-y-auto pr-1">
       <div className="flex flex-wrap gap-1.5">
-        {groups.map((group) => (
+        {uniqueGroups.map((group) => (
           <Badge key={group} variant="secondary" className="font-normal">
             {group}
           </Badge>
@@ -247,10 +238,6 @@ function UserGroups({ groups }: { groups: readonly string[] }) {
       </div>
     </div>
   );
-}
-
-function displayValue(value: string | null | undefined) {
-  return value && value.trim() !== "" ? value : "-";
 }
 
 function HostUserMappingDialog({
@@ -543,5 +530,5 @@ function diskPercent(host: Host) {
 function osDisplayName(host: Host) {
   const parts = [host.os.name, host.os.version].filter(Boolean);
   if (parts.length > 0) return parts.join(" ");
-  return host.os.build || "-";
+  return host.os.build;
 }
