@@ -1,4 +1,6 @@
-FROM --platform=$BUILDPLATFORM node:24.16.0-alpine AS web
+ARG NODE_VERSION=26.3.0
+ARG GO_VERSION=1.26.4
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 
 WORKDIR /workspace/web
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
@@ -8,7 +10,7 @@ COPY web/ ./
 COPY schema/ ../schema/
 RUN pnpm build
 
-FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS builder
 
 ARG TARGETOS
 ARG TARGETARCH

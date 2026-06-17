@@ -53,6 +53,13 @@ go build -o woodstar ./cmd/woodstar
 description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
+[tasks.tidy]
+description = "Check go.mod and go.sum are tidy"
+run = """
+go mod tidy
+git diff --exit-code go.mod go.sum
+"""
+
 [tasks.test]
 description = "Run fast Go suite"
 run = "env -u WOODSTAR_TEST_DATABASE_URL go test -race -count=1 -v ./..."
@@ -138,6 +145,7 @@ description = "Run the full local gate"
 run = """
 mise run format
 mise run lint
+mise run tidy
 mise run full-test
 mise run test-openapi
 """

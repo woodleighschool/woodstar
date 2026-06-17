@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Lint
+name: Tests
 
 on:
   push:
@@ -23,11 +23,25 @@ permissions:
   contents: read
 
 jobs:
-  golangci-lint:
-    name: Go Lint
+  test:
+    name: Go Tests
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: woodstar
+          POSTGRES_PASSWORD: woodstar
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U woodstar -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -49,18 +63,26 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
-      - name: Cache golangci-lint
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.cache/golangci-lint
-          key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go.sum', '.golangci.yml') }}
-          restore-keys: ${{ runner.os }}-golangci-lint-
+      - name: Check go.mod tidiness
+        run: mise run tidy
 
-      - name: Run linter
-        run: mise run go-lint
+      - name: Running Unit Tests
+        run: mise run test
 
-  web-lint:
-    name: Web Lint
+      - name: Running DB Tests
+        run: mise run full-test
+
+      - name: Running Integration Tests
+        run: mise run test-integration
+
+      - name: Check OpenAPI is current
+        run: mise run test-openapi
+
+      - name: Ensure generated files are committed
+        run: git diff --exit-code
+
+  web:
+    name: Web Build
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -76,8 +98,5 @@ jobs:
           experimental: true
           install_args: --locked
 
-      - name: Install web dependencies
-        run: mise //web:deps
-
-      - name: Run linter
-        run: mise //web:lint
+      - name: Build web
+        run: mise //web:build

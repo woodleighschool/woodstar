@@ -8,7 +8,7 @@ run = "gofmt -s -w {staged_files}"
 stage_fixed = true
 
 [pre-commit.commands.format-mise]
-glob = [".mise.toml", "web/.mise.toml", "docs/.mise.toml"]
+glob = [".mise/config.toml", "web/.mise.toml", "docs/.mise.toml"]
 run = "mise fmt && mise fmt -C web && mise fmt -C docs"
 stage_fixed = true
 
@@ -23,8 +23,8 @@ run = "oxfmt {staged_files}"
 stage_fixed = true
 
 [pre-commit.commands.mise-lock]
-glob = [".mise.toml"]
-run = "mise lock && git add mise.lock"
+glob = [".mise/config.toml"]
+run = "mise lock && git add .mise/mise.lock"
 
 [pre-commit.commands.zizmor]
 glob = [".github/workflows/*.{yaml,yml}", ".github/actions/**/action.{yaml,yml}"]
