@@ -244,7 +244,7 @@ func (s *Store) ListRuleStatusesForHost(
 	statuses := make([]RuleStatus, 0, len(rules))
 	for i, rule := range rules {
 		target := targets[i]
-		appliedRule := applied[syncTargetKey(target)]
+		appliedRule := applied[target.Key()]
 		statuses = append(statuses, RuleStatus{
 			HostRule:    rule,
 			Applied:     appliedRule,
@@ -625,10 +625,6 @@ func syncTargetPayloadHash(target syncstate.Target) string {
 		target.CustomURL,
 		target.AppName,
 	)
-}
-
-func syncTargetKey(target syncstate.Target) string {
-	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
 }
 
 func syncTargetFromSQLC(row sqlc.ListAppliedSantaSyncTargetsRow) syncstate.Target {

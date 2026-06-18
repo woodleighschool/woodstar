@@ -51,7 +51,7 @@ type pageCursor struct {
 	Offset int32 `json:"offset"`
 }
 
-func (target Target) key() string {
+func (target Target) Key() string {
 	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
 }
 
@@ -62,7 +62,7 @@ func (target Target) identityKey() string {
 func TargetSet(targets []Target) map[string]bool {
 	out := make(map[string]bool, len(targets))
 	for _, target := range targets {
-		out[target.key()] = true
+		out[target.Key()] = true
 	}
 	return out
 }
