@@ -13,10 +13,7 @@ import (
 // still be running while the rest of shutdown advances.
 func TestCleanupStopWaitsForInFlightSweep(t *testing.T) {
 	store := &observingStore{started: make(chan struct{})}
-	cleanup := events.StartCleanup(t.Context(), store, events.CleanupOptions{
-		RetentionDays: 1,
-		SweepInterval: time.Hour,
-	}, nil)
+	cleanup := events.StartCleanup(t.Context(), store, 1, time.Hour, nil)
 
 	select {
 	case <-store.started:

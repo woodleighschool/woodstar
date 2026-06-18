@@ -6,16 +6,6 @@ import (
 	"time"
 )
 
-const (
-	defaultRetentionDays = 90
-	defaultSweepInterval = time.Hour
-)
-
-type CleanupOptions struct {
-	RetentionDays int
-	SweepInterval time.Duration
-}
-
 type CleanupStore interface {
 	SweepEventsBefore(context.Context, time.Time) (int, error)
 }
@@ -35,28 +25,29 @@ func (c *Cleanup) Stop() {
 func StartCleanup(
 	ctx context.Context,
 	store CleanupStore,
-	options CleanupOptions,
+	retentionDays int,
+	sweepInterval time.Duration,
 	logger *slog.Logger,
 ) *Cleanup {
-	if options.RetentionDays <= 0 {
-		options.RetentionDays = defaultRetentionDays
-	}
-	if options.SweepInterval <= 0 {
-		options.SweepInterval = defaultSweepInterval
-	}
 	ctx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		cleanupLoop(ctx, store, options, logger)
+		cleanupLoop(ctx, store, retentionDays, sweepInterval, logger)
 	}()
 	return &Cleanup{stop: stop, done: done}
 }
 
-func cleanupLoop(ctx context.Context, store CleanupStore, options CleanupOptions, logger *slog.Logger) {
-	sweep(ctx, store, options, logger)
+func cleanupLoop(
+	ctx context.Context,
+	store CleanupStore,
+	retentionDays int,
+	sweepInterval time.Duration,
+	logger *slog.Logger,
+) {
+	sweep(ctx, store, retentionDays, logger)
 
-	ticker := time.NewTicker(options.SweepInterval)
+	ticker := time.NewTicker(sweepInterval)
 	defer ticker.Stop()
 
 	for {
@@ -64,13 +55,13 @@ func cleanupLoop(ctx context.Context, store CleanupStore, options CleanupOptions
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			sweep(ctx, store, options, logger)
+			sweep(ctx, store, retentionDays, logger)
 		}
 	}
 }
 
-func sweep(ctx context.Context, store CleanupStore, options CleanupOptions, logger *slog.Logger) {
-	cutoff := time.Now().AddDate(0, 0, -options.RetentionDays)
+func sweep(ctx context.Context, store CleanupStore, retentionDays int, logger *slog.Logger) {
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	if _, err := store.SweepEventsBefore(ctx, cutoff); err != nil && logger != nil {
 		logger.WarnContext(ctx, "Santa event cleanup failed", "err", err)
 	}

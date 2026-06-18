@@ -538,10 +538,13 @@ func santaCleanup(
 	logger *slog.Logger,
 ) starter {
 	return func(ctx context.Context) func() {
-		cleanup := events.StartCleanup(ctx, store, events.CleanupOptions{
-			RetentionDays: cfg.SantaEventRetentionDays,
-			SweepInterval: cfg.SantaEventSweepInterval,
-		}, logger.With("component", "santa"))
+		cleanup := events.StartCleanup(
+			ctx,
+			store,
+			cfg.SantaEventRetentionDays,
+			cfg.SantaEventSweepInterval,
+			logger.With("component", "santa"),
+		)
 
 		return cleanup.Stop
 	}
