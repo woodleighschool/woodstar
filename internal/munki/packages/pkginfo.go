@@ -2,16 +2,12 @@ package packages
 
 import (
 	"fmt"
-	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
-
-var timeType = reflect.TypeFor[time.Time]()
 
 // MunkiName returns the stable software identity Woodstar gives Munki.
 func MunkiName(pkg Package) string {
@@ -42,8 +38,8 @@ func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string 
 }
 
 // Pkginfo renders the Munki pkginfo shape for a Woodstar package.
-func Pkginfo(pkg Package, objects PkginfoObjects) map[string]any {
-	return munkiPkginfoFromPackage(pkg, objects).Map()
+func Pkginfo(pkg Package, objects PkginfoObjects) any {
+	return munkiPkginfoFromPackage(pkg, objects)
 }
 
 // PkginfoObjects are storage objects needed only while rendering Munki pkginfo.
@@ -53,98 +49,98 @@ type PkginfoObjects struct {
 }
 
 type munkiPkginfo struct {
-	Name                     string                    `json:"name"`
-	Version                  string                    `json:"version"`
-	DisplayName              string                    `json:"display_name,omitempty"`
-	Description              string                    `json:"description,omitempty"`
-	Category                 string                    `json:"category,omitempty"`
-	Developer                string                    `json:"developer,omitempty"`
-	InstallerType            InstallerType             `json:"installer_type,omitempty"`
-	UninstallMethod          UninstallMethod           `json:"uninstall_method,omitempty"`
-	RestartAction            RestartAction             `json:"RestartAction,omitempty"`
-	MinimumMunkiVersion      string                    `json:"minimum_munki_version,omitempty"`
-	MinimumOSVersion         string                    `json:"minimum_os_version,omitempty"`
-	MaximumOSVersion         string                    `json:"maximum_os_version,omitempty"`
-	SupportedArchitectures   []string                  `json:"supported_architectures,omitempty"`
-	BlockingApplications     []string                  `json:"blocking_applications,omitempty"`
-	InstallableCondition     string                    `json:"installable_condition,omitempty"`
-	BlockingAppsManualQuit   bool                      `json:"blocking_applications_manual_quit_only,omitempty"`
-	BlockingAppsQuitScript   string                    `json:"blocking_applications_quit_script,omitempty"`
-	Requires                 []string                  `json:"requires,omitempty"`
-	UpdateFor                []string                  `json:"update_for,omitempty"`
-	UnattendedInstall        bool                      `json:"unattended_install,omitempty"`
-	UnattendedUninstall      bool                      `json:"unattended_uninstall,omitempty"`
-	Uninstallable            bool                      `json:"uninstallable,omitempty"`
-	OnDemand                 bool                      `json:"OnDemand,omitempty"`
-	Precache                 bool                      `json:"precache,omitempty"`
-	Autoremove               bool                      `json:"autoremove,omitempty"`
-	AppleItem                bool                      `json:"apple_item,omitempty"`
-	SuppressBundleRelocation bool                      `json:"suppress_bundle_relocation,omitempty"`
-	ForceInstallAfterDate    *time.Time                `json:"force_install_after_date,omitempty"`
-	InstalledSize            int64                     `json:"installed_size,omitempty"`
-	InstallerItemLocation    string                    `json:"installer_item_location,omitempty"`
-	InstallerItemHash        string                    `json:"installer_item_hash,omitempty"`
-	InstallerItemSize        int64                     `json:"installer_item_size,omitempty"`
-	PackagePath              string                    `json:"package_path,omitempty"`
-	InstallerChoicesXML      []munkiPkginfoChoice      `json:"installer_choices_xml,omitempty"`
-	InstallerEnvironment     map[string]string         `json:"installer_environment,omitempty"`
-	Installs                 []munkiPkginfoInstallItem `json:"installs,omitempty"`
-	Receipts                 []munkiPkginfoReceipt     `json:"receipts,omitempty"`
-	ItemsToCopy              []munkiPkginfoItemToCopy  `json:"items_to_copy,omitempty"`
-	Notes                    string                    `json:"notes,omitempty"`
-	InstallcheckScript       string                    `json:"installcheck_script,omitempty"`
-	UninstallcheckScript     string                    `json:"uninstallcheck_script,omitempty"`
-	PreinstallScript         string                    `json:"preinstall_script,omitempty"`
-	PostinstallScript        string                    `json:"postinstall_script,omitempty"`
-	PreuninstallScript       string                    `json:"preuninstall_script,omitempty"`
-	PostuninstallScript      string                    `json:"postuninstall_script,omitempty"`
-	UninstallScript          string                    `json:"uninstall_script,omitempty"`
-	VersionScript            string                    `json:"version_script,omitempty"`
-	PreinstallAlert          *munkiPkginfoAlert        `json:"preinstall_alert,omitempty"`
-	PreuninstallAlert        *munkiPkginfoAlert        `json:"preuninstall_alert,omitempty"`
-	IconName                 string                    `json:"icon_name,omitempty"`
-	IconHash                 string                    `json:"icon_hash,omitempty"`
+	Name                     string                    `plist:"name"`
+	Version                  string                    `plist:"version"`
+	DisplayName              string                    `plist:"display_name,omitempty"`
+	Description              string                    `plist:"description,omitempty"`
+	Category                 string                    `plist:"category,omitempty"`
+	Developer                string                    `plist:"developer,omitempty"`
+	InstallerType            InstallerType             `plist:"installer_type,omitempty"`
+	UninstallMethod          UninstallMethod           `plist:"uninstall_method,omitempty"`
+	RestartAction            RestartAction             `plist:"RestartAction,omitempty"`
+	MinimumMunkiVersion      string                    `plist:"minimum_munki_version,omitempty"`
+	MinimumOSVersion         string                    `plist:"minimum_os_version,omitempty"`
+	MaximumOSVersion         string                    `plist:"maximum_os_version,omitempty"`
+	SupportedArchitectures   []string                  `plist:"supported_architectures,omitempty"`
+	BlockingApplications     *[]string                 `plist:"blocking_applications,omitempty"`
+	InstallableCondition     string                    `plist:"installable_condition,omitempty"`
+	BlockingAppsManualQuit   bool                      `plist:"blocking_applications_manual_quit_only,omitempty"`
+	BlockingAppsQuitScript   string                    `plist:"blocking_applications_quit_script,omitempty"`
+	Requires                 []string                  `plist:"requires,omitempty"`
+	UpdateFor                []string                  `plist:"update_for,omitempty"`
+	UnattendedInstall        bool                      `plist:"unattended_install,omitempty"`
+	UnattendedUninstall      bool                      `plist:"unattended_uninstall,omitempty"`
+	Uninstallable            bool                      `plist:"uninstallable,omitempty"`
+	OnDemand                 bool                      `plist:"OnDemand,omitempty"`
+	Precache                 bool                      `plist:"precache,omitempty"`
+	Autoremove               bool                      `plist:"autoremove,omitempty"`
+	AppleItem                bool                      `plist:"apple_item,omitempty"`
+	SuppressBundleRelocation bool                      `plist:"suppress_bundle_relocation,omitempty"`
+	ForceInstallAfterDate    *time.Time                `plist:"force_install_after_date,omitempty"`
+	InstalledSize            int64                     `plist:"installed_size,omitempty"`
+	InstallerItemLocation    string                    `plist:"installer_item_location,omitempty"`
+	InstallerItemHash        string                    `plist:"installer_item_hash,omitempty"`
+	InstallerItemSize        int64                     `plist:"installer_item_size,omitempty"`
+	PackagePath              string                    `plist:"package_path,omitempty"`
+	InstallerChoicesXML      []munkiPkginfoChoice      `plist:"installer_choices_xml,omitempty"`
+	InstallerEnvironment     map[string]string         `plist:"installer_environment,omitempty"`
+	Installs                 []munkiPkginfoInstallItem `plist:"installs,omitempty"`
+	Receipts                 []munkiPkginfoReceipt     `plist:"receipts,omitempty"`
+	ItemsToCopy              []munkiPkginfoItemToCopy  `plist:"items_to_copy,omitempty"`
+	Notes                    string                    `plist:"notes,omitempty"`
+	InstallcheckScript       string                    `plist:"installcheck_script,omitempty"`
+	UninstallcheckScript     string                    `plist:"uninstallcheck_script,omitempty"`
+	PreinstallScript         string                    `plist:"preinstall_script,omitempty"`
+	PostinstallScript        string                    `plist:"postinstall_script,omitempty"`
+	PreuninstallScript       string                    `plist:"preuninstall_script,omitempty"`
+	PostuninstallScript      string                    `plist:"postuninstall_script,omitempty"`
+	UninstallScript          string                    `plist:"uninstall_script,omitempty"`
+	VersionScript            string                    `plist:"version_script,omitempty"`
+	PreinstallAlert          *munkiPkginfoAlert        `plist:"preinstall_alert,omitempty"`
+	PreuninstallAlert        *munkiPkginfoAlert        `plist:"preuninstall_alert,omitempty"`
+	IconName                 string                    `plist:"icon_name,omitempty"`
+	IconHash                 string                    `plist:"icon_hash,omitempty"`
 }
 
 type munkiPkginfoInstallItem struct {
-	Type                  PackageInstallItemType `json:"type,omitempty"`
-	Path                  string                 `json:"path"`
-	BundleIdentifier      string                 `json:"CFBundleIdentifier,omitempty"`
-	BundleName            string                 `json:"CFBundleName,omitempty"`
-	BundleShortVersion    string                 `json:"CFBundleShortVersionString,omitempty"`
-	BundleVersion         string                 `json:"CFBundleVersion,omitempty"`
-	VersionComparisonKey  string                 `json:"version_comparison_key,omitempty"`
-	MD5Checksum           string                 `json:"md5checksum,omitempty"`
-	MinimumOSVersion      string                 `json:"minimum_os_version,omitempty"`
-	InstallerItemLocation string                 `json:"installer_item_location,omitempty"`
+	Type                  PackageInstallItemType `plist:"type,omitempty"`
+	Path                  string                 `plist:"path"`
+	BundleIdentifier      string                 `plist:"CFBundleIdentifier,omitempty"`
+	BundleName            string                 `plist:"CFBundleName,omitempty"`
+	BundleShortVersion    string                 `plist:"CFBundleShortVersionString,omitempty"`
+	BundleVersion         string                 `plist:"CFBundleVersion,omitempty"`
+	VersionComparisonKey  string                 `plist:"version_comparison_key,omitempty"`
+	MD5Checksum           string                 `plist:"md5checksum,omitempty"`
+	MinimumOSVersion      string                 `plist:"minimum_os_version,omitempty"`
+	InstallerItemLocation string                 `plist:"installer_item_location,omitempty"`
 }
 
 type munkiPkginfoReceipt struct {
-	PackageID string `json:"packageid"`
-	Version   string `json:"version,omitempty"`
-	Optional  bool   `json:"optional,omitempty"`
+	PackageID string `plist:"packageid"`
+	Version   string `plist:"version,omitempty"`
+	Optional  bool   `plist:"optional,omitempty"`
 }
 
 type munkiPkginfoItemToCopy struct {
-	SourceItem      string `json:"source_item"`
-	DestinationPath string `json:"destination_path"`
-	DestinationItem string `json:"destination_item,omitempty"`
-	User            string `json:"user,omitempty"`
-	Group           string `json:"group,omitempty"`
-	Mode            string `json:"mode,omitempty"`
+	SourceItem      string `plist:"source_item"`
+	DestinationPath string `plist:"destination_path"`
+	DestinationItem string `plist:"destination_item,omitempty"`
+	User            string `plist:"user,omitempty"`
+	Group           string `plist:"group,omitempty"`
+	Mode            string `plist:"mode,omitempty"`
 }
 
 type munkiPkginfoChoice struct {
-	ChoiceIdentifier string `json:"choiceIdentifier,omitempty"`
-	ChoiceAttribute  string `json:"choiceAttribute,omitempty"`
-	AttributeSetting int32  `json:"attributeSetting"`
+	ChoiceIdentifier string `plist:"choiceIdentifier,omitempty"`
+	ChoiceAttribute  string `plist:"choiceAttribute,omitempty"`
+	AttributeSetting int32  `plist:"attributeSetting"`
 }
 
 type munkiPkginfoAlert struct {
-	Title       string `json:"alert_title,omitempty"`
-	Detail      string `json:"alert_detail,omitempty"`
-	OKLabel     string `json:"ok_label,omitempty"`
-	CancelLabel string `json:"cancel_label,omitempty"`
+	Title       string `plist:"alert_title,omitempty"`
+	Detail      string `plist:"alert_detail,omitempty"`
+	OKLabel     string `plist:"ok_label,omitempty"`
+	CancelLabel string `plist:"cancel_label,omitempty"`
 }
 
 func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
@@ -159,7 +155,7 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 		MinimumOSVersion:         pkg.MinimumOSVersion,
 		MaximumOSVersion:         pkg.MaximumOSVersion,
 		SupportedArchitectures:   nonEmptyStrings(pkg.SupportedArchitectures),
-		BlockingApplications:     pkg.BlockingApplications,
+		BlockingApplications:     munkiBlockingApplications(pkg.BlockingApplications),
 		InstallableCondition:     pkg.InstallableCondition,
 		BlockingAppsManualQuit:   pkg.BlockingAppsManualQuit,
 		BlockingAppsQuitScript:   pkg.BlockingAppsQuitScript,
@@ -248,74 +244,11 @@ func objectSizeKB(obj storage.Object) int64 {
 	return (*obj.SizeBytes + 1023) / 1024
 }
 
-func (item munkiPkginfo) Map() map[string]any {
-	return munkiStructMap(reflect.ValueOf(item))
-}
-
 func (alert munkiPkginfoAlert) Empty() bool {
 	return alert.Title == "" &&
 		alert.Detail == "" &&
 		alert.OKLabel == "" &&
 		alert.CancelLabel == ""
-}
-
-func munkiStructMap(value reflect.Value) map[string]any {
-	value = reflect.Indirect(value)
-	valueType := value.Type()
-	out := make(map[string]any, value.NumField())
-	for i := range value.NumField() {
-		field := valueType.Field(i)
-		jsonName, omitEmpty := jsonField(field)
-		if jsonName == "" {
-			continue
-		}
-		fieldValue := value.Field(i)
-		if omitEmpty && fieldValue.IsZero() {
-			continue
-		}
-		out[jsonName] = munkiValue(fieldValue)
-	}
-	return out
-}
-
-func jsonField(field reflect.StructField) (string, bool) {
-	name, options, _ := strings.Cut(field.Tag.Get("json"), ",")
-	if name == "" || name == "-" {
-		return "", false
-	}
-	if slices.Contains(strings.Split(options, ","), "omitempty") {
-		return name, true
-	}
-	return name, false
-}
-
-func munkiValue(value reflect.Value) any {
-	value = reflect.Indirect(value)
-	if !value.IsValid() {
-		return nil
-	}
-	if value.Type() == timeType {
-		return value.Interface()
-	}
-	switch value.Kind() {
-	case reflect.Struct:
-		return munkiStructMap(value)
-	case reflect.Slice, reflect.Array:
-		return munkiSlice(value)
-	default:
-		return value.Interface()
-	}
-}
-
-func munkiSlice(value reflect.Value) any {
-	if value.Len() == 0 || value.Type().Elem().Kind() != reflect.Struct {
-		return value.Interface()
-	}
-	out := make([]map[string]any, 0, value.Len())
-	for i := range value.Len() {
-		out = append(out, munkiStructMap(value.Index(i)))
-	}
-	return out
 }
 
 func munkiReferenceNames(references []PackageReference) []string {
@@ -336,6 +269,13 @@ func munkiReferenceNames(references []PackageReference) []string {
 
 func munkiReferenceName(ref PackageReference) string {
 	return MunkiVersionedSoftwareName(ref.SoftwareID, ref.PackageVersion)
+}
+
+func munkiBlockingApplications(values []string) *[]string {
+	if values == nil {
+		return nil
+	}
+	return &values
 }
 
 func munkiInstallerEnvironment(values []PackageInstallerEnvironmentVariable) map[string]string {

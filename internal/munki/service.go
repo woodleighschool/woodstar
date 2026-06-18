@@ -236,12 +236,12 @@ func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 func (s *RepositoryService) catalogItems(
 	ctx context.Context,
 	effective []munkisoftware.EffectivePackage,
-) ([]map[string]any, error) {
+) ([]any, error) {
 	objects, err := s.objectsForPackages(ctx, effective)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]map[string]any, 0, len(effective))
+	items := make([]any, 0, len(effective))
 	seen := make(map[int64]bool, len(effective))
 	for _, pkg := range effective {
 		if seen[pkg.Package.ID] {

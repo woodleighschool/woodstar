@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"howett.net/plist"
+
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -15,7 +17,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	iconHash := "abc123"
 	installerSize := int64(1536)
 	installerID := int64(50)
-	got := Pkginfo(Package{
+	got := plistMap(t, Pkginfo(Package{
 		ID:                     12,
 		SoftwareID:             7,
 		SoftwareName:           "Example App",
@@ -67,7 +69,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 			Filename: "Example.png",
 			SHA256:   &iconHash,
 		},
-	})
+	}))
 
 	if got["name"] != "7" || got["display_name"] != "Example App" || got["OnDemand"] != true {
 		t.Fatalf("pkginfo identity = %+v, want Munki keys and casing", got)
@@ -83,7 +85,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	}
 	if got["installer_item_location"] != "packages/12/installer/Example.pkg" ||
 		got["installer_item_hash"] != installerHash ||
-		got["installer_item_size"] != int64(2) {
+		intValue(got["installer_item_size"]) != 2 {
 		t.Fatalf(
 			"installer projection = %v/%v/%v, want object-derived Munki metadata",
 			got["installer_item_location"],
@@ -104,32 +106,35 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 			got["blocking_applications_quit_script"],
 		)
 	}
-	if requires := got["requires"].([]string); len(requires) != 2 ||
+	if requires, ok := stringSlice(got["requires"]); !ok ||
+		len(requires) != 2 ||
 		requires[0] != "8" ||
 		requires[1] != "8--2.0" {
 		t.Fatalf("requires = %#v, want stable unversioned and versioned Munki software IDs", got["requires"])
 	}
-	if updateFor := got["update_for"].([]string); len(updateFor) != 1 || updateFor[0] != "9" {
+	if updateFor, ok := stringSlice(got["update_for"]); !ok ||
+		len(updateFor) != 1 ||
+		updateFor[0] != "9" {
 		t.Fatalf("update_for = %#v, want stable unversioned Munki software ID", got["update_for"])
 	}
-	installs := got["installs"].([]map[string]any)
+	installs := mapSlice(t, got["installs"])
 	if installs[0]["CFBundleIdentifier"] != "com.example.app" {
 		t.Fatalf("installs = %#v, want Munki bundle key", installs)
 	}
-	receipts := got["receipts"].([]map[string]any)
+	receipts := mapSlice(t, got["receipts"])
 	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" || receipts[0]["optional"] != true {
 		t.Fatalf("receipts = %#v, want Munki receipt package ID key", receipts)
 	}
 }
 
 func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
-	got := Pkginfo(Package{
+	got := plistMap(t, Pkginfo(Package{
 		ID:            12,
 		SoftwareID:    7,
 		SoftwareName:  "Example App",
 		Version:       "1.2.3",
 		InstallerType: InstallerTypePkg,
-	}, PkginfoObjects{})
+	}, PkginfoObjects{}))
 
 	for _, key := range []string{
 		"installer_choices_xml",
@@ -155,24 +160,83 @@ func TestPkginfoPreservesBlockingApplicationStates(t *testing.T) {
 		InstallerType: InstallerTypePkg,
 	}
 
-	omitted := Pkginfo(base, PkginfoObjects{})
+	omitted := plistMap(t, Pkginfo(base, PkginfoObjects{}))
 	if _, ok := omitted["blocking_applications"]; ok {
 		t.Fatalf("blocking_applications rendered for nil state: %+v", omitted)
 	}
 
 	emptyPackage := base
 	emptyPackage.BlockingApplications = []string{}
-	empty := Pkginfo(emptyPackage, PkginfoObjects{})
-	if values, ok := empty["blocking_applications"].([]string); !ok || len(values) != 0 {
+	empty := plistMap(t, Pkginfo(emptyPackage, PkginfoObjects{}))
+	if values, ok := stringSlice(empty["blocking_applications"]); !ok || len(values) != 0 {
 		t.Fatalf("blocking_applications = %#v, want explicit empty list", empty["blocking_applications"])
 	}
 
 	populatedPackage := base
 	populatedPackage.BlockingApplications = []string{"Example App"}
-	populated := Pkginfo(populatedPackage, PkginfoObjects{})
-	if values, ok := populated["blocking_applications"].([]string); !ok ||
+	populated := plistMap(t, Pkginfo(populatedPackage, PkginfoObjects{}))
+	if values, ok := stringSlice(populated["blocking_applications"]); !ok ||
 		len(values) != 1 ||
 		values[0] != "Example App" {
 		t.Fatalf("blocking_applications = %#v, want populated list", populated["blocking_applications"])
+	}
+}
+
+func plistMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+	data, err := plist.Marshal(value, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("marshal pkginfo plist: %v", err)
+	}
+	var out map[string]any
+	if _, err := plist.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal pkginfo plist: %v", err)
+	}
+	return out
+}
+
+func mapSlice(t *testing.T, value any) []map[string]any {
+	t.Helper()
+	items, ok := value.([]any)
+	if !ok {
+		t.Fatalf("value = %#v, want plist array", value)
+	}
+	out := make([]map[string]any, len(items))
+	for i, item := range items {
+		row, ok := item.(map[string]any)
+		if !ok {
+			t.Fatalf("item %d = %#v, want plist dict", i, item)
+		}
+		out[i] = row
+	}
+	return out
+}
+
+func stringSlice(value any) ([]string, bool) {
+	items, ok := value.([]any)
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, len(items))
+	for i, item := range items {
+		value, ok := item.(string)
+		if !ok {
+			return nil, false
+		}
+		out[i] = value
+	}
+	return out, true
+}
+
+func intValue(value any) int64 {
+	switch value := value.(type) {
+	case int64:
+		return value
+	case uint64:
+		return int64(value)
+	case int:
+		return int64(value)
+	default:
+		return 0
 	}
 }
