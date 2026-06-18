@@ -339,9 +339,9 @@ func checkListQuery(where string, args []any, params CheckListParams) dbutil.Lis
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":                {SQL: "c.name"},
-			"created_at":          {SQL: "c.created_at"},
-			dbutil.OrderUpdatedAt: {SQL: "c.updated_at"},
+			"name":       {SQL: "c.name"},
+			"created_at": {SQL: "c.created_at"},
+			"updated_at": {SQL: "c.updated_at"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.updated_at"}, {SQL: "c.id"}},
 		Params:       params.ListParams,

@@ -224,12 +224,12 @@ func reportListQuery(where string, args []any, params ReportListParams) dbutil.L
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":                {SQL: "name"},
-			"created_at":          {SQL: "created_at"},
-			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
-			"schedule_interval":   {SQL: "schedule_interval"},
+			"name":              {SQL: "name"},
+			"created_at":        {SQL: "created_at"},
+			"updated_at":        {SQL: "updated_at"},
+			"schedule_interval": {SQL: "schedule_interval"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "updated_at"}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}
 }

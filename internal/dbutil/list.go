@@ -7,7 +7,6 @@ const (
 	maxPageSize     = 1000
 	orderSQLAsc     = "ASC"
 	orderSQLDesc    = "DESC"
-	OrderUpdatedAt  = "updated_at"
 )
 
 // ListParams is the common query shape for paginated list endpoints.
