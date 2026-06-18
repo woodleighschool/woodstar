@@ -1,4 +1,4 @@
-import type { Label } from "@/hooks/use-labels";
+import type { Label } from "@/lib/api";
 import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type LabelMembershipType = Label["label_membership_type"];

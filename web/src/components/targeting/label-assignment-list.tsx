@@ -27,7 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
 

@@ -1,10 +1,14 @@
-import type { SantaClientMode, SantaConfigurationMutation } from "@/hooks/use-santa-configurations";
 import {
   enumLabel,
   type EnumMetadataMap,
   enumOptions,
   type StatusMetadataMap,
 } from "@/lib/enum-metadata";
+import type { SantaConfiguration, SantaConfigurationMutation, SantaHostState } from "@/lib/api";
+
+export type SantaClientMode =
+  | SantaHostState["client_mode_reported"]
+  | SantaConfiguration["client_mode"];
 
 type StoredMediaAction = NonNullable<
   NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]

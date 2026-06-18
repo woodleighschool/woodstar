@@ -32,7 +32,8 @@ import {
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { type Label, type LabelListParams, useDeleteLabel, useLabels } from "@/hooks/use-labels";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { formatRelative } from "@/lib/utils";

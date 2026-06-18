@@ -1,10 +1,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
-  Page,
+  PageConfiguration,
   SantaConfiguration,
   SantaConfigurationMutation,
   SantaHostState,
@@ -24,7 +24,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { SantaConfiguration, SantaConfigurationMutation };
-export type SantaConfigurationListResult = Page<SantaConfiguration>;
+export type SantaConfigurationListResult = PageConfiguration;
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]
   | SantaConfiguration["client_mode"];

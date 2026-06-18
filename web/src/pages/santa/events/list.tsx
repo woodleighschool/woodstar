@@ -15,7 +15,8 @@ import { QueryError } from "@/components/query-error";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useHost } from "@/hooks/use-hosts";
 import {
   type SantaEvent,

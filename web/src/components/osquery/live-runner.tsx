@@ -1,4 +1,5 @@
-import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";

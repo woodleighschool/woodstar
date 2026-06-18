@@ -17,7 +17,8 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import {
   type MunkiPackage,
   type MunkiPackageMutation,

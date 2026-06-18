@@ -1,13 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   OsqueryCheck,
   OsqueryCheckHostStatus,
   OsqueryCheckMutation,
-  Page,
+  PageCheck,
 } from "@/lib/api";
 import {
   bulkDeleteOsqueryChecks,
@@ -19,19 +19,14 @@ import {
   unwrap,
   updateOsqueryCheck,
 } from "@/lib/api";
+import type { ListOsqueryChecksData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { OsqueryCheck, OsqueryCheckHostStatus, OsqueryCheckMutation };
-export type CheckListResult = Page<OsqueryCheck>;
+export type CheckListResult = PageCheck;
 export type CheckHosts = OsqueryCheckHostStatus[];
-
-export interface CheckListParams {
-  q?: string;
-  page?: number;
-  per_page?: number;
-  sort?: string;
-}
+export type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
 
 export function useChecks(params: CheckListParams = {}) {
   const queryParams = {

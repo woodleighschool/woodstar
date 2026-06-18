@@ -13,7 +13,8 @@ import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useDataTable } from "@/hooks/use-data-table";
-import { DEFAULT_PAGE_SIZE, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { type SoftwareTitle, useSoftware } from "@/hooks/use-software";
 import {
   expandSoftwareSourceFilters,

@@ -14,7 +14,8 @@ import { LabelAssignmentList } from "@/components/targeting/label-assignment-lis
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import {

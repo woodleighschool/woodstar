@@ -1,14 +1,14 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Group, Page } from "@/lib/api";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import type { ApiError, Group, PageGroup } from "@/lib/api";
 import { getGroup, listGroups, unwrap } from "@/lib/api";
 import type { ListGroupsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { Group };
-export type GroupListResult = Page<Group>;
+export type GroupListResult = PageGroup;
 export type GroupListParams = NonNullable<ListGroupsData["query"]>;
 
 function groupQueryParams(params: GroupListParams = {}) {

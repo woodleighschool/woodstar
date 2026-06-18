@@ -19,12 +19,8 @@ import { selectColumn } from "@/components/data-table/select-column";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import {
-  DEFAULT_PAGE_SIZE,
-  encodeSort,
-  MAX_PAGE_SIZE,
-  useDataTableSearch,
-} from "@/hooks/use-data-table-search";
+import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useLabels } from "@/hooks/use-labels";
 import {
   type SantaRule,

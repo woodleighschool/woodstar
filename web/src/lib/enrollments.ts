@@ -1,6 +1,6 @@
-import type { Agent } from "@/hooks/use-agent-secrets";
+import type { AgentSecret } from "@/lib/api";
 
-export type Integration = Agent;
+export type Integration = AgentSecret["agent"];
 
 export function integrationLabel(integration?: Integration) {
   if (integration === "santa") return "Santa";

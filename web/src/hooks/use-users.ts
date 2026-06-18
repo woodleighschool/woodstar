@@ -1,8 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Department, Page, User, UserCreate, UserMutation } from "@/lib/api";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import type {
+  ApiError,
+  Department,
+  PageDepartment,
+  PageUser,
+  User,
+  UserCreate,
+  UserMutation,
+} from "@/lib/api";
 import {
   createUser,
   deleteUser,
@@ -17,8 +25,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { Department, User, UserCreate, UserMutation };
-export type UserListResult = Page<User>;
-export type DepartmentListResult = Page<Department>;
+export type UserListResult = PageUser;
+export type DepartmentListResult = PageDepartment;
 export type UserListParams = NonNullable<ListUsersData["query"]>;
 export type DepartmentListParams = NonNullable<ListUserDepartmentsData["query"]>;
 

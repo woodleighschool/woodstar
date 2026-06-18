@@ -2,10 +2,7 @@ import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "n
 import * as React from "react";
 
 import { getSortingStateParser, serializeSortingState } from "@/lib/parsers";
-
-export const DEFAULT_PAGE_SIZE = 50;
-// Upper bound for "fetch everything" reads (pickers, reorder, label maps).
-export const MAX_PAGE_SIZE = 1000;
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 
 // Encodes a single-column sort in the backend wire format.
 export function encodeSort(id: string, desc = false): string {

@@ -1,12 +1,8 @@
 import { client } from "@/lib/api-client/client.gen";
+import type { ErrorModel } from "@/lib/api-client/types.gen";
 
 export * from "@/lib/api-client/sdk.gen";
 export type * from "@/lib/api-client/types.gen";
-
-export type Page<T> = {
-  items: T[];
-  count: number;
-};
 
 client.setConfig({
   credentials: "same-origin",
@@ -35,15 +31,9 @@ export class ApiError extends Error {
   }
 }
 
-interface HumaError {
-  title?: string;
-  detail?: string;
-  errors?: Array<{ message?: string; location?: string }>;
-}
-
 function describeError(body: unknown, status: number): string {
   if (body && typeof body === "object") {
-    const huma = body as HumaError;
+    const huma = body as ErrorModel;
     if (huma.detail) return huma.detail;
     if (huma.title) return huma.title;
     if (huma.errors?.length) {

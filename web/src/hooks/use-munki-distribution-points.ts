@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   MunkiDistributionPoint,
@@ -9,7 +9,7 @@ import type {
   MunkiDistributionPointKeyBody,
   MunkiDistributionPointMutation,
   MunkiRevealedDistributionPoint,
-  Page,
+  PageDistributionPoint,
 } from "@/lib/api";
 import {
   createMunkiDistributionPoint,
@@ -30,7 +30,7 @@ export type {
   MunkiDistributionPointDetail,
   MunkiDistributionPointMutation,
 };
-export type MunkiDistributionPointListResult = Page<MunkiDistributionPoint>;
+export type MunkiDistributionPointListResult = PageDistributionPoint;
 
 export type MunkiDistributionPointListParams = NonNullable<
   ListMunkiDistributionPointsData["query"]

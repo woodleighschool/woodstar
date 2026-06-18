@@ -1,16 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   Host,
   HostDetail,
-  HostSoftwareRow,
   OsqueryCheckHostStatus,
   OsqueryHostReport,
-  Page,
-  SantaRuleStatus,
+  PageHost,
+  PageHostSoftwareRow,
+  PageRuleStatus,
 } from "@/lib/api";
 import {
   bulkDeleteHosts,
@@ -25,7 +25,11 @@ import {
   putHostUserAffinity,
   unwrap,
 } from "@/lib/api";
-import type { ListHostSantaRulesData } from "@/lib/api-client/types.gen";
+import type {
+  ListHostSantaRulesData,
+  ListHostsData,
+  ListHostSoftwareData,
+} from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -33,33 +37,18 @@ export type { Host, HostDetail, OsqueryHostReport };
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 
-type HostListResult = Page<Host>;
-type HostSoftwareListResult = Page<HostSoftwareRow>;
+type HostListResult = PageHost;
+type HostSoftwareListResult = PageHostSoftwareRow;
 type HostReportsResult = OsqueryHostReport[];
 type HostChecksResult = OsqueryCheckHostStatus[];
-type HostSantaRulesResult = Page<SantaRuleStatus>;
+type HostSantaRulesResult = PageRuleStatus;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 interface HostUserAffinityMutation {
   email: string;
 }
 
-interface ListParams {
-  q?: string;
-  page?: number;
-  per_page?: number;
-  sort?: string;
-}
-
-interface HostListParams extends ListParams {
-  status?: string;
-  label_id?: number;
-  software_title_id?: number;
-  software_id?: number;
-  ids?: number[];
-  check_id?: number;
-  check_response?: "pass" | "fail";
-}
+type HostListParams = NonNullable<ListHostsData["query"]>;
 
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
@@ -147,9 +136,7 @@ export function useClearHostUserAffinity() {
   });
 }
 
-interface HostSoftwareListParams extends ListParams {
-  source?: string[];
-}
+type HostSoftwareListParams = NonNullable<ListHostSoftwareData["query"]>;
 
 export function useHostSoftware(id: number | null, params: HostSoftwareListParams = {}) {
   const queryParams = {

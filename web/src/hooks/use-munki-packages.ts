@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   MunkiPackage,
@@ -17,21 +17,13 @@ import {
   unwrap,
   updateMunkiPackage,
 } from "@/lib/api";
+import type { ListMunkiPackagesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
 
-type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
-
-interface MunkiSoftwareListParams {
-  q?: string;
-  page?: number;
-  per_page?: number;
-  sort?: string;
-  type?: MunkiInstallerType[];
-  software_id?: number;
-}
+type MunkiSoftwareListParams = NonNullable<ListMunkiPackagesData["query"]>;
 
 function softwareQueryParams(params: MunkiSoftwareListParams) {
   return {

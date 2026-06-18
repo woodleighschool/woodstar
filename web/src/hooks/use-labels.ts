@@ -1,15 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
-import type { ApiError, Label, LabelMutation, Page } from "@/lib/api";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import type { ApiError, Label, LabelMutation, PageLabel } from "@/lib/api";
 import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { Label, LabelMutation };
-export type LabelListResult = Page<Label>;
+export type LabelListResult = PageLabel;
 export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {

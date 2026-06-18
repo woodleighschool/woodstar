@@ -1,10 +1,13 @@
-import type { SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa-rules";
 import {
   enumLabel,
   type EnumMetadataMap,
   enumOptions,
   type StatusMetadataMap,
 } from "@/lib/enum-metadata";
+import type { SantaRule } from "@/lib/api";
+
+export type SantaRuleType = SantaRule["rule_type"];
+export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
 
 export const RULE_TYPE_VALUES = [
   "binary",

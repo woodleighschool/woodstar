@@ -1,28 +1,22 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
-  Page,
+  PageSoftwareTitle,
   SantaSoftwareReference,
   SoftwareTitle,
   SoftwareVersion,
 } from "@/lib/api";
 import { getSoftware, getSoftwareSantaReference, listSoftware, unwrap } from "@/lib/api";
+import type { ListSoftwareData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { SoftwareTitle, SoftwareVersion };
-export type SoftwareListResult = Page<SoftwareTitle>;
+export type SoftwareListResult = PageSoftwareTitle;
 export type SoftwareSantaReference = SantaSoftwareReference;
-
-export interface SoftwareListParams {
-  q?: string;
-  source?: string[];
-  page?: number;
-  per_page?: number;
-  sort?: string;
-}
+export type SoftwareListParams = NonNullable<ListSoftwareData["query"]>;
 
 export function useSoftware(params: SoftwareListParams = {}) {
   const queryParams = {

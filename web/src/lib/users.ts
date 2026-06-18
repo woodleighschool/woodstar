@@ -1,4 +1,4 @@
-import type { User } from "@/hooks/use-users";
+import type { User } from "@/lib/api";
 import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type UserRole = NonNullable<User["role"]>;

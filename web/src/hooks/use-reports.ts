@@ -1,13 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   OsqueryReport,
   OsqueryReportMutation,
   OsqueryReportResult,
-  Page,
+  PageReport,
 } from "@/lib/api";
 import {
   bulkDeleteOsqueryReports,
@@ -19,19 +19,14 @@ import {
   unwrap,
   updateOsqueryReport,
 } from "@/lib/api";
+import type { ListOsqueryReportsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { OsqueryReport, OsqueryReportMutation };
-export type ReportListResult = Page<OsqueryReport>;
+export type ReportListResult = PageReport;
 export type ReportResults = OsqueryReportResult[];
-
-export interface ReportListParams {
-  q?: string;
-  page?: number;
-  per_page?: number;
-  sort?: string;
-}
+export type ReportListParams = NonNullable<ListOsqueryReportsData["query"]>;
 
 export function useReports(params: ReportListParams = {}) {
   const queryParams = {

@@ -1,10 +1,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
-  Page,
+  PageRule,
   SantaRule,
   SantaRuleMutation,
   SantaRuleReferenceCandidate,
@@ -24,7 +24,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type { SantaRule, SantaRuleMutation };
-export type SantaRuleListResult = Page<SantaRule>;
+export type SantaRuleListResult = PageRule;
 export type SantaRuleReference = SantaRuleReferenceCandidate;
 export type SantaRuleReferenceListResult = SantaRuleReference[];
 export type SantaRuleType = SantaRule["rule_type"];

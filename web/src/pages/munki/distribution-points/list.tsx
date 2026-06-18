@@ -39,12 +39,8 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import {
-  DEFAULT_PAGE_SIZE,
-  encodeSort,
-  MAX_PAGE_SIZE,
-  useDataTableSearch,
-} from "@/hooks/use-data-table-search";
+import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import {
   type MunkiDistributionPoint,
   useMunkiDistributionPoints,

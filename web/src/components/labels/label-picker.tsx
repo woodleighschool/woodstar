@@ -11,7 +11,8 @@ import {
   ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
 import { useEffect, useState } from "react";
 

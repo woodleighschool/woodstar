@@ -1,9 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
-  Page,
+  PageExecutionEvent,
+  PageFileAccessEvent,
   SantaExecutionEvent,
   SantaFileAccessEvent,
   SantaHostSummary,
@@ -24,8 +25,8 @@ import { nonEmpty } from "@/lib/utils";
 
 export type { SantaFileAccessEvent, SantaHostSummary };
 export type SantaEvent = SantaExecutionEvent;
-export type SantaEventListResult = Page<SantaEvent>;
-export type SantaFileAccessEventListResult = Page<SantaFileAccessEvent>;
+export type SantaEventListResult = PageExecutionEvent;
+export type SantaFileAccessEventListResult = PageFileAccessEvent;
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 

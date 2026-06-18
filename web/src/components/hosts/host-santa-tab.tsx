@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { type HostDetail, useHostSantaRules } from "@/hooks/use-hosts";
 import type { SantaRuleStatus } from "@/lib/api";
 import { clientModeLabel } from "@/lib/santa-configurations";

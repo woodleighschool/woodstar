@@ -1,4 +1,5 @@
-import { encodeSort, MAX_PAGE_SIZE } from "@/hooks/use-data-table-search";
+import { encodeSort } from "@/hooks/use-data-table-search";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
