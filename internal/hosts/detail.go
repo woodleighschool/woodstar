@@ -2,13 +2,10 @@ package hosts
 
 import (
 	"context"
-
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error) {
-	hostLabels, err := labels.NewStore(s.db).ListForHost(ctx, host.ID)
+	hostLabels, err := s.labels.ListForHost(ctx, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -24,20 +21,13 @@ func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error)
 	if err != nil {
 		return nil, err
 	}
-	mappings, err := s.q.ListHostUserAffinityMappings(ctx, sqlc.ListHostUserAffinityMappingsParams{HostID: host.ID})
+	affinity, err := s.loadUserAffinity(ctx, []int64{host.ID})
 	if err != nil {
 		return nil, err
 	}
 
 	detailHost := *host
-	detailHost.UserAffinity.Mappings = groupHostUserAffinityMappings(mappings, 1)[host.ID]
-	if detailHost.UserAffinity.Mappings == nil {
-		detailHost.UserAffinity.Mappings = []HostUserAffinityMapping{}
-	}
-	detailHost.UserAffinity.Primary, err = s.loadHostUserAffinityPrimary(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
+	detailHost.UserAffinity = affinity[host.ID]
 	return &HostDetail{
 		Host:         detailHost,
 		Labels:       hostLabels,

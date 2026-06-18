@@ -58,11 +58,8 @@ func (s *UserAffinityStore) Delete(ctx context.Context, hostID int64, source Use
 	})
 }
 
-func groupHostUserAffinityMappings(
-	rows []sqlc.HostUserAffinityMapping,
-	capacity int,
-) map[int64][]HostUserAffinityMapping {
-	grouped := make(map[int64][]HostUserAffinityMapping, capacity)
+func groupHostUserAffinityMappings(rows []sqlc.HostUserAffinityMapping) map[int64][]HostUserAffinityMapping {
+	grouped := make(map[int64][]HostUserAffinityMapping)
 	for _, row := range rows {
 		grouped[row.HostID] = append(grouped[row.HostID], hostUserAffinityMappingFromSQLC(row))
 	}

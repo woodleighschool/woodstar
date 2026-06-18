@@ -17,12 +17,17 @@ import (
 
 // Store persists hosts.
 type Store struct {
-	db *database.DB
-	q  *sqlc.Queries
+	db     *database.DB
+	q      *sqlc.Queries
+	labels hostLabelReader
+}
+
+type hostLabelReader interface {
+	ListForHost(context.Context, int64) ([]labels.Label, error)
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
+	return &Store{db: db, q: db.Queries(), labels: labels.NewStore(db)}
 }
 
 // UpsertOnOrbitEnroll creates or refreshes a host from Orbit enroll.
@@ -358,24 +363,12 @@ func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
 	for i := range hosts {
 		hostIDs[i] = hosts[i].ID
 	}
-	rows, err := s.q.ListHostUserAffinityMappingsForHosts(ctx, sqlc.ListHostUserAffinityMappingsForHostsParams{
-		HostIds: hostIDs,
-	})
-	if err != nil {
-		return err
-	}
-	grouped := groupHostUserAffinityMappings(rows, len(hostIDs))
-	primaries, err := s.loadHostUserAffinityPrimaries(ctx, hostIDs)
+	affinity, err := s.loadUserAffinity(ctx, hostIDs)
 	if err != nil {
 		return err
 	}
 	for i := range hosts {
-		mappings := grouped[hosts[i].ID]
-		if mappings == nil {
-			mappings = []HostUserAffinityMapping{}
-		}
-		hosts[i].UserAffinity.Mappings = mappings
-		hosts[i].UserAffinity.Primary = primaries[hosts[i].ID]
+		hosts[i].UserAffinity = affinity[hosts[i].ID]
 	}
 	return nil
 }
@@ -480,42 +473,31 @@ func statusFromLastSeen(lastSeen *time.Time, now time.Time) HostStatus {
 	return HostStatusOnline
 }
 
-func (s *Store) loadHostUserAffinityPrimary(ctx context.Context, hostID int64) (*HostUserAffinityPrimary, error) {
-	row, err := s.q.LoadHostUserAffinityPrimary(ctx, sqlc.LoadHostUserAffinityPrimaryParams{
-		AffinityHostID: hostID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
+func (s *Store) loadUserAffinity(ctx context.Context, hostIDs []int64) (map[int64]HostUserAffinity, error) {
+	affinity := make(map[int64]HostUserAffinity, len(hostIDs))
+	for _, hostID := range hostIDs {
+		affinity[hostID] = HostUserAffinity{Mappings: []HostUserAffinityMapping{}}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return &HostUserAffinityPrimary{
-		Email:      row.Email,
-		Username:   row.Username,
-		Name:       row.Name,
-		Department: row.Department,
-		Groups:     row.Groups,
-		Source:     UserAffinitySource(row.Source),
-	}, nil
-}
-
-func (s *Store) loadHostUserAffinityPrimaries(
-	ctx context.Context,
-	hostIDs []int64,
-) (map[int64]*HostUserAffinityPrimary, error) {
 	if len(hostIDs) == 0 {
-		return map[int64]*HostUserAffinityPrimary{}, nil
+		return affinity, nil
 	}
-	rows, err := s.q.ListHostUserAffinityPrimaries(ctx, sqlc.ListHostUserAffinityPrimariesParams{
+
+	mappingRows, err := s.q.ListHostUserAffinityMappingsForHosts(ctx, sqlc.ListHostUserAffinityMappingsForHostsParams{
 		HostIds: hostIDs,
 	})
 	if err != nil {
 		return nil, err
 	}
-	primaries := make(map[int64]*HostUserAffinityPrimary, len(rows))
-	for _, row := range rows {
-		primaries[row.HostID] = &HostUserAffinityPrimary{
+	grouped := groupHostUserAffinityMappings(mappingRows)
+	primaryRows, err := s.q.ListHostUserAffinityPrimaries(ctx, sqlc.ListHostUserAffinityPrimariesParams{
+		HostIds: hostIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range primaryRows {
+		hostAffinity := affinity[row.HostID]
+		hostAffinity.Primary = &HostUserAffinityPrimary{
 			Email:      row.Email,
 			Username:   row.Username,
 			Name:       row.Name,
@@ -523,8 +505,14 @@ func (s *Store) loadHostUserAffinityPrimaries(
 			Groups:     row.Groups,
 			Source:     UserAffinitySource(row.Source),
 		}
+		affinity[row.HostID] = hostAffinity
 	}
-	return primaries, nil
+	for hostID, mappings := range grouped {
+		hostAffinity := affinity[hostID]
+		hostAffinity.Mappings = mappings
+		affinity[hostID] = hostAffinity
+	}
+	return affinity, nil
 }
 
 func hostFromSQLC(s sqlc.Host) Host {
