@@ -117,8 +117,15 @@ func registerListMunkiSoftware(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
+		items := make([]munkiSoftware, len(rows))
+		for i, row := range rows {
+			items[i] = munkiSoftware{
+				Software: row,
+				IconURL:  munkiSoftwareIconURL(row),
+			}
+		}
 		return &munkiSoftwareListOutput{
-			Body: apitypes.Page[munkiSoftware]{Items: munkiSoftwareFromDomain(rows), Count: int32(count)},
+			Body: apitypes.Page[munkiSoftware]{Items: items, Count: int32(count)},
 		}, nil
 	})
 }
@@ -229,19 +236,6 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store, notifier desire
 	})
 }
 
-func munkiSoftwareDetailFromDomain(
-	title Software,
-	packageRows []packages.Package,
-	targets Targets,
-) munkiSoftwareDetail {
-	return munkiSoftwareDetail{
-		Software: title,
-		IconURL:  munkiSoftwareIconURL(title),
-		Packages: packages.MunkiPackagesFromPackages(packageRows),
-		Targets:  targets,
-	}
-}
-
 func loadMunkiSoftwareDetail(
 	ctx context.Context,
 	id int64,
@@ -264,23 +258,13 @@ func loadMunkiSoftwareDetail(
 		return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 	}
 	return &munkiSoftwareDetailOutput{
-		Body: munkiSoftwareDetailFromDomain(*title, packageRows, targets),
+		Body: munkiSoftwareDetail{
+			Software: *title,
+			IconURL:  munkiSoftwareIconURL(*title),
+			Packages: packages.MunkiPackagesFromPackages(packageRows),
+			Targets:  targets,
+		},
 	}, nil
-}
-
-func munkiSoftwareItemFromDomain(title Software) munkiSoftware {
-	return munkiSoftware{
-		Software: title,
-		IconURL:  munkiSoftwareIconURL(title),
-	}
-}
-
-func munkiSoftwareFromDomain(rows []Software) []munkiSoftware {
-	items := make([]munkiSoftware, len(rows))
-	for i, row := range rows {
-		items[i] = munkiSoftwareItemFromDomain(row)
-	}
-	return items
 }
 
 func munkiSoftwareIconURL(title Software) string {
