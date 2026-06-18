@@ -43,3 +43,9 @@ The catalog is built from the same effective set. When more than one version of 
 Artifacts are stable Woodstar rows; the package and icon routes hand back the bytes by redirecting to a presigned URL on the S3 backend, or streaming them directly on the file backend.
 
 The failure case worth knowing: if a package artifact isn't part of this host's effective set, the route returns `404`, even if the file is sitting in storage. A Mac only gets the bytes for software it's actually assigned. The storage wiring is in [Munki Storage](../configuration/storage).
+
+## Distribution points
+
+The `/munki/pkgs/*` redirect doesn't always point at storage. If a [distribution point](./munki-distribution) is mirroring this package and covers the requesting Mac's IP, Woodstar redirects there instead, so the download comes off the local network. The Mac follows the redirect the same way it would for any other; it doesn't know or care which one it got.
+
+This only applies to package installers, the heavy downloads. Icons are always served directly by Woodstar. And it's best-effort: if no distribution point is eligible, or Woodstar can't work out the client's IP, the package falls back to a direct storage redirect.

@@ -25,6 +25,19 @@ Several features stay off until you configure them. OIDC and Entra directory syn
 
 `WOODSTAR_PUBLIC_URL` has its trailing slash trimmed and rejects a sub-path. If you need to serve Woodstar under a path, put a reverse proxy in front; the app expects to own the root of its host.
 
+## Client IP
+
+Woodstar needs the real client IP to route a Mac to a [distribution point](../agent-protocols/munki-distribution) by its network. Behind a proxy or CDN the connection's address is the proxy, not the Mac, so you tell Woodstar where to find the true address.
+
+| Variable                                      | Default       | Notes                                                                                         |
+| --------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------- |
+| `WOODSTAR_HTTP_CLIENT_IP_SOURCE`              | `remote_addr` | `remote_addr`, `xff_trusted_cidrs`, `xff_trusted_proxies`, or `header`.                       |
+| `WOODSTAR_HTTP_CLIENT_IP_TRUSTED_CIDRS`       | empty         | Required for `xff_trusted_cidrs`. Proxy prefixes to skip from the right of `X-Forwarded-For`. |
+| `WOODSTAR_HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT` | empty         | Required for `xff_trusted_proxies`. How many proxies sit in front, counted from the right.    |
+| `WOODSTAR_HTTP_CLIENT_IP_HEADER`              | empty         | Required for `header`. A single trusted header to read, such as `CF-Connecting-IP`.           |
+
+The default trusts the connection's own address, which is right when nothing terminates in front of Woodstar. Pick one of the others when a proxy or CDN does, and set its companion variable. Trusting `X-Forwarded-For` blindly would let a client spoof its own IP, so the trusted modes only believe the parts of the header your own proxies wrote: `xff_trusted_cidrs` skips addresses matching known proxy ranges, `xff_trusted_proxies` skips a fixed count, and `header` ignores `X-Forwarded-For` for a header you know your proxy sets. Each mode refuses to start without its companion.
+
 ## Santa event retention
 
 | Variable                              | Default | Notes                            |
@@ -78,6 +91,21 @@ Munki package and icon bytes go to the backend chosen by `WOODSTAR_STORAGE_KIND`
 | `WOODSTAR_STORAGE_S3_PRESIGN_TTL`     | `15m`          | Lifetime of presigned URLs. Must be positive.                                          |
 
 With `s3`, the bucket, region, access key, and secret key have to be present together. See [Munki Storage](./storage) for how the backends fit the artifact flow, including the local Garage defaults and the bucket CORS rule browser uploads need.
+
+## Distribution point worker
+
+These configure the `woodstar mdp` worker, not the server. The worker is a separate process with its own `WOODSTAR_MDP_` prefix and none of the server's database, session, or storage settings; it talks to Woodstar over the network and authenticates with one distribution point's key. What it does is covered in [Munki Distribution Points](../agent-protocols/munki-distribution).
+
+| Variable                            | Default  | Notes                                                                 |
+| ----------------------------------- | -------- | --------------------------------------------------------------------- |
+| `WOODSTAR_MDP_SERVER_URL`           | required | The Woodstar base URL the worker connects to.                         |
+| `WOODSTAR_MDP_KEY`                  | required | The distribution point's key, from its create or rotate response.     |
+| `WOODSTAR_MDP_DATA_DIR`             | required | Directory the mirrored installers and the state snapshot live in.     |
+| `WOODSTAR_MDP_LISTEN_ADDR`          | `:8080`  | Address the worker serves Macs on. Front it with a TLS reverse proxy. |
+| `WOODSTAR_MDP_LOG_LEVEL`            | `info`   | Log level.                                                            |
+| `WOODSTAR_MDP_DOWNLOAD_CONCURRENCY` | `4`      | How many installers the worker downloads at once while catching up.   |
+
+The worker serves plain HTTP and doesn't terminate TLS. Set the distribution point's client base URL to the public HTTPS address of the proxy in front of it.
 
 ## A local example
 
