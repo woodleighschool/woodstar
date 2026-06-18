@@ -12,6 +12,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
+// blobClaims is storage's capability payload: the operation, the object key it
+// authorizes, the codec-enforced expiry, and an optional content type to serve.
+type blobClaims struct {
+	Op          string `json:"op"`
+	Key         string `json:"key"`
+	Exp         int64  `json:"exp"`
+	ContentType string `json:"content_type,omitempty"`
+}
+
 // RegisterBlobRoutes mounts capability-authenticated raw blob transfer routes.
 func RegisterBlobRoutes(r chi.Router, store Store, key []byte) {
 	h := blobHandler{store: store, key: key}
@@ -81,17 +90,17 @@ func (h blobHandler) verify(
 	w http.ResponseWriter,
 	r *http.Request,
 	op string,
-) (capability.Claims, bool) {
-	claims, err := capability.Verify(h.key, r.URL.Query().Get("cap"), op, time.Now())
+) (blobClaims, bool) {
+	claims, err := capability.Verify[blobClaims](h.key, r.URL.Query().Get("cap"), op, time.Now())
 	switch {
-	case err == nil:
-		return claims, true
 	case errors.Is(err, capability.ErrExpired):
 		w.WriteHeader(http.StatusGone)
-	default:
+		return blobClaims{}, false
+	case err != nil || claims.Key == "":
 		w.WriteHeader(http.StatusUnauthorized)
+		return blobClaims{}, false
 	}
-	return capability.Claims{}, false
+	return claims, true
 }
 
 func writeBlobCORS(w http.ResponseWriter) {

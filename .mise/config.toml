@@ -75,7 +75,7 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 description = "Run DB-backed protocol/auth integration tests"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./internal/agentauth ./internal/users ./internal/orbit/protocol ./internal/osquery/protocol ./internal/santa/protocol
+  go test -race -count=1 -v ./internal/agentauth ./internal/directory ./internal/orbit/protocol ./internal/osquery/protocol ./internal/santa/protocol
 """
 
 [tasks.openapi]

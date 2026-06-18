@@ -957,6 +957,28 @@ type LabelMembership struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type MunkiDistributionPackageState struct {
+	DistributionPointID int64     `json:"distribution_point_id"`
+	PackageID           int64     `json:"package_id"`
+	Status              string    `json:"status"`
+	ReportedSha256      *string   `json:"reported_sha256"`
+	Error               string    `json:"error"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type MunkiDistributionPoint struct {
+	ID            int64     `json:"id"`
+	Name          string    `json:"name"`
+	Enabled       bool      `json:"enabled"`
+	Position      int32     `json:"position"`
+	ClientCidrs   []string  `json:"client_cidrs"`
+	ClientBaseURL string    `json:"client_base_url"`
+	Key           string    `json:"key"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type MunkiHostItem struct {
 	HostID           int64     `json:"host_id"`
 	Name             string    `json:"name"`

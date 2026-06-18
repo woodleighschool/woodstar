@@ -32,6 +32,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -68,6 +70,7 @@ func main() {
 	}
 
 	root.AddCommand(serveCommand())
+	root.AddCommand(mdpCommand())
 	root.AddCommand(openAPICommand())
 
 	if err := root.ExecuteContext(context.Background()); err != nil {
@@ -95,6 +98,32 @@ func serveCommand() *cobra.Command {
 	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
 
 	return cmd
+}
+
+func mdpCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "mdp",
+		Short: "Run a Munki distribution point that mirrors and serves package installers",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runMDP(cmd.Context())
+		},
+	}
+}
+
+func runMDP(parent context.Context) error {
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg, err := worker.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("load mdp config: %w", err)
+	}
+	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	mdp, err := worker.New(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("init mdp worker: %w", err)
+	}
+	return mdp.Run(ctx)
 }
 
 func serve(parent context.Context, cfg config.Config) error {
@@ -217,11 +246,14 @@ type wiring struct {
 
 	orbitAgent *orbit.EnrollmentService
 
-	storageObjects *storage.ObjectStore
-	munkiPackages  *packages.Store
-	munkiSoftware  *munkisoftware.Store
-	munkiHostState *munki.Store
-	munkiRepo      *munki.RepositoryService
+	storageObjects       *storage.ObjectStore
+	munkiPackages        *packages.Store
+	munkiSoftware        *munkisoftware.Store
+	munkiHostState       *munki.Store
+	munkiRepo            *munki.RepositoryService
+	munkiDistribution    *mdp.Store
+	munkiDistributionHub *mdp.Hub
+	munkiSelection       *mdp.Selection
 
 	configurations *configurations.Store
 	events         *events.Store
@@ -297,6 +329,16 @@ func buildWiring(
 	})
 
 	w.munkiRepo = newMunki(w.hosts, w.munkiSoftware, w.storageObjects)
+	w.munkiDistribution = mdp.NewStore(db)
+	w.munkiDistributionHub = mdp.NewHub(
+		w.munkiDistribution,
+		logger.With("component", "munki-distribution"),
+	)
+	w.munkiDistribution.SetPresence(w.munkiDistributionHub)
+	w.munkiSelection = mdp.NewSelection(
+		w.munkiDistribution,
+		logger.With("component", "munki-distribution"),
+	)
 
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -365,11 +407,15 @@ func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 		func(g adminapi.AdminGroups) {
 			munkisoftware.RegisterAdminRoutes(
 				g.Ordinary, w.munkiSoftware, w.munkiPackages, w.storageObjects, w.storageBackend,
+				w.munkiDistributionHub,
 			)
 		},
 		func(g adminapi.AdminGroups) {
-			packages.RegisterAdminRoutes(g.Ordinary, w.munkiPackages, w.storageObjects, w.storageBackend)
+			packages.RegisterAdminRoutes(
+				g.Ordinary, w.munkiPackages, w.storageObjects, w.storageBackend, w.munkiDistributionHub,
+			)
 		},
+		func(g adminapi.AdminGroups) { mdp.RegisterAdminRoutes(g.Sensitive, w.munkiDistribution) },
 	}
 }
 
@@ -387,7 +433,13 @@ func (w *wiring) protocolRegistrars() []adminapi.ProtocolRegistrar {
 		},
 		func(r chi.Router) {
 			munkiprotocol.RegisterMunkiRoutes(
-				r, w.secrets, w.munkiRepo, w.storageBackend, w.logger.With("component", "munki"),
+				r, w.secrets, w.munkiRepo, w.munkiSelection, w.storageBackend, w.logger.With("component", "munki"),
+			)
+		},
+		func(r chi.Router) {
+			mdp.RegisterProtocolRoutes(
+				r, w.munkiDistributionHub, w.munkiDistribution, w.storageBackend,
+				w.logger.With("component", "munki-distribution"),
 			)
 		},
 		func(r chi.Router) {
@@ -401,6 +453,7 @@ func (w *wiring) starters() []starter {
 	return []starter{
 		santaCleanup(w.cfg, w.events, w.logger),
 		entraSync(w.cfg, w.directory, w.labels, w.logger),
+		func(context.Context) func() { return w.munkiDistributionHub.Close },
 	}
 }
 

@@ -35,12 +35,15 @@ func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	key, err := service.ResolvePackageFile(context.Background(), client, "packages/10/installer/GoogleChrome.pkg")
+	installer, err := service.ResolvePackageFile(context.Background(), client, "packages/10/installer/GoogleChrome.pkg")
 	if err != nil {
 		t.Fatalf("ResolvePackageFile allowed package: %v", err)
 	}
-	if key != "munki/packages/42/GoogleChrome.pkg" {
-		t.Fatalf("key = %q, want the installer key", key)
+	if installer.Key != "munki/packages/42/GoogleChrome.pkg" {
+		t.Fatalf("key = %q, want the installer key", installer.Key)
+	}
+	if installer.PackageID != 10 {
+		t.Fatalf("package id = %d, want 10", installer.PackageID)
 	}
 
 	_, err = service.ResolvePackageFile(context.Background(), client, "munki/packages/99/Blocked.pkg")

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -57,8 +58,29 @@ type Config struct {
 	StorageS3PathStyle      bool          `env:"STORAGE_S3_PATH_STYLE"`
 	StorageS3PresignTTL     time.Duration `env:"STORAGE_S3_PRESIGN_TTL"     envDefault:"15m"`
 
+	// ClientIPSource selects how the real client IP is derived behind proxies.
+	// The companion fields are required only for the matching source.
+	ClientIPSource         string   `env:"HTTP_CLIENT_IP_SOURCE"              envDefault:"remote_addr"`
+	ClientIPTrustedCIDRs   []string `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"`
+	ClientIPTrustedProxies int      `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"`
+	ClientIPHeader         string   `env:"HTTP_CLIENT_IP_HEADER"`
+
 	publicURLScheme string
 }
+
+// ClientIPSource is how the server derives the real client IP behind proxies.
+type ClientIPSource string
+
+const (
+	// ClientIPSourceRemoteAddr trusts the connection's remote address.
+	ClientIPSourceRemoteAddr ClientIPSource = "remote_addr"
+	// ClientIPSourceXFFTrustedCIDRs walks X-Forwarded-For, skipping trusted prefixes.
+	ClientIPSourceXFFTrustedCIDRs ClientIPSource = "xff_trusted_cidrs"
+	// ClientIPSourceXFFTrustedProxies takes the IP a fixed proxy count from the right of X-Forwarded-For.
+	ClientIPSourceXFFTrustedProxies ClientIPSource = "xff_trusted_proxies"
+	// ClientIPSourceHeader reads a single trusted header set by the proxy.
+	ClientIPSourceHeader ClientIPSource = "header"
+)
 
 // OIDCEnabled reports whether the required OIDC settings are present.
 func (cfg *Config) OIDCEnabled() bool {
@@ -95,7 +117,49 @@ func (cfg *Config) normalize() error {
 		return err
 	}
 
-	return nil
+	return cfg.normalizeClientIP()
+}
+
+func (cfg *Config) normalizeClientIP() error {
+	cfg.ClientIPSource = strings.TrimSpace(cfg.ClientIPSource)
+	cfg.ClientIPHeader = strings.TrimSpace(cfg.ClientIPHeader)
+	switch ClientIPSource(cfg.ClientIPSource) {
+	case ClientIPSourceRemoteAddr:
+		return nil
+	case ClientIPSourceXFFTrustedCIDRs:
+		if len(cfg.ClientIPTrustedCIDRs) == 0 {
+			return errors.New(
+				"WOODSTAR_HTTP_CLIENT_IP_TRUSTED_CIDRS is required when WOODSTAR_HTTP_CLIENT_IP_SOURCE=xff_trusted_cidrs",
+			)
+		}
+		for i, cidr := range cfg.ClientIPTrustedCIDRs {
+			cidr = strings.TrimSpace(cidr)
+			if _, err := netip.ParsePrefix(cidr); err != nil {
+				return fmt.Errorf("WOODSTAR_HTTP_CLIENT_IP_TRUSTED_CIDRS %q is not a CIDR", cidr)
+			}
+			cfg.ClientIPTrustedCIDRs[i] = cidr
+		}
+		return nil
+	case ClientIPSourceXFFTrustedProxies:
+		if cfg.ClientIPTrustedProxies < 1 {
+			return errors.New(
+				"WOODSTAR_HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT must be at least 1 when WOODSTAR_HTTP_CLIENT_IP_SOURCE=xff_trusted_proxies",
+			)
+		}
+		return nil
+	case ClientIPSourceHeader:
+		if cfg.ClientIPHeader == "" {
+			return errors.New(
+				"WOODSTAR_HTTP_CLIENT_IP_HEADER is required when WOODSTAR_HTTP_CLIENT_IP_SOURCE=header",
+			)
+		}
+		return nil
+	default:
+		return fmt.Errorf(
+			"WOODSTAR_HTTP_CLIENT_IP_SOURCE must be remote_addr, xff_trusted_cidrs, xff_trusted_proxies, or header, got %q",
+			cfg.ClientIPSource,
+		)
+	}
 }
 
 func normalizePublicURL(value string) (string, string, error) {

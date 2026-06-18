@@ -1,4 +1,10 @@
-// Package capability signs and verifies short-lived storage transfer tokens.
+// Package capability signs and verifies short-lived HMAC transfer tokens.
+//
+// The codec is generic over the claims payload. A caller defines its own claims
+// struct carrying the shared op and exp fields, then signs and verifies it with
+// its own key. Storage signs blob claims with the server key; a Munki
+// distribution point signs grant claims with its per-DP key. Same token format,
+// different payloads and keys.
 package capability
 
 import (
@@ -19,7 +25,7 @@ const (
 )
 
 var (
-	// ErrInvalid reports a malformed token, a failed MAC, or invalid claims.
+	// ErrInvalid reports a malformed token or a failed MAC.
 	ErrInvalid = errors.New("invalid capability")
 	// ErrExpired reports a valid token whose expiry has passed.
 	ErrExpired = errors.New("expired capability")
@@ -27,62 +33,69 @@ var (
 	ErrWrongOp = errors.New("wrong capability operation")
 )
 
-// Claims is the signed storage capability payload.
-type Claims struct {
-	Op          string `json:"op"`
-	Key         string `json:"key"`
-	Exp         int64  `json:"exp"`
-	SHA256      string `json:"sha256,omitempty"`
-	Size        *int64 `json:"size,omitempty"`
-	ContentType string `json:"content_type,omitempty"`
+// envelope is the part of every claims payload the codec reads itself: the
+// operation a token authorizes and when it expires. Claims types carry these
+// two fields with these json tags alongside their own.
+type envelope struct {
+	Op  string `json:"op"`
+	Exp int64  `json:"exp"`
 }
 
-// Sign returns a compact HMAC capability token for claims.
-func Sign(key []byte, claims Claims) (string, error) {
+// Sign returns a compact HMAC token over the JSON encoding of claims.
+func Sign(key []byte, claims any) (string, error) {
 	payload, err := json.Marshal(claims)
 	if err != nil {
 		return "", err
 	}
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
 	mac := hmacSHA256(key, []byte(encodedPayload))
-	encodedMAC := base64.RawURLEncoding.EncodeToString(mac)
-	return encodedPayload + "." + encodedMAC, nil
+	return encodedPayload + "." + base64.RawURLEncoding.EncodeToString(mac), nil
 }
 
-// Verify checks token's MAC, expiry, operation, and required key claim.
-func Verify(key []byte, token string, op string, now time.Time) (Claims, error) {
-	payload, mac, ok := strings.Cut(token, ".")
-	if !ok || payload == "" || mac == "" || strings.Contains(mac, ".") {
-		return Claims{}, ErrInvalid
-	}
-
-	gotMAC, err := base64.RawURLEncoding.DecodeString(mac)
+// Verify checks a token's MAC, expiry, and operation, then decodes its payload
+// into C. Claim-specific checks, such as a storage key or mirror integrity, are
+// the caller's responsibility.
+func Verify[C any](key []byte, token string, op string, now time.Time) (C, error) {
+	var claims C
+	payload, err := open(key, token)
 	if err != nil {
-		return Claims{}, ErrInvalid
+		return claims, err
 	}
-	wantMAC := hmacSHA256(key, []byte(payload))
-	if !hmac.Equal(gotMAC, wantMAC) {
-		return Claims{}, ErrInvalid
+	var env envelope
+	if err := json.Unmarshal(payload, &env); err != nil {
+		return claims, ErrInvalid
 	}
-
-	rawClaims, err := base64.RawURLEncoding.DecodeString(payload)
-	if err != nil {
-		return Claims{}, ErrInvalid
+	if env.Exp <= now.Unix() {
+		return claims, ErrExpired
 	}
-	var claims Claims
-	if err := json.Unmarshal(rawClaims, &claims); err != nil {
-		return Claims{}, ErrInvalid
+	if env.Op != op {
+		return claims, ErrWrongOp
 	}
-	if claims.Exp <= now.Unix() {
-		return Claims{}, ErrExpired
-	}
-	if claims.Op != op {
-		return Claims{}, ErrWrongOp
-	}
-	if claims.Key == "" {
-		return Claims{}, ErrInvalid
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return claims, ErrInvalid
 	}
 	return claims, nil
+}
+
+// open splits a token, verifies its MAC against key, and returns the raw claims
+// JSON for the caller to decode.
+func open(key []byte, token string) ([]byte, error) {
+	encodedPayload, mac, ok := strings.Cut(token, ".")
+	if !ok || encodedPayload == "" || mac == "" || strings.Contains(mac, ".") {
+		return nil, ErrInvalid
+	}
+	gotMAC, err := base64.RawURLEncoding.DecodeString(mac)
+	if err != nil {
+		return nil, ErrInvalid
+	}
+	if !hmac.Equal(gotMAC, hmacSHA256(key, []byte(encodedPayload))) {
+		return nil, ErrInvalid
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(encodedPayload)
+	if err != nil {
+		return nil, ErrInvalid
+	}
+	return payload, nil
 }
 
 func hmacSHA256(key []byte, message []byte) []byte {

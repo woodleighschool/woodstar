@@ -79,14 +79,29 @@ func RegisterAdminRoutes(
 	packageStore *packages.Store,
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
+	notifier desiredNotifier,
 ) {
 	registerListMunkiSoftware(api, store)
 	registerCreateMunkiSoftware(api, store, packageStore)
 	registerGetMunkiSoftware(api, store, packageStore)
 	registerPutMunkiSoftware(api, store, packageStore)
-	registerDeleteMunkiSoftware(api, store)
-	registerBulkDeleteMunkiSoftware(api, store)
+	registerDeleteMunkiSoftware(api, store, notifier)
+	registerBulkDeleteMunkiSoftware(api, store, notifier)
 	registerIconRoutes(api, store, objects, storageStore)
+}
+
+// desiredNotifier is told when deleting software changes the set of installers
+// distribution points mirror. Deleting software cascades to its packages, so the
+// MDP hub must re-push the desired set. The hub satisfies it; a nil notifier
+// (schema generation) is a no-op.
+type desiredNotifier interface {
+	DesiredChanged()
+}
+
+func notifyDesired(notifier desiredNotifier) {
+	if notifier != nil {
+		notifier.DesiredChanged()
+	}
 }
 
 func registerListMunkiSoftware(api huma.API, store *Store) {
@@ -180,7 +195,7 @@ func registerPutMunkiSoftware(
 	})
 }
 
-func registerDeleteMunkiSoftware(api huma.API, store *Store) {
+func registerDeleteMunkiSoftware(api huma.API, store *Store, notifier desiredNotifier) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-software",
 		Method:      http.MethodDelete,
@@ -192,11 +207,12 @@ func registerDeleteMunkiSoftware(api huma.API, store *Store) {
 		if err := store.Delete(ctx, input.SoftwareID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
+		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
+func registerBulkDeleteMunkiSoftware(api huma.API, store *Store, notifier desiredNotifier) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-software",
 		Method:      http.MethodPost,
@@ -208,6 +224,7 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
+		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }

@@ -322,6 +322,46 @@ export type LoginInputBody = {
     password: string;
 };
 
+export type MunkiDistributionPoint = {
+    client_base_url: string;
+    client_cidrs: Array<string>;
+    created_at: string;
+    enabled: boolean;
+    id: number;
+    name: string;
+    online: boolean;
+    position: number;
+    updated_at: string;
+};
+
+export type MunkiDistributionPointDetail = {
+    client_base_url: string;
+    client_cidrs: Array<string>;
+    created_at: string;
+    enabled: boolean;
+    id: number;
+    name: string;
+    online: boolean;
+    packages: Array<MunkiPackageState>;
+    position: number;
+    updated_at: string;
+};
+
+export type MunkiDistributionPointKeyBody = {
+    key: string;
+};
+
+export type MunkiDistributionPointMutation = {
+    client_base_url: string;
+    client_cidrs: Array<string>;
+    enabled: boolean;
+    name: string;
+};
+
+export type MunkiDistributionPointReorderBody = {
+    ordered_ids: Array<number>;
+};
+
 export type MunkiHostState = {
     errors: Array<string>;
     items: Array<MunkiItem>;
@@ -580,6 +620,28 @@ export type MunkiPackageSelector = {
     strategy: 'latest' | 'specific';
 };
 
+export type MunkiPackageState = {
+    display_name: string;
+    error?: string;
+    icon_url?: string;
+    package_id: number;
+    status: 'pending' | 'syncing' | 'current' | 'error';
+    version: string;
+};
+
+export type MunkiRevealedDistributionPoint = {
+    client_base_url: string;
+    client_cidrs: Array<string>;
+    created_at: string;
+    enabled: boolean;
+    id: number;
+    key: string;
+    name: string;
+    online: boolean;
+    position: number;
+    updated_at: string;
+};
+
 export type MunkiSoftware = {
     category: string;
     created_at: string;
@@ -777,6 +839,11 @@ export type PageConfiguration = {
 export type PageDepartment = {
     count: number;
     items: Array<Department>;
+};
+
+export type PageDistributionPoint = {
+    count: number;
+    items: Array<MunkiDistributionPoint>;
 };
 
 export type PageExecutionEvent = {
@@ -2625,6 +2692,306 @@ export type StreamLiveQueryResponses = {
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
+
+export type ListMunkiDistributionPointsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+    };
+    url: '/api/munki/distribution-points';
+};
+
+export type ListMunkiDistributionPointsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiDistributionPointsError = ListMunkiDistributionPointsErrors[keyof ListMunkiDistributionPointsErrors];
+
+export type ListMunkiDistributionPointsResponses = {
+    /**
+     * OK
+     */
+    200: PageDistributionPoint;
+};
+
+export type ListMunkiDistributionPointsResponse = ListMunkiDistributionPointsResponses[keyof ListMunkiDistributionPointsResponses];
+
+export type CreateMunkiDistributionPointData = {
+    body: MunkiDistributionPointMutation;
+    path?: never;
+    query?: never;
+    url: '/api/munki/distribution-points';
+};
+
+export type CreateMunkiDistributionPointErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiDistributionPointError = CreateMunkiDistributionPointErrors[keyof CreateMunkiDistributionPointErrors];
+
+export type CreateMunkiDistributionPointResponses = {
+    /**
+     * Created
+     */
+    201: MunkiRevealedDistributionPoint;
+};
+
+export type CreateMunkiDistributionPointResponse = CreateMunkiDistributionPointResponses[keyof CreateMunkiDistributionPointResponses];
+
+export type ReorderMunkiDistributionPointsData = {
+    body: MunkiDistributionPointReorderBody;
+    path?: never;
+    query?: never;
+    url: '/api/munki/distribution-points/order';
+};
+
+export type ReorderMunkiDistributionPointsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ReorderMunkiDistributionPointsError = ReorderMunkiDistributionPointsErrors[keyof ReorderMunkiDistributionPointsErrors];
+
+export type ReorderMunkiDistributionPointsResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ReorderMunkiDistributionPointsResponse = ReorderMunkiDistributionPointsResponses[keyof ReorderMunkiDistributionPointsResponses];
+
+export type DeleteMunkiDistributionPointData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/distribution-points/{id}';
+};
+
+export type DeleteMunkiDistributionPointErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiDistributionPointError = DeleteMunkiDistributionPointErrors[keyof DeleteMunkiDistributionPointErrors];
+
+export type DeleteMunkiDistributionPointResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiDistributionPointResponse = DeleteMunkiDistributionPointResponses[keyof DeleteMunkiDistributionPointResponses];
+
+export type GetMunkiDistributionPointData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/distribution-points/{id}';
+};
+
+export type GetMunkiDistributionPointErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetMunkiDistributionPointError = GetMunkiDistributionPointErrors[keyof GetMunkiDistributionPointErrors];
+
+export type GetMunkiDistributionPointResponses = {
+    /**
+     * OK
+     */
+    200: MunkiDistributionPointDetail;
+};
+
+export type GetMunkiDistributionPointResponse = GetMunkiDistributionPointResponses[keyof GetMunkiDistributionPointResponses];
+
+export type UpdateMunkiDistributionPointData = {
+    body: MunkiDistributionPointMutation;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/distribution-points/{id}';
+};
+
+export type UpdateMunkiDistributionPointErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateMunkiDistributionPointError = UpdateMunkiDistributionPointErrors[keyof UpdateMunkiDistributionPointErrors];
+
+export type UpdateMunkiDistributionPointResponses = {
+    /**
+     * OK
+     */
+    200: MunkiDistributionPointDetail;
+};
+
+export type UpdateMunkiDistributionPointResponse = UpdateMunkiDistributionPointResponses[keyof UpdateMunkiDistributionPointResponses];
+
+export type RotateMunkiDistributionPointKeyData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/distribution-points/{id}/key';
+};
+
+export type RotateMunkiDistributionPointKeyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type RotateMunkiDistributionPointKeyError = RotateMunkiDistributionPointKeyErrors[keyof RotateMunkiDistributionPointKeyErrors];
+
+export type RotateMunkiDistributionPointKeyResponses = {
+    /**
+     * OK
+     */
+    200: MunkiDistributionPointKeyBody;
+};
+
+export type RotateMunkiDistributionPointKeyResponse = RotateMunkiDistributionPointKeyResponses[keyof RotateMunkiDistributionPointKeyResponses];
 
 export type ListMunkiIconsData = {
     body?: never;

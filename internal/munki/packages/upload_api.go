@@ -25,7 +25,13 @@ type munkiPackageConfirmInput struct {
 	ObjectID  int64 `path:"object_id"`
 }
 
-func registerObjectRoutes(api huma.API, packages *Store, objects *storage.ObjectStore, store storage.Presigner) {
+func registerObjectRoutes(
+	api huma.API,
+	packages *Store,
+	objects *storage.ObjectStore,
+	store storage.Presigner,
+	notifier DesiredNotifier,
+) {
 	objectPath := munkiPackagePath + "/{id}/installer"
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package-installer-upload",
@@ -75,6 +81,7 @@ func registerObjectRoutes(api huma.API, packages *Store, objects *storage.Object
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
 		}
+		notifyDesired(notifier)
 		return out, nil
 	})
 
@@ -95,6 +102,7 @@ func registerObjectRoutes(api huma.API, packages *Store, objects *storage.Object
 		if err := packages.ClearInstallerObject(ctx, input.PackageID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
 		}
+		notifyDesired(notifier)
 		return nil, nil
 	})
 }

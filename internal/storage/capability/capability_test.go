@@ -9,17 +9,23 @@ import (
 	"time"
 )
 
-func TestSignVerify(t *testing.T) {
+// testClaims is a representative caller payload: the shared op and exp fields
+// plus its own.
+type testClaims struct {
+	Op     string `json:"op"`
+	Exp    int64  `json:"exp"`
+	Key    string `json:"key"`
+	SHA256 string `json:"sha256,omitempty"`
+}
+
+func TestSignVerifyRoundTrip(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1_700_000_000, 0)
-	size := int64(42)
-	claims := Claims{
-		Op:          OpGet,
-		Key:         "munki/packages/1/Installer.pkg",
-		Exp:         now.Add(time.Minute).Unix(),
-		SHA256:      strings.Repeat("a", 64),
-		Size:        &size,
-		ContentType: "application/octet-stream",
+	claims := testClaims{
+		Op:     OpGet,
+		Exp:    now.Add(time.Minute).Unix(),
+		Key:    "munki/packages/1/Installer.pkg",
+		SHA256: strings.Repeat("a", 64),
 	}
 
 	token, err := Sign([]byte("secret"), claims)
@@ -27,18 +33,42 @@ func TestSignVerify(t *testing.T) {
 		t.Fatalf("Sign: %v", err)
 	}
 
-	got, err := Verify([]byte("secret"), token, OpGet, now)
+	got, err := Verify[testClaims]([]byte("secret"), token, OpGet, now)
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if got.Key != claims.Key ||
-		got.Op != claims.Op ||
-		got.Exp != claims.Exp ||
-		got.SHA256 != claims.SHA256 ||
-		got.ContentType != claims.ContentType ||
-		got.Size == nil ||
-		*got.Size != size {
+	if got != claims {
 		t.Fatalf("claims = %+v, want %+v", got, claims)
+	}
+}
+
+// TestVerifyDecodesIntoCallerType proves the codec is generic over the payload:
+// a token signed from one struct verifies into any struct sharing the op and
+// exp fields, decoding only the fields that type declares.
+func TestVerifyDecodesIntoCallerType(t *testing.T) {
+	t.Parallel()
+	now := time.Unix(1_700_000_000, 0)
+	token, err := Sign([]byte("secret"), testClaims{
+		Op:     OpGet,
+		Exp:    now.Add(time.Minute).Unix(),
+		Key:    "munki/packages/7/Chrome.pkg",
+		SHA256: strings.Repeat("b", 64),
+	})
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+
+	type grantClaims struct {
+		Op        string `json:"op"`
+		Exp       int64  `json:"exp"`
+		PackageID int64  `json:"package_id"`
+	}
+	got, err := Verify[grantClaims]([]byte("secret"), token, OpGet, now)
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if got.Op != OpGet {
+		t.Fatalf("op = %q, want %q", got.Op, OpGet)
 	}
 }
 
@@ -46,10 +76,10 @@ func TestVerifyRejectsInvalidTokens(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1_700_000_000, 0)
 	key := []byte("secret")
-	valid, err := Sign(key, Claims{
+	valid, err := Sign(key, testClaims{
 		Op:  OpGet,
-		Key: "munki/icons/1/icon.png",
 		Exp: now.Add(time.Minute).Unix(),
+		Key: "munki/icons/1/icon.png",
 	})
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
@@ -69,7 +99,7 @@ func TestVerifyRejectsInvalidTokens(t *testing.T) {
 		},
 		{
 			name: "tampered claims",
-			token: tamperClaims(t, valid, func(claims Claims) Claims {
+			token: tamperClaims(t, valid, func(claims testClaims) testClaims {
 				claims.Key = "munki/icons/2/icon.png"
 				return claims
 			}),
@@ -92,7 +122,8 @@ func TestVerifyRejectsInvalidTokens(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := Verify(tc.key, tc.token, OpGet, now); !errors.Is(err, tc.want) {
+			t.Parallel()
+			if _, err := Verify[testClaims](tc.key, tc.token, OpGet, now); !errors.Is(err, tc.want) {
 				t.Fatalf("Verify error = %v, want %v", err, tc.want)
 			}
 		})
@@ -104,27 +135,27 @@ func TestVerifyRejectsExpiredAndWrongOp(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	key := []byte("secret")
 
-	expired, err := Sign(key, Claims{
+	expired, err := Sign(key, testClaims{
 		Op:  OpGet,
-		Key: "munki/packages/1/Installer.pkg",
 		Exp: now.Add(-time.Second).Unix(),
+		Key: "munki/packages/1/Installer.pkg",
 	})
 	if err != nil {
 		t.Fatalf("Sign expired: %v", err)
 	}
-	if _, err := Verify(key, expired, OpGet, now); !errors.Is(err, ErrExpired) {
+	if _, err := Verify[testClaims](key, expired, OpGet, now); !errors.Is(err, ErrExpired) {
 		t.Fatalf("expired Verify error = %v, want ErrExpired", err)
 	}
 
-	put, err := Sign(key, Claims{
+	put, err := Sign(key, testClaims{
 		Op:  OpPut,
-		Key: "munki/packages/1/Installer.pkg",
 		Exp: now.Add(time.Minute).Unix(),
+		Key: "munki/packages/1/Installer.pkg",
 	})
 	if err != nil {
 		t.Fatalf("Sign put: %v", err)
 	}
-	if _, err := Verify(key, put, OpGet, now); !errors.Is(err, ErrWrongOp) {
+	if _, err := Verify[testClaims](key, put, OpGet, now); !errors.Is(err, ErrWrongOp) {
 		t.Fatalf("wrong op Verify error = %v, want ErrWrongOp", err)
 	}
 }
@@ -137,7 +168,7 @@ func tamperLastByte(value string) string {
 	return value[:len(value)-1] + string(replacement)
 }
 
-func tamperClaims(t *testing.T, token string, edit func(Claims) Claims) string {
+func tamperClaims(t *testing.T, token string, edit func(testClaims) testClaims) string {
 	t.Helper()
 	payload, mac, ok := strings.Cut(token, ".")
 	if !ok {
@@ -147,7 +178,7 @@ func tamperClaims(t *testing.T, token string, edit func(Claims) Claims) string {
 	if err != nil {
 		t.Fatalf("decode payload: %v", err)
 	}
-	var claims Claims
+	var claims testClaims
 	if err := json.Unmarshal(raw, &claims); err != nil {
 		t.Fatalf("unmarshal claims: %v", err)
 	}

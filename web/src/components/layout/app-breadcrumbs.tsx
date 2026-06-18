@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
+import { useMunkiDistributionPoint } from "@/hooks/use-munki-distribution-points";
 import { useMunkiPackage } from "@/hooks/use-munki-packages";
 import { useMunkiSoftwareDetail } from "@/hooks/use-munki-software";
 import { useReport } from "@/hooks/use-reports";
@@ -163,6 +164,45 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
           label: <MunkiPackageCrumb id={params.packageId} />,
         },
       ];
+    case "/_authenticated/munki/distribution-points/new":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/distribution-points" },
+        {
+          key: "munki-distribution-points",
+          label: "Distribution Points",
+          to: "/munki/distribution-points",
+        },
+        { key: "munki-distribution-point-new", label: "New" },
+      ];
+    case "/_authenticated/munki/distribution-points/$distributionPointId":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/distribution-points" },
+        {
+          key: "munki-distribution-points",
+          label: "Distribution Points",
+          to: "/munki/distribution-points",
+        },
+        {
+          key: `munki-distribution-point-${params.distributionPointId}`,
+          label: <MunkiDistributionPointCrumb id={params.distributionPointId} />,
+        },
+      ];
+    case "/_authenticated/munki/distribution-points/$distributionPointId/edit":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/distribution-points" },
+        {
+          key: "munki-distribution-points",
+          label: "Distribution Points",
+          to: "/munki/distribution-points",
+        },
+        {
+          key: `munki-distribution-point-${params.distributionPointId}`,
+          label: <MunkiDistributionPointCrumb id={params.distributionPointId} />,
+          to: "/munki/distribution-points/$distributionPointId",
+          params: { distributionPointId: params.distributionPointId },
+        },
+        { key: `munki-distribution-point-${params.distributionPointId}-edit`, label: "Edit" },
+      ];
     // Santa
     case "/_authenticated/santa/configurations/new":
       return [
@@ -228,6 +268,10 @@ function HostCrumb({ id }: { id: string }) {
 
 const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d, id) => d.display_name || d.name || id);
 const MunkiSoftwareCrumb = resourceCrumb(useMunkiSoftwareDetail, (d, id) => d.name || id);
+const MunkiDistributionPointCrumb = resourceCrumb(
+  useMunkiDistributionPoint,
+  (d, id) => d.name || id,
+);
 const CheckCrumb = resourceCrumb(useCheck, (d, id) => d.name || id);
 const ReportCrumb = resourceCrumb(useReport, (d, id) => d.name || id);
 const SantaConfigurationCrumb = resourceCrumb(useSantaConfiguration, (d, id) => d.name || id);

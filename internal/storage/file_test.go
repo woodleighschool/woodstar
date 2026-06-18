@@ -102,7 +102,7 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 	if got := parsed.Scheme + "://" + parsed.Host + parsed.Path; got != "https://woodstar.example/storage/blob" {
 		t.Fatalf("blob URL = %q, want https://woodstar.example/storage/blob", got)
 	}
-	claims, err := capability.Verify(
+	claims, err := capability.Verify[blobClaims](
 		testCapabilityKey,
 		parsed.Query().Get("cap"),
 		capability.OpGet,
@@ -146,7 +146,7 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse URL: %v", err)
 	}
-	claims, err := capability.Verify(
+	claims, err := capability.Verify[blobClaims](
 		testCapabilityKey,
 		parsed.Query().Get("cap"),
 		capability.OpPut,

@@ -11,6 +11,7 @@ export const queryKeys = {
   reportsAll: ["reports"] as const,
   munkiSoftwareAll: ["munki", "software"] as const,
   munkiPackagesAll: ["munki", "packages"] as const,
+  munkiDistributionPointsAll: ["munki", "distribution-points"] as const,
   santaConfigurationsAll: ["santa", "configurations"] as const,
   santaRulesAll: ["santa", "rules"] as const,
   users: (params?: unknown) => ["users", params ?? {}] as const,
@@ -44,6 +45,9 @@ export const queryKeys = {
   munkiPackage: (id: number | null) => ["munki", "packages", id] as const,
   munkiIconsAll: ["munki", "icons"] as const,
   munkiIcons: (params?: unknown) => ["munki", "icons", params ?? {}] as const,
+  munkiDistributionPoints: (params?: unknown) =>
+    ["munki", "distribution-points", params ?? {}] as const,
+  munkiDistributionPoint: (id: number | null) => ["munki", "distribution-points", id] as const,
   agentSecrets: ["agent-secrets"] as const,
   santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
   santaConfiguration: (id: number | null) => ["santa", "configurations", id] as const,

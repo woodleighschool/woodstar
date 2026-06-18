@@ -78,14 +78,33 @@ func installerTypeFilterValues(types []InstallerType) []string {
 }
 
 // RegisterAdminRoutes registers Munki package admin endpoints.
-func RegisterAdminRoutes(api huma.API, store *Store, objects *storage.ObjectStore, storageStore storage.Presigner) {
+func RegisterAdminRoutes(
+	api huma.API,
+	store *Store,
+	objects *storage.ObjectStore,
+	storageStore storage.Presigner,
+	notifier DesiredNotifier,
+) {
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
 	registerPutMunkiPackage(api, store)
-	registerDeleteMunkiPackage(api, store)
-	registerBulkDeleteMunkiPackages(api, store)
-	registerObjectRoutes(api, store, objects, storageStore)
+	registerDeleteMunkiPackage(api, store, notifier)
+	registerBulkDeleteMunkiPackages(api, store, notifier)
+	registerObjectRoutes(api, store, objects, storageStore, notifier)
+}
+
+// DesiredNotifier is told when a mutation may have changed the set of installers
+// distribution points should mirror. The MDP hub satisfies it; a nil notifier
+// (schema generation) is a no-op.
+type DesiredNotifier interface {
+	DesiredChanged()
+}
+
+func notifyDesired(notifier DesiredNotifier) {
+	if notifier != nil {
+		notifier.DesiredChanged()
+	}
 }
 
 func registerListMunkiPackages(api huma.API, store *Store) {
@@ -171,7 +190,7 @@ func registerPutMunkiPackage(api huma.API, store *Store) {
 	})
 }
 
-func registerDeleteMunkiPackage(api huma.API, store *Store) {
+func registerDeleteMunkiPackage(api huma.API, store *Store, notifier DesiredNotifier) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-package",
 		Method:      http.MethodDelete,
@@ -183,11 +202,12 @@ func registerDeleteMunkiPackage(api huma.API, store *Store) {
 		if err := store.Delete(ctx, input.PackageID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
+		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteMunkiPackages(api huma.API, store *Store) {
+func registerBulkDeleteMunkiPackages(api huma.API, store *Store, notifier DesiredNotifier) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-packages",
 		Method:      http.MethodPost,
@@ -199,6 +219,7 @@ func registerBulkDeleteMunkiPackages(api huma.API, store *Store) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
+		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }

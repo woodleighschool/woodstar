@@ -121,34 +121,51 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 	return encodePlist(items)
 }
 
-// ResolvePackageFile authorizes a package installer Munki path for a client
-// and returns the private object key for serving.
+// PackageInstaller is a resolved package installer: the stable package id, the
+// storage key to serve, and the integrity a distribution grant binds to.
+type PackageInstaller struct {
+	PackageID int64
+	Key       string
+	SHA256    string
+	SizeBytes int64
+}
+
+// ResolvePackageFile authorizes a package installer Munki path for a client and
+// returns the package identity and storage key for serving. The identity lets
+// the delivery path mint a distribution grant; the key serves Woodstar-direct.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
 	client ClientHost,
 	key string,
-) (string, error) {
+) (PackageInstaller, error) {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return "", ErrNotFound
+		return PackageInstaller{}, ErrNotFound
 	}
 	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
-		return "", err
+		return PackageInstaller{}, err
 	}
 	objects, err := s.objectsForPackages(ctx, pkgs)
 	if err != nil {
-		return "", err
+		return PackageInstaller{}, err
 	}
 	for _, pkg := range pkgs {
-		if pkg.Package.InstallerType != packages.InstallerTypeNoPkg {
-			if obj := objectByID(objects, pkg.Package.InstallerObjectID); obj != nil &&
-				packages.InstallerItemLocation(pkg.Package, *obj) == key {
-				return obj.Key(), nil
-			}
+		if pkg.Package.InstallerType == packages.InstallerTypeNoPkg {
+			continue
 		}
+		obj := objectByID(objects, pkg.Package.InstallerObjectID)
+		if obj == nil || packages.InstallerItemLocation(pkg.Package, *obj) != key {
+			continue
+		}
+		return PackageInstaller{
+			PackageID: pkg.Package.ID,
+			Key:       obj.Key(),
+			SHA256:    objectSHA256(*obj),
+			SizeBytes: objectSize(*obj),
+		}, nil
 	}
-	return "", ErrNotFound
+	return PackageInstaller{}, ErrNotFound
 }
 
 // ResolveIconFile authorizes a software icon name for a client and returns
@@ -262,6 +279,20 @@ func packageObjects(
 		Installer: objectByID(objects, pkg.Package.InstallerObjectID),
 		Icon:      objectByID(objects, pkg.IconObjectID),
 	}
+}
+
+func objectSHA256(obj storage.Object) string {
+	if obj.SHA256 == nil {
+		return ""
+	}
+	return *obj.SHA256
+}
+
+func objectSize(obj storage.Object) int64 {
+	if obj.SizeBytes == nil {
+		return 0
+	}
+	return *obj.SizeBytes
 }
 
 func objectByID(objects map[int64]storage.Object, id *int64) *storage.Object {

@@ -542,14 +542,6 @@ function stripRowID<T extends { rowID: string }>(row: T): Omit<T, "rowID"> {
   return rest;
 }
 
-export function replaceAt<T>(rows: T[], index: number, row: T) {
-  return rows.map((value, rowIndex) => (rowIndex === index ? row : value));
-}
-
-export function removeAt<T>(rows: T[], index: number) {
-  return rows.filter((_, rowIndex) => rowIndex !== index);
-}
-
 export function toggleArray<T>(values: T[], value: T, enabled: boolean) {
   if (enabled) return Array.from(new Set([...values, value]));
   return values.filter((item) => item !== value);

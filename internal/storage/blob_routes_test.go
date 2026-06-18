@@ -24,7 +24,7 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 		t.Fatalf("Put: %v", err)
 	}
 	router := newBlobTestRouter(store)
-	token := signBlobCapability(t, capability.Claims{
+	token := signBlobCapability(t, blobClaims{
 		Op:          capability.OpGet,
 		Key:         key,
 		Exp:         time.Now().Add(time.Minute).Unix(),
@@ -65,12 +65,12 @@ func TestBlobGetRejectsInvalidExpiredAndMissingObjects(t *testing.T) {
 	t.Parallel()
 	store := newTestFileStore(t)
 	router := newBlobTestRouter(store)
-	expired := signBlobCapability(t, capability.Claims{
+	expired := signBlobCapability(t, blobClaims{
 		Op:  capability.OpGet,
 		Key: "munki/icons/1/icon.png",
 		Exp: time.Now().Add(-time.Minute).Unix(),
 	})
-	missing := signBlobCapability(t, capability.Claims{
+	missing := signBlobCapability(t, blobClaims{
 		Op:  capability.OpGet,
 		Key: "munki/icons/1/icon.png",
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -103,7 +103,7 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 	store := newTestFileStore(t)
 	router := newBlobTestRouter(store)
 	key := "munki/icons/7/icon.png"
-	putToken := signBlobCapability(t, capability.Claims{
+	putToken := signBlobCapability(t, blobClaims{
 		Op:          capability.OpPut,
 		Key:         key,
 		Exp:         time.Now().Add(time.Minute).Unix(),
@@ -130,7 +130,7 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 		t.Fatalf("stored bytes = %q, want png bytes", got)
 	}
 
-	getToken := signBlobCapability(t, capability.Claims{
+	getToken := signBlobCapability(t, blobClaims{
 		Op:  capability.OpGet,
 		Key: key,
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -146,7 +146,7 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 func TestBlobGetFailsWhenStoreCannotSeek(t *testing.T) {
 	t.Parallel()
 	router := newBlobTestRouter(nonSeekStore{})
-	token := signBlobCapability(t, capability.Claims{
+	token := signBlobCapability(t, blobClaims{
 		Op:  capability.OpGet,
 		Key: "munki/packages/1/Installer.pkg",
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -167,7 +167,7 @@ func newBlobTestRouter(store Store) chi.Router {
 	return r
 }
 
-func signBlobCapability(t *testing.T, claims capability.Claims) string {
+func signBlobCapability(t *testing.T, claims blobClaims) string {
 	t.Helper()
 	token, err := capability.Sign(testCapabilityKey, claims)
 	if err != nil {

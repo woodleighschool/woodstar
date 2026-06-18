@@ -37,6 +37,7 @@ import { Route as AuthenticatedOsqueryReportsRouteImport } from './routes/_authe
 import { Route as AuthenticatedOsqueryChecksRouteImport } from './routes/_authenticated/osquery.checks'
 import { Route as AuthenticatedMunkiSoftwareRouteImport } from './routes/_authenticated/munki.software'
 import { Route as AuthenticatedMunkiPackagesRouteImport } from './routes/_authenticated/munki.packages'
+import { Route as AuthenticatedMunkiDistributionPointsRouteImport } from './routes/_authenticated/munki.distribution-points'
 import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authenticated/labels.new'
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
 import { Route as AuthenticatedEnrollmentsSantaRouteImport } from './routes/_authenticated/enrollments.santa'
@@ -51,6 +52,7 @@ import { Route as AuthenticatedOsqueryReportsIndexRouteImport } from './routes/_
 import { Route as AuthenticatedOsqueryChecksIndexRouteImport } from './routes/_authenticated/osquery.checks.index'
 import { Route as AuthenticatedMunkiSoftwareIndexRouteImport } from './routes/_authenticated/munki.software.index'
 import { Route as AuthenticatedMunkiPackagesIndexRouteImport } from './routes/_authenticated/munki.packages.index'
+import { Route as AuthenticatedMunkiDistributionPointsIndexRouteImport } from './routes/_authenticated/munki.distribution-points.index'
 import { Route as AuthenticatedDirectoryUsersIndexRouteImport } from './routes/_authenticated/directory.users.index'
 import { Route as AuthenticatedDirectoryGroupsIndexRouteImport } from './routes/_authenticated/directory.groups.index'
 import { Route as AuthenticatedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authenticated/software.titles.$softwareId'
@@ -67,6 +69,8 @@ import { Route as AuthenticatedOsqueryChecksCheckIdRouteImport } from './routes/
 import { Route as AuthenticatedMunkiSoftwareNewRouteImport } from './routes/_authenticated/munki.software.new'
 import { Route as AuthenticatedMunkiSoftwareSoftwareIdRouteImport } from './routes/_authenticated/munki.software.$softwareId'
 import { Route as AuthenticatedMunkiPackagesNewRouteImport } from './routes/_authenticated/munki.packages.new'
+import { Route as AuthenticatedMunkiDistributionPointsNewRouteImport } from './routes/_authenticated/munki.distribution-points.new'
+import { Route as AuthenticatedMunkiDistributionPointsDistributionPointIdRouteImport } from './routes/_authenticated/munki.distribution-points.$distributionPointId'
 import { Route as AuthenticatedLabelsLabelIdEditRouteImport } from './routes/_authenticated/labels.$labelId.edit'
 import { Route as AuthenticatedSantaEventsFileAccessIndexRouteImport } from './routes/_authenticated/santa.events.file-access.index'
 import { Route as AuthenticatedOsqueryReportsReportIdIndexRouteImport } from './routes/_authenticated/osquery.reports.$reportId.index'
@@ -75,6 +79,7 @@ import { Route as AuthenticatedSantaEventsFileAccessEventIdRouteImport } from '.
 import { Route as AuthenticatedOsqueryReportsReportIdLiveRouteImport } from './routes/_authenticated/osquery.reports.$reportId.live'
 import { Route as AuthenticatedOsqueryChecksCheckIdLiveRouteImport } from './routes/_authenticated/osquery.checks.$checkId.live'
 import { Route as AuthenticatedMunkiPackagesPackageIdEditRouteImport } from './routes/_authenticated/munki.packages.$packageId.edit'
+import { Route as AuthenticatedMunkiDistributionPointsDistributionPointIdEditRouteImport } from './routes/_authenticated/munki.distribution-points.$distributionPointId.edit'
 import { Route as AuthenticatedDirectoryUsersUserIdEditRouteImport } from './routes/_authenticated/directory.users.$userId.edit'
 
 const SetupRoute = SetupRouteImport.update({
@@ -228,6 +233,12 @@ const AuthenticatedMunkiPackagesRoute =
     path: '/packages',
     getParentRoute: () => AuthenticatedMunkiRoute,
   } as any)
+const AuthenticatedMunkiDistributionPointsRoute =
+  AuthenticatedMunkiDistributionPointsRouteImport.update({
+    id: '/distribution-points',
+    path: '/distribution-points',
+    getParentRoute: () => AuthenticatedMunkiRoute,
+  } as any)
 const AuthenticatedLabelsNewRoute = AuthenticatedLabelsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -310,6 +321,12 @@ const AuthenticatedMunkiPackagesIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedMunkiPackagesRoute,
+  } as any)
+const AuthenticatedMunkiDistributionPointsIndexRoute =
+  AuthenticatedMunkiDistributionPointsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedMunkiDistributionPointsRoute,
   } as any)
 const AuthenticatedDirectoryUsersIndexRoute =
   AuthenticatedDirectoryUsersIndexRouteImport.update({
@@ -407,6 +424,18 @@ const AuthenticatedMunkiPackagesNewRoute =
     path: '/new',
     getParentRoute: () => AuthenticatedMunkiPackagesRoute,
   } as any)
+const AuthenticatedMunkiDistributionPointsNewRoute =
+  AuthenticatedMunkiDistributionPointsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedMunkiDistributionPointsRoute,
+  } as any)
+const AuthenticatedMunkiDistributionPointsDistributionPointIdRoute =
+  AuthenticatedMunkiDistributionPointsDistributionPointIdRouteImport.update({
+    id: '/$distributionPointId',
+    path: '/$distributionPointId',
+    getParentRoute: () => AuthenticatedMunkiDistributionPointsRoute,
+  } as any)
 const AuthenticatedLabelsLabelIdEditRoute =
   AuthenticatedLabelsLabelIdEditRouteImport.update({
     id: '/$labelId/edit',
@@ -455,6 +484,15 @@ const AuthenticatedMunkiPackagesPackageIdEditRoute =
     path: '/$packageId/edit',
     getParentRoute: () => AuthenticatedMunkiPackagesRoute,
   } as any)
+const AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute =
+  AuthenticatedMunkiDistributionPointsDistributionPointIdEditRouteImport.update(
+    {
+      id: '/edit',
+      path: '/edit',
+      getParentRoute: () =>
+        AuthenticatedMunkiDistributionPointsDistributionPointIdRoute,
+    } as any,
+  )
 const AuthenticatedDirectoryUsersUserIdEditRoute =
   AuthenticatedDirectoryUsersUserIdEditRouteImport.update({
     id: '/$userId/edit',
@@ -482,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
+  '/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   '/munki/packages': typeof AuthenticatedMunkiPackagesRouteWithChildren
   '/munki/software': typeof AuthenticatedMunkiSoftwareRouteWithChildren
   '/osquery/checks': typeof AuthenticatedOsqueryChecksRouteWithChildren
@@ -498,6 +537,8 @@ export interface FileRoutesByFullPath {
   '/santa/': typeof AuthenticatedSantaIndexRoute
   '/software/': typeof AuthenticatedSoftwareIndexRoute
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
+  '/munki/distribution-points/$distributionPointId': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren
+  '/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
   '/munki/packages/new': typeof AuthenticatedMunkiPackagesNewRoute
   '/munki/software/$softwareId': typeof AuthenticatedMunkiSoftwareSoftwareIdRoute
   '/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
@@ -514,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/directory/groups/': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/directory/users/': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/munki/distribution-points/': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/munki/packages/': typeof AuthenticatedMunkiPackagesIndexRoute
   '/munki/software/': typeof AuthenticatedMunkiSoftwareIndexRoute
   '/osquery/checks/': typeof AuthenticatedOsqueryChecksIndexRoute
@@ -522,6 +564,7 @@ export interface FileRoutesByFullPath {
   '/santa/events/': typeof AuthenticatedSantaEventsIndexRoute
   '/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
   '/directory/users/$userId/edit': typeof AuthenticatedDirectoryUsersUserIdEditRoute
+  '/munki/distribution-points/$distributionPointId/edit': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute
   '/munki/packages/$packageId/edit': typeof AuthenticatedMunkiPackagesPackageIdEditRoute
   '/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/osquery/reports/$reportId/live': typeof AuthenticatedOsqueryReportsReportIdLiveRoute
@@ -549,6 +592,8 @@ export interface FileRoutesByTo {
   '/santa': typeof AuthenticatedSantaIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
+  '/munki/distribution-points/$distributionPointId': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren
+  '/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
   '/munki/packages/new': typeof AuthenticatedMunkiPackagesNewRoute
   '/munki/software/$softwareId': typeof AuthenticatedMunkiSoftwareSoftwareIdRoute
   '/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
@@ -562,6 +607,7 @@ export interface FileRoutesByTo {
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/directory/groups': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/directory/users': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/munki/packages': typeof AuthenticatedMunkiPackagesIndexRoute
   '/munki/software': typeof AuthenticatedMunkiSoftwareIndexRoute
   '/osquery/checks': typeof AuthenticatedOsqueryChecksIndexRoute
@@ -570,6 +616,7 @@ export interface FileRoutesByTo {
   '/santa/events': typeof AuthenticatedSantaEventsIndexRoute
   '/santa/rules': typeof AuthenticatedSantaRulesIndexRoute
   '/directory/users/$userId/edit': typeof AuthenticatedDirectoryUsersUserIdEditRoute
+  '/munki/distribution-points/$distributionPointId/edit': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute
   '/munki/packages/$packageId/edit': typeof AuthenticatedMunkiPackagesPackageIdEditRoute
   '/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/osquery/reports/$reportId/live': typeof AuthenticatedOsqueryReportsReportIdLiveRoute
@@ -600,6 +647,7 @@ export interface FileRoutesById {
   '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
+  '/_authenticated/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   '/_authenticated/munki/packages': typeof AuthenticatedMunkiPackagesRouteWithChildren
   '/_authenticated/munki/software': typeof AuthenticatedMunkiSoftwareRouteWithChildren
   '/_authenticated/osquery/checks': typeof AuthenticatedOsqueryChecksRouteWithChildren
@@ -616,6 +664,8 @@ export interface FileRoutesById {
   '/_authenticated/santa/': typeof AuthenticatedSantaIndexRoute
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
   '/_authenticated/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
+  '/_authenticated/munki/distribution-points/$distributionPointId': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren
+  '/_authenticated/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
   '/_authenticated/munki/packages/new': typeof AuthenticatedMunkiPackagesNewRoute
   '/_authenticated/munki/software/$softwareId': typeof AuthenticatedMunkiSoftwareSoftwareIdRoute
   '/_authenticated/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
@@ -632,6 +682,7 @@ export interface FileRoutesById {
   '/_authenticated/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/_authenticated/directory/groups/': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/_authenticated/directory/users/': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/_authenticated/munki/distribution-points/': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/_authenticated/munki/packages/': typeof AuthenticatedMunkiPackagesIndexRoute
   '/_authenticated/munki/software/': typeof AuthenticatedMunkiSoftwareIndexRoute
   '/_authenticated/osquery/checks/': typeof AuthenticatedOsqueryChecksIndexRoute
@@ -640,6 +691,7 @@ export interface FileRoutesById {
   '/_authenticated/santa/events/': typeof AuthenticatedSantaEventsIndexRoute
   '/_authenticated/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
   '/_authenticated/directory/users/$userId/edit': typeof AuthenticatedDirectoryUsersUserIdEditRoute
+  '/_authenticated/munki/distribution-points/$distributionPointId/edit': typeof AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute
   '/_authenticated/munki/packages/$packageId/edit': typeof AuthenticatedMunkiPackagesPackageIdEditRoute
   '/_authenticated/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/_authenticated/osquery/reports/$reportId/live': typeof AuthenticatedOsqueryReportsReportIdLiveRoute
@@ -670,6 +722,7 @@ export interface FileRouteTypes {
     | '/enrollments/santa'
     | '/hosts/$hostId'
     | '/labels/new'
+    | '/munki/distribution-points'
     | '/munki/packages'
     | '/munki/software'
     | '/osquery/checks'
@@ -686,6 +739,8 @@ export interface FileRouteTypes {
     | '/santa/'
     | '/software/'
     | '/labels/$labelId/edit'
+    | '/munki/distribution-points/$distributionPointId'
+    | '/munki/distribution-points/new'
     | '/munki/packages/new'
     | '/munki/software/$softwareId'
     | '/munki/software/new'
@@ -702,6 +757,7 @@ export interface FileRouteTypes {
     | '/software/titles/$softwareId'
     | '/directory/groups/'
     | '/directory/users/'
+    | '/munki/distribution-points/'
     | '/munki/packages/'
     | '/munki/software/'
     | '/osquery/checks/'
@@ -710,6 +766,7 @@ export interface FileRouteTypes {
     | '/santa/events/'
     | '/santa/rules/'
     | '/directory/users/$userId/edit'
+    | '/munki/distribution-points/$distributionPointId/edit'
     | '/munki/packages/$packageId/edit'
     | '/osquery/checks/$checkId/live'
     | '/osquery/reports/$reportId/live'
@@ -737,6 +794,8 @@ export interface FileRouteTypes {
     | '/santa'
     | '/software'
     | '/labels/$labelId/edit'
+    | '/munki/distribution-points/$distributionPointId'
+    | '/munki/distribution-points/new'
     | '/munki/packages/new'
     | '/munki/software/$softwareId'
     | '/munki/software/new'
@@ -750,6 +809,7 @@ export interface FileRouteTypes {
     | '/software/titles/$softwareId'
     | '/directory/groups'
     | '/directory/users'
+    | '/munki/distribution-points'
     | '/munki/packages'
     | '/munki/software'
     | '/osquery/checks'
@@ -758,6 +818,7 @@ export interface FileRouteTypes {
     | '/santa/events'
     | '/santa/rules'
     | '/directory/users/$userId/edit'
+    | '/munki/distribution-points/$distributionPointId/edit'
     | '/munki/packages/$packageId/edit'
     | '/osquery/checks/$checkId/live'
     | '/osquery/reports/$reportId/live'
@@ -787,6 +848,7 @@ export interface FileRouteTypes {
     | '/_authenticated/enrollments/santa'
     | '/_authenticated/hosts/$hostId'
     | '/_authenticated/labels/new'
+    | '/_authenticated/munki/distribution-points'
     | '/_authenticated/munki/packages'
     | '/_authenticated/munki/software'
     | '/_authenticated/osquery/checks'
@@ -803,6 +865,8 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/'
     | '/_authenticated/software/'
     | '/_authenticated/labels/$labelId/edit'
+    | '/_authenticated/munki/distribution-points/$distributionPointId'
+    | '/_authenticated/munki/distribution-points/new'
     | '/_authenticated/munki/packages/new'
     | '/_authenticated/munki/software/$softwareId'
     | '/_authenticated/munki/software/new'
@@ -819,6 +883,7 @@ export interface FileRouteTypes {
     | '/_authenticated/software/titles/$softwareId'
     | '/_authenticated/directory/groups/'
     | '/_authenticated/directory/users/'
+    | '/_authenticated/munki/distribution-points/'
     | '/_authenticated/munki/packages/'
     | '/_authenticated/munki/software/'
     | '/_authenticated/osquery/checks/'
@@ -827,6 +892,7 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/events/'
     | '/_authenticated/santa/rules/'
     | '/_authenticated/directory/users/$userId/edit'
+    | '/_authenticated/munki/distribution-points/$distributionPointId/edit'
     | '/_authenticated/munki/packages/$packageId/edit'
     | '/_authenticated/osquery/checks/$checkId/live'
     | '/_authenticated/osquery/reports/$reportId/live'
@@ -1041,6 +1107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMunkiPackagesRouteImport
       parentRoute: typeof AuthenticatedMunkiRoute
     }
+    '/_authenticated/munki/distribution-points': {
+      id: '/_authenticated/munki/distribution-points'
+      path: '/distribution-points'
+      fullPath: '/munki/distribution-points'
+      preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsRouteImport
+      parentRoute: typeof AuthenticatedMunkiRoute
+    }
     '/_authenticated/labels/new': {
       id: '/_authenticated/labels/new'
       path: '/new'
@@ -1138,6 +1211,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/munki/packages/'
       preLoaderRoute: typeof AuthenticatedMunkiPackagesIndexRouteImport
       parentRoute: typeof AuthenticatedMunkiPackagesRoute
+    }
+    '/_authenticated/munki/distribution-points/': {
+      id: '/_authenticated/munki/distribution-points/'
+      path: '/'
+      fullPath: '/munki/distribution-points/'
+      preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsIndexRouteImport
+      parentRoute: typeof AuthenticatedMunkiDistributionPointsRoute
     }
     '/_authenticated/directory/users/': {
       id: '/_authenticated/directory/users/'
@@ -1251,6 +1331,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMunkiPackagesNewRouteImport
       parentRoute: typeof AuthenticatedMunkiPackagesRoute
     }
+    '/_authenticated/munki/distribution-points/new': {
+      id: '/_authenticated/munki/distribution-points/new'
+      path: '/new'
+      fullPath: '/munki/distribution-points/new'
+      preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsNewRouteImport
+      parentRoute: typeof AuthenticatedMunkiDistributionPointsRoute
+    }
+    '/_authenticated/munki/distribution-points/$distributionPointId': {
+      id: '/_authenticated/munki/distribution-points/$distributionPointId'
+      path: '/$distributionPointId'
+      fullPath: '/munki/distribution-points/$distributionPointId'
+      preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRouteImport
+      parentRoute: typeof AuthenticatedMunkiDistributionPointsRoute
+    }
     '/_authenticated/labels/$labelId/edit': {
       id: '/_authenticated/labels/$labelId/edit'
       path: '/$labelId/edit'
@@ -1306,6 +1400,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/munki/packages/$packageId/edit'
       preLoaderRoute: typeof AuthenticatedMunkiPackagesPackageIdEditRouteImport
       parentRoute: typeof AuthenticatedMunkiPackagesRoute
+    }
+    '/_authenticated/munki/distribution-points/$distributionPointId/edit': {
+      id: '/_authenticated/munki/distribution-points/$distributionPointId/edit'
+      path: '/edit'
+      fullPath: '/munki/distribution-points/$distributionPointId/edit'
+      preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsDistributionPointIdEditRouteImport
+      parentRoute: typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRoute
     }
     '/_authenticated/directory/users/$userId/edit': {
       id: '/_authenticated/directory/users/$userId/edit'
@@ -1418,6 +1519,42 @@ const AuthenticatedLabelsRouteChildren: AuthenticatedLabelsRouteChildren = {
 const AuthenticatedLabelsRouteWithChildren =
   AuthenticatedLabelsRoute._addFileChildren(AuthenticatedLabelsRouteChildren)
 
+interface AuthenticatedMunkiDistributionPointsDistributionPointIdRouteChildren {
+  AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute: typeof AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute
+}
+
+const AuthenticatedMunkiDistributionPointsDistributionPointIdRouteChildren: AuthenticatedMunkiDistributionPointsDistributionPointIdRouteChildren =
+  {
+    AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute:
+      AuthenticatedMunkiDistributionPointsDistributionPointIdEditRoute,
+  }
+
+const AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren =
+  AuthenticatedMunkiDistributionPointsDistributionPointIdRoute._addFileChildren(
+    AuthenticatedMunkiDistributionPointsDistributionPointIdRouteChildren,
+  )
+
+interface AuthenticatedMunkiDistributionPointsRouteChildren {
+  AuthenticatedMunkiDistributionPointsDistributionPointIdRoute: typeof AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren
+  AuthenticatedMunkiDistributionPointsNewRoute: typeof AuthenticatedMunkiDistributionPointsNewRoute
+  AuthenticatedMunkiDistributionPointsIndexRoute: typeof AuthenticatedMunkiDistributionPointsIndexRoute
+}
+
+const AuthenticatedMunkiDistributionPointsRouteChildren: AuthenticatedMunkiDistributionPointsRouteChildren =
+  {
+    AuthenticatedMunkiDistributionPointsDistributionPointIdRoute:
+      AuthenticatedMunkiDistributionPointsDistributionPointIdRouteWithChildren,
+    AuthenticatedMunkiDistributionPointsNewRoute:
+      AuthenticatedMunkiDistributionPointsNewRoute,
+    AuthenticatedMunkiDistributionPointsIndexRoute:
+      AuthenticatedMunkiDistributionPointsIndexRoute,
+  }
+
+const AuthenticatedMunkiDistributionPointsRouteWithChildren =
+  AuthenticatedMunkiDistributionPointsRoute._addFileChildren(
+    AuthenticatedMunkiDistributionPointsRouteChildren,
+  )
+
 interface AuthenticatedMunkiPackagesRouteChildren {
   AuthenticatedMunkiPackagesNewRoute: typeof AuthenticatedMunkiPackagesNewRoute
   AuthenticatedMunkiPackagesIndexRoute: typeof AuthenticatedMunkiPackagesIndexRoute
@@ -1457,12 +1594,15 @@ const AuthenticatedMunkiSoftwareRouteWithChildren =
   )
 
 interface AuthenticatedMunkiRouteChildren {
+  AuthenticatedMunkiDistributionPointsRoute: typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   AuthenticatedMunkiPackagesRoute: typeof AuthenticatedMunkiPackagesRouteWithChildren
   AuthenticatedMunkiSoftwareRoute: typeof AuthenticatedMunkiSoftwareRouteWithChildren
   AuthenticatedMunkiIndexRoute: typeof AuthenticatedMunkiIndexRoute
 }
 
 const AuthenticatedMunkiRouteChildren: AuthenticatedMunkiRouteChildren = {
+  AuthenticatedMunkiDistributionPointsRoute:
+    AuthenticatedMunkiDistributionPointsRouteWithChildren,
   AuthenticatedMunkiPackagesRoute: AuthenticatedMunkiPackagesRouteWithChildren,
   AuthenticatedMunkiSoftwareRoute: AuthenticatedMunkiSoftwareRouteWithChildren,
   AuthenticatedMunkiIndexRoute: AuthenticatedMunkiIndexRoute,

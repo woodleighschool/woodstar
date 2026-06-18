@@ -9,10 +9,12 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/httpauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -23,28 +25,38 @@ type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
 	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
 	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
-	ResolvePackageFile(context.Context, munki.ClientHost, string) (string, error)
+	ResolvePackageFile(context.Context, munki.ClientHost, string) (munki.PackageInstaller, error)
 	ResolveIconFile(context.Context, munki.ClientHost, string) (string, error)
+}
+
+// Selector redirects a package download to an eligible distribution point. A nil
+// selector keeps every download Woodstar-direct.
+type Selector interface {
+	SelectRedirect(ctx context.Context, req mdp.SelectionRequest) (string, bool)
 }
 
 type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
+	selector       Selector
 	store          storage.Presigner
 	logger         *slog.Logger
 }
 
-// RegisterMunkiRoutes mounts Munki client repository endpoints.
+// RegisterMunkiRoutes mounts Munki client repository endpoints. selector may be
+// nil, in which case package downloads are always served Woodstar-direct.
 func RegisterMunkiRoutes(
 	r chi.Router,
 	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
+	selector Selector,
 	store storage.Presigner,
 	logger *slog.Logger,
 ) {
 	h := handler{
 		secretVerifier: secretVerifier,
 		repository:     repository,
+		selector:       selector,
 		store:          store,
 		logger:         logger,
 	}
@@ -73,64 +85,105 @@ func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
-	h.serveFile(w, r, h.repository.ResolvePackageFile)
+	client, ok := h.authorizedClient(w, r)
+	if !ok {
+		return
+	}
+	installer, err := h.repository.ResolvePackageFile(r.Context(), client, chi.URLParam(r, "*"))
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log(r, "package", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if url, ok := h.redirectToDistributionPoint(r, client, installer); ok {
+		// Target is the admin-configured distribution point base URL plus a
+		// server-signed grant, not client input.
+		http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // server-minted redirect target
+		return
+	}
+	h.deliver(w, r, installer.Key)
 }
 
 func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
-	h.serveFile(w, r, h.repository.ResolveIconFile)
-}
-
-func (h handler) serveFile(
-	w http.ResponseWriter,
-	r *http.Request,
-	resolve func(context.Context, munki.ClientHost, string) (string, error),
-) {
-	authorized, err := h.authorized(r)
-	if err != nil {
-		h.log(r, "file", err)
-		w.WriteHeader(http.StatusInternalServerError)
+	client, ok := h.authorizedClient(w, r)
+	if !ok {
 		return
 	}
-	if !authorized {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	client, err := h.clientHost(r)
+	key, err := h.repository.ResolveIconFile(r.Context(), client, chi.URLParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		h.log(r, "file", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if h.repository == nil || h.store == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	key, err := resolve(r.Context(), client, chi.URLParam(r, "*"))
-	if errors.Is(err, munki.ErrNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		h.log(r, "file", err)
+		h.log(r, "icon", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	h.deliver(w, r, key)
 }
 
-// deliver sends the blob to the client through a short-lived transfer URL.
+// redirectToDistributionPoint asks the selector for an eligible distribution
+// point. It reports false to fall back to Woodstar-direct delivery.
+func (h handler) redirectToDistributionPoint(
+	r *http.Request,
+	client munki.ClientHost,
+	installer munki.PackageInstaller,
+) (string, bool) {
+	if h.selector == nil {
+		return "", false
+	}
+	return h.selector.SelectRedirect(r.Context(), mdp.SelectionRequest{
+		ClientIP:  chimiddleware.GetClientIP(r.Context()),
+		HostID:    client.ID,
+		Serial:    client.Serial,
+		PackageID: installer.PackageID,
+		SHA256:    installer.SHA256,
+		SizeBytes: installer.SizeBytes,
+	})
+}
+
+func (h handler) authorizedClient(w http.ResponseWriter, r *http.Request) (munki.ClientHost, bool) {
+	authorized, err := h.authorized(r)
+	if err != nil {
+		h.log(r, "file", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return munki.ClientHost{}, false
+	}
+	if !authorized {
+		w.WriteHeader(http.StatusUnauthorized)
+		return munki.ClientHost{}, false
+	}
+	client, err := h.clientHost(r)
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return munki.ClientHost{}, false
+	}
+	if err != nil {
+		h.log(r, "file", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return munki.ClientHost{}, false
+	}
+	return client, true
+}
+
+// deliver serves the blob Woodstar-direct through a short-lived transfer URL.
 func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
+	if h.store == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	url, err := h.store.PresignGet(r.Context(), key, 0, storage.GetOptions{})
 	if err != nil {
 		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, url, http.StatusFound)
+	// Target is a storage-backend presigned URL, not client input.
+	http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // server-minted redirect target
 }
 
 func (h handler) writePlist(
