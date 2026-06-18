@@ -40,7 +40,7 @@ import {
   useSetHostUserAffinity,
 } from "@/hooks/use-hosts";
 import { requiredString } from "@/lib/form-validation";
-import { formatBytes, formatRelative } from "@/lib/utils";
+import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
 
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 
@@ -405,14 +405,18 @@ function certificateColumns(
       accessorKey: "not_valid_before",
       header: () => "Issued",
       cell: ({ row }) =>
-        row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-",
+        row.original.not_valid_before
+          ? formatDate(row.original.not_valid_before, { month: "short" })
+          : "-",
     },
     {
       id: "not_valid_after",
       accessorKey: "not_valid_after",
       header: () => "Expires",
       cell: ({ row }) =>
-        row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-",
+        row.original.not_valid_after
+          ? formatDate(row.original.not_valid_after, { month: "short" })
+          : "-",
     },
   ];
 }
@@ -444,8 +448,8 @@ function CertificateDetailsDialog({
             <CertificateDetailSection
               title="Validity"
               rows={[
-                ["Issued", formatDate(certificate.not_valid_before)],
-                ["Expires", formatDate(certificate.not_valid_after)],
+                ["Issued", formatDate(certificate.not_valid_before, { month: "short" })],
+                ["Expires", formatDate(certificate.not_valid_after, { month: "short" })],
                 ["Certificate authority", certificate.certificate_authority ? "Yes" : "No"],
               ]}
             />
@@ -511,13 +515,6 @@ function certificateNameRows(name: HostCertificate["subject"]): Array<[string, R
     ["Organizational unit", name.organizational_unit],
     ["Common name", name.common_name],
   ];
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function diskPercent(host: Host) {

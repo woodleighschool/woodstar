@@ -35,6 +35,21 @@ export function formatRelative(input: string | number | Date | null | undefined)
   return formatDistanceToNow(date, { addSuffix: true });
 }
 
+export function formatDate(
+  input: string | number | Date | null | undefined,
+  opts: Intl.DateTimeFormatOptions = {},
+): string {
+  if (input === null || input === undefined) return "";
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: opts.month ?? "long",
+    day: opts.day ?? "numeric",
+    year: opts.year ?? "numeric",
+    ...opts,
+  }).format(date);
+}
+
 export function formatDateTime(input: string | number | Date | null | undefined): string {
   if (input === null || input === undefined) return "-";
   const date = input instanceof Date ? input : new Date(input);
