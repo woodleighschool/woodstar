@@ -29,30 +29,16 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-var validExecutionDecisions = map[ExecutionDecision]struct{}{
-	ExecutionDecisionUnknown:          {},
-	ExecutionDecisionAllowUnknown:     {},
-	ExecutionDecisionAllowBinary:      {},
-	ExecutionDecisionAllowCertificate: {},
-	ExecutionDecisionAllowScope:       {},
-	ExecutionDecisionAllowTeamID:      {},
-	ExecutionDecisionAllowSigningID:   {},
-	ExecutionDecisionAllowCDHash:      {},
-	ExecutionDecisionBlockUnknown:     {},
-	ExecutionDecisionBlockBinary:      {},
-	ExecutionDecisionBlockCertificate: {},
-	ExecutionDecisionBlockScope:       {},
-	ExecutionDecisionBlockTeamID:      {},
-	ExecutionDecisionBlockSigningID:   {},
-	ExecutionDecisionBlockCDHash:      {},
-	ExecutionDecisionBundleBinary:     {},
-}
+var validExecutionDecisions = valueSet(ExecutionDecisionValues)
 
-var validFileAccessDecisions = map[FileAccessDecision]struct{}{
-	FileAccessDecisionUnknown:                {},
-	FileAccessDecisionDenied:                 {},
-	FileAccessDecisionDeniedInvalidSignature: {},
-	FileAccessDecisionAuditOnly:              {},
+var validFileAccessDecisions = valueSet(FileAccessDecisionValues)
+
+func valueSet[T comparable](values []T) map[T]struct{} {
+	set := make(map[T]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
 }
 
 type signingChainEntry struct {

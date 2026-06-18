@@ -75,26 +75,7 @@ var ExecutionDecisionValues = []ExecutionDecision{
 	ExecutionDecisionBundleBinary,
 }
 
-var DecisionFilterValues = []DecisionFilter{
-	DecisionFilterAllowed,
-	DecisionFilterBlocked,
-	DecisionFilter(ExecutionDecisionUnknown),
-	DecisionFilter(ExecutionDecisionAllowUnknown),
-	DecisionFilter(ExecutionDecisionAllowBinary),
-	DecisionFilter(ExecutionDecisionAllowCertificate),
-	DecisionFilter(ExecutionDecisionAllowScope),
-	DecisionFilter(ExecutionDecisionAllowTeamID),
-	DecisionFilter(ExecutionDecisionAllowSigningID),
-	DecisionFilter(ExecutionDecisionAllowCDHash),
-	DecisionFilter(ExecutionDecisionBlockUnknown),
-	DecisionFilter(ExecutionDecisionBlockBinary),
-	DecisionFilter(ExecutionDecisionBlockCertificate),
-	DecisionFilter(ExecutionDecisionBlockScope),
-	DecisionFilter(ExecutionDecisionBlockTeamID),
-	DecisionFilter(ExecutionDecisionBlockSigningID),
-	DecisionFilter(ExecutionDecisionBlockCDHash),
-	DecisionFilter(ExecutionDecisionBundleBinary),
-}
+var DecisionFilterValues = decisionFilterValues()
 
 var FileAccessDecisionValues = []FileAccessDecision{
 	FileAccessDecisionUnknown,
@@ -110,6 +91,14 @@ var SigningStatusValues = []SigningStatus{
 	SigningStatusAdhoc,
 	SigningStatusDevelopment,
 	SigningStatusProduction,
+}
+
+func decisionFilterValues() []DecisionFilter {
+	values := []DecisionFilter{DecisionFilterAllowed, DecisionFilterBlocked}
+	for _, decision := range ExecutionDecisionValues {
+		values = append(values, DecisionFilter(decision))
+	}
+	return values
 }
 
 func (ExecutionDecision) Schema(_ huma.Registry) *huma.Schema {
