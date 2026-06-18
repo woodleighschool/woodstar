@@ -42,16 +42,10 @@ func capabilityPrefix(pkgPath string) string {
 }
 
 func derefSchemaType(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
 	for {
 		switch t.Kind() {
-		case reflect.Array, reflect.Map, reflect.Slice:
+		case reflect.Array, reflect.Map, reflect.Pointer, reflect.Slice:
 			t = t.Elem()
-			for t.Kind() == reflect.Pointer {
-				t = t.Elem()
-			}
 		default:
 			return t
 		}
