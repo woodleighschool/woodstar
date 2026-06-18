@@ -265,9 +265,6 @@ func (s *RepositoryService) objectsForPackages(
 	if len(ids) == 0 {
 		return map[int64]storage.Object{}, nil
 	}
-	if s.objects == nil {
-		return nil, errors.New("munki object resolver is not configured")
-	}
 	return s.objects.ListByIDs(ctx, ids)
 }
 

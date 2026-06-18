@@ -43,14 +43,10 @@ func routes(deps Dependencies) http.Handler {
 func browserRoutes(r chi.Router, deps Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
 	r.Use(compressionMiddleware(deps.Logger))
-	if deps.SessionManager != nil {
-		r.Use(deps.SessionManager.LoadAndSave)
-	}
+	r.Use(deps.SessionManager.LoadAndSave)
 	r.Use(middleware.CrossOriginProtection())
 	Mount(r, deps)
-	if deps.WebHandler != nil {
-		deps.WebHandler.RegisterRoutes(r)
-	}
+	deps.WebHandler.RegisterRoutes(r)
 }
 
 // clientIPMiddleware maps the configured client-IP source to its chi middleware.
