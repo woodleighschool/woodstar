@@ -69,3 +69,8 @@ export function formatInterval(seconds: number): string {
   if (minutes > 0 && seconds % 60 === 0) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
   return `${seconds} seconds`;
 }
+
+export function truncateMiddle(value: string, head: number, tail: number, maxLength = head + tail) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, head)}...${value.slice(-tail)}`;
+}

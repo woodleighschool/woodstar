@@ -18,52 +18,66 @@ interface SourceStyle {
   iconClassName: string;
 }
 
+// Intentional brand/source colors, not theme tokens.
+const SOURCE_TINTS = {
+  atom: "#78716c",
+  chrome: "#4285f4",
+  firefox: "#f59e0b",
+  go: "#06b6d4",
+  homebrew: "#d97706",
+  jetbrains: "#d946ef",
+  npm: "#ef4444",
+  pkg: "#94a3b8",
+  python: "#3b82f6",
+  vscode: "#0ea5e9",
+} as const;
+
 const SOURCE_DEFINITIONS: Record<string, SourceDefinition> = {
   apps: {
     icon: "apple",
   },
   homebrew_packages: {
     icon: "package",
-    tint: "#d97706",
+    tint: SOURCE_TINTS.homebrew,
   },
   npm_packages: {
     icon: "package",
-    tint: "#ef4444",
+    tint: SOURCE_TINTS.npm,
   },
   python_packages: {
     icon: "package",
-    tint: "#3b82f6",
+    tint: SOURCE_TINTS.python,
   },
   go_binaries: {
     icon: "package",
-    tint: "#06b6d4",
+    tint: SOURCE_TINTS.go,
   },
   pkg_packages: {
     icon: "package",
-    tint: "#94a3b8",
+    tint: SOURCE_TINTS.pkg,
   },
   chrome_extensions: {
     icon: "chrome",
-    tint: "#4285f4",
+    tint: SOURCE_TINTS.chrome,
   },
   firefox_addons: {
     icon: "puzzle",
-    tint: "#f59e0b",
+    tint: SOURCE_TINTS.firefox,
   },
   safari_extensions: {
     icon: "apple",
   },
   vscode_extensions: {
     icon: "puzzle",
-    tint: "#0ea5e9",
+    tint: SOURCE_TINTS.vscode,
   },
   jetbrains_plugins: {
     icon: "puzzle",
-    tint: "#d946ef",
+    tint: SOURCE_TINTS.jetbrains,
   },
   atom_packages: {
     icon: "puzzle",
-    tint: "#78716c",
+    tint: SOURCE_TINTS.atom,
   },
 };
 

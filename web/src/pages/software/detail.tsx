@@ -30,7 +30,7 @@ import {
   useSoftwareTitle,
 } from "@/hooks/use-software";
 import { ruleTypeLabel } from "@/lib/santa-rules";
-import { formatDateTime, formatRelative } from "@/lib/utils";
+import { formatDateTime, formatRelative, truncateMiddle } from "@/lib/utils";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 
 type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
@@ -436,8 +436,7 @@ function QuickAddRuleButton({
 }
 
 function shortIdentifier(identifier: string) {
-  if (identifier.length <= 28) return identifier;
-  return `${identifier.slice(0, 12)}...${identifier.slice(-8)}`;
+  return truncateMiddle(identifier, 12, 8, 28);
 }
 
 function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {

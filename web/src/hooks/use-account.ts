@@ -16,7 +16,6 @@ export function useAccount() {
   return useQuery<Account, ApiError>({
     queryKey: queryKeys.account,
     queryFn: async ({ signal }) => unwrap(getAccount({ signal })),
-    staleTime: 30_000,
   });
 }
 

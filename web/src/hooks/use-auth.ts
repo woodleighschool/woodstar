@@ -12,8 +12,6 @@ export function useSession(): { session: SessionBody | null; isLoading: boolean 
   const { data, isLoading } = useQuery<SessionBody, ApiError>({
     queryKey: queryKeys.session,
     queryFn: async ({ signal }) => unwrap(getSession({ signal })),
-    retry: false,
-    staleTime: 30_000,
   });
 
   return { session: data ?? null, isLoading };

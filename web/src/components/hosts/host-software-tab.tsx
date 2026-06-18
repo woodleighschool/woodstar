@@ -32,7 +32,7 @@ import type {
   HostSoftwareRow,
   PathSignatureInformation,
 } from "@/lib/api";
-import { formatRelative } from "@/lib/utils";
+import { formatRelative, truncateMiddle } from "@/lib/utils";
 import {
   expandSoftwareSourceFilters,
   softwareSourceLabel,
@@ -289,8 +289,8 @@ function singleHash(paths: InstalledPath[]): string {
 }
 
 function truncateHash(hash: string): string {
-  if (hash === "-" || hash.length <= 16) return hash;
-  return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
+  if (hash === "-") return hash;
+  return truncateMiddle(hash, 8, 8, 16);
 }
 
 function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string | undefined {
