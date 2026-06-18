@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	hostsTag     = "Hosts"
-	hostResource = "host"
+	hostsTag      = "Hosts"
+	hostResource  = "host"
+	checkResource = "check"
 )
 
 // CheckStatusFilter returns host IDs matching an external check status.
@@ -106,7 +107,7 @@ func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFi
 			}
 			checkHostIDs, err := checkFilter.HostIDsByStatus(ctx, input.CheckID, status)
 			if err != nil {
-				return nil, apitypes.ResourceMutationError("check", err)
+				return nil, apitypes.ResourceMutationError(checkResource, err)
 			}
 			params.IDs = intersectHostIDs(params.IDs, checkHostIDs)
 			if len(params.IDs) == 0 {
@@ -116,7 +117,7 @@ func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFi
 
 		rows, count, err := hostStore.List(ctx, params)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("host", err)
+			return nil, apitypes.ResourceMutationError(hostResource, err)
 		}
 		return &hostListOutput{Body: apitypes.Page[Host]{Items: rows, Count: int32(count)}}, nil
 	})
@@ -153,7 +154,7 @@ func registerDeleteHost(api huma.API, hostStore *Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
-			return nil, apitypes.ResourceMutationError("host", err)
+			return nil, apitypes.ResourceMutationError(hostResource, err)
 		}
 		return &struct{}{}, nil
 	})

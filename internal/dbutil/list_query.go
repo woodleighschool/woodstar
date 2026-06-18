@@ -143,14 +143,8 @@ func parseSortColumn(sort string) (sortColumn, bool, error) {
 	key, direction := trimmed[:dot], trimmed[dot+1:]
 	switch direction {
 	case "asc":
-		if key == "" {
-			return sortColumn{}, false, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
-		}
 		return sortColumn{ID: key}, true, nil
 	case "desc":
-		if key == "" {
-			return sortColumn{}, false, fmt.Errorf("%w: sort id is required", ErrInvalidInput)
-		}
 		return sortColumn{ID: key, Desc: true}, true, nil
 	default:
 		return sortColumn{ID: trimmed}, true, nil

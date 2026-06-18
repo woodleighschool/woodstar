@@ -1,7 +1,6 @@
 package apitypes
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 
@@ -38,19 +37,6 @@ type BulkIDsBody struct {
 type Page[T any] struct {
 	Items []T   `json:"items" nullable:"false"`
 	Count int32 `json:"count"`
-}
-
-// MarshalJSON renders an empty page as items: [] rather than null, matching the
-// non-nullable items schema so the frontend never sees null for an empty list.
-func (p Page[T]) MarshalJSON() ([]byte, error) {
-	items := p.Items
-	if items == nil {
-		items = make([]T, 0)
-	}
-	return json.Marshal(struct {
-		Items []T   `json:"items"`
-		Count int32 `json:"count"`
-	}{Items: items, Count: p.Count})
 }
 
 // ListQueryInput is the shared query contract for paginated list endpoints. It
