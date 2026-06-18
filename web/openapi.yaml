@@ -1746,8 +1746,6 @@ components:
           type: string
         developer:
           type: string
-        display_name:
-          type: string
         icon_object_id:
           format: int64
           type: integer
@@ -1764,7 +1762,6 @@ components:
       required:
         - id
         - name
-        - display_name
         - description
         - category
         - developer
@@ -1782,8 +1779,6 @@ components:
         description:
           type: string
         developer:
-          type: string
-        display_name:
           type: string
         icon_object_id:
           format: int64
@@ -1809,7 +1804,6 @@ components:
         - targets
         - id
         - name
-        - display_name
         - description
         - category
         - developer

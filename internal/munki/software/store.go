@@ -305,7 +305,6 @@ func softwareFromSQLC(row sqlc.MunkiSoftware) Software {
 	return Software{
 		ID:           row.ID,
 		Name:         row.Name,
-		DisplayName:  row.Name,
 		Description:  row.Description,
 		Category:     row.Category,
 		Developer:    row.Developer,

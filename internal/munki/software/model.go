@@ -16,7 +16,6 @@ type Mutation struct {
 type Software struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
-	DisplayName  string    `json:"display_name"`
 	Description  string    `json:"description"`
 	Category     string    `json:"category"`
 	Developer    string    `json:"developer"`

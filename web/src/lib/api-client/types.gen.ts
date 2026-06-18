@@ -647,7 +647,6 @@ export type MunkiSoftware = {
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
@@ -660,7 +659,6 @@ export type MunkiSoftwareDetail = {
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
