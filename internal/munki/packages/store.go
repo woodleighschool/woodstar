@@ -492,7 +492,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		PreinstallAlert:          row.PreinstallAlert(),
 		PreuninstallAlert:        row.PreuninstallAlert(),
 		InstallerObjectID:        row.InstallerObjectID,
-		IconObjectID:             row.IconObjectID,
+		SoftwareIconObjectID:     row.SoftwareIconObjectID,
 		Eligible:                 row.Eligible,
 		CreatedAt:                row.CreatedAt,
 		UpdatedAt:                row.UpdatedAt,
@@ -792,7 +792,7 @@ type packageRecord struct {
 	PreuninstallAlertOKLabel     string `db:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel string
 	InstallerObjectID            *int64
-	IconObjectID                 *int64 `db:"software_icon_object_id"`
+	SoftwareIconObjectID         *int64 `db:"software_icon_object_id"`
 	Eligible                     bool
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
@@ -853,7 +853,7 @@ func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		SoftwareDescription:          row.SoftwareDescription,
 		SoftwareCategory:             row.SoftwareCategory,
 		SoftwareDeveloper:            row.SoftwareDeveloper,
-		IconObjectID:                 row.SoftwareIconObjectID,
+		SoftwareIconObjectID:         row.SoftwareIconObjectID,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
@@ -918,7 +918,7 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		SoftwareDescription:          row.SoftwareDescription,
 		SoftwareCategory:             row.SoftwareCategory,
 		SoftwareDeveloper:            row.SoftwareDeveloper,
-		IconObjectID:                 row.SoftwareIconObjectID,
+		SoftwareIconObjectID:         row.SoftwareIconObjectID,
 		Version:                      row.Version,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,

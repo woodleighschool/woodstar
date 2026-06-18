@@ -18,14 +18,15 @@ import (
 // mirror before serving. HostID and Serial are audit claims; the worker does
 // not enforce them.
 type Claims struct {
-	Op                  string `json:"op"`
-	Exp                 int64  `json:"exp"`
-	PackageID           int64  `json:"package_id"`
-	SHA256              string `json:"sha256"`
-	SizeBytes           int64  `json:"size_bytes"`
-	HostID              int64  `json:"host_id"`
-	Serial              string `json:"serial"`
-	DistributionPointID int64  `json:"distribution_point_id"`
+	Op                    string `json:"op"`
+	Exp                   int64  `json:"exp"`
+	PackageID             int64  `json:"package_id"`
+	InstallerItemLocation string `json:"installer_item_location"`
+	SHA256                string `json:"sha256"`
+	SizeBytes             int64  `json:"size_bytes"`
+	HostID                int64  `json:"host_id"`
+	Serial                string `json:"serial"`
+	DistributionPointID   int64  `json:"distribution_point_id"`
 }
 
 // Sign returns a grant token signed with the distribution point's key. The

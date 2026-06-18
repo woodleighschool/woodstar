@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -22,7 +21,7 @@ type server struct {
 
 func (s *server) handler() http.Handler {
 	r := chi.NewRouter()
-	r.Get("/munki-distribution/packages/{package_id}", s.serve)
+	r.Get("/munki/pkgs/*", s.serve)
 	return r
 }
 
@@ -30,12 +29,6 @@ func (s *server) handler() http.Handler {
 // grant. Status codes: 401 invalid grant, 410 expired, 404 not mirrored, 409
 // stale or mismatched bytes, 416 bad range (via ServeContent).
 func (s *server) serve(w http.ResponseWriter, r *http.Request) {
-	packageID, err := strconv.ParseInt(chi.URLParam(r, "package_id"), 10, 64)
-	if err != nil {
-		s.reject(w, r, http.StatusBadRequest, "bad package id")
-		return
-	}
-
 	claims, err := grant.Verify(s.key, r.URL.Query().Get("cap"), time.Now())
 	switch {
 	case errors.Is(err, capability.ErrExpired):
@@ -45,12 +38,12 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		s.reject(w, r, http.StatusUnauthorized, "invalid grant")
 		return
 	}
-	if claims.PackageID != packageID {
-		s.reject(w, r, http.StatusUnauthorized, "grant package mismatch")
+	if claims.InstallerItemLocation != chi.URLParam(r, "*") {
+		s.reject(w, r, http.StatusUnauthorized, "grant path mismatch")
 		return
 	}
 
-	state, ok := s.mirror.get(packageID)
+	state, ok := s.mirror.get(claims.PackageID)
 	if !ok {
 		s.reject(w, r, http.StatusNotFound, "not mirrored")
 		return
@@ -62,7 +55,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := s.mirror.localPath(packageID, state.Filename)
+	path := s.mirror.localPath(claims.PackageID, state.Filename)
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		s.reject(w, r, http.StatusNotFound, "file missing")
@@ -85,7 +78,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logger.DebugContext(r.Context(), "serving package",
-		"package_id", packageID,
+		"package_id", claims.PackageID,
 		"host_id", claims.HostID,
 		"serial", claims.Serial,
 	)
@@ -99,7 +92,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 // status code alone does not say which gate failed.
 func (s *server) reject(w http.ResponseWriter, r *http.Request, status int, reason string) {
 	s.logger.DebugContext(r.Context(), "serve rejected",
-		"package_id", chi.URLParam(r, "package_id"),
+		"path", chi.URLParam(r, "*"),
 		"status", status,
 		"reason", reason,
 	)

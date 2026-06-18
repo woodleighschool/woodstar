@@ -117,19 +117,15 @@ func (m *mirror) packageIDs() []int64 {
 	return ids
 }
 
-// report renders the worker's current verified package state.
-func (m *mirror) report() []reportedPackage {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make([]reportedPackage, 0, len(m.packages))
-	for id, state := range m.packages {
-		out = append(out, reportedPackage{
-			PackageID: id,
-			SHA256:    state.SHA256,
-			Status:    packageStatusCurrent,
-		})
+// satisfies reports whether the mirror already holds the wanted bytes for a
+// package: a matching recorded hash and size, with a present file of that size.
+func (m *mirror) satisfies(packageID int64, sha256 string, sizeBytes int64) bool {
+	state, ok := m.get(packageID)
+	if !ok || state.SHA256 != sha256 || state.SizeBytes != sizeBytes {
+		return false
 	}
-	return out
+	info, err := os.Stat(m.localPath(packageID, state.Filename))
+	return err == nil && info.Size() == sizeBytes
 }
 
 // save writes the in-memory mirror to a 0600 snapshot via a temp-file rename so

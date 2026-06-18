@@ -13,16 +13,28 @@ import (
 )
 
 const (
-	// messageHello is sent once when a distribution point connects: its identity
-	// plus the full desired set. Every connect is a fresh reconciliation boundary.
+	// messageHello is sent once when a distribution point connects: its identity.
+	// The desired set follows in its own message so a large list never blocks the
+	// hello handshake.
 	messageHello = "hello"
-	// messageDesiredChanged is pushed whenever the desired installer set changes.
-	messageDesiredChanged = "desired_changed"
-	// messageState is the distribution point's reported state, inbound only.
-	messageState = "state"
+	// messageDesiredSet is the full authoritative installer list. It is sent on
+	// connect and re-sent whenever the desired set changes, so a worker always
+	// reconciles against current truth and ordering of deltas never matters.
+	messageDesiredSet = "desired_set"
+
+	// Worker-to-server package events. Only a current event with a matching hash
+	// makes a point eligible; syncing and error are advisory for the admin view.
+	eventPackageSyncing = "package_syncing"
+	eventPackageCurrent = "package_current"
+	eventPackageError   = "package_error"
 
 	pingInterval = 20 * time.Second
 	pingTimeout  = 10 * time.Second
+
+	// sendBuffer absorbs a burst of desired-set pushes without dropping a
+	// momentarily-busy worker. A worker whose buffer still overflows is genuinely
+	// stuck and is closed so it reconnects clean.
+	sendBuffer = 16
 )
 
 // errHubClosed is returned by Serve when the hub is shutting down.
@@ -34,37 +46,46 @@ type pointIdentity struct {
 }
 
 type helloMessage struct {
-	Type              string           `json:"type"`
-	DistributionPoint pointIdentity    `json:"distribution_point"`
-	Packages          []DesiredPackage `json:"packages"`
+	Type              string        `json:"type"`
+	DistributionPoint pointIdentity `json:"distribution_point"`
 }
 
-type desiredChangedMessage struct {
-	Type     string           `json:"type"`
-	Packages []DesiredPackage `json:"packages"`
+type desiredSetMessage struct {
+	Type     string                  `json:"type"`
+	Packages []desiredPackageMessage `json:"packages"`
 }
 
-type stateMessage struct {
-	Type     string                `json:"type"`
-	Packages []statePackageMessage `json:"packages"`
+// desiredPackageMessage is one installer the worker should mirror. It carries no
+// download URL: the worker requests a fresh one per job as it starts.
+type desiredPackageMessage struct {
+	PackageID int64  `json:"package_id"`
+	Filename  string `json:"filename"`
+	SHA256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
 }
 
-type statePackageMessage struct {
-	PackageID int64         `json:"package_id"`
-	SHA256    string        `json:"sha256,omitempty"`
-	Status    PackageStatus `json:"status,omitempty"`
-	Error     string        `json:"error,omitempty"`
+// packageEvent is one package's mirror state, reported by the worker as each job
+// settles. It is the inbound half of the protocol.
+type packageEvent struct {
+	Type      string `json:"type"`
+	PackageID int64  `json:"package_id"`
+	SHA256    string `json:"sha256"`
+	Error     string `json:"error"`
 }
 
-// Hub tracks live distribution point connections. It is the source of truth for
-// presence and the fan-out for desired-set changes.
+// Hub tracks live distribution point connections. It is the writer of presence
+// and the ordered fan-out for desired-set changes.
 type Hub struct {
-	store  *Store
-	logger *slog.Logger
+	store    *Store
+	presence *Presence
+	logger   *slog.Logger
 
-	mu     sync.RWMutex
+	mu     sync.Mutex
 	conns  map[int64]*connection
 	closed bool
+
+	wake chan struct{}
+	done chan struct{}
 }
 
 type connection struct {
@@ -72,21 +93,24 @@ type connection struct {
 	send chan []byte
 }
 
-// NewHub returns a connection hub backed by store.
-func NewHub(store *Store, logger *slog.Logger) *Hub {
-	return &Hub{store: store, logger: logger, conns: map[int64]*connection{}}
+// NewHub returns a connection hub backed by store, writing presence as workers
+// connect and disconnect. It runs one fan-out goroutine so desired-set pushes
+// reach every worker in a single, ordered sequence.
+func NewHub(store *Store, presence *Presence, logger *slog.Logger) *Hub {
+	h := &Hub{
+		store:    store,
+		presence: presence,
+		logger:   logger,
+		conns:    map[int64]*connection{},
+		wake:     make(chan struct{}, 1),
+		done:     make(chan struct{}),
+	}
+	go h.fanoutLoop()
+	return h
 }
 
-// Online reports whether a distribution point holds a live connection.
-func (h *Hub) Online(id int64) bool {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	_, ok := h.conns[id]
-	return ok
-}
-
-// Close drops every live connection and refuses new ones, unblocking the serve
-// loops so the HTTP server can shut down.
+// Close drops every live connection, stops the fan-out loop, and refuses new
+// connections, unblocking the serve loops so the HTTP server can shut down.
 func (h *Hub) Close() {
 	h.mu.Lock()
 	if h.closed {
@@ -99,14 +123,15 @@ func (h *Hub) Close() {
 		conns = append(conns, c)
 	}
 	h.mu.Unlock()
+	close(h.done)
 	for _, c := range conns {
 		_ = c.ws.Close(websocket.StatusGoingAway, "server shutting down")
 	}
 }
 
-// Serve runs one distribution point connection: it sends hello, relays
-// desired-set changes outbound, and records reported state inbound, until the
-// connection closes. Every call is a full reconciliation boundary for the point.
+// Serve runs one distribution point connection: it sends hello and the desired
+// set, relays later desired-set changes outbound, and records reported package
+// state inbound, until the connection closes.
 func (h *Hub) Serve(ws *websocket.Conn, dp *DistributionPoint) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -115,25 +140,28 @@ func (h *Hub) Serve(ws *websocket.Conn, dp *DistributionPoint) error {
 		return err
 	}
 
-	conn := &connection{ws: ws, send: make(chan []byte, 1)}
+	conn := &connection{ws: ws, send: make(chan []byte, sendBuffer)}
 	if !h.register(dp.ID, conn) {
 		return errHubClosed
 	}
 	defer h.unregister(dp.ID, conn)
 
 	go h.writeLoop(ctx, cancel, conn)
+
+	if msg, err := h.desiredSetBytes(ctx); err != nil {
+		h.logger.WarnContext(ctx, "munki distribution desired set failed",
+			"operation", "desired_set", "distribution_point_id", dp.ID, "err", err)
+	} else {
+		h.enqueue(conn, msg)
+	}
+
 	return h.readLoop(ctx, ws, dp.ID)
 }
 
 func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *DistributionPoint) error {
-	desired, err := h.store.DesiredPackages(ctx)
-	if err != nil {
-		return err
-	}
 	return writeJSON(ctx, ws, helloMessage{
 		Type:              messageHello,
 		DistributionPoint: pointIdentity{ID: dp.ID, Name: dp.Name},
-		Packages:          desired,
 	})
 }
 
@@ -143,16 +171,22 @@ func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64) erro
 		if err != nil {
 			return err
 		}
-		var msg stateMessage
-		if err := json.Unmarshal(data, &msg); err != nil {
-			return fmt.Errorf("decode state message: %w", err)
+		var event packageEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return fmt.Errorf("decode package event: %w", err)
 		}
-		if msg.Type != messageState {
-			return fmt.Errorf("unexpected message type %q", msg.Type)
+		status, ok := statusForEvent(event.Type)
+		if !ok {
+			return fmt.Errorf("unexpected message type %q", event.Type)
 		}
-		if err := h.store.RecordState(ctx, dpID, stateReportFromMessage(msg)); err != nil {
+		if err := h.store.RecordPackageState(
+			ctx, dpID, event.PackageID, status, event.SHA256, event.Error,
+		); err != nil {
+			// A record failure (e.g. the package was just deleted) is the worker's
+			// problem to retry, not a reason to drop an otherwise healthy connection.
 			h.logger.WarnContext(ctx, "munki distribution record state failed",
-				"operation", "state", "distribution_point_id", dpID, "err", err)
+				"operation", "state", "distribution_point_id", dpID,
+				"package_id", event.PackageID, "err", err)
 		}
 	}
 }
@@ -180,39 +214,64 @@ func (h *Hub) writeLoop(ctx context.Context, cancel context.CancelFunc, conn *co
 	}
 }
 
-// DesiredChanged recomputes the desired set and pushes it to every connection.
-// It is fire-and-forget: a package mutation is not blocked on fan-out.
+// DesiredChanged wakes the fan-out loop to re-push the desired set. It is
+// fire-and-forget and coalescing: a burst of mutations collapses into one
+// broadcast of the final state.
 func (h *Hub) DesiredChanged() {
-	go h.broadcastDesired()
+	select {
+	case h.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (h *Hub) fanoutLoop() {
+	for {
+		select {
+		case <-h.done:
+			return
+		case <-h.wake:
+			h.broadcastDesired()
+		}
+	}
 }
 
 func (h *Hub) broadcastDesired() {
-	ctx := context.Background()
-	desired, err := h.store.DesiredPackages(ctx)
+	msg, err := h.desiredSetBytes(context.Background())
 	if err != nil {
-		h.logger.WarnContext(ctx, "munki distribution desired broadcast failed",
-			"operation", "desired_changed", "err", err)
+		h.logger.Warn("munki distribution desired broadcast failed",
+			"operation", "desired_set", "err", err)
 		return
 	}
-	msg, err := json.Marshal(desiredChangedMessage{
-		Type:     messageDesiredChanged,
-		Packages: desired,
-	})
-	if err != nil {
-		return
-	}
-	h.mu.RLock()
+	h.mu.Lock()
 	conns := make([]*connection, 0, len(h.conns))
 	for _, c := range h.conns {
 		conns = append(conns, c)
 	}
-	h.mu.RUnlock()
+	h.mu.Unlock()
 	for _, c := range conns {
-		select {
-		case c.send <- msg:
-		default:
-			_ = c.ws.Close(websocket.StatusPolicyViolation, "stale desired state")
-		}
+		h.enqueue(c, msg)
+	}
+}
+
+func (h *Hub) desiredSetBytes(ctx context.Context) ([]byte, error) {
+	desired, err := h.store.DesiredPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	packages := make([]desiredPackageMessage, len(desired))
+	for i, d := range desired {
+		packages[i] = desiredPackageMessage(d)
+	}
+	return json.Marshal(desiredSetMessage{Type: messageDesiredSet, Packages: packages})
+}
+
+// enqueue hands a message to a connection's writer, closing a connection whose
+// buffer has overflowed since that worker is no longer keeping up.
+func (h *Hub) enqueue(c *connection, msg []byte) {
+	select {
+	case c.send <- msg:
+	default:
+		_ = c.ws.Close(websocket.StatusPolicyViolation, "distribution point fell behind")
 	}
 }
 
@@ -228,24 +287,34 @@ func (h *Hub) register(id int64, conn *connection) bool {
 	if old != nil {
 		_ = old.ws.Close(websocket.StatusPolicyViolation, "replaced by a new connection")
 	}
+	h.presence.Connect(id)
 	return true
 }
 
 func (h *Hub) unregister(id int64, conn *connection) {
 	h.mu.Lock()
-	if h.conns[id] == conn {
+	removed := h.conns[id] == conn
+	if removed {
 		delete(h.conns, id)
 	}
 	h.mu.Unlock()
+	// Only a replaced or genuinely-closed current connection clears presence; a
+	// superseded old connection's late unregister must not knock the new one out.
+	if removed {
+		h.presence.Disconnect(id)
+	}
 }
 
-func stateReportFromMessage(msg stateMessage) StateReport {
-	packages := make([]ReportedPackage, len(msg.Packages))
-	for i, pkg := range msg.Packages {
-		packages[i] = ReportedPackage(pkg)
-	}
-	return StateReport{
-		Packages: packages,
+func statusForEvent(eventType string) (PackageStatus, bool) {
+	switch eventType {
+	case eventPackageSyncing:
+		return PackageStatusSyncing, true
+	case eventPackageCurrent:
+		return PackageStatusCurrent, true
+	case eventPackageError:
+		return PackageStatusError, true
+	default:
+		return "", false
 	}
 }
 

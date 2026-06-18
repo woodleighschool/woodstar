@@ -186,12 +186,12 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			return nil, err
 		}
 		effective = append(effective, EffectivePackage{
-			TargetID:     row.TargetID,
-			SoftwareID:   row.TargetSoftwareID,
-			Actions:      actionsFromStorage(row.Actions),
-			Package:      pkg,
-			IconObjectID: pkg.IconObjectID,
-			Selector:     packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
+			TargetID:             row.TargetID,
+			SoftwareID:           row.TargetSoftwareID,
+			Actions:              actionsFromStorage(row.Actions),
+			Package:              pkg,
+			SoftwareIconObjectID: pkg.SoftwareIconObjectID,
+			Selector:             packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}
 	resolved := ResolveEffectivePackages(effective)

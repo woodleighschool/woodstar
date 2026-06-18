@@ -13,10 +13,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 )
 
-// presenceStub is a settable presence set for resolver tests.
-type presenceStub map[int64]bool
-
-func (p presenceStub) Online(id int64) bool { return p[id] }
+// newStore returns a store and the presence set the hub would normally write, so
+// tests can mark a point online without standing up a live connection.
+func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
+	presence := mdp.NewPresence()
+	return mdp.NewStore(db, presence), presence
+}
 
 func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {
 	return mdp.DistributionPointMutation{
@@ -63,17 +65,26 @@ func seedAvailablePackage(
 	return packageID
 }
 
-func verifiedReport(packageID int64, sha256 string) mdp.StateReport {
-	return mdp.StateReport{
-		Packages: []mdp.ReportedPackage{
-			{PackageID: packageID, SHA256: sha256, Status: mdp.PackageStatusCurrent},
-		},
+// recordCurrent reports a package as mirrored with the given hash, the worker's
+// package_current event applied server-side.
+func recordCurrent(
+	t *testing.T,
+	store *mdp.Store,
+	ctx context.Context,
+	dpID, packageID int64,
+	sha256 string,
+) {
+	t.Helper()
+	if err := store.RecordPackageState(
+		ctx, dpID, packageID, mdp.PackageStatusCurrent, sha256, "",
+	); err != nil {
+		t.Fatalf("RecordPackageState current: %v", err)
 	}
 }
 
 func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
+	store, _ := newStore(db)
 	shaA := strings.Repeat("a", 64)
 	shaB := strings.Repeat("b", 64)
 	pkgA := seedAvailablePackage(t, db, ctx, "Chrome", shaA, 4096)
@@ -89,14 +100,10 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 		t.Fatalf("initial states = %+v, want both pending", states)
 	}
 
-	if err := store.RecordState(ctx, point.ID, mdp.StateReport{
-		Packages: []mdp.ReportedPackage{
-			{PackageID: pkgA, SHA256: shaA, Status: mdp.PackageStatusCurrent},
-			{PackageID: pkgB, SHA256: strings.Repeat("c", 64), Status: mdp.PackageStatusCurrent},
-		},
-	}); err != nil {
-		t.Fatalf("RecordState: %v", err)
-	}
+	// pkgA reports the desired hash; pkgB reports a stale one. Each is derived
+	// independently against Woodstar's current desired installer.
+	recordCurrent(t, store, ctx, point.ID, pkgA, shaA)
+	recordCurrent(t, store, ctx, point.ID, pkgB, strings.Repeat("c", 64))
 
 	states = packageStates(t, store, ctx, point.ID)
 	if a := states[pkgA]; a.Status != mdp.PackageStatusCurrent {
@@ -106,21 +113,20 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 		t.Fatalf("stale hash status = %q, want syncing", b.Status)
 	}
 
-	if err := store.RecordState(ctx, point.ID, verifiedReport(pkgA, shaA)); err != nil {
-		t.Fatalf("second RecordState: %v", err)
-	}
+	// pkgB catching up to the desired hash flips it current without touching pkgA.
+	recordCurrent(t, store, ctx, point.ID, pkgB, shaB)
 	states = packageStates(t, store, ctx, point.ID)
-	if b := states[pkgB]; b.Status != mdp.PackageStatusPending {
-		t.Fatalf("missing report status = %q, want pending", b.Status)
-	}
 	if a := states[pkgA]; a.Status != mdp.PackageStatusCurrent {
-		t.Fatalf("reported package status = %q, want current", a.Status)
+		t.Fatalf("untouched package status = %q, want current", a.Status)
+	}
+	if b := states[pkgB]; b.Status != mdp.PackageStatusCurrent {
+		t.Fatalf("caught-up package status = %q, want current", b.Status)
 	}
 }
 
 func TestGetByIDSurfacesPackageError(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
+	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
@@ -128,16 +134,10 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if err := store.RecordState(ctx, point.ID, mdp.StateReport{
-		Packages: []mdp.ReportedPackage{
-			{
-				PackageID: pkg,
-				Status:    mdp.PackageStatusError,
-				Error:     "package 7 verify: sha256 mismatch",
-			},
-		},
-	}); err != nil {
-		t.Fatalf("RecordState: %v", err)
+	if err := store.RecordPackageState(
+		ctx, point.ID, pkg, mdp.PackageStatusError, "", "package 7 verify: sha256 mismatch",
+	); err != nil {
+		t.Fatalf("RecordPackageState error: %v", err)
 	}
 
 	states := packageStates(t, store, ctx, point.ID)
@@ -148,9 +148,7 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 
 func TestListMarksOnlineFromPresence(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
-	online := presenceStub{}
-	store.SetPresence(online)
+	store, presence := newStore(db)
 
 	pointID := mustCreate(t, store, ctx, "Melbourne")
 	points, _, err := store.List(ctx, mdp.DistributionPointListParams{})
@@ -161,7 +159,7 @@ func TestListMarksOnlineFromPresence(t *testing.T) {
 		t.Fatal("Online = true without presence")
 	}
 
-	online[pointID] = true
+	presence.Connect(pointID)
 	points, _, err = store.List(ctx, mdp.DistributionPointListParams{})
 	if err != nil {
 		t.Fatalf("List online: %v", err)
@@ -173,9 +171,7 @@ func TestListMarksOnlineFromPresence(t *testing.T) {
 
 func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
-	online := presenceStub{}
-	store.SetPresence(online)
+	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
 
@@ -183,10 +179,8 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.RecordState(ctx, point.ID, verifiedReport(pkg, sha)); err != nil {
-		t.Fatalf("RecordState: %v", err)
-	}
-	online[point.ID] = true
+	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	presence.Connect(point.ID)
 
 	inside := mustAddr(t, "10.1.2.3")
 	resolved, err := store.ResolveForClient(ctx, inside, pkg)
@@ -205,44 +199,31 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	}
 
 	// A stale hash (installer changed, DP not current yet) is not eligible.
-	if err := store.RecordState(ctx, point.ID, mdp.StateReport{
-		Packages: []mdp.ReportedPackage{
-			{PackageID: pkg, SHA256: strings.Repeat("f", 64), Status: mdp.PackageStatusCurrent},
-		},
-	}); err != nil {
-		t.Fatalf("stale RecordState: %v", err)
+	if err := store.RecordPackageState(
+		ctx, point.ID, pkg, mdp.PackageStatusCurrent, strings.Repeat("f", 64), "",
+	); err != nil {
+		t.Fatalf("stale RecordPackageState: %v", err)
 	}
 	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
 		t.Fatalf("stale-hash point resolved %+v, want nil", got)
 	}
-	if err := store.RecordState(ctx, point.ID, verifiedReport(pkg, sha)); err != nil {
-		t.Fatalf("restore current package: %v", err)
-	}
+	recordCurrent(t, store, ctx, point.ID, pkg, sha)
 
-	if err := store.RecordState(ctx, point.ID, mdp.StateReport{
-		Packages: []mdp.ReportedPackage{
-			{
-				PackageID: pkg,
-				SHA256:    sha,
-				Status:    mdp.PackageStatusError,
-				Error:     "package 7 download: unavailable",
-			},
-		},
-	}); err != nil {
-		t.Fatalf("error RecordState: %v", err)
+	if err := store.RecordPackageState(
+		ctx, point.ID, pkg, mdp.PackageStatusError, sha, "package 7 download: unavailable",
+	); err != nil {
+		t.Fatalf("error RecordPackageState: %v", err)
 	}
 	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
 		t.Fatalf("error package resolved %+v, want nil", got)
 	}
-	if err := store.RecordState(ctx, point.ID, verifiedReport(pkg, sha)); err != nil {
-		t.Fatalf("restore current package after error: %v", err)
-	}
+	recordCurrent(t, store, ctx, point.ID, pkg, sha)
 
-	delete(online, point.ID)
+	presence.Disconnect(point.ID)
 	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
 		t.Fatalf("offline point resolved %+v, want nil", got)
 	}
-	online[point.ID] = true
+	presence.Connect(point.ID)
 
 	if _, err := store.Update(ctx, point.ID, mdp.DistributionPointMutation{
 		Name:          "Melbourne",
@@ -259,9 +240,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 
 func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
-	online := presenceStub{}
-	store.SetPresence(online)
+	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
 
@@ -274,10 +253,8 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.RecordState(ctx, point.ID, verifiedReport(pkg, sha)); err != nil {
-		t.Fatalf("RecordState: %v", err)
-	}
-	online[point.ID] = true
+	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	presence.Connect(point.ID)
 
 	if got := resolveOrNil(t, store, ctx, mustAddr(t, "10.1.2.3"), pkg); got != nil {
 		t.Fatalf("point with empty client_base_url resolved %+v, want nil", got)
@@ -286,7 +263,7 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 
 func TestReorderRequiresExactSet(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := mdp.NewStore(db)
+	store, _ := newStore(db)
 	a := mustCreate(t, store, ctx, "A")
 	b := mustCreate(t, store, ctx, "B")
 	c := mustCreate(t, store, ctx, "C")

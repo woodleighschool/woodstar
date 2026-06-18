@@ -14,7 +14,7 @@ func TestCreateUsesPresignedUploadTarget(t *testing.T) {
 	objects := storage.NewObjectStore(db, nil)
 	presigner := &recordingPresigner{
 		target: storage.UploadTarget{
-			URL:       "https://woodstar.example/storage/blob?cap=test",
+			URL:       "https://woodstar.example/storage/munki/icons/1/icon.png?cap=test",
 			Method:    "PUT",
 			Transport: storage.UploadTransportWoodstar,
 			Headers:   map[string]string{"Content-Type": "image/png"},

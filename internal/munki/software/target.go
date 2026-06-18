@@ -68,12 +68,12 @@ var actionValues = []Action{
 
 // EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
 type EffectivePackage struct {
-	TargetID     int64
-	SoftwareID   int64
-	Actions      []Action
-	Package      packages.Package
-	IconObjectID *int64
-	Selector     PackageSelector
+	TargetID             int64
+	SoftwareID           int64
+	Actions              []Action
+	Package              packages.Package
+	SoftwareIconObjectID *int64
+	Selector             PackageSelector
 }
 
 // Schema returns the OpenAPI schema for PackageStrategy.

@@ -1,4 +1,5 @@
 import { Package } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { SoftwareIconSize } from "@/components/software/software-icon";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,13 @@ interface MunkiIconProps {
 }
 
 export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }: MunkiIconProps) {
-  if (!iconUrl) {
+  const [failedUrl, setFailedUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    setFailedUrl(undefined);
+  }, [iconUrl]);
+
+  if (!iconUrl || failedUrl === iconUrl) {
     return (
       <span
         className={cn(
@@ -43,8 +50,13 @@ export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }:
       alt=""
       className={cn("block shrink-0 object-contain", ICON_SIZE_CLASS[size], className)}
       loading={loading}
+      onError={() => setFailedUrl(iconUrl)}
     />
   );
+}
+
+export function munkiSoftwareIconURL(softwareId: number) {
+  return `/api/munki/software/${softwareId}/icon`;
 }
 
 export type { SoftwareIconSize as MunkiIconSize };

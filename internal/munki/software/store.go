@@ -11,12 +11,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
-
-// IconObjectPrefix namespaces software icon objects in storage.
-const IconObjectPrefix = "munki/icons"
 
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
@@ -231,7 +229,7 @@ func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, e
 	if err != nil {
 		return params, err
 	}
-	if obj.Prefix != IconObjectPrefix {
+	if obj.Prefix != munkiupload.IconObjectPrefix {
 		return params, fmt.Errorf(
 			"%w: icon_object_id must reference an icon",
 			dbutil.ErrInvalidInput,
@@ -249,7 +247,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	if err != nil {
 		return err
 	}
-	if obj.Prefix != IconObjectPrefix {
+	if obj.Prefix != munkiupload.IconObjectPrefix {
 		return fmt.Errorf("%w: icon_object_id must reference an icon", dbutil.ErrInvalidInput)
 	}
 	if !obj.Available() {

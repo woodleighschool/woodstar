@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { munkiSoftwareIconURL } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
 import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import {
@@ -67,7 +68,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
     description: pkg.software_description,
     category: pkg.software_category,
     developer: pkg.software_developer,
-    iconUrl: pkg.icon_url,
+    iconUrl: munkiSoftwareIconURL(pkg.software_id),
   };
   const form = usePackageEditorForm(initial, async (value) => {
     const validationError = packageSubmitPreflightError(value, {

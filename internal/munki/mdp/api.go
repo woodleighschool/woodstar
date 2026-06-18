@@ -86,7 +86,10 @@ func (input distributionPointListInput) params() DistributionPointListParams {
 }
 
 // RegisterAdminRoutes mounts the distribution point admin API on api.
-func RegisterAdminRoutes(api huma.API, store *Store) {
+func RegisterAdminRoutes(
+	api huma.API,
+	store *Store,
+) {
 	registerListDistributionPoints(api, store)
 	registerCreateDistributionPoint(api, store)
 	registerGetDistributionPoint(api, store)
@@ -144,7 +147,10 @@ func registerCreateDistributionPoint(api huma.API, store *Store) {
 	})
 }
 
-func registerGetDistributionPoint(api huma.API, store *Store) {
+func registerGetDistributionPoint(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-distribution-point",
 		Method:      http.MethodGet,
@@ -161,7 +167,10 @@ func registerGetDistributionPoint(api huma.API, store *Store) {
 	})
 }
 
-func registerUpdateDistributionPoint(api huma.API, store *Store) {
+func registerUpdateDistributionPoint(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-distribution-point",
 		Method:      http.MethodPut,

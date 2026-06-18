@@ -525,7 +525,10 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	repository.fileSHA = strings.Repeat("a", 64)
 	repository.fileSize = 4096
 	store := &fakePresigner{presignURL: "https://storage.example/direct"}
-	selector := &fakeSelector{url: "https://mdp.example/munki-distribution/packages/20?cap=grant", ok: true}
+	selector := &fakeSelector{
+		url: "https://mdp.example/munki/pkgs/packages/20/installer/GoogleChrome.pkg?cap=grant",
+		ok:  true,
+	}
 
 	router := chi.NewRouter()
 	RegisterMunkiRoutes(
@@ -551,6 +554,9 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	}
 	if selector.got.PackageID != 20 || selector.got.SHA256 != repository.fileSHA || selector.got.SizeBytes != 4096 {
 		t.Fatalf("selection integrity claims = %+v", selector.got)
+	}
+	if selector.got.InstallerItemLocation != "packages/20/installer/GoogleChrome.pkg" {
+		t.Fatalf("selection installer_item_location = %q", selector.got.InstallerItemLocation)
 	}
 	if selector.got.Serial != "C02MUNKI" || selector.got.HostID != 1 {
 		t.Fatalf("selection identity claims = %+v", selector.got)
@@ -821,10 +827,11 @@ func (r *staticRepository) ResolvePackageFile(
 		return munki.PackageInstaller{}, r.fileErr
 	}
 	installer := munki.PackageInstaller{
-		PackageID: r.packageID,
-		Key:       key,
-		SHA256:    r.fileSHA,
-		SizeBytes: r.fileSize,
+		PackageID:             r.packageID,
+		InstallerItemLocation: key,
+		Key:                   key,
+		SHA256:                r.fileSHA,
+		SizeBytes:             r.fileSize,
 	}
 	if r.fileURL != "" {
 		installer.Key = r.fileURL

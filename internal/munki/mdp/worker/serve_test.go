@@ -41,12 +41,14 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 	key := []byte("dp-key")
 	handler := (&server{mirror: mirror, key: key, logger: discardLogger()}).handler()
 	now := time.Now()
-	token := func(packageID int64, sha string, size int64, exp time.Time) string {
+	const installerItemLocation = "packages/7/installer/Chrome.pkg"
+	token := func(packageID int64, location string, sha string, size int64, exp time.Time) string {
 		tok, err := grant.Sign(key, grant.Claims{
-			Exp:       exp.Unix(),
-			PackageID: packageID,
-			SHA256:    sha,
-			SizeBytes: size,
+			Exp:                   exp.Unix(),
+			PackageID:             packageID,
+			InstallerItemLocation: location,
+			SHA256:                sha,
+			SizeBytes:             size,
 		})
 		if err != nil {
 			t.Fatalf("sign grant: %v", err)
@@ -58,7 +60,8 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(
 			http.MethodGet,
-			"/munki-distribution/packages/7?cap="+token(7, sha, size, now.Add(time.Minute)),
+			"/munki/pkgs/"+installerItemLocation+"?cap="+
+				token(7, installerItemLocation, sha, size, now.Add(time.Minute)),
 			nil,
 		)
 		handler.ServeHTTP(rec, req)
@@ -74,7 +77,8 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(
 			http.MethodGet,
-			"/munki-distribution/packages/7?cap="+token(7, sha, size, now.Add(time.Minute)),
+			"/munki/pkgs/"+installerItemLocation+"?cap="+
+				token(7, installerItemLocation, sha, size, now.Add(time.Minute)),
 			nil,
 		)
 		req.Header.Set("Range", "bytes=0-3")
@@ -93,19 +97,36 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		want int
 	}{
 		{name: "invalid grant", cap: "garbage", want: http.StatusUnauthorized},
-		{name: "expired grant", cap: token(7, sha, size, now.Add(-time.Second)), want: http.StatusGone},
-		{name: "wrong package", cap: token(8, sha, size, now.Add(time.Minute)), want: http.StatusUnauthorized},
+		{
+			name: "expired grant",
+			cap:  token(7, installerItemLocation, sha, size, now.Add(-time.Second)),
+			want: http.StatusGone,
+		},
+		{
+			name: "wrong path",
+			cap:  token(7, "packages/8/installer/Chrome.pkg", sha, size, now.Add(time.Minute)),
+			want: http.StatusUnauthorized,
+		},
+		{
+			name: "wrong package",
+			cap:  token(8, installerItemLocation, sha, size, now.Add(time.Minute)),
+			want: http.StatusNotFound,
+		},
 		{
 			name: "stale sha",
-			cap:  token(7, sha256Hex([]byte("other")), size, now.Add(time.Minute)),
+			cap:  token(7, installerItemLocation, sha256Hex([]byte("other")), size, now.Add(time.Minute)),
 			want: http.StatusConflict,
 		},
-		{name: "stale size", cap: token(7, sha, size+1, now.Add(time.Minute)), want: http.StatusConflict},
+		{
+			name: "stale size",
+			cap:  token(7, installerItemLocation, sha, size+1, now.Add(time.Minute)),
+			want: http.StatusConflict,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/munki-distribution/packages/7?cap="+tc.cap, nil)
+			req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/"+installerItemLocation+"?cap="+tc.cap, nil)
 			handler.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
@@ -117,7 +138,8 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(
 			http.MethodGet,
-			"/munki-distribution/packages/9?cap="+token(9, sha, size, now.Add(time.Minute)),
+			"/munki/pkgs/packages/9/installer/Gone.pkg?cap="+
+				token(9, "packages/9/installer/Gone.pkg", sha, size, now.Add(time.Minute)),
 			nil,
 		)
 		handler.ServeHTTP(rec, req)

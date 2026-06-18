@@ -105,17 +105,13 @@ SET status = EXCLUDED.status,
     error = EXCLUDED.error,
     updated_at = now();
 
--- name: DeleteMunkiDistributionPackageStatesNotIn :exec
-DELETE FROM munki_distribution_package_states
-WHERE distribution_point_id = @distribution_point_id
-  AND package_id <> ALL (@package_ids::bigint[]);
-
 -- name: ListMunkiDistributionPackageStates :many
 SELECT
     p.id AS package_id,
+    sw.id AS software_id,
     sw.name AS display_name,
     p.version,
-    sw.icon_object_id,
+    sw.icon_object_id AS software_icon_object_id,
     CASE
         WHEN s.package_id IS NULL THEN 'pending'
         WHEN s.status = 'error' THEN 'error'
@@ -145,13 +141,10 @@ WHERE p.id = @package_id
 -- name: ListDesiredMunkiPackages :many
 SELECT
     p.id AS package_id,
-    s.name AS display_name,
-    p.version,
     o.filename,
     o.sha256,
     o.size_bytes
 FROM munki_packages p
-JOIN munki_software s ON s.id = p.software_id
 JOIN storage_objects o ON o.id = p.installer_object_id
 WHERE o.available_at IS NOT NULL
   AND o.sha256 IS NOT NULL

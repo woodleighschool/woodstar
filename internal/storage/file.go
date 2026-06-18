@@ -181,7 +181,7 @@ func (s *fileStore) blobURL(claims blobClaims) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	blobURL, err := url.Parse(s.publicURL + "/storage/blob")
+	blobURL, err := url.Parse(strings.TrimRight(s.publicURL, "/") + "/storage/" + escapeKeyPath(claims.Key))
 	if err != nil {
 		return "", err
 	}
@@ -189,6 +189,14 @@ func (s *fileStore) blobURL(claims blobClaims) (string, error) {
 	values.Set("cap", token)
 	blobURL.RawQuery = values.Encode()
 	return blobURL.String(), nil
+}
+
+func escapeKeyPath(key string) string {
+	parts := strings.Split(key, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }
 
 func (s *fileStore) expires(ttl time.Duration) time.Duration {

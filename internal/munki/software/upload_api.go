@@ -2,13 +2,11 @@ package software
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/apitypes"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -31,11 +29,7 @@ type munkiIconObjectsOutput struct {
 	Body apitypes.Page[munkiupload.MunkiObjectView]
 }
 
-type munkiIconContentInput struct {
-	ObjectID int64 `path:"object_id"`
-}
-
-func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectStore, store storage.Presigner) {
+func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectStore, presigner storage.Presigner) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software-icon-upload",
 		Method:        http.MethodPost,
@@ -52,7 +46,7 @@ func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectSt
 		if _, err := software.GetByID(ctx, input.SoftwareID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
 		}
-		out, err := munkiupload.Create(ctx, objects, store, IconObjectPrefix, input.Body)
+		out, err := munkiupload.Create(ctx, objects, presigner, munkiupload.IconObjectPrefix, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
 		}
@@ -75,7 +69,8 @@ func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectSt
 		out, err := munkiupload.Confirm(
 			ctx,
 			objects,
-			IconObjectPrefix,
+			presigner,
+			munkiupload.IconObjectPrefix,
 			input.ObjectID,
 			func(objectID int64) error {
 				return software.SetIcon(ctx, input.SoftwareID, objectID)
@@ -95,46 +90,21 @@ func registerIconRoutes(api huma.API, software *Store, objects *storage.ObjectSt
 		Summary:     "List uploaded Munki icons",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
-		rows, count, err := objects.ListByPrefix(ctx, IconObjectPrefix, input.ListQueryInput.Params())
+		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.Params())
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("Munki icon", err)
 		}
 		views := make([]munkiupload.MunkiObjectView, len(rows))
 		for i, row := range rows {
-			views[i] = iconView(row)
+			view, err := munkiupload.ViewObjectWithContentURL(ctx, presigner, row)
+			if err != nil {
+				return nil, apitypes.ResourceMutationError("Munki icon", err)
+			}
+			views[i] = view
 		}
 		return &munkiIconObjectsOutput{Body: apitypes.Page[munkiupload.MunkiObjectView]{
 			Items: views,
 			Count: int32(count),
 		}}, nil
 	})
-
-	huma.Register(api, huma.Operation{
-		OperationID: "get-munki-icon-content",
-		Method:      http.MethodGet,
-		Path:        "/api/munki/icons/{object_id}/content",
-		Tags:        []string{munkiTag},
-		Summary:     "Serve an uploaded Munki icon",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *munkiIconContentInput) (*huma.StreamResponse, error) {
-		obj, err := objects.GetByID(ctx, input.ObjectID)
-		if err != nil {
-			return nil, apitypes.ResourceMutationError("Munki icon", err)
-		}
-		if obj.Prefix != IconObjectPrefix {
-			return nil, apitypes.ResourceMutationError(
-				"Munki icon",
-				fmt.Errorf("%w: object is not a Munki icon", dbutil.ErrInvalidInput),
-			)
-		}
-		return &huma.StreamResponse{Body: func(hctx huma.Context) {
-			storage.ServeContent(hctx, store, obj.Key(), storage.GetOptions{ContentType: obj.ContentType})
-		}}, nil
-	})
-}
-
-func iconView(o storage.Object) munkiupload.MunkiObjectView {
-	view := munkiupload.ViewObject(o)
-	view.ContentURL = fmt.Sprintf("/api/munki/icons/%d/content", o.ID)
-	return view
 }

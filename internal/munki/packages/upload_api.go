@@ -72,6 +72,7 @@ func registerObjectRoutes(
 		out, err := munkiupload.Confirm(
 			ctx,
 			objects,
+			store,
 			ObjectPrefix,
 			input.ObjectID,
 			func(objectID int64) error {

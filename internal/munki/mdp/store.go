@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
@@ -18,18 +19,13 @@ import (
 type Store struct {
 	db       *database.DB
 	q        *sqlc.Queries
-	presence Presence
+	presence *Presence
 }
 
-// NewStore returns a distribution point store backed by db.
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
-}
-
-// SetPresence wires the connection hub the store consults for live presence and
-// client-redirect eligibility. It is set once during wiring, before serving.
-func (s *Store) SetPresence(presence Presence) {
-	s.presence = presence
+// NewStore returns a distribution point store backed by db. The presence set is
+// shared with the hub: the hub writes it, the store reads it to gate redirects.
+func NewStore(db *database.DB, presence *Presence) *Store {
+	return &Store{db: db, q: db.Queries(), presence: presence}
 }
 
 // List returns distribution points in admin order with live presence.
@@ -211,7 +207,7 @@ func (s *Store) ResolveForClient(
 		return nil, err
 	}
 	for _, row := range rows {
-		if s.presence != nil && s.presence.Online(row.ID) {
+		if s.presence.Online(row.ID) {
 			return &ResolvedPoint{ID: row.ID, Key: row.Key, ClientBaseURL: row.ClientBaseURL}, nil
 		}
 	}
@@ -247,49 +243,24 @@ func (s *Store) InstallerObjectKey(ctx context.Context, packageID int64) (string
 	return storage.Key(obj.Prefix, obj.ID, obj.Filename), nil
 }
 
-// RecordState persists the worker's package mirror state. Current eligibility is
-// still checked against Woodstar's desired hash at read time and redirect time.
-func (s *Store) RecordState(
+// RecordPackageState upserts one package's mirror state for a distribution
+// point. Eligibility is derived at read and redirect time by comparing the
+// reported hash against Woodstar's current desired installer, so a stale or
+// removed package stops matching on its own and needs no separate cleanup.
+func (s *Store) RecordPackageState(
 	ctx context.Context,
 	distributionPointID int64,
-	report StateReport,
+	packageID int64,
+	status PackageStatus,
+	sha256 string,
+	errMessage string,
 ) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		if _, err := q.GetMunkiDistributionPointByID(ctx, sqlc.GetMunkiDistributionPointByIDParams{
-			ID: distributionPointID,
-		}); errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		} else if err != nil {
-			return err
-		}
-
-		reportedIDs := make([]int64, len(report.Packages))
-		for i, pkg := range report.Packages {
-			reportedIDs[i] = pkg.PackageID
-		}
-		if err := q.DeleteMunkiDistributionPackageStatesNotIn(
-			ctx,
-			sqlc.DeleteMunkiDistributionPackageStatesNotInParams{
-				DistributionPointID: distributionPointID,
-				PackageIds:          reportedIDs,
-			},
-		); err != nil {
-			return err
-		}
-
-		for _, pkg := range report.Packages {
-			if err := q.UpsertMunkiDistributionPackageState(ctx, sqlc.UpsertMunkiDistributionPackageStateParams{
-				DistributionPointID: distributionPointID,
-				PackageID:           pkg.PackageID,
-				Status:              string(reportedPackageStatus(pkg)),
-				ReportedSha256:      reportedSHA256(pkg.SHA256),
-				Error:               pkg.Error,
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
+	return s.q.UpsertMunkiDistributionPackageState(ctx, sqlc.UpsertMunkiDistributionPackageStateParams{
+		DistributionPointID: distributionPointID,
+		PackageID:           packageID,
+		Status:              string(status),
+		ReportedSha256:      reportedSHA256(sha256),
+		Error:               errMessage,
 	})
 }
 
@@ -310,7 +281,7 @@ func (s *Store) distributionPoint(row sqlc.MunkiDistributionPoint) DistributionP
 		Position:      row.Position,
 		ClientCIDRs:   row.ClientCidrs,
 		ClientBaseURL: row.ClientBaseURL,
-		Online:        online(s.presence, row.ID),
+		Online:        s.presence.Online(row.ID),
 		CreatedAt:     row.CreatedAt,
 		UpdatedAt:     row.UpdatedAt,
 	}
@@ -318,21 +289,27 @@ func (s *Store) distributionPoint(row sqlc.MunkiDistributionPoint) DistributionP
 
 func packageStateFromSQLC(row sqlc.ListMunkiDistributionPackageStatesRow) PackageState {
 	return PackageState{
-		PackageID:   row.PackageID,
-		DisplayName: row.DisplayName,
-		Version:     row.Version,
-		IconURL:     munkiIconURL(row.IconObjectID),
-		Status:      PackageStatus(row.Status),
-		Error:       row.Error,
+		PackageID:       row.PackageID,
+		SoftwareID:      row.SoftwareID,
+		DisplayName:     row.DisplayName,
+		Version:         row.Version,
+		SoftwareIconURL: softwareIconURL(row.SoftwareID, row.SoftwareIconObjectID),
+		Status:          PackageStatus(row.Status),
+		Error:           row.Error,
 	}
+}
+
+func softwareIconURL(softwareID int64, objectID *int64) string {
+	if objectID == nil {
+		return ""
+	}
+	return "/api/munki/software/" + strconv.FormatInt(softwareID, 10) + "/icon"
 }
 
 func desiredPackageFromSQLC(row sqlc.ListDesiredMunkiPackagesRow) DesiredPackage {
 	pkg := DesiredPackage{
-		PackageID:   row.PackageID,
-		Filename:    row.Filename,
-		DisplayName: row.DisplayName,
-		Version:     row.Version,
+		PackageID: row.PackageID,
+		Filename:  row.Filename,
 	}
 	if row.Sha256 != nil {
 		pkg.SHA256 = *row.Sha256
@@ -341,16 +318,6 @@ func desiredPackageFromSQLC(row sqlc.ListDesiredMunkiPackagesRow) DesiredPackage
 		pkg.SizeBytes = *row.SizeBytes
 	}
 	return pkg
-}
-
-func reportedPackageStatus(pkg ReportedPackage) PackageStatus {
-	if pkg.Status != "" {
-		return pkg.Status
-	}
-	if pkg.Error != "" {
-		return PackageStatusError
-	}
-	return PackageStatusCurrent
 }
 
 func reportedSHA256(sha256 string) *string {

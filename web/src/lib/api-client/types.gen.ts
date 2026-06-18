@@ -423,8 +423,6 @@ export type MunkiPackage = {
     created_at: string;
     eligible: boolean;
     force_install_after_date?: string;
-    icon_object_id?: number;
-    icon_url?: string;
     id: number;
     installable_condition: string;
     installcheck_script: string;
@@ -623,8 +621,9 @@ export type MunkiPackageSelector = {
 export type MunkiPackageState = {
     display_name: string;
     error?: string;
-    icon_url?: string;
     package_id: number;
+    software_icon_url?: string;
+    software_id: number;
     status: 'pending' | 'syncing' | 'current' | 'error';
     version: string;
 };
@@ -3028,43 +3027,6 @@ export type ListMunkiIconsResponses = {
 };
 
 export type ListMunkiIconsResponse = ListMunkiIconsResponses[keyof ListMunkiIconsResponses];
-
-export type GetMunkiIconContentData = {
-    body?: never;
-    path: {
-        object_id: number;
-    };
-    query?: never;
-    url: '/api/munki/icons/{object_id}/content';
-};
-
-export type GetMunkiIconContentErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetMunkiIconContentError = GetMunkiIconContentErrors[keyof GetMunkiIconContentErrors];
-
-export type GetMunkiIconContentResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
 
 export type ListMunkiPackagesData = {
     body?: never;

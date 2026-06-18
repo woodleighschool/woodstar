@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -87,7 +86,7 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 
 	rawURL, err := store.PresignGet(
 		context.Background(),
-		"munki/icons/7/icon.png",
+		"munki/icons/7/App Icon.png",
 		time.Minute,
 		GetOptions{ContentType: "image/png"},
 	)
@@ -99,8 +98,8 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse URL: %v", err)
 	}
-	if got := parsed.Scheme + "://" + parsed.Host + parsed.Path; got != "https://woodstar.example/storage/blob" {
-		t.Fatalf("blob URL = %q, want https://woodstar.example/storage/blob", got)
+	if got := parsed.Scheme + "://" + parsed.Host + parsed.EscapedPath(); got != "https://woodstar.example/storage/munki/icons/7/App%20Icon.png" {
+		t.Fatalf("blob URL = %q, want path-bound storage URL", got)
 	}
 	claims, err := capability.Verify[blobClaims](
 		testCapabilityKey,
@@ -111,7 +110,7 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if claims.Key != "munki/icons/7/icon.png" {
+	if claims.Key != "munki/icons/7/App Icon.png" {
 		t.Fatalf("key = %q, want object key", claims.Key)
 	}
 	if claims.ContentType != "image/png" {
@@ -139,12 +138,15 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 	if target.Transport != UploadTransportWoodstar {
 		t.Fatalf("transport = %q, want woodstar", target.Transport)
 	}
-	if !strings.HasPrefix(target.URL, "https://woodstar.example/storage/blob?cap=") {
-		t.Fatalf("url = %q, want blob capability URL", target.URL)
-	}
 	parsed, err := url.Parse(target.URL)
 	if err != nil {
 		t.Fatalf("parse URL: %v", err)
+	}
+	if got := parsed.Scheme + "://" + parsed.Host + parsed.Path; got != "https://woodstar.example/storage/munki/packages/42/Installer.pkg" {
+		t.Fatalf("url path = %q, want path-bound storage URL", got)
+	}
+	if parsed.Query().Get("cap") == "" {
+		t.Fatalf("url = %q, want capability token", target.URL)
 	}
 	claims, err := capability.Verify[blobClaims](
 		testCapabilityKey,

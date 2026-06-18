@@ -2,9 +2,7 @@ package storage
 
 import (
 	"errors"
-	"io"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -24,9 +22,9 @@ type blobClaims struct {
 // RegisterBlobRoutes mounts capability-authenticated raw blob transfer routes.
 func RegisterBlobRoutes(r chi.Router, store Store, key []byte) {
 	h := blobHandler{store: store, key: key}
-	r.Get("/storage/blob", h.get)
-	r.Put("/storage/blob", h.put)
-	r.Options("/storage/blob", h.options)
+	r.Get("/storage/*", h.get)
+	r.Put("/storage/*", h.put)
+	r.Options("/storage/*", h.options)
 }
 
 type blobHandler struct {
@@ -40,30 +38,7 @@ func (h blobHandler) get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reader, info, err := h.store.Open(r.Context(), claims.Key)
-	if errors.Is(err, ErrObjectNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer reader.Close()
-
-	seeker, ok := reader.(io.ReadSeeker)
-	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	contentType := claims.ContentType
-	if contentType == "" {
-		contentType = info.ContentType
-	}
-	if contentType != "" {
-		w.Header().Set("Content-Type", contentType)
-	}
-	http.ServeContent(w, r, path.Base(claims.Key), time.Time{}, seeker)
+	ServeObject(w, r, h.store, claims.Key, ServeOptions{ContentType: claims.ContentType})
 }
 
 func (h blobHandler) put(w http.ResponseWriter, r *http.Request) {
@@ -92,11 +67,12 @@ func (h blobHandler) verify(
 	op string,
 ) (blobClaims, bool) {
 	claims, err := capability.Verify[blobClaims](h.key, r.URL.Query().Get("cap"), op, time.Now())
+	requestKey := chi.URLParam(r, "*")
 	switch {
 	case errors.Is(err, capability.ErrExpired):
 		w.WriteHeader(http.StatusGone)
 		return blobClaims{}, false
-	case err != nil || claims.Key == "":
+	case err != nil || claims.Key == "" || requestKey != claims.Key:
 		w.WriteHeader(http.StatusUnauthorized)
 		return blobClaims{}, false
 	}

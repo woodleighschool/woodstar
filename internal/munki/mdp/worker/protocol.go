@@ -8,43 +8,37 @@ import (
 )
 
 const (
-	messageHello          = "hello"
-	messageDesiredChanged = "desired_changed"
-	messageState          = "state"
+	messageHello      = "hello"
+	messageDesiredSet = "desired_set"
 
-	packageStatusCurrent = "current"
-	packageStatusError   = "error"
+	eventPackageSyncing = "package_syncing"
+	eventPackageCurrent = "package_current"
+	eventPackageError   = "package_error"
 )
 
-// serverMessage is an inbound message from Woodstar. hello and desired_changed
-// share the desired-set payload; hello additionally carries the point identity.
+// serverMessage is an inbound message from Woodstar. hello carries the point
+// identity; desired_set carries the full authoritative installer list.
 type serverMessage struct {
 	Type              string           `json:"type"`
 	DistributionPoint pointIdentity    `json:"distribution_point"`
 	Packages          []desiredPackage `json:"packages"`
 }
 
-// desiredPackage is one installer Woodstar wants this point to mirror.
+// desiredPackage is one installer Woodstar wants this point to mirror. The
+// worker fetches a download URL per job, so none is carried here.
 type desiredPackage struct {
-	PackageID   int64  `json:"package_id"`
-	Filename    string `json:"filename"`
-	SHA256      string `json:"sha256"`
-	SizeBytes   int64  `json:"size_bytes"`
-	DisplayName string `json:"display_name"`
-	Version     string `json:"version"`
+	PackageID int64  `json:"package_id"`
+	Filename  string `json:"filename"`
+	SHA256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
 }
 
-// stateMessage is the worker's outbound report, sent after every reconcile.
-type stateMessage struct {
-	Type     string            `json:"type"`
-	Packages []reportedPackage `json:"packages"`
-}
-
-// reportedPackage is one desired package's mirror state.
-type reportedPackage struct {
+// packageEvent is the worker's outbound report for one package, emitted as each
+// mirror job settles rather than as a batch after a full reconcile.
+type packageEvent struct {
+	Type      string `json:"type"`
 	PackageID int64  `json:"package_id"`
 	SHA256    string `json:"sha256,omitempty"`
-	Status    string `json:"status"`
 	Error     string `json:"error,omitempty"`
 }
 

@@ -14,6 +14,9 @@ import (
 
 const Label = "munki upload"
 
+// IconObjectPrefix namespaces software icon objects in storage.
+const IconObjectPrefix = "munki/icons"
+
 type MunkiUploadRequest struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type,omitempty"`
@@ -83,6 +86,7 @@ func Create(
 func Confirm(
 	ctx context.Context,
 	objects *storage.ObjectStore,
+	presigner storage.Presigner,
 	prefix string,
 	objectID int64,
 	attach func(objectID int64) error,
@@ -105,7 +109,11 @@ func Confirm(
 		_ = objects.DeleteUnreferenced(ctx, confirmed.ID)
 		return nil, err
 	}
-	return &ObjectOutput{Body: ViewObject(*confirmed)}, nil
+	view, err := ViewObjectWithContentURL(ctx, presigner, *confirmed)
+	if err != nil {
+		return nil, err
+	}
+	return &ObjectOutput{Body: view}, nil
 }
 
 func ViewObject(o storage.Object) MunkiObjectView {
@@ -116,4 +124,22 @@ func ViewObject(o storage.Object) MunkiObjectView {
 		SizeBytes:   o.SizeBytes,
 		SHA256:      o.SHA256,
 	}
+}
+
+func ViewObjectWithContentURL(
+	ctx context.Context,
+	presigner storage.Presigner,
+	o storage.Object,
+) (MunkiObjectView, error) {
+	view := ViewObject(o)
+	contentURL, err := ContentURL(ctx, presigner, o)
+	if err != nil {
+		return MunkiObjectView{}, err
+	}
+	view.ContentURL = contentURL
+	return view, nil
+}
+
+func ContentURL(ctx context.Context, presigner storage.Presigner, o storage.Object) (string, error) {
+	return presigner.PresignGet(ctx, o.Key(), 0, storage.GetOptions{ContentType: o.ContentType})
 }

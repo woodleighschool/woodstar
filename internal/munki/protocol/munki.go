@@ -137,12 +137,13 @@ func (h handler) redirectToDistributionPoint(
 		return "", false
 	}
 	return h.selector.SelectRedirect(r.Context(), mdp.SelectionRequest{
-		ClientIP:  chimiddleware.GetClientIP(r.Context()),
-		HostID:    client.ID,
-		Serial:    client.Serial,
-		PackageID: installer.PackageID,
-		SHA256:    installer.SHA256,
-		SizeBytes: installer.SizeBytes,
+		ClientIP:              chimiddleware.GetClientIP(r.Context()),
+		HostID:                client.ID,
+		Serial:                client.Serial,
+		PackageID:             installer.PackageID,
+		InstallerItemLocation: installer.InstallerItemLocation,
+		SHA256:                installer.SHA256,
+		SizeBytes:             installer.SizeBytes,
 	})
 }
 

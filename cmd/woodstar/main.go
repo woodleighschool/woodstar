@@ -329,12 +329,13 @@ func buildWiring(
 	})
 
 	w.munkiRepo = newMunki(w.hosts, w.munkiSoftware, w.storageObjects)
-	w.munkiDistribution = mdp.NewStore(db)
+	munkiPresence := mdp.NewPresence()
+	w.munkiDistribution = mdp.NewStore(db, munkiPresence)
 	w.munkiDistributionHub = mdp.NewHub(
 		w.munkiDistribution,
+		munkiPresence,
 		logger.With("component", "munki-distribution"),
 	)
-	w.munkiDistribution.SetPresence(w.munkiDistributionHub)
 	w.munkiSelection = mdp.NewSelection(
 		w.munkiDistribution,
 		logger.With("component", "munki-distribution"),
@@ -409,13 +410,21 @@ func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 				g.Ordinary, w.munkiSoftware, w.munkiPackages, w.storageObjects, w.storageBackend,
 				w.munkiDistributionHub,
 			)
+			munkisoftware.RegisterIconContentRoute(
+				g.Router.With(adminapi.RequireHTTPAuth(w.auth)),
+				w.munkiSoftware,
+				w.storageObjects,
+				w.storageBackend,
+			)
 		},
 		func(g adminapi.AdminGroups) {
 			packages.RegisterAdminRoutes(
 				g.Ordinary, w.munkiPackages, w.storageObjects, w.storageBackend, w.munkiDistributionHub,
 			)
 		},
-		func(g adminapi.AdminGroups) { mdp.RegisterAdminRoutes(g.Sensitive, w.munkiDistribution) },
+		func(g adminapi.AdminGroups) {
+			mdp.RegisterAdminRoutes(g.Sensitive, w.munkiDistribution)
+		},
 	}
 }
 

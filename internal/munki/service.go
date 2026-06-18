@@ -122,12 +122,14 @@ func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name
 }
 
 // PackageInstaller is a resolved package installer: the stable package id, the
-// storage key to serve, and the integrity a distribution grant binds to.
+// Munki repository path, the storage key to serve, and the integrity a
+// distribution grant binds to.
 type PackageInstaller struct {
-	PackageID int64
-	Key       string
-	SHA256    string
-	SizeBytes int64
+	PackageID             int64
+	InstallerItemLocation string
+	Key                   string
+	SHA256                string
+	SizeBytes             int64
 }
 
 // ResolvePackageFile authorizes a package installer Munki path for a client and
@@ -159,10 +161,11 @@ func (s *RepositoryService) ResolvePackageFile(
 			continue
 		}
 		return PackageInstaller{
-			PackageID: pkg.Package.ID,
-			Key:       obj.Key(),
-			SHA256:    objectSHA256(*obj),
-			SizeBytes: objectSize(*obj),
+			PackageID:             pkg.Package.ID,
+			InstallerItemLocation: key,
+			Key:                   obj.Key(),
+			SHA256:                objectSHA256(*obj),
+			SizeBytes:             objectSize(*obj),
 		}, nil
 	}
 	return PackageInstaller{}, ErrNotFound
@@ -188,7 +191,7 @@ func (s *RepositoryService) ResolveIconFile(
 		return "", err
 	}
 	for _, pkg := range pkgs {
-		if obj := objectByID(objects, pkg.IconObjectID); obj != nil &&
+		if obj := objectByID(objects, pkg.SoftwareIconObjectID); obj != nil &&
 			packages.IconName(*obj) == key {
 			return obj.Key(), nil
 		}
@@ -260,7 +263,7 @@ func (s *RepositoryService) objectsForPackages(
 	ids := make([]int64, 0, len(effective)*3)
 	for _, pkg := range effective {
 		ids = appendObjectID(ids, pkg.Package.InstallerObjectID)
-		ids = appendObjectID(ids, pkg.IconObjectID)
+		ids = appendObjectID(ids, pkg.SoftwareIconObjectID)
 	}
 	if len(ids) == 0 {
 		return map[int64]storage.Object{}, nil
@@ -274,7 +277,7 @@ func packageObjects(
 ) packages.PkginfoObjects {
 	return packages.PkginfoObjects{
 		Installer: objectByID(objects, pkg.Package.InstallerObjectID),
-		Icon:      objectByID(objects, pkg.IconObjectID),
+		Icon:      objectByID(objects, pkg.SoftwareIconObjectID),
 	}
 }
 

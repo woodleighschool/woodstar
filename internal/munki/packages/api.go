@@ -2,7 +2,6 @@ package packages
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -57,8 +56,6 @@ type munkiPackageOutput struct {
 // MunkiPackage is the shared admin API representation of one Munki package version.
 type MunkiPackage struct {
 	Package
-
-	IconURL string `json:"icon_url,omitempty"`
 }
 
 func (input munkiPackageListInput) params() PackageListParams {
@@ -107,7 +104,10 @@ func notifyDesired(notifier DesiredNotifier) {
 	}
 }
 
-func registerListMunkiPackages(api huma.API, store *Store) {
+func registerListMunkiPackages(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-packages",
 		Method:      http.MethodGet,
@@ -121,12 +121,18 @@ func registerListMunkiPackages(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromPackages(rows), Count: int32(count)},
+			Body: apitypes.Page[MunkiPackage]{
+				Items: MunkiPackagesFromPackages(rows),
+				Count: int32(count),
+			},
 		}, nil
 	})
 }
 
-func registerCreateMunkiPackage(api huma.API, store *Store) {
+func registerCreateMunkiPackage(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
@@ -150,7 +156,10 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 	})
 }
 
-func registerGetMunkiPackage(api huma.API, store *Store) {
+func registerGetMunkiPackage(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
@@ -167,7 +176,10 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 	})
 }
 
-func registerPutMunkiPackage(api huma.API, store *Store) {
+func registerPutMunkiPackage(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-package",
 		Method:      http.MethodPut,
@@ -226,10 +238,7 @@ func registerBulkDeleteMunkiPackages(api huma.API, store *Store, notifier Desire
 
 // MunkiPackageFromPackage maps a package read model to the admin API shape.
 func MunkiPackageFromPackage(pkg Package) MunkiPackage {
-	return MunkiPackage{
-		Package: pkg,
-		IconURL: objectContentURL(pkg.IconObjectID),
-	}
+	return MunkiPackage{Package: pkg}
 }
 
 // MunkiPackagesFromPackages maps package read models to the admin API shape.
@@ -239,11 +248,4 @@ func MunkiPackagesFromPackages(rows []Package) []MunkiPackage {
 		items[i] = MunkiPackageFromPackage(row)
 	}
 	return items
-}
-
-func objectContentURL(objectID *int64) string {
-	if objectID == nil {
-		return ""
-	}
-	return fmt.Sprintf("/api/munki/icons/%d/content", *objectID)
 }

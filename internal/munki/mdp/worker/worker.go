@@ -8,10 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -26,11 +23,14 @@ const (
 	// successor starts again from the initial reconnect delay.
 	connectionStableAfter = time.Minute
 
-	// maxMessageBytes bounds an inbound hello/desired_changed message so a large
+	// maxMessageBytes bounds an inbound hello/desired_set message so a large
 	// fleet's package list is not truncated by the default read limit.
 	maxMessageBytes = 8 << 20
 
-	packageMirrorAttempts = 3
+	// initialJobRetry is the first backoff after a failed mirror job. The job
+	// keeps retrying with exponential backoff so a transient failure does not
+	// strand a package, without hammering the server on a persistent one.
+	initialJobRetry = 5 * time.Second
 )
 
 // Worker is the woodstar mdp face: a WebSocket control channel that mirrors
@@ -111,7 +111,7 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 // connectLoop keeps a Woodstar connection up, reconnecting with capped backoff.
-// Each reconnect receives the whole desired set in the next hello.
+// Each reconnect receives the whole desired set, so a missed change is recovered.
 func (w *Worker) connectLoop(ctx context.Context) {
 	backoff := initialReconnectDelay
 	for {
@@ -136,8 +136,10 @@ func (w *Worker) connectLoop(ctx context.Context) {
 	}
 }
 
-// connectOnce dials Woodstar, then processes hello and desired_changed messages
-// (reconciling and reporting state after each) until the connection ends.
+// connectOnce dials Woodstar and processes hello and desired_set messages until
+// the connection ends. The read loop only updates state and kicks the session's
+// reconciler; downloads and reporting run on the session's own goroutines, so a
+// large download never blocks the control channel or its ping responses.
 func (w *Worker) connectOnce(ctx context.Context) error {
 	w.logger.DebugContext(ctx, "connecting", "url", w.connectURL())
 	// coder/websocket owns resp.Body (nil on success, a NopCloser on error), so we
@@ -153,8 +155,17 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 	ws.SetReadLimit(maxMessageBytes)
 	w.logger.InfoContext(ctx, "connected", "server_url", w.cfg.ServerURL)
 
+	connCtx, cancel := context.WithCancel(ctx)
+	session := newSession(connCtx, w.mirror, w.client, w.logger, w.cfg.DownloadConcurrency, initialJobRetry)
+	defer func() {
+		cancel()
+		session.wait()
+	}()
+	go session.reconcileLoop()
+	go session.writeEvents(ws)
+
 	for {
-		_, data, err := ws.Read(ctx)
+		_, data, err := ws.Read(connCtx)
 		if err != nil {
 			return err
 		}
@@ -163,11 +174,12 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 			return fmt.Errorf("decode server message: %w", err)
 		}
 		switch msg.Type {
-		case messageHello, messageDesiredChanged:
-			failures := w.applyDesired(ctx, msg)
-			if err := w.sendState(ctx, ws, failures); err != nil {
-				return err
-			}
+		case messageHello:
+			w.logger.DebugContext(connCtx, "received identity",
+				"id", msg.DistributionPoint.ID, "name", msg.DistributionPoint.Name)
+			w.mirror.setIdentity(msg.DistributionPoint)
+		case messageDesiredSet:
+			session.submitDesired(msg.Packages)
 		default:
 			return fmt.Errorf("unexpected message type %q", msg.Type)
 		}
@@ -183,191 +195,4 @@ func (w *Worker) connectURL() string {
 		base = "ws://" + strings.TrimPrefix(base, "http://")
 	}
 	return base + "/api/munki/distribution/connect"
-}
-
-// applyDesired reconciles the mirror against a hello or desired_changed message.
-func (w *Worker) applyDesired(ctx context.Context, msg serverMessage) map[int64]string {
-	w.logger.DebugContext(ctx, "received message",
-		"type", msg.Type,
-		"packages", len(msg.Packages),
-	)
-	if msg.Type == messageHello {
-		w.mirror.setIdentity(msg.DistributionPoint)
-	}
-	failures := w.reconcile(ctx, msg.Packages)
-	if err := w.mirror.save(); err != nil {
-		w.logger.WarnContext(ctx, "snapshot failed", "err", err)
-	}
-	return failures
-}
-
-func (w *Worker) sendState(ctx context.Context, ws *websocket.Conn, failures map[int64]string) error {
-	packages := w.packageReport(failures)
-	if err := writeJSON(ctx, ws, stateMessage{
-		Type:     messageState,
-		Packages: packages,
-	}); err != nil {
-		return err
-	}
-	w.logger.DebugContext(ctx, "reported state",
-		"packages", len(packages),
-	)
-	return nil
-}
-
-// reconcile downloads missing or changed packages with bounded concurrency, then
-// deletes any mirrored package no longer in the desired set.
-func (w *Worker) reconcile(ctx context.Context, desired []desiredPackage) map[int64]string {
-	w.logger.DebugContext(ctx, "reconciling", "desired", len(desired))
-	wanted := make(map[int64]bool, len(desired))
-	tokens := make(chan struct{}, w.cfg.DownloadConcurrency)
-	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		mirrored int
-		upToDate int
-		failed   int
-		failures = map[int64]string{}
-	)
-	for _, pkg := range desired {
-		wanted[pkg.PackageID] = true
-		if w.upToDate(pkg) {
-			upToDate++
-			w.logger.DebugContext(ctx, "package up to date", "package_id", pkg.PackageID)
-			continue
-		}
-		wg.Add(1)
-		tokens <- struct{}{}
-		go func(pkg desiredPackage) {
-			defer wg.Done()
-			defer func() { <-tokens }()
-			if err := w.fetchWithRetry(ctx, pkg); err != nil {
-				mu.Lock()
-				failed++
-				failures[pkg.PackageID] = err.Error()
-				mu.Unlock()
-				return
-			}
-			mu.Lock()
-			mirrored++
-			mu.Unlock()
-		}(pkg)
-	}
-	wg.Wait()
-	removed := w.pruneStale(ctx, wanted)
-	w.logger.DebugContext(ctx, "reconcile complete",
-		"mirrored", mirrored,
-		"up_to_date", upToDate,
-		"removed", removed,
-		"failed", failed,
-	)
-	return failures
-}
-
-func (w *Worker) packageReport(failures map[int64]string) []reportedPackage {
-	packages := w.mirror.report()
-	if len(failures) == 0 {
-		return packages
-	}
-	index := make(map[int64]int, len(packages))
-	for i, pkg := range packages {
-		index[pkg.PackageID] = i
-	}
-	for packageID, failure := range failures {
-		if i, ok := index[packageID]; ok {
-			packages[i].Status = packageStatusError
-			packages[i].Error = failure
-			continue
-		}
-		packages = append(packages, reportedPackage{
-			PackageID: packageID,
-			Status:    packageStatusError,
-			Error:     failure,
-		})
-	}
-	return packages
-}
-
-func (w *Worker) upToDate(pkg desiredPackage) bool {
-	state, ok := w.mirror.get(pkg.PackageID)
-	if !ok || state.SHA256 != pkg.SHA256 || state.SizeBytes != pkg.SizeBytes {
-		return false
-	}
-	info, err := os.Stat(w.mirror.localPath(pkg.PackageID, state.Filename))
-	return err == nil && info.Size() == pkg.SizeBytes
-}
-
-func (w *Worker) fetchWithRetry(ctx context.Context, pkg desiredPackage) error {
-	var lastErr error
-	for attempt := 1; attempt <= packageMirrorAttempts; attempt++ {
-		if err := w.fetch(ctx, pkg); err != nil {
-			lastErr = err
-			if ctx.Err() != nil {
-				return err
-			}
-			w.logger.WarnContext(ctx, "package mirror attempt failed",
-				"package_id", pkg.PackageID,
-				"attempt", attempt,
-				"attempts", packageMirrorAttempts,
-				"err", err,
-			)
-			continue
-		}
-		return nil
-	}
-	return lastErr
-}
-
-func (w *Worker) fetch(ctx context.Context, pkg desiredPackage) error {
-	w.logger.DebugContext(ctx, "downloading package",
-		"package_id", pkg.PackageID,
-		"filename", filepath.Base(pkg.Filename),
-		"size_bytes", pkg.SizeBytes,
-	)
-	path := w.mirror.localPath(pkg.PackageID, pkg.Filename)
-	tmp := path + ".download"
-	if err := w.client.download(ctx, pkg.PackageID, tmp); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("download", pkg.PackageID, err)
-	}
-	if err := verifyFile(tmp, pkg.SizeBytes, pkg.SHA256); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("verify", pkg.PackageID, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("commit", pkg.PackageID, err)
-	}
-	w.mirror.put(pkg.PackageID, packageState{
-		Filename:   filepath.Base(pkg.Filename),
-		SHA256:     pkg.SHA256,
-		SizeBytes:  pkg.SizeBytes,
-		VerifiedAt: time.Now(),
-	})
-	w.logger.DebugContext(ctx, "package mirrored",
-		"package_id", pkg.PackageID,
-		"size_bytes", pkg.SizeBytes,
-	)
-	return nil
-}
-
-// pruneStale removes any mirrored package no longer wanted and returns the count.
-func (w *Worker) pruneStale(ctx context.Context, wanted map[int64]bool) int {
-	removed := 0
-	for _, id := range w.mirror.packageIDs() {
-		if wanted[id] {
-			continue
-		}
-		if state, ok := w.mirror.get(id); ok {
-			_ = os.Remove(w.mirror.localPath(id, state.Filename))
-		}
-		w.mirror.remove(id)
-		removed++
-		w.logger.DebugContext(ctx, "removed package", "package_id", id)
-	}
-	return removed
-}
-
-func fetchError(operation string, packageID int64, err error) error {
-	return fmt.Errorf("package %d %s: %w", packageID, operation, err)
 }

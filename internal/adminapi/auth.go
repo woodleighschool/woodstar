@@ -47,23 +47,6 @@ func RequireHTTPAuth(authService *auth.Service) func(http.Handler) http.Handler 
 	}
 }
 
-func RequireHTTPAdmin() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if _, err := adminctx.RequireAdmin(req.Context()); err != nil {
-				status := http.StatusInternalServerError
-				var statusErr huma.StatusError
-				if errors.As(err, &statusErr) {
-					status = statusErr.GetStatus()
-				}
-				http.Error(w, http.StatusText(status), status)
-				return
-			}
-			next.ServeHTTP(w, req)
-		})
-	}
-}
-
 // RequireAdmin rejects authenticated users that are not administrators.
 func RequireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {

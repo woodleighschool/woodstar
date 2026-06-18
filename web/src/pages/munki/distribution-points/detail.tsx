@@ -196,7 +196,7 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
                   <TableRow key={pkg.package_id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <MunkiIcon iconUrl={pkg.icon_url} />
+                        <MunkiIcon iconUrl={pkg.software_icon_url} />
                         <Link
                           to="/munki/packages/$packageId/edit"
                           params={{ packageId: String(pkg.package_id) }}

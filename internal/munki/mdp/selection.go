@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/netip"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,12 +33,13 @@ func NewSelection(store *Store, logger *slog.Logger) *Selection {
 // integrity fields bind the minted grant to specific bytes; host and serial are
 // audit claims.
 type SelectionRequest struct {
-	ClientIP  string
-	HostID    int64
-	Serial    string
-	PackageID int64
-	SHA256    string
-	SizeBytes int64
+	ClientIP              string
+	HostID                int64
+	Serial                string
+	PackageID             int64
+	InstallerItemLocation string
+	SHA256                string
+	SizeBytes             int64
 }
 
 // SelectRedirect returns a redirect URL to an eligible distribution point, or
@@ -67,13 +67,14 @@ func (s *Selection) SelectRedirect(ctx context.Context, req SelectionRequest) (s
 	}
 
 	token, err := grant.Sign([]byte(point.Key), grant.Claims{
-		Exp:                 time.Now().Add(redirectTTL).Unix(),
-		PackageID:           req.PackageID,
-		SHA256:              req.SHA256,
-		SizeBytes:           req.SizeBytes,
-		HostID:              req.HostID,
-		Serial:              req.Serial,
-		DistributionPointID: point.ID,
+		Exp:                   time.Now().Add(redirectTTL).Unix(),
+		PackageID:             req.PackageID,
+		InstallerItemLocation: req.InstallerItemLocation,
+		SHA256:                req.SHA256,
+		SizeBytes:             req.SizeBytes,
+		HostID:                req.HostID,
+		Serial:                req.Serial,
+		DistributionPointID:   point.ID,
 	})
 	if err != nil {
 		s.logger.WarnContext(ctx, "munki distribution grant signing failed",
@@ -85,7 +86,7 @@ func (s *Selection) SelectRedirect(ctx context.Context, req SelectionRequest) (s
 		return "", false
 	}
 
-	redirect, err := grantURL(point.ClientBaseURL, req.PackageID, token)
+	redirect, err := grantURL(point.ClientBaseURL, req.InstallerItemLocation, token)
 	if err != nil {
 		s.logger.WarnContext(ctx, "munki distribution redirect URL invalid",
 			"operation", "select",
@@ -116,9 +117,9 @@ func (s *Selection) logDecision(
 	)
 }
 
-func grantURL(clientBaseURL string, packageID int64, token string) (string, error) {
+func grantURL(clientBaseURL string, installerItemLocation string, token string) (string, error) {
 	base, err := url.Parse(strings.TrimRight(clientBaseURL, "/") +
-		"/munki-distribution/packages/" + strconv.FormatInt(packageID, 10))
+		"/munki/pkgs/" + escapePath(installerItemLocation))
 	if err != nil {
 		return "", err
 	}
@@ -126,4 +127,12 @@ func grantURL(clientBaseURL string, packageID int64, token string) (string, erro
 	values.Set("cap", token)
 	base.RawQuery = values.Encode()
 	return base.String(), nil
+}
+
+func escapePath(value string) string {
+	parts := strings.Split(value, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }

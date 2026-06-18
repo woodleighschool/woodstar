@@ -61,22 +61,6 @@ func (q *Queries) CreateMunkiDistributionPoint(ctx context.Context, arg CreateMu
 	return i, err
 }
 
-const deleteMunkiDistributionPackageStatesNotIn = `-- name: DeleteMunkiDistributionPackageStatesNotIn :exec
-DELETE FROM munki_distribution_package_states
-WHERE distribution_point_id = $1
-  AND package_id <> ALL ($2::bigint[])
-`
-
-type DeleteMunkiDistributionPackageStatesNotInParams struct {
-	DistributionPointID int64   `json:"distribution_point_id"`
-	PackageIds          []int64 `json:"package_ids"`
-}
-
-func (q *Queries) DeleteMunkiDistributionPackageStatesNotIn(ctx context.Context, arg DeleteMunkiDistributionPackageStatesNotInParams) error {
-	_, err := q.db.Exec(ctx, deleteMunkiDistributionPackageStatesNotIn, arg.DistributionPointID, arg.PackageIds)
-	return err
-}
-
 const deleteMunkiDistributionPoint = `-- name: DeleteMunkiDistributionPoint :one
 DELETE FROM munki_distribution_points
 WHERE id = $1
@@ -185,13 +169,10 @@ func (q *Queries) GetMunkiPackageInstallerObject(ctx context.Context, arg GetMun
 const listDesiredMunkiPackages = `-- name: ListDesiredMunkiPackages :many
 SELECT
     p.id AS package_id,
-    s.name AS display_name,
-    p.version,
     o.filename,
     o.sha256,
     o.size_bytes
 FROM munki_packages p
-JOIN munki_software s ON s.id = p.software_id
 JOIN storage_objects o ON o.id = p.installer_object_id
 WHERE o.available_at IS NOT NULL
   AND o.sha256 IS NOT NULL
@@ -200,12 +181,10 @@ ORDER BY p.id
 `
 
 type ListDesiredMunkiPackagesRow struct {
-	PackageID   int64   `json:"package_id"`
-	DisplayName string  `json:"display_name"`
-	Version     string  `json:"version"`
-	Filename    string  `json:"filename"`
-	Sha256      *string `json:"sha256"`
-	SizeBytes   *int64  `json:"size_bytes"`
+	PackageID int64   `json:"package_id"`
+	Filename  string  `json:"filename"`
+	Sha256    *string `json:"sha256"`
+	SizeBytes *int64  `json:"size_bytes"`
 }
 
 func (q *Queries) ListDesiredMunkiPackages(ctx context.Context) ([]ListDesiredMunkiPackagesRow, error) {
@@ -219,8 +198,6 @@ func (q *Queries) ListDesiredMunkiPackages(ctx context.Context) ([]ListDesiredMu
 		var i ListDesiredMunkiPackagesRow
 		if err := rows.Scan(
 			&i.PackageID,
-			&i.DisplayName,
-			&i.Version,
 			&i.Filename,
 			&i.Sha256,
 			&i.SizeBytes,
@@ -293,9 +270,10 @@ func (q *Queries) ListEligibleMunkiDistributionPointsForClient(ctx context.Conte
 const listMunkiDistributionPackageStates = `-- name: ListMunkiDistributionPackageStates :many
 SELECT
     p.id AS package_id,
+    sw.id AS software_id,
     sw.name AS display_name,
     p.version,
-    sw.icon_object_id,
+    sw.icon_object_id AS software_icon_object_id,
     CASE
         WHEN s.package_id IS NULL THEN 'pending'
         WHEN s.status = 'error' THEN 'error'
@@ -320,12 +298,13 @@ type ListMunkiDistributionPackageStatesParams struct {
 }
 
 type ListMunkiDistributionPackageStatesRow struct {
-	PackageID    int64  `json:"package_id"`
-	DisplayName  string `json:"display_name"`
-	Version      string `json:"version"`
-	IconObjectID *int64 `json:"icon_object_id"`
-	Status       string `json:"status"`
-	Error        string `json:"error"`
+	PackageID            int64  `json:"package_id"`
+	SoftwareID           int64  `json:"software_id"`
+	DisplayName          string `json:"display_name"`
+	Version              string `json:"version"`
+	SoftwareIconObjectID *int64 `json:"software_icon_object_id"`
+	Status               string `json:"status"`
+	Error                string `json:"error"`
 }
 
 func (q *Queries) ListMunkiDistributionPackageStates(ctx context.Context, arg ListMunkiDistributionPackageStatesParams) ([]ListMunkiDistributionPackageStatesRow, error) {
@@ -339,9 +318,10 @@ func (q *Queries) ListMunkiDistributionPackageStates(ctx context.Context, arg Li
 		var i ListMunkiDistributionPackageStatesRow
 		if err := rows.Scan(
 			&i.PackageID,
+			&i.SoftwareID,
 			&i.DisplayName,
 			&i.Version,
-			&i.IconObjectID,
+			&i.SoftwareIconObjectID,
 			&i.Status,
 			&i.Error,
 		); err != nil {

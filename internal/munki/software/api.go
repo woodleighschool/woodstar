@@ -2,8 +2,8 @@ package software
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -104,7 +104,10 @@ func notifyDesired(notifier desiredNotifier) {
 	}
 }
 
-func registerListMunkiSoftware(api huma.API, store *Store) {
+func registerListMunkiSoftware(
+	api huma.API,
+	store *Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-software",
 		Method:      http.MethodGet,
@@ -271,5 +274,5 @@ func munkiSoftwareIconURL(title Software) string {
 	if title.IconObjectID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/munki/icons/%d/content", *title.IconObjectID)
+	return munkiSoftwarePath + "/" + strconv.FormatInt(title.ID, 10) + "/icon"
 }

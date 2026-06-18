@@ -273,7 +273,7 @@ type Package struct {
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
-	IconObjectID             *int64                                `json:"icon_object_id,omitempty"`
+	SoftwareIconObjectID     *int64                                `json:"-"`
 	Eligible                 bool                                  `json:"eligible"`
 	CreatedAt                time.Time                             `json:"created_at"`
 	UpdatedAt                time.Time                             `json:"updated_at"`

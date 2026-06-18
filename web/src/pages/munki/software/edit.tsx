@@ -167,7 +167,7 @@ function MunkiSoftwareDetailForm({
           params={{ packageId: String(row.original.id) }}
           className="flex min-w-0 items-center gap-3 hover:underline"
         >
-          <PackageIconView pkg={row.original} />
+          <MunkiIcon iconUrl={software.icon_url} size="md" />
           <span className="truncate font-medium">{row.original.version}</span>
         </Link>
       ),
@@ -316,8 +316,4 @@ function targetRowsFromIncludes(includes: MunkiInclude[]): MunkiSoftwareTargetRo
 
 function numberTargetRows(rows: MunkiSoftwareTargetRow[]) {
   return rows.map((row, index) => ({ ...row, priority: index + 1 }));
-}
-
-function PackageIconView({ pkg }: { pkg: MunkiPackage }) {
-  return <MunkiIcon iconUrl={pkg.icon_url} size="md" />;
 }

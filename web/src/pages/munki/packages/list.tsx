@@ -12,7 +12,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { MunkiIcon } from "@/components/munki/munki-icon";
+import { MunkiIcon, munkiSoftwareIconURL } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -64,12 +64,12 @@ export function MunkiPackageListPage() {
               params={{ packageId: String(row.original.id) }}
               className="flex min-w-0 items-center gap-2 font-medium hover:underline"
             >
-              <MunkiIcon iconUrl={row.original.icon_url} />
+              <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
               <span className="truncate">{row.original.software_name}</span>
             </Link>
           ) : (
             <span className="flex min-w-0 items-center gap-2 font-medium">
-              <MunkiIcon iconUrl={row.original.icon_url} />
+              <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
               <span className="truncate">{row.original.software_name}</span>
             </span>
           ),

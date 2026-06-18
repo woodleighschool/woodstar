@@ -285,8 +285,8 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.IconObjectID == nil || *pkg.IconObjectID != icon.ID {
-		t.Fatalf("package icon object id = %v, want %d", pkg.IconObjectID, icon.ID)
+	if pkg.SoftwareIconObjectID == nil || *pkg.SoftwareIconObjectID != icon.ID {
+		t.Fatalf("package software icon object id = %v, want %d", pkg.SoftwareIconObjectID, icon.ID)
 	}
 }
 

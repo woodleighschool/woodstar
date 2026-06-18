@@ -4,7 +4,7 @@
 // Woodstar owns policy, package metadata, and the files. A distribution point
 // pulls the desired installers, verifies them, reports package mirror state,
 // and serves them under a per-DP grant. This package owns the admin resource,
-// the MDP-facing control/content protocol, and the selection that the Munki client
+// the MDP-facing control protocol, and the selection that the Munki client
 // delivery path consults. The worker that runs near clients lives under
 // mdp/worker and shares only the grant leaf.
 package mdp
@@ -43,12 +43,6 @@ func (PackageStatus) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(packageStatusValues...)
 }
 
-// Presence reports whether a distribution point currently holds a live
-// WebSocket connection. The connection hub implements it.
-type Presence interface {
-	Online(id int64) bool
-}
-
 // DistributionPoint is the admin view of one ordered mirror node. The per-DP
 // key is never part of this model: it is revealed once on create and rotate,
 // read by the resolver to sign grants, and matched for worker bearer auth.
@@ -73,12 +67,13 @@ type DistributionPointDetail struct {
 
 // PackageState is one desired package's state on a distribution point.
 type PackageState struct {
-	PackageID   int64         `json:"package_id"`
-	DisplayName string        `json:"display_name"`
-	Version     string        `json:"version"`
-	IconURL     string        `json:"icon_url,omitempty"`
-	Status      PackageStatus `json:"status"`
-	Error       string        `json:"error,omitempty"`
+	PackageID       int64         `json:"package_id"`
+	SoftwareID      int64         `json:"software_id"`
+	DisplayName     string        `json:"display_name"`
+	Version         string        `json:"version"`
+	SoftwareIconURL string        `json:"software_icon_url,omitempty"`
+	Status          PackageStatus `json:"status"`
+	Error           string        `json:"error,omitempty"`
 }
 
 // DistributionPointMutation is the admin-writable surface of a distribution
@@ -98,30 +93,14 @@ type ResolvedPoint struct {
 	ClientBaseURL string
 }
 
-// DesiredPackage is one installer a distribution point should mirror. It is the
-// worker's whole world for a package: a stable id, a filename, and the bytes to
-// verify against.
+// DesiredPackage is one installer a distribution point should mirror: a stable
+// id, the filename to store it under, and the bytes to verify against. The
+// worker fetches a fresh download URL per job, so none is carried here.
 type DesiredPackage struct {
-	PackageID   int64  `json:"package_id"`
-	Filename    string `json:"filename"`
-	SHA256      string `json:"sha256"`
-	SizeBytes   int64  `json:"size_bytes"`
-	DisplayName string `json:"display_name"`
-	Version     string `json:"version"`
-}
-
-// StateReport is a worker's package mirror state, sent after each desired-set
-// reconciliation.
-type StateReport struct {
-	Packages []ReportedPackage
-}
-
-// ReportedPackage is one desired package's state on a worker.
-type ReportedPackage struct {
 	PackageID int64
+	Filename  string
 	SHA256    string
-	Status    PackageStatus
-	Error     string
+	SizeBytes int64
 }
 
 // Validate enforces the write rules a malformed row would otherwise push into
@@ -142,15 +121,4 @@ func (m DistributionPointMutation) Validate() error {
 		}
 	}
 	return nil
-}
-
-func online(presence Presence, id int64) bool {
-	return presence != nil && presence.Online(id)
-}
-
-func munkiIconURL(iconObjectID *int64) string {
-	if iconObjectID == nil {
-		return ""
-	}
-	return fmt.Sprintf("/api/munki/icons/%d/content", *iconObjectID)
 }
