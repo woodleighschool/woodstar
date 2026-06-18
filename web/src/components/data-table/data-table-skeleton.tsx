@@ -1,3 +1,5 @@
+import * as React from "react";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -17,6 +19,7 @@ interface DataTableSkeletonProps extends React.ComponentProps<"div"> {
   withViewOptions?: boolean;
   withPagination?: boolean;
   shrinkZero?: boolean;
+  delayMs?: number;
 }
 
 export function DataTableSkeleton({
@@ -27,13 +30,29 @@ export function DataTableSkeleton({
   withViewOptions = true,
   withPagination = true,
   shrinkZero = false,
+  delayMs = 150,
   className,
   ...props
 }: DataTableSkeletonProps) {
+  const [show, setShow] = React.useState(delayMs <= 0);
+
+  React.useEffect(() => {
+    if (delayMs <= 0) {
+      setShow(true);
+      return;
+    }
+
+    setShow(false);
+    const timer = window.setTimeout(() => setShow(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+
   const cozyCellWidths = Array.from(
     { length: columnCount },
     (_, index) => cellWidths[index % cellWidths.length] ?? "auto",
   );
+
+  if (!show) return null;
 
   return (
     <div className={cn("flex w-full flex-col gap-2.5 overflow-auto", className)} {...props}>
