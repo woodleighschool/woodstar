@@ -32,7 +32,7 @@ import type {
   HostSoftwareRow,
   PathSignatureInformation,
 } from "@/lib/api";
-import { formatRelative, truncateMiddle } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 import {
   expandSoftwareSourceFilters,
   softwareSourceLabel,
@@ -108,8 +108,7 @@ const softwareColumns: ColumnDef<HostSoftwareRow>[] = [
     id: "hash",
     header: () => "Hash",
     enableSorting: false,
-    cell: ({ row }) =>
-      truncateHash(singleHash(installedPathsFor(row.original.installed_versions ?? []))),
+    cell: ({ row }) => singleHash(installedPathsFor(row.original.installed_versions ?? [])),
     meta: { label: "Hash" },
   },
 ];
@@ -286,11 +285,6 @@ function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledP
 function singleHash(paths: InstalledPath[]): string {
   if (paths.length !== 1) return "-";
   return paths[0].signature?.hash_sha256 ?? "-";
-}
-
-function truncateHash(hash: string): string {
-  if (hash === "-") return hash;
-  return truncateMiddle(hash, 8, 8, 16);
 }
 
 function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string | undefined {

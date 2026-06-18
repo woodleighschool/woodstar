@@ -30,7 +30,7 @@ import {
   useSoftwareTitle,
 } from "@/hooks/use-software";
 import { ruleTypeLabel } from "@/lib/santa-rules";
-import { formatDateTime, formatRelative, truncateMiddle } from "@/lib/utils";
+import { formatDateTime, formatRelative } from "@/lib/utils";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 
 type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
@@ -206,7 +206,7 @@ function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; i
         <TableRow key={bundle.sha256}>
           <TableCell className="min-w-0">
             <div className="truncate font-medium">
-              {bundle.name || bundle.bundle_id || shortIdentifier(bundle.sha256)}
+              {bundle.name || bundle.bundle_id || bundle.sha256}
             </div>
             <div className="truncate text-xs text-muted-foreground">
               {bundle.bundle_id || bundle.path}
@@ -248,7 +248,7 @@ function SantaExecutablesTable({
           <TableCell className="min-w-0">
             <div className="truncate font-medium">{executableDisplayName(executable)}</div>
             <div className="truncate font-mono text-xs text-muted-foreground">
-              {shortIdentifier(executable.sha256)}
+              {executable.sha256}
             </div>
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">
@@ -371,7 +371,7 @@ function SantaRulesTable({ rules, isAdmin }: { rules: RuleReference[]; isAdmin: 
               <span className="block truncate font-medium">{rule.name || rule.identifier}</span>
             )}
             <div className="truncate font-mono text-xs text-muted-foreground">
-              {shortIdentifier(rule.identifier)}
+              {rule.identifier}
             </div>
           </TableCell>
           <TableCell className="text-right">
@@ -433,10 +433,6 @@ function QuickAddRuleButton({
       <TooltipContent>New {ruleTypeLabel(ruleType)} Rule</TooltipContent>
     </Tooltip>
   );
-}
-
-function shortIdentifier(identifier: string) {
-  return truncateMiddle(identifier, 12, 8, 28);
 }
 
 function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
