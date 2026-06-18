@@ -1,7 +1,3 @@
 package buildinfo
 
-var (
-	Version = "0.0.0-dev"
-	Commit  = ""
-	Date    = ""
-)
+var Version = "0.0.0-dev"

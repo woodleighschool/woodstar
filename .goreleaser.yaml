@@ -17,8 +17,6 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/woodleighschool/woodstar/internal/buildinfo.Version={{ .Version }}
-      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit={{ .Commit }}
-      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Date={{ .Date }}
     goos:
       - linux
     goarch:
