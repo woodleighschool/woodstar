@@ -14,7 +14,10 @@ func Mount(r chi.Router, deps Dependencies) {
 
 func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	protected := huma.NewGroup(humaAPI)
-	protected.UseMiddleware(RequireAuth(humaAPI, deps.AuthService))
+	protected.UseMiddleware(requireAuth(humaAPI, deps.AuthService))
+
+	// Authn is request-time middleware; admin posture is an operation modifier
+	// so generated schemas advertise 403 on the routes that can return it.
 	ordinary := huma.NewGroup(protected)
 	ordinary.UseModifier(RequireAdminForMutations(humaAPI))
 	sensitive := huma.NewGroup(protected)

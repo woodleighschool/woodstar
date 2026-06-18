@@ -8,14 +8,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
-// humaConfig returns the Huma config shared by serve and openapi.
-func humaConfig(version string) huma.Config {
-	// List responses never serialize null: stores return empty slices and Page
-	// renders []. Drop Huma's default array nullability so every array schema
-	// reflects that, instead of tagging each field.
+func init() {
 	//nolint:reassign // huma exposes array nullability only as a package global
 	huma.DefaultArrayNullable = false
+}
 
+// humaConfig returns the Huma config shared by serve and openapi.
+func humaConfig(version string) huma.Config {
 	cfg := huma.DefaultConfig("Woodstar API", version)
 	cfg.Info.Description = "Typed admin and frontend API."
 	cfg.Info.License = &huma.License{Name: "Apache-2.0"}

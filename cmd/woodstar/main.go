@@ -154,14 +154,15 @@ func serve(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("init storage: %w", err)
 	}
 
-	server, starts := newServer(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
+	wiring := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
+	server := adminapi.NewServer(wiring.serverDependencies())
 
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", server.Addr(), err)
 	}
 
-	stopJobs := start(ctx, starts...)
+	stopJobs := start(ctx, wiring.starters()...)
 	defer stopJobs()
 
 	if err := runHTTPServer(ctx, server, listener); err != nil {
@@ -204,19 +205,6 @@ func runHTTPServer(
 
 		return nil
 	}
-}
-
-func newServer(
-	ctx context.Context,
-	cfg config.Config,
-	db *database.DB,
-	sessions *scs.SessionManager,
-	logger *slog.Logger,
-	storageBackend storage.Backend,
-	storageCapabilityKey []byte,
-) (*adminapi.Server, []starter) {
-	w := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
-	return adminapi.NewServer(w.serverDependencies()), w.starters()
 }
 
 // wiring holds every constructed store and service. It is the dependency glass:
@@ -328,7 +316,11 @@ func buildWiring(
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	w.munkiRepo = newMunki(w.hosts, w.munkiSoftware, w.storageObjects)
+	w.munkiRepo = munki.NewRepositoryService(munki.Dependencies{
+		Hosts:    w.hosts,
+		Packages: w.munkiSoftware,
+		Objects:  w.storageObjects,
+	})
 	munkiPresence := mdp.NewPresence()
 	w.munkiDistribution = mdp.NewStore(db, munkiPresence)
 	w.munkiDistributionHub = mdp.NewHub(
@@ -460,9 +452,9 @@ func (w *wiring) protocolRegistrars() []adminapi.ProtocolRegistrar {
 // starters returns the background lifecycle jobs the server runs alongside HTTP.
 func (w *wiring) starters() []starter {
 	return []starter{
-		santaCleanup(w.cfg, w.events, w.logger),
-		entraSync(w.cfg, w.directory, w.labels, w.logger),
-		func(context.Context) func() { return w.munkiDistributionHub.Close },
+		santaCleanupStarter(w.cfg, w.events, w.logger),
+		entraSyncStarter(w.cfg, w.directory, w.labels, w.logger),
+		munkiDistributionStarter(w.munkiDistributionHub),
 	}
 }
 
@@ -503,18 +495,6 @@ func newAuth(
 	return service
 }
 
-func newMunki(
-	hosts *hosts.Store,
-	softwareStore *munkisoftware.Store,
-	objects *storage.ObjectStore,
-) *munki.RepositoryService {
-	return munki.NewRepositoryService(munki.Dependencies{
-		Hosts:    hosts,
-		Packages: softwareStore,
-		Objects:  objects,
-	})
-}
-
 func storageConfig(cfg config.Config, capabilityKey []byte) storage.Config {
 	return storage.Config{
 		Kind:          storage.Kind(cfg.StorageKind),
@@ -541,7 +521,7 @@ func assetCapabilityKey(sessionSecret string) []byte {
 	return mac.Sum(nil)
 }
 
-func santaCleanup(
+func santaCleanupStarter(
 	cfg config.Config,
 	store *events.Store,
 	logger *slog.Logger,
@@ -559,7 +539,7 @@ func santaCleanup(
 	}
 }
 
-func entraSync(
+func entraSyncStarter(
 	cfg config.Config,
 	directoryStore *directory.Store,
 	labelStore *labels.Store,
@@ -588,6 +568,11 @@ func entraSync(
 	}
 }
 
+func munkiDistributionStarter(hub *mdp.Hub) starter {
+	return func(context.Context) func() { return hub.Close }
+}
+
+// A nil starter means the capability is disabled by configuration.
 type starter func(context.Context) func()
 
 func start(ctx context.Context, starts ...starter) func() {

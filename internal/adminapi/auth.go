@@ -11,10 +11,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 )
 
-// RequireAuth attaches the signed-in user to protected admin Huma operations.
+// requireAuth attaches the signed-in user to protected admin Huma operations.
 // Accepts an "Authorization: Bearer <api-key>" header first and falls back to
 // the scs session cookie when no Bearer token is present.
-func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
+func requireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		user, err := authService.Authenticate(ctx.Context(), ctx.Header("Authorization"))
 		if err != nil {
@@ -47,8 +47,8 @@ func RequireHTTPAuth(authService *auth.Service) func(http.Handler) http.Handler 
 	}
 }
 
-// RequireAdmin rejects authenticated users that are not administrators.
-func RequireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
+// requireAdmin rejects authenticated users that are not administrators.
+func requireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		if _, err := adminctx.RequireAdmin(ctx.Context()); err != nil {
 			var statusErr huma.StatusError
@@ -81,7 +81,7 @@ func requireAdminForAll(api huma.API) func(*huma.Operation, func(*huma.Operation
 }
 
 func requireAdminOperation(api huma.API, op *huma.Operation) {
-	op.Middlewares = append(op.Middlewares, RequireAdmin(api))
+	op.Middlewares = append(op.Middlewares, requireAdmin(api))
 	if !slices.Contains(op.Errors, http.StatusForbidden) {
 		op.Errors = append(op.Errors, http.StatusForbidden)
 	}
