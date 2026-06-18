@@ -576,8 +576,8 @@ func fileAccessEventWhere(params FileAccessEventListParams) (string, []any, erro
 			OR fae.process_chain::text ILIKE ` + search + `
 		)`)
 	}
-	if params.Since != nil {
-		where.Add("fae.occurred_at >= " + where.Arg(*params.Since))
+	if !params.Since.IsZero() {
+		where.Add("fae.occurred_at >= " + where.Arg(params.Since))
 	}
 	if len(params.Decisions) > 0 {
 		clauses := make([]string, 0, len(params.Decisions))
@@ -594,8 +594,8 @@ func fileAccessEventWhere(params FileAccessEventListParams) (string, []any, erro
 }
 
 func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventListParams) error {
-	if params.Since != nil {
-		where.Add("ee.occurred_at >= " + where.Arg(*params.Since))
+	if !params.Since.IsZero() {
+		where.Add("ee.occurred_at >= " + where.Arg(params.Since))
 	}
 	if len(params.Decisions) == 0 {
 		return nil

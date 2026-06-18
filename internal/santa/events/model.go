@@ -122,7 +122,7 @@ type EventListParams struct {
 	dbutil.ListParams
 
 	HostID int64
-	Since  *time.Time
+	Since  time.Time
 }
 
 // ExecutionEventListParams contains filters for execution-event lists.

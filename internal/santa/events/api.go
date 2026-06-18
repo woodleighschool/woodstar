@@ -62,15 +62,11 @@ type santaFileAccessEventGetOutput struct {
 }
 
 func (input santaEventListInput) params() ExecutionEventListParams {
-	var since *time.Time
-	if !input.Since.IsZero() {
-		since = &input.Since
-	}
 	return ExecutionEventListParams{
 		EventListParams: EventListParams{
 			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
-			Since:      since,
+			Since:      input.Since,
 		},
 		Decisions: input.Decisions,
 		User:      input.User,
@@ -78,15 +74,11 @@ func (input santaEventListInput) params() ExecutionEventListParams {
 }
 
 func (input santaFileAccessEventListInput) params() FileAccessEventListParams {
-	var since *time.Time
-	if !input.Since.IsZero() {
-		since = &input.Since
-	}
 	return FileAccessEventListParams{
 		EventListParams: EventListParams{
 			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
-			Since:      since,
+			Since:      input.Since,
 		},
 		Decisions: input.Decisions,
 	}
