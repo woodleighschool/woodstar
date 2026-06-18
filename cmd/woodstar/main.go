@@ -379,9 +379,13 @@ func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 		func(g adminapi.AdminGroups) { directory.RegisterUserAdminRoutes(g.Ordinary, w.users) },
 		func(g adminapi.AdminGroups) { directory.RegisterGroupAdminRoutes(g.Ordinary, w.directory) },
 		func(g adminapi.AdminGroups) {
-			hosts.RegisterAdminRoutes(g.Ordinary, adminapi.HostRoutesOptions(
-				w.hosts, w.userAffinities, w.checks, w.munkiHostState, w.santaState,
-			))
+			adminapi.RegisterHostAdminRoutes(g.Ordinary, adminapi.HostRoutesOptions{
+				Store:          w.hosts,
+				UserAffinities: w.userAffinities,
+				CheckStore:     w.checks,
+				MunkiState:     w.munkiHostState,
+				SantaState:     w.santaState,
+			})
 		},
 		func(g adminapi.AdminGroups) { inventory.RegisterAdminRoutes(g.Ordinary, w.software) },
 		func(g adminapi.AdminGroups) { inventory.RegisterHostAdminRoutes(g.Ordinary, w.software, w.hosts) },

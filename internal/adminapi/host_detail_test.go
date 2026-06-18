@@ -28,7 +28,7 @@ func (f fakeMunkiLoader) LoadHostState(context.Context, int64) (*munki.HostState
 func TestSantaContributorAttachesLoadedState(t *testing.T) {
 	state := &santa.HostState{Version: "2026.2"}
 	var body HostDetail
-	if err := newSantaHostDetailContributor(fakeSantaLoader{state}).
+	if err := (santaHostDetailContributor{loader: fakeSantaLoader{state}}).
 		ContributeHostDetail(context.Background(), 7, &body); err != nil {
 		t.Fatalf("contribute santa detail: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestSantaContributorAttachesLoadedState(t *testing.T) {
 func TestMunkiContributorAttachesLoadedState(t *testing.T) {
 	state := &munki.HostState{Version: "7.1.2"}
 	var body HostDetail
-	if err := newMunkiHostDetailContributor(fakeMunkiLoader{state}).
+	if err := (munkiHostDetailContributor{loader: fakeMunkiLoader{state}}).
 		ContributeHostDetail(context.Background(), 7, &body); err != nil {
 		t.Fatalf("contribute munki detail: %v", err)
 	}
@@ -50,10 +50,7 @@ func TestMunkiContributorAttachesLoadedState(t *testing.T) {
 }
 
 func TestHostDetailContributorsAbsentWithoutLoader(t *testing.T) {
-	if c := newSantaHostDetailContributor(nil); c != nil {
-		t.Fatalf("santa contributor = %v, want nil without a loader", c)
-	}
-	if c := newMunkiHostDetailContributor(nil); c != nil {
-		t.Fatalf("munki contributor = %v, want nil without a loader", c)
+	if contributors := hostDetailContributors(HostRoutesOptions{}); len(contributors) != 0 {
+		t.Fatalf("contributors = %v, want none without loaders", contributors)
 	}
 }

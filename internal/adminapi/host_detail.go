@@ -2,12 +2,20 @@ package adminapi
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 )
+
+const hostsTag = "Hosts"
 
 // HostDetail is the admin host detail response with optional capability fields.
 type HostDetail struct {
@@ -17,31 +25,48 @@ type HostDetail struct {
 	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
-// HostRoutesOptions assembles the host admin route options: the osquery check
-// status filter plus the munki and santa host-detail contributors. It lives
-// here, next to the adapters it builds, so the wiring layer hands it plain
-// stores rather than reaching into capability internals.
-func HostRoutesOptions(
-	store *hosts.Store,
-	userAffinities *hosts.UserAffinityStore,
-	checkStore *checks.Store,
-	munkiState munkiHostStateLoader,
-	santaState santaHostStateLoader,
-) hosts.AdminRoutesOptions[HostDetail] {
-	var checkFilter hosts.CheckStatusFilter
-	if checkStore != nil {
-		checkFilter = osqueryCheckFilter{store: checkStore}
+type HostRoutesOptions struct {
+	Store          *hosts.Store
+	UserAffinities *hosts.UserAffinityStore
+	CheckStore     *checks.Store
+	MunkiState     munkiHostStateLoader
+	SantaState     santaHostStateLoader
+}
+
+type hostDetailOutput struct {
+	Body HostDetail
+}
+
+type hostGetInput struct {
+	ID int64 `path:"id"`
+}
+
+type hostUserAffinityPutBody struct {
+	Email string `json:"email" format:"email" minLength:"3"`
+}
+
+type hostUserAffinityPutInput struct {
+	ID   int64 `path:"id"`
+	Body hostUserAffinityPutBody
+}
+
+// RegisterHostAdminRoutes registers the host routes whose response is composed
+// across capabilities.
+func RegisterHostAdminRoutes(api huma.API, opts HostRoutesOptions) {
+	hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions{
+		Store:       opts.Store,
+		CheckFilter: hostCheckStatusFilter(opts.CheckStore),
+	})
+	registerGetHost(api, opts)
+	registerPutHostUserAffinity(api, opts)
+	registerDeleteHostUserAffinity(api, opts)
+}
+
+func hostCheckStatusFilter(checkStore *checks.Store) hosts.CheckStatusFilter {
+	if checkStore == nil {
+		return nil
 	}
-	return hosts.AdminRoutesOptions[HostDetail]{
-		Store:          store,
-		UserAffinities: userAffinities,
-		CheckFilter:    checkFilter,
-		DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
-		Contributors: []hosts.DetailContributor[HostDetail]{
-			newMunkiHostDetailContributor(munkiState),
-			newSantaHostDetailContributor(santaState),
-		},
-	}
+	return osqueryCheckFilter{store: checkStore}
 }
 
 type osqueryCheckFilter struct {
@@ -52,19 +77,124 @@ func (f osqueryCheckFilter) HostIDsByStatus(ctx context.Context, checkID int64, 
 	return f.store.HostIDsByStatus(ctx, checkID, checks.CheckStatus(status))
 }
 
+type hostDetailContributor interface {
+	ContributeHostDetail(ctx context.Context, hostID int64, body *HostDetail) error
+}
+
+func hostDetailContributors(opts HostRoutesOptions) []hostDetailContributor {
+	contributors := make([]hostDetailContributor, 0, 2)
+	if opts.MunkiState != nil {
+		contributors = append(contributors, munkiHostDetailContributor{loader: opts.MunkiState})
+	}
+	if opts.SantaState != nil {
+		contributors = append(contributors, santaHostDetailContributor{loader: opts.SantaState})
+	}
+	return contributors
+}
+
+func loadHostDetailBody(ctx context.Context, opts HostRoutesOptions, hostID int64) (*HostDetail, error) {
+	host, err := opts.Store.GetByID(ctx, hostID)
+	if errors.Is(err, dbutil.ErrNotFound) {
+		return nil, huma.Error404NotFound("host not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	detail, err := opts.Store.LoadDetail(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	body := HostDetail{HostDetail: *detail}
+	for _, contributor := range hostDetailContributors(opts) {
+		if err := contributor.ContributeHostDetail(ctx, hostID, &body); err != nil {
+			return nil, err
+		}
+	}
+	return &body, nil
+}
+
+func registerGetHost(api huma.API, opts HostRoutesOptions) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-host",
+		Method:      http.MethodGet,
+		Path:        "/api/hosts/{id}",
+		Tags:        []string{hostsTag},
+		Summary:     "Get an enrolled host",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
+		body, err := loadHostDetailBody(ctx, opts, input.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &hostDetailOutput{Body: *body}, nil
+	})
+}
+
+func registerPutHostUserAffinity(api huma.API, opts HostRoutesOptions) {
+	huma.Register(api, huma.Operation{
+		OperationID: "put-host-user-affinity",
+		Method:      http.MethodPut,
+		Path:        "/api/hosts/{id}/user-affinity",
+		Tags:        []string{hostsTag},
+		Summary:     "Set the host user affinity",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+		},
+	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput, error) {
+		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+			return nil, huma.Error404NotFound("host not found")
+		} else if err != nil {
+			return nil, err
+		}
+		email := strings.TrimSpace(input.Body.Email)
+		if email == "" {
+			return nil, huma.Error400BadRequest("email is required")
+		}
+		if err := opts.UserAffinities.Upsert(ctx, input.ID, email, hosts.UserAffinitySourceManual); err != nil {
+			return nil, err
+		}
+		body, err := loadHostDetailBody(ctx, opts, input.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &hostDetailOutput{Body: *body}, nil
+	})
+}
+
+func registerDeleteHostUserAffinity(api huma.API, opts HostRoutesOptions) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-host-user-affinity",
+		Method:      http.MethodDelete,
+		Path:        "/api/hosts/{id}/user-affinity",
+		Tags:        []string{hostsTag},
+		Summary:     "Clear the host user affinity",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
+		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+			return nil, huma.Error404NotFound("host not found")
+		} else if err != nil {
+			return nil, err
+		}
+		if err := opts.UserAffinities.Delete(ctx, input.ID, hosts.UserAffinitySourceManual); err != nil {
+			return nil, err
+		}
+		body, err := loadHostDetailBody(ctx, opts, input.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &hostDetailOutput{Body: *body}, nil
+	})
+}
+
 type munkiHostDetailContributor struct {
 	loader munkiHostStateLoader
 }
 
 type munkiHostStateLoader interface {
 	LoadHostState(context.Context, int64) (*munki.HostState, error)
-}
-
-func newMunkiHostDetailContributor(loader munkiHostStateLoader) hosts.DetailContributor[HostDetail] {
-	if loader == nil {
-		return nil
-	}
-	return munkiHostDetailContributor{loader: loader}
 }
 
 func (c munkiHostDetailContributor) ContributeHostDetail(
@@ -86,13 +216,6 @@ type santaHostDetailContributor struct {
 
 type santaHostStateLoader interface {
 	LoadHostState(context.Context, int64) (*santa.HostState, error)
-}
-
-func newSantaHostDetailContributor(loader santaHostStateLoader) hosts.DetailContributor[HostDetail] {
-	if loader == nil {
-		return nil
-	}
-	return santaHostDetailContributor{loader: loader}
 }
 
 func (c santaHostDetailContributor) ContributeHostDetail(

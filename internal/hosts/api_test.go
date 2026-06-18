@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi"
 	"github.com/woodleighschool/woodstar/internal/adminctx"
 	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -43,10 +44,9 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
+		adminapi.RegisterHostAdminRoutes(api, adminapi.HostRoutesOptions{
 			Store:          hostStore,
 			UserAffinities: userAffinities,
-			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
 		})
 	})
 	rec := hostAPIRequest(
@@ -140,11 +140,9 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
-			Store:          hostStore,
-			UserAffinities: hosts.NewUserAffinityStore(db),
-			CheckFilter:    checkStatusFilter{store: checkStore},
-			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
+		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions{
+			Store:       hostStore,
+			CheckFilter: checkStatusFilter{store: checkStore},
 		})
 	})
 

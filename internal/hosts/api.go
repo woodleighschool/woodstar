@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/apitypes"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const (
@@ -22,23 +20,14 @@ type CheckStatusFilter interface {
 	HostIDsByStatus(context.Context, int64, string) ([]int64, error)
 }
 
-type DetailBuilder[T any] func(HostDetail) T
-
 // AdminRoutesOptions groups dependencies for host admin routes.
-type AdminRoutesOptions[T any] struct {
-	Store          *Store
-	UserAffinities *UserAffinityStore
-	CheckFilter    CheckStatusFilter
-	DetailBuilder  DetailBuilder[T]
-	Contributors   []DetailContributor[T]
+type AdminRoutesOptions struct {
+	Store       *Store
+	CheckFilter CheckStatusFilter
 }
 
 type hostListOutput struct {
 	Body apitypes.Page[Host]
-}
-
-type hostDetailOutput[T any] struct {
-	Body T
 }
 
 type hostGetInput struct {
@@ -90,21 +79,9 @@ type hostBulkDeleteInput struct {
 	Body apitypes.BulkIDsBody
 }
 
-type hostUserAffinityPutBody struct {
-	Email string `json:"email" format:"email" minLength:"3"`
-}
-
-type hostUserAffinityPutInput struct {
-	ID   int64 `path:"id"`
-	Body hostUserAffinityPutBody
-}
-
 // RegisterAdminRoutes registers admin host inventory endpoints.
-func RegisterAdminRoutes[T any](api huma.API, opts AdminRoutesOptions[T]) {
+func RegisterAdminRoutes(api huma.API, opts AdminRoutesOptions) {
 	registerListHosts(api, opts.Store, opts.CheckFilter)
-	registerGetHost(api, opts)
-	registerPutHostUserAffinity(api, opts)
-	registerDeleteHostUserAffinity(api, opts)
 	registerDeleteHost(api, opts.Store)
 	registerBulkDeleteHosts(api, opts.Store)
 }
@@ -164,115 +141,6 @@ func intersectHostIDs(requestedIDs []int64, checkHostIDs []int64) []int64 {
 		}
 	}
 	return ids
-}
-
-func loadHostDetailBody[T any](
-	ctx context.Context,
-	hostStore *Store,
-	hostID int64,
-	build DetailBuilder[T],
-	contributors []DetailContributor[T],
-) (*T, error) {
-	if build == nil {
-		return nil, errors.New("host detail builder is not configured")
-	}
-	host, err := hostStore.GetByID(ctx, hostID)
-	if errors.Is(err, dbutil.ErrNotFound) {
-		return nil, huma.Error404NotFound("host not found")
-	}
-	if err != nil {
-		return nil, err
-	}
-	detail, err := hostStore.LoadDetail(ctx, host)
-	if err != nil {
-		return nil, err
-	}
-	body := build(*detail)
-	for _, contributor := range contributors {
-		if contributor == nil {
-			continue
-		}
-		if err := contributor.ContributeHostDetail(ctx, hostID, &body); err != nil {
-			return nil, err
-		}
-	}
-	return &body, nil
-}
-
-func registerGetHost[T any](api huma.API, opts AdminRoutesOptions[T]) {
-	huma.Register(api, huma.Operation{
-		OperationID: "get-host",
-		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}",
-		Tags:        []string{hostsTag},
-		Summary:     "Get an enrolled host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput[T], error) {
-		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
-		if err != nil {
-			return nil, err
-		}
-		return &hostDetailOutput[T]{Body: *body}, nil
-	})
-}
-
-func registerPutHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions[T]) {
-	huma.Register(api, huma.Operation{
-		OperationID: "put-host-user-affinity",
-		Method:      http.MethodPut,
-		Path:        "/api/hosts/{id}/user-affinity",
-		Tags:        []string{hostsTag},
-		Summary:     "Set the host user affinity",
-		Errors: []int{
-			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
-			http.StatusNotFound,
-		},
-	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput[T], error) {
-		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, err
-		}
-		email := strings.TrimSpace(input.Body.Email)
-		if email == "" {
-			return nil, huma.Error400BadRequest("email is required")
-		}
-		if err := opts.UserAffinities.Upsert(ctx, input.ID, email, UserAffinitySourceManual); err != nil {
-			return nil, err
-		}
-		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
-		if err != nil {
-			return nil, err
-		}
-		return &hostDetailOutput[T]{Body: *body}, nil
-	})
-}
-
-func registerDeleteHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions[T]) {
-	huma.Register(api, huma.Operation{
-		OperationID: "delete-host-user-affinity",
-		Method:      http.MethodDelete,
-		Path:        "/api/hosts/{id}/user-affinity",
-		Tags:        []string{hostsTag},
-		Summary:     "Clear the host user affinity",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput[T], error) {
-		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, err
-		}
-		if err := opts.UserAffinities.Delete(ctx, input.ID, UserAffinitySourceManual); err != nil {
-			return nil, err
-		}
-		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
-		if err != nil {
-			return nil, err
-		}
-		return &hostDetailOutput[T]{Body: *body}, nil
-	})
 }
 
 func registerDeleteHost(api huma.API, hostStore *Store) {
