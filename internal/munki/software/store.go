@@ -212,20 +212,7 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 		},
 		Params: params,
 	}
-	var count int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.MunkiSoftware])
+	records, count, err := dbutil.ListWithCount[sqlc.MunkiSoftware](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}

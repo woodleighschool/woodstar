@@ -15,17 +15,7 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
-	var total int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
+	rows, total, err := dbutil.QueryListWithCount(ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}

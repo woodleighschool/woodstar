@@ -37,33 +37,13 @@ func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, i
 	where, args := ruleListWhere(params)
 	listQuery := ruleListQuery(params, where, args)
 
-	var count int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
+	rules, count, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, scanRule)
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	rules := []Rule{}
-	ruleIDs := []int64{}
-	for rows.Next() {
-		rule, err := scanRule(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		rules = append(rules, rule)
-		ruleIDs = append(ruleIDs, rule.ID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
+	ruleIDs := make([]int64, len(rules))
+	for i, rule := range rules {
+		ruleIDs[i] = rule.ID
 	}
 	if err := s.attachRuleTargets(ctx, rules, ruleIDs); err != nil {
 		return nil, 0, err

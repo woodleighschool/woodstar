@@ -26,17 +26,7 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 	where, args := reportListWhere(params)
 	listQuery := reportListQuery(where, args, params)
 
-	var count int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
+	rows, count, err := dbutil.QueryListWithCount(ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}

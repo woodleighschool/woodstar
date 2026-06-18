@@ -27,22 +27,11 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	where, args := labelListWhere(params)
-	listQuery := labelListQuery(params, where, args)
-	countSQL, countArgs := listQuery.BuildCount()
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[labelListRecord])
+	records, count, err := dbutil.ListWithCount[labelListRecord](
+		ctx,
+		s.db.Pool(),
+		labelListQuery(params, where, args),
+	)
 	if err != nil {
 		return nil, 0, err
 	}

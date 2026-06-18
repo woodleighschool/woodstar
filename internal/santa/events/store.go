@@ -193,7 +193,12 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 	if err != nil {
 		return nil, 0, err
 	}
-	return runEventListQuery(ctx, s.db, executionEventListQuery(params, where, args), scanExecutionEvent)
+	return dbutil.ScanListWithCount(
+		ctx,
+		s.db.Pool(),
+		executionEventListQuery(params, where, args),
+		scanExecutionEvent,
+	)
 }
 
 // GetExecutionEvent returns one execution event by id.
@@ -222,46 +227,12 @@ func (s *Store) ListFileAccessEvents(
 	if err != nil {
 		return nil, 0, err
 	}
-	return runEventListQuery(ctx, s.db, fileAccessEventListQuery(params, where, args), scanFileAccessEvent)
-}
-
-// runEventListQuery counts and pages an event list query, scanning each row
-// with scan. The per-event where/order/select and row mapping stay in the
-// caller; only the count + page + scan-loop mechanics are shared.
-func runEventListQuery[T any](
-	ctx context.Context,
-	db *database.DB,
-	listQuery dbutil.ListQuery,
-	scan func(pgx.Row) (T, error),
-) ([]T, int, error) {
-	var count int
-	countSQL, countArgs := listQuery.BuildCount()
-	if err := db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	items := []T{}
-	for rows.Next() {
-		item, err := scan(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-	return items, count, nil
+	return dbutil.ScanListWithCount(
+		ctx,
+		s.db.Pool(),
+		fileAccessEventListQuery(params, where, args),
+		scanFileAccessEvent,
+	)
 }
 
 // GetFileAccessEvent returns one file-access event by id.
