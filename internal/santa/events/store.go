@@ -383,18 +383,19 @@ func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event F
 	if err != nil {
 		return err
 	}
+	primary := primaryProcess(event.ProcessChain)
 	return sqlc.New(tx).InsertSantaFileAccessEvent(ctx, sqlc.InsertSantaFileAccessEventParams{
 		HostID:                  hostID,
 		RuleVersion:             event.RuleVersion,
 		RuleName:                event.RuleName,
 		Target:                  event.Target,
 		Decision:                sqlc.SantaFileAccessDecision(event.Decision),
-		PrimaryProcessSha256:    primaryFileSHA256(event.ProcessChain),
-		PrimaryProcessPath:      primaryFilePath(event.ProcessChain),
-		PrimaryProcessSigningID: primarySigningID(event.ProcessChain),
-		PrimaryProcessTeamID:    primaryTeamID(event.ProcessChain),
-		PrimaryProcessCdhash:    primaryCDHash(event.ProcessChain),
-		PrimaryProcessPid:       primaryPID(event.ProcessChain),
+		PrimaryProcessSha256:    primary.FileSHA256,
+		PrimaryProcessPath:      primary.FilePath,
+		PrimaryProcessSigningID: primary.SigningID,
+		PrimaryProcessTeamID:    normalizeTeamID(primary.TeamID),
+		PrimaryProcessCdhash:    primary.CDHash,
+		PrimaryProcessPid:       primary.PID,
 		ProcessChain:            processChain,
 		OccurredAt:              event.OccurredAt,
 	})
@@ -407,46 +408,11 @@ func timeOrNil(t time.Time) *time.Time {
 	return &t
 }
 
-func primaryFileSHA256(chain []ProcessInput) string {
+func primaryProcess(chain []ProcessInput) ProcessInput {
 	if len(chain) == 0 {
-		return ""
+		return ProcessInput{}
 	}
-	return chain[0].FileSHA256
-}
-
-func primaryFilePath(chain []ProcessInput) string {
-	if len(chain) == 0 {
-		return ""
-	}
-	return chain[0].FilePath
-}
-
-func primarySigningID(chain []ProcessInput) string {
-	if len(chain) == 0 {
-		return ""
-	}
-	return chain[0].SigningID
-}
-
-func primaryTeamID(chain []ProcessInput) string {
-	if len(chain) == 0 {
-		return ""
-	}
-	return normalizeTeamID(chain[0].TeamID)
-}
-
-func primaryCDHash(chain []ProcessInput) string {
-	if len(chain) == 0 {
-		return ""
-	}
-	return chain[0].CDHash
-}
-
-func primaryPID(chain []ProcessInput) int32 {
-	if len(chain) == 0 {
-		return 0
-	}
-	return chain[0].PID
+	return chain[0]
 }
 
 func cleanStringSlice(values []string) []string {
