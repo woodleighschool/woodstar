@@ -81,7 +81,7 @@ export function DistributionPointListPage() {
     [isAdmin],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: serverRows,
     columns,
     pageCount,

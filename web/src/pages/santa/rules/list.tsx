@@ -85,7 +85,7 @@ export function RuleListPage() {
         accessorKey: "rule_type",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Rule Type" />,
         cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
-        meta: { label: "Rule Type", variant: "select", options: RULE_TYPE_OPTIONS },
+        meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
         enableColumnFilter: true,
       },
       {
@@ -111,7 +111,7 @@ export function RuleListPage() {
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
   }, [isAdmin, labelsByID]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: rules,
     columns,
     pageCount,

@@ -38,7 +38,7 @@ export function CheckListPage() {
 
   const columns = React.useMemo<ColumnDef<OsqueryCheck>[]>(() => checkColumns(isAdmin), [isAdmin]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: checks,
     columns,
     pageCount,

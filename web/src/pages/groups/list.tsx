@@ -76,7 +76,7 @@ export function GroupListPage() {
     [],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: groups,
     columns,
     pageCount,

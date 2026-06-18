@@ -93,7 +93,7 @@ export function MunkiSoftwareListPage() {
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
   }, [isAdmin]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: software,
     columns,
     pageCount,

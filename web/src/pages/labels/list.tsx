@@ -88,7 +88,7 @@ export function LabelListPage() {
         accessorKey: "label_membership_type",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Membership" />,
         cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
-        meta: { label: "Membership", variant: "select", options: LABEL_MEMBERSHIP_OPTIONS },
+        meta: { label: "Membership", options: LABEL_MEMBERSHIP_OPTIONS },
         enableColumnFilter: true,
       },
       {
@@ -119,7 +119,7 @@ export function LabelListPage() {
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
   }, [isAdmin]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: labels,
     columns,
     pageCount,

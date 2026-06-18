@@ -188,7 +188,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
         accessorKey: "decision",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Decision" />,
         cell: ({ row }) => <ExecutionDecisionBadge decision={row.original.decision} />,
-        meta: { label: "Decision", variant: "multiSelect", options: DECISION_FILTERS },
+        meta: { label: "Decision", options: DECISION_FILTERS },
         enableColumnFilter: true,
       },
       {
@@ -209,7 +209,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     [hostId],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: events,
     columns,
     pageCount,
@@ -299,7 +299,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
         accessorKey: "decision",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Decision" />,
         cell: ({ row }) => <FileAccessDecisionBadge decision={row.original.decision} />,
-        meta: { label: "Decision", variant: "multiSelect", options: FILE_ACCESS_DECISION_FILTERS },
+        meta: { label: "Decision", options: FILE_ACCESS_DECISION_FILTERS },
         enableColumnFilter: true,
       },
       {
@@ -330,7 +330,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     [],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: events,
     columns,
     pageCount,

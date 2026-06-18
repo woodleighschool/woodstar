@@ -42,7 +42,7 @@ export function ReportListPage() {
     [isAdmin],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: reports,
     columns,
     pageCount,

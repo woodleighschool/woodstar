@@ -113,7 +113,7 @@ export function MunkiPackageListPage() {
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
   }, [isAdmin]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: packages,
     columns,
     pageCount,

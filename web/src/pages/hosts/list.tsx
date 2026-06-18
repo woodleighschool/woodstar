@@ -90,7 +90,7 @@ export function HostListPage() {
     [isAdmin],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: hosts,
     columns,
     pageCount,
@@ -197,7 +197,7 @@ const hostColumns: ColumnDef<Host>[] = [
     header: () => "Status",
     enableSorting: false,
     cell: ({ row }) => <HostStatus status={row.original.status} />,
-    meta: { label: "Status", variant: "select", options: STATUS_OPTIONS },
+    meta: { label: "Status", options: STATUS_OPTIONS },
     enableColumnFilter: true,
   },
   {

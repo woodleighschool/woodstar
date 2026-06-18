@@ -92,7 +92,7 @@ export function ConfigurationListPage() {
     [isAdmin, labelsByID],
   );
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: serverRows,
     columns,
     pageCount,

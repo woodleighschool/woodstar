@@ -71,7 +71,7 @@ const softwareColumns: ColumnDef<HostSoftwareRow>[] = [
     accessorKey: "source",
     header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
-    meta: { label: "Type", variant: "multiSelect", options: SOURCE_FILTER_OPTIONS },
+    meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
   },
   {

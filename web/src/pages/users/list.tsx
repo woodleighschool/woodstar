@@ -105,7 +105,7 @@ export function UserListPage() {
         cell: ({ row }) => (
           <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />
         ),
-        meta: { label: "Role", variant: "select", options: USER_ACCESS_ROLE_OPTIONS },
+        meta: { label: "Role", options: USER_ACCESS_ROLE_OPTIONS },
         enableColumnFilter: true,
       },
       {
@@ -113,7 +113,7 @@ export function UserListPage() {
         accessorKey: "source",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Source" />,
         cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
-        meta: { label: "Source", variant: "select", options: DIRECTORY_SOURCE_OPTIONS },
+        meta: { label: "Source", options: DIRECTORY_SOURCE_OPTIONS },
         enableColumnFilter: true,
       },
       {
@@ -142,7 +142,7 @@ export function UserListPage() {
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
   }, [currentUserId, isAdmin]);
 
-  const { table } = useDataTable({
+  const table = useDataTable({
     data: users,
     columns,
     pageCount,

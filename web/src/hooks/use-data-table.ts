@@ -1,12 +1,6 @@
 import {
   type ColumnFiltersState,
   getCoreRowModel,
-  getFacetedMinMaxValues,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
@@ -230,7 +224,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     [debouncedSetFilterValues, filterableColumns],
   );
 
-  const table = useReactTable({
+  return useReactTable({
     ...tableProps,
     columns,
     initialState,
@@ -254,12 +248,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     onColumnVisibilityChange: setColumnVisibility,
     enableMultiSort: false,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-    getFacetedMinMaxValues: getFacetedMinMaxValues(),
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
@@ -272,11 +260,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       },
     },
   });
-
-  return React.useMemo(
-    () => ({ table, shallow, debounceMs, throttleMs }),
-    [table, shallow, debounceMs, throttleMs],
-  );
 }
 
 function singleSort(sorting: SortingState): SortingState {
