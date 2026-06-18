@@ -72,7 +72,7 @@ func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, er
 
 	results := make([]ReportResult, 0, len(rows))
 	for _, row := range rows {
-		result, err := reportResultFromFields(
+		result, hasData, err := reportResultFromNullableFields(
 			row.ReportID,
 			row.Name,
 			row.HostID,
@@ -83,7 +83,9 @@ func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, er
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, result)
+		if hasData {
+			results = append(results, result)
+		}
 	}
 	return results, nil
 }
@@ -184,24 +186,6 @@ func snapshotResultRows(rows []map[string]string, fetchedAt time.Time) ([]snapsh
 		out = append(out, snapshotResultRow{data: &raw, lastFetched: fetchedAt})
 	}
 	return out, nil
-}
-
-func reportResultFromFields(
-	reportID int64,
-	reportName string,
-	hostID int64,
-	hostName string,
-	data []byte,
-	lastFetched time.Time,
-) (ReportResult, error) {
-	result, hasData, err := reportResultFromNullableFields(reportID, reportName, hostID, hostName, data, lastFetched)
-	if err != nil {
-		return ReportResult{}, err
-	}
-	if !hasData {
-		return ReportResult{}, nil
-	}
-	return result, nil
 }
 
 func reportResultFromNullableFields(
