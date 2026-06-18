@@ -47,26 +47,7 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
-	row, err := s.q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	label, err := labelFromSQLC(row.Label)
-	if err != nil {
-		return nil, err
-	}
-	label.HostsCount = row.HostsCount
-	if label.LabelMembershipType == LabelMembershipTypeManual {
-		hostIDs, err := s.q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
-		if err != nil {
-			return nil, err
-		}
-		label.HostIDs = hostIDs
-	}
-	return label, nil
+	return getLabelByID(ctx, s.q, id)
 }
 
 func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {

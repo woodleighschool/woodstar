@@ -71,17 +71,17 @@ func registerCreateAgentSecret(api huma.API, store *Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *agentSecretCreateInput) (*agentSecretCreateOutput, error) {
-		if _, err := ParseAgent(string(input.Body.Agent)); err != nil {
+		secret, err := store.Create(ctx, input.Body)
+		if errors.Is(err, ErrInvalidAgent) {
 			return nil, huma.Error400BadRequest("invalid agent")
 		}
-		secret, err := store.Create(ctx, input.Body)
 		if errors.Is(err, ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
 		if err != nil {
 			return nil, err
 		}
-		return &agentSecretCreateOutput{Body: secret}, nil
+		return &agentSecretCreateOutput{Body: *secret}, nil
 	})
 }
 
@@ -109,7 +109,7 @@ func registerUpdateAgentSecret(api huma.API, store *Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &agentSecretCreateOutput{Body: secret}, nil
+		return &agentSecretCreateOutput{Body: *secret}, nil
 	})
 }
 

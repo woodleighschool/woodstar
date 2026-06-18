@@ -22,16 +22,12 @@ func (s *UserService) GetAccount(ctx context.Context, id int64) (*Account, error
 
 // UpdateAccount updates fields the signed-in user can manage for themselves.
 func (s *UserService) UpdateAccount(ctx context.Context, id int64, params AccountMutation) (*Account, error) {
-	passwordHash, hasPassword, err := hashOptionalPassword(params.Password)
+	passwordHash, err := hashOptionalPassword(params.Password)
 	if err != nil {
 		return nil, err
 	}
-	var passwordHashPtr *string
-	if hasPassword {
-		passwordHashPtr = &passwordHash
-	}
 	return s.store.updateAccount(ctx, id, accountUpdateRecord{
 		Name:         params.Name,
-		PasswordHash: passwordHashPtr,
+		PasswordHash: passwordHash,
 	})
 }

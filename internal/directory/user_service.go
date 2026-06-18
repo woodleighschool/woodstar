@@ -52,18 +52,14 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 
 // Update writes the full target record.
 func (s *UserService) Update(ctx context.Context, targetID int64, params UserMutation) (*User, error) {
-	passwordHash, hasPassword, err := hashOptionalPassword(params.Password)
+	passwordHash, err := hashOptionalPassword(params.Password)
 	if err != nil {
 		return nil, err
-	}
-	var passwordHashPtr *string
-	if hasPassword {
-		passwordHashPtr = &passwordHash
 	}
 	return s.store.updateUser(ctx, targetID, userUpdateRecord{
 		Name:         params.Name,
 		Role:         params.Role,
-		PasswordHash: passwordHashPtr,
+		PasswordHash: passwordHash,
 	})
 }
 
@@ -93,13 +89,13 @@ func (s *UserService) ClearAccountAPIKey(ctx context.Context, userID int64) (*Ac
 	return s.store.clearAccountAPIKey(ctx, userID)
 }
 
-func hashOptionalPassword(password *string) (string, bool, error) {
+func hashOptionalPassword(password *string) (*string, error) {
 	if password == nil {
-		return "", false, nil
+		return nil, nil
 	}
 	hash, err := HashPassword(*password)
 	if err != nil {
-		return "", false, err
+		return nil, err
 	}
-	return hash, true, nil
+	return &hash, nil
 }

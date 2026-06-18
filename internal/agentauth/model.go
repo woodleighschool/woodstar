@@ -44,19 +44,6 @@ func (Agent) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(AgentValues...)
 }
 
-func ParseAgent(value string) (Agent, error) {
-	switch Agent(value) {
-	case AgentOrbit:
-		return AgentOrbit, nil
-	case AgentMunki:
-		return AgentMunki, nil
-	case AgentSanta:
-		return AgentSanta, nil
-	default:
-		return "", ErrInvalidAgent
-	}
-}
-
 func (a Agent) Valid() bool {
 	switch a {
 	case AgentOrbit, AgentMunki, AgentSanta:
