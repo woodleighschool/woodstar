@@ -71,9 +71,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
                     <div className="whitespace-pre-line">{`osquery: ${osqueryVersion || "-"}\nOrbit: ${orbitVersion || "-"}`}</div>
                   </TooltipContent>
                 </Tooltip>
-              ) : (
-                agentVersion
-              )
+              ) : null
             }
           />
           {battery?.health ? (
@@ -92,9 +90,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
                 <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
                   {formatRelative(host.enrollment.enrolled_at)}
                 </span>
-              ) : (
-                host.enrollment.enrolled_at
-              )
+              ) : null
             }
           />
           <KeyValueItem label="Hardware Model" value={host.hardware.model_identifier} />

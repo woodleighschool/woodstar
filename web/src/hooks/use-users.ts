@@ -82,6 +82,7 @@ export function useUserDepartments(params: DepartmentListParams = {}) {
 export function useUser(id: number | null) {
   return useQuery<User, ApiError>({
     queryKey: queryKeys.user(id),
+    enabled: id !== null,
     queryFn: async ({ signal }) =>
       unwrap(
         getUser({

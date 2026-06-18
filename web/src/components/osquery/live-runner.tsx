@@ -496,13 +496,8 @@ function TargetPicker({
         <h2 className="text-base font-semibold">Select Targets</h2>
       </div>
 
-      <TargetSection
-        title=""
-        labels={grouped.allHosts}
-        selected={selectedLabels}
-        onToggle={toggleLabel}
-      />
-      <TargetSection
+      <LabelChipGroup labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
+      <LabelChipGroup
         title="Labels"
         labels={grouped.other}
         selected={selectedLabels}
@@ -556,13 +551,13 @@ function TargetPicker({
   );
 }
 
-function TargetSection({
+function LabelChipGroup({
   title,
   labels,
   selected,
   onToggle,
 }: {
-  title: string;
+  title?: string;
   labels: Label[];
   selected: Label[];
   onToggle: (label: Label) => void;

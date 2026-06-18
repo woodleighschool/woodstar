@@ -98,11 +98,7 @@ export function AgentSecretsDialog({
             <DialogDescription>{secretUsageDescription(integration)}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-            <p className="text-sm text-muted-foreground">
-              Add, reveal, copy, rotate, or remove the shared secrets accepted by this enrollment
-              endpoint.
-            </p>
+          <div className="flex justify-end border-t pt-5">
             <Button
               type="button"
               variant="outline"
