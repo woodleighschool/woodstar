@@ -74,7 +74,7 @@ func (s *fileStore) Open(_ context.Context, key string) (io.ReadCloser, ObjectIn
 		_ = f.Close()
 		return nil, ObjectInfo{}, fmt.Errorf("stat %q: %w", key, err)
 	}
-	return f, ObjectInfo{Size: info.Size()}, nil
+	return fileObjectReader{ReadSeeker: f, Closer: f}, ObjectInfo{Size: info.Size()}, nil
 }
 
 func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions) error {
@@ -196,4 +196,12 @@ func (s *fileStore) expires(ttl time.Duration) time.Duration {
 		return s.ttl
 	}
 	return ttl
+}
+
+// fileObjectReader exposes only the object-reader contract.
+// Do not return raw *os.File here: its optional interfaces allow net/http/io.Copy
+// to select platform sendfile paths, which can break HTTP framing on some stacks.
+type fileObjectReader struct {
+	io.ReadSeeker
+	io.Closer
 }
