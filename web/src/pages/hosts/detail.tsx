@@ -14,7 +14,7 @@ import { HostReportsTab } from "@/components/hosts/host-reports-tab";
 import { HostSantaTab } from "@/components/hosts/host-santa-tab";
 import { HostSoftwareTab } from "@/components/hosts/host-software-tab";
 import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHost } from "@/hooks/use-hosts";
 
@@ -24,20 +24,14 @@ export function HostDetailPage() {
   const query = useHost(hostID);
   const host = query.data;
 
-  if (query.error) {
+  if (query.error || !host) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load host"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load host"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
-  }
-
-  if (!host) {
-    return null;
   }
 
   return (

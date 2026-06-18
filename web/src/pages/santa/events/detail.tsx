@@ -3,7 +3,7 @@ import { Check, FileCode2, X } from "lucide-react";
 
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,18 +26,15 @@ export function SantaEventDetailPage() {
   const id = Number(eventId);
   const query = useSantaEvent(Number.isFinite(id) ? id : null);
 
-  if (query.error) {
+  if (query.error || !query.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load event"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load event"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
-  if (!query.data) return null;
 
   const event = query.data;
   const executable = event.executable;

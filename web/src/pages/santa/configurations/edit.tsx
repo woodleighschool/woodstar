@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import {
   useSantaConfiguration,
   useUpdateSantaConfiguration,
@@ -16,18 +15,15 @@ export function ConfigurationEditPage() {
   const detail = useSantaConfiguration(id);
   const update = useUpdateSantaConfiguration();
 
-  if (detail.error) {
+  if (detail.error || !detail.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load configuration"
-          error={detail.error}
-          onRetry={() => void detail.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load configuration"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
     );
   }
-  if (!detail.data) return null;
 
   const configuration = detail.data;
   return (

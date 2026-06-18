@@ -3,7 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { DetailSettings, SettingItem } from "@/components/queries/query-ui";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import {
   Table,
   TableBody,
@@ -24,18 +24,15 @@ export function SantaFileAccessEventDetailPage() {
   const id = Number(eventId);
   const query = useSantaFileAccessEvent(Number.isFinite(id) ? id : null);
 
-  if (query.error) {
+  if (query.error || !query.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load file access event"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load file access event"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
-  if (!query.data) return null;
 
   const event = query.data;
   const processChain = event.process_chain ?? [];

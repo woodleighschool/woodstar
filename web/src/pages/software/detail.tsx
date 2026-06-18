@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageShell } from "@/components/layout/page-layout";
+import { QueryGate } from "@/components/query-gate";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Badge } from "@/components/ui/badge";
@@ -45,20 +46,14 @@ export function SoftwareDetailPage() {
   const query = useSoftwareTitle(Number(softwareId));
   const title = query.data;
 
-  if (query.error) {
+  if (query.error || !title) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load software title"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load software title"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
-  }
-
-  if (!title) {
-    return null;
   }
 
   return (

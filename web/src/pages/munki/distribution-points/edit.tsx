@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import {
   useMunkiDistributionPoint,
   useUpdateMunkiDistributionPoint,
@@ -19,18 +18,15 @@ export function DistributionPointEditPage() {
   const detail = useMunkiDistributionPoint(id);
   const update = useUpdateMunkiDistributionPoint();
 
-  if (detail.error) {
+  if (detail.error || !detail.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load distribution point"
-          error={detail.error}
-          onRetry={() => void detail.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load distribution point"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
     );
   }
-  if (!detail.data) return null;
 
   const point = detail.data;
   return (

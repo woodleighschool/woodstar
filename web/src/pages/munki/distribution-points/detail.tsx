@@ -7,7 +7,7 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,18 +58,15 @@ export function DistributionPointDetailPage() {
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (query.error) {
+  if (query.error || !query.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load distribution point"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load distribution point"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
-  if (!query.data) return null;
 
   const point = query.data;
 

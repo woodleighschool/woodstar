@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import {
   type MunkiPackage,
@@ -30,28 +30,19 @@ export function MunkiPackageEditPage() {
 
   if (validPackageID === null) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load package"
-          error={{ message: "Package route is invalid." }}
-        />
-      </PageShell>
+      <QueryGate title="Failed to load package" error={{ message: "Package route is invalid." }} />
     );
   }
 
-  if (pkg.error) {
+  if (pkg.error || !pkg.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load package"
-          error={pkg.error}
-          onRetry={() => void pkg.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load package"
+        error={pkg.error}
+        onRetry={() => void pkg.refetch()}
+      />
     );
   }
-
-  if (!pkg.data) return null;
 
   return (
     <MunkiPackageEditForm

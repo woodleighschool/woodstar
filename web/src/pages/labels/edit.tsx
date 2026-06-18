@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useLabel, useUpdateLabel } from "@/hooks/use-labels";
 import { LabelForm, labelFromDetail } from "@/pages/labels/fields";
@@ -14,18 +14,15 @@ export function LabelEditPage() {
   const detail = useLabel(id);
   const update = useUpdateLabel(id);
 
-  if (detail.error) {
+  if (detail.error || !detail.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load label"
-          error={detail.error}
-          onRetry={() => void detail.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load label"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
     );
   }
-  if (!detail.data) return null;
 
   const label = detail.data;
   if (label.label_type === "builtin") {

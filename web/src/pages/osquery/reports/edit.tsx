@@ -1,8 +1,7 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import { PageShell } from "@/components/layout/page-layout";
 import { LiveRunButton } from "@/components/queries/query-ui";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { useReport, useUpdateReport } from "@/hooks/use-reports";
 import { ReportForm, reportFromDetail } from "@/pages/osquery/reports/fields";
 
@@ -14,18 +13,15 @@ export function ReportEditPage() {
   const detail = useReport(id);
   const update = useUpdateReport(id);
 
-  if (detail.error) {
+  if (detail.error || !detail.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load report"
-          error={detail.error}
-          onRetry={() => void detail.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load report"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
     );
   }
-  if (!detail.data) return null;
 
   const report = detail.data;
   return (

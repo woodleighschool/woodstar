@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
@@ -19,20 +19,14 @@ export function UserEditPage() {
   const user = useUser(userID);
   const { user: currentUser } = useAuth();
 
-  if (user.error) {
+  if (user.error || !user.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load user"
-          error={user.error}
-          onRetry={() => void user.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load user"
+        error={user.error}
+        onRetry={() => void user.refetch()}
+      />
     );
-  }
-
-  if (!user.data) {
-    return null;
   }
 
   if (currentUser?.id === user.data.id) {

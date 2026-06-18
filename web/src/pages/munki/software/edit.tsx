@@ -9,7 +9,7 @@ import { FormActions } from "@/components/form-actions";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -44,28 +44,22 @@ export function MunkiSoftwareEditPage() {
 
   if (softwareID === null) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load software"
-          error={{ message: "Software route is invalid." }}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load software"
+        error={{ message: "Software route is invalid." }}
+      />
     );
   }
 
-  if (query.error) {
+  if (query.error || !query.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load software"
-          error={query.error}
-          onRetry={() => void query.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load software"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
-
-  if (!query.data) return null;
 
   return (
     <MunkiSoftwareDetailForm

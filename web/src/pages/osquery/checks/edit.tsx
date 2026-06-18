@@ -1,8 +1,7 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 
-import { PageShell } from "@/components/layout/page-layout";
 import { LiveRunButton, SettingItem } from "@/components/queries/query-ui";
-import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { useCheck, useUpdateCheck } from "@/hooks/use-checks";
 import { CheckForm, checkFromDetail } from "@/pages/osquery/checks/fields";
 
@@ -14,18 +13,15 @@ export function CheckEditPage() {
   const detail = useCheck(id);
   const update = useUpdateCheck(id);
 
-  if (detail.error) {
+  if (detail.error || !detail.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to load check"
-          error={detail.error}
-          onRetry={() => void detail.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to load check"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
     );
   }
-  if (!detail.data) return null;
 
   const check = detail.data;
   return (
