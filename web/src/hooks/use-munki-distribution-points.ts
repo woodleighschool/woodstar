@@ -36,6 +36,14 @@ export type MunkiDistributionPointListParams = NonNullable<
   ListMunkiDistributionPointsData["query"]
 >;
 
+type MunkiDistributionPointDetailRefreshOptions = {
+  staleTime?: number;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+};
+
+const MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS = 5_000;
+
 export function useMunkiDistributionPoints(params: MunkiDistributionPointListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
@@ -51,7 +59,10 @@ export function useMunkiDistributionPoints(params: MunkiDistributionPointListPar
   });
 }
 
-export function useMunkiDistributionPoint(id: number | null) {
+export function useMunkiDistributionPoint(
+  id: number | null,
+  refreshOptions: MunkiDistributionPointDetailRefreshOptions = {},
+) {
   return useQuery<MunkiDistributionPointDetail, ApiError>({
     queryKey: queryKeys.munkiDistributionPoint(id),
     queryFn: ({ signal }) =>
@@ -62,6 +73,15 @@ export function useMunkiDistributionPoint(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    ...refreshOptions,
+  });
+}
+
+export function useLiveMunkiDistributionPoint(id: number | null) {
+  return useMunkiDistributionPoint(id, {
+    staleTime: MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS,
+    refetchInterval: MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS,
+    refetchIntervalInBackground: false,
   });
 }
 

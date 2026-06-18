@@ -32,7 +32,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   type MunkiDistributionPointDetail,
   useDeleteMunkiDistributionPoint,
-  useMunkiDistributionPoint,
+  useLiveMunkiDistributionPoint,
   useRotateMunkiDistributionPointKey,
 } from "@/hooks/use-munki-distribution-points";
 import type { MunkiPackageState } from "@/lib/api";
@@ -52,7 +52,7 @@ export function DistributionPointDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const id = Number(distributionPointId);
-  const query = useMunkiDistributionPoint(Number.isFinite(id) ? id : null);
+  const query = useLiveMunkiDistributionPoint(Number.isFinite(id) ? id : null);
   const rotate = useRotateMunkiDistributionPointKey();
   const remove = useDeleteMunkiDistributionPoint();
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);

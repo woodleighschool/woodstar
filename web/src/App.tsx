@@ -20,7 +20,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: false,
       retry: false,
       retryOnMount: false,
     },

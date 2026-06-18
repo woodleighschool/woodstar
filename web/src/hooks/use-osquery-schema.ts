@@ -23,5 +23,6 @@ export function useOsquerySchema() {
     },
     staleTime: Infinity,
     gcTime: Infinity,
+    refetchInterval: false,
   });
 }

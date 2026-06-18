@@ -38,6 +38,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
     enabled: Boolean(hardwareModel),
     staleTime: DAY_MS,
     gcTime: 7 * DAY_MS,
+    refetchInterval: false,
     retry: false,
   });
 
@@ -50,6 +51,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
     },
     staleTime: DAY_MS,
     gcTime: 7 * DAY_MS,
+    refetchInterval: false,
     retry: false,
   });
 
