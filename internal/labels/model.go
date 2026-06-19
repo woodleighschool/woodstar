@@ -18,6 +18,8 @@ type (
 	LabelType string
 	// LabelMembershipType marks how hosts join a label: dynamic, manual, or derived.
 	LabelMembershipType string
+	// DerivedAttribute marks the source field used for derived label membership.
+	DerivedAttribute string
 )
 
 const (
@@ -48,10 +50,16 @@ var LabelMembershipTypeValues = []LabelMembershipType{
 
 // Derived label attributes.
 const (
-	DerivedAttributeUserDepartment = "user_department"
-	DerivedAttributeDirectoryGroup = "directory_group"
-	DerivedAttributeUser           = "user"
+	DerivedAttributeUserDepartment DerivedAttribute = "user_department"
+	DerivedAttributeDirectoryGroup DerivedAttribute = "directory_group"
+	DerivedAttributeUser           DerivedAttribute = "user"
 )
+
+var DerivedAttributeValues = []DerivedAttribute{
+	DerivedAttributeUserDepartment,
+	DerivedAttributeDirectoryGroup,
+	DerivedAttributeUser,
+}
 
 // Label groups hosts.
 type Label struct {
@@ -71,8 +79,8 @@ type Label struct {
 
 // Criteria describes the non-osquery host attribute that derives membership.
 type Criteria struct {
-	Attribute string   `json:"attribute"`
-	Values    []string `json:"values"`
+	Attribute DerivedAttribute `json:"attribute"`
+	Values    []string         `json:"values"`
 }
 
 func (c Criteria) json() ([]byte, error) {
@@ -107,4 +115,8 @@ func (LabelType) Schema(_ huma.Registry) *huma.Schema {
 
 func (LabelMembershipType) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(LabelMembershipTypeValues...)
+}
+
+func (DerivedAttribute) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(DerivedAttributeValues...)
 }

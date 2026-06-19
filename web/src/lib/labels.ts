@@ -1,9 +1,9 @@
-import type { Label } from "@/lib/api";
+import type { Criteria, Label } from "@/lib/api";
 import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type LabelMembershipType = Label["label_membership_type"];
 export type LabelBuiltinKey = NonNullable<Label["builtin_key"]>;
-export type LabelDerivedAttribute = "user_department" | "directory_group" | "user";
+export type LabelDerivedAttribute = Criteria["attribute"];
 
 export const BUILTIN_KEY_ALL_HOSTS = "all-hosts" as const satisfies LabelBuiltinKey;
 

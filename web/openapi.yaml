@@ -103,6 +103,10 @@ components:
       additionalProperties: false
       properties:
         attribute:
+          enum:
+            - user_department
+            - directory_group
+            - user
           type: string
         values:
           items:

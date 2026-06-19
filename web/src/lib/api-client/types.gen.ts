@@ -43,7 +43,7 @@ export type CertificateName = {
 };
 
 export type Criteria = {
-    attribute: string;
+    attribute: 'user_department' | 'directory_group' | 'user';
     values: Array<string>;
 };
 
