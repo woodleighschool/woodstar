@@ -370,7 +370,7 @@ func (w *wiring) serverDependencies() adminapi.Dependencies {
 func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 	return []adminapi.AdminRegistrar{
 		func(g adminapi.AdminGroups) { auth.RegisterPublicAdminRoutes(g.Public, w.auth) },
-		func(g adminapi.AdminGroups) { adminapi.RegisterSSO(g.Router, w.auth) },
+		func(g adminapi.AdminGroups) { auth.RegisterSSO(g.Router, w.auth) },
 		func(g adminapi.AdminGroups) { auth.RegisterAccountAdminRoutes(g.Protected, w.auth, w.users) },
 		func(g adminapi.AdminGroups) { directory.RegisterUserAdminRoutes(g.Ordinary, w.users) },
 		func(g adminapi.AdminGroups) { directory.RegisterGroupAdminRoutes(g.Ordinary, w.directory) },

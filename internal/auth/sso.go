@@ -1,4 +1,4 @@
-package adminapi
+package auth
 
 import (
 	"errors"
@@ -6,20 +6,18 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/woodleighschool/woodstar/internal/auth"
 )
 
 // RegisterSSO mounts the OIDC sign-in endpoints. They are public (no auth
 // required) and live under /api/auth/sso. Mount under a router that has
 // the scs session middleware attached so state and nonce survive the
 // redirect to the IdP and back.
-func RegisterSSO(r chi.Router, authService *auth.Service) {
+func RegisterSSO(r chi.Router, authService *Service) {
 	r.Get("/api/auth/sso/start", ssoStart(authService))
 	r.Get("/api/auth/sso/callback", ssoCallback(authService))
 }
 
-func ssoStart(authService *auth.Service) http.HandlerFunc {
+func ssoStart(authService *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !authService.SSOEnabled() {
 			http.Error(w, "sso not configured", http.StatusNotFound)
@@ -34,7 +32,7 @@ func ssoStart(authService *auth.Service) http.HandlerFunc {
 	}
 }
 
-func ssoCallback(authService *auth.Service) http.HandlerFunc {
+func ssoCallback(authService *Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		if providerErr := query.Get("error"); providerErr != "" {
@@ -60,11 +58,11 @@ func ssoCallback(authService *auth.Service) http.HandlerFunc {
 // leak through the redirect URL.
 func ssoUserMessage(err error) string {
 	switch {
-	case errors.Is(err, auth.ErrSSOStateMismatch):
+	case errors.Is(err, ErrSSOStateMismatch):
 		return "sso state mismatch; try again"
-	case errors.Is(err, auth.ErrSSOUnknownUser):
+	case errors.Is(err, ErrSSOUnknownUser):
 		return "no woodstar account for this identity"
-	case errors.Is(err, auth.ErrSSOEmailClaimEmpty):
+	case errors.Is(err, ErrSSOEmailClaimEmpty):
 		return "identity provider returned no email"
 	default:
 		return "sso sign-in failed"
