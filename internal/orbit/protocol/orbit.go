@@ -27,7 +27,7 @@ func RegisterOrbitRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slo
 		r.Post("/api/fleet/orbit/config", orbitConfigHandler(svc, logger))
 		r.Put("/api/fleet/orbit/device_mapping", orbitDeviceMappingHandler(svc, logger))
 		r.Head("/api/fleet/orbit/ping", orbitPingHandler)
-		registerOrbitCompatibilityRoutes(r, svc, logger)
+		registerOrbitCompatibilityRoutes(r, svc)
 	})
 }
 
@@ -76,7 +76,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 }
 
 func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc, logger,
+	return orbitNodeKeyHandler(svc,
 		func(req orbit.ConfigRequest) string { return req.OrbitNodeKey },
 		func(w http.ResponseWriter, r *http.Request, req orbit.ConfigRequest) {
 			resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
@@ -94,7 +94,7 @@ func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 }
 
 func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc, logger,
+	return orbitNodeKeyHandler(svc,
 		func(req orbit.DeviceMappingRequest) string { return req.OrbitNodeKey },
 		func(w http.ResponseWriter, r *http.Request, req orbit.DeviceMappingRequest) {
 			if err := svc.SetUserAffinity(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
@@ -121,40 +121,40 @@ func orbitCapabilities(next http.Handler) http.Handler {
 	})
 }
 
-func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slog.Logger) {
+func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.EnrollmentService) {
 	r.Post(
 		"/api/fleet/orbit/scripts/request",
-		requireOrbitNodeKey(svc, logger, func(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
+		requireOrbitNodeKey(svc, func(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
 			httpjson.Write(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})
 		}),
 	)
-	r.Post("/api/fleet/orbit/scripts/result", requireOrbitNodeKey(svc, logger, orbitNoContentHandler))
+	r.Post("/api/fleet/orbit/scripts/result", requireOrbitNodeKey(svc, orbitNoContentHandler))
 	r.Post(
 		"/api/fleet/orbit/software_install/details",
-		requireOrbitNodeKey(svc, logger, orbitEmptyObjectHandler),
+		requireOrbitNodeKey(svc, orbitEmptyObjectHandler),
 	)
 	r.Post(
 		"/api/fleet/orbit/software_install/package",
-		requireOrbitNodeKey(svc, logger, orbitEmptyObjectHandler),
+		requireOrbitNodeKey(svc, orbitEmptyObjectHandler),
 	)
 	r.Post(
 		"/api/fleet/orbit/software_install/result",
-		requireOrbitNodeKey(svc, logger, orbitNoContentHandler),
+		requireOrbitNodeKey(svc, orbitNoContentHandler),
 	)
 	r.Post(
 		"/api/fleet/orbit/setup_experience/init",
-		requireOrbitNodeKey(svc, logger, orbitEmptyObjectHandler),
+		requireOrbitNodeKey(svc, orbitEmptyObjectHandler),
 	)
 	r.Post(
 		"/api/fleet/orbit/setup_experience/status",
-		requireOrbitNodeKey(svc, logger, setupExperienceStatusHandler),
+		requireOrbitNodeKey(svc, setupExperienceStatusHandler),
 	)
-	r.Post("/api/fleet/orbit/device_token", requireOrbitNodeKey(svc, logger, orbitNoContentHandler))
+	r.Post("/api/fleet/orbit/device_token", requireOrbitNodeKey(svc, orbitNoContentHandler))
 	r.Post(
 		"/api/fleet/orbit/disk_encryption_key",
-		requireOrbitNodeKey(svc, logger, orbitNoContentHandler),
+		requireOrbitNodeKey(svc, orbitNoContentHandler),
 	)
-	r.Post("/api/fleet/orbit/luks_data", requireOrbitNodeKey(svc, logger, orbitNoContentHandler))
+	r.Post("/api/fleet/orbit/luks_data", requireOrbitNodeKey(svc, orbitNoContentHandler))
 }
 
 type orbitNodeKeyRequest struct {
@@ -163,10 +163,9 @@ type orbitNodeKeyRequest struct {
 
 func requireOrbitNodeKey(
 	svc *orbit.EnrollmentService,
-	logger *slog.Logger,
 	next func(http.ResponseWriter, *http.Request, orbitNodeKeyRequest),
 ) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc, logger,
+	return orbitNodeKeyHandler(svc,
 		func(req orbitNodeKeyRequest) string { return req.OrbitNodeKey },
 		next,
 	)
@@ -174,7 +173,6 @@ func requireOrbitNodeKey(
 
 func orbitNodeKeyHandler[T any](
 	svc *orbit.EnrollmentService,
-	_ *slog.Logger,
 	nodeKey func(T) string,
 	handle func(http.ResponseWriter, *http.Request, T),
 ) http.HandlerFunc {
