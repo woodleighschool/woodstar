@@ -16,9 +16,6 @@ func MunkiName(pkg Package) string {
 
 // MunkiSoftwareName returns the stable pkginfo name for a Woodstar software item.
 func MunkiSoftwareName(softwareID int64) string {
-	if softwareID <= 0 {
-		return ""
-	}
 	return strconv.FormatInt(softwareID, 10)
 }
 
@@ -31,7 +28,7 @@ func MunkiVersionedName(pkg Package) string {
 func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string {
 	name := MunkiSoftwareName(softwareID)
 	version := strings.TrimSpace(packageVersion)
-	if name == "" || version == "" {
+	if version == "" {
 		return name
 	}
 	return name + "--" + version
@@ -103,22 +100,25 @@ type munkiPkginfo struct {
 }
 
 type munkiPkginfoInstallItem struct {
-	Type                  PackageInstallItemType `plist:"type,omitempty"`
+	Type                  PackageInstallItemType `plist:"type"`
 	Path                  string                 `plist:"path"`
 	BundleIdentifier      string                 `plist:"CFBundleIdentifier,omitempty"`
 	BundleName            string                 `plist:"CFBundleName,omitempty"`
 	BundleShortVersion    string                 `plist:"CFBundleShortVersionString,omitempty"`
 	BundleVersion         string                 `plist:"CFBundleVersion,omitempty"`
 	VersionComparisonKey  string                 `plist:"version_comparison_key,omitempty"`
+	MinimumUpdateVersion  string                 `plist:"minimum_update_version,omitempty"`
 	MD5Checksum           string                 `plist:"md5checksum,omitempty"`
 	MinimumOSVersion      string                 `plist:"minimum_os_version,omitempty"`
 	InstallerItemLocation string                 `plist:"installer_item_location,omitempty"`
 }
 
 type munkiPkginfoReceipt struct {
-	PackageID string `plist:"packageid"`
-	Version   string `plist:"version,omitempty"`
-	Optional  bool   `plist:"optional,omitempty"`
+	PackageID     string `plist:"packageid"`
+	Version       string `plist:"version,omitempty"`
+	Name          string `plist:"name,omitempty"`
+	InstalledSize int64  `plist:"installed_size,omitempty"`
+	Optional      bool   `plist:"optional,omitempty"`
 }
 
 type munkiPkginfoItemToCopy struct {
@@ -200,11 +200,11 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
 		item.InstallerType = pkg.InstallerType
 	}
-	if pkg.UninstallMethod != "" && pkg.UninstallMethod != UninstallMethodNone {
+	if pkg.UninstallMethod != "" {
 		item.UninstallMethod = pkg.UninstallMethod
 		item.Uninstallable = true
 	}
-	if pkg.RestartAction != "" && pkg.RestartAction != RestartActionNone {
+	if pkg.RestartAction != "" {
 		item.RestartAction = pkg.RestartAction
 	}
 	return item

@@ -12,8 +12,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
-// InstallerType describes the package installer mode Woodstar exposes in
-// normal authoring flows. InstallerTypePkg is Woodstar's default package mode.
+// InstallerType describes the Munki installer modes Woodstar exposes for app
+// distribution. OS upgrades and profile delivery are outside this package scope.
 type InstallerType string
 
 const (
@@ -36,7 +36,6 @@ func (InstallerType) Schema(_ huma.Registry) *huma.Schema {
 type RestartAction string
 
 const (
-	RestartActionNone             RestartAction = "None"
 	RestartActionRequireLogout    RestartAction = "RequireLogout"
 	RestartActionRecommendRestart RestartAction = "RecommendRestart"
 	RestartActionRequireRestart   RestartAction = "RequireRestart"
@@ -44,7 +43,6 @@ const (
 )
 
 var restartActionValues = []RestartAction{
-	RestartActionNone,
 	RestartActionRequireLogout,
 	RestartActionRecommendRestart,
 	RestartActionRequireRestart,
@@ -55,18 +53,17 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(restartActionValues...)
 }
 
-// UninstallMethod describes Woodstar's typed Munki uninstall modes.
+// UninstallMethod describes the Munki uninstall modes Woodstar exposes.
+// Absence means the package is not uninstallable.
 type UninstallMethod string
 
 const (
-	UninstallMethodNone              UninstallMethod = "none"
 	UninstallMethodRemovePackages    UninstallMethod = "removepackages"
 	UninstallMethodRemoveCopiedItems UninstallMethod = "remove_copied_items"
 	UninstallMethodUninstallScript   UninstallMethod = "uninstall_script"
 )
 
 var uninstallMethodValues = []UninstallMethod{
-	UninstallMethodNone,
 	UninstallMethodRemovePackages,
 	UninstallMethodRemoveCopiedItems,
 	UninstallMethodUninstallScript,
@@ -131,6 +128,7 @@ type PackageInstallItem struct {
 	BundleShortVersion    string                 `json:"bundle_short_version,omitempty"`
 	BundleVersion         string                 `json:"bundle_version,omitempty"`
 	VersionComparisonKey  string                 `json:"version_comparison_key,omitempty"`
+	MinimumUpdateVersion  string                 `json:"minimum_update_version,omitempty"`
 	MD5Checksum           string                 `json:"md5checksum,omitempty"`
 	MinimumOSVersion      string                 `json:"minimum_os_version,omitempty"`
 	InstallerItemLocation string                 `json:"installer_item_location,omitempty"`
@@ -138,9 +136,11 @@ type PackageInstallItem struct {
 
 // PackageReceipt is one Munki receipt entry.
 type PackageReceipt struct {
-	PackageID string `json:"package_id"`
-	Version   string `json:"version,omitempty"`
-	Optional  bool   `json:"optional,omitempty"`
+	PackageID     string `json:"package_id"`
+	Version       string `json:"version,omitempty"`
+	Name          string `json:"name,omitempty"`
+	InstalledSize int64  `json:"installed_size,omitempty"`
+	Optional      bool   `json:"optional,omitempty"`
 }
 
 // PackageItemToCopy is one Munki items_to_copy entry.
@@ -235,7 +235,7 @@ type Package struct {
 	InstallerType            InstallerType                         `json:"installer_type"`
 	UnattendedInstall        bool                                  `json:"unattended_install"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall"`
-	UninstallMethod          UninstallMethod                       `json:"uninstall_method"`
+	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"`
 	RestartAction            RestartAction                         `json:"restart_action,omitempty"`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version"`
 	MinimumOSVersion         string                                `json:"minimum_os_version"`
@@ -342,6 +342,9 @@ func (m PackageMutation) validateCollections() error {
 	for _, receipt := range m.Receipts {
 		if strings.TrimSpace(receipt.PackageID) == "" {
 			return fmt.Errorf("%w: receipts entries require package_id", dbutil.ErrInvalidInput)
+		}
+		if receipt.InstalledSize < 0 {
+			return fmt.Errorf("%w: receipts entries require non-negative installed_size", dbutil.ErrInvalidInput)
 		}
 	}
 	for _, item := range m.ItemsToCopy {

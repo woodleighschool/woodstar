@@ -3,6 +3,8 @@ package protocol
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -29,8 +31,7 @@ type Repository interface {
 	ResolveIconFile(context.Context, munki.ClientHost, string) (string, error)
 }
 
-// Selector redirects a package download to an eligible distribution point. A nil
-// selector keeps every download Woodstar-direct.
+// Selector redirects a package download to an eligible distribution point.
 type Selector interface {
 	SelectRedirect(ctx context.Context, req mdp.SelectionRequest) (string, bool)
 }
@@ -43,8 +44,7 @@ type handler struct {
 	logger         *slog.Logger
 }
 
-// RegisterMunkiRoutes mounts Munki client repository endpoints. selector may be
-// nil, in which case package downloads are always served Woodstar-direct.
+// RegisterMunkiRoutes mounts Munki client repository endpoints.
 func RegisterMunkiRoutes(
 	r chi.Router,
 	secretVerifier agentauth.SecretVerifier,
@@ -68,18 +68,12 @@ func RegisterMunkiRoutes(
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
 	h.writePlist(w, r, "manifest", func(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
-		if h.repository == nil {
-			return nil, munki.ErrNotFound
-		}
 		return h.repository.Manifest(ctx, client, name)
 	})
 }
 
 func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 	h.writePlist(w, r, "catalog", func(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
-		if h.repository == nil {
-			return nil, munki.ErrNotFound
-		}
 		return h.repository.Catalog(ctx, client, name)
 	})
 }
@@ -126,16 +120,12 @@ func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 	h.deliver(w, r, key)
 }
 
-// redirectToDistributionPoint asks the selector for an eligible distribution
-// point. It reports false to fall back to Woodstar-direct delivery.
+// redirectToDistributionPoint asks the selector for an eligible distribution point.
 func (h handler) redirectToDistributionPoint(
 	r *http.Request,
 	client munki.ClientHost,
 	installer munki.PackageInstaller,
 ) (string, bool) {
-	if h.selector == nil {
-		return "", false
-	}
 	return h.selector.SelectRedirect(r.Context(), mdp.SelectionRequest{
 		ClientIP:              httpclientip.FromRequest(r),
 		HostID:                client.ID,
@@ -173,10 +163,6 @@ func (h handler) authorizedClient(w http.ResponseWriter, r *http.Request) (munki
 
 // deliver serves the blob Woodstar-direct through a short-lived transfer URL.
 func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
-	if h.store == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
 	url, err := h.store.PresignGet(r.Context(), key, 0, storage.GetOptions{})
 	if err != nil {
 		h.log(r, "file", err)
@@ -223,6 +209,12 @@ func (h handler) writePlist(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	etag := responseETag(body)
+	w.Header().Set("ETag", etag)
+	if requestETagMatches(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	w.Header().Set("Content-Type", plistContentType)
 	_, err = w.Write(body)
 	if err != nil {
@@ -230,9 +222,24 @@ func (h handler) writePlist(
 	}
 }
 
+func responseETag(body []byte) string {
+	sum := sha256.Sum256(body)
+	return `"` + hex.EncodeToString(sum[:]) + `"`
+}
+
+func requestETagMatches(header string, etag string) bool {
+	for value := range strings.SplitSeq(header, ",") {
+		value = strings.TrimSpace(value)
+		if value == "*" || value == etag {
+			return true
+		}
+	}
+	return false
+}
+
 func (h handler) authorized(r *http.Request) (bool, error) {
 	token, ok := httpauth.BearerToken(r.Header.Get("Authorization"))
-	if !ok || h.secretVerifier == nil {
+	if !ok {
 		return false, nil
 	}
 	ok, err := h.secretVerifier.Verify(r.Context(), agentauth.AgentMunki, token)
@@ -243,9 +250,6 @@ func (h handler) authorized(r *http.Request) (bool, error) {
 }
 
 func (h handler) clientHost(r *http.Request) (munki.ClientHost, error) {
-	if h.repository == nil {
-		return munki.ClientHost{}, munki.ErrNotFound
-	}
 	serial := strings.TrimSpace(r.Header.Get("Serial"))
 	if serial == "" {
 		return munki.ClientHost{}, munki.ErrNotFound
@@ -254,9 +258,6 @@ func (h handler) clientHost(r *http.Request) (munki.ClientHost, error) {
 }
 
 func (h handler) log(r *http.Request, operation string, err error) {
-	if h.logger == nil {
-		return
-	}
 	h.logger.WarnContext(
 		r.Context(),
 		"munki protocol request failed",

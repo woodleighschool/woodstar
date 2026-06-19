@@ -1,6 +1,5 @@
 import { StreamLanguage } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
-import type { Extension } from "@codemirror/state";
 import { Link } from "@tanstack/react-router";
 import { FileArchive, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
@@ -92,6 +91,7 @@ import {
   type InstallerEnvironmentRow,
   type InstallItemRow,
   type ItemToCopyRow,
+  numberOrUndefined,
   type PackageFormState,
   packageLabel,
   type PackageReferenceRow,
@@ -102,7 +102,7 @@ import {
   toggleArray,
 } from "./form-state";
 
-const shellExtensions: Extension[] = [StreamLanguage.define(shell)];
+const shellExtensions = [StreamLanguage.define(shell)];
 
 // uninstall_script lives on the Uninstall tab; the rest are general-purpose hooks.
 const generalScriptFields = scriptFields.filter((script) => script.key !== "uninstall_script");
@@ -238,13 +238,25 @@ function BasicInfoTab({
             label="Installer Type"
             options={MUNKI_INSTALLER_TYPE_OPTIONS}
           />
-          <FormSelectField
+          <FormSwitchField
             form={form}
-            name="restart_action"
-            id="munki-package-restart-action"
-            label="Restart Action"
-            options={MUNKI_RESTART_ACTION_OPTIONS}
+            name="restart_required"
+            id="munki-package-restart-required"
+            label="Restart required"
           />
+          <form.Subscribe selector={(state) => state.values.restart_required}>
+            {(restartRequired) =>
+              restartRequired ? (
+                <FormSelectField
+                  form={form}
+                  name="restart_action"
+                  id="munki-package-restart-action"
+                  label="Restart Action"
+                  options={MUNKI_RESTART_ACTION_OPTIONS}
+                />
+              ) : null
+            }
+          </form.Subscribe>
           <FormTextField
             form={form}
             name="force_install_after_date"
@@ -549,28 +561,38 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
     <FieldSet>
       <FieldLegend>Uninstall</FieldLegend>
       <FieldGroup>
-        <div className="max-w-sm">
-          <FormSelectField
-            form={form}
-            name="uninstall_method"
-            id="munki-package-uninstall-method"
-            label="Uninstall Method"
-            options={MUNKI_UNINSTALL_METHOD_OPTIONS}
-          />
-        </div>
-        <form.Subscribe selector={(state) => state.values.uninstall_method}>
-          {(method) =>
-            method === "uninstall_script" ? (
-              <form.Field
-                name="uninstall_script"
-                children={(field) => (
-                  <ScriptField
-                    label="Uninstall Script"
-                    value={field.state.value}
-                    onChange={(value) => field.handleChange(value)}
+        <FormSwitchField
+          form={form}
+          name="uninstallable"
+          id="munki-package-uninstallable"
+          label="Uninstallable"
+        />
+        <form.Subscribe selector={(state) => state.values}>
+          {(values) =>
+            values.uninstallable ? (
+              <>
+                <div className="max-w-sm">
+                  <FormSelectField
+                    form={form}
+                    name="uninstall_method"
+                    id="munki-package-uninstall-method"
+                    label="Uninstall Method"
+                    options={MUNKI_UNINSTALL_METHOD_OPTIONS}
                   />
-                )}
-              />
+                </div>
+                {values.uninstall_method === "uninstall_script" ? (
+                  <form.Field
+                    name="uninstall_script"
+                    children={(field) => (
+                      <ScriptField
+                        label="Uninstall Script"
+                        value={field.state.value}
+                        onChange={(value) => field.handleChange(value)}
+                      />
+                    )}
+                  />
+                ) : null}
+              </>
             ) : null
           }
         </form.Subscribe>
@@ -1479,6 +1501,7 @@ function InstallsTable({
                 <TableHead className="min-w-[12rem]">CFBundleIdentifier</TableHead>
                 <TableHead className="min-w-[9rem]">CFBundleShortVersionString</TableHead>
                 <TableHead className="min-w-[9rem]">CFBundleVersion</TableHead>
+                <TableHead className="min-w-[9rem]">Minimum Update</TableHead>
                 <TableHead className="w-9" />
               </TableRow>
             </TableHeader>
@@ -1555,6 +1578,18 @@ function InstallsTable({
                       }
                     />
                   </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Minimum Update Version"
+                      value={row.minimum_update_version ?? ""}
+                      onChange={(event) =>
+                        onReplace(index, {
+                          ...row,
+                          minimum_update_version: event.target.value,
+                        })
+                      }
+                    />
+                  </TableCell>
                   <TableCell className="w-9 p-0 pr-1 text-right">
                     <IconButton label="Remove" onClick={() => onRemove(index)}>
                       <Trash2 />
@@ -1596,6 +1631,8 @@ function ReceiptsTable({
               <TableRow>
                 <TableHead className="min-w-[16rem]">Package ID</TableHead>
                 <TableHead className="min-w-[9rem]">Version</TableHead>
+                <TableHead className="min-w-[10rem]">Name</TableHead>
+                <TableHead className="min-w-[8rem]">Installed Size</TableHead>
                 <TableHead className="w-24 text-center">Optional</TableHead>
                 <TableHead className="w-9" />
               </TableRow>
@@ -1618,6 +1655,27 @@ function ReceiptsTable({
                       value={row.version ?? ""}
                       onChange={(event) =>
                         onReplace(index, { ...row, version: event.target.value })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Name"
+                      value={row.name ?? ""}
+                      onChange={(event) => onReplace(index, { ...row, name: event.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell className="p-0">
+                    <CellInput
+                      aria-label="Installed Size"
+                      type="number"
+                      min={0}
+                      value={row.installed_size ?? ""}
+                      onChange={(event) =>
+                        onReplace(index, {
+                          ...row,
+                          installed_size: numberOrUndefined(event.target.value),
+                        })
                       }
                     />
                   </TableCell>

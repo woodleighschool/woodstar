@@ -357,12 +357,6 @@ func applyDefaults(params PackageMutation) PackageMutation {
 	if params.InstallerType == "" {
 		params.InstallerType = InstallerTypePkg
 	}
-	if params.UninstallMethod == "" {
-		params.UninstallMethod = UninstallMethodNone
-	}
-	if params.UninstallScript != "" && params.UninstallMethod == UninstallMethodNone {
-		params.UninstallMethod = UninstallMethodUninstallScript
-	}
 	// supported_architectures is NOT NULL; nil means no architecture restriction.
 	if params.SupportedArchitectures == nil {
 		params.SupportedArchitectures = []string{}

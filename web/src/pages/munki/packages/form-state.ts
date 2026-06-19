@@ -62,7 +62,9 @@ export interface ItemToCopyRow extends MunkiPackageItemToCopy {
 export interface PackageFormState {
   version: string;
   installer_type: MunkiInstallerType;
+  uninstallable: boolean;
   uninstall_method: MunkiUninstallMethod;
+  restart_required: boolean;
   restart_action: MunkiRestartAction;
   minimum_munki_version: string;
   minimum_os_version: string;
@@ -145,16 +147,22 @@ export function packageSubmitPreflightError(
   if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
     return "No package items require an install check script, installs, receipts, or On Demand.";
   }
-  if (form.uninstall_method === "removepackages" && cleanReceipts(form.receipts).length === 0) {
+  if (
+    form.uninstallable &&
+    form.uninstall_method === "removepackages" &&
+    cleanReceipts(form.receipts).length === 0
+  ) {
     return "Remove packages uninstall requires at least one receipt.";
   }
   if (
+    form.uninstallable &&
     form.uninstall_method === "remove_copied_items" &&
     cleanItemsToCopy(form.items_to_copy).length === 0
   ) {
     return "Remove copied items uninstall requires at least one item to copy.";
   }
   if (
+    form.uninstallable &&
     form.uninstall_method === "uninstall_script" &&
     nonEmpty(form.uninstall_script) === undefined
   ) {
@@ -168,14 +176,15 @@ export function packageMutationFromForm(form: PackageFormState): MunkiPackageMut
   const uninstallMethod = form.uninstall_method;
   const usesInstallerOptions = installerType !== "nopkg";
   const usesItemsToCopy =
-    installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
+    installerType === "copy_from_dmg" ||
+    (form.uninstallable && uninstallMethod === "remove_copied_items");
   const blockingApplications = cleanStringRows(form.blocking_applications);
 
   return {
     version: form.version,
     installer_type: installerType,
-    uninstall_method: uninstallMethod,
-    restart_action: form.restart_action === "None" ? undefined : form.restart_action,
+    uninstall_method: form.uninstallable ? uninstallMethod : undefined,
+    restart_action: form.restart_required ? form.restart_action : undefined,
     minimum_munki_version: nonEmpty(form.minimum_munki_version),
     minimum_os_version: nonEmpty(form.minimum_os_version),
     maximum_os_version: nonEmpty(form.maximum_os_version),
@@ -219,7 +228,9 @@ export function packageMutationFromForm(form: PackageFormState): MunkiPackageMut
     preuninstall_script: nonEmpty(form.preuninstall_script),
     postuninstall_script: nonEmpty(form.postuninstall_script),
     uninstall_script:
-      uninstallMethod === "uninstall_script" ? nonEmpty(form.uninstall_script) : undefined,
+      form.uninstallable && uninstallMethod === "uninstall_script"
+        ? nonEmpty(form.uninstall_script)
+        : undefined,
     version_script: nonEmpty(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
@@ -230,8 +241,10 @@ export function emptyPackageForm(): PackageFormState {
   return {
     version: "",
     installer_type: "pkg",
-    uninstall_method: "none",
-    restart_action: "None",
+    uninstallable: false,
+    uninstall_method: "removepackages",
+    restart_required: false,
+    restart_action: "RequireRestart",
     minimum_munki_version: "",
     minimum_os_version: "",
     maximum_os_version: "",
@@ -277,8 +290,10 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
   return {
     version: pkg.version,
     installer_type: pkg.installer_type,
-    uninstall_method: pkg.uninstall_method,
-    restart_action: pkg.restart_action ?? "None",
+    uninstallable: pkg.uninstall_method !== undefined,
+    uninstall_method: pkg.uninstall_method ?? "removepackages",
+    restart_required: pkg.restart_action !== undefined,
+    restart_action: pkg.restart_action ?? "RequireRestart",
     minimum_munki_version: pkg.minimum_munki_version,
     minimum_os_version: pkg.minimum_os_version,
     maximum_os_version: pkg.maximum_os_version,
@@ -452,6 +467,8 @@ function cleanReceipts(rows: ReceiptRow[]): MunkiPackageReceipt[] {
           {
             package_id: packageID,
             version: nonEmpty(row.version ?? ""),
+            name: nonEmpty(row.name ?? ""),
+            installed_size: row.installed_size,
             optional: row.optional,
           },
         ]
@@ -517,7 +534,7 @@ function installerTypeLabel(installerType: MunkiInstallerType) {
   }
 }
 
-function numberOrUndefined(value: string) {
+export function numberOrUndefined(value: string) {
   if (value.trim() === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;

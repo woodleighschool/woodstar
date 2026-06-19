@@ -10,8 +10,8 @@ CREATE TYPE munki_manifest_action AS ENUM (
 );
 
 CREATE TYPE munki_package_selection AS ENUM (
-    'latest_eligible',
-    'specific_package'
+    'latest',
+    'specific'
 );
 
 CREATE TYPE munki_package_relation_kind AS ENUM (
@@ -35,8 +35,12 @@ CREATE TABLE munki_packages (
     software_id BIGINT NOT NULL REFERENCES munki_software (id) ON DELETE CASCADE,
     version TEXT NOT NULL,
     installer_type TEXT NOT NULL DEFAULT 'pkg',
-    uninstall_method TEXT NOT NULL DEFAULT 'none',
-    restart_action TEXT NOT NULL DEFAULT '',
+    uninstall_method TEXT NOT NULL DEFAULT '' CHECK (
+        uninstall_method IN ('', 'removepackages', 'remove_copied_items', 'uninstall_script')
+    ),
+    restart_action TEXT NOT NULL DEFAULT '' CHECK (
+        restart_action IN ('', 'RequireLogout', 'RecommendRestart', 'RequireRestart', 'RequireShutdown')
+    ),
     minimum_munki_version TEXT NOT NULL DEFAULT '',
     minimum_os_version TEXT NOT NULL DEFAULT '',
     maximum_os_version TEXT NOT NULL DEFAULT '',
@@ -129,8 +133,8 @@ CREATE TABLE munki_software_targets (
     CONSTRAINT munki_software_targets_package_selection_check CHECK (
         direction <> 'include'
         OR
-        (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
-        OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
+        (package_selection = 'latest' AND pinned_package_id IS NULL)
+        OR (package_selection = 'specific' AND pinned_package_id IS NOT NULL)
     ),
     CONSTRAINT munki_software_targets_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
         REFERENCES munki_packages (software_id, id)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -798,7 +799,6 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 	updated, err := stores.packages.Update(ctx, pkg.ID, packages.PackageMutation{
 		Version:            "2.0",
 		InstallerType:      packages.InstallerTypeNoPkg,
-		UninstallMethod:    packages.UninstallMethodNone,
 		OnDemand:           true,
 		InstallcheckScript: "#!/bin/sh\nexit 0\n",
 		Eligible:           true,
@@ -810,8 +810,12 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 		t.Fatalf("installer object id = %v, want cleared", updated.InstallerObjectID)
 	}
 	if updated.InstallerType != packages.InstallerTypeNoPkg ||
-		updated.UninstallMethod != packages.UninstallMethodNone {
-		t.Fatalf("updated package modes = %s/%s, want nopkg/none", updated.InstallerType, updated.UninstallMethod)
+		updated.UninstallMethod != "" {
+		t.Fatalf(
+			"updated package modes = %s/%s, want nopkg without uninstall method",
+			updated.InstallerType,
+			updated.UninstallMethod,
+		)
 	}
 	if updated.Version != "2.0" || updated.MinimumMunkiVersion != "" || len(updated.Requires) != 0 {
 		t.Fatalf("updated package = %+v, want replacement package fields", updated)
@@ -1027,22 +1031,23 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		t.Fatalf("absent munki detail = %+v, want nil", detail)
 	}
 
-	success := true
+	runStartedAt := time.Date(2026, 5, 31, 9, 23, 0, 0, time.UTC)
+	runEndedAt := time.Date(2026, 5, 31, 9, 24, 14, 0, time.UTC)
 	if err := stores.hoststate.UpsertHostObservation(ctx, munki.HostObservation{
 		HostID:          host.ID,
 		Version:         "7.1.2.5700",
 		ManifestName:    "site_default",
-		Success:         &success,
+		Success:         true,
 		Errors:          []string{"first error"},
 		Warnings:        []string{"first warning"},
 		ProblemInstalls: []string{"Broken App"},
-		RunStartedAt:    "2026-05-31 19:23:00 +1000",
-		RunEndedAt:      "2026-05-31 19:24:14 +1000",
+		RunStartedAt:    &runStartedAt,
+		RunEndedAt:      &runEndedAt,
 	}); err != nil {
 		t.Fatalf("upsert munki host status: %v", err)
 	}
 	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.Item{
-		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0", RunEndedAt: "2026-05-31 19:24:14 +1000"},
+		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0", RunEndedAt: &runEndedAt},
 		{Name: "Optional App", Installed: false},
 	}); err != nil {
 		t.Fatalf("replace munki host items: %v", err)
@@ -1058,11 +1063,21 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	if detail.Version != "7.1.2.5700" || detail.ManifestName != "site_default" {
 		t.Fatalf("detail = %+v, want version and manifest", detail)
 	}
-	if detail.Success == nil || !*detail.Success {
+	if !detail.Success {
 		t.Fatalf("success = %v, want true", detail.Success)
 	}
 	if len(detail.Items) != 2 || detail.Items[0].Name != "GoogleChrome" || !detail.Items[0].Installed {
 		t.Fatalf("items = %+v", detail.Items)
+	}
+	if detail.RunStartedAt == nil || !detail.RunStartedAt.Equal(runStartedAt) ||
+		detail.RunEndedAt == nil || !detail.RunEndedAt.Equal(runEndedAt) {
+		t.Fatalf("detail run times = %v/%v, want stored timestamps", detail.RunStartedAt, detail.RunEndedAt)
+	}
+	if detail.Items[0].RunEndedAt == nil || !detail.Items[0].RunEndedAt.Equal(runEndedAt) {
+		t.Fatalf("item run ended = %v, want stored timestamp", detail.Items[0].RunEndedAt)
+	}
+	if detail.Items[1].RunEndedAt != nil {
+		t.Fatalf("optional item run ended = %v, want nil", detail.Items[1].RunEndedAt)
 	}
 
 	if err := stores.hoststate.ReplaceHostItems(

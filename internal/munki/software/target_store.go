@@ -109,15 +109,15 @@ func validateExcludedLabels(ctx context.Context, qtx *sqlc.Queries, excludes []t
 func storagePackageSelection(selector PackageSelector) sqlc.MunkiPackageSelection {
 	switch selector.Strategy {
 	case PackageSpecific:
-		return sqlc.MunkiPackageSelectionSpecificPackage
+		return sqlc.MunkiPackageSelectionSpecific
 	default:
-		return sqlc.MunkiPackageSelectionLatestEligible
+		return sqlc.MunkiPackageSelectionLatest
 	}
 }
 
 func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID *int64) PackageSelector {
 	switch selection {
-	case sqlc.MunkiPackageSelectionSpecificPackage:
+	case sqlc.MunkiPackageSelectionSpecific:
 		return PackageSelector{Strategy: PackageSpecific, PackageID: packageID}
 	default:
 		return PackageSelector{Strategy: PackageLatest}

@@ -20,7 +20,6 @@ export const MUNKI_INSTALLER_TYPE_OPTIONS = rawEnumOptions<MunkiInstallerType>([
 ]);
 
 export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions<MunkiRestartAction>([
-  "None",
   "RequireLogout",
   "RecommendRestart",
   "RequireRestart",
@@ -28,7 +27,6 @@ export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions<MunkiRestartAction>([
 ]);
 
 export const MUNKI_UNINSTALL_METHOD_OPTIONS = rawEnumOptions<MunkiUninstallMethod>([
-  "none",
   "removepackages",
   "remove_copied_items",
   "uninstall_script",

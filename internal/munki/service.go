@@ -78,12 +78,8 @@ func (s *RepositoryService) ResolveClient(ctx context.Context, serial string) (C
 
 // Manifest returns a Munki manifest plist for name.
 func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, name string) ([]byte, error) {
-	if !validResourcePath(name) {
+	if strings.TrimSpace(name) != client.Serial {
 		return nil, ErrNotFound
-	}
-	displayName := client.DisplayName
-	if displayName == "" {
-		displayName = client.Serial
 	}
 	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
@@ -91,7 +87,6 @@ func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, nam
 	}
 	manifest := renderedManifest{
 		Catalogs:          []string{"production"},
-		DisplayName:       displayName,
 		ManagedInstalls:   []string{},
 		ManagedUninstalls: []string{},
 		ManagedUpdates:    []string{},
@@ -107,7 +102,7 @@ func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, nam
 
 // Catalog returns a Munki catalog plist for name.
 func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name string) ([]byte, error) {
-	if name != "production" || !validResourceName(name) {
+	if name != "production" {
 		return nil, ErrNotFound
 	}
 	pkgs, err := s.effectivePackages(ctx, client.ID)
@@ -208,9 +203,6 @@ func (s *RepositoryService) effectivePackages(
 
 func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectivePackage) {
 	name := manifestItemName(pkg)
-	if name == "" {
-		return
-	}
 	for _, action := range pkg.Actions {
 		switch action {
 		case munkisoftware.ActionManagedInstalls:
@@ -320,31 +312,12 @@ func appendUnique(values []string, value string) []string {
 	return append(values, value)
 }
 
-func validResourceName(name string) bool {
-	name = strings.TrimSpace(name)
-	return name != "" && !strings.ContainsAny(name, `/\`)
-}
-
-func validResourcePath(location string) bool {
-	location = strings.TrimSpace(location)
-	if location == "" || strings.HasPrefix(location, "/") || strings.Contains(location, `\`) {
-		return false
-	}
-	for segment := range strings.SplitSeq(location, "/") {
-		if segment == "" || segment == "." || segment == ".." {
-			return false
-		}
-	}
-	return true
-}
-
 func encodePlist(value any) ([]byte, error) {
 	return plist.Marshal(value, plist.XMLFormat)
 }
 
 type renderedManifest struct {
 	Catalogs          []string `plist:"catalogs"`
-	DisplayName       string   `plist:"display_name"`
 	ManagedInstalls   []string `plist:"managed_installs"`
 	ManagedUninstalls []string `plist:"managed_uninstalls"`
 	ManagedUpdates    []string `plist:"managed_updates"`

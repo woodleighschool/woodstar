@@ -3,6 +3,7 @@ package protocol
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,6 +91,49 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
+			{
+				TargetID:   10,
+				SoftwareID: 1,
+				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:    staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
+			},
+		}),
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("first status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("ETag is empty")
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+	req.Header.Set("If-None-Match", etag)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotModified {
+		t.Fatalf("cached status = %d, want %d; body = %q", rec.Code, http.StatusNotModified, rec.Body.String())
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("cached body = %q, want empty", rec.Body.String())
+	}
+}
+
 func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 	objectID := int64(42)
 	service := munki.NewRepositoryService(munki.Dependencies{
@@ -172,9 +216,15 @@ func TestMunkiCatalogOmitsPackageURLsWithoutInstallerItemLocation(t *testing.T) 
 
 func assertManifestPlist(t *testing.T, body []byte) {
 	t.Helper()
+	var raw map[string]any
+	if _, err := plist.Unmarshal(body, &raw); err != nil {
+		t.Fatalf("response is not a manifest plist: %v", err)
+	}
+	if _, ok := raw["display_name"]; ok {
+		t.Fatalf("manifest rendered display_name: %+v", raw)
+	}
 	var decoded struct {
 		Catalogs          []string `plist:"catalogs"`
-		DisplayName       string   `plist:"display_name"`
 		ManagedInstalls   []string `plist:"managed_installs"`
 		ManagedUninstalls []string `plist:"managed_uninstalls"`
 		ManagedUpdates    []string `plist:"managed_updates"`
@@ -187,9 +237,6 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	}
 	if got := decoded.Catalogs; len(got) != 1 || got[0] != "production" {
 		t.Fatalf("catalogs = %v, want [production]", got)
-	}
-	if decoded.DisplayName != "Test MacBook" {
-		t.Fatalf("display_name = %q, want Test MacBook", decoded.DisplayName)
 	}
 	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
 		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
@@ -444,7 +491,7 @@ func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPUsesSerialHeaderNotManifestName(t *testing.T) {
+func TestMunkiHTTPRequiresManifestNameToMatchSerialHeader(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepository(),
@@ -456,8 +503,8 @@ func TestMunkiHTTPUsesSerialHeaderNotManifestName(t *testing.T) {
 
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNotFound, rec.Body.String())
 	}
 }
 
@@ -537,7 +584,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 		repository,
 		selector,
 		store,
-		nil,
+		testLogger(),
 	)
 
 	rec := httptest.NewRecorder()
@@ -580,7 +627,7 @@ func TestMunkiHTTPServesDirectWhenNoDistributionPoint(t *testing.T) {
 		repository,
 		selector,
 		store,
-		nil,
+		testLogger(),
 	)
 
 	rec := httptest.NewRecorder()
@@ -709,8 +756,12 @@ func newMunkiContractRouter(
 		s = store[0]
 	}
 	r := chi.NewRouter()
-	RegisterMunkiRoutes(r, verifier, repository, nil, s, nil)
+	RegisterMunkiRoutes(r, verifier, repository, &fakeSelector{}, s, testLogger())
 	return r
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
 
 type fakeSelector struct {

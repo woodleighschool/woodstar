@@ -52,6 +52,35 @@ func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 	}
 }
 
+func TestManifestRequiresClientIdentifierName(t *testing.T) {
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages: servicePackageStore{},
+	})
+	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
+
+	if _, err := service.Manifest(context.Background(), client, "C02OTHER"); !errors.Is(err, munki.ErrNotFound) {
+		t.Fatalf("Manifest wrong name error = %v, want ErrNotFound", err)
+	}
+	if _, err := service.Manifest(context.Background(), client, "C02MUNKI"); err != nil {
+		t.Fatalf("Manifest client name error = %v, want nil", err)
+	}
+}
+
+func TestCatalogRequiresProductionName(t *testing.T) {
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages: servicePackageStore{},
+		Objects:  serviceObjectStore{},
+	})
+	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
+
+	if _, err := service.Catalog(context.Background(), client, "testing"); !errors.Is(err, munki.ErrNotFound) {
+		t.Fatalf("Catalog wrong name error = %v, want ErrNotFound", err)
+	}
+	if _, err := service.Catalog(context.Background(), client, "production"); err != nil {
+		t.Fatalf("Catalog production error = %v, want nil", err)
+	}
+}
+
 type serviceObjectStore struct {
 	objects map[int64]storage.Object
 }

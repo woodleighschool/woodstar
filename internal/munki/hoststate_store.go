@@ -51,9 +51,6 @@ func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item
 			return err
 		}
 		for _, item := range items {
-			if item.Name == "" {
-				continue
-			}
 			if err := q.InsertMunkiHostItem(ctx, sqlc.InsertMunkiHostItemParams{
 				HostID:           hostID,
 				Name:             item.Name,

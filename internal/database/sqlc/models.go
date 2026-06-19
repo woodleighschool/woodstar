@@ -272,8 +272,8 @@ func (ns NullMunkiPackageRelationKind) Value() (driver.Value, error) {
 type MunkiPackageSelection string
 
 const (
-	MunkiPackageSelectionLatestEligible  MunkiPackageSelection = "latest_eligible"
-	MunkiPackageSelectionSpecificPackage MunkiPackageSelection = "specific_package"
+	MunkiPackageSelectionLatest   MunkiPackageSelection = "latest"
+	MunkiPackageSelectionSpecific MunkiPackageSelection = "specific"
 )
 
 func (e *MunkiPackageSelection) Scan(src interface{}) error {
@@ -984,27 +984,27 @@ type MunkiDistributionPoint struct {
 }
 
 type MunkiHostItem struct {
-	HostID           int64     `json:"host_id"`
-	Name             string    `json:"name"`
-	Installed        bool      `json:"installed"`
-	InstalledVersion string    `json:"installed_version"`
-	RunEndedAt       string    `json:"run_ended_at"`
-	LastSeenAt       time.Time `json:"last_seen_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	HostID           int64      `json:"host_id"`
+	Name             string     `json:"name"`
+	Installed        bool       `json:"installed"`
+	InstalledVersion string     `json:"installed_version"`
+	RunEndedAt       *time.Time `json:"run_ended_at"`
+	LastSeenAt       time.Time  `json:"last_seen_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type MunkiHostStatus struct {
-	HostID          int64     `json:"host_id"`
-	Version         string    `json:"version"`
-	ManifestName    string    `json:"manifest_name"`
-	Success         *bool     `json:"success"`
-	Errors          []string  `json:"errors"`
-	Warnings        []string  `json:"warnings"`
-	ProblemInstalls []string  `json:"problem_installs"`
-	RunStartedAt    string    `json:"run_started_at"`
-	RunEndedAt      string    `json:"run_ended_at"`
-	LastSeenAt      time.Time `json:"last_seen_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	HostID          int64      `json:"host_id"`
+	Version         string     `json:"version"`
+	ManifestName    string     `json:"manifest_name"`
+	Success         bool       `json:"success"`
+	Errors          []string   `json:"errors"`
+	Warnings        []string   `json:"warnings"`
+	ProblemInstalls []string   `json:"problem_installs"`
+	RunStartedAt    *time.Time `json:"run_started_at"`
+	RunEndedAt      *time.Time `json:"run_ended_at"`
+	LastSeenAt      time.Time  `json:"last_seen_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type MunkiPackage struct {

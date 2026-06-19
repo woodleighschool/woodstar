@@ -15,12 +15,12 @@ VALUES (
     @host_id,
     @version,
     @manifest_name,
-    sqlc.narg(success)::boolean,
+    @success,
     @errors,
     @warnings,
     @problem_installs,
-    @run_started_at,
-    @run_ended_at,
+    sqlc.narg(run_started_at)::timestamptz,
+    sqlc.narg(run_ended_at)::timestamptz,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
@@ -57,7 +57,7 @@ VALUES (
     @name,
     @installed,
     @installed_version,
-    @run_ended_at,
+    sqlc.narg(run_ended_at)::timestamptz,
     now()
 )
 ON CONFLICT (host_id, name) DO UPDATE SET

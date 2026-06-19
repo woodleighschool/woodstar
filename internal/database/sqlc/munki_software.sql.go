@@ -311,8 +311,8 @@ JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
 JOIN munki_software s ON s.id = a.software_id
 JOIN munki_packages p ON p.software_id = a.software_id
     AND (
-        (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
-        OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
+        (a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
+        OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
 )
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
 WHERE a.direction = 'include'

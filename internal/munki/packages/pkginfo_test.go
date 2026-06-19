@@ -26,7 +26,6 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		SoftwareDeveloper:      "Example Co",
 		Version:                "1.2.3",
 		InstallerType:          InstallerTypePkg,
-		RestartAction:          RestartActionNone,
 		MinimumMunkiVersion:    "6.0",
 		SupportedArchitectures: []string{"arm64", "x86_64"},
 		BlockingApplications:   []string{"Example App"},
@@ -47,12 +46,15 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		InstallerEnvironment:  []PackageInstallerEnvironmentVariable{{Name: "TOKEN", Value: "value"}},
 		Installs: []PackageInstallItem{
 			{
-				Type:             PackageInstallItemApplication,
-				Path:             "/Applications/Example.app",
-				BundleIdentifier: "com.example.app",
+				Type:                 PackageInstallItemApplication,
+				Path:                 "/Applications/Example.app",
+				BundleIdentifier:     "com.example.app",
+				MinimumUpdateVersion: "1.0",
 			},
 		},
-		Receipts:                 []PackageReceipt{{PackageID: "com.example.pkg", Version: "1.2.3", Optional: true}},
+		Receipts: []PackageReceipt{
+			{PackageID: "com.example.pkg", Version: "1.2.3", Name: "Example", InstalledSize: 2048, Optional: true},
+		},
 		SuppressBundleRelocation: true,
 		InstallerObjectID:        &installerID,
 	}, PkginfoObjects{
@@ -78,7 +80,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		t.Fatalf("installer_type = %v, want omitted for standard pkg installer", got["installer_type"])
 	}
 	if _, ok := got["RestartAction"]; ok {
-		t.Fatalf("RestartAction = %v, want omitted when none", got["RestartAction"])
+		t.Fatalf("RestartAction = %v, want omitted when unset", got["RestartAction"])
 	}
 	if got["icon_name"] != "7-Example.png" || got["icon_hash"] != "abc123" {
 		t.Fatalf("icon fields = %v/%v, want software icon projection", got["icon_name"], got["icon_hash"])
@@ -121,8 +123,14 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	if installs[0]["CFBundleIdentifier"] != "com.example.app" {
 		t.Fatalf("installs = %#v, want Munki bundle key", installs)
 	}
+	if installs[0]["type"] != "application" || installs[0]["minimum_update_version"] != "1.0" {
+		t.Fatalf("installs = %#v, want required type and minimum update version", installs)
+	}
 	receipts := mapSlice(t, got["receipts"])
-	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" || receipts[0]["optional"] != true {
+	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" ||
+		receipts[0]["name"] != "Example" ||
+		intValue(receipts[0]["installed_size"]) != 2048 ||
+		receipts[0]["optional"] != true {
 		t.Fatalf("receipts = %#v, want Munki receipt package ID key", receipts)
 	}
 }

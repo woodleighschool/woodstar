@@ -370,7 +370,7 @@ export type MunkiHostState = {
     problem_installs: Array<string>;
     run_ended_at?: string;
     run_started_at?: string;
-    success?: boolean;
+    success: boolean;
     version: string;
     warnings: Array<string>;
 };
@@ -449,7 +449,7 @@ export type MunkiPackage = {
     preuninstall_script: string;
     receipts: Array<MunkiPackageReceipt>;
     requires: Array<MunkiPackageReference>;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_category: string;
     software_description: string;
     software_developer: string;
@@ -459,7 +459,7 @@ export type MunkiPackage = {
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
+    uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script: string;
     uninstallcheck_script: string;
     update_for: Array<MunkiPackageReference>;
@@ -508,13 +508,13 @@ export type MunkiPackageCreateMutation = {
     preuninstall_script?: string;
     receipts?: Array<MunkiPackageReceipt>;
     requires?: Array<MunkiPackageReference>;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string>;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
+    uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
     update_for?: Array<MunkiPackageReference>;
@@ -530,6 +530,7 @@ export type MunkiPackageInstallItem = {
     installer_item_location?: string;
     md5checksum?: string;
     minimum_os_version?: string;
+    minimum_update_version?: string;
     path: string;
     type: 'application' | 'bundle' | 'plist' | 'file';
     version_comparison_key?: string;
@@ -587,12 +588,12 @@ export type MunkiPackageMutation = {
     preuninstall_script?: string;
     receipts?: Array<MunkiPackageReceipt>;
     requires?: Array<MunkiPackageReference>;
-    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     supported_architectures?: Array<string>;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script';
+    uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
     update_for?: Array<MunkiPackageReference>;
@@ -601,6 +602,8 @@ export type MunkiPackageMutation = {
 };
 
 export type MunkiPackageReceipt = {
+    installed_size?: number;
+    name?: string;
     optional?: boolean;
     package_id: string;
     version?: string;

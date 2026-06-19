@@ -472,7 +472,7 @@ func assertProjectedMunki(t *testing.T, ctx context.Context, store *munki.Store,
 	if state.Version != "7.1.2.5700" || state.ManifestName != "site_default" {
 		t.Fatalf("munki state = %+v, want version and manifest", state)
 	}
-	if state.Success == nil || !*state.Success {
+	if !state.Success {
 		t.Fatalf("munki success = %v, want true", state.Success)
 	}
 	if len(state.Errors) != 2 || len(state.Warnings) != 1 || len(state.ProblemInstalls) != 1 {

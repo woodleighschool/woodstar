@@ -10,12 +10,12 @@ CREATE TABLE munki_host_status (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     version TEXT NOT NULL DEFAULT '',
     manifest_name TEXT NOT NULL DEFAULT '',
-    success BOOLEAN,
+    success BOOLEAN NOT NULL DEFAULT FALSE,
     errors TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     warnings TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     problem_installs TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-    run_started_at TEXT NOT NULL DEFAULT '',
-    run_ended_at TEXT NOT NULL DEFAULT '',
+    run_started_at TIMESTAMPTZ,
+    run_ended_at TIMESTAMPTZ,
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -25,7 +25,7 @@ CREATE TABLE munki_host_items (
     name TEXT NOT NULL,
     installed BOOLEAN NOT NULL DEFAULT FALSE,
     installed_version TEXT NOT NULL DEFAULT '',
-    run_ended_at TEXT NOT NULL DEFAULT '',
+    run_ended_at TIMESTAMPTZ,
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (host_id, name)

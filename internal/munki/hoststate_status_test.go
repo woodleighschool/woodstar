@@ -1,15 +1,18 @@
 package munki
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestHostStatusFromInfoRows(t *testing.T) {
 	status, ok := HostStatusFromInfoRows(42, []map[string]string{{
 		"version":          "7.1.2.5700",
 		"manifest_name":    "site_default",
 		"success":          "true",
-		"errors":           "first error; second error",
-		"warnings":         "first warning\nsecond warning",
-		"problem_installs": "Broken App;",
+		"errors":           "first error;second error",
+		"warnings":         "first warning;second warning",
+		"problem_installs": "Broken App",
 		"start_time":       "2026-05-31 19:23:00 +1000",
 		"end_time":         "2026-05-31 19:24:14 +1000",
 	}})
@@ -19,7 +22,7 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	if status.HostID != 42 || status.Version != "7.1.2.5700" || status.ManifestName != "site_default" {
 		t.Fatalf("status identity = %+v, want host/version/manifest", status)
 	}
-	if status.Success == nil || !*status.Success {
+	if !status.Success {
 		t.Fatalf("success = %v, want true", status.Success)
 	}
 	if !sameStrings(status.Errors, []string{"first error", "second error"}) {
@@ -30,6 +33,10 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	}
 	if !sameStrings(status.ProblemInstalls, []string{"Broken App"}) {
 		t.Fatalf("problem installs = %#v", status.ProblemInstalls)
+	}
+	if !sameTime(status.RunStartedAt, "2026-05-31T09:23:00Z") ||
+		!sameTime(status.RunEndedAt, "2026-05-31T09:24:14Z") {
+		t.Fatalf("run times = %v/%v, want parsed UTC times", status.RunStartedAt, status.RunEndedAt)
 	}
 }
 
@@ -51,7 +58,6 @@ func TestItemsFromInstallRows(t *testing.T) {
 			"name":      "Optional App",
 			"installed": "false",
 		},
-		{"installed": "true"},
 	})
 	if len(got) != 2 {
 		t.Fatalf("len = %d, want 2", len(got))
@@ -60,8 +66,14 @@ func TestItemsFromInstallRows(t *testing.T) {
 		got[0].InstalledVersion != "148.0" {
 		t.Fatalf("first item = %+v", got[0])
 	}
+	if !sameTime(got[0].RunEndedAt, "2026-05-31T09:24:14Z") {
+		t.Fatalf("first item run ended = %v, want parsed time", got[0].RunEndedAt)
+	}
 	if got[1].Installed {
 		t.Fatalf("second installed = true, want false")
+	}
+	if got[1].RunEndedAt != nil {
+		t.Fatalf("second run ended = %v, want nil", got[1].RunEndedAt)
 	}
 }
 
@@ -75,4 +87,15 @@ func sameStrings(a []string, b []string) bool {
 		}
 	}
 	return true
+}
+
+func sameTime(got *time.Time, want string) bool {
+	if got == nil {
+		return false
+	}
+	parsed, err := time.Parse(time.RFC3339, want)
+	if err != nil {
+		return false
+	}
+	return got.Equal(parsed)
 }

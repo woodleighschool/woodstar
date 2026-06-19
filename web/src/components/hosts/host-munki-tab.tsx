@@ -100,19 +100,16 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
 }
 
 function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
-  if (munki.success === false) {
+  if (!munki.success) {
     return <Badge variant="destructive">Failed</Badge>;
   }
-  if ((munki.errors?.length ?? 0) > 0 || (munki.problem_installs?.length ?? 0) > 0) {
+  if (munki.errors.length > 0 || munki.problem_installs.length > 0) {
     return <Badge variant="secondary">Problems</Badge>;
   }
-  if ((munki.warnings?.length ?? 0) > 0) {
+  if (munki.warnings.length > 0) {
     return <Badge variant="secondary">Warnings</Badge>;
   }
-  if (munki.success === true) {
-    return <Badge variant="outline">OK</Badge>;
-  }
-  return <Badge variant="outline">Observed</Badge>;
+  return <Badge variant="outline">OK</Badge>;
 }
 
 function problemRows(kind: string, values: string[] | null | undefined) {

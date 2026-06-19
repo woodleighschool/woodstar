@@ -38,12 +38,17 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 		},
 		"install unsupported type": func(m *PackageMutation) { m.Installs = []PackageInstallItem{{Type: "bogus", Path: "/x"}} },
 		"receipt without id":       func(m *PackageMutation) { m.Receipts = []PackageReceipt{{}} },
-		"env without name":         func(m *PackageMutation) { m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}} },
-		"blank blocking app":       func(m *PackageMutation) { m.BlockingApplications = []string{"  "} },
+		"receipt negative size": func(m *PackageMutation) {
+			m.Receipts = []PackageReceipt{{PackageID: "com.example.foo", InstalledSize: -1}}
+		},
+		"env without name":   func(m *PackageMutation) { m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}} },
+		"blank blocking app": func(m *PackageMutation) { m.BlockingApplications = []string{"  "} },
 		"choice without identifier": func(m *PackageMutation) {
 			m.InstallerChoicesXML = []PackageInstallerChoice{{ChoiceAttribute: "selected"}}
 		},
 		"reference without software": func(m *PackageMutation) { m.Requires = []PackageReference{{SoftwareID: 0}} },
+		"none uninstall sentinel":    func(m *PackageMutation) { m.UninstallMethod = "none" },
+		"none restart sentinel":      func(m *PackageMutation) { m.RestartAction = "None" },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

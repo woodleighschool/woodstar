@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 const clearMunkiHostStatus = `-- name: ClearMunkiHostStatus :exec
@@ -80,7 +81,7 @@ VALUES (
     $2,
     $3,
     $4,
-    $5,
+    $5::timestamptz,
     now()
 )
 ON CONFLICT (host_id, name) DO UPDATE SET
@@ -92,11 +93,11 @@ ON CONFLICT (host_id, name) DO UPDATE SET
 `
 
 type InsertMunkiHostItemParams struct {
-	HostID           int64  `json:"host_id"`
-	Name             string `json:"name"`
-	Installed        bool   `json:"installed"`
-	InstalledVersion string `json:"installed_version"`
-	RunEndedAt       string `json:"run_ended_at"`
+	HostID           int64      `json:"host_id"`
+	Name             string     `json:"name"`
+	Installed        bool       `json:"installed"`
+	InstalledVersion string     `json:"installed_version"`
+	RunEndedAt       *time.Time `json:"run_ended_at"`
 }
 
 func (q *Queries) InsertMunkiHostItem(ctx context.Context, arg InsertMunkiHostItemParams) error {
@@ -166,12 +167,12 @@ VALUES (
     $1,
     $2,
     $3,
-    $4::boolean,
+    $4,
     $5,
     $6,
     $7,
-    $8,
-    $9,
+    $8::timestamptz,
+    $9::timestamptz,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
@@ -188,15 +189,15 @@ ON CONFLICT (host_id) DO UPDATE SET
 `
 
 type UpsertMunkiHostStatusParams struct {
-	HostID          int64    `json:"host_id"`
-	Version         string   `json:"version"`
-	ManifestName    string   `json:"manifest_name"`
-	Success         *bool    `json:"success"`
-	Errors          []string `json:"errors"`
-	Warnings        []string `json:"warnings"`
-	ProblemInstalls []string `json:"problem_installs"`
-	RunStartedAt    string   `json:"run_started_at"`
-	RunEndedAt      string   `json:"run_ended_at"`
+	HostID          int64      `json:"host_id"`
+	Version         string     `json:"version"`
+	ManifestName    string     `json:"manifest_name"`
+	Success         bool       `json:"success"`
+	Errors          []string   `json:"errors"`
+	Warnings        []string   `json:"warnings"`
+	ProblemInstalls []string   `json:"problem_installs"`
+	RunStartedAt    *time.Time `json:"run_started_at"`
+	RunEndedAt      *time.Time `json:"run_ended_at"`
 }
 
 func (q *Queries) UpsertMunkiHostStatus(ctx context.Context, arg UpsertMunkiHostStatusParams) error {
