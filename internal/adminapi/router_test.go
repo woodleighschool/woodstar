@@ -15,7 +15,7 @@ import (
 // X-Forwarded-For, which is the safe choice behind Cloudflare.
 func TestClientIPHeaderSourceUsesTrustedHeaderOverXFF(t *testing.T) {
 	cfg := config.Config{
-		ClientIPSource: string(config.ClientIPSourceHeader),
+		ClientIPSource: config.ClientIPSourceHeader,
 		ClientIPHeader: "CF-Connecting-IP",
 	}
 

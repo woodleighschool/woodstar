@@ -53,7 +53,7 @@ func browserRoutes(r chi.Router, deps Dependencies) {
 // config owns the source enum and its validation; adminapi owns this switch so
 // config never imports chi. The default trusts the connection's remote address.
 func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
-	switch config.ClientIPSource(cfg.ClientIPSource) {
+	switch cfg.ClientIPSource {
 	case config.ClientIPSourceHeader:
 		return chimiddleware.ClientIPFromHeader(cfg.ClientIPHeader)
 	case config.ClientIPSourceXFFTrustedCIDRs:

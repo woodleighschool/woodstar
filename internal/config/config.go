@@ -60,10 +60,10 @@ type Config struct {
 
 	// ClientIPSource selects how the real client IP is derived behind proxies.
 	// The companion fields are required only for the matching source.
-	ClientIPSource         string   `env:"HTTP_CLIENT_IP_SOURCE"              envDefault:"remote_addr"`
-	ClientIPTrustedCIDRs   []string `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"`
-	ClientIPTrustedProxies int      `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"`
-	ClientIPHeader         string   `env:"HTTP_CLIENT_IP_HEADER"`
+	ClientIPSource         ClientIPSource `env:"HTTP_CLIENT_IP_SOURCE"              envDefault:"remote_addr"`
+	ClientIPTrustedCIDRs   []string       `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"`
+	ClientIPTrustedProxies int            `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"`
+	ClientIPHeader         string         `env:"HTTP_CLIENT_IP_HEADER"`
 
 	publicURLScheme string
 }
@@ -121,9 +121,9 @@ func (cfg *Config) normalize() error {
 }
 
 func (cfg *Config) normalizeClientIP() error {
-	cfg.ClientIPSource = strings.TrimSpace(cfg.ClientIPSource)
+	cfg.ClientIPSource = ClientIPSource(strings.TrimSpace(string(cfg.ClientIPSource)))
 	cfg.ClientIPHeader = strings.TrimSpace(cfg.ClientIPHeader)
-	switch ClientIPSource(cfg.ClientIPSource) {
+	switch cfg.ClientIPSource {
 	case ClientIPSourceRemoteAddr:
 		return nil
 	case ClientIPSourceXFFTrustedCIDRs:
