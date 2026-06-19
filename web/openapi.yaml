@@ -3200,6 +3200,8 @@ components:
             - allowlist_compiler
             - blocklist
             - silent_blocklist
+            - silent_gui_blocklist
+            - silent_tty_blocklist
             - cel
           type: string
       required:
@@ -3339,6 +3341,8 @@ components:
             - allowlist_compiler
             - blocklist
             - silent_blocklist
+            - silent_gui_blocklist
+            - silent_tty_blocklist
             - cel
           type: string
         rule_id:

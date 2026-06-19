@@ -575,6 +575,10 @@ func protoPolicy(rule syncstate.PayloadRule) syncv1.Policy {
 		return syncv1.Policy_BLOCKLIST
 	case santarules.PolicySilentBlocklist:
 		return syncv1.Policy_SILENT_BLOCKLIST
+	case santarules.PolicySilentGUIBlocklist:
+		return syncv1.Policy_SILENT_GUI_BLOCKLIST
+	case santarules.PolicySilentTTYBlocklist:
+		return syncv1.Policy_SILENT_TTY_BLOCKLIST
 	case santarules.PolicyCEL:
 		return syncv1.Policy_CEL
 	default:

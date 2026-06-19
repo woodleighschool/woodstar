@@ -1149,7 +1149,7 @@ export type SantaRule = {
 export type SantaRuleInclude = {
     cel_expression?: string;
     label_id: number;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'silent_gui_blocklist' | 'silent_tty_blocklist' | 'cel';
 };
 
 export type SantaRuleMutation = {
@@ -1197,7 +1197,7 @@ export type SantaRuleStatus = {
     identifier: string;
     name: string;
     notification_app_name?: string;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'silent_gui_blocklist' | 'silent_tty_blocklist' | 'cel';
     rule_id: number;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };

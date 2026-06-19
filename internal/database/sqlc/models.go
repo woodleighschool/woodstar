@@ -460,11 +460,13 @@ func (ns NullSantaFileAccessDecision) Value() (driver.Value, error) {
 type SantaPolicy string
 
 const (
-	SantaPolicyAllowlist         SantaPolicy = "allowlist"
-	SantaPolicyAllowlistCompiler SantaPolicy = "allowlist_compiler"
-	SantaPolicyBlocklist         SantaPolicy = "blocklist"
-	SantaPolicySilentBlocklist   SantaPolicy = "silent_blocklist"
-	SantaPolicyCel               SantaPolicy = "cel"
+	SantaPolicyAllowlist          SantaPolicy = "allowlist"
+	SantaPolicyAllowlistCompiler  SantaPolicy = "allowlist_compiler"
+	SantaPolicyBlocklist          SantaPolicy = "blocklist"
+	SantaPolicySilentBlocklist    SantaPolicy = "silent_blocklist"
+	SantaPolicySilentGuiBlocklist SantaPolicy = "silent_gui_blocklist"
+	SantaPolicySilentTtyBlocklist SantaPolicy = "silent_tty_blocklist"
+	SantaPolicyCel                SantaPolicy = "cel"
 )
 
 func (e *SantaPolicy) Scan(src interface{}) error {

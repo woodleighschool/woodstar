@@ -52,6 +52,8 @@ export const POLICY_VALUES = [
   "allowlist_compiler",
   "blocklist",
   "silent_blocklist",
+  "silent_gui_blocklist",
+  "silent_tty_blocklist",
   "cel",
 ] as const satisfies readonly SantaRulePolicy[];
 
@@ -75,6 +77,16 @@ export const POLICIES = {
   silent_blocklist: {
     name: "Silent Blocklist",
     description: "Block matching software without showing a custom user-facing Santa message.",
+    variant: "error",
+  },
+  silent_gui_blocklist: {
+    name: "Silent GUI Blocklist",
+    description: "Block matching software without showing Santa's GUI notification.",
+    variant: "error",
+  },
+  silent_tty_blocklist: {
+    name: "Silent TTY Blocklist",
+    description: "Block matching software without printing Santa's TTY message.",
     variant: "error",
   },
   cel: {

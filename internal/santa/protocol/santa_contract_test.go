@@ -423,6 +423,45 @@ func TestSantaHTTPRuleDownloadEncodesNotificationAppName(t *testing.T) {
 	}
 }
 
+func TestSantaHTTPRuleDownloadEncodesSilentBlocklistPolicies(t *testing.T) {
+	service := &recordingService{
+		ruleDownloadResponse: santa.RuleDownloadResponse{
+			Rules: []syncstate.PayloadRule{
+				{
+					RuleType:   "binary",
+					Identifier: strings.Repeat("1", 64),
+					Policy:     string(santarules.PolicySilentGUIBlocklist),
+				},
+				{
+					RuleType:   "binary",
+					Identifier: strings.Repeat("2", 64),
+					Policy:     string(santarules.PolicySilentTTYBlocklist),
+				},
+			},
+		},
+	}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1", &syncv1.RuleDownloadRequest{})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var resp syncv1.RuleDownloadResponse
+	mustReadProtoResponse(t, rec.Body.Bytes(), &resp)
+	if len(resp.GetRules()) != 2 {
+		t.Fatalf("rules = %+v, want two", resp.GetRules())
+	}
+	if resp.GetRules()[0].GetPolicy() != syncv1.Policy_SILENT_GUI_BLOCKLIST {
+		t.Fatalf("first policy = %v, want SILENT_GUI_BLOCKLIST", resp.GetRules()[0].GetPolicy())
+	}
+	if resp.GetRules()[1].GetPolicy() != syncv1.Policy_SILENT_TTY_BLOCKLIST {
+		t.Fatalf("second policy = %v, want SILENT_TTY_BLOCKLIST", resp.GetRules()[1].GetPolicy())
+	}
+}
+
 func TestSantaHTTPCoversAllSyncStages(t *testing.T) {
 	tests := []struct {
 		name      string

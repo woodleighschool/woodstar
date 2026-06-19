@@ -3,7 +3,15 @@
 CREATE TYPE santa_client_mode AS ENUM ('unknown', 'monitor', 'lockdown', 'standalone');
 CREATE TYPE santa_removable_media_action AS ENUM ('allow', 'block', 'remount');
 CREATE TYPE santa_rule_type AS ENUM ('binary', 'certificate', 'teamid', 'signingid', 'cdhash', 'bundle');
-CREATE TYPE santa_policy AS ENUM ('allowlist', 'allowlist_compiler', 'blocklist', 'silent_blocklist', 'cel');
+CREATE TYPE santa_policy AS ENUM (
+    'allowlist',
+    'allowlist_compiler',
+    'blocklist',
+    'silent_blocklist',
+    'silent_gui_blocklist',
+    'silent_tty_blocklist',
+    'cel'
+);
 CREATE TYPE santa_execution_decision AS ENUM (
     'unknown',
     'allow_unknown',

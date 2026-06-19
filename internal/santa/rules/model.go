@@ -32,11 +32,13 @@ var RuleTypeValues = []RuleType{
 type Policy string
 
 const (
-	PolicyAllowlist         Policy = "allowlist"
-	PolicyAllowlistCompiler Policy = "allowlist_compiler"
-	PolicyBlocklist         Policy = "blocklist"
-	PolicySilentBlocklist   Policy = "silent_blocklist"
-	PolicyCEL               Policy = "cel"
+	PolicyAllowlist          Policy = "allowlist"
+	PolicyAllowlistCompiler  Policy = "allowlist_compiler"
+	PolicyBlocklist          Policy = "blocklist"
+	PolicySilentBlocklist    Policy = "silent_blocklist"
+	PolicySilentGUIBlocklist Policy = "silent_gui_blocklist"
+	PolicySilentTTYBlocklist Policy = "silent_tty_blocklist"
+	PolicyCEL                Policy = "cel"
 )
 
 var PolicyValues = []Policy{
@@ -44,6 +46,8 @@ var PolicyValues = []Policy{
 	PolicyAllowlistCompiler,
 	PolicyBlocklist,
 	PolicySilentBlocklist,
+	PolicySilentGUIBlocklist,
+	PolicySilentTTYBlocklist,
 	PolicyCEL,
 }
 
