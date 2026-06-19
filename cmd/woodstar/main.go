@@ -241,7 +241,6 @@ type wiring struct {
 	munkiRepo            *munki.RepositoryService
 	munkiDistribution    *mdp.Store
 	munkiDistributionHub *mdp.Hub
-	munkiSelection       *mdp.Selection
 
 	configurations *configurations.Store
 	events         *events.Store
@@ -322,15 +321,12 @@ func buildWiring(
 		Objects:  w.storageObjects,
 	})
 	munkiPresence := mdp.NewPresence()
-	w.munkiDistribution = mdp.NewStore(db, munkiPresence)
+	munkiDistributionLogger := logger.With("component", "munki-distribution")
+	w.munkiDistribution = mdp.NewStore(db, munkiPresence, munkiDistributionLogger)
 	w.munkiDistributionHub = mdp.NewHub(
 		w.munkiDistribution,
 		munkiPresence,
-		logger.With("component", "munki-distribution"),
-	)
-	w.munkiSelection = mdp.NewSelection(
-		w.munkiDistribution,
-		logger.With("component", "munki-distribution"),
+		munkiDistributionLogger,
 	)
 
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
@@ -438,7 +434,7 @@ func (w *wiring) protocolRegistrars() []adminapi.ProtocolRegistrar {
 		},
 		func(r chi.Router) {
 			munkiprotocol.RegisterMunkiRoutes(
-				r, w.secrets, w.munkiRepo, w.munkiSelection, w.storageBackend, w.logger.With("component", "munki"),
+				r, w.secrets, w.munkiRepo, w.munkiDistribution, w.storageBackend, w.logger.With("component", "munki"),
 			)
 		},
 		func(r chi.Router) {

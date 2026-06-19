@@ -23,8 +23,7 @@ func TestSelectRedirectMintsVerifiableGrant(t *testing.T) {
 	recordCurrent(t, store, ctx, point.ID, pkg, sha)
 	presence.Connect(point.ID)
 
-	selection := mdp.NewSelection(store, discardLogger())
-	redirect, ok := selection.SelectRedirect(ctx, mdp.SelectionRequest{
+	redirect, ok := store.SelectRedirect(ctx, mdp.SelectionRequest{
 		ClientIP:              "10.1.2.3",
 		HostID:                7,
 		Serial:                "C02ABC",
@@ -70,15 +69,13 @@ func TestSelectRedirectFallsBackWithoutEligiblePoint(t *testing.T) {
 	}
 	recordCurrent(t, store, ctx, point.ID, pkg, sha)
 	presence.Connect(point.ID)
-	selection := mdp.NewSelection(store, discardLogger())
-
-	if _, ok := selection.SelectRedirect(
+	if _, ok := store.SelectRedirect(
 		ctx,
 		mdp.SelectionRequest{PackageID: pkg, SHA256: sha, SizeBytes: 4096},
 	); ok {
 		t.Fatal("SelectRedirect matched without a client IP, want fallback")
 	}
-	if _, ok := selection.SelectRedirect(ctx, mdp.SelectionRequest{
+	if _, ok := store.SelectRedirect(ctx, mdp.SelectionRequest{
 		ClientIP: "192.168.1.1", PackageID: pkg, SHA256: sha, SizeBytes: 4096,
 	}); ok {
 		t.Fatal("SelectRedirect matched a client outside all CIDRs, want fallback")

@@ -17,7 +17,7 @@ import (
 // tests can mark a point online without standing up a live connection.
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
 	presence := mdp.NewPresence()
-	return mdp.NewStore(db, presence), presence
+	return mdp.NewStore(db, presence, discardLogger()), presence
 }
 
 func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {

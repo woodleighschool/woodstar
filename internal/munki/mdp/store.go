@@ -3,6 +3,7 @@ package mdp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"strconv"
 
@@ -19,12 +20,13 @@ type Store struct {
 	db       *database.DB
 	q        *sqlc.Queries
 	presence *Presence
+	logger   *slog.Logger
 }
 
 // NewStore returns a distribution point store backed by db. The presence set is
 // shared with the hub: the hub writes it, the store reads it to gate redirects.
-func NewStore(db *database.DB, presence *Presence) *Store {
-	return &Store{db: db, q: db.Queries(), presence: presence}
+func NewStore(db *database.DB, presence *Presence, logger *slog.Logger) *Store {
+	return &Store{db: db, q: db.Queries(), presence: presence, logger: logger}
 }
 
 // List returns distribution points in admin order with live presence.

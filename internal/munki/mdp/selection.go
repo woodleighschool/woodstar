@@ -16,19 +16,6 @@ import (
 // resume re-requests the Munki package URL for a fresh grant.
 const redirectTTL = 15 * time.Minute
 
-// Selection is the Munki delivery front door. It picks an eligible distribution
-// point for a client and mints a grant redirecting there, or reports that
-// Woodstar should serve the file itself.
-type Selection struct {
-	store  *Store
-	logger *slog.Logger
-}
-
-// NewSelection returns a selection front door backed by store.
-func NewSelection(store *Store, logger *slog.Logger) *Selection {
-	return &Selection{store: store, logger: logger}
-}
-
 // SelectionRequest is one authorized package download awaiting a location. The
 // integrity fields bind the minted grant to specific bytes; host and serial are
 // audit claims.
@@ -44,14 +31,14 @@ type SelectionRequest struct {
 
 // SelectRedirect returns a redirect URL to an eligible distribution point, or
 // ok=false to fall back to Woodstar-direct delivery. Every outcome is logged.
-func (s *Selection) SelectRedirect(ctx context.Context, req SelectionRequest) (string, bool) {
+func (s *Store) SelectRedirect(ctx context.Context, req SelectionRequest) (string, bool) {
 	addr, err := netip.ParseAddr(req.ClientIP)
 	if err != nil {
 		s.logDecision(ctx, req, 0, "primary_no_client_ip", slog.LevelDebug)
 		return "", false
 	}
 
-	point, err := s.store.ResolveForClient(ctx, addr, req.PackageID)
+	point, err := s.ResolveForClient(ctx, addr, req.PackageID)
 	if err != nil {
 		s.logger.WarnContext(ctx, "munki distribution selection failed",
 			"operation", "select",
@@ -99,7 +86,7 @@ func (s *Selection) SelectRedirect(ctx context.Context, req SelectionRequest) (s
 	return redirect, true
 }
 
-func (s *Selection) logDecision(
+func (s *Store) logDecision(
 	ctx context.Context,
 	req SelectionRequest,
 	pointID int64,
