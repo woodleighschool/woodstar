@@ -6,21 +6,20 @@ import * as React from "react";
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import { selectColumn } from "@/components/data-table/select-column";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { selectColumn } from "@/components/data-table/select-column";
-import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useLabels } from "@/hooks/use-labels";
 import {
   type SantaRule,
@@ -28,6 +27,7 @@ import {
   useBulkDeleteSantaRules,
   useSantaRules,
 } from "@/hooks/use-santa-rules";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
 
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;

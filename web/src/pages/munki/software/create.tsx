@@ -1,15 +1,15 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { FormActions } from "@/components/form-actions";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useCreateMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
+import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import { uniqueOptions } from "@/lib/form-validation";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import {
   emptyMunkiSoftwareForm,
@@ -96,7 +96,7 @@ export function MunkiSoftwareCreatePage() {
             ))}
           </ScrollableTabsList>
           {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+            <TabsContent key={tab.value} value={tab.value}>
               {tab.content}
             </TabsContent>
           ))}

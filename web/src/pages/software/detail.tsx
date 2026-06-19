@@ -2,11 +2,11 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageShell } from "@/components/layout/page-layout";
-import { QueryGate } from "@/components/query-gate";
 import { QueryError } from "@/components/query-error";
+import { QueryGate } from "@/components/query-gate";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

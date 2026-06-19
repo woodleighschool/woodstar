@@ -18,13 +18,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import {
   type MunkiPackage,
   type MunkiPackageMutation,
   useBulkDeleteMunkiPackages,
   useMunkiPackages,
 } from "@/hooks/use-munki-packages";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 import { MUNKI_INSTALLER_TYPE_OPTIONS } from "@/pages/munki/software/munki-software";
 

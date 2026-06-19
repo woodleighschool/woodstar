@@ -5,10 +5,10 @@ import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { FormField } from "@/components/form-field";
 import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
 import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { LabelChips } from "@/components/labels/label-chips";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

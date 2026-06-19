@@ -1,5 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -40,8 +38,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import { type SantaRulePolicy } from "@/hooks/use-santa-rules";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { POLICY_OPTIONS } from "@/lib/santa-rules";
 
 import { santaCELExpressionError } from "./cel";

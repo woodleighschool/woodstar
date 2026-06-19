@@ -40,12 +40,12 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import {
   type MunkiDistributionPoint,
   useMunkiDistributionPoints,
   useReorderMunkiDistributionPoints,
 } from "@/hooks/use-munki-distribution-points";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import {
   BoolBadge,
   ConnectionBadge,

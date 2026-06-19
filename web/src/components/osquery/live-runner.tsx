@@ -1,5 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
@@ -25,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { type Host, useHosts } from "@/hooks/use-hosts";
 import { type Label, useLabels } from "@/hooks/use-labels";
 import {
@@ -39,6 +38,7 @@ import {
   useStopLiveQuery,
 } from "@/hooks/use-live-queries";
 import { isAllHostsLabel } from "@/lib/labels";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";

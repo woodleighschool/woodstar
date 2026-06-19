@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   PageSoftwareTitle,
@@ -10,6 +9,7 @@ import type {
 } from "@/lib/api";
 import { getSoftware, getSoftwareSantaReference, listSoftware, unwrap } from "@/lib/api";
 import type { ListSoftwareData } from "@/lib/api-client/types.gen";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 

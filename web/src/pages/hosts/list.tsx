@@ -7,23 +7,23 @@ import * as React from "react";
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
+import { selectColumn } from "@/components/data-table/select-column";
 import { FilterChip } from "@/components/filter-controls";
 import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { selectColumn } from "@/components/data-table/select-column";
-import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useAuth } from "@/hooks/use-auth";
 import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { type Host, useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
 import { type SoftwareTitle, useSoftwareTitle } from "@/hooks/use-software";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
 const STATUS_OPTIONS = [

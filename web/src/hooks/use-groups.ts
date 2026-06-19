@@ -1,9 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { ApiError, Group, PageGroup } from "@/lib/api";
 import { getGroup, listGroups, unwrap } from "@/lib/api";
 import type { ListGroupsData } from "@/lib/api-client/types.gen";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 

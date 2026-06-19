@@ -6,8 +6,8 @@ import { useMemo, useState } from "react";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
@@ -15,8 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import {
   type MunkiSoftwareDetail,
@@ -24,8 +22,10 @@ import {
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
 } from "@/hooks/use-munki-software";
+import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import type { MunkiInclude } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
 import {
@@ -295,7 +295,7 @@ function MunkiSoftwareDetailForm({
             ))}
           </ScrollableTabsList>
           {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+            <TabsContent key={tab.value} value={tab.value}>
               {tab.content}
             </TabsContent>
           ))}

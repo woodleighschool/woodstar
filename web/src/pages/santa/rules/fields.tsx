@@ -1,9 +1,9 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 
-import { FormField } from "@/components/form-field";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -76,7 +76,7 @@ export function RuleForm({
                   <TabsTrigger value="targets">Targets</TabsTrigger>
                 </ScrollableTabsList>
 
-                <TabsContent value="options" className="min-w-0">
+                <TabsContent value="options">
                   <FieldGroup className="max-w-3xl">
                     <form.Field name="name">
                       {(field) => (
@@ -184,7 +184,7 @@ export function RuleForm({
                   </FieldGroup>
                 </TabsContent>
 
-                <TabsContent value="targets" className="min-w-0">
+                <TabsContent value="targets">
                   <FieldGroup>
                     <SantaIncludeTargets
                       include={values.targets.include}

@@ -1,8 +1,8 @@
 import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import * as React from "react";
 
-import { getSortingStateParser, serializeSortingState } from "@/lib/parsers";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { getSortingStateParser, serializeSortingState } from "@/lib/parsers";
 
 // Encodes a single-column sort in the backend wire format.
 export function encodeSort(id: string, desc = false): string {

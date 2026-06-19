@@ -5,10 +5,10 @@ import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
-import { FormField } from "@/components/form-field";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -136,7 +136,7 @@ export function CheckForm({
             <TabsTrigger value="targets">Targets</TabsTrigger>
           </ScrollableTabsList>
 
-          <TabsContent value="options" className="min-w-0">
+          <TabsContent value="options">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
                 <form.Field name="name">
@@ -196,7 +196,7 @@ export function CheckForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="targets" className="min-w-0">
+          <TabsContent value="targets">
             <form.Field name="targets">
               {(field) => (
                 <LabelTargetSetEditor

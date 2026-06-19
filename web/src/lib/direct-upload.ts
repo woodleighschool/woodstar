@@ -1,4 +1,3 @@
-import Uppy, { type Body, type Meta } from "@uppy/core";
 import AwsS3, {
   type AwsS3Options,
   type AwsS3Part,
@@ -7,6 +6,7 @@ import AwsS3, {
   type UploadResult,
   type UploadResultWithSignal,
 } from "@uppy/aws-s3";
+import Uppy, { type Body, type Meta } from "@uppy/core";
 
 export interface UploadProgress {
   loaded: number;

@@ -46,7 +46,9 @@ import { userRoleLabel } from "@/lib/users";
 import { nonEmpty } from "@/lib/utils";
 
 export function AppSidebar() {
-  const { location } = useRouterState();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +57,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         {navSections.map((section) => (
-          <SidebarNavGroup key={section.label} section={section} pathname={location.pathname} />
+          <SidebarNavGroup key={section.label} section={section} pathname={pathname} />
         ))}
       </SidebarContent>
       <SidebarFooter>

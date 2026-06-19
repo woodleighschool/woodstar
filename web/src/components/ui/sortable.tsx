@@ -1,5 +1,3 @@
-import { useComposedRefs } from "@/lib/compose-refs";
-import { cn } from "@/lib/utils";
 import {
   type Announcements,
   closestCenter,
@@ -39,6 +37,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { Slot as SlotPrimitive } from "radix-ui";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+
+import { useComposedRefs } from "@/lib/compose-refs";
+import { cn } from "@/lib/utils";
 
 const orientationConfig = {
   vertical: {
@@ -144,40 +145,49 @@ function Sortable<T>(props: SortableProps<T>) {
     return value.map((item) => getItemValue(item));
   }, [value, getItemValue]);
 
-  function onDragStart(event: DragStartEvent) {
-    props.onDragStart?.(event);
+  const onDragStart = React.useCallback(
+    (event: DragStartEvent) => {
+      sortableProps.onDragStart?.(event);
 
-    if (event.activatorEvent.defaultPrevented) return;
+      if (event.activatorEvent.defaultPrevented) return;
 
-    setActiveId(event.active.id);
-  }
+      setActiveId(event.active.id);
+    },
+    [sortableProps.onDragStart],
+  );
 
-  function onDragEnd(event: DragEndEvent) {
-    props.onDragEnd?.(event);
+  const onDragEnd = React.useCallback(
+    (event: DragEndEvent) => {
+      sortableProps.onDragEnd?.(event);
 
-    if (event.activatorEvent.defaultPrevented) return;
+      if (event.activatorEvent.defaultPrevented) return;
 
-    const { active, over } = event;
-    if (over && active.id !== over?.id) {
-      const activeIndex = value.findIndex((item) => getItemValue(item) === active.id);
-      const overIndex = value.findIndex((item) => getItemValue(item) === over.id);
+      const { active, over } = event;
+      if (over && active.id !== over?.id) {
+        const activeIndex = value.findIndex((item) => getItemValue(item) === active.id);
+        const overIndex = value.findIndex((item) => getItemValue(item) === over.id);
 
-      if (onMove) {
-        onMove({ ...event, activeIndex, overIndex });
-      } else {
-        onValueChange?.(arrayMove(value, activeIndex, overIndex));
+        if (onMove) {
+          onMove({ ...event, activeIndex, overIndex });
+        } else {
+          onValueChange?.(arrayMove(value, activeIndex, overIndex));
+        }
       }
-    }
-    setActiveId(null);
-  }
+      setActiveId(null);
+    },
+    [value, onValueChange, onMove, getItemValue, sortableProps.onDragEnd],
+  );
 
-  function onDragCancel(event: DragEndEvent) {
-    props.onDragCancel?.(event);
+  const onDragCancel = React.useCallback(
+    (event: DragEndEvent) => {
+      sortableProps.onDragCancel?.(event);
 
-    if (event.activatorEvent.defaultPrevented) return;
+      if (event.activatorEvent.defaultPrevented) return;
 
-    setActiveId(null);
-  }
+      setActiveId(null);
+    },
+    [sortableProps.onDragCancel],
+  );
 
   const announcements: Announcements = React.useMemo(
     () => ({
@@ -361,10 +371,7 @@ function SortableItem(props: SortableItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({
-    id: value,
-    disabled,
-  });
+  } = useSortable({ id: value, disabled });
 
   const composedRef = useComposedRefs(ref, (node) => {
     if (disabled) return;

@@ -5,17 +5,17 @@ import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { type Group, useGroups } from "@/hooks/use-groups";
 import { DIRECTORY_SOURCES } from "@/lib/directory";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { nonEmpty } from "@/lib/utils";
 
 export function GroupListPage() {

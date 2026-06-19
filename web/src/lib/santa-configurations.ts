@@ -1,10 +1,10 @@
+import type { SantaConfiguration, SantaConfigurationMutation, SantaHostState } from "@/lib/api";
 import {
   enumLabel,
   type EnumMetadataMap,
   enumOptions,
   type StatusMetadataMap,
 } from "@/lib/enum-metadata";
-import type { SantaConfiguration, SantaConfigurationMutation, SantaHostState } from "@/lib/api";
 
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]

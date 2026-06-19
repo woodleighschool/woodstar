@@ -1,5 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -16,9 +14,11 @@ import {
   ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { type MunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
+import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, type SoftwareInfo } from "./fields";

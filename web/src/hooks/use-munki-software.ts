@@ -1,7 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   MunkiMutation,
@@ -19,6 +18,7 @@ import {
   updateMunkiSoftware,
 } from "@/lib/api";
 import type { ListMunkiSoftwareData } from "@/lib/api-client/types.gen";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 

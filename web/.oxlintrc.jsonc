@@ -255,7 +255,8 @@
       },
     },
     {
-      "files": ["src/lib/compose-refs.ts"],
+      // vendored DiceUI memo hooks depend on rest props; exhaustive-deps wants the unstable parent object
+      "files": ["src/lib/compose-refs.ts", "src/components/ui/sortable.tsx"],
       "rules": {
         "react/exhaustive-deps": "off",
       },

@@ -1,5 +1,4 @@
-Schema reference data
-=====================
+# Schema reference data
 
 `osquery_fleet_schema.json` is vendored from Fleet and backs the osquery editor
 schema browser and autocomplete.

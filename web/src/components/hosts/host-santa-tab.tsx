@@ -4,16 +4,16 @@ import { Activity, FolderLock } from "lucide-react";
 import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { EmptyPanel } from "@/components/empty-panel";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { type HostDetail, useHostSantaRules } from "@/hooks/use-hosts";
 import type { SantaRuleStatus } from "@/lib/api";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";

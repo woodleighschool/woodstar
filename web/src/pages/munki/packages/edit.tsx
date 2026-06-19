@@ -1,5 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -8,13 +6,15 @@ import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { munkiSoftwareIconURL } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
-import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import {
   type MunkiPackage,
   useMunkiPackage,
   useMunkiPackages,
   useUpdateMunkiPackage,
 } from "@/hooks/use-munki-packages";
+import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { usePackageEditorForm } from "./editor-form";
 import { PackageEditorTabs, type SoftwareInfo } from "./fields";

@@ -1,5 +1,6 @@
 {
   "printWidth": 100,
+  "sortImports": true,
   "ignorePatterns": [
     "dist/**",
     "pnpm-lock.yaml",

@@ -1,4 +1,6 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
+
+import { ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -12,16 +14,20 @@ export function ScrollableTabsList({
   ...props
 }: React.ComponentProps<typeof TabsList>) {
   return (
-    <ScrollArea orientation="horizontal">
-      <TabsList
-        variant={variant}
-        className={cn(
-          "w-max min-w-full justify-start [&_[data-slot=tabs-trigger]]:flex-none",
-          variant === "line" && "gap-6 border-b px-0 pb-1.5 [&_[data-slot=tabs-trigger]]:px-0",
-          className,
-        )}
-        {...props}
-      />
-    </ScrollArea>
+    <ScrollAreaPrimitive.Root className="relative w-full whitespace-nowrap">
+      <ScrollAreaPrimitive.Viewport className="size-full">
+        <TabsList
+          variant={variant}
+          className={cn(
+            "w-max justify-start [&_[data-slot=tabs-trigger]]:flex-none",
+            variant === "line" &&
+              "min-w-full gap-6 border-b px-0 pb-1.5 [&_[data-slot=tabs-trigger]]:px-0",
+            className,
+          )}
+          {...props}
+        />
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar orientation="horizontal" />
+    </ScrollAreaPrimitive.Root>
   );
 }

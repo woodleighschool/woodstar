@@ -1,10 +1,10 @@
+import type { SantaRule } from "@/lib/api";
 import {
   enumLabel,
   type EnumMetadataMap,
   enumOptions,
   type StatusMetadataMap,
 } from "@/lib/enum-metadata";
-import type { SantaRule } from "@/lib/api";
 
 export type SantaRuleType = SantaRule["rule_type"];
 export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];

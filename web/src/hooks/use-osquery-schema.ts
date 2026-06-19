@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-
 // Vite resolves @schema to ../schema (see vite.config.ts) and rewrites the
 // `?url` import to a hashed asset URL at build time.
 import schemaUrl from "@schema/osquery_fleet_schema.json?url";
+import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { OsqueryTable } from "@/lib/schema";

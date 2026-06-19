@@ -59,6 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -67,9 +68,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import type { MunkiPackage } from "@/hooks/use-munki-packages";
 import type { MunkiPackageAlert } from "@/lib/api";
 import { cn, formatBytes } from "@/lib/utils";
@@ -206,7 +206,7 @@ export function PackageEditorTabs({
         ))}
       </ScrollableTabsList>
       {tabs.map((tab) => (
-        <TabsContent key={tab.value} value={tab.value} className="min-w-0">
+        <TabsContent key={tab.value} value={tab.value}>
           {tab.content}
         </TabsContent>
       ))}
@@ -601,7 +601,7 @@ function ScriptsEditor({
 
   return (
     <Tabs value={active} onValueChange={(value) => setActive(value as ScriptKey)} className="gap-4">
-      <TabsList>
+      <ScrollableTabsList variant="default">
         {generalScriptFields.map((script) => (
           <TabsTrigger key={script.key} value={script.key}>
             {script.label}
@@ -610,9 +610,9 @@ function ScriptsEditor({
             ) : null}
           </TabsTrigger>
         ))}
-      </TabsList>
+      </ScrollableTabsList>
       {generalScriptFields.map((script) => (
-        <TabsContent key={script.key} value={script.key} className="min-w-0">
+        <TabsContent key={script.key} value={script.key}>
           <ScriptField
             value={values[script.key]}
             onChange={(value) => onChange(script.key, value)}

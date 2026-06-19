@@ -48,7 +48,7 @@ function ComboboxInput({
     <ComboboxPrimitive.Input
       data-slot="combobox-input"
       className={cn(
-        "flex h-9 min-w-0 flex-1 rounded-md bg-transparent text-base placeholder:text-muted-foreground focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "flex h-9 w-full rounded-md bg-transparent text-base placeholder:text-muted-foreground focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         className,
       )}
       {...props}
@@ -65,7 +65,7 @@ function ComboboxTrigger({
     <ComboboxPrimitive.Trigger
       data-slot="combobox-trigger"
       className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-sm border-input bg-transparent text-muted-foreground transition-colors hover:text-foreground/80 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+        "flex shrink-0 items-center justify-center rounded-r-md border-input bg-transparent text-muted-foreground transition-colors hover:text-foreground/80 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
@@ -77,20 +77,17 @@ function ComboboxTrigger({
 
 function ComboboxCancel({
   className,
-  children,
   ...props
 }: React.ComponentProps<typeof ComboboxPrimitive.Cancel>) {
   return (
     <ComboboxPrimitive.Cancel
       data-slot="combobox-cancel"
       className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-sm bg-transparent text-muted-foreground opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
+        "absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm bg-background opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
         className,
       )}
       {...props}
-    >
-      {children ?? <X className="size-3" />}
-    </ComboboxPrimitive.Cancel>
+    />
   );
 }
 
@@ -144,7 +141,7 @@ function ComboboxContent({
         data-slot="combobox-content"
         sideOffset={sideOffset}
         className={cn(
-          "pointer-events-auto relative z-50 max-h-96 min-w-(--dice-anchor-width) origin-(--dice-transform-origin) overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md empty:hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "pointer-events-auto relative z-50 max-h-fit min-w-(--dice-anchor-width) origin-(--dice-transform-origin) overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           className,
         )}
         {...props}
@@ -235,7 +232,7 @@ function ComboboxItem({
       >
         <Check className="size-4" />
       </ComboboxPrimitive.ItemIndicator>
-      {children}
+      <ComboboxPrimitive.ItemText>{children}</ComboboxPrimitive.ItemText>
     </ComboboxPrimitive.Item>
   );
 }

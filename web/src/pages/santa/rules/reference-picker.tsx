@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { FreeTextCombobox } from "@/components/free-text-combobox";
+import { Badge } from "@/components/ui/badge";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   type SantaRuleReference,

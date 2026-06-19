@@ -1,11 +1,12 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
-import { FormField } from "@/components/form-field";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
@@ -16,9 +17,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -27,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -35,8 +35,6 @@ import type {
   SantaConfigurationMutation,
 } from "@/hooks/use-santa-configurations";
 import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-validation";
-import { nonEmpty } from "@/lib/utils";
-
 import {
   CLIENT_MODE_OPTIONS,
   CLIENT_MODE_VALUES,
@@ -48,6 +46,7 @@ import {
   type SantaRemountFlag,
 } from "@/lib/santa-configurations";
 import { emptyLabelTargetSet, labelTargetSetSchema } from "@/lib/targeting";
+import { nonEmpty } from "@/lib/utils";
 
 interface ConfigurationFormState {
   name: string;
@@ -174,7 +173,7 @@ export function ConfigurationForm({
             <TabsTrigger value="targets">Targets</TabsTrigger>
           </ScrollableTabsList>
 
-          <TabsContent value="options" className="min-w-0">
+          <TabsContent value="options">
             <FieldGroup className="max-w-3xl">
               <form.Field name="name">
                 {(field) => (
@@ -421,7 +420,7 @@ export function ConfigurationForm({
             </FieldGroup>
           </TabsContent>
 
-          <TabsContent value="targets" className="min-w-0">
+          <TabsContent value="targets">
             <form.Field
               name="targets"
               children={(field) => (

@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type {
   ApiError,
   PageExecutionEvent,
@@ -20,6 +19,7 @@ import type {
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
 } from "@/lib/api-client/types.gen";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 

@@ -7,6 +7,7 @@ import type {
   SantaHostSummary,
 } from "@/hooks/use-santa-events";
 import { formatDateTime, formatRelative } from "@/lib/utils";
+
 import { EXECUTION_DECISIONS, FILE_ACCESS_DECISIONS } from "./decisions";
 
 export function ExecutionDecisionBadge({ decision }: { decision: SantaExecutionDecision }) {

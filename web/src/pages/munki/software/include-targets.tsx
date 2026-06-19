@@ -1,5 +1,3 @@
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -57,9 +55,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import type { MunkiInclude } from "@/lib/api";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import {
   LATEST_PACKAGE_VALUE,

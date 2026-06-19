@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import type { ApiError, PageMunkiObjectView } from "@/lib/api";
 import { listMunkiIcons, unwrap } from "@/lib/api";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 
 export function useMunkiIcons(enabled = true) {

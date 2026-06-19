@@ -6,17 +6,16 @@ import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useHost } from "@/hooks/use-hosts";
 import {
   type SantaEvent,
@@ -27,7 +26,9 @@ import {
   useSantaEvents,
   useSantaFileAccessEvents,
 } from "@/hooks/use-santa-events";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatDateTime, formatRelative } from "@/lib/utils";
+
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./decisions";
 import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
 

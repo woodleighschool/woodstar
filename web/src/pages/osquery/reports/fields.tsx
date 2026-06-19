@@ -8,9 +8,10 @@ import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { EmptyPanel } from "@/components/empty-panel";
+import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
-import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import {
   reportRows,
   reportTableColumns,
@@ -18,7 +19,6 @@ import {
   resultColumnNames,
   resultValue,
 } from "@/components/reports/query-results";
-import { FormActions } from "@/components/form-actions";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -169,7 +169,7 @@ export function ReportForm({
             ) : null}
           </ScrollableTabsList>
 
-          <TabsContent value="options" className="min-w-0">
+          <TabsContent value="options">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
                 <form.Field name="name">
@@ -280,7 +280,7 @@ export function ReportForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="targets" className="min-w-0">
+          <TabsContent value="targets">
             <form.Field name="targets">
               {(field) => (
                 <LabelTargetSetEditor
@@ -292,7 +292,7 @@ export function ReportForm({
           </TabsContent>
 
           {resultsReportId !== undefined ? (
-            <TabsContent value="results" className="min-w-0">
+            <TabsContent value="results">
               <form.Subscribe selector={(state) => state.values.name}>
                 {() => <ReportResults reportId={resultsReportId} />}
               </form.Subscribe>

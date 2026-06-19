@@ -13,11 +13,7 @@
     enabled: true,
     schedule: ["every weekend"],
   },
-  postUpdateOptions: [
-    "gomodTidy",
-    "gomodUpdateImportPaths",
-    "pnpmDedupe",
-  ],
+  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
       description: "Label major updates",
@@ -137,7 +133,12 @@
     {
       description: "CodeMirror packages",
       matchManagers: ["npm"],
-      matchPackageNames: ["/^@codemirror\\//", "/^@lezer\\//", "/^@uiw\\/react-codemirror$/", "codemirror-cel"],
+      matchPackageNames: [
+        "/^@codemirror\\//",
+        "/^@lezer\\//",
+        "/^@uiw\\/react-codemirror$/",
+        "codemirror-cel",
+      ],
       groupName: "editor packages",
       semanticCommitScope: "editor",
     },
@@ -158,7 +159,13 @@
     {
       description: "Frontend build tooling",
       matchManagers: ["npm"],
-      matchPackageNames: ["/^@vitejs\\//", "/^@tailwindcss\\//", "vite", "tailwindcss", "tw-animate-css"],
+      matchPackageNames: [
+        "/^@vitejs\\//",
+        "/^@tailwindcss\\//",
+        "vite",
+        "tailwindcss",
+        "tw-animate-css",
+      ],
       groupName: "frontend build tooling",
       semanticCommitScope: "frontend-tooling",
     },
