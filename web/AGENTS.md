@@ -23,7 +23,7 @@ Frontend rules for AI agents working under `web/`.
 - Resource pages live in `src/pages/<resource>/`.
 - Mutable resources use thin `create.tsx` and `edit.tsx` shells plus `fields.tsx` for schema, zod validation, mappers, and shared form UI. Do not use `mode` props for create/edit forms.
 - Read-only resources use `list.tsx` and `detail.tsx`.
-- Routes live in `src/routes`. Paginated index routes spread `tableSearchSchema.shape` into `validateSearch`.
+- Routes live in `src/routes`. Paginated index routes validate only durable deep-link fields; table paging, page size, sort, and text search stay owned by the nuqs table-state hooks.
 - Hooks live flat in `src/hooks/use-<resource>.ts`. Do not create per-capability hook folders or pack unrelated resources into one hook file.
 - All API fetching uses the generated operation functions and `unwrap`, both re-exported from `src/lib/api`.
 - Query keys and invalidation use `src/lib/query-keys`; do not inline query key arrays.
