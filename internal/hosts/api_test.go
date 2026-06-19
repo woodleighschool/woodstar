@@ -19,6 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
@@ -234,7 +235,11 @@ func hostTestRouter(t *testing.T, register func(huma.API)) *chi.Mux {
 	t.Helper()
 
 	router := chi.NewRouter()
-	api := humachi.New(router, huma.DefaultConfig("test", "test"))
+	cfg := huma.DefaultConfig("test", "test")
+	cfg.Components = &huma.Components{
+		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
+	}
+	api := humachi.New(router, cfg)
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
 		adminRole := directory.RoleAdmin
