@@ -32,19 +32,14 @@ func CleanListParams(params ListParams) ListParams {
 }
 
 func SplitListValues(values []string) []string {
-	seen := make(map[string]struct{})
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		for item := range strings.SplitSeq(value, ",") {
 			if item == "" {
 				continue
 			}
-			if _, ok := seen[item]; ok {
-				continue
-			}
-			seen[item] = struct{}{}
 			out = append(out, item)
 		}
 	}
-	return out
+	return Dedup(out)
 }

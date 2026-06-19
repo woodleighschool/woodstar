@@ -24,3 +24,16 @@ func TestSameInt64Set(t *testing.T) {
 		})
 	}
 }
+
+func TestDedupPreservesFirstOccurrence(t *testing.T) {
+	got := Dedup([]string{"beta", "alpha", "beta", "gamma", "alpha"})
+	want := []string{"beta", "alpha", "gamma"}
+	if len(got) != len(want) {
+		t.Fatalf("len(Dedup) = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Dedup()[%d] = %q, want %q (%v)", i, got[i], want[i], got)
+		}
+	}
+}

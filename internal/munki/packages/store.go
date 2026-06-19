@@ -1142,18 +1142,13 @@ func (s *Store) packageRelationsByPackage(
 
 func packageIDs(packages []Package) []int64 {
 	ids := make([]int64, 0, len(packages))
-	seen := make(map[int64]struct{}, len(packages))
 	for _, pkg := range packages {
 		if pkg.ID <= 0 {
 			continue
 		}
-		if _, ok := seen[pkg.ID]; ok {
-			continue
-		}
-		seen[pkg.ID] = struct{}{}
 		ids = append(ids, pkg.ID)
 	}
-	return ids
+	return dbutil.Dedup(ids)
 }
 
 func optionalPositiveInt64(value int64) *int64 {

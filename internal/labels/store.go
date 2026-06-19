@@ -477,16 +477,7 @@ func compactHostIDs(hostIDs []int64) []int64 {
 	if len(hostIDs) == 0 {
 		return nil
 	}
-	seen := make(map[int64]struct{}, len(hostIDs))
-	out := make([]int64, 0, len(hostIDs))
-	for _, hostID := range hostIDs {
-		if _, ok := seen[hostID]; ok {
-			continue
-		}
-		seen[hostID] = struct{}{}
-		out = append(out, hostID)
-	}
-	return out
+	return dbutil.Dedup(hostIDs)
 }
 
 func refreshDerivedMembership(ctx context.Context, q *sqlc.Queries, labelID int64, criteria *Criteria) error {
@@ -524,17 +515,12 @@ func refreshDerivedMembership(ctx context.Context, q *sqlc.Queries, labelID int6
 
 func cleanCriteriaValues(values []string) []string {
 	out := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
 		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
 		out = append(out, value)
 	}
-	return out
+	return dbutil.Dedup(out)
 }
