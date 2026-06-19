@@ -107,7 +107,7 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 		ID:                id,
 		SQL:               sql,
 		StartedAt:         q.startedAt,
-		ResolvedHostCount: int32(len(hostIDs)),
+		ResolvedHostCount: int32(len(pending)),
 	}
 }
 

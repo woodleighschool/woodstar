@@ -47,6 +47,15 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 	}
 }
 
+func TestStartReportsUniqueResolvedHosts(t *testing.T) {
+	m := NewManager()
+	handle := m.Start("select 1", []int64{4, 4, 5})
+
+	if handle.ResolvedHostCount != 2 {
+		t.Fatalf("ResolvedHostCount = %d, want unique host count 2", handle.ResolvedHostCount)
+	}
+}
+
 func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
 	m := NewManager()
 	handle := m.Start("select 1", nil)
