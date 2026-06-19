@@ -209,7 +209,7 @@ func replaceConfigurationTargets(
 	if len(targets.Include) > 0 {
 		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
 			ConfigurationID: configurationID,
-			LabelIds:        labelRefIDs(targets.Include),
+			LabelIds:        targeting.LabelRefIDs(targets.Include),
 			Direction:       sqlc.TargetDirection(targeting.Include),
 		}); err != nil {
 			return err
@@ -218,7 +218,7 @@ func replaceConfigurationTargets(
 	if len(targets.Exclude) > 0 {
 		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
 			ConfigurationID: configurationID,
-			LabelIds:        labelRefIDs(targets.Exclude),
+			LabelIds:        targeting.LabelRefIDs(targets.Exclude),
 			Direction:       sqlc.TargetDirection(targeting.Exclude),
 		}); err != nil {
 			return err

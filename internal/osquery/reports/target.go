@@ -71,7 +71,7 @@ func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, target
 	if len(targets.Include) > 0 {
 		if err := q.InsertReportTargets(ctx, sqlc.InsertReportTargetsParams{
 			ReportID:  reportID,
-			LabelIds:  labelIDs(targets.Include),
+			LabelIds:  targeting.LabelRefIDs(targets.Include),
 			Direction: sqlc.TargetDirection(targeting.Include),
 		}); err != nil {
 			return err
@@ -80,7 +80,7 @@ func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, target
 	if len(targets.Exclude) > 0 {
 		if err := q.InsertReportTargets(ctx, sqlc.InsertReportTargetsParams{
 			ReportID:  reportID,
-			LabelIds:  labelIDs(targets.Exclude),
+			LabelIds:  targeting.LabelRefIDs(targets.Exclude),
 			Direction: sqlc.TargetDirection(targeting.Exclude),
 		}); err != nil {
 			return err
@@ -111,12 +111,4 @@ func emptyReportTargets() ReportTargets {
 		Include: []targeting.LabelRef{},
 		Exclude: []targeting.LabelRef{},
 	}
-}
-
-func labelIDs(refs []targeting.LabelRef) []int64 {
-	ids := make([]int64, len(refs))
-	for i, ref := range refs {
-		ids[i] = ref.LabelID
-	}
-	return ids
 }

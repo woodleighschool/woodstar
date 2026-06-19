@@ -47,7 +47,10 @@ func (s *Store) replaceTargets(
 	}
 	return qtx.InsertMunkiSoftwareExcludeLabels(
 		ctx,
-		sqlc.InsertMunkiSoftwareExcludeLabelsParams{SoftwareID: softwareID, LabelIds: labelRefIDs(targets.Exclude)},
+		sqlc.InsertMunkiSoftwareExcludeLabelsParams{
+			SoftwareID: softwareID,
+			LabelIds:   targeting.LabelRefIDs(targets.Exclude),
+		},
 	)
 }
 
@@ -92,7 +95,7 @@ func validateExcludedLabels(ctx context.Context, qtx *sqlc.Queries, excludes []t
 		return nil
 	}
 	builtinExcludeIDs, err := qtx.ListBuiltinLabelIDs(ctx, sqlc.ListBuiltinLabelIDsParams{
-		LabelIds: labelRefIDs(excludes),
+		LabelIds: targeting.LabelRefIDs(excludes),
 	})
 	if err != nil {
 		return err

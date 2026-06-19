@@ -299,7 +299,7 @@ func replaceRuleTargets(
 	}
 	return q.InsertSantaRuleExcludeLabels(ctx, sqlc.InsertSantaRuleExcludeLabelsParams{
 		RuleID:   ruleID,
-		LabelIds: labelRefIDs(targets.Exclude),
+		LabelIds: targeting.LabelRefIDs(targets.Exclude),
 	})
 }
 
@@ -438,7 +438,7 @@ func validateRuleTargetingLabels(ctx context.Context, tx pgx.Tx, params RuleMuta
 	}
 	builtinExcludeIDs, err := sqlc.New(tx).ListBuiltinLabelIDs(
 		ctx,
-		sqlc.ListBuiltinLabelIDsParams{LabelIds: labelRefIDs(params.Targets.Exclude)},
+		sqlc.ListBuiltinLabelIDsParams{LabelIds: targeting.LabelRefIDs(params.Targets.Exclude)},
 	)
 	if err != nil {
 		return err

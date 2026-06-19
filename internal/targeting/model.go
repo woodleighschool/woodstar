@@ -27,6 +27,15 @@ type LabelRef struct {
 	LabelID int64 `json:"label_id" minimum:"1"`
 }
 
+// LabelRefIDs returns the label IDs from refs in order.
+func LabelRefIDs(refs []LabelRef) []int64 {
+	ids := make([]int64, len(refs))
+	for i, ref := range refs {
+		ids[i] = ref.LabelID
+	}
+	return ids
+}
+
 // Schema returns the OpenAPI schema for Direction.
 func (Direction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(DirectionValues...)

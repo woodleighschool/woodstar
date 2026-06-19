@@ -36,11 +36,3 @@ func emptyConfigurationTargets() ConfigurationTargets {
 		Exclude: []targeting.LabelRef{},
 	}
 }
-
-func labelRefIDs(refs []targeting.LabelRef) []int64 {
-	ids := make([]int64, len(refs))
-	for i, ref := range refs {
-		ids[i] = ref.LabelID
-	}
-	return ids
-}
