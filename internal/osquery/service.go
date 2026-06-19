@@ -120,15 +120,12 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, e
 
 // Config returns the current osquery config including the host's report schedule.
 func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
 	if !ok {
 		return ConfigResponse{NodeInvalid: true}, nil
-	}
-	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
-		return ConfigResponse{}, err
 	}
 	schedule, err := buildScheduleForHost(ctx, s.reportStore, host)
 	if err != nil {
@@ -150,15 +147,12 @@ func (s *AgentService) DistributedRead(
 	nodeKey string,
 	publicIP string,
 ) (DistributedReadResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
 	if !ok {
 		return DistributedReadResponse{NodeInvalid: true}, nil
-	}
-	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
-		return DistributedReadResponse{}, err
 	}
 
 	due := catalog.DetailQueriesDue(host.Timestamps.InventoryUpdatedAt, host.InventoryQueryHash)
@@ -249,15 +243,12 @@ func (s *AgentService) DistributedWrite(
 	req DistributedWriteRequest,
 	publicIP string,
 ) (DistributedWriteResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, req.NodeKey)
+	host, ok, err := s.hostByNodeKey(ctx, req.NodeKey, publicIP)
 	if err != nil {
 		return DistributedWriteResponse{}, err
 	}
 	if !ok {
 		return DistributedWriteResponse{NodeInvalid: true}, nil
-	}
-	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
-		return DistributedWriteResponse{}, err
 	}
 	if err := s.dispatchWriteResults(ctx, host, req); err != nil {
 		return DistributedWriteResponse{}, err
@@ -267,15 +258,12 @@ func (s *AgentService) DistributedWrite(
 
 // Log accepts osquery scheduled-query logs and persists snapshot results.
 func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string, req LogRequest) (LogResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
 	if err != nil {
 		return LogResponse{}, err
 	}
 	if !ok {
 		return LogResponse{NodeInvalid: true}, nil
-	}
-	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
-		return LogResponse{}, err
 	}
 	if req.LogType == "result" {
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
@@ -285,16 +273,7 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string,
 	return LogResponse{NodeInvalid: false}, nil
 }
 
-func (s *AgentService) recordHostPublicIP(ctx context.Context, host *hosts.Host, publicIP string) error {
-	if publicIP == "" {
-		return nil
-	}
-	return s.hostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
-		Network: hosts.InventoryNetwork{LastRemoteIP: publicIP},
-	})
-}
-
-func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
+func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, publicIP string) (*hosts.Host, bool, error) {
 	host, err := s.hostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, false, nil
@@ -302,5 +281,16 @@ func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string) (*host
 	if err != nil {
 		return nil, false, err
 	}
+	if publicIP != "" && !hostPublicIPMatches(host, publicIP) {
+		if err := s.hostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
+			Network: hosts.InventoryNetwork{LastRemoteIP: publicIP},
+		}); err != nil {
+			return nil, false, err
+		}
+	}
 	return host, true, nil
+}
+
+func hostPublicIPMatches(host *hosts.Host, publicIP string) bool {
+	return host.Network.LastRemoteIP != nil && host.Network.LastRemoteIP.String() == publicIP
 }
