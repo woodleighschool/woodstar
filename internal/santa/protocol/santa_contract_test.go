@@ -249,6 +249,20 @@ func TestSantaHTTPRuleDownloadRoundTripsCursor(t *testing.T) {
 	}
 }
 
+func TestSantaHTTPAcceptsProtobufMediaTypeParameters(t *testing.T) {
+	service := &recordingService{}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{})
+	req.Header.Set("Content-Type", protobufContentType+"; charset=utf-8")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
 func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 	service := &recordingService{}
 	router := newSantaContractRouter(&staticVerifier{ok: true}, service)

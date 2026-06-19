@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -393,7 +394,8 @@ func (h handler) authorize(r *http.Request) error {
 }
 
 func validateTransportHeaders(r *http.Request) error {
-	if r.Header.Get("Content-Type") != protobufContentType {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != protobufContentType {
 		return errUnsupportedMedia
 	}
 	if !strings.EqualFold(r.Header.Get("Content-Encoding"), "gzip") {
