@@ -475,6 +475,7 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 		contentType     string
 		contentEncoding string
 		authorization   string
+		serviceErr      error
 		wantStatus      int
 	}{
 		{
@@ -547,11 +548,21 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 			authorization:   "Bearer ok",
 			wantStatus:      http.StatusBadRequest,
 		},
+		{
+			name:            "unknown santa host",
+			tokenVerifier:   &staticVerifier{ok: true},
+			body:            validBody,
+			contentType:     protobufContentType,
+			contentEncoding: "gzip",
+			authorization:   "Bearer ok",
+			serviceErr:      dbutil.ErrNotFound,
+			wantStatus:      http.StatusNotFound,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{})
+			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{err: tt.serviceErr})
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
 			if tt.contentType != "" {

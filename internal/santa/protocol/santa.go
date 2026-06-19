@@ -671,6 +671,8 @@ func statusCodeForError(err error) int {
 		errors.Is(err, errRequestBodyTooBig),
 		errors.Is(err, dbutil.ErrInvalidInput):
 		return http.StatusBadRequest
+	case errors.Is(err, dbutil.ErrNotFound):
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}

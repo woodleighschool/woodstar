@@ -45,6 +45,8 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 	})
 }
 
+// Santa machine_id comes from Woodstar's enrollment profile and must match the
+// canonical host hardware UUID. Custom Santa MachineID profiles are not enrolled.
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
 	hostID, err := s.q.GetHostIDByMachineID(ctx, sqlc.GetHostIDByMachineIDParams{MachineID: machineID})
 	return hostID, dbutil.GetError(err)
