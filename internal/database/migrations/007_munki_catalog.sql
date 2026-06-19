@@ -80,7 +80,6 @@ CREATE TABLE munki_packages (
     preuninstall_alert_ok_label TEXT NOT NULL DEFAULT '',
     preuninstall_alert_cancel_label TEXT NOT NULL DEFAULT '',
     installer_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
-    uninstaller_object_id BIGINT REFERENCES storage_objects (id) ON DELETE RESTRICT,
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -144,8 +143,6 @@ CREATE INDEX munki_packages_software_idx
     ON munki_packages (software_id);
 CREATE INDEX munki_packages_installer_object_idx
     ON munki_packages (installer_object_id);
-CREATE INDEX munki_packages_uninstaller_object_idx
-    ON munki_packages (uninstaller_object_id);
 CREATE INDEX munki_package_relations_package_idx
     ON munki_package_relations (package_id, relation_kind, position, id);
 CREATE INDEX munki_package_relations_target_software_idx
