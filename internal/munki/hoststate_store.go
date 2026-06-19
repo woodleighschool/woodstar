@@ -8,6 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 type Store struct {
@@ -25,9 +26,9 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 		Version:         observation.Version,
 		ManifestName:    observation.ManifestName,
 		Success:         observation.Success,
-		Errors:          nonNilStrings(observation.Errors),
-		Warnings:        nonNilStrings(observation.Warnings),
-		ProblemInstalls: nonNilStrings(observation.ProblemInstalls),
+		Errors:          dbutil.NonNilSlice(observation.Errors),
+		Warnings:        dbutil.NonNilSlice(observation.Warnings),
+		ProblemInstalls: dbutil.NonNilSlice(observation.ProblemInstalls),
 		RunStartedAt:    observation.RunStartedAt,
 		RunEndedAt:      observation.RunEndedAt,
 	})
@@ -87,9 +88,9 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		Version:         status.Version,
 		ManifestName:    status.ManifestName,
 		Success:         status.Success,
-		Errors:          nonNilStrings(status.Errors),
-		Warnings:        nonNilStrings(status.Warnings),
-		ProblemInstalls: nonNilStrings(status.ProblemInstalls),
+		Errors:          dbutil.NonNilSlice(status.Errors),
+		Warnings:        dbutil.NonNilSlice(status.Warnings),
+		ProblemInstalls: dbutil.NonNilSlice(status.ProblemInstalls),
 		RunStartedAt:    status.RunStartedAt,
 		RunEndedAt:      status.RunEndedAt,
 		LastSeenAt:      status.LastSeenAt,
@@ -106,11 +107,4 @@ func hostItemFromRecord(row sqlc.MunkiHostItem) Item {
 		RunEndedAt:       row.RunEndedAt,
 		LastSeenAt:       row.LastSeenAt,
 	}
-}
-
-func nonNilStrings(values []string) []string {
-	if values == nil {
-		return []string{}
-	}
-	return values
 }

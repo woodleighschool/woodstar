@@ -125,7 +125,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	replacedIDs := replacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
+	replacedIDs := storage.ReplacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
 	if err := s.objects.DeleteUnreferenced(ctx, replacedIDs...); err != nil {
 		return nil, err
 	}
@@ -292,51 +292,38 @@ func (s *Store) requirePackageObject(ctx context.Context, id int64, field string
 
 // SetInstallerObject points a package at an installer storage object.
 func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int64) error {
-	return s.setPackageObject(ctx, packageID, objectID, packageObjectSetter{
-		field: "installer_object_id",
-		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
-			return row.InstallerObjectID
-		},
-		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
-			return q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-				ID:       packageID,
-				ObjectID: objectID,
-			})
-		},
+	if err := s.requirePackageObject(ctx, objectID, "installer_object_id"); err != nil {
+		return err
+	}
+	var oldObjectID *int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
+		if err != nil {
+			return dbutil.GetError(err)
+		}
+		oldObjectID = existing.InstallerObjectID
+		rows, err := qtx.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
+			ID:       packageID,
+			ObjectID: &objectID,
+		})
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		if rows == 0 {
+			return dbutil.ErrNotFound
+		}
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, &objectID)...)
 }
 
 // ClearInstallerObject detaches a package installer object and deletes its bytes
 // when no other Munki resource references it.
 func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error {
-	return s.clearPackageObject(ctx, packageID, packageObjectSetter{
-		field: "installer_object_id",
-		oldObjectID: func(row sqlc.GetMunkiPackageByIDRow) *int64 {
-			return row.InstallerObjectID
-		},
-		set: func(ctx context.Context, q *sqlc.Queries, packageID int64, objectID *int64) (int64, error) {
-			return q.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-				ID:       packageID,
-				ObjectID: objectID,
-			})
-		},
-	})
-}
-
-type packageObjectSetter struct {
-	field       string
-	oldObjectID func(sqlc.GetMunkiPackageByIDRow) *int64
-	set         func(context.Context, *sqlc.Queries, int64, *int64) (int64, error)
-}
-
-func (s *Store) setPackageObject(
-	ctx context.Context,
-	packageID, objectID int64,
-	setter packageObjectSetter,
-) error {
-	if err := s.requirePackageObject(ctx, objectID, setter.field); err != nil {
-		return err
-	}
 	var oldObjectID *int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
@@ -344,39 +331,14 @@ func (s *Store) setPackageObject(
 		if err != nil {
 			return dbutil.GetError(err)
 		}
-		oldObjectID = setter.oldObjectID(existing)
-		rows, err := setter.set(ctx, qtx, packageID, &objectID)
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		if rows == 0 {
-			return dbutil.ErrNotFound
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, &objectID)...)
-}
-
-func (s *Store) clearPackageObject(
-	ctx context.Context,
-	packageID int64,
-	setter packageObjectSetter,
-) error {
-	var oldObjectID *int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		qtx := s.q.WithTx(tx)
-		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
-		if err != nil {
-			return dbutil.GetError(err)
-		}
-		oldObjectID = setter.oldObjectID(existing)
+		oldObjectID = existing.InstallerObjectID
 		if oldObjectID == nil {
 			return nil
 		}
-		rows, err := setter.set(ctx, qtx, packageID, nil)
+		rows, err := qtx.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
+			ID:       packageID,
+			ObjectID: nil,
+		})
 		if err != nil {
 			return dbutil.MutationError(err)
 		}
@@ -388,7 +350,7 @@ func (s *Store) clearPackageObject(
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldObjectID, nil)...)
+	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, nil)...)
 }
 
 func applyDefaults(params PackageMutation) PackageMutation {
@@ -445,7 +407,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		MinimumMunkiVersion:      row.MinimumMunkiVersion,
 		MinimumOSVersion:         row.MinimumOSVersion,
 		MaximumOSVersion:         row.MaximumOSVersion,
-		SupportedArchitectures:   nonNilStrings(row.SupportedArchitectures),
+		SupportedArchitectures:   dbutil.NonNilSlice(row.SupportedArchitectures),
 		BlockingApplications:     row.BlockingApplications,
 		InstallableCondition:     row.InstallableCondition,
 		BlockingAppsManualQuit:   row.BlockingAppsManualQuit,
@@ -1150,21 +1112,4 @@ func nonNilReferences(values []PackageReference) []PackageReference {
 		return []PackageReference{}
 	}
 	return values
-}
-
-func nonNilStrings(values []string) []string {
-	if values == nil {
-		return []string{}
-	}
-	return values
-}
-
-func replacedObjectIDs(oldID, newID *int64) []int64 {
-	if oldID == nil {
-		return nil
-	}
-	if newID != nil && *oldID == *newID {
-		return nil
-	}
-	return []int64{*oldID}
 }

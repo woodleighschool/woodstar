@@ -100,7 +100,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	}
 	if err := s.objects.DeleteUnreferenced(
 		ctx,
-		replacedObjectIDs(oldIconObjectID, params.IconObjectID)...); err != nil {
+		storage.ReplacedObjectIDs(oldIconObjectID, params.IconObjectID)...); err != nil {
 		return nil, err
 	}
 	return s.GetByID(ctx, id)
@@ -268,7 +268,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, replacedObjectIDs(oldIconObjectID, &objectID)...)
+	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldIconObjectID, &objectID)...)
 }
 
 func (m Mutation) validate() error {
@@ -276,16 +276,6 @@ func (m Mutation) validate() error {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	return nil
-}
-
-func replacedObjectIDs(oldID, newID *int64) []int64 {
-	if oldID == nil {
-		return nil
-	}
-	if newID != nil && *oldID == *newID {
-		return nil
-	}
-	return []int64{*oldID}
 }
 
 func softwareFromSQLC(row sqlc.MunkiSoftware) Software {

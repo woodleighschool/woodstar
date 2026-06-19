@@ -214,6 +214,18 @@ func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) erro
 	return nil
 }
 
+// ReplacedObjectIDs returns the old object id when a pointer field now points
+// at a different object or has been cleared.
+func ReplacedObjectIDs(oldID, newID *int64) []int64 {
+	if oldID == nil {
+		return nil
+	}
+	if newID != nil && *oldID == *newID {
+		return nil
+	}
+	return []int64{*oldID}
+}
+
 func objectFromSQLC(row sqlc.StorageObject) Object {
 	return Object{
 		ID:          row.ID,
