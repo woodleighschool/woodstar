@@ -43,6 +43,7 @@ export function ReportListPage() {
   );
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: reports,
     columns,
     pageCount,

@@ -93,6 +93,7 @@ export function ConfigurationListPage() {
   );
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: serverRows,
     columns,
     pageCount,

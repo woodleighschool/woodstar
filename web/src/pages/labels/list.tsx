@@ -120,6 +120,7 @@ export function LabelListPage() {
   }, [isAdmin]);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: labels,
     columns,
     pageCount,

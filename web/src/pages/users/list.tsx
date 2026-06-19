@@ -143,6 +143,7 @@ export function UserListPage() {
   }, [currentUserId, isAdmin]);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: users,
     columns,
     pageCount,

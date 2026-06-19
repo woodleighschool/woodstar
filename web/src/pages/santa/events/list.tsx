@@ -211,6 +211,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   );
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: events,
     columns,
     pageCount,
@@ -332,6 +333,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   );
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: events,
     columns,
     pageCount,

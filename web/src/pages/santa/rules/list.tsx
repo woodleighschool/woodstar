@@ -112,6 +112,7 @@ export function RuleListPage() {
   }, [isAdmin, labelsByID]);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: rules,
     columns,
     pageCount,

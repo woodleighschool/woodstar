@@ -91,6 +91,7 @@ export function HostListPage() {
   );
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: hosts,
     columns,
     pageCount,

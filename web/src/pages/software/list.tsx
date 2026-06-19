@@ -46,6 +46,7 @@ export function SoftwareListPage() {
   const columns = React.useMemo<ColumnDef<SoftwareTitle>[]>(() => softwareColumns, []);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: software,
     columns,
     pageCount,

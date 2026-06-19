@@ -114,6 +114,7 @@ export function MunkiPackageListPage() {
   }, [isAdmin]);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: packages,
     columns,
     pageCount,

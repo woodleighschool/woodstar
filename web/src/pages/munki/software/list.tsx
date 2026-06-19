@@ -94,6 +94,7 @@ export function MunkiSoftwareListPage() {
   }, [isAdmin]);
 
   const table = useDataTable({
+    tableState: tableSearch,
     data: software,
     columns,
     pageCount,
