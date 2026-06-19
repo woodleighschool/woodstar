@@ -1,5 +1,3 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/santa/events/file-access")({
-  component: () => <Outlet />,
-});
+export const Route = createFileRoute("/_authenticated/santa/events/file-access")({});
