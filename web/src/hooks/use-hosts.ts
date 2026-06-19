@@ -29,7 +29,7 @@ import type {
   ListHostsData,
   ListHostSoftwareData,
 } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -52,10 +52,7 @@ type HostListParams = NonNullable<ListHostsData["query"]>;
 
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
+    ...baseListParams(params),
     status: nonEmpty(params.status),
     label_id: params.label_id,
     software_title_id: params.software_title_id,
@@ -140,10 +137,7 @@ type HostSoftwareListParams = NonNullable<ListHostSoftwareData["query"]>;
 
 export function useHostSoftware(id: number | null, params: HostSoftwareListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
+    ...baseListParams(params),
     source: params.source && params.source.length > 0 ? params.source : undefined,
   };
 

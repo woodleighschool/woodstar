@@ -19,9 +19,8 @@ import {
   updateOsqueryReport,
 } from "@/lib/api";
 import type { ListOsqueryReportsData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { OsqueryReport, OsqueryReportMutation };
 export type ReportListResult = PageReport;
@@ -29,12 +28,7 @@ export type ReportResults = OsqueryReportResult[];
 export type ReportListParams = NonNullable<ListOsqueryReportsData["query"]>;
 
 export function useReports(params: ReportListParams = {}) {
-  const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
-  };
+  const queryParams = baseListParams(params);
 
   return useQuery<ReportListResult, ApiError>({
     queryKey: queryKeys.reports(queryParams),

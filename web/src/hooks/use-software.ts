@@ -9,9 +9,8 @@ import type {
 } from "@/lib/api";
 import { getSoftware, getSoftwareSantaReference, listSoftware, unwrap } from "@/lib/api";
 import type { ListSoftwareData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { SoftwareTitle, SoftwareVersion };
 export type SoftwareListResult = PageSoftwareTitle;
@@ -20,11 +19,8 @@ export type SoftwareListParams = NonNullable<ListSoftwareData["query"]>;
 
 export function useSoftware(params: SoftwareListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
+    ...baseListParams(params),
     source: params.source && params.source.length > 0 ? params.source : undefined,
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SoftwareListResult, ApiError>({

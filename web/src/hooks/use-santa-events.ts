@@ -19,7 +19,7 @@ import type {
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
 } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -41,13 +41,10 @@ export type SantaEventDecisionFilter = NonNullable<
 
 export function useSantaEvents(params: SantaEventListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
+    ...baseListParams(params),
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
     user: nonEmpty(params.user),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SantaEventListResult, ApiError>({
@@ -73,12 +70,9 @@ export function useSantaEvent(id: number | null) {
 
 export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
+    ...baseListParams(params),
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SantaFileAccessEventListResult, ApiError>({

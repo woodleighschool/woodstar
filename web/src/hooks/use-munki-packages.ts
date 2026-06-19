@@ -17,9 +17,8 @@ import {
   updateMunkiPackage,
 } from "@/lib/api";
 import type { ListMunkiPackagesData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
 
@@ -27,10 +26,7 @@ type MunkiSoftwareListParams = NonNullable<ListMunkiPackagesData["query"]>;
 
 function softwareQueryParams(params: MunkiSoftwareListParams) {
   return {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
+    ...baseListParams(params),
     type: params.type?.length ? params.type : undefined,
     software_id: params.software_id === 0 ? undefined : params.software_id,
   };

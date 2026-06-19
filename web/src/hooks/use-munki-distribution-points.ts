@@ -21,9 +21,8 @@ import {
   updateMunkiDistributionPoint,
 } from "@/lib/api";
 import type { ListMunkiDistributionPointsData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type {
   MunkiDistributionPoint,
@@ -45,12 +44,7 @@ type MunkiDistributionPointDetailRefreshOptions = {
 const MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS = 5_000;
 
 export function useMunkiDistributionPoints(params: MunkiDistributionPointListParams = {}) {
-  const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
-  };
+  const queryParams = baseListParams(params);
 
   return useQuery<MunkiDistributionPointListResult, ApiError>({
     queryKey: queryKeys.munkiDistributionPoints(queryParams),

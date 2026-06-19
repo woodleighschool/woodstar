@@ -19,9 +19,8 @@ import {
   updateOsqueryCheck,
 } from "@/lib/api";
 import type { ListOsqueryChecksData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { OsqueryCheck, OsqueryCheckHostStatus, OsqueryCheckMutation };
 export type CheckListResult = PageCheck;
@@ -29,12 +28,7 @@ export type CheckHosts = OsqueryCheckHostStatus[];
 export type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
 
 export function useChecks(params: CheckListParams = {}) {
-  const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
-  };
+  const queryParams = baseListParams(params);
 
   return useQuery<CheckListResult, ApiError>({
     queryKey: queryKeys.checks(queryParams),

@@ -18,21 +18,15 @@ import {
   updateMunkiSoftware,
 } from "@/lib/api";
 import type { ListMunkiSoftwareData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { MunkiSoftware, MunkiSoftwareDetail, MunkiMutation };
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
 
 function queryParams(params: MunkiListParams) {
-  return {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
-  };
+  return baseListParams(params);
 }
 
 export function useMunkiSoftware(params: MunkiListParams = {}) {

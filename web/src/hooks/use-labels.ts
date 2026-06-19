@@ -4,9 +4,8 @@ import { toast } from "sonner";
 import type { ApiError, Label, LabelMutation, PageLabel } from "@/lib/api";
 import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { Label, LabelMutation };
 export type LabelListResult = PageLabel;
@@ -14,10 +13,7 @@ export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
+    ...baseListParams(params),
     label_type: params.label_type,
     label_membership_type: params.label_membership_type,
   };

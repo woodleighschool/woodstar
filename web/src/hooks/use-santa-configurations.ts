@@ -19,9 +19,8 @@ import {
   updateSantaConfiguration,
 } from "@/lib/api";
 import type { ListSantaConfigurationsData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-import { nonEmpty } from "@/lib/utils";
 
 export type { SantaConfiguration, SantaConfigurationMutation };
 export type SantaConfigurationListResult = PageConfiguration;
@@ -32,12 +31,7 @@ export type SantaClientMode =
 export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 
 export function useSantaConfigurations(params: SantaListParams = {}) {
-  const queryParams = {
-    q: nonEmpty(params.q),
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
-  };
+  const queryParams = baseListParams(params);
 
   return useQuery<SantaConfigurationListResult, ApiError>({
     queryKey: queryKeys.santaConfigurations(queryParams),

@@ -19,7 +19,7 @@ import {
   updateSantaRule,
 } from "@/lib/api";
 import type { ListSantaRuleReferencesData, ListSantaRulesData } from "@/lib/api-client/types.gen";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -35,11 +35,8 @@ export type SantaRuleReferenceListParams = NonNullable<ListSantaRuleReferencesDa
 
 export function useSantaRules(params: SantaRuleListParams = {}) {
   const queryParams = {
-    q: nonEmpty(params.q),
+    ...baseListParams(params),
     rule_type: params.rule_type,
-    page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SantaRuleListResult, ApiError>({
