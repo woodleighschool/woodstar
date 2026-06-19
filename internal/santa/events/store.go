@@ -454,14 +454,7 @@ func fileNameFromPath(path string) string {
 func signingChainEntries(chain []CertificateInput) []signingChainEntry {
 	entries := make([]signingChainEntry, 0, len(chain))
 	for _, cert := range chain {
-		entry := signingChainEntry{
-			SHA256:     cert.SHA256,
-			CommonName: cert.CommonName,
-			Org:        cert.Org,
-			OU:         cert.OU,
-			ValidFrom:  cert.ValidFrom,
-			ValidUntil: cert.ValidUntil,
-		}
+		entry := signingChainEntry(cert)
 		if entry.SHA256 == "" {
 			continue
 		}

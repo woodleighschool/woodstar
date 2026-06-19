@@ -49,7 +49,7 @@ func TestGetError(t *testing.T) {
 	if got := dbutil.GetError(pgx.ErrNoRows); !errors.Is(got, dbutil.ErrNotFound) {
 		t.Fatalf("GetError(pgx.ErrNoRows) = %v, want errors.Is ErrNotFound", got)
 	}
-	if got := dbutil.GetError(other); got != other {
+	if got := dbutil.GetError(other); !errors.Is(got, other) {
 		t.Fatalf("GetError(other) = %v, want original error", got)
 	}
 }
