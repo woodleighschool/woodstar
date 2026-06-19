@@ -620,7 +620,6 @@ func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventL
 }
 
 func executionEventListQuery(params ExecutionEventListParams, where string, args []any) dbutil.ListQuery {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	return dbutil.ListQuery{
 		SelectSQL:    executionEventSelectSQL,
 		WhereSQL:     where,
@@ -632,7 +631,6 @@ func executionEventListQuery(params ExecutionEventListParams, where string, args
 }
 
 func fileAccessEventListQuery(params FileAccessEventListParams, where string, args []any) dbutil.ListQuery {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	return dbutil.ListQuery{
 		SelectSQL:    fileAccessEventSelectSQL,
 		WhereSQL:     where,

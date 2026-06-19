@@ -192,7 +192,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
-	params = dbutil.CleanListParams(params)
 	where, args := softwareListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: softwareSelectSQL,

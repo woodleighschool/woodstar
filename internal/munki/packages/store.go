@@ -213,7 +213,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	installerTypes, err := normalizeInstallerTypeFilters(params.InstallerTypes)
 	if err != nil {
 		return nil, 0, err
