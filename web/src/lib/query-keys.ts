@@ -60,6 +60,4 @@ export const queryKeys = {
   santaRule: (id: number | null) => ["santa", "rules", id] as const,
   santaRuleReferences: (params?: unknown) => ["santa", "rule-references", params ?? {}] as const,
   liveQueryTargetCount: (params?: unknown) => ["live-query-target-count", params ?? {}] as const,
-  appledbManifest: ["appledb-image-manifest"] as const,
-  appledbDevice: (model: string | null | undefined) => ["appledb-device", model ?? null] as const,
 };

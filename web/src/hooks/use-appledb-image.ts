@@ -1,7 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { queryKeys } from "@/lib/query-keys";
-
 interface ManifestEntry {
   key: string;
   count: number;
@@ -17,6 +15,10 @@ const MANIFEST_URL = "https://img.appledb.dev/main.json";
 const DEVICE_URL = (model: string) =>
   `https://api.appledb.dev/device/${encodeURIComponent(model)}.json`;
 const IMAGE_BASE = "https://img.appledb.dev/device@main";
+const appledbQueryKeys = {
+  manifest: ["appledb-image-manifest"] as const,
+  device: (model: string | null | undefined) => ["appledb-device", model ?? null] as const,
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,7 +29,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function useAppleDbImage(hardwareModel: string | null | undefined): string | null {
   const { data: device } = useQuery<DeviceFile | null>({
-    queryKey: queryKeys.appledbDevice(hardwareModel),
+    queryKey: appledbQueryKeys.device(hardwareModel),
     queryFn: async ({ signal }) => {
       if (!hardwareModel) return null;
       const r = await fetch(DEVICE_URL(hardwareModel), { signal });
@@ -43,7 +45,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
   });
 
   const { data: manifest } = useQuery<ManifestEntry[]>({
-    queryKey: queryKeys.appledbManifest,
+    queryKey: appledbQueryKeys.manifest,
     queryFn: async ({ signal }) => {
       const r = await fetch(MANIFEST_URL, { signal });
       if (!r.ok) throw new Error(`appledb manifest ${r.status}`);
