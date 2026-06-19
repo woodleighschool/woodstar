@@ -212,8 +212,7 @@ func reportFromSQLC(row sqlc.Report) *Report {
 func reportListWhere(params ReportListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
-		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
+		where.Addf("(name ILIKE %s OR description ILIKE %s)", "%"+params.Q+"%", "%"+params.Q+"%")
 	}
 	return where.Build()
 }

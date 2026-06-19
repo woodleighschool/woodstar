@@ -416,8 +416,7 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 			)`)
 	}
 	if len(params.IDs) > 0 {
-		ids := where.Arg(params.IDs)
-		where.Add("id = ANY(" + ids + "::bigint[])")
+		where.Addf("id = ANY(%s::bigint[])", params.IDs)
 	}
 	switch params.Status {
 	case "":

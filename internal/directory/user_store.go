@@ -253,8 +253,7 @@ func userWhere(params UserListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	where.Add("u.deleted_at IS NULL")
 	if params.GroupID > 0 {
-		groupID := where.Arg(params.GroupID)
-		where.Add("gm.group_id = " + groupID)
+		where.Addf("gm.group_id = %s", params.GroupID)
 	}
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -269,13 +268,11 @@ func userWhere(params UserListParams) (string, []any) {
 		)`)
 	}
 	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.SplitListValues(params.Values))
-		where.Add("u.id::text = ANY(" + values + "::text[])")
+		where.Addf("u.id::text = ANY(%s::text[])", dbutil.SplitListValues(params.Values))
 	}
 	switch params.Role {
 	case string(RoleAdmin), string(RoleViewer):
-		role := where.Arg(params.Role)
-		where.Add("u.role = " + role + "::user_role")
+		where.Addf("u.role = %s::user_role", params.Role)
 	case "none":
 		where.Add("u.role IS NULL")
 	}
@@ -298,8 +295,7 @@ func departmentWhere(params UserListParams) (string, []any) {
 		where.Add("department ILIKE " + search)
 	}
 	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.SplitListValues(params.Values))
-		where.Add("department = ANY(" + values + "::text[])")
+		where.Addf("department = ANY(%s::text[])", dbutil.SplitListValues(params.Values))
 	}
 	return where.Build()
 }

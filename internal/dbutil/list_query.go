@@ -41,6 +41,14 @@ func (b *WhereBuilder) Add(clause string) {
 	b.clauses = append(b.clauses, clause)
 }
 
+func (b *WhereBuilder) Addf(format string, args ...any) {
+	placeholders := make([]any, len(args))
+	for i, arg := range args {
+		placeholders[i] = b.Arg(arg)
+	}
+	b.Add(fmt.Sprintf(format, placeholders...))
+}
+
 func (b *WhereBuilder) Arg(arg any) string {
 	b.args = append(b.args, arg)
 	return fmt.Sprintf("$%d", len(b.args))

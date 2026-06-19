@@ -327,8 +327,12 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 func checkListWhere(params CheckListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
-		where.Add("(c.name ILIKE " + search + " OR c.description ILIKE " + search + " OR c.query ILIKE " + search + ")")
+		where.Addf(
+			"(c.name ILIKE %s OR c.description ILIKE %s OR c.query ILIKE %s)",
+			"%"+params.Q+"%",
+			"%"+params.Q+"%",
+			"%"+params.Q+"%",
+		)
 	}
 	return where.Build()
 }

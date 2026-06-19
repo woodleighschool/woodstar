@@ -120,3 +120,19 @@ func TestWhereBuilderBuildsClausesWithStablePlaceholders(t *testing.T) {
 		t.Fatalf("args = %#v", args)
 	}
 }
+
+func TestWhereBuilderAddfRegistersArgsInOrder(t *testing.T) {
+	var where WhereBuilder
+	where.Addf("(name ILIKE %s OR description ILIKE %s)", "%munki%", "%munki%")
+	where.Addf("role = %s::user_role", "admin")
+
+	query, args := where.Build()
+
+	wantQuery := "WHERE (name ILIKE $1 OR description ILIKE $2) AND role = $3::user_role"
+	if query != wantQuery {
+		t.Fatalf("query = %q, want %q", query, wantQuery)
+	}
+	if len(args) != 3 || args[0] != "%munki%" || args[1] != "%munki%" || args[2] != "admin" {
+		t.Fatalf("args = %#v", args)
+	}
+}

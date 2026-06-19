@@ -335,14 +335,13 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 func labelListWhere(params LabelListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
-		where.Add("(l.name ILIKE " + search + " OR l.description ILIKE " + search + ")")
+		where.Addf("(l.name ILIKE %s OR l.description ILIKE %s)", "%"+params.Q+"%", "%"+params.Q+"%")
 	}
 	if params.LabelType != "" {
-		where.Add("l.label_type = " + where.Arg(string(params.LabelType)))
+		where.Addf("l.label_type = %s", string(params.LabelType))
 	}
 	if params.LabelMembershipType != "" {
-		where.Add("l.label_membership_type = " + where.Arg(string(params.LabelMembershipType)))
+		where.Addf("l.label_membership_type = %s", string(params.LabelMembershipType))
 	}
 	return where.Build()
 }
