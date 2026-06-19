@@ -79,11 +79,12 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
     <section className="grid gap-6">
       <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
         <p>Deploy Santa with a profile for Woodstar and a bearer secret.</p>
+        <p>MachineID identifies Santa clients. Leave it unset so Santa uses the hardware UUID.</p>
       </div>
 
       <DeploymentArtifact
         title="Santa Profile"
-        description="Replace the bearer secret with an active Santa enrollment secret before deployment."
+        description="Replace the bearer secret before deployment."
         value={santaProfileTemplate(publicURL)}
         extensions={xmlExtensions}
         multiline
