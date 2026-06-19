@@ -90,17 +90,26 @@ mise run //web:openapi-types
 """
 
 [tasks.test-openapi]
-description = "Check OpenAPI schema is current"
+description = "Check OpenAPI schema and generated web client are current"
 run = """
-tmp=$(mktemp)
-go run ./cmd/woodstar openapi --output "$tmp"
-if ! diff -q web/openapi.yaml "$tmp" >/dev/null; then
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+schema="$tmpdir/openapi.yaml"
+client="$tmpdir/api-client"
+
+go run ./cmd/woodstar openapi --output "$schema"
+if ! diff -q web/openapi.yaml "$schema" >/dev/null; then
   echo "ERROR: web/openapi.yaml is out of date. Run 'mise run openapi-types' and commit the result."
-  diff -u web/openapi.yaml "$tmp"
-  rm -f "$tmp"
+  diff -u web/openapi.yaml "$schema"
   exit 1
 fi
-rm -f "$tmp"
+
+pnpm --dir web exec openapi-ts -i "$schema" -o "$client" -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk
+if ! diff -qr web/src/lib/api-client "$client" >/dev/null; then
+  echo "ERROR: web/src/lib/api-client is out of date. Run 'mise run openapi-types' and commit the result."
+  diff -ru web/src/lib/api-client "$client"
+  exit 1
+fi
 """
 
 [tasks.sqlc]
