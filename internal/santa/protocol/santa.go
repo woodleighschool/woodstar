@@ -616,6 +616,10 @@ func decisionFromProto(decision syncv1.Decision) santaevents.ExecutionDecision {
 		return santaevents.ExecutionDecisionBlockCDHash
 	case syncv1.Decision_BUNDLE_BINARY:
 		return santaevents.ExecutionDecisionBundleBinary
+	case syncv1.Decision_BLOCK_BINARY_MISMATCH:
+		return santaevents.ExecutionDecisionBlockBinaryMismatch
+	case syncv1.Decision_ALLOW_PLATFORM:
+		return santaevents.ExecutionDecisionAllowPlatform
 	default:
 		return santaevents.ExecutionDecisionUnknown
 	}

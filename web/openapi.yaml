@@ -2913,6 +2913,8 @@ components:
             - block_signingid
             - block_cdhash
             - bundle_binary
+            - block_binary_mismatch
+            - allow_platform
           type: string
         executable:
           $ref: "#/components/schemas/SantaExecutable"
@@ -7806,6 +7808,8 @@ paths:
                 - block_signingid
                 - block_cdhash
                 - bundle_binary
+                - block_binary_mismatch
+                - allow_platform
               type: string
             type: array
         - explode: false

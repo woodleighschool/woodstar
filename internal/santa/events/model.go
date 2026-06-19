@@ -24,22 +24,24 @@ type FileAccessDecision string
 type SigningStatus string
 
 const (
-	ExecutionDecisionUnknown          ExecutionDecision = "unknown"
-	ExecutionDecisionAllowUnknown     ExecutionDecision = "allow_unknown"
-	ExecutionDecisionAllowBinary      ExecutionDecision = "allow_binary"
-	ExecutionDecisionAllowCertificate ExecutionDecision = "allow_certificate"
-	ExecutionDecisionAllowScope       ExecutionDecision = "allow_scope"
-	ExecutionDecisionAllowTeamID      ExecutionDecision = "allow_teamid"
-	ExecutionDecisionAllowSigningID   ExecutionDecision = "allow_signingid"
-	ExecutionDecisionAllowCDHash      ExecutionDecision = "allow_cdhash"
-	ExecutionDecisionBlockUnknown     ExecutionDecision = "block_unknown"
-	ExecutionDecisionBlockBinary      ExecutionDecision = "block_binary"
-	ExecutionDecisionBlockCertificate ExecutionDecision = "block_certificate"
-	ExecutionDecisionBlockScope       ExecutionDecision = "block_scope"
-	ExecutionDecisionBlockTeamID      ExecutionDecision = "block_teamid"
-	ExecutionDecisionBlockSigningID   ExecutionDecision = "block_signingid"
-	ExecutionDecisionBlockCDHash      ExecutionDecision = "block_cdhash"
-	ExecutionDecisionBundleBinary     ExecutionDecision = "bundle_binary"
+	ExecutionDecisionUnknown             ExecutionDecision = "unknown"
+	ExecutionDecisionAllowUnknown        ExecutionDecision = "allow_unknown"
+	ExecutionDecisionAllowBinary         ExecutionDecision = "allow_binary"
+	ExecutionDecisionAllowCertificate    ExecutionDecision = "allow_certificate"
+	ExecutionDecisionAllowScope          ExecutionDecision = "allow_scope"
+	ExecutionDecisionAllowTeamID         ExecutionDecision = "allow_teamid"
+	ExecutionDecisionAllowSigningID      ExecutionDecision = "allow_signingid"
+	ExecutionDecisionAllowCDHash         ExecutionDecision = "allow_cdhash"
+	ExecutionDecisionBlockUnknown        ExecutionDecision = "block_unknown"
+	ExecutionDecisionBlockBinary         ExecutionDecision = "block_binary"
+	ExecutionDecisionBlockCertificate    ExecutionDecision = "block_certificate"
+	ExecutionDecisionBlockScope          ExecutionDecision = "block_scope"
+	ExecutionDecisionBlockTeamID         ExecutionDecision = "block_teamid"
+	ExecutionDecisionBlockSigningID      ExecutionDecision = "block_signingid"
+	ExecutionDecisionBlockCDHash         ExecutionDecision = "block_cdhash"
+	ExecutionDecisionBundleBinary        ExecutionDecision = "bundle_binary"
+	ExecutionDecisionBlockBinaryMismatch ExecutionDecision = "block_binary_mismatch"
+	ExecutionDecisionAllowPlatform       ExecutionDecision = "allow_platform"
 
 	DecisionFilterAllowed DecisionFilter = "allowed"
 	DecisionFilterBlocked DecisionFilter = "blocked"
@@ -74,6 +76,8 @@ var ExecutionDecisionValues = []ExecutionDecision{
 	ExecutionDecisionBlockSigningID,
 	ExecutionDecisionBlockCDHash,
 	ExecutionDecisionBundleBinary,
+	ExecutionDecisionBlockBinaryMismatch,
+	ExecutionDecisionAllowPlatform,
 }
 
 var DecisionFilterValues = decisionFilterValues()

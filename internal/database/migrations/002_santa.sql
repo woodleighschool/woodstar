@@ -20,7 +20,9 @@ CREATE TYPE santa_execution_decision AS ENUM (
     'block_teamid',
     'block_signingid',
     'block_cdhash',
-    'bundle_binary'
+    'bundle_binary',
+    'block_binary_mismatch',
+    'allow_platform'
 );
 
 -- Santa host observation

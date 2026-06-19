@@ -48,6 +48,11 @@ export const EXECUTION_DECISIONS = {
     description: "Allowed by a matching CDHash rule.",
     variant: "success",
   },
+  allow_platform: {
+    name: "Allow Platform",
+    description: "Allowed because macOS reported the binary as platform-trusted.",
+    variant: "success",
+  },
   block_unknown: {
     name: "Block Unknown",
     description: "Blocked because no rule matched while the client was in Lockdown mode.",
@@ -83,6 +88,11 @@ export const EXECUTION_DECISIONS = {
     description: "Blocked by a matching CDHash rule.",
     variant: "error",
   },
+  block_binary_mismatch: {
+    name: "Block Binary Mismatch",
+    description: "Blocked because the kernel and disk binary hashes did not match.",
+    variant: "error",
+  },
   bundle_binary: {
     name: "Bundle Binary",
     description: "Metadata for a binary inside a bundle. It is not an allow or block decision.",
@@ -101,6 +111,7 @@ export const DECISION_FILTER_VALUES = [
   "allow_teamid",
   "allow_signingid",
   "allow_cdhash",
+  "allow_platform",
   "block_unknown",
   "block_binary",
   "block_certificate",
@@ -108,6 +119,7 @@ export const DECISION_FILTER_VALUES = [
   "block_teamid",
   "block_signingid",
   "block_cdhash",
+  "block_binary_mismatch",
   "bundle_binary",
 ] as const satisfies readonly SantaEventDecisionFilter[];
 

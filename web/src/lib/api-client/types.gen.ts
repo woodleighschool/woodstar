@@ -1056,7 +1056,7 @@ export type SantaExecutableReference = {
 
 export type SantaExecutionEvent = {
     current_sessions: Array<string>;
-    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary';
+    decision: 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary' | 'block_binary_mismatch' | 'allow_platform';
     executable: SantaExecutable;
     executing_user: string;
     file_path: string;
@@ -4666,7 +4666,7 @@ export type ListSantaEventsData = {
         per_page?: number;
         sort?: string;
         host_id?: number;
-        decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary'>;
+        decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary' | 'block_binary_mismatch' | 'allow_platform'>;
         since?: string;
         user?: string;
     };

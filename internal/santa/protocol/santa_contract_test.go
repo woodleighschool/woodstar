@@ -137,14 +137,32 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}, &syncv1.PostflightResponse{})
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
-		Events: []*syncv1.Event{{
-			FileSha256:    "sha256-contract-" + suffix,
-			FilePath:      "/Applications/Contract.app/Contents/MacOS/Contract",
-			FileName:      "Contract",
-			ExecutingUser: "alice",
-			Decision:      syncv1.Decision_BLOCK_BINARY,
-			ExecutionTime: float64(time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC).Unix()),
-		}},
+		Events: []*syncv1.Event{
+			{
+				FileSha256:    "sha256-contract-" + suffix,
+				FilePath:      "/Applications/Contract.app/Contents/MacOS/Contract",
+				FileName:      "Contract",
+				ExecutingUser: "alice",
+				Decision:      syncv1.Decision_BLOCK_BINARY,
+				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC).Unix()),
+			},
+			{
+				FileSha256:    "sha256-mismatch-" + suffix,
+				FilePath:      "/Applications/Mismatch.app/Contents/MacOS/Mismatch",
+				FileName:      "Mismatch",
+				ExecutingUser: "alice",
+				Decision:      syncv1.Decision_BLOCK_BINARY_MISMATCH,
+				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 1, 0, 0, time.UTC).Unix()),
+			},
+			{
+				FileSha256:    "sha256-platform-" + suffix,
+				FilePath:      "/System/Library/CoreServices/SystemUIServer.app/Contents/MacOS/SystemUIServer",
+				FileName:      "SystemUIServer",
+				ExecutingUser: "alice",
+				Decision:      syncv1.Decision_ALLOW_PLATFORM,
+				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 2, 0, 0, time.UTC).Unix()),
+			},
+		},
 		FileAccessEvents: []*syncv1.FileAccessEvent{{
 			RuleVersion: "policy-v1",
 			RuleName:    "Protect Payroll",
@@ -168,8 +186,22 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
-	if len(events) != 1 || events[0].Decision != santaevents.ExecutionDecisionBlockBinary {
-		t.Fatalf("stored events = %+v, want one block_binary event", events)
+	wantDecisions := map[santaevents.ExecutionDecision]bool{
+		santaevents.ExecutionDecisionBlockBinary:         true,
+		santaevents.ExecutionDecisionBlockBinaryMismatch: true,
+		santaevents.ExecutionDecisionAllowPlatform:       true,
+	}
+	if len(events) != len(wantDecisions) {
+		t.Fatalf("stored events = %+v, want %d execution events", events, len(wantDecisions))
+	}
+	for _, event := range events {
+		if !wantDecisions[event.Decision] {
+			t.Fatalf("stored decision = %q, want one of %+v", event.Decision, wantDecisions)
+		}
+		delete(wantDecisions, event.Decision)
+	}
+	if len(wantDecisions) != 0 {
+		t.Fatalf("missing decisions = %+v", wantDecisions)
 	}
 
 	fileAccessEvents, _, err := stores.events.ListFileAccessEvents(ctx, santaevents.FileAccessEventListParams{
