@@ -28,24 +28,20 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	where, args := checkListWhere(params)
 	listQuery := checkListQuery(where, args, params)
 
-	rows, count, err := dbutil.QueryListWithCount(ctx, s.db.Pool(), listQuery)
+	checks, count, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, func(row pgx.Row) (Check, error) {
+		check, err := scanCheck(row)
+		if err != nil {
+			return Check{}, err
+		}
+		return *check, nil
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	checks := make([]Check, 0)
-	checkIDs := make([]int64, 0)
-	for rows.Next() {
-		check, err := scanCheck(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		checks = append(checks, *check)
+	checkIDs := make([]int64, 0, len(checks))
+	for _, check := range checks {
 		checkIDs = append(checkIDs, check.ID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
 	}
 	targets, err := s.loadCheckTargets(ctx, checkIDs)
 	if err != nil {

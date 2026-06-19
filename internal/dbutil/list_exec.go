@@ -7,9 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// QueryListWithCount runs a paginated ListQuery count and page query. Callers
-// that need custom row mapping or enrichment own closing the returned rows.
-func QueryListWithCount(ctx context.Context, pool *pgxpool.Pool, q ListQuery) (pgx.Rows, int, error) {
+func queryListWithCount(ctx context.Context, pool *pgxpool.Pool, q ListQuery) (pgx.Rows, int, error) {
 	countSQL, countArgs := q.BuildCount()
 	var count int
 	if err := pool.QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
@@ -33,7 +31,7 @@ func ScanListWithCount[T any](
 	q ListQuery,
 	scan func(pgx.Row) (T, error),
 ) ([]T, int, error) {
-	rows, count, err := QueryListWithCount(ctx, pool, q)
+	rows, count, err := queryListWithCount(ctx, pool, q)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -55,7 +53,7 @@ func ScanListWithCount[T any](
 
 // ListWithCount runs a ListQuery and decodes each row into T by column name.
 func ListWithCount[T any](ctx context.Context, pool *pgxpool.Pool, q ListQuery) ([]T, int, error) {
-	rows, count, err := QueryListWithCount(ctx, pool, q)
+	rows, count, err := queryListWithCount(ctx, pool, q)
 	if err != nil {
 		return nil, 0, err
 	}

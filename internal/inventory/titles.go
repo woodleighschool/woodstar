@@ -15,13 +15,7 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
-	rows, total, err := dbutil.QueryListWithCount(ctx, s.db.Pool(), listQuery)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	titles, err := scanSoftwareTitles(rows)
+	titles, total, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, scanSoftwareTitle)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -102,21 +96,6 @@ FROM software_titles st
 LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id
 `
-
-func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
-	titles := make([]SoftwareTitle, 0)
-	for rows.Next() {
-		title, err := scanSoftwareTitle(rows)
-		if err != nil {
-			return nil, err
-		}
-		titles = append(titles, title)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return titles, nil
-}
 
 func scanSoftwareTitle(row pgx.Row) (SoftwareTitle, error) {
 	var title SoftwareTitle

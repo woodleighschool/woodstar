@@ -26,24 +26,20 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 	where, args := reportListWhere(params)
 	listQuery := reportListQuery(where, args, params)
 
-	rows, count, err := dbutil.QueryListWithCount(ctx, s.db.Pool(), listQuery)
+	reports, count, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, func(row pgx.Row) (Report, error) {
+		report, err := scanReport(row)
+		if err != nil {
+			return Report{}, err
+		}
+		return *report, nil
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
 
-	reports := make([]Report, 0)
-	reportIDs := make([]int64, 0)
-	for rows.Next() {
-		report, err := scanReport(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		reports = append(reports, *report)
+	reportIDs := make([]int64, 0, len(reports))
+	for _, report := range reports {
 		reportIDs = append(reportIDs, report.ID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
 	}
 	targets, err := s.loadReportTargets(ctx, reportIDs)
 	if err != nil {
