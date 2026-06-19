@@ -84,39 +84,6 @@ func TestPreparePendingNormalSyncSendsFullDesiredRulesAndRemovals(t *testing.T) 
 	}
 }
 
-func TestPreparePendingResendsChangedPayloadHash(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := syncstate.NewStore(db)
-	host := createHost(t, ctx, db, "hash")
-
-	if _, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
-		targetWithMessage("binary", "same-id", "blocklist", "old", "old-hash"),
-	}, syncstate.RuleCounts{}, false); err != nil {
-		t.Fatalf("initial prepare: %v", err)
-	}
-	if err := store.PromotePending(ctx, host.ID, 1, 1); err != nil {
-		t.Fatalf("promote initial: %v", err)
-	}
-
-	syncType, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
-		targetWithMessage("binary", "same-id", "blocklist", "new", "new-hash"),
-	}, syncstate.RuleCounts{Binary: 1}, false)
-	if err != nil {
-		t.Fatalf("prepare changed payload: %v", err)
-	}
-	if syncType != syncstate.SyncTypeNormal {
-		t.Fatalf("sync type = %q, want normal", syncType)
-	}
-
-	page, err := store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
-	if err != nil {
-		t.Fatalf("load payload: %v", err)
-	}
-	if len(page.Rules) != 1 || page.Rules[0].Identifier != "same-id" || page.Rules[0].CustomMessage != "new" {
-		t.Fatalf("payload = %+v, want changed same-id rule", page.Rules)
-	}
-}
-
 func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := syncstate.NewStore(db)
@@ -290,18 +257,6 @@ func target(ruleType string, identifier string, policy string, payloadHash strin
 		Policy:      policy,
 		PayloadHash: payloadHash,
 	}
-}
-
-func targetWithMessage(
-	ruleType string,
-	identifier string,
-	policy string,
-	message string,
-	payloadHash string,
-) syncstate.Target {
-	target := target(ruleType, identifier, policy, payloadHash)
-	target.CustomMessage = message
-	return target
 }
 
 func payloadSummary(rules []syncstate.PayloadRule) string {

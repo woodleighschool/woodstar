@@ -27,8 +27,5 @@ func (counts RuleCounts) MatchesReported(reported RuleCounts) bool {
 }
 
 func (counts RuleCounts) binaryWithoutTransitive() int32 {
-	if counts.Transitive > counts.Binary {
-		return -1
-	}
 	return counts.Binary - counts.Transitive
 }
