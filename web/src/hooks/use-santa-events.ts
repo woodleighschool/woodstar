@@ -30,8 +30,11 @@ export type SantaFileAccessEventListResult = PageFileAccessEvent;
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 
-export type SantaEventListParams = NonNullable<ListSantaEventsData["query"]>;
-export type SantaFileAccessEventListParams = NonNullable<ListSantaFileAccessEventsData["query"]>;
+export type SantaEventListParams = Omit<NonNullable<ListSantaEventsData["query"]>, "since">;
+export type SantaFileAccessEventListParams = Omit<
+  NonNullable<ListSantaFileAccessEventsData["query"]>,
+  "since"
+>;
 export type SantaEventDecisionFilter = NonNullable<
   NonNullable<SantaEventListParams["decisions"]>[number]
 >;
@@ -41,7 +44,6 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     q: nonEmpty(params.q),
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
-    since: nonEmpty(params.since),
     user: nonEmpty(params.user),
     page: params.page ?? 1,
     per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
@@ -74,7 +76,6 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
     q: nonEmpty(params.q),
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
-    since: nonEmpty(params.since),
     page: params.page ?? 1,
     per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
