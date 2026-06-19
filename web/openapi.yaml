@@ -2787,9 +2787,7 @@ components:
           format: int32
           minimum: 0
           type: integer
-        entitlements:
-          additionalProperties: {}
-          type: object
+        entitlements: {}
         file_bundle_binary_count:
           format: int32
           type: integer

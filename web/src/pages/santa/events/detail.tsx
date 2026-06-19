@@ -38,7 +38,9 @@ export function SantaEventDetailPage() {
 
   const event = query.data;
   const executable = event.executable;
-  const entitlements = entitlementEntries(executable.entitlements ?? {});
+  const entitlements = entitlementEntries(
+    isRecord(executable.entitlements) ? executable.entitlements : {},
+  );
   const signingChain = executable.signing_chain ?? [];
   const hasSigningChain = signingChain.length > 0;
   const hasEntitlements = entitlements.length > 0;

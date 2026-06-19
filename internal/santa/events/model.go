@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -239,7 +240,7 @@ type Executable struct {
 	SigningStatus           SigningStatus       `json:"signing_status"`
 	SecureSigningTime       *time.Time          `json:"secure_signing_time,omitempty"`
 	SigningTime             *time.Time          `json:"signing_time,omitempty"`
-	Entitlements            map[string]any      `json:"entitlements,omitempty"`
+	Entitlements            json.RawMessage     `json:"entitlements,omitempty"`
 	SigningChain            []SigningChainEntry `json:"signing_chain,omitempty"`
 }
 

@@ -828,9 +828,7 @@ func fileAccessEventFromSQLC(row sqlc.GetSantaFileAccessEventRow) (FileAccessEve
 
 func decodeExecutableJSON(executable *Executable, entitlements []byte, signingChain []byte) error {
 	if len(entitlements) > 0 {
-		if err := json.Unmarshal(entitlements, &executable.Entitlements); err != nil {
-			return err
-		}
+		executable.Entitlements = append(json.RawMessage(nil), entitlements...)
 	}
 	if len(signingChain) == 0 {
 		return nil

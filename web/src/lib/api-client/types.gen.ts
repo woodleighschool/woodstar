@@ -1020,9 +1020,7 @@ export type SantaConfigurationTargets = {
 export type SantaExecutable = {
     cdhash: string;
     codesigning_flags: number;
-    entitlements?: {
-        [key: string]: unknown;
-    };
+    entitlements?: unknown;
     file_bundle_binary_count: number;
     file_bundle_executable_rel_path: string;
     file_bundle_hash: string;

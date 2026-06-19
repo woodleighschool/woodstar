@@ -1,6 +1,7 @@
 package santa_test
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -141,10 +142,14 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	if allowEvent.Executable.SigningTime == nil || !allowEvent.Executable.SigningTime.Equal(signingTime) {
 		t.Fatalf("signing time = %v, want %v", allowEvent.Executable.SigningTime, signingTime)
 	}
-	if got := allowEvent.Executable.Entitlements["application-identifier"]; got != "TEAMID.com.example.new" {
+	var entitlements map[string]any
+	if err := json.Unmarshal(allowEvent.Executable.Entitlements, &entitlements); err != nil {
+		t.Fatalf("entitlements JSON: %v", err)
+	}
+	if got := entitlements["application-identifier"]; got != "TEAMID.com.example.new" {
 		t.Fatalf("application identifier entitlement = %v, want TEAMID.com.example.new", got)
 	}
-	if got := allowEvent.Executable.Entitlements["com.apple.security.cs.allow-jit"]; got != true {
+	if got := entitlements["com.apple.security.cs.allow-jit"]; got != true {
 		t.Fatalf("allow-jit entitlement = %v, want true", got)
 	}
 	if !blockEvent.OccurredAt.Equal(occurredAt) {
