@@ -120,7 +120,7 @@ func (s *AgentService) dispatchWriteResults(
 		if !ok {
 			continue
 		}
-		status := req.Statuses[name]
+		status, hasStatus := req.Statuses[name]
 		message := req.Messages[name]
 
 		var err error
@@ -128,9 +128,9 @@ func (s *AgentService) dispatchWriteResults(
 		case kindDetail:
 			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, message, details)
 		case kindLabel:
-			s.handleLabelResult(ctx, host.ID, suffix, rows, status, message, labels)
+			s.handleLabelResult(ctx, host.ID, suffix, rows, status, hasStatus, message, labels)
 		case kindCheck:
-			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, message)
+			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
 		case kindLive:
 			err = s.handleLiveResult(host, suffix, rows, status, message)
 		}
@@ -151,6 +151,7 @@ func (s *AgentService) handleLabelResult(
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,
+	hasStatus bool,
 	message string,
 	pass *labelDispatchPass,
 ) {
@@ -158,7 +159,7 @@ func (s *AgentService) handleLabelResult(
 	if !ok {
 		return
 	}
-	matched, ok := rowPresenceResult(status, rows)
+	matched, ok := rowPresenceResult(status, hasStatus, rows)
 	if !ok {
 		s.logger.WarnContext(
 			ctx,
@@ -320,13 +321,14 @@ func (s *AgentService) handleCheckResult(
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,
+	hasStatus bool,
 	message string,
 ) error {
 	checkID, ok := parsePositiveSuffix(suffix)
 	if !ok {
 		return nil
 	}
-	matched, ok := rowPresenceResult(status, rows)
+	matched, ok := rowPresenceResult(status, hasStatus, rows)
 	var passes *bool
 	if ok {
 		passes = &matched
@@ -342,11 +344,19 @@ func (s *AgentService) handleCheckResult(
 	return s.checkStore.UpsertMembership(ctx, checkID, hostID, passes)
 }
 
-func rowPresenceResult(status json.RawMessage, rows []map[string]string) (bool, bool) {
-	if !statusOK(status) {
+func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {
+	if !hasStatus || !distributedStatusOK(status) {
 		return false, false
 	}
 	return len(rows) > 0, true
+}
+
+func distributedStatusOK(raw json.RawMessage) bool {
+	var number int
+	if err := json.Unmarshal(raw, &number); err != nil {
+		return false
+	}
+	return number == 0
 }
 
 func (s *AgentService) handleLiveResult(

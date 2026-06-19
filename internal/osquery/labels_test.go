@@ -13,7 +13,15 @@ func TestHandleLabelResultStatusFilter(t *testing.T) {
 
 	t.Run("failed status skips accumulation", func(t *testing.T) {
 		pass := &labelDispatchPass{}
-		s.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("1"), "", pass)
+		s.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("1"), true, "", pass)
+		if len(pass.results) != 0 {
+			t.Fatalf("labelResults = %v, want empty", pass.results)
+		}
+	})
+
+	t.Run("missing status skips accumulation", func(t *testing.T) {
+		pass := &labelDispatchPass{}
+		s.handleLabelResult(context.Background(), 1, "10", rows, nil, false, "", pass)
 		if len(pass.results) != 0 {
 			t.Fatalf("labelResults = %v, want empty", pass.results)
 		}
@@ -21,7 +29,7 @@ func TestHandleLabelResultStatusFilter(t *testing.T) {
 
 	t.Run("success status appends matched result", func(t *testing.T) {
 		pass := &labelDispatchPass{}
-		s.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("0"), "", pass)
+		s.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("0"), true, "", pass)
 		if len(pass.results) != 1 {
 			t.Fatalf("labelResults len = %d, want 1", len(pass.results))
 		}

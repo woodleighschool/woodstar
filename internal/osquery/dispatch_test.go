@@ -71,6 +71,32 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 	}
 }
 
+func TestRowPresenceResultRequiresIntegerZeroStatus(t *testing.T) {
+	rows := []map[string]string{{"present": "1"}}
+	tests := []struct {
+		name      string
+		status    json.RawMessage
+		hasStatus bool
+		wantOK    bool
+		wantMatch bool
+	}{
+		{name: "missing status", wantOK: false},
+		{name: "integer success", status: json.RawMessage(`0`), hasStatus: true, wantOK: true, wantMatch: true},
+		{name: "integer failure", status: json.RawMessage(`1`), hasStatus: true, wantOK: false},
+		{name: "string zero rejected", status: json.RawMessage(`"0"`), hasStatus: true, wantOK: false},
+		{name: "empty string rejected", status: json.RawMessage(`""`), hasStatus: true, wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matched, ok := rowPresenceResult(tt.status, tt.hasStatus, rows)
+			if ok != tt.wantOK || matched != tt.wantMatch {
+				t.Fatalf("rowPresenceResult() = %v, %v; want %v, %v", matched, ok, tt.wantMatch, tt.wantOK)
+			}
+		})
+	}
+}
+
 func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
 	projector := &recordingInventoryProjector{}
 	pass := &detailDispatchPass{
