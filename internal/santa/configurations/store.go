@@ -42,7 +42,7 @@ func (s *Store) ListConfigurations(
 	configurations := make([]Configuration, len(records))
 	configurationIDs := make([]int64, len(records))
 	for i, record := range records {
-		configurations[i] = *configurationFromSQLC(record)
+		configurations[i] = configurationFromSQLC(record)
 		configurationIDs[i] = record.ID
 	}
 	if err := s.attachConfigurationTargets(ctx, configurations, configurationIDs); err != nil {
@@ -68,7 +68,8 @@ func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configurat
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return configurationFromSQLC(row), nil
+	configuration := configurationFromSQLC(row)
+	return &configuration, nil
 }
 
 func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
@@ -167,7 +168,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 	if err != nil {
 		return nil, err
 	}
-	configuration := *configurationFromSQLC(record.SantaConfiguration)
+	configuration := configurationFromSQLC(record.SantaConfiguration)
 	return &ConfigurationMatch{
 		Configuration:   configuration,
 		MatchedViaLabel: &LabelMatch{ID: record.LabelID, Name: record.LabelName},
@@ -396,8 +397,8 @@ func updateConfigurationParams(id int64, configuration ConfigurationMutation) sq
 	}
 }
 
-func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
-	return &Configuration{
+func configurationFromSQLC(row sqlc.SantaConfiguration) Configuration {
+	return Configuration{
 		ID:                      row.ID,
 		Name:                    row.Name,
 		Description:             row.Description,
