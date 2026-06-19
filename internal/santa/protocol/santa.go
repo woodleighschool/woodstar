@@ -261,7 +261,7 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 	decision := decisionFromProto(event.GetDecision())
 	var occurredAt time.Time
 	if decision != santaevents.ExecutionDecisionBundleBinary {
-		occurredAt, err = eventTime(event.GetExecutionTime(), "execution_time")
+		occurredAt, err = requiredUnixSecondsToTime(event.GetExecutionTime(), "execution_time")
 		if err != nil {
 			return santaevents.ExecutionEventInput{}, err
 		}
@@ -292,8 +292,8 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 		CDHash:                  event.GetCdhash(),
 		CodesigningFlags:        event.GetCsFlags(),
 		SigningStatus:           signingStatusFromProto(event.GetSigningStatus()),
-		SecureSigningTime:       eventTimestamp(event.GetSecureSigningTime()),
-		SigningTime:             eventTimestamp(event.GetSigningTime()),
+		SecureSigningTime:       optionalUnixSecondsToTime(event.GetSecureSigningTime()),
+		SigningTime:             optionalUnixSecondsToTime(event.GetSigningTime()),
 		Entitlements:            entitlements,
 		SigningChain:            signingChainFromProto(event.GetSigningChain()),
 	}, nil
@@ -326,7 +326,7 @@ func signingChainFromProto(chain []*syncv1.Certificate) []santaevents.Certificat
 }
 
 func fileAccessEventFromProto(event *syncv1.FileAccessEvent) (santaevents.FileAccessEventInput, error) {
-	occurredAt, err := eventTime(event.GetAccessTime(), "access_time")
+	occurredAt, err := requiredUnixSecondsToTime(event.GetAccessTime(), "access_time")
 	if err != nil {
 		return santaevents.FileAccessEventInput{}, err
 	}
@@ -340,19 +340,23 @@ func fileAccessEventFromProto(event *syncv1.FileAccessEvent) (santaevents.FileAc
 	}, nil
 }
 
-func eventTime(seconds float64, field string) (time.Time, error) {
+func requiredUnixSecondsToTime(seconds float64, field string) (time.Time, error) {
 	if seconds <= 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
 		return time.Time{}, fmt.Errorf("%w: %s is required", dbutil.ErrInvalidInput, field)
 	}
-	whole, fraction := math.Modf(seconds)
-	return time.Unix(int64(whole), int64(fraction*1e9)).UTC(), nil
+	return unixSecondsToTime(seconds), nil
 }
 
-func eventTimestamp(seconds uint32) time.Time {
+func optionalUnixSecondsToTime(seconds uint32) time.Time {
 	if seconds == 0 {
 		return time.Time{}
 	}
-	return time.Unix(int64(seconds), 0).UTC()
+	return unixSecondsToTime(float64(seconds))
+}
+
+func unixSecondsToTime(seconds float64) time.Time {
+	whole, fraction := math.Modf(seconds)
+	return time.Unix(int64(whole), int64(fraction*1e9)).UTC()
 }
 
 func processChainFromProto(processes []*syncv1.Process) []santaevents.ProcessInput {
