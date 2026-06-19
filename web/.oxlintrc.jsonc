@@ -249,6 +249,9 @@
         "react/display-name": "off",
         "react/jsx-props-no-spreading": "off",
         "react/no-multi-comp": "off",
+        // vendored components reach into library internals typed as `any` (e.g. dnd-kit `data.current`)
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-assignment": "off",
       },
     },
     {
