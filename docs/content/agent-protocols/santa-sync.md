@@ -12,12 +12,12 @@ Santa syncs over HTTP using protobuf payloads. The routes live under `/santa/syn
 
 Santa walks through the same four-stage handshake every sync.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/santa/sync/preflight/{machine_id}` | Record the host's Santa state, resolve which configuration applies, and stage the rules waiting to go out. |
-| `POST` | `/santa/sync/eventupload/{machine_id}` | Take execution and file-access events for the host. |
-| `POST` | `/santa/sync/ruledownload/{machine_id}` | Hand back a page of pending rules. |
-| `POST` | `/santa/sync/postflight/{machine_id}` | Promote the staged rules once the client reports how many it received and applied. |
+| Method | Path                                    | Purpose                                                                                                    |
+| ------ | --------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `POST` | `/santa/sync/preflight/{machine_id}`    | Record the host's Santa state, resolve which configuration applies, and stage the rules waiting to go out. |
+| `POST` | `/santa/sync/eventupload/{machine_id}`  | Take execution and file-access events for the host.                                                        |
+| `POST` | `/santa/sync/ruledownload/{machine_id}` | Hand back a page of pending rules.                                                                         |
+| `POST` | `/santa/sync/postflight/{machine_id}`   | Promote the staged rules once the client reports how many it received and applied.                         |
 
 ## Transport
 
@@ -34,6 +34,8 @@ The body limit is 16 MiB before decoding.
 ## Host resolution
 
 Santa finds the host by `machine_id`, and it only writes Santa state once it has matched an existing Woodstar host. It never enrolls a new one. If the machine is unknown, there's nowhere to put the state.
+
+Santa's default `MachineID` is the hardware UUID reported to Woodstar by Orbit or osquery, so Woodstar uses that shared identifier for Santa host resolution.
 
 Preflight is the catch-up moment. It can update the host's Santa version, reported client mode, primary user and groups, SIP status, OS build, model identifier, and the rule sync counters.
 
