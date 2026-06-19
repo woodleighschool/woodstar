@@ -90,11 +90,8 @@ func (s *Store) ListRuleReferences(
 
 func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 	row, err := s.q.GetSantaRuleByID(ctx, sqlc.GetSantaRuleByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	rule := ruleFromSQLC(row)
 	return &rule, nil
@@ -154,11 +151,8 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 			CustomURL:     params.CustomURL,
 			ID:            id,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		return replaceRuleTargets(ctx, tx, row.ID, params.Targets)
 	})
@@ -170,10 +164,7 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 
 func (s *Store) DeleteRule(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteSantaRule(ctx, sqlc.DeleteSantaRuleParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 // DeleteMany removes multiple Santa rules. Missing IDs are ignored so repeated bulk actions are idempotent.

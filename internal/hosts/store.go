@@ -2,7 +2,6 @@ package hosts
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -112,11 +111,8 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 	row, err := s.q.GetHostByID(ctx, sqlc.GetHostByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(hostFromSQLC(row)), nil
 }
@@ -143,10 +139,7 @@ func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, 
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteHost(ctx, sqlc.DeleteHostParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 // DeleteMany removes hosts. Missing IDs are fine.
@@ -163,22 +156,16 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	row, err := s.q.TouchHostByOrbitNodeKey(ctx, sqlc.TouchHostByOrbitNodeKeyParams{OrbitNodeKey: nodeKey})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(hostFromSQLC(row)), nil
 }
 
 func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	row, err := s.q.TouchHostByOsqueryNodeKey(ctx, sqlc.TouchHostByOsqueryNodeKeyParams{OsqueryNodeKey: nodeKey})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(hostFromSQLC(row)), nil
 }

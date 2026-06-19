@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -92,9 +90,6 @@ func (s *ObjectStore) Confirm(ctx context.Context, id, size int64, contentType, 
 		Sha256:      &sha256,
 		ContentType: contentType,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -134,11 +129,8 @@ func (s *ObjectStore) ConfirmUploaded(ctx context.Context, id int64) (*Object, e
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 	row, err := s.q.GetStorageObjectByID(ctx, sqlc.GetStorageObjectByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	obj := objectFromSQLC(row)
 	return &obj, nil

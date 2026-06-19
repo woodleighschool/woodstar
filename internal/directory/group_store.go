@@ -2,9 +2,6 @@ package directory
 
 import (
 	"context"
-	"errors"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
@@ -28,11 +25,8 @@ GROUP BY g.id`, id).Scan(
 		&group.CreatedAt,
 		&group.UpdatedAt,
 	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return &group, nil
 }

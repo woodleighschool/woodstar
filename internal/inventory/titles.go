@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jackc/pgx/v5"
 
@@ -28,11 +27,8 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	query := softwareTitleSelectSQL + "\nWHERE st.id = $1\nGROUP BY st.id"
 	title, err := scanSoftwareTitle(s.db.Pool().QueryRow(ctx, query, id))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	titles := []SoftwareTitle{title}
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {

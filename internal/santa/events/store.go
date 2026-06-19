@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -191,10 +190,7 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 func (s *Store) GetExecutionEvent(ctx context.Context, id int64) (*ExecutionEvent, error) {
 	row, err := s.q.GetSantaExecutionEvent(ctx, sqlc.GetSantaExecutionEventParams{ID: id})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, dbutil.ErrNotFound
-		}
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	event, err := executionEventFromSQLC(row)
 	if err != nil {
@@ -225,10 +221,7 @@ func (s *Store) ListFileAccessEvents(
 func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEvent, error) {
 	row, err := s.q.GetSantaFileAccessEvent(ctx, sqlc.GetSantaFileAccessEventParams{ID: id})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, dbutil.ErrNotFound
-		}
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	event, err := fileAccessEventFromSQLC(row)
 	if err != nil {

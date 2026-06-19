@@ -2,7 +2,6 @@ package reports
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jackc/pgx/v5"
 
@@ -66,11 +65,8 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 
 func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
 	row, err := s.q.GetReportByID(ctx, sqlc.GetReportByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return reportFromSQLC(row), nil
 }
@@ -120,11 +116,8 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 			ScheduleInterval:  params.ScheduleInterval,
 			ID:                id,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		report := reportFromSQLC(row)
 		if err := replaceReportTargets(ctx, tx, report.ID, params.Targets); err != nil {
@@ -142,11 +135,8 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteReport(ctx, sqlc.DeleteReportParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
 	if err != nil {
-		return err
+		return dbutil.GetError(err)
 	}
 	return nil
 }

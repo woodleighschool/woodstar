@@ -2,10 +2,7 @@ package directory
 
 import (
 	"context"
-	"errors"
 	"strings"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
@@ -48,33 +45,24 @@ func (s *Store) createUser(ctx context.Context, params userCreateRecord) (*User,
 
 func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetLoginUserByEmail(ctx, sqlc.GetLoginUserByEmailParams{Email: strings.ToLower(email)})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
 
 func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetSSOUserByEmail(ctx, sqlc.GetSSOUserByEmailParams{Email: strings.ToLower(email)})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
@@ -82,11 +70,8 @@ func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
 // GetAccountByID returns the signed-in user's self-view, including API key fields.
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(accountFromSQLC(row)), nil
 }
@@ -128,9 +113,6 @@ func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecor
 		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -143,47 +125,32 @@ func (s *Store) updateAccount(ctx context.Context, id int64, params accountUpdat
 		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(accountFromSQLC(row)), nil
 }
 
 func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 func (s *Store) SoftDeleteUser(ctx context.Context, id int64) error {
 	_, err := s.q.SoftDeleteDirectoryUser(ctx, sqlc.SoftDeleteDirectoryUserParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
 	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
 
 func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
 	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -192,11 +159,8 @@ func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Ac
 
 func (s *Store) clearAccountAPIKey(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return new(accountFromSQLC(row)), nil
 }

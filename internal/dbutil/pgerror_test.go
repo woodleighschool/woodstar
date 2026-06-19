@@ -42,6 +42,18 @@ func TestMutationError(t *testing.T) {
 	}
 }
 
+func TestGetError(t *testing.T) {
+	t.Parallel()
+	other := errors.New("boom")
+
+	if got := dbutil.GetError(pgx.ErrNoRows); !errors.Is(got, dbutil.ErrNotFound) {
+		t.Fatalf("GetError(pgx.ErrNoRows) = %v, want errors.Is ErrNotFound", got)
+	}
+	if got := dbutil.GetError(other); got != other {
+		t.Fatalf("GetError(other) = %v, want original error", got)
+	}
+}
+
 func TestDeleteConflict(t *testing.T) {
 	t.Parallel()
 	t.Run("references become conflict with message", func(t *testing.T) {

@@ -2,7 +2,6 @@ package mdp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -55,11 +54,8 @@ func (s *Store) List(
 // GetByID returns one distribution point with its per-package mirror state.
 func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail, error) {
 	row, err := s.q.GetMunkiDistributionPointByID(ctx, sqlc.GetMunkiDistributionPointByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	states, err := s.q.ListMunkiDistributionPackageStates(
 		ctx,
@@ -118,9 +114,6 @@ func (s *Store) Update(
 		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
 		ClientBaseURL: mutation.ClientBaseURL,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -131,10 +124,7 @@ func (s *Store) Update(
 // Delete removes a distribution point and its package states.
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteMunkiDistributionPoint(ctx, sqlc.DeleteMunkiDistributionPointParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 // RotateKey replaces a distribution point's key, invalidating the old one.
@@ -143,9 +133,6 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 		ID:  id,
 		Key: key,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
 	if err != nil {
 		return dbutil.MutationError(err)
 	}
@@ -180,11 +167,8 @@ func (s *Store) Reorder(ctx context.Context, orderedIDs []int64) error {
 // AuthenticateWorker resolves a bearer key to its distribution point identity.
 func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*DistributionPoint, error) {
 	row, err := s.q.GetMunkiDistributionPointByKey(ctx, sqlc.GetMunkiDistributionPointByKeyParams{Key: key})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	point := s.distributionPoint(row)
 	return &point, nil
@@ -233,11 +217,8 @@ func (s *Store) InstallerObjectKey(ctx context.Context, packageID int64) (string
 		ctx,
 		sqlc.GetMunkiPackageInstallerObjectParams{PackageID: packageID},
 	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", dbutil.ErrNotFound
-	}
 	if err != nil {
-		return "", err
+		return "", dbutil.GetError(err)
 	}
 	obj := row.StorageObject
 	return storage.Key(obj.Prefix, obj.ID, obj.Filename), nil

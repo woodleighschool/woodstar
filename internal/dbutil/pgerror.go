@@ -17,6 +17,14 @@ func sqlState(err error) string {
 	return pgErr.Code
 }
 
+// GetError maps missing read rows to the shared not-found sentinel.
+func GetError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}
+
 // MutationError maps a Postgres write error to a shared store sentinel: missing
 // rows and foreign-key violations become ErrNotFound, unique violations
 // ErrAlreadyExists, and value or constraint violations ErrInvalidInput.

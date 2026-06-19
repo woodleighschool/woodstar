@@ -3,7 +3,6 @@ package labels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -143,9 +142,6 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 		out, err = getLabelByID(ctx, q, row.ID)
 		return err
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -154,10 +150,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
@@ -423,11 +416,8 @@ func decodeCriteria(raw []byte) (Criteria, error) {
 
 func getLabelByID(ctx context.Context, q *sqlc.Queries, id int64) (*Label, error) {
 	row, err := q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	label, err := labelFromSQLC(row.Label)
 	if err != nil {

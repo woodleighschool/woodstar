@@ -65,11 +65,8 @@ func (s *Store) GetConfigurationByID(ctx context.Context, id int64) (*Configurat
 
 func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configuration, error) {
 	row, err := s.q.GetSantaConfigurationByID(ctx, sqlc.GetSantaConfigurationByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return configurationFromSQLC(row), nil
 }
@@ -108,9 +105,7 @@ func (s *Store) UpdateConfiguration(
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, params))
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		} else if err != nil {
+		if err != nil {
 			return dbutil.MutationError(err)
 		}
 		if err := replaceConfigurationTargets(ctx, tx, row.ID, params.Targets); err != nil {
@@ -126,10 +121,7 @@ func (s *Store) UpdateConfiguration(
 
 func (s *Store) DeleteConfiguration(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteSantaConfiguration(ctx, sqlc.DeleteSantaConfigurationParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 // DeleteMany removes multiple Santa configurations. Missing IDs are ignored so repeated bulk actions are idempotent.

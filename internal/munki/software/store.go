@@ -2,7 +2,6 @@ package software
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -79,11 +78,8 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		existing, err := qtx.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: id})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		oldIconObjectID = existing.IconObjectID
 		row, err := qtx.UpdateMunkiSoftware(ctx, sqlc.UpdateMunkiSoftwareParams{
@@ -115,11 +111,8 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	software := softwareFromSQLC(row)
 	return &software, nil
@@ -256,11 +249,8 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		existing, err := qtx.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: softwareID})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		oldIconObjectID = existing.IconObjectID
 		rows, err := qtx.SetMunkiSoftwareIconObject(ctx, sqlc.SetMunkiSoftwareIconObjectParams{

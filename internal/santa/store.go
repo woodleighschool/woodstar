@@ -47,10 +47,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
 	hostID, err := s.q.GetHostIDByMachineID(ctx, sqlc.GetHostIDByMachineIDParams{MachineID: machineID})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, dbutil.ErrNotFound
-	}
-	return hostID, err
+	return hostID, dbutil.GetError(err)
 }
 
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {

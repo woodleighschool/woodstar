@@ -3,7 +3,6 @@ package checks
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -61,11 +60,8 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	row, err := s.q.GetCheckByID(ctx, sqlc.GetCheckByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	check := checkFromSQLC(row)
 	targets, err := s.loadCheckTarget(ctx, check.ID)
@@ -123,11 +119,8 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 			Query:       params.Query,
 			ID:          id,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		check := checkFromSQLC(row)
 		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
@@ -145,11 +138,8 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteCheck(ctx, sqlc.DeleteCheckParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
 	if err != nil {
-		return err
+		return dbutil.GetError(err)
 	}
 	return nil
 }

@@ -3,7 +3,6 @@ package packages
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -94,11 +93,8 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 
 	qtx := s.q.WithTx(tx)
 	existingRow, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	existing := Package{
 		InstallerObjectID: existingRow.InstallerObjectID,
@@ -141,11 +137,8 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	pkg, err := packageFromRecord(packageFromSQLCRow(row))
 	if err != nil {
@@ -348,11 +341,8 @@ func (s *Store) setPackageObject(
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		oldObjectID = setter.oldObjectID(existing)
 		rows, err := setter.set(ctx, qtx, packageID, &objectID)
@@ -379,11 +369,8 @@ func (s *Store) clearPackageObject(
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbutil.ErrNotFound
-		}
 		if err != nil {
-			return err
+			return dbutil.GetError(err)
 		}
 		oldObjectID = setter.oldObjectID(existing)
 		if oldObjectID == nil {

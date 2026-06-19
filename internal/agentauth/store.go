@@ -3,9 +3,6 @@ package agentauth
 
 import (
 	"context"
-	"errors"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
@@ -57,11 +54,8 @@ func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation
 		ID:    id,
 		Value: params.Value,
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, dbutil.GetError(err)
 	}
 	return agentSecretFromSQLC(row), nil
 }
@@ -78,10 +72,7 @@ func (s *Store) Verify(ctx context.Context, agent Agent, value string) (bool, er
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteAgentSecret(ctx, sqlc.DeleteAgentSecretParams{ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbutil.ErrNotFound
-	}
-	return err
+	return dbutil.GetError(err)
 }
 
 func agentSecretFromSQLC(row sqlc.AgentSecret) *AgentSecret {
