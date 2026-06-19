@@ -49,7 +49,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 	}); err != nil {
 		return nil, err
 	}
-	return new(hostFromSQLC(row)), nil
+	return new(hostFromSQLC(row, time.Now())), nil
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
@@ -86,7 +86,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 	}); err != nil {
 		return nil, err
 	}
-	return new(hostFromSQLC(row)), nil
+	return new(hostFromSQLC(row, time.Now())), nil
 }
 
 func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
@@ -99,9 +99,10 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 	if err != nil {
 		return nil, 0, err
 	}
+	now := time.Now()
 	hosts := make([]Host, len(dbHosts))
 	for i, row := range dbHosts {
-		hosts[i] = hostFromSQLC(row)
+		hosts[i] = hostFromSQLC(row, now)
 	}
 	if err := s.attachUserAffinity(ctx, hosts); err != nil {
 		return nil, 0, err
@@ -114,7 +115,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(hostFromSQLC(row)), nil
+	return new(hostFromSQLC(row, time.Now())), nil
 }
 
 // GetByHardwareSerial returns the existing host with serial.
@@ -131,7 +132,7 @@ func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, 
 	case 0:
 		return nil, dbutil.ErrNotFound
 	case 1:
-		return new(hostFromSQLC(rows[0])), nil
+		return new(hostFromSQLC(rows[0], time.Now())), nil
 	default:
 		return nil, fmt.Errorf("multiple hosts have hardware serial %q", serial)
 	}
@@ -159,7 +160,7 @@ func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, e
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(hostFromSQLC(row)), nil
+	return new(hostFromSQLC(row, time.Now())), nil
 }
 
 func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
@@ -167,7 +168,7 @@ func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host,
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(hostFromSQLC(row)), nil
+	return new(hostFromSQLC(row, time.Now())), nil
 }
 
 func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update InventoryUpdate) error {
@@ -501,11 +502,11 @@ func (s *Store) loadUserAffinity(ctx context.Context, hostIDs []int64) (map[int6
 	return affinity, nil
 }
 
-func hostFromSQLC(s sqlc.Host) Host {
+func hostFromSQLC(s sqlc.Host, now time.Time) Host {
 	return Host{
 		ID:           s.ID,
 		DisplayName:  s.DisplayName,
-		Status:       statusFromLastSeen(s.LastSeenAt, time.Now()),
+		Status:       statusFromLastSeen(s.LastSeenAt, now),
 		Hostname:     s.Hostname,
 		ComputerName: s.ComputerName,
 		Enrollment: HostEnrollment{
