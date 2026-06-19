@@ -2,7 +2,6 @@ package hosts
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -102,9 +101,6 @@ func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFi
 			return nil, err
 		}
 		if hasCheckFilter {
-			if checkFilter == nil {
-				return nil, errors.New("check store is not configured")
-			}
 			checkHostIDs, err := checkFilter.HostIDsByStatus(ctx, input.CheckID, status)
 			if err != nil {
 				return nil, apitypes.ResourceMutationError(checkResource, err)
