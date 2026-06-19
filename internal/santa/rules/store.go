@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/payloadhash"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -607,7 +608,7 @@ func SyncTargetsFromRules(rules []HostRule) []syncstate.Target {
 }
 
 func syncTargetPayloadHash(target syncstate.Target) string {
-	return syncstate.PayloadHash(
+	return payloadhash.Hash(
 		target.RuleType,
 		target.Identifier,
 		target.Policy,

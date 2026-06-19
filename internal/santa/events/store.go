@@ -15,7 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
-	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/santa/payloadhash"
 )
 
 // Store persists Santa execution and file-access events.
@@ -491,7 +491,7 @@ func signingChainHash(entries []signingChainEntry) string {
 	for i, entry := range entries {
 		fields[i] = entry.SHA256
 	}
-	return syncstate.PayloadHash(fields...)
+	return payloadhash.Hash(fields...)
 }
 
 func normalizeTeamID(value string) string {
