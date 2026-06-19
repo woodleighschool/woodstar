@@ -169,9 +169,6 @@ func copyFromSnapshotRows(reportID int64, hostID int64, rows []snapshotResultRow
 }
 
 func snapshotResultRows(rows []map[string]string, fetchedAt time.Time) ([]snapshotResultRow, error) {
-	if fetchedAt.IsZero() {
-		fetchedAt = time.Now().UTC()
-	}
 	if len(rows) == 0 {
 		return []snapshotResultRow{{lastFetched: fetchedAt}}, nil
 	}
