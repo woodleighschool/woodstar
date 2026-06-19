@@ -46,6 +46,16 @@ type Event struct {
 	Error    string          `json:"error,omitempty"`
 }
 
+// Result is one host response for a live query.
+type Result struct {
+	QueryID  int64
+	HostID   int64
+	HostName string
+	Status   Status
+	Data     json.RawMessage
+	Error    string
+}
+
 // Manager runs ephemeral live queries entirely in-process.
 type Manager struct {
 	cleanupAfter time.Duration
@@ -146,43 +156,36 @@ func (m *Manager) Stop(queryID int64) error {
 
 // RecordResult marks a host as having responded for a live query, publishes
 // the result event, and finishes the query if no hosts remain pending.
-func (m *Manager) RecordResult(
-	queryID int64,
-	hostID int64,
-	hostName string,
-	status Status,
-	data json.RawMessage,
-	errMsg string,
-) {
+func (m *Manager) RecordResult(result Result) {
 	m.mu.Lock()
-	q, ok := m.active[queryID]
+	q, ok := m.active[result.QueryID]
 	if !ok {
 		m.mu.Unlock()
 		return
 	}
-	if _, pending := q.pending[hostID]; !pending {
+	if _, pending := q.pending[result.HostID]; !pending {
 		m.mu.Unlock()
 		return
 	}
-	delete(q.pending, hostID)
+	delete(q.pending, result.HostID)
 	finished := len(q.pending) == 0
 	if finished {
 		m.completeLocked(q)
 	}
 
-	m.publishLocked(queryID, Event{
-		HostID:   hostID,
-		HostName: hostName,
-		Status:   status,
-		Data:     data,
-		Error:    errMsg,
+	m.publishLocked(result.QueryID, Event{
+		HostID:   result.HostID,
+		HostName: result.HostName,
+		Status:   result.Status,
+		Data:     result.Data,
+		Error:    result.Error,
 	})
 	if finished {
-		m.closeSubscribersLocked(queryID)
+		m.closeSubscribersLocked(result.QueryID)
 	}
 	m.mu.Unlock()
 	if finished {
-		m.forgetCompletedLater(queryID)
+		m.forgetCompletedLater(result.QueryID)
 	}
 }
 

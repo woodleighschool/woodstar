@@ -16,7 +16,13 @@ func TestRecordResultPublishesResultAndCloses(t *testing.T) {
 	}
 	defer release()
 
-	m.RecordResult(handle.ID, 4, "mac-4", StatusSuccess, json.RawMessage(`[{"answer":"1"}]`), "")
+	m.RecordResult(Result{
+		QueryID:  handle.ID,
+		HostID:   4,
+		HostName: "mac-4",
+		Status:   StatusSuccess,
+		Data:     json.RawMessage(`[{"answer":"1"}]`),
+	})
 
 	result := receiveEvent(t, events)
 	if result.HostID != 4 || result.HostName != "mac-4" || result.Status != StatusSuccess {
@@ -37,7 +43,7 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 		t.Fatalf("work for host 4 = %#v, want live query work", work)
 	}
 
-	m.RecordResult(handle.ID, 4, "mac-4", StatusSuccess, nil, "")
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, HostName: "mac-4", Status: StatusSuccess})
 
 	if work := m.PendingForHost(4); len(work) != 0 {
 		t.Fatalf("work for completed host = %#v, want none", work)

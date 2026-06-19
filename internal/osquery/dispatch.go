@@ -381,6 +381,13 @@ func (s *AgentService) handleLiveResult(
 	} else {
 		resultStatus = livequery.StatusError
 	}
-	s.liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
+	s.liveQueries.RecordResult(livequery.Result{
+		QueryID:  queryID,
+		HostID:   host.ID,
+		HostName: host.DisplayName,
+		Status:   resultStatus,
+		Data:     data,
+		Error:    message,
+	})
 	return nil
 }

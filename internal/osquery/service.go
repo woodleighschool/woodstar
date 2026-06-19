@@ -2,7 +2,6 @@ package osquery
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -72,7 +71,7 @@ type checkStore interface {
 
 type liveQueries interface {
 	PendingForHost(int64) []livequery.Work
-	RecordResult(int64, int64, string, livequery.Status, json.RawMessage, string)
+	RecordResult(livequery.Result)
 }
 
 func NewAgentService(deps Dependencies) *AgentService {
