@@ -91,6 +91,7 @@ export function useLiveQueryStream(liveQueryId: number | null) {
     dispatch({ type: "running" });
 
     const source = new EventSource(`/api/live-queries/${encodeURIComponent(liveQueryId)}/stream`);
+    let completed = false;
     source.addEventListener("open", () => dispatch({ type: "running" }));
     source.addEventListener("result", (event: MessageEvent<string>) => {
       try {
@@ -101,6 +102,7 @@ export function useLiveQueryStream(liveQueryId: number | null) {
       }
     });
     source.addEventListener("completed", () => {
+      completed = true;
       dispatch({ type: "completed" });
       source.close();
     });
@@ -108,6 +110,8 @@ export function useLiveQueryStream(liveQueryId: number | null) {
       // heartbeat
     });
     source.onerror = () => {
+      if (completed) return;
+      source.close();
       dispatch({ type: "error", message: "stream interrupted" });
     };
 
