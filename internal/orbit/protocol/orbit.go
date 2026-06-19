@@ -76,38 +76,44 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 }
 
 func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc,
-		func(req orbit.ConfigRequest) string { return req.OrbitNodeKey },
-		func(w http.ResponseWriter, r *http.Request, req orbit.ConfigRequest) {
-			resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
-			if err != nil {
-				logger.DebugContext(
-					r.Context(),
-					"orbit config rejected", "operation", "config",
-					"reason", "invalid_node_key",
-				)
-				httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
-				return
-			}
-			httpjson.Write(w, http.StatusOK, resp)
-		})
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpjson.Decode[orbit.ConfigRequest](r)
+		if err != nil {
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
+		if err != nil {
+			logger.DebugContext(
+				r.Context(),
+				"orbit config rejected", "operation", "config",
+				"reason", "invalid_node_key",
+			)
+			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			return
+		}
+		httpjson.Write(w, http.StatusOK, resp)
+	}
 }
 
 func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc,
-		func(req orbit.DeviceMappingRequest) string { return req.OrbitNodeKey },
-		func(w http.ResponseWriter, r *http.Request, req orbit.DeviceMappingRequest) {
-			if err := svc.SetUserAffinity(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
-				logger.WarnContext(
-					r.Context(),
-					"orbit device mapping rejected", "operation", "device_mapping",
-					"reason", "invalid_node_key",
-				)
-				httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
-				return
-			}
-			httpjson.Write(w, http.StatusOK, struct{}{})
-		})
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpjson.Decode[orbit.DeviceMappingRequest](r)
+		if err != nil {
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if err := svc.SetUserAffinity(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
+			logger.WarnContext(
+				r.Context(),
+				"orbit device mapping rejected", "operation", "device_mapping",
+				"reason", "invalid_node_key",
+			)
+			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			return
+		}
+		httpjson.Write(w, http.StatusOK, struct{}{})
+	}
 }
 
 func orbitPingHandler(w http.ResponseWriter, _ *http.Request) {
@@ -165,28 +171,17 @@ func requireOrbitNodeKey(
 	svc *orbit.EnrollmentService,
 	next func(http.ResponseWriter, *http.Request, orbitNodeKeyRequest),
 ) http.HandlerFunc {
-	return orbitNodeKeyHandler(svc,
-		func(req orbitNodeKeyRequest) string { return req.OrbitNodeKey },
-		next,
-	)
-}
-
-func orbitNodeKeyHandler[T any](
-	svc *orbit.EnrollmentService,
-	nodeKey func(T) string,
-	handle func(http.ResponseWriter, *http.Request, T),
-) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[T](r)
+		req, err := httpjson.Decode[orbitNodeKeyRequest](r)
 		if err != nil {
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		if err := svc.ValidateNodeKey(r.Context(), nodeKey(req)); err != nil {
+		if err := svc.ValidateNodeKey(r.Context(), req.OrbitNodeKey); err != nil {
 			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
-		handle(w, r, req)
+		next(w, r, req)
 	}
 }
 
