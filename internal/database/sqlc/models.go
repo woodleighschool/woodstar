@@ -1328,11 +1328,14 @@ type SantaSyncState struct {
 	DesiredTeamidRuleCount      int32      `json:"desired_teamid_rule_count"`
 	DesiredSigningidRuleCount   int32      `json:"desired_signingid_rule_count"`
 	DesiredCdhashRuleCount      int32      `json:"desired_cdhash_rule_count"`
+	DesiredCompilerRuleCount    int32      `json:"desired_compiler_rule_count"`
 	BinaryRuleCount             int32      `json:"binary_rule_count"`
 	CertificateRuleCount        int32      `json:"certificate_rule_count"`
 	TeamidRuleCount             int32      `json:"teamid_rule_count"`
 	SigningidRuleCount          int32      `json:"signingid_rule_count"`
 	CdhashRuleCount             int32      `json:"cdhash_rule_count"`
+	CompilerRuleCount           int32      `json:"compiler_rule_count"`
+	TransitiveRuleCount         int32      `json:"transitive_rule_count"`
 	RulesReceived               int32      `json:"rules_received"`
 	RulesProcessed              int32      `json:"rules_processed"`
 	LastRuleSyncAttemptAt       *time.Time `json:"last_rule_sync_attempt_at"`

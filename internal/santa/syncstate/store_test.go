@@ -144,6 +144,43 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	}
 }
 
+func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := syncstate.NewStore(db)
+	host := createHost(t, ctx, db, "transitive")
+	desired := []syncstate.Target{
+		target("binary", "compiler", "allowlist_compiler", "compiler-hash"),
+		target("binary", "known", "allowlist", "known-hash"),
+	}
+
+	if _, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, false); err != nil {
+		t.Fatalf("initial prepare: %v", err)
+	}
+	if err := store.PromotePending(ctx, host.ID, "applied-hash", 2, 2); err != nil {
+		t.Fatalf("promote initial: %v", err)
+	}
+
+	syncType, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{
+		Binary:     3,
+		Compiler:   1,
+		Transitive: 1,
+	}, false)
+	if err != nil {
+		t.Fatalf("prepare with transitive rule: %v", err)
+	}
+	if syncType != syncstate.SyncTypeNormal {
+		t.Fatalf("sync type = %q, want normal", syncType)
+	}
+
+	page, err := store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
+	if err != nil {
+		t.Fatalf("load payload: %v", err)
+	}
+	if got := payloadSummary(page.Rules); got != "" {
+		t.Fatalf("payload = %q, want no pending rules", got)
+	}
+}
+
 func TestLoadPendingPayloadPagePaginatesDeterministically(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := syncstate.NewStore(db)

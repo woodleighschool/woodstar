@@ -647,11 +647,14 @@ INSERT INTO santa_sync_state (
     desired_teamid_rule_count,
     desired_signingid_rule_count,
     desired_cdhash_rule_count,
+    desired_compiler_rule_count,
     binary_rule_count,
     certificate_rule_count,
     teamid_rule_count,
     signingid_rule_count,
     cdhash_rule_count,
+    compiler_rule_count,
+    transitive_rule_count,
     last_rule_sync_attempt_at,
     last_reported_counts_match_at,
     updated_at
@@ -672,8 +675,11 @@ VALUES (
     $12,
     $13,
     $14,
+    $15,
+    $16,
+    $17,
     now(),
-    CASE WHEN $15::boolean THEN now() ELSE NULL END,
+    CASE WHEN $18::boolean THEN now() ELSE NULL END,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
@@ -686,14 +692,17 @@ ON CONFLICT (host_id) DO UPDATE SET
     desired_teamid_rule_count = EXCLUDED.desired_teamid_rule_count,
     desired_signingid_rule_count = EXCLUDED.desired_signingid_rule_count,
     desired_cdhash_rule_count = EXCLUDED.desired_cdhash_rule_count,
+    desired_compiler_rule_count = EXCLUDED.desired_compiler_rule_count,
     binary_rule_count = EXCLUDED.binary_rule_count,
     certificate_rule_count = EXCLUDED.certificate_rule_count,
     teamid_rule_count = EXCLUDED.teamid_rule_count,
     signingid_rule_count = EXCLUDED.signingid_rule_count,
     cdhash_rule_count = EXCLUDED.cdhash_rule_count,
+    compiler_rule_count = EXCLUDED.compiler_rule_count,
+    transitive_rule_count = EXCLUDED.transitive_rule_count,
     last_rule_sync_attempt_at = EXCLUDED.last_rule_sync_attempt_at,
     last_reported_counts_match_at = CASE
-        WHEN $15::boolean THEN EXCLUDED.last_reported_counts_match_at
+        WHEN $18::boolean THEN EXCLUDED.last_reported_counts_match_at
         ELSE santa_sync_state.last_reported_counts_match_at
     END,
     updated_at = now()
@@ -709,11 +718,14 @@ type UpsertSantaSyncPreflightParams struct {
 	DesiredTeamidRuleCount      int32  `json:"desired_teamid_rule_count"`
 	DesiredSigningidRuleCount   int32  `json:"desired_signingid_rule_count"`
 	DesiredCdhashRuleCount      int32  `json:"desired_cdhash_rule_count"`
+	DesiredCompilerRuleCount    int32  `json:"desired_compiler_rule_count"`
 	BinaryRuleCount             int32  `json:"binary_rule_count"`
 	CertificateRuleCount        int32  `json:"certificate_rule_count"`
 	TeamidRuleCount             int32  `json:"teamid_rule_count"`
 	SigningidRuleCount          int32  `json:"signingid_rule_count"`
 	CdhashRuleCount             int32  `json:"cdhash_rule_count"`
+	CompilerRuleCount           int32  `json:"compiler_rule_count"`
+	TransitiveRuleCount         int32  `json:"transitive_rule_count"`
 	CountsMatch                 bool   `json:"counts_match"`
 }
 
@@ -728,11 +740,14 @@ func (q *Queries) UpsertSantaSyncPreflight(ctx context.Context, arg UpsertSantaS
 		arg.DesiredTeamidRuleCount,
 		arg.DesiredSigningidRuleCount,
 		arg.DesiredCdhashRuleCount,
+		arg.DesiredCompilerRuleCount,
 		arg.BinaryRuleCount,
 		arg.CertificateRuleCount,
 		arg.TeamidRuleCount,
 		arg.SigningidRuleCount,
 		arg.CdhashRuleCount,
+		arg.CompilerRuleCount,
+		arg.TransitiveRuleCount,
 		arg.CountsMatch,
 	)
 	return err

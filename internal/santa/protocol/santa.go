@@ -182,6 +182,8 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 			TeamID:      int32(req.GetTeamidRuleCount()),
 			SigningID:   int32(req.GetSigningidRuleCount()),
 			CDHash:      int32(req.GetCdhashRuleCount()),
+			Compiler:    int32(req.GetCompilerRuleCount()),
+			Transitive:  int32(req.GetTransitiveRuleCount()),
 		},
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),

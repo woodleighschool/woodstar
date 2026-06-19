@@ -227,6 +227,8 @@ func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 		TeamidRuleCount:      3,
 		SigningidRuleCount:   4,
 		CdhashRuleCount:      5,
+		CompilerRuleCount:    6,
+		TransitiveRuleCount:  7,
 	})
 
 	router.ServeHTTP(rec, req)
@@ -234,7 +236,15 @@ func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if service.preflightCounts != (syncstate.RuleCounts{Binary: 1, Certificate: 2, TeamID: 3, SigningID: 4, CDHash: 5}) {
+	if service.preflightCounts != (syncstate.RuleCounts{
+		Binary:      1,
+		Certificate: 2,
+		TeamID:      3,
+		SigningID:   4,
+		CDHash:      5,
+		Compiler:    6,
+		Transitive:  7,
+	}) {
 		t.Fatalf("rule counts = %+v", service.preflightCounts)
 	}
 }

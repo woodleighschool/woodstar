@@ -133,7 +133,7 @@ func loadPriorState(ctx context.Context, q *sqlc.Queries, hostID int64) (priorSt
 func (p priorState) requiresFullSync(desired []Target, reported RuleCounts, requestCleanSync bool) bool {
 	return requestCleanSync ||
 		!p.exists ||
-		(targetsEqual(desired, p.targets) && countTargets(desired) != reported)
+		(targetsEqual(desired, p.targets) && !countTargets(desired).MatchesReported(reported))
 }
 
 type preflightParams struct {
@@ -157,12 +157,15 @@ func upsertPreflight(ctx context.Context, q *sqlc.Queries, p preflightParams) er
 		DesiredTeamidRuleCount:      desiredCounts.TeamID,
 		DesiredSigningidRuleCount:   desiredCounts.SigningID,
 		DesiredCdhashRuleCount:      desiredCounts.CDHash,
+		DesiredCompilerRuleCount:    desiredCounts.Compiler,
 		BinaryRuleCount:             p.reported.Binary,
 		CertificateRuleCount:        p.reported.Certificate,
 		TeamidRuleCount:             p.reported.TeamID,
 		SigningidRuleCount:          p.reported.SigningID,
 		CdhashRuleCount:             p.reported.CDHash,
-		CountsMatch:                 desiredCounts == p.reported,
+		CompilerRuleCount:           p.reported.Compiler,
+		TransitiveRuleCount:         p.reported.Transitive,
+		CountsMatch:                 desiredCounts.MatchesReported(p.reported),
 	})
 }
 
@@ -470,6 +473,9 @@ func countTargets(targets []Target) RuleCounts {
 		switch target.RuleType {
 		case "binary":
 			counts.Binary++
+			if target.Policy == "allowlist_compiler" {
+				counts.Compiler++
+			}
 		case "certificate":
 			counts.Certificate++
 		case "teamid":

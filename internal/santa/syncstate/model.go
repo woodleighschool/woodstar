@@ -13,4 +13,22 @@ type RuleCounts struct {
 	TeamID      int32
 	SigningID   int32
 	CDHash      int32
+	Compiler    int32
+	Transitive  int32
+}
+
+func (counts RuleCounts) MatchesReported(reported RuleCounts) bool {
+	return counts.Binary == reported.binaryWithoutTransitive() &&
+		counts.Certificate == reported.Certificate &&
+		counts.TeamID == reported.TeamID &&
+		counts.SigningID == reported.SigningID &&
+		counts.CDHash == reported.CDHash &&
+		counts.Compiler == reported.Compiler
+}
+
+func (counts RuleCounts) binaryWithoutTransitive() int32 {
+	if counts.Transitive > counts.Binary {
+		return -1
+	}
+	return counts.Binary - counts.Transitive
 }
