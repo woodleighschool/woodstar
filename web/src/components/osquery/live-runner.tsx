@@ -399,20 +399,9 @@ function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: bo
   const resultRows = reportResultRows(rows);
   const errorRows = liveErrorRows(rows);
   return (
-    <Tabs defaultValue="results">
-      <TabsList>
-        <TabsTrigger value="results">Results</TabsTrigger>
-        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
-          Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="results">
-        <ReportRowsTable rows={resultRows} running={running} />
-      </TabsContent>
-      <TabsContent value="errors">
-        <ErrorRowsTable rows={errorRows} />
-      </TabsContent>
-    </Tabs>
+    <RunResultsTabs errorRows={errorRows}>
+      <ReportRowsTable rows={resultRows} running={running} />
+    </RunResultsTabs>
   );
 }
 
@@ -422,6 +411,27 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
   const passing = hostRows.filter((row) => row.response === "pass").length;
   const failing = hostRows.filter((row) => row.response === "fail").length;
   return (
+    <RunResultsTabs errorRows={errorRows}>
+      <div className="grid gap-3">
+        {hostRows.length ? (
+          <p className="text-sm text-muted-foreground">
+            {passing} passing, {failing} failing.
+          </p>
+        ) : null}
+        <CheckRowsTable rows={hostRows} running={running} />
+      </div>
+    </RunResultsTabs>
+  );
+}
+
+function RunResultsTabs({
+  children,
+  errorRows,
+}: {
+  children: ReactNode;
+  errorRows: LiveQueryRow[];
+}) {
+  return (
     <Tabs defaultValue="results">
       <TabsList>
         <TabsTrigger value="results">Results</TabsTrigger>
@@ -429,16 +439,7 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
           Errors{errorRows.length ? ` ${errorRows.length}` : ""}
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="results">
-        <div className="grid gap-3">
-          {hostRows.length ? (
-            <p className="text-sm text-muted-foreground">
-              {passing} passing, {failing} failing.
-            </p>
-          ) : null}
-          <CheckRowsTable rows={hostRows} running={running} />
-        </div>
-      </TabsContent>
+      <TabsContent value="results">{children}</TabsContent>
       <TabsContent value="errors">
         <ErrorRowsTable rows={errorRows} />
       </TabsContent>
