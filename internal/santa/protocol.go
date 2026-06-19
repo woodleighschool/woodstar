@@ -11,13 +11,10 @@ type PreflightRequest struct {
 	Version           string
 	ClientMode        configurations.ReportedClientMode
 	RequestCleanSync  bool
-	RulesHash         string
 	RuleCounts        syncstate.RuleCounts
 	PrimaryUser       string
 	PrimaryUserGroups []string
 	SIPStatus         *int16
-	OSBuild           string
-	ModelIdentifier   string
 }
 
 type PreflightResponse struct {
@@ -41,7 +38,6 @@ type RuleDownloadRequest struct {
 type RuleDownloadResponse = syncstate.PayloadRulePage
 
 type PostflightRequest struct {
-	RulesHash      string
 	RulesReceived  int32
 	RulesProcessed int32
 }

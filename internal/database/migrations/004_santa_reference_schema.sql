@@ -12,9 +12,6 @@ CREATE TYPE santa_signing_status AS ENUM (
 ALTER TABLE santa_sync_targets
     ADD COLUMN notification_app_name TEXT NOT NULL DEFAULT '';
 
-ALTER TABLE santa_sync_pending_rules
-    ADD COLUMN notification_app_name TEXT NOT NULL DEFAULT '';
-
 ALTER TABLE santa_executables
     ADD COLUMN file_bundle_executable_rel_path TEXT NOT NULL DEFAULT '',
     ADD COLUMN file_bundle_name TEXT NOT NULL DEFAULT '',

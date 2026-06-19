@@ -82,7 +82,6 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		Version:          "2026.2",
 		ClientMode:       configurations.ReportedClientModeMonitor,
 		RequestCleanSync: true,
-		RulesHash:        "opaque-client-hash",
 		PrimaryUser:      "test1@woodleigh.vic.edu.au",
 	})
 	if err != nil {
@@ -153,7 +152,6 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if _, err := service.Postflight(ctx, "santa-sync-host", santa.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,
-		RulesHash:      "new-client-hash",
 	}); err != nil {
 		t.Fatalf("postflight: %v", err)
 	}

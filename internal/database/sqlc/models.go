@@ -1264,8 +1264,6 @@ type SantaHost struct {
 	PrimaryUser        string          `json:"primary_user"`
 	PrimaryUserGroups  []string        `json:"primary_user_groups"`
 	SipStatus          *int16          `json:"sip_status"`
-	OSBuild            string          `json:"os_build"`
-	ModelIdentifier    string          `json:"model_identifier"`
 	LastSeenAt         *time.Time      `json:"last_seen_at"`
 	EnrolledAt         time.Time       `json:"enrolled_at"`
 	UpdatedAt          time.Time       `json:"updated_at"`
@@ -1304,24 +1302,8 @@ type SantaSigningChainEntry struct {
 	CertificateID  int64 `json:"certificate_id"`
 }
 
-type SantaSyncPendingRule struct {
-	HostID              int64         `json:"host_id"`
-	Position            int32         `json:"position"`
-	RuleType            SantaRuleType `json:"rule_type"`
-	Identifier          string        `json:"identifier"`
-	Policy              *SantaPolicy  `json:"policy"`
-	CelExpression       string        `json:"cel_expression"`
-	CustomMessage       string        `json:"custom_message"`
-	CustomURL           string        `json:"custom_url"`
-	PayloadHash         string        `json:"payload_hash"`
-	Removed             bool          `json:"removed"`
-	UpdatedAt           time.Time     `json:"updated_at"`
-	NotificationAppName string        `json:"notification_app_name"`
-}
-
 type SantaSyncState struct {
 	HostID                      int64      `json:"host_id"`
-	ClientRulesHash             string     `json:"client_rules_hash"`
 	PendingFullSync             bool       `json:"pending_full_sync"`
 	PendingPayloadRuleCount     int32      `json:"pending_payload_rule_count"`
 	PendingPreflightAt          *time.Time `json:"pending_preflight_at"`

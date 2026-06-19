@@ -16,8 +16,6 @@ type HostObservation struct {
 	PrimaryUser        string
 	PrimaryUserGroups  []string
 	SIPStatus          *int16
-	OSBuild            string
-	ModelIdentifier    string
 	LastSeenAt         *time.Time
 }
 

@@ -13,49 +13,32 @@ import (
 const completeSantaSync = `-- name: CompleteSantaSync :exec
 UPDATE santa_sync_state
 SET
-    client_rules_hash = $1,
-    rules_received = $2,
-    rules_processed = $3,
+    rules_received = $1,
+    rules_processed = $2,
     pending_full_sync = false,
     pending_payload_rule_count = 0,
     pending_preflight_at = NULL,
     last_rule_sync_attempt_at = now(),
     last_rule_sync_success_at = now(),
-    last_clean_sync_at = CASE WHEN $4::boolean THEN now() ELSE last_clean_sync_at END,
+    last_clean_sync_at = CASE WHEN $3::boolean THEN now() ELSE last_clean_sync_at END,
     updated_at = now()
-WHERE host_id = $5
+WHERE host_id = $4
 `
 
 type CompleteSantaSyncParams struct {
-	ClientRulesHash string `json:"client_rules_hash"`
-	RulesReceived   int32  `json:"rules_received"`
-	RulesProcessed  int32  `json:"rules_processed"`
-	PendingFullSync bool   `json:"pending_full_sync"`
-	HostID          int64  `json:"host_id"`
+	RulesReceived   int32 `json:"rules_received"`
+	RulesProcessed  int32 `json:"rules_processed"`
+	PendingFullSync bool  `json:"pending_full_sync"`
+	HostID          int64 `json:"host_id"`
 }
 
 func (q *Queries) CompleteSantaSync(ctx context.Context, arg CompleteSantaSyncParams) error {
 	_, err := q.db.Exec(ctx, completeSantaSync,
-		arg.ClientRulesHash,
 		arg.RulesReceived,
 		arg.RulesProcessed,
 		arg.PendingFullSync,
 		arg.HostID,
 	)
-	return err
-}
-
-const deleteSantaSyncPendingRules = `-- name: DeleteSantaSyncPendingRules :exec
-DELETE FROM santa_sync_pending_rules
-WHERE host_id = $1
-`
-
-type DeleteSantaSyncPendingRulesParams struct {
-	HostID int64 `json:"host_id"`
-}
-
-func (q *Queries) DeleteSantaSyncPendingRules(ctx context.Context, arg DeleteSantaSyncPendingRulesParams) error {
-	_, err := q.db.Exec(ctx, deleteSantaSyncPendingRules, arg.HostID)
 	return err
 }
 
@@ -151,7 +134,10 @@ const getSantaSyncSummary = `-- name: GetSantaSyncSummary :one
 SELECT
     (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'desired') AS desired_count,
     (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'applied') AS applied_count,
-    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = $1) AS pending_count
+    COALESCE(
+        (SELECT ss.pending_payload_rule_count FROM santa_sync_state ss WHERE ss.host_id = $1),
+        0
+    )::integer AS pending_count
 `
 
 type GetSantaSyncSummaryParams struct {
@@ -169,66 +155,6 @@ func (q *Queries) GetSantaSyncSummary(ctx context.Context, arg GetSantaSyncSumma
 	var i GetSantaSyncSummaryRow
 	err := row.Scan(&i.DesiredCount, &i.AppliedCount, &i.PendingCount)
 	return i, err
-}
-
-const insertSantaSyncPendingRule = `-- name: InsertSantaSyncPendingRule :exec
-INSERT INTO santa_sync_pending_rules (
-    host_id,
-    position,
-    rule_type,
-    identifier,
-    policy,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    payload_hash,
-    removed
-)
-VALUES (
-    $1,
-    $2,
-    $3::santa_rule_type,
-    $4,
-    $5::santa_policy,
-    $6,
-    $7,
-    $8,
-    $9,
-    $10,
-    $11
-)
-`
-
-type InsertSantaSyncPendingRuleParams struct {
-	HostID              int64         `json:"host_id"`
-	Position            int32         `json:"position"`
-	RuleType            SantaRuleType `json:"rule_type"`
-	Identifier          string        `json:"identifier"`
-	Policy              *SantaPolicy  `json:"policy"`
-	CelExpression       string        `json:"cel_expression"`
-	CustomMessage       string        `json:"custom_message"`
-	CustomURL           string        `json:"custom_url"`
-	NotificationAppName string        `json:"notification_app_name"`
-	PayloadHash         string        `json:"payload_hash"`
-	Removed             bool          `json:"removed"`
-}
-
-func (q *Queries) InsertSantaSyncPendingRule(ctx context.Context, arg InsertSantaSyncPendingRuleParams) error {
-	_, err := q.db.Exec(ctx, insertSantaSyncPendingRule,
-		arg.HostID,
-		arg.Position,
-		arg.RuleType,
-		arg.Identifier,
-		arg.Policy,
-		arg.CelExpression,
-		arg.CustomMessage,
-		arg.CustomURL,
-		arg.NotificationAppName,
-		arg.PayloadHash,
-		arg.Removed,
-	)
-	return err
 }
 
 const insertSantaSyncTarget = `-- name: InsertSantaSyncTarget :exec
@@ -349,71 +275,6 @@ func (q *Queries) ListAppliedSantaSyncTargets(ctx context.Context, arg ListAppli
 	return items, nil
 }
 
-const listSantaPendingPayloadPage = `-- name: ListSantaPendingPayloadPage :many
-SELECT
-    rule_type::text,
-    identifier,
-    COALESCE(policy::text, '')::text AS policy,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    payload_hash,
-    removed
-FROM santa_sync_pending_rules
-WHERE host_id = $1
-ORDER BY position
-LIMIT $3 OFFSET $2
-`
-
-type ListSantaPendingPayloadPageParams struct {
-	HostID      int64 `json:"host_id"`
-	OffsetCount int32 `json:"offset_count"`
-	LimitCount  int32 `json:"limit_count"`
-}
-
-type ListSantaPendingPayloadPageRow struct {
-	RuleType            string `json:"rule_type"`
-	Identifier          string `json:"identifier"`
-	Policy              string `json:"policy"`
-	CelExpression       string `json:"cel_expression"`
-	CustomMessage       string `json:"custom_message"`
-	CustomURL           string `json:"custom_url"`
-	NotificationAppName string `json:"notification_app_name"`
-	PayloadHash         string `json:"payload_hash"`
-	Removed             bool   `json:"removed"`
-}
-
-func (q *Queries) ListSantaPendingPayloadPage(ctx context.Context, arg ListSantaPendingPayloadPageParams) ([]ListSantaPendingPayloadPageRow, error) {
-	rows, err := q.db.Query(ctx, listSantaPendingPayloadPage, arg.HostID, arg.OffsetCount, arg.LimitCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListSantaPendingPayloadPageRow{}
-	for rows.Next() {
-		var i ListSantaPendingPayloadPageRow
-		if err := rows.Scan(
-			&i.RuleType,
-			&i.Identifier,
-			&i.Policy,
-			&i.CelExpression,
-			&i.CustomMessage,
-			&i.CustomURL,
-			&i.NotificationAppName,
-			&i.PayloadHash,
-			&i.Removed,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listSantaSyncTargets = `-- name: ListSantaSyncTargets :many
 SELECT
     rule_type::text,
@@ -477,28 +338,21 @@ func (q *Queries) ListSantaSyncTargets(ctx context.Context, arg ListSantaSyncTar
 const markSantaSyncAttempt = `-- name: MarkSantaSyncAttempt :exec
 UPDATE santa_sync_state
 SET
-    client_rules_hash = $1,
-    rules_received = $2,
-    rules_processed = $3,
+    rules_received = $1,
+    rules_processed = $2,
     last_rule_sync_attempt_at = now(),
     updated_at = now()
-WHERE host_id = $4
+WHERE host_id = $3
 `
 
 type MarkSantaSyncAttemptParams struct {
-	ClientRulesHash string `json:"client_rules_hash"`
-	RulesReceived   int32  `json:"rules_received"`
-	RulesProcessed  int32  `json:"rules_processed"`
-	HostID          int64  `json:"host_id"`
+	RulesReceived  int32 `json:"rules_received"`
+	RulesProcessed int32 `json:"rules_processed"`
+	HostID         int64 `json:"host_id"`
 }
 
 func (q *Queries) MarkSantaSyncAttempt(ctx context.Context, arg MarkSantaSyncAttemptParams) error {
-	_, err := q.db.Exec(ctx, markSantaSyncAttempt,
-		arg.ClientRulesHash,
-		arg.RulesReceived,
-		arg.RulesProcessed,
-		arg.HostID,
-	)
+	_, err := q.db.Exec(ctx, markSantaSyncAttempt, arg.RulesReceived, arg.RulesProcessed, arg.HostID)
 	return err
 }
 
@@ -573,8 +427,6 @@ INSERT INTO santa_hosts (
     primary_user,
     primary_user_groups,
     sip_status,
-    os_build,
-    model_identifier,
     last_seen_at
 )
 VALUES (
@@ -586,9 +438,7 @@ VALUES (
     $6,
     $7,
     $8,
-    $9,
-    $10,
-    COALESCE($11::timestamptz, now())
+    COALESCE($9::timestamptz, now())
 )
 ON CONFLICT (host_id) DO UPDATE SET
     machine_id = EXCLUDED.machine_id,
@@ -598,8 +448,6 @@ ON CONFLICT (host_id) DO UPDATE SET
     primary_user = EXCLUDED.primary_user,
     primary_user_groups = EXCLUDED.primary_user_groups,
     sip_status = EXCLUDED.sip_status,
-    os_build = EXCLUDED.os_build,
-    model_identifier = EXCLUDED.model_identifier,
     last_seen_at = EXCLUDED.last_seen_at,
     updated_at = now()
 `
@@ -613,8 +461,6 @@ type UpsertSantaHostObservationParams struct {
 	PrimaryUser        string          `json:"primary_user"`
 	PrimaryUserGroups  []string        `json:"primary_user_groups"`
 	SipStatus          *int16          `json:"sip_status"`
-	OSBuild            string          `json:"os_build"`
-	ModelIdentifier    string          `json:"model_identifier"`
 	LastSeenAt         *time.Time      `json:"last_seen_at"`
 }
 
@@ -628,8 +474,6 @@ func (q *Queries) UpsertSantaHostObservation(ctx context.Context, arg UpsertSant
 		arg.PrimaryUser,
 		arg.PrimaryUserGroups,
 		arg.SipStatus,
-		arg.OSBuild,
-		arg.ModelIdentifier,
 		arg.LastSeenAt,
 	)
 	return err
@@ -638,7 +482,6 @@ func (q *Queries) UpsertSantaHostObservation(ctx context.Context, arg UpsertSant
 const upsertSantaSyncPreflight = `-- name: UpsertSantaSyncPreflight :exec
 INSERT INTO santa_sync_state (
     host_id,
-    client_rules_hash,
     pending_full_sync,
     pending_payload_rule_count,
     pending_preflight_at,
@@ -663,8 +506,8 @@ VALUES (
     $1,
     $2,
     $3,
-    $4,
     now(),
+    $4,
     $5,
     $6,
     $7,
@@ -677,13 +520,11 @@ VALUES (
     $14,
     $15,
     $16,
-    $17,
     now(),
-    CASE WHEN $18::boolean THEN now() ELSE NULL END,
+    CASE WHEN $17::boolean THEN now() ELSE NULL END,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
-    client_rules_hash = EXCLUDED.client_rules_hash,
     pending_full_sync = EXCLUDED.pending_full_sync,
     pending_payload_rule_count = EXCLUDED.pending_payload_rule_count,
     pending_preflight_at = EXCLUDED.pending_preflight_at,
@@ -702,37 +543,35 @@ ON CONFLICT (host_id) DO UPDATE SET
     transitive_rule_count = EXCLUDED.transitive_rule_count,
     last_rule_sync_attempt_at = EXCLUDED.last_rule_sync_attempt_at,
     last_reported_counts_match_at = CASE
-        WHEN $18::boolean THEN EXCLUDED.last_reported_counts_match_at
+        WHEN $17::boolean THEN EXCLUDED.last_reported_counts_match_at
         ELSE santa_sync_state.last_reported_counts_match_at
     END,
     updated_at = now()
 `
 
 type UpsertSantaSyncPreflightParams struct {
-	HostID                      int64  `json:"host_id"`
-	ClientRulesHash             string `json:"client_rules_hash"`
-	PendingFullSync             bool   `json:"pending_full_sync"`
-	PendingPayloadRuleCount     int32  `json:"pending_payload_rule_count"`
-	DesiredBinaryRuleCount      int32  `json:"desired_binary_rule_count"`
-	DesiredCertificateRuleCount int32  `json:"desired_certificate_rule_count"`
-	DesiredTeamidRuleCount      int32  `json:"desired_teamid_rule_count"`
-	DesiredSigningidRuleCount   int32  `json:"desired_signingid_rule_count"`
-	DesiredCdhashRuleCount      int32  `json:"desired_cdhash_rule_count"`
-	DesiredCompilerRuleCount    int32  `json:"desired_compiler_rule_count"`
-	BinaryRuleCount             int32  `json:"binary_rule_count"`
-	CertificateRuleCount        int32  `json:"certificate_rule_count"`
-	TeamidRuleCount             int32  `json:"teamid_rule_count"`
-	SigningidRuleCount          int32  `json:"signingid_rule_count"`
-	CdhashRuleCount             int32  `json:"cdhash_rule_count"`
-	CompilerRuleCount           int32  `json:"compiler_rule_count"`
-	TransitiveRuleCount         int32  `json:"transitive_rule_count"`
-	CountsMatch                 bool   `json:"counts_match"`
+	HostID                      int64 `json:"host_id"`
+	PendingFullSync             bool  `json:"pending_full_sync"`
+	PendingPayloadRuleCount     int32 `json:"pending_payload_rule_count"`
+	DesiredBinaryRuleCount      int32 `json:"desired_binary_rule_count"`
+	DesiredCertificateRuleCount int32 `json:"desired_certificate_rule_count"`
+	DesiredTeamidRuleCount      int32 `json:"desired_teamid_rule_count"`
+	DesiredSigningidRuleCount   int32 `json:"desired_signingid_rule_count"`
+	DesiredCdhashRuleCount      int32 `json:"desired_cdhash_rule_count"`
+	DesiredCompilerRuleCount    int32 `json:"desired_compiler_rule_count"`
+	BinaryRuleCount             int32 `json:"binary_rule_count"`
+	CertificateRuleCount        int32 `json:"certificate_rule_count"`
+	TeamidRuleCount             int32 `json:"teamid_rule_count"`
+	SigningidRuleCount          int32 `json:"signingid_rule_count"`
+	CdhashRuleCount             int32 `json:"cdhash_rule_count"`
+	CompilerRuleCount           int32 `json:"compiler_rule_count"`
+	TransitiveRuleCount         int32 `json:"transitive_rule_count"`
+	CountsMatch                 bool  `json:"counts_match"`
 }
 
 func (q *Queries) UpsertSantaSyncPreflight(ctx context.Context, arg UpsertSantaSyncPreflightParams) error {
 	_, err := q.db.Exec(ctx, upsertSantaSyncPreflight,
 		arg.HostID,
-		arg.ClientRulesHash,
 		arg.PendingFullSync,
 		arg.PendingPayloadRuleCount,
 		arg.DesiredBinaryRuleCount,

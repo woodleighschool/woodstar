@@ -85,24 +85,22 @@ type Rule struct {
 }
 
 type HostRule struct {
-	RuleID           int64    `json:"rule_id"`
-	RuleType         RuleType `json:"rule_type"`
-	Identifier       string   `json:"identifier"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Policy           Policy   `json:"policy"`
-	CELExpression    string   `json:"cel_expression,omitempty"`
-	CustomMessage    string   `json:"custom_message,omitempty"`
-	CustomURL        string   `json:"custom_url,omitempty"`
-	AppName          string   `json:"notification_app_name,omitempty"`
-	MatchedIncludeID int64    `json:"matched_include_id"`
+	RuleID        int64    `json:"rule_id"`
+	RuleType      RuleType `json:"rule_type"`
+	Identifier    string   `json:"identifier"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Policy        Policy   `json:"policy"`
+	CELExpression string   `json:"cel_expression,omitempty"`
+	CustomMessage string   `json:"custom_message,omitempty"`
+	CustomURL     string   `json:"custom_url,omitempty"`
+	AppName       string   `json:"notification_app_name,omitempty"`
 }
 
 type RuleStatus struct {
 	HostRule
 
-	Applied     bool   `json:"applied"`
-	PayloadHash string `json:"payload_hash"`
+	Applied bool `json:"applied"`
 }
 
 type RuleStatusListParams struct {

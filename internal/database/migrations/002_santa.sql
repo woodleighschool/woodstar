@@ -35,8 +35,6 @@ CREATE TABLE santa_hosts (
     primary_user TEXT NOT NULL DEFAULT '',
     primary_user_groups TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     sip_status SMALLINT,
-    os_build TEXT NOT NULL DEFAULT '',
-    model_identifier TEXT NOT NULL DEFAULT '',
     last_seen_at TIMESTAMPTZ,
     enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -47,7 +45,6 @@ CREATE INDEX santa_hosts_serial_number_idx ON santa_hosts (serial_number);
 
 CREATE TABLE santa_sync_state (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
-    client_rules_hash TEXT NOT NULL DEFAULT '',
     pending_full_sync BOOLEAN NOT NULL DEFAULT FALSE,
     pending_payload_rule_count INT NOT NULL DEFAULT 0 CHECK (pending_payload_rule_count >= 0),
     pending_preflight_at TIMESTAMPTZ,
@@ -95,29 +92,6 @@ CREATE TABLE santa_sync_targets (
 
 CREATE INDEX santa_sync_targets_host_phase_idx
     ON santa_sync_targets (host_id, phase);
-
-CREATE TABLE santa_sync_pending_rules (
-    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
-    position INT NOT NULL CHECK (position >= 0),
-    rule_type santa_rule_type NOT NULL,
-    identifier TEXT NOT NULL,
-    policy santa_policy,
-    cel_expression TEXT NOT NULL DEFAULT '',
-    custom_message TEXT NOT NULL DEFAULT '',
-    custom_url TEXT NOT NULL DEFAULT '',
-    payload_hash TEXT NOT NULL DEFAULT '',
-    removed BOOLEAN NOT NULL DEFAULT FALSE,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (host_id, position),
-    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL),
-    CHECK (
-        (removed AND policy IS NULL AND payload_hash = '')
-        OR (NOT removed AND policy IS NOT NULL AND NULLIF(btrim(payload_hash), '') IS NOT NULL)
-    )
-);
-
-CREATE UNIQUE INDEX santa_sync_pending_rules_host_identity_idx
-    ON santa_sync_pending_rules (host_id, rule_type, identifier);
 
 -- Santa configurations
 CREATE TABLE santa_configurations (

@@ -18,7 +18,7 @@ func TestPreparePendingInitialSyncIsCleanAndFreezesDesiredPayload(t *testing.T) 
 	store := syncstate.NewStore(db)
 	host := createHost(t, ctx, db, "initial")
 
-	syncType, err := store.PreparePending(ctx, host.ID, "client-hash", []syncstate.Target{
+	syncType, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
 		target("binary", "a", "blocklist", "hash-a"),
 	}, syncstate.RuleCounts{}, false)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestPreparePendingInitialSyncIsCleanAndFreezesDesiredPayload(t *testing.T) 
 	}
 }
 
-func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
+func TestPreparePendingNormalSyncSendsFullDesiredRulesAndRemovals(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := syncstate.NewStore(db)
 	host := createHost(t, ctx, db, "delta")
@@ -49,12 +49,12 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 		target("binary", "remove-me", "allowlist", "old-remove"),
 		target("binary", "stay", "blocklist", "stay-hash"),
 	}
-	if syncType, err := store.PreparePending(ctx, host.ID, "", initial, syncstate.RuleCounts{}, false); err != nil {
+	if syncType, err := store.PreparePending(ctx, host.ID, initial, syncstate.RuleCounts{}, false); err != nil {
 		t.Fatalf("initial prepare: %v", err)
 	} else if syncType != syncstate.SyncTypeClean {
 		t.Fatalf("initial sync type = %q, want clean", syncType)
 	}
-	if err := store.PromotePending(ctx, host.ID, "applied-hash", 2, 2); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 2, 2); err != nil {
 		t.Fatalf("promote initial: %v", err)
 	}
 
@@ -62,7 +62,7 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 		target("binary", "stay", "blocklist", "stay-hash"),
 		target("certificate", "new-cert", "blocklist", "new-cert-hash"),
 	}
-	syncType, err := store.PreparePending(ctx, host.ID, "client-hash", next, syncstate.RuleCounts{
+	syncType, err := store.PreparePending(ctx, host.ID, next, syncstate.RuleCounts{
 		Binary:      1,
 		Certificate: 1,
 	}, false)
@@ -77,8 +77,10 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load payload: %v", err)
 	}
-	if got := payloadSummary(page.Rules); got != "binary:remove-me::true,certificate:new-cert:blocklist:false" {
-		t.Fatalf("payload = %q, want remove plus new cert", got)
+	if got := payloadSummary(
+		page.Rules,
+	); got != "binary:remove-me::true,binary:stay:blocklist:false,certificate:new-cert:blocklist:false" {
+		t.Fatalf("payload = %q, want full desired rules plus remove", got)
 	}
 }
 
@@ -87,16 +89,16 @@ func TestPreparePendingResendsChangedPayloadHash(t *testing.T) {
 	store := syncstate.NewStore(db)
 	host := createHost(t, ctx, db, "hash")
 
-	if _, err := store.PreparePending(ctx, host.ID, "", []syncstate.Target{
+	if _, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
 		targetWithMessage("binary", "same-id", "blocklist", "old", "old-hash"),
 	}, syncstate.RuleCounts{}, false); err != nil {
 		t.Fatalf("initial prepare: %v", err)
 	}
-	if err := store.PromotePending(ctx, host.ID, "applied-hash", 1, 1); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 1, 1); err != nil {
 		t.Fatalf("promote initial: %v", err)
 	}
 
-	syncType, err := store.PreparePending(ctx, host.ID, "", []syncstate.Target{
+	syncType, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
 		targetWithMessage("binary", "same-id", "blocklist", "new", "new-hash"),
 	}, syncstate.RuleCounts{Binary: 1}, false)
 	if err != nil {
@@ -121,14 +123,14 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	host := createHost(t, ctx, db, "drift")
 	desired := []syncstate.Target{target("binary", "known", "allowlist", "known-hash")}
 
-	if _, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, false); err != nil {
+	if _, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{}, false); err != nil {
 		t.Fatalf("initial prepare: %v", err)
 	}
-	if err := store.PromotePending(ctx, host.ID, "applied-hash", 1, 1); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 1, 1); err != nil {
 		t.Fatalf("promote initial: %v", err)
 	}
 
-	syncType, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, false)
+	syncType, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{}, false)
 	if err != nil {
 		t.Fatalf("prepare drift: %v", err)
 	}
@@ -153,14 +155,14 @@ func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing
 		target("binary", "known", "allowlist", "known-hash"),
 	}
 
-	if _, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, false); err != nil {
+	if _, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{}, false); err != nil {
 		t.Fatalf("initial prepare: %v", err)
 	}
-	if err := store.PromotePending(ctx, host.ID, "applied-hash", 2, 2); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 2, 2); err != nil {
 		t.Fatalf("promote initial: %v", err)
 	}
 
-	syncType, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{
+	syncType, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{
 		Binary:     3,
 		Compiler:   1,
 		Transitive: 1,
@@ -176,8 +178,10 @@ func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing
 	if err != nil {
 		t.Fatalf("load payload: %v", err)
 	}
-	if got := payloadSummary(page.Rules); got != "" {
-		t.Fatalf("payload = %q, want no pending rules", got)
+	if got := payloadSummary(
+		page.Rules,
+	); got != "binary:compiler:allowlist_compiler:false,binary:known:allowlist:false" {
+		t.Fatalf("payload = %q, want full desired normal payload", got)
 	}
 }
 
@@ -193,7 +197,7 @@ func TestLoadPendingPayloadPagePaginatesDeterministically(t *testing.T) {
 		target("certificate", "d", "blocklist", "d"),
 		target("signingid", "c", "blocklist", "c"),
 	}
-	if _, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, true); err != nil {
+	if _, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{}, true); err != nil {
 		t.Fatalf("prepare pending: %v", err)
 	}
 
@@ -247,27 +251,35 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 	host := createHost(t, ctx, db, "promote")
 
 	desired := []syncstate.Target{target("binary", "known", "allowlist", "known-hash")}
-	if _, err := store.PreparePending(ctx, host.ID, "", desired, syncstate.RuleCounts{}, false); err != nil {
+	if _, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{}, false); err != nil {
 		t.Fatalf("prepare pending: %v", err)
 	}
-	if err := store.PromotePending(ctx, host.ID, "mismatch-hash", 1, 0); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 1, 0); err != nil {
 		t.Fatalf("mismatch promote: %v", err)
 	}
 	if got := countRows(t, ctx, db, "santa_sync_targets", host.ID, "phase = 'applied'"); got != 0 {
 		t.Fatalf("applied rows after mismatch = %d, want 0", got)
 	}
-	if got := countRows(t, ctx, db, "santa_sync_pending_rules", host.ID, "true"); got != 1 {
-		t.Fatalf("pending rows after mismatch = %d, want 1", got)
+	page, err := store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
+	if err != nil {
+		t.Fatalf("load pending after mismatch: %v", err)
+	}
+	if got := payloadSummary(page.Rules); got != "binary:known:allowlist:false" {
+		t.Fatalf("pending payload after mismatch = %q, want desired rule", got)
 	}
 
-	if err := store.PromotePending(ctx, host.ID, "success-hash", 1, 1); err != nil {
+	if err := store.PromotePending(ctx, host.ID, 1, 1); err != nil {
 		t.Fatalf("successful promote: %v", err)
 	}
 	if got := countRows(t, ctx, db, "santa_sync_targets", host.ID, "phase = 'applied'"); got != 1 {
 		t.Fatalf("applied rows after success = %d, want 1", got)
 	}
-	if got := countRows(t, ctx, db, "santa_sync_pending_rules", host.ID, "true"); got != 0 {
-		t.Fatalf("pending rows after success = %d, want 0", got)
+	page, err = store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
+	if err != nil {
+		t.Fatalf("load pending after success: %v", err)
+	}
+	if got := payloadSummary(page.Rules); got != "" {
+		t.Fatalf("pending payload after success = %q, want empty", got)
 	}
 }
 

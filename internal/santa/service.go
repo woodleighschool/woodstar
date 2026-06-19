@@ -61,13 +61,12 @@ type syncStore interface {
 	PreparePending(
 		context.Context,
 		int64,
-		string,
 		[]syncstate.Target,
 		syncstate.RuleCounts,
 		bool,
 	) (syncstate.SyncType, error)
 	LoadPendingPayloadPage(context.Context, int64, string, int32) (syncstate.PayloadRulePage, error)
-	PromotePending(context.Context, int64, string, int32, int32) error
+	PromotePending(context.Context, int64, int32, int32) error
 }
 
 func NewSyncService(deps Dependencies) *SyncService {
@@ -112,7 +111,6 @@ func (s *SyncService) Preflight(
 	syncType, err := s.sync.PreparePending(
 		ctx,
 		hostID,
-		req.RulesHash,
 		targets,
 		req.RuleCounts,
 		req.RequestCleanSync,
@@ -172,7 +170,6 @@ func (s *SyncService) Postflight(
 	if err := s.sync.PromotePending(
 		ctx,
 		hostID,
-		req.RulesHash,
 		req.RulesReceived,
 		req.RulesProcessed,
 	); err != nil {
@@ -191,7 +188,5 @@ func hostObservationFromPreflight(hostID int64, machineID string, req PreflightR
 		PrimaryUser:        req.PrimaryUser,
 		PrimaryUserGroups:  req.PrimaryUserGroups,
 		SIPStatus:          req.SIPStatus,
-		OSBuild:            req.OSBuild,
-		ModelIdentifier:    req.ModelIdentifier,
 	}
 }

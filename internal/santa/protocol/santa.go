@@ -175,7 +175,6 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 		Version:          req.GetSantaVersion(),
 		ClientMode:       clientModeFromProto(req.GetClientMode()),
 		RequestCleanSync: req.GetRequestCleanSync(),
-		RulesHash:        req.GetRulesHash(),
 		RuleCounts: syncstate.RuleCounts{
 			Binary:      int32(req.GetBinaryRuleCount()),
 			Certificate: int32(req.GetCertificateRuleCount()),
@@ -188,8 +187,6 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),
 		SIPStatus:         sipStatus,
-		OSBuild:           req.GetOsBuild(),
-		ModelIdentifier:   req.GetModelIdentifier(),
 	}, nil
 }
 
@@ -245,7 +242,6 @@ func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleD
 
 func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.PostflightRequest, error) {
 	return santa.PostflightRequest{
-		RulesHash:      req.GetRulesHash(),
 		RulesReceived:  int32(req.GetRulesReceived()),
 		RulesProcessed: int32(req.GetRulesProcessed()),
 	}, nil

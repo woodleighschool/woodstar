@@ -1195,10 +1195,8 @@ export type SantaRuleStatus = {
     custom_url?: string;
     description: string;
     identifier: string;
-    matched_include_id: number;
     name: string;
     notification_app_name?: string;
-    payload_hash: string;
     policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
     rule_id: number;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';

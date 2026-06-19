@@ -238,9 +238,8 @@ func (s *Store) ListRuleStatusesForHost(
 		target := targets[i]
 		appliedRule := applied[target.Key()]
 		statuses = append(statuses, RuleStatus{
-			HostRule:    rule,
-			Applied:     appliedRule,
-			PayloadHash: target.PayloadHash,
+			HostRule: rule,
+			Applied:  appliedRule,
 		})
 	}
 
@@ -558,33 +557,31 @@ func ruleFromSQLC(row sqlc.SantaRule) Rule {
 
 func hostRuleFromSQLC(row sqlc.ListSantaRulesForHostRow) HostRule {
 	return HostRule{
-		RuleID:           row.RuleID,
-		RuleType:         RuleType(row.RuleType),
-		Identifier:       row.Identifier,
-		Name:             row.Name,
-		Description:      row.Description,
-		Policy:           Policy(row.Policy),
-		CELExpression:    row.CelExpression,
-		CustomMessage:    row.CustomMessage,
-		CustomURL:        row.CustomURL,
-		AppName:          row.NotificationAppName,
-		MatchedIncludeID: row.MatchedIncludeID,
+		RuleID:        row.RuleID,
+		RuleType:      RuleType(row.RuleType),
+		Identifier:    row.Identifier,
+		Name:          row.Name,
+		Description:   row.Description,
+		Policy:        Policy(row.Policy),
+		CELExpression: row.CelExpression,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		AppName:       row.NotificationAppName,
 	}
 }
 
 func hostRuleFromPageSQLC(row sqlc.ListSantaRulesForHostPageRow) HostRule {
 	return HostRule{
-		RuleID:           row.RuleID,
-		RuleType:         RuleType(row.RuleType),
-		Identifier:       row.Identifier,
-		Name:             row.Name,
-		Description:      row.Description,
-		Policy:           Policy(row.Policy),
-		CELExpression:    row.CelExpression,
-		CustomMessage:    row.CustomMessage,
-		CustomURL:        row.CustomURL,
-		AppName:          row.NotificationAppName,
-		MatchedIncludeID: row.MatchedIncludeID,
+		RuleID:        row.RuleID,
+		RuleType:      RuleType(row.RuleType),
+		Identifier:    row.Identifier,
+		Name:          row.Name,
+		Description:   row.Description,
+		Policy:        Policy(row.Policy),
+		CELExpression: row.CelExpression,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		AppName:       row.NotificationAppName,
 	}
 }
 

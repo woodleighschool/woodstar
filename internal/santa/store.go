@@ -39,8 +39,6 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 		PrimaryUser:        observation.PrimaryUser,
 		PrimaryUserGroups:  observation.PrimaryUserGroups,
 		SipStatus:          observation.SIPStatus,
-		OSBuild:            observation.OSBuild,
-		ModelIdentifier:    observation.ModelIdentifier,
 		LastSeenAt:         observation.LastSeenAt,
 	})
 }

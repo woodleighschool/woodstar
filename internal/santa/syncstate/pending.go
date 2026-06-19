@@ -70,7 +70,6 @@ func TargetSet(targets []Target) map[string]bool {
 func (s *Store) PreparePending(
 	ctx context.Context,
 	hostID int64,
-	clientRulesHash string,
 	desired []Target,
 	reported RuleCounts,
 	requestCleanSync bool,
@@ -86,14 +85,13 @@ func (s *Store) PreparePending(
 		}
 		pendingFullSync = applied.requiresFullSync(desired, reported, requestCleanSync)
 
-		payload := incrementalPayload(desired, applied.targets)
+		payload := normalSyncPayload(desired, applied.targets)
 		if pendingFullSync {
 			payload = fullSyncPayload(desired)
 		}
 
 		if err := upsertPreflight(ctx, q, preflightParams{
 			hostID:          hostID,
-			clientRulesHash: clientRulesHash,
 			pendingFullSync: pendingFullSync,
 			payload:         payload,
 			desired:         desired,
@@ -101,7 +99,7 @@ func (s *Store) PreparePending(
 		}); err != nil {
 			return err
 		}
-		return rewritePendingState(ctx, q, hostID, desired, payload)
+		return rewritePendingState(ctx, q, hostID, desired)
 	})
 	if err != nil {
 		return "", err
@@ -138,7 +136,6 @@ func (p priorState) requiresFullSync(desired []Target, reported RuleCounts, requ
 
 type preflightParams struct {
 	hostID          int64
-	clientRulesHash string
 	pendingFullSync bool
 	payload         []PayloadRule
 	desired         []Target
@@ -149,7 +146,6 @@ func upsertPreflight(ctx context.Context, q *sqlc.Queries, p preflightParams) er
 	desiredCounts := countTargets(p.desired)
 	return q.UpsertSantaSyncPreflight(ctx, sqlc.UpsertSantaSyncPreflightParams{
 		HostID:                      p.hostID,
-		ClientRulesHash:             p.clientRulesHash,
 		PendingFullSync:             p.pendingFullSync,
 		PendingPayloadRuleCount:     int32(len(p.payload)),
 		DesiredBinaryRuleCount:      desiredCounts.Binary,
@@ -174,7 +170,6 @@ func rewritePendingState(
 	q *sqlc.Queries,
 	hostID int64,
 	desired []Target,
-	payload []PayloadRule,
 ) error {
 	if err := q.DeleteSantaSyncTargetsByPhase(ctx, sqlc.DeleteSantaSyncTargetsByPhaseParams{
 		HostID: hostID,
@@ -182,16 +177,7 @@ func rewritePendingState(
 	}); err != nil {
 		return err
 	}
-	if err := q.DeleteSantaSyncPendingRules(
-		ctx,
-		sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
-	); err != nil {
-		return err
-	}
-	if err := insertTargets(ctx, q, hostID, phaseDesired, desired); err != nil {
-		return err
-	}
-	return insertPayloadRules(ctx, q, hostID, payload)
+	return insertTargets(ctx, q, hostID, phaseDesired, desired)
 }
 
 func (s *Store) LoadPendingPayloadPage(
@@ -209,19 +195,35 @@ func (s *Store) LoadPendingPayloadPage(
 		return PayloadRulePage{}, err
 	}
 
-	rows, err := s.q.ListSantaPendingPayloadPage(ctx, sqlc.ListSantaPendingPayloadPageParams{
-		HostID:      hostID,
-		LimitCount:  limit + 1,
-		OffsetCount: offset,
-	})
+	row, err := s.q.GetSantaPendingState(ctx, sqlc.GetSantaPendingStateParams{HostID: hostID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return PayloadRulePage{}, nil
+	}
 	if err != nil {
 		return PayloadRulePage{}, err
 	}
-
-	rules := make([]PayloadRule, len(rows))
-	for i, row := range rows {
-		rules[i] = payloadRuleFromSQLC(row)
+	if row.PendingPayloadRuleCount == 0 {
+		return PayloadRulePage{}, nil
 	}
+	desired, err := loadTargets(ctx, s.q, hostID, phaseDesired)
+	if err != nil {
+		return PayloadRulePage{}, err
+	}
+	payload := fullSyncPayload(desired)
+	if !row.PendingFullSync {
+		applied, err := loadTargets(ctx, s.q, hostID, phaseApplied)
+		if err != nil {
+			return PayloadRulePage{}, err
+		}
+		payload = normalSyncPayload(desired, applied)
+	}
+
+	start := int(offset)
+	if start >= len(payload) {
+		return PayloadRulePage{}, nil
+	}
+	end := min(start+limitRows+1, len(payload))
+	rules := payload[start:end]
 	nextCursor := ""
 	if len(rules) > limitRows {
 		rules = rules[:limitRows]
@@ -236,7 +238,6 @@ func (s *Store) LoadPendingPayloadPage(
 func (s *Store) PromotePending(
 	ctx context.Context,
 	hostID int64,
-	clientRulesHash string,
 	rulesReceived int32,
 	rulesProcessed int32,
 ) error {
@@ -253,10 +254,9 @@ func (s *Store) PromotePending(
 	pendingFullSync = row.PendingFullSync
 	if rulesProcessed != pendingCount {
 		return s.q.MarkSantaSyncAttempt(ctx, sqlc.MarkSantaSyncAttemptParams{
-			HostID:          hostID,
-			ClientRulesHash: clientRulesHash,
-			RulesReceived:   rulesReceived,
-			RulesProcessed:  rulesProcessed,
+			HostID:         hostID,
+			RulesReceived:  rulesReceived,
+			RulesProcessed: rulesProcessed,
 		})
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -273,15 +273,8 @@ func (s *Store) PromotePending(
 		); err != nil {
 			return err
 		}
-		if err := q.DeleteSantaSyncPendingRules(
-			ctx,
-			sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
-		); err != nil {
-			return err
-		}
 		return q.CompleteSantaSync(ctx, sqlc.CompleteSantaSyncParams{
 			HostID:          hostID,
-			ClientRulesHash: clientRulesHash,
 			RulesReceived:   rulesReceived,
 			RulesProcessed:  rulesProcessed,
 			PendingFullSync: pendingFullSync,
@@ -329,46 +322,12 @@ func insertTargets(ctx context.Context, q *sqlc.Queries, hostID int64, phase str
 	return nil
 }
 
-func insertPayloadRules(ctx context.Context, q *sqlc.Queries, hostID int64, rules []PayloadRule) error {
-	for position, rule := range sortedPayloadRules(rules) {
-		var policy *sqlc.SantaPolicy
-		if !rule.Removed {
-			value := sqlc.SantaPolicy(rule.Policy)
-			policy = &value
-		}
-		if err := q.InsertSantaSyncPendingRule(ctx, sqlc.InsertSantaSyncPendingRuleParams{
-			HostID:              hostID,
-			Position:            int32(position),
-			RuleType:            sqlc.SantaRuleType(rule.RuleType),
-			Identifier:          rule.Identifier,
-			Policy:              policy,
-			CelExpression:       rule.CELExpression,
-			CustomMessage:       rule.CustomMessage,
-			CustomURL:           rule.CustomURL,
-			NotificationAppName: rule.AppName,
-			PayloadHash:         rule.PayloadHash,
-			Removed:             rule.Removed,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func incrementalPayload(desired []Target, applied []Target) []PayloadRule {
-	appliedByIdentity := make(map[string]Target, len(applied))
-	for _, target := range applied {
-		appliedByIdentity[target.identityKey()] = target
-	}
-
+func normalSyncPayload(desired []Target, applied []Target) []PayloadRule {
 	currentIdentities := make(map[string]struct{}, len(desired))
 	payload := make([]PayloadRule, 0, len(desired)+len(applied))
 	for _, target := range desired {
 		currentIdentities[target.identityKey()] = struct{}{}
-		appliedTarget, ok := appliedByIdentity[target.identityKey()]
-		if !ok || appliedTarget.PayloadHash != target.PayloadHash {
-			payload = append(payload, payloadRuleFromTarget(target))
-		}
+		payload = append(payload, payloadRuleFromTarget(target))
 	}
 
 	for _, target := range applied {
@@ -499,20 +458,6 @@ func targetFromSQLC(row sqlc.ListSantaSyncTargetsRow) Target {
 		CustomURL:     row.CustomURL,
 		AppName:       row.NotificationAppName,
 		PayloadHash:   row.PayloadHash,
-	}
-}
-
-func payloadRuleFromSQLC(row sqlc.ListSantaPendingPayloadPageRow) PayloadRule {
-	return PayloadRule{
-		RuleType:      row.RuleType,
-		Identifier:    row.Identifier,
-		Policy:        row.Policy,
-		CELExpression: row.CelExpression,
-		CustomMessage: row.CustomMessage,
-		CustomURL:     row.CustomURL,
-		AppName:       row.NotificationAppName,
-		PayloadHash:   row.PayloadHash,
-		Removed:       row.Removed,
 	}
 }
 

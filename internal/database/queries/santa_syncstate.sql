@@ -8,8 +8,6 @@ INSERT INTO santa_hosts (
     primary_user,
     primary_user_groups,
     sip_status,
-    os_build,
-    model_identifier,
     last_seen_at
 )
 VALUES (
@@ -21,8 +19,6 @@ VALUES (
     @primary_user,
     @primary_user_groups,
     @sip_status,
-    @os_build,
-    @model_identifier,
     COALESCE(sqlc.narg(last_seen_at)::timestamptz, now())
 )
 ON CONFLICT (host_id) DO UPDATE SET
@@ -33,8 +29,6 @@ ON CONFLICT (host_id) DO UPDATE SET
     primary_user = EXCLUDED.primary_user,
     primary_user_groups = EXCLUDED.primary_user_groups,
     sip_status = EXCLUDED.sip_status,
-    os_build = EXCLUDED.os_build,
-    model_identifier = EXCLUDED.model_identifier,
     last_seen_at = EXCLUDED.last_seen_at,
     updated_at = now();
 
@@ -57,7 +51,10 @@ WHERE sh.host_id = @host_id;
 SELECT
     (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'desired') AS desired_count,
     (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'applied') AS applied_count,
-    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = @summary_host_id) AS pending_count;
+    COALESCE(
+        (SELECT ss.pending_payload_rule_count FROM santa_sync_state ss WHERE ss.host_id = @summary_host_id),
+        0
+    )::integer AS pending_count;
 
 -- name: ListAppliedSantaSyncTargets :many
 SELECT
@@ -82,7 +79,6 @@ SELECT EXISTS (
 -- name: UpsertSantaSyncPreflight :exec
 INSERT INTO santa_sync_state (
     host_id,
-    client_rules_hash,
     pending_full_sync,
     pending_payload_rule_count,
     pending_preflight_at,
@@ -105,7 +101,6 @@ INSERT INTO santa_sync_state (
 )
 VALUES (
     @host_id,
-    @client_rules_hash,
     @pending_full_sync,
     @pending_payload_rule_count,
     now(),
@@ -127,7 +122,6 @@ VALUES (
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
-    client_rules_hash = EXCLUDED.client_rules_hash,
     pending_full_sync = EXCLUDED.pending_full_sync,
     pending_payload_rule_count = EXCLUDED.pending_payload_rule_count,
     pending_preflight_at = EXCLUDED.pending_preflight_at,
@@ -154,10 +148,6 @@ ON CONFLICT (host_id) DO UPDATE SET
 -- name: DeleteSantaSyncTargetsByPhase :exec
 DELETE FROM santa_sync_targets
 WHERE host_id = @host_id AND phase = @phase::santa_sync_target_phase;
-
--- name: DeleteSantaSyncPendingRules :exec
-DELETE FROM santa_sync_pending_rules
-WHERE host_id = @host_id;
 
 -- name: ListSantaSyncTargets :many
 SELECT
@@ -201,50 +191,6 @@ VALUES (
     @payload_hash
 );
 
--- name: InsertSantaSyncPendingRule :exec
-INSERT INTO santa_sync_pending_rules (
-    host_id,
-    position,
-    rule_type,
-    identifier,
-    policy,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    payload_hash,
-    removed
-)
-VALUES (
-    @host_id,
-    @position,
-    @rule_type::santa_rule_type,
-    @identifier,
-    sqlc.narg(policy)::santa_policy,
-    @cel_expression,
-    @custom_message,
-    @custom_url,
-    @notification_app_name,
-    @payload_hash,
-    @removed
-);
-
--- name: ListSantaPendingPayloadPage :many
-SELECT
-    rule_type::text,
-    identifier,
-    COALESCE(policy::text, '')::text AS policy,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    payload_hash,
-    removed
-FROM santa_sync_pending_rules
-WHERE host_id = @host_id
-ORDER BY position
-LIMIT @limit_count OFFSET @offset_count;
-
 -- name: GetSantaPendingState :one
 SELECT pending_payload_rule_count, pending_full_sync
 FROM santa_sync_state
@@ -253,7 +199,6 @@ WHERE host_id = @host_id;
 -- name: MarkSantaSyncAttempt :exec
 UPDATE santa_sync_state
 SET
-    client_rules_hash = @client_rules_hash,
     rules_received = @rules_received,
     rules_processed = @rules_processed,
     last_rule_sync_attempt_at = now(),
@@ -295,7 +240,6 @@ ORDER BY position;
 -- name: CompleteSantaSync :exec
 UPDATE santa_sync_state
 SET
-    client_rules_hash = @client_rules_hash,
     rules_received = @rules_received,
     rules_processed = @rules_processed,
     pending_full_sync = false,

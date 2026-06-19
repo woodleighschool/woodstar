@@ -3329,14 +3329,9 @@ components:
           type: string
         identifier:
           type: string
-        matched_include_id:
-          format: int64
-          type: integer
         name:
           type: string
         notification_app_name:
-          type: string
-        payload_hash:
           type: string
         policy:
           enum:
@@ -3360,14 +3355,12 @@ components:
           type: string
       required:
         - applied
-        - payload_hash
         - rule_id
         - rule_type
         - identifier
         - name
         - description
         - policy
-        - matched_include_id
       type: object
     SantaRuleSyncSummary:
       additionalProperties: false

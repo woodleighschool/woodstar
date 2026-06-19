@@ -44,8 +44,6 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 		PrimaryUser:        "alice",
 		PrimaryUserGroups:  []string{"staff", "admin"},
 		SIPStatus:          &sipStatus,
-		OSBuild:            "25A1",
-		ModelIdentifier:    "Mac16,1",
 		LastSeenAt:         &seenAt,
 	}); err != nil {
 		t.Fatalf("upsert santa host observation: %v", err)
