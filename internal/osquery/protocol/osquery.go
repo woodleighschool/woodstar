@@ -4,15 +4,13 @@ package protocol
 import (
 	"errors"
 	"log/slog"
-	"net"
 	"net/http"
-	"net/netip"
 
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/httpclientip"
 	"github.com/woodleighschool/woodstar/internal/httpjson"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
@@ -75,7 +73,7 @@ func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := svc.Config(r.Context(), req.NodeKey, clientIP(r))
+		resp, err := svc.Config(r.Context(), req.NodeKey, httpclientip.FromRequest(r))
 		writeOsqueryResult(r, w, logger, "config", resp, err)
 	}
 }
@@ -87,7 +85,7 @@ func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logge
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, clientIP(r))
+		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, httpclientip.FromRequest(r))
 		writeOsqueryResult(r, w, logger, "distributed_read", resp, err)
 	}
 }
@@ -99,7 +97,7 @@ func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logg
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := svc.DistributedWrite(r.Context(), req, clientIP(r))
+		resp, err := svc.DistributedWrite(r.Context(), req, httpclientip.FromRequest(r))
 		writeOsqueryResult(r, w, logger, "distributed_write", resp, err)
 	}
 }
@@ -111,28 +109,9 @@ func osqueryLogHandler(svc *osquery.AgentService, logger *slog.Logger) http.Hand
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := svc.Log(r.Context(), req.NodeKey, clientIP(r), req)
+		resp, err := svc.Log(r.Context(), req.NodeKey, httpclientip.FromRequest(r), req)
 		writeOsqueryResult(r, w, logger, "log", resp, err)
 	}
-}
-
-func clientIP(r *http.Request) string {
-	if ip := chimiddleware.GetClientIP(r.Context()); ip != "" {
-		return ip
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return parseIP(host)
-	}
-	return parseIP(r.RemoteAddr)
-}
-
-func parseIP(value string) string {
-	ip, err := netip.ParseAddr(value)
-	if err != nil {
-		return ""
-	}
-	return ip.String()
 }
 
 func writeOsqueryResult(
