@@ -419,6 +419,7 @@ export type MunkiPackage = {
     autoremove: boolean;
     blocking_applications: Array<string>;
     blocking_applications_manual_quit_only: boolean;
+    blocking_applications_none: boolean;
     blocking_applications_quit_script: string;
     created_at: string;
     eligible: boolean;
@@ -481,6 +482,7 @@ export type MunkiPackageCreateMutation = {
     autoremove?: boolean;
     blocking_applications?: Array<string>;
     blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_none?: boolean;
     blocking_applications_quit_script?: string;
     eligible: boolean;
     force_install_after_date?: string;
@@ -561,6 +563,7 @@ export type MunkiPackageMutation = {
     autoremove?: boolean;
     blocking_applications?: Array<string>;
     blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_none?: boolean;
     blocking_applications_quit_script?: string;
     eligible: boolean;
     force_install_after_date?: string;

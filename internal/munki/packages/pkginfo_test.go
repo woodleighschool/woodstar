@@ -159,7 +159,84 @@ func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 	}
 }
 
-func TestPkginfoPreservesBlockingApplicationStates(t *testing.T) {
+func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
+	got := plistMap(t, Pkginfo(Package{
+		ID:              12,
+		SoftwareID:      7,
+		SoftwareName:    "Example App",
+		Version:         "1.2.3",
+		InstallerType:   InstallerTypeCopyFromDMG,
+		UninstallMethod: UninstallMethodRemoveCopiedItems,
+		ItemsToCopy: []PackageItemToCopy{
+			{
+				SourceItem:      "Example.app",
+				DestinationPath: "/Applications",
+				DestinationItem: "Example.app",
+				User:            "root",
+				Group:           "wheel",
+				Mode:            "0755",
+			},
+			{
+				SourceItem:      "Nested/Tool.app",
+				DestinationPath: "/Applications/Utilities",
+			},
+		},
+	}, PkginfoObjects{}))
+
+	itemsToRemove := mapSlice(t, got["items_to_remove"])
+	if len(itemsToRemove) != 2 ||
+		itemsToRemove[0]["destination_path"] != "/Applications" ||
+		itemsToRemove[0]["destination_item"] != "Example.app" ||
+		itemsToRemove[0]["source_item"] != "Example.app" {
+		t.Fatalf("items_to_remove = %#v, want destination from items_to_copy", got["items_to_remove"])
+	}
+	if itemsToRemove[1]["destination_path"] != "/Applications/Utilities" ||
+		itemsToRemove[1]["source_item"] != "Nested/Tool.app" {
+		t.Fatalf("items_to_remove = %#v, want source_item fallback when destination_item is absent", got["items_to_remove"])
+	}
+	if _, ok := itemsToRemove[1]["destination_item"]; ok {
+		t.Fatalf("items_to_remove rendered empty destination_item: %#v", itemsToRemove[1])
+	}
+}
+
+func TestParseInstallerItemLocation(t *testing.T) {
+	id, ok := ParseInstallerItemLocation("packages/12/installer/Example.pkg")
+	if !ok || id != 12 {
+		t.Fatalf("ParseInstallerItemLocation() = %d, %t, want 12, true", id, ok)
+	}
+	for _, value := range []string{
+		"",
+		"munki/packages/12/installer/Example.pkg",
+		"packages/0/installer/Example.pkg",
+		"packages/12/payload/Example.pkg",
+		"packages/12/installer/",
+		"packages/not-a-number/installer/Example.pkg",
+	} {
+		if id, ok := ParseInstallerItemLocation(value); ok {
+			t.Fatalf("ParseInstallerItemLocation(%q) = %d, true, want false", value, id)
+		}
+	}
+}
+
+func TestParseIconName(t *testing.T) {
+	id, ok := ParseIconName("7-Example.png")
+	if !ok || id != 7 {
+		t.Fatalf("ParseIconName() = %d, %t, want 7, true", id, ok)
+	}
+	for _, value := range []string{
+		"",
+		"7",
+		"0-Example.png",
+		"-Example.png",
+		"not-a-number-Example.png",
+	} {
+		if id, ok := ParseIconName(value); ok {
+			t.Fatalf("ParseIconName(%q) = %d, true, want false", value, id)
+		}
+	}
+}
+
+func TestPkginfoRendersBlockingApplicationsFromExplicitNoneSwitch(t *testing.T) {
 	base := Package{
 		ID:            12,
 		SoftwareID:    7,
@@ -168,14 +245,14 @@ func TestPkginfoPreservesBlockingApplicationStates(t *testing.T) {
 		InstallerType: InstallerTypePkg,
 	}
 
-	omitted := plistMap(t, Pkginfo(base, PkginfoObjects{}))
-	if _, ok := omitted["blocking_applications"]; ok {
-		t.Fatalf("blocking_applications rendered for nil state: %+v", omitted)
+	derived := plistMap(t, Pkginfo(base, PkginfoObjects{}))
+	if _, ok := derived["blocking_applications"]; ok {
+		t.Fatalf("blocking_applications rendered for derive-from-installs state: %+v", derived)
 	}
 
-	emptyPackage := base
-	emptyPackage.BlockingApplications = []string{}
-	empty := plistMap(t, Pkginfo(emptyPackage, PkginfoObjects{}))
+	nonePackage := base
+	nonePackage.BlockingApplicationsNone = true
+	empty := plistMap(t, Pkginfo(nonePackage, PkginfoObjects{}))
 	if values, ok := stringSlice(empty["blocking_applications"]); !ok || len(values) != 0 {
 		t.Fatalf("blocking_applications = %#v, want explicit empty list", empty["blocking_applications"])
 	}

@@ -20,6 +20,7 @@ PACKAGE_DIRECT_KEYS = (
     "maximum_os_version",
     "supported_architectures",
     "blocking_applications",
+    "blocking_applications_none",
     "installable_condition",
     "blocking_applications_manual_quit_only",
     "blocking_applications_quit_script",
@@ -53,6 +54,7 @@ PACKAGE_DEFAULTS = {
     "maximum_os_version": "",
     "supported_architectures": [],
     "blocking_applications": [],
+    "blocking_applications_none": False,
     "installable_condition": "",
     "blocking_applications_manual_quit_only": False,
     "blocking_applications_quit_script": "",
@@ -297,6 +299,8 @@ class WoodstarMunkiPackageUploader(Processor):
         for key in PACKAGE_DIRECT_KEYS:
             if key in pkginfo:
                 body[key] = pkginfo[key]
+        if "blocking_applications" in pkginfo:
+            body["blocking_applications_none"] = len(pkginfo["blocking_applications"]) == 0
         force_date = body.get("force_install_after_date")
         if hasattr(force_date, "isoformat"):
             body["force_install_after_date"] = force_date.isoformat()

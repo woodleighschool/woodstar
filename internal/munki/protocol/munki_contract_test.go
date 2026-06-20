@@ -240,8 +240,8 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
 		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"2", "4"}) {
-		t.Fatalf("optional_installs = %v, want [2 4]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"1", "2", "4"}) {
+		t.Fatalf("optional_installs = %v, want [1 2 4]", decoded.OptionalInstalls)
 	}
 	if !sameStrings(decoded.ManagedUninstalls, []string{"3"}) {
 		t.Fatalf("managed_uninstalls = %v, want [3]", decoded.ManagedUninstalls)
@@ -879,6 +879,35 @@ func (r staticPackageResolver) ListRepositoryPackages(
 	pkgs := make([]packages.Package, 0, len(r.packages))
 	for _, pkg := range r.packages {
 		pkgs = append(pkgs, pkg.Package)
+	}
+	return pkgs, nil
+}
+
+func (r staticPackageResolver) PackagesByID(
+	_ context.Context,
+	ids []int64,
+) ([]packages.Package, error) {
+	pkgs := make([]packages.Package, 0, len(ids))
+	for _, id := range ids {
+		for _, pkg := range r.packages {
+			if pkg.Package.ID == id {
+				pkgs = append(pkgs, pkg.Package)
+				break
+			}
+		}
+	}
+	return pkgs, nil
+}
+
+func (r staticPackageResolver) RepositoryPackagesByIconObjectID(
+	_ context.Context,
+	iconObjectID int64,
+) ([]packages.Package, error) {
+	pkgs := make([]packages.Package, 0, len(r.packages))
+	for _, pkg := range r.packages {
+		if pkg.Package.SoftwareIconObjectID != nil && *pkg.Package.SoftwareIconObjectID == iconObjectID {
+			pkgs = append(pkgs, pkg.Package)
+		}
 	}
 	return pkgs, nil
 }

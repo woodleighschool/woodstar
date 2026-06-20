@@ -1186,54 +1186,63 @@ function ArchitectureEditor({
 
 function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }) {
   return (
-    <form.Field
-      name="blocking_applications"
-      mode="array"
-      children={(field) => (
-        <FieldSet className="gap-4">
-          <FieldLegend variant="label">Blocking Applications</FieldLegend>
-          <FieldGroup className="gap-2">
-            <StringArrayRows
-              removeLabel="Remove application"
-              rows={field.state.value}
-              onReplace={(index, row) => field.replaceValue(index, row)}
-              onRemove={(index) => field.removeValue(index)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => field.pushValue(emptyStringRow())}
-            >
-              Add application
-            </Button>
-            {field.state.value.length === 0 ? (
-              <form.Field
-                name="include_empty_blocking_applications"
-                children={(emptyField) => (
-                  <Field orientation="horizontal" className="max-w-xl">
-                    <FieldContent>
-                      <FieldLabel htmlFor="munki-package-include-empty-blocking-applications">
-                        Include empty list
-                      </FieldLabel>
-                      <FieldDescription>
-                        Render blocking_applications as [] instead of omitting it.
-                      </FieldDescription>
-                    </FieldContent>
-                    <Switch
-                      id="munki-package-include-empty-blocking-applications"
-                      checked={emptyField.state.value}
-                      onCheckedChange={(checked) => emptyField.handleChange(checked)}
+    <form.Subscribe selector={(state) => state.values.blocking_applications_none}>
+      {(blockingApplicationsNone) => (
+        <form.Field
+          name="blocking_applications"
+          mode="array"
+          children={(field) => (
+            <FieldSet className="gap-4">
+              <FieldLegend variant="label">Blocking Applications</FieldLegend>
+              <FieldGroup className="gap-2">
+                <form.Field
+                  name="blocking_applications_none"
+                  children={(noneField) => (
+                    <Field orientation="horizontal" className="max-w-xl">
+                      <FieldContent>
+                        <FieldLabel htmlFor="munki-package-blocking-applications-none">
+                          No blocking applications
+                        </FieldLabel>
+                        <FieldDescription>Render blocking_applications as [].</FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        id="munki-package-blocking-applications-none"
+                        checked={noneField.state.value}
+                        onCheckedChange={(checked) => {
+                          noneField.handleChange(checked);
+                          if (checked && field.state.value.length > 0) {
+                            field.handleChange([]);
+                          }
+                        }}
+                      />
+                    </Field>
+                  )}
+                />
+                {blockingApplicationsNone ? null : (
+                  <>
+                    <StringArrayRows
+                      removeLabel="Remove application"
+                      rows={field.state.value}
+                      onReplace={(index, row) => field.replaceValue(index, row)}
+                      onRemove={(index) => field.removeValue(index)}
                     />
-                  </Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      onClick={() => field.pushValue(emptyStringRow())}
+                    >
+                      Add application
+                    </Button>
+                  </>
                 )}
-              />
-            ) : null}
-          </FieldGroup>
-        </FieldSet>
+              </FieldGroup>
+            </FieldSet>
+          )}
+        />
       )}
-    />
+    </form.Subscribe>
   );
 }
 

@@ -41,8 +41,15 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 		"receipt negative size": func(m *PackageMutation) {
 			m.Receipts = []PackageReceipt{{PackageID: "com.example.foo", InstalledSize: -1}}
 		},
+		"remove copied items without items": func(m *PackageMutation) {
+			m.UninstallMethod = UninstallMethodRemoveCopiedItems
+		},
 		"env without name":   func(m *PackageMutation) { m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}} },
 		"blank blocking app": func(m *PackageMutation) { m.BlockingApplications = []string{"  "} },
+		"blocking apps with none switch": func(m *PackageMutation) {
+			m.BlockingApplicationsNone = true
+			m.BlockingApplications = []string{"Foo"}
+		},
 		"choice without identifier": func(m *PackageMutation) {
 			m.InstallerChoicesXML = []PackageInstallerChoice{{ChoiceAttribute: "selected"}}
 		},

@@ -45,7 +45,8 @@ CREATE TABLE munki_packages (
     minimum_os_version TEXT NOT NULL DEFAULT '',
     maximum_os_version TEXT NOT NULL DEFAULT '',
     supported_architectures TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-    blocking_applications TEXT[],
+    blocking_applications TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    blocking_applications_none BOOLEAN NOT NULL DEFAULT FALSE,
     installable_condition TEXT NOT NULL DEFAULT '',
     blocking_applications_manual_quit_only BOOLEAN NOT NULL DEFAULT FALSE,
     blocking_applications_quit_script TEXT NOT NULL DEFAULT '',
@@ -87,6 +88,7 @@ CREATE TABLE munki_packages (
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (NOT blocking_applications_none OR cardinality(blocking_applications) = 0),
     UNIQUE (software_id, version),
     UNIQUE (software_id, id)
 );

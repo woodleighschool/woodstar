@@ -303,6 +303,54 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	}
 }
 
+func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	icon := createMunkiIconObject(t, ctx, stores, "CatalogIconApp.png", "e")
+	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
+		Name:         "CatalogIconApp",
+		IconObjectID: &icon.ID,
+	})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			Eligible:      false,
+		}},
+	)
+	if err != nil {
+		t.Fatalf("create ineligible package: %v", err)
+	}
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "2.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
+	if err != nil {
+		t.Fatalf("create eligible package: %v", err)
+	}
+
+	pkgs, err := stores.packages.RepositoryPackagesByIconObjectID(ctx, icon.ID)
+	if err != nil {
+		t.Fatalf("RepositoryPackagesByIconObjectID: %v", err)
+	}
+	if len(pkgs) != 1 || pkgs[0].Version != "2.0" {
+		t.Fatalf("icon packages = %+v, want only eligible package version 2.0", pkgs)
+	}
+	if pkgs[0].SoftwareIconObjectID == nil || *pkgs[0].SoftwareIconObjectID != icon.ID {
+		t.Fatalf("software icon object id = %v, want %d", pkgs[0].SoftwareIconObjectID, icon.ID)
+	}
+}
+
 func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
@@ -468,18 +516,18 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create unset package: %v", err)
 	}
-	empty, err := stores.packages.Create(
+	none, err := stores.packages.Create(
 		ctx,
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
-			Version:              "2.0",
-			InstallerType:        packages.InstallerTypeNoPkg,
-			BlockingApplications: []string{},
-			OnDemand:             true,
-			Eligible:             true,
+			Version:                  "2.0",
+			InstallerType:            packages.InstallerTypeNoPkg,
+			BlockingApplicationsNone: true,
+			OnDemand:                 true,
+			Eligible:                 true,
 		}},
 	)
 	if err != nil {
-		t.Fatalf("create empty package: %v", err)
+		t.Fatalf("create none package: %v", err)
 	}
 	populated, err := stores.packages.Create(
 		ctx,
@@ -506,9 +554,9 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 		t.Fatalf("target software: %v", err)
 	}
 
-	assertBlockingApplications(t, *unset, nil)
-	assertBlockingApplications(t, *empty, []string{})
-	assertBlockingApplications(t, *populated, []string{"Blocking App"})
+	assertBlockingApplications(t, *unset, false, []string{})
+	assertBlockingApplications(t, *none, true, []string{})
+	assertBlockingApplications(t, *populated, false, []string{"Blocking App"})
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -520,11 +568,11 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	for _, candidate := range effective {
 		switch candidate.Package.Version {
 		case "1.0":
-			assertBlockingApplications(t, candidate.Package, nil)
+			assertBlockingApplications(t, candidate.Package, false, []string{})
 		case "2.0":
-			assertBlockingApplications(t, candidate.Package, []string{})
+			assertBlockingApplications(t, candidate.Package, true, []string{})
 		case "3.0":
-			assertBlockingApplications(t, candidate.Package, []string{"Blocking App"})
+			assertBlockingApplications(t, candidate.Package, false, []string{"Blocking App"})
 		default:
 			t.Fatalf("unexpected effective package version %q", candidate.Package.Version)
 		}
@@ -1297,13 +1345,15 @@ func createMunkiPackageObject(
 	return createMunkiStorageObject(t, ctx, stores, "munki/packages", location, hashChar)
 }
 
-func assertBlockingApplications(t *testing.T, pkg packages.Package, want []string) {
+func assertBlockingApplications(t *testing.T, pkg packages.Package, wantNone bool, want []string) {
 	t.Helper()
-	if want == nil {
-		if pkg.BlockingApplications != nil {
-			t.Fatalf("package %s blocking applications = %#v, want nil", pkg.Version, pkg.BlockingApplications)
-		}
-		return
+	if pkg.BlockingApplicationsNone != wantNone {
+		t.Fatalf(
+			"package %s blocking_applications_none = %t, want %t",
+			pkg.Version,
+			pkg.BlockingApplicationsNone,
+			wantNone,
+		)
 	}
 	if len(pkg.BlockingApplications) != len(want) {
 		t.Fatalf("package %s blocking applications = %#v, want %#v", pkg.Version, pkg.BlockingApplications, want)

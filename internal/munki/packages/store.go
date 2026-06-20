@@ -230,6 +230,27 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
+// RepositoryPackagesByIconObjectID returns repository-eligible packages that
+// reference the given software icon object.
+func (s *Store) RepositoryPackagesByIconObjectID(ctx context.Context, iconObjectID int64) ([]Package, error) {
+	if iconObjectID <= 0 {
+		return []Package{}, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+`
+WHERE s.icon_object_id = $1
+  AND p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
+	if err != nil {
+		return nil, err
+	}
+	return s.attachRelations(ctx, packagesFromRows(records))
+}
+
 func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	params = applyDefaults(params)
 	if err := params.Validate(); err != nil {
@@ -356,6 +377,9 @@ func applyDefaults(params PackageMutation) PackageMutation {
 	if params.SupportedArchitectures == nil {
 		params.SupportedArchitectures = []string{}
 	}
+	if params.BlockingApplications == nil {
+		params.BlockingApplications = []string{}
+	}
 	return params
 }
 
@@ -386,7 +410,8 @@ func packageFromRow(row packageRow) Package {
 		MinimumOSVersion:         row.MinimumOSVersion,
 		MaximumOSVersion:         row.MaximumOSVersion,
 		SupportedArchitectures:   dbutil.NonNilSlice(row.SupportedArchitectures),
-		BlockingApplications:     row.BlockingApplications,
+		BlockingApplications:     dbutil.NonNilSlice(row.BlockingApplications),
+		BlockingApplicationsNone: row.BlockingApplicationsNone,
 		InstallableCondition:     row.InstallableCondition,
 		BlockingAppsManualQuit:   row.BlockingAppsManualQuit,
 		BlockingAppsQuitScript:   row.BlockingAppsQuitScript,
@@ -486,6 +511,7 @@ type packageRow struct {
 	MaximumOSVersion             string
 	SupportedArchitectures       []string
 	BlockingApplications         []string
+	BlockingApplicationsNone     bool
 	InstallableCondition         string
 	BlockingAppsManualQuit       bool   `db:"blocking_applications_manual_quit_only"`
 	BlockingAppsQuitScript       string `db:"blocking_applications_quit_script"`
@@ -592,6 +618,7 @@ type packageWrite struct {
 	MaximumOSVersion             string                      `db:"maximum_os_version"`
 	SupportedArchitectures       []string                    `db:"supported_architectures"`
 	BlockingApplications         []string                    `db:"blocking_applications"`
+	BlockingApplicationsNone     bool                        `db:"blocking_applications_none"`
 	InstallableCondition         string                      `db:"installable_condition"`
 	BlockingAppsManualQuit       bool                        `db:"blocking_applications_manual_quit_only"`
 	BlockingAppsQuitScript       string                      `db:"blocking_applications_quit_script"`
@@ -645,6 +672,7 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		MaximumOSVersion:             params.MaximumOSVersion,
 		SupportedArchitectures:       params.SupportedArchitectures,
 		BlockingApplications:         params.BlockingApplications,
+		BlockingApplicationsNone:     params.BlockingApplicationsNone,
 		InstallableCondition:         params.InstallableCondition,
 		BlockingAppsManualQuit:       params.BlockingAppsManualQuit,
 		BlockingAppsQuitScript:       params.BlockingAppsQuitScript,
@@ -699,6 +727,7 @@ INSERT INTO munki_packages (
 	maximum_os_version,
 	supported_architectures,
 	blocking_applications,
+	blocking_applications_none,
 	installable_condition,
 	blocking_applications_manual_quit_only,
 	blocking_applications_quit_script,
@@ -750,6 +779,7 @@ VALUES (
 	@maximum_os_version,
 	@supported_architectures::text[],
 	@blocking_applications::text[],
+	@blocking_applications_none,
 	@installable_condition,
 	@blocking_applications_manual_quit_only,
 	@blocking_applications_quit_script,
@@ -804,6 +834,7 @@ SET
 	maximum_os_version = @maximum_os_version,
 	supported_architectures = @supported_architectures::text[],
 	blocking_applications = @blocking_applications::text[],
+	blocking_applications_none = @blocking_applications_none,
 	installable_condition = @installable_condition,
 	blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
 	blocking_applications_quit_script = @blocking_applications_quit_script,
@@ -866,6 +897,7 @@ const packageColumnsSQL = `
 	p.maximum_os_version,
 	p.supported_architectures,
 	p.blocking_applications,
+	p.blocking_applications_none,
 	p.installable_condition,
 	p.blocking_applications_manual_quit_only,
 	p.blocking_applications_quit_script,

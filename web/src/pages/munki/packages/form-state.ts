@@ -70,7 +70,7 @@ export interface PackageFormState {
   minimum_os_version: string;
   maximum_os_version: string;
   supported_architectures: Architecture[];
-  include_empty_blocking_applications: boolean;
+  blocking_applications_none: boolean;
   blocking_applications: StringRow[];
   installable_condition: string;
   blocking_applications_manual_quit_only: boolean;
@@ -189,12 +189,8 @@ export function packageMutationFromForm(form: PackageFormState): MunkiPackageMut
     minimum_os_version: nonEmpty(form.minimum_os_version),
     maximum_os_version: nonEmpty(form.maximum_os_version),
     supported_architectures: form.supported_architectures,
-    blocking_applications:
-      blockingApplications.length > 0
-        ? blockingApplications
-        : form.include_empty_blocking_applications
-          ? []
-          : undefined,
+    blocking_applications_none: form.blocking_applications_none,
+    blocking_applications: form.blocking_applications_none ? [] : blockingApplications,
     installable_condition: nonEmpty(form.installable_condition),
     blocking_applications_manual_quit_only: form.blocking_applications_manual_quit_only,
     blocking_applications_quit_script: nonEmpty(form.blocking_applications_quit_script),
@@ -249,7 +245,7 @@ export function emptyPackageForm(): PackageFormState {
     minimum_os_version: "",
     maximum_os_version: "",
     supported_architectures: [],
-    include_empty_blocking_applications: false,
+    blocking_applications_none: false,
     blocking_applications: [],
     installable_condition: "",
     blocking_applications_manual_quit_only: false,
@@ -298,8 +294,10 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     minimum_os_version: pkg.minimum_os_version,
     maximum_os_version: pkg.maximum_os_version,
     supported_architectures: (pkg.supported_architectures ?? []).filter(isArchitecture),
-    include_empty_blocking_applications: pkg.blocking_applications?.length === 0,
-    blocking_applications: stringRows(pkg.blocking_applications ?? []),
+    blocking_applications_none: pkg.blocking_applications_none,
+    blocking_applications: pkg.blocking_applications_none
+      ? []
+      : stringRows(pkg.blocking_applications ?? []),
     installable_condition: pkg.installable_condition,
     blocking_applications_manual_quit_only: pkg.blocking_applications_manual_quit_only,
     blocking_applications_quit_script: pkg.blocking_applications_quit_script,

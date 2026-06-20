@@ -30,6 +30,8 @@ type effectivePackageResolver interface {
 
 type packageResolver interface {
 	ListRepositoryPackages(context.Context) ([]packages.Package, error)
+	PackagesByID(context.Context, []int64) ([]packages.Package, error)
+	RepositoryPackagesByIconObjectID(context.Context, int64) ([]packages.Package, error)
 }
 
 type objectResolver interface {
@@ -141,31 +143,36 @@ func (s *RepositoryService) ResolvePackageFile(
 	if key == "" {
 		return PackageInstaller{}, ErrNotFound
 	}
-	pkgs, err := s.packages.ListRepositoryPackages(ctx)
+	packageID, ok := packages.ParseInstallerItemLocation(key)
+	if !ok {
+		return PackageInstaller{}, ErrNotFound
+	}
+	pkgs, err := s.packages.PackagesByID(ctx, []int64{packageID})
 	if err != nil {
 		return PackageInstaller{}, err
 	}
-	objects, err := s.objectsForPackages(ctx, pkgs)
+	if len(pkgs) == 0 {
+		return PackageInstaller{}, ErrNotFound
+	}
+	pkg := pkgs[0]
+	if !pkg.Eligible || pkg.InstallerType == packages.InstallerTypeNoPkg {
+		return PackageInstaller{}, ErrNotFound
+	}
+	objects, err := s.objectsForPackages(ctx, []packages.Package{pkg})
 	if err != nil {
 		return PackageInstaller{}, err
 	}
-	for _, pkg := range pkgs {
-		if pkg.InstallerType == packages.InstallerTypeNoPkg {
-			continue
-		}
-		obj := objectByID(objects, pkg.InstallerObjectID)
-		if obj == nil || packages.InstallerItemLocation(pkg, *obj) != key {
-			continue
-		}
-		return PackageInstaller{
-			PackageID:             pkg.ID,
-			InstallerItemLocation: key,
-			Key:                   obj.Key(),
-			SHA256:                objectSHA256(*obj),
-			SizeBytes:             objectSize(*obj),
-		}, nil
+	obj := objectByID(objects, pkg.InstallerObjectID)
+	if obj == nil || !obj.Available() || packages.InstallerItemLocation(pkg, *obj) != key {
+		return PackageInstaller{}, ErrNotFound
 	}
-	return PackageInstaller{}, ErrNotFound
+	return PackageInstaller{
+		PackageID:             pkg.ID,
+		InstallerItemLocation: key,
+		Key:                   obj.Key(),
+		SHA256:                objectSHA256(*obj),
+		SizeBytes:             objectSize(*obj),
+	}, nil
 }
 
 // ResolveIconFile resolves a software icon name to the private object key for
@@ -177,21 +184,26 @@ func (s *RepositoryService) ResolveIconFile(
 	if key == "" {
 		return "", ErrNotFound
 	}
-	pkgs, err := s.packages.ListRepositoryPackages(ctx)
+	iconObjectID, ok := packages.ParseIconName(key)
+	if !ok {
+		return "", ErrNotFound
+	}
+	pkgs, err := s.packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
 	if err != nil {
 		return "", err
 	}
-	objects, err := s.objectsForPackages(ctx, pkgs)
+	if len(pkgs) == 0 {
+		return "", ErrNotFound
+	}
+	objects, err := s.objects.ListByIDs(ctx, []int64{iconObjectID})
 	if err != nil {
 		return "", err
 	}
-	for _, pkg := range pkgs {
-		if obj := objectByID(objects, pkg.SoftwareIconObjectID); obj != nil &&
-			packages.IconName(*obj) == key {
-			return obj.Key(), nil
-		}
+	obj, ok := objects[iconObjectID]
+	if !ok || packages.IconName(obj) != key {
+		return "", ErrNotFound
 	}
-	return "", ErrNotFound
+	return obj.Key(), nil
 }
 
 func (s *RepositoryService) effectivePackages(
@@ -214,8 +226,10 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 		case munkisoftware.ActionOptionalInstalls:
 			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 		case munkisoftware.ActionDefaultInstalls:
+			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 			manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
 		case munkisoftware.ActionFeaturedItems:
+			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 			manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 		}
 	}
@@ -237,12 +251,7 @@ func (s *RepositoryService) catalogItems(
 		return nil, err
 	}
 	items := make([]any, 0, len(pkgs))
-	seen := make(map[int64]bool, len(pkgs))
 	for _, pkg := range pkgs {
-		if seen[pkg.ID] {
-			continue
-		}
-		seen[pkg.ID] = true
 		items = append(items, packages.Pkginfo(pkg, packageObjects(pkg, objects)))
 	}
 	return items, nil

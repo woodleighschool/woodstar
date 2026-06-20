@@ -175,6 +175,7 @@ type PackageMutation struct {
 	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty"`
 	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"`
 	BlockingApplications     []string                              `json:"blocking_applications,omitempty"`
+	BlockingApplicationsNone bool                                  `json:"blocking_applications_none,omitempty"`
 	InstallableCondition     string                                `json:"installable_condition,omitempty"`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
 	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
@@ -242,6 +243,7 @@ type Package struct {
 	MaximumOSVersion         string                                `json:"maximum_os_version"`
 	SupportedArchitectures   []string                              `json:"supported_architectures"`
 	BlockingApplications     []string                              `json:"blocking_applications"`
+	BlockingApplicationsNone bool                                  `json:"blocking_applications_none"`
 	InstallableCondition     string                                `json:"installable_condition"`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only"`
 	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script"`
@@ -355,6 +357,9 @@ func (m PackageMutation) validateCollections() error {
 			)
 		}
 	}
+	if m.UninstallMethod == UninstallMethodRemoveCopiedItems && len(m.ItemsToCopy) == 0 {
+		return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
+	}
 	for _, variable := range m.InstallerEnvironment {
 		if strings.TrimSpace(variable.Name) == "" {
 			return fmt.Errorf("%w: installer_environment entries require name", dbutil.ErrInvalidInput)
@@ -364,6 +369,12 @@ func (m PackageMutation) validateCollections() error {
 		if strings.TrimSpace(app) == "" {
 			return fmt.Errorf("%w: blocking_applications entries must not be blank", dbutil.ErrInvalidInput)
 		}
+	}
+	if m.BlockingApplicationsNone && len(m.BlockingApplications) > 0 {
+		return fmt.Errorf(
+			"%w: blocking_applications_none cannot be set with blocking_applications entries",
+			dbutil.ErrInvalidInput,
+		)
 	}
 	for _, choice := range m.InstallerChoicesXML {
 		if strings.TrimSpace(choice.ChoiceIdentifier) == "" {
