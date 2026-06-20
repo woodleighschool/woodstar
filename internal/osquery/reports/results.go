@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -44,10 +43,10 @@ func (s *Store) OverwriteResults(
 	}
 
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := s.q.WithTx(tx).DeleteReportResults(ctx, sqlc.DeleteReportResultsParams{
-			ReportID: reportID,
-			HostID:   hostID,
-		}); err != nil {
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM report_results WHERE report_id = $1 AND host_id = $2`,
+			reportID, hostID,
+		); err != nil {
 			return err
 		}
 		if len(resultRows) == 0 {
@@ -65,7 +64,25 @@ func (s *Store) OverwriteResults(
 
 // Results returns stored snapshot rows for one report.
 func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, error) {
-	rows, err := s.q.ListReportResults(ctx, sqlc.ListReportResultsParams{ReportID: reportID})
+	type resultRow struct {
+		ReportID    int64     `db:"report_id"`
+		Name        string    `db:"name"`
+		HostID      int64     `db:"host_id"`
+		DisplayName string    `db:"display_name"`
+		Data        []byte    `db:"data"`
+		LastFetched time.Time `db:"last_fetched"`
+	}
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+		FROM report_results rr
+		JOIN reports r ON r.id = rr.report_id
+		JOIN hosts h ON h.id = rr.host_id
+		WHERE rr.report_id = $1 AND rr.data IS NOT NULL
+		ORDER BY rr.last_fetched DESC, rr.host_id, rr.id`, reportID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resultRow])
 	if err != nil {
 		return nil, err
 	}
@@ -92,27 +109,27 @@ func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, er
 
 // HostReports returns scheduled reports and their latest host-specific result.
 func (s *Store) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport, error) {
-	reports, err := s.ScheduledForHost(ctx, host)
+	rpts, err := s.ScheduledForHost(ctx, host)
 	if err != nil {
 		return nil, err
 	}
-	reportIDs := make([]int64, 0, len(reports))
-	for _, report := range reports {
-		reportIDs = append(reportIDs, report.ID)
+	reportIDs := make([]int64, 0, len(rpts))
+	for _, rpt := range rpts {
+		reportIDs = append(reportIDs, rpt.ID)
 	}
 	states, err := s.loadHostReportStates(ctx, host.ID, reportIDs)
 	if err != nil {
 		return nil, err
 	}
-	results := make([]HostReport, 0, len(reports))
-	for _, report := range reports {
+	results := make([]HostReport, 0, len(rpts))
+	for _, rpt := range rpts {
 		results = append(results, HostReport{
-			ReportID:        report.ID,
-			Name:            report.Name,
-			Description:     report.Description,
-			LastFetched:     states[report.ID].lastFetched,
-			FirstResult:     states[report.ID].firstResult,
-			HostResultCount: states[report.ID].hostResultCount,
+			ReportID:        rpt.ID,
+			Name:            rpt.Name,
+			Description:     rpt.Description,
+			LastFetched:     states[rpt.ID].lastFetched,
+			FirstResult:     states[rpt.ID].firstResult,
+			HostResultCount: states[rpt.ID].hostResultCount,
 		})
 	}
 	return results, nil
@@ -124,10 +141,25 @@ func (s *Store) HostResults(
 	hostID int64,
 	reportID int64,
 ) ([]ReportResult, *time.Time, error) {
-	rows, err := s.q.ListHostReportResults(ctx, sqlc.ListHostReportResultsParams{
-		ReportID: reportID,
-		HostID:   hostID,
-	})
+	type resultRow struct {
+		ReportID    int64     `db:"report_id"`
+		Name        string    `db:"name"`
+		HostID      int64     `db:"host_id"`
+		DisplayName string    `db:"display_name"`
+		Data        []byte    `db:"data"`
+		LastFetched time.Time `db:"last_fetched"`
+	}
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+		FROM report_results rr
+		JOIN reports r ON r.id = rr.report_id
+		JOIN hosts h ON h.id = rr.host_id
+		WHERE rr.report_id = $1 AND rr.host_id = $2
+		ORDER BY rr.last_fetched DESC, rr.id`, reportID, hostID)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resultRow])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -225,10 +257,49 @@ func (s *Store) loadHostReportStates(
 		return states, nil
 	}
 
-	rows, err := s.q.ListHostReportStates(ctx, sqlc.ListHostReportStatesParams{
-		ReportIds:   reportIDs,
-		StateHostID: hostID,
-	})
+	type stateRow struct {
+		ReportID        int64      `db:"report_id"`
+		LastFetched     *time.Time `db:"last_fetched"`
+		HostResultCount int32      `db:"host_result_count"`
+		Data            []byte     `db:"data"`
+	}
+	qrows, err := s.db.Pool().Query(ctx, `
+		WITH requested AS (
+		    SELECT unnest($1::bigint[])::bigint AS report_id
+		),
+		latest_fetch AS (
+		    SELECT DISTINCT ON (report_id) report_id, last_fetched
+		    FROM report_results rr
+		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[])
+		    ORDER BY report_id, last_fetched DESC, id DESC
+		),
+		result_counts AS (
+		    SELECT report_id, count(*)::integer AS host_result_count
+		    FROM report_results rr
+		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
+		    GROUP BY report_id
+		),
+		latest_data AS (
+		    SELECT DISTINCT ON (report_id) report_id, data
+		    FROM report_results rr
+		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
+		    ORDER BY report_id, last_fetched DESC, id DESC
+		)
+		SELECT
+		    req.report_id,
+		    lf.last_fetched,
+		    coalesce(rc.host_result_count, 0)::integer AS host_result_count,
+		    ld.data
+		FROM requested req
+		LEFT JOIN latest_fetch lf ON lf.report_id = req.report_id
+		LEFT JOIN result_counts rc ON rc.report_id = req.report_id
+		LEFT JOIN latest_data ld ON ld.report_id = req.report_id`,
+		reportIDs, hostID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[stateRow])
 	if err != nil {
 		return nil, err
 	}

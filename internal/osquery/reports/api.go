@@ -90,7 +90,10 @@ func registerCreateReport(api huma.API, reportStore *Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
-		report, err := reportStore.Create(ctx, input.Body, adminctx.CurrentUserID(ctx))
+		report, err := reportStore.Create(ctx, ReportCreateMutation{
+			ReportMutation:  input.Body,
+			CreatedByUserID: adminctx.CurrentUserID(ctx),
+		})
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}

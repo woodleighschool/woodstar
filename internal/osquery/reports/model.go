@@ -31,6 +31,13 @@ type ReportMutation struct {
 	Targets           ReportTargets `json:"targets"`
 }
 
+// ReportCreateMutation is the create input; it embeds ReportMutation and
+// carries the optional creator user ID which is not caller-settable via the API.
+type ReportCreateMutation struct {
+	ReportMutation
+	CreatedByUserID *int64
+}
+
 func (p ReportMutation) Validate() error {
 	if p.Name == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)

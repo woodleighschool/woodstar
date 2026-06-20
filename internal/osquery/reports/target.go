@@ -6,7 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -17,46 +16,56 @@ type ReportTargets struct {
 	Exclude []targeting.LabelRef `json:"exclude" nullable:"false"`
 }
 
-func (s *Store) loadReportTarget(ctx context.Context, reportID int64) (ReportTargets, error) {
-	targets, err := s.loadReportTargets(ctx, []int64{reportID})
-	if err != nil {
-		return ReportTargets{}, err
-	}
-	if rows, ok := targets[reportID]; ok {
-		return rows, nil
-	}
-	return emptyReportTargets(), nil
-}
-
-func (s *Store) loadReportTargets(
+func (s *Store) attachReportTargets(
 	ctx context.Context,
+	rpts []Report,
 	reportIDs []int64,
-) (map[int64]ReportTargets, error) {
-	targets := make(map[int64]ReportTargets, len(reportIDs))
+) error {
 	if len(reportIDs) == 0 {
-		return targets, nil
+		return nil
 	}
-	for _, reportID := range reportIDs {
-		targets[reportID] = emptyReportTargets()
+	rptIndexes := make(map[int64]int, len(rpts))
+	for i := range rpts {
+		rptIndexes[rpts[i].ID] = i
+		rpts[i].Targets = emptyReportTargets()
 	}
-	rows, err := s.q.ListReportTargets(ctx, sqlc.ListReportTargetsParams{ReportIds: reportIDs})
+
+	type targetRow struct {
+		ReportID  int64  `db:"report_id"`
+		LabelID   int64  `db:"label_id"`
+		Direction string `db:"direction"`
+	}
+
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT report_id, label_id, direction::text AS direction
+		FROM osquery_report_targets
+		WHERE report_id = ANY($1::bigint[])
+		ORDER BY report_id, direction, position`,
+		reportIDs,
+	)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[targetRow])
+	if err != nil {
+		return err
 	}
 	for _, row := range rows {
-		targetSet := targets[row.ReportID]
-		ref := targeting.LabelRef{LabelID: row.LabelID}
-		switch targeting.Direction(row.Direction) {
-		case targeting.Include:
-			targetSet.Include = append(targetSet.Include, ref)
-		case targeting.Exclude:
-			targetSet.Exclude = append(targetSet.Exclude, ref)
-		default:
-			return nil, fmt.Errorf("%w: unsupported target direction %q", dbutil.ErrInvalidInput, row.Direction)
+		if i, ok := rptIndexes[row.ReportID]; ok {
+			targetSet := rpts[i].Targets
+			ref := targeting.LabelRef{LabelID: row.LabelID}
+			switch targeting.Direction(row.Direction) {
+			case targeting.Include:
+				targetSet.Include = append(targetSet.Include, ref)
+			case targeting.Exclude:
+				targetSet.Exclude = append(targetSet.Exclude, ref)
+			default:
+				return fmt.Errorf("%w: unsupported target direction %q", dbutil.ErrInvalidInput, row.Direction)
+			}
+			rpts[i].Targets = targetSet
 		}
-		targets[row.ReportID] = targetSet
 	}
-	return targets, nil
+	return nil
 }
 
 func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, targets ReportTargets) error {
@@ -64,26 +73,29 @@ func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, target
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	q := sqlc.New(tx)
-	if err := q.DeleteReportTargets(ctx, sqlc.DeleteReportTargetsParams{ReportID: reportID}); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM osquery_report_targets WHERE report_id = $1`, reportID); err != nil {
 		return err
 	}
 	if len(targets.Include) > 0 {
-		if err := q.InsertReportTargets(ctx, sqlc.InsertReportTargetsParams{
-			ReportID:  reportID,
-			LabelIds:  targeting.LabelRefIDs(targets.Include),
-			Direction: sqlc.TargetDirection(targeting.Include),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
+			SELECT $1, labels.label_id, 'include'::target_direction, labels.ord - 1
+			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
+			reportID,
+			targeting.LabelRefIDs(targets.Include),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	if len(targets.Exclude) > 0 {
-		if err := q.InsertReportTargets(ctx, sqlc.InsertReportTargetsParams{
-			ReportID:  reportID,
-			LabelIds:  targeting.LabelRefIDs(targets.Exclude),
-			Direction: sqlc.TargetDirection(targeting.Exclude),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
+			SELECT $1, labels.label_id, 'exclude'::target_direction, labels.ord - 1
+			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
+			reportID,
+			targeting.LabelRefIDs(targets.Exclude),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	return nil

@@ -19,12 +19,12 @@ func TestListIncludesTargets(t *testing.T) {
 	labelB := createManualLabel(t, ctx, labelStore, "Report B")
 	labelC := createManualLabel(t, ctx, labelStore, "Report C")
 
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Targeted report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create report: %v", err)
 	}
 
@@ -44,12 +44,12 @@ func TestUpdateReplacesTargets(t *testing.T) {
 	second := createManualLabel(t, ctx, labelStore, "Report second")
 	third := createManualLabel(t, ctx, labelStore, "Report third")
 
-	report, err := store.Create(ctx, ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Replacement report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
-	}, nil)
+	}})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -85,28 +85,28 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{matching.ID}, nil),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{other.ID}, nil),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create nonmatching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Excluded scheduled report",
 		Query:            "select 3;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{matching.ID}, []int64{excluded.ID}),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create excluded report: %v", err)
 	}
 
@@ -127,12 +127,12 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Exclude-only scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets(nil, []int64{excluded.ID}),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create exclude-only report: %v", err)
 	}
 
@@ -148,12 +148,12 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 	store, _, _, ctx := newIntegrationReportStore(t)
 
-	_, err := store.Create(ctx, ReportMutation{
+	_, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Missing label target",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{999_999}, nil),
-	}, nil)
+	}})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
@@ -163,12 +163,12 @@ func TestCreateReportRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationReportStore(t)
 	label := createManualLabel(t, ctx, labelStore, "Report Overlap")
 
-	_, err := store.Create(ctx, ReportMutation{
+	_, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Overlapping report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{label.ID}, []int64{label.ID}),
-	}, nil)
+	}})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
 	}
@@ -179,30 +179,30 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
 		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 0,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:              "Version-gated scheduled report",
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
 		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("create version-gated report: %v", err)
 	}
 
@@ -224,21 +224,21 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
-	reportWithRows, err := store.Create(ctx, ReportMutation{
+	reportWithRows, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}})
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
 	}
-	reportEmpty, err := store.Create(ctx, ReportMutation{
+	reportEmpty, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}})
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
 	}
@@ -291,11 +291,11 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-overwrite-host")
-	report, err := store.Create(ctx, ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-	}, nil)
+	}})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}

@@ -95,15 +95,17 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	}
 	allHostsID := allHostsLabelID(t, ctx, stores.labels)
 	minVersion := "6.0.0"
-	report, err := stores.reports.Create(ctx, reports.ReportMutation{
-		Name:              "Versioned report " + suffix,
-		Query:             "select 42;",
-		MinOsqueryVersion: &minVersion,
-		ScheduleInterval:  60,
-		Targets: reports.ReportTargets{
-			Include: []targeting.LabelRef{{LabelID: allHostsID}},
+	report, err := stores.reports.Create(ctx, reports.ReportCreateMutation{
+		ReportMutation: reports.ReportMutation{
+			Name:              "Versioned report " + suffix,
+			Query:             "select 42;",
+			MinOsqueryVersion: &minVersion,
+			ScheduleInterval:  60,
+			Targets: reports.ReportTargets{
+				Include: []targeting.LabelRef{{LabelID: allHostsID}},
+			},
 		},
-	}, nil)
+	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
 	}
@@ -146,14 +148,16 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	allHostsID := allHostsLabelID(t, ctx, stores.labels)
-	report, err := stores.reports.Create(ctx, reports.ReportMutation{
-		Name:             "Installed apps " + suffix,
-		Query:            "select name, version from apps;",
-		ScheduleInterval: 60,
-		Targets: reports.ReportTargets{
-			Include: []targeting.LabelRef{{LabelID: allHostsID}},
+	report, err := stores.reports.Create(ctx, reports.ReportCreateMutation{
+		ReportMutation: reports.ReportMutation{
+			Name:             "Installed apps " + suffix,
+			Query:            "select name, version from apps;",
+			ScheduleInterval: 60,
+			Targets: reports.ReportTargets{
+				Include: []targeting.LabelRef{{LabelID: allHostsID}},
+			},
 		},
-	}, nil)
+	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
 	}
