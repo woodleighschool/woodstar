@@ -50,7 +50,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, labelID, host.ID, true); err != nil {
 		t.Fatalf("set label membership: %v", err)
 	}
-	if _, err := configurationStore.CreateConfiguration(ctx, configurations.ConfigurationMutation{
+	if _, err := configurationStore.Create(ctx, configurations.ConfigurationMutation{
 		Name:                    "Sync Config",
 		ClientMode:              configurations.ClientModeLockdown,
 		EnableBundles:           true,

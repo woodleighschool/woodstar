@@ -5,45 +5,47 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 type Store struct {
 	db *database.DB
-	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
+	return &Store{db: db}
 }
 
-func (s *Store) ListConfigurations(
+func (s *Store) List(
 	ctx context.Context,
 	params ConfigurationListParams,
 ) ([]Configuration, int, error) {
 	where, args := configurationListWhere(params)
-	listQuery := configurationListQuery(params, where, args)
+	listQuery := dbutil.ListQuery{
+		SelectSQL:    configurationSelectSQL,
+		WhereSQL:     where,
+		Args:         args,
+		OrderKeys:    configurationOrderKeys,
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
+		Params:       params.ListParams,
+	}
 
-	records, count, err := dbutil.ListWithCount[sqlc.SantaConfiguration](
-		ctx,
-		s.db.Pool(),
-		listQuery,
-	)
+	rows, count, err := dbutil.ListWithCount[configurationRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	configurations := make([]Configuration, len(records))
-	configurationIDs := make([]int64, len(records))
-	for i, record := range records {
-		configurations[i] = configurationFromSQLC(record)
-		configurationIDs[i] = record.ID
+	configurations := make([]Configuration, len(rows))
+	configurationIDs := make([]int64, len(rows))
+	for i, row := range rows {
+		configurations[i] = configurationFromRow(row)
+		configurationIDs[i] = row.ID
 	}
 	if err := s.attachConfigurationTargets(ctx, configurations, configurationIDs); err != nil {
 		return nil, 0, err
@@ -51,78 +53,72 @@ func (s *Store) ListConfigurations(
 	return configurations, count, nil
 }
 
-func (s *Store) GetConfigurationByID(ctx context.Context, id int64) (*Configuration, error) {
-	configuration, err := s.getConfigurationByID(ctx, id)
+func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
+	row, err := dbutil.GetOne[configurationRow](
+		ctx,
+		s.db.Pool(),
+		configurationSelectSQL+"\nWHERE c.id = $1",
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
-	configurations := []Configuration{*configuration}
+	configuration := configurationFromRow(row)
+	configurations := []Configuration{configuration}
 	if err := s.attachConfigurationTargets(ctx, configurations, []int64{configuration.ID}); err != nil {
 		return nil, err
 	}
 	return &configurations[0], nil
 }
 
-func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configuration, error) {
-	row, err := s.q.GetSantaConfigurationByID(ctx, sqlc.GetSantaConfigurationByIDParams{ID: id})
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	configuration := configurationFromSQLC(row)
-	return &configuration, nil
-}
-
-func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
+func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
-	var configurationID int64
+	write := newConfigurationWrite(params)
+	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(params))
-		if err != nil {
+		if err := tx.QueryRow(ctx, insertConfigurationSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
-		configurationID = row.ID
-		if err := replaceConfigurationTargets(ctx, tx, configurationID, params.Targets); err != nil {
-			return dbutil.MutationError(err)
-		}
-		return nil
+		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.GetConfigurationByID(ctx, configurationID)
+	return s.GetByID(ctx, id)
 }
 
-func (s *Store) UpdateConfiguration(
-	ctx context.Context,
-	id int64,
-	params ConfigurationMutation,
-) (*Configuration, error) {
+func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutation) (*Configuration, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
+	write := newConfigurationWrite(params)
+	write.ID = id
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, params))
-		if err != nil {
+		var updatedID int64
+		if err := tx.QueryRow(ctx, updateConfigurationSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
-		if err := replaceConfigurationTargets(ctx, tx, row.ID, params.Targets); err != nil {
-			return dbutil.MutationError(err)
-		}
-		return nil
+		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.GetConfigurationByID(ctx, id)
+	return s.GetByID(ctx, id)
 }
 
-func (s *Store) DeleteConfiguration(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteSantaConfiguration(ctx, sqlc.DeleteSantaConfigurationParams{ID: id})
-	return dbutil.GetError(err)
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM santa_configurations WHERE id = $1`, id)
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
 }
 
 // DeleteMany removes multiple Santa configurations. Missing IDs are ignored so repeated bulk actions are idempotent.
@@ -130,7 +126,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	deletedIDs, err := s.q.DeleteSantaConfigurations(ctx, sqlc.DeleteSantaConfigurationsParams{Ids: ids})
+	rows, err := s.db.Pool().Query(
+		ctx,
+		`DELETE FROM santa_configurations WHERE id = ANY($1::bigint[]) RETURNING id`,
+		ids,
+	)
+	if err != nil {
+		return 0, err
+	}
+	deletedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return 0, err
 	}
@@ -139,39 +143,141 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		currentIDs, err := q.ListSantaConfigurationIDsByPosition(ctx)
+		rows, err := tx.Query(ctx, `SELECT id FROM santa_configurations ORDER BY position, id`)
+		if err != nil {
+			return err
+		}
+		currentIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 		if err != nil {
 			return err
 		}
 		if !dbutil.SameInt64Set(orderedIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
 		}
-		if err := q.SetSantaConfigurationPositions(
-			ctx,
-			sqlc.SetSantaConfigurationPositionsParams{OrderedIds: orderedIDs},
+		if _, err := tx.Exec(ctx, `
+			UPDATE santa_configurations c
+			SET position = -ordered.position
+			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
+			WHERE c.id = ordered.id`,
+			orderedIDs,
 		); err != nil {
 			return err
 		}
-		return q.NormalizeSantaConfigurationPositions(ctx)
+		_, err = tx.Exec(ctx, `UPDATE santa_configurations SET position = -position - 1`)
+		return err
 	})
 }
 
 func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ConfigurationMatch, error) {
-	record, err := s.q.ResolveSantaConfigurationForHost(
-		ctx,
-		sqlc.ResolveSantaConfigurationForHostParams{HostID: hostID},
-	)
+	const resolveSQL = `
+SELECT
+    c.id,
+    c.name,
+    c.description,
+    c.position,
+    c.client_mode,
+    c.enable_bundles,
+    c.enable_transitive_rules,
+    c.enable_all_event_upload,
+    c.full_sync_interval_seconds,
+    c.batch_size,
+    c.allowed_path_regex,
+    c.blocked_path_regex,
+    c.removable_media_action,
+    c.removable_media_remount_flags,
+    c.encrypted_removable_media_action,
+    c.encrypted_removable_media_remount_flags,
+    c.event_detail_url,
+    c.event_detail_text,
+    c.created_at,
+    c.updated_at,
+    l.id AS label_id,
+    l.name AS label_name
+FROM santa_configurations c
+JOIN LATERAL (
+    SELECT
+        include_label.id,
+        include_label.name
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+    JOIN labels include_label ON include_label.id = t.label_id
+    WHERE t.configuration_id = c.id
+      AND t.direction = 'include'
+    ORDER BY t.position
+    LIMIT 1
+) l ON true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+    WHERE t.configuration_id = c.id
+      AND t.direction = 'exclude'
+)
+ORDER BY c.position, c.id
+LIMIT 1`
+
+	type resolveRow struct {
+		ID                                  int64     `db:"id"`
+		Name                                string    `db:"name"`
+		Description                         string    `db:"description"`
+		Position                            int32     `db:"position"`
+		ClientMode                          string    `db:"client_mode"`
+		EnableBundles                       bool      `db:"enable_bundles"`
+		EnableTransitiveRules               bool      `db:"enable_transitive_rules"`
+		EnableAllEventUpload                bool      `db:"enable_all_event_upload"`
+		FullSyncIntervalSeconds             int32     `db:"full_sync_interval_seconds"`
+		BatchSize                           int32     `db:"batch_size"`
+		AllowedPathRegex                    string    `db:"allowed_path_regex"`
+		BlockedPathRegex                    string    `db:"blocked_path_regex"`
+		RemovableMediaAction                *string   `db:"removable_media_action"`
+		RemovableMediaRemountFlags          []string  `db:"removable_media_remount_flags"`
+		EncryptedRemovableMediaAction       *string   `db:"encrypted_removable_media_action"`
+		EncryptedRemovableMediaRemountFlags []string  `db:"encrypted_removable_media_remount_flags"`
+		EventDetailURL                      string    `db:"event_detail_url"`
+		EventDetailText                     string    `db:"event_detail_text"`
+		CreatedAt                           time.Time `db:"created_at"`
+		UpdatedAt                           time.Time `db:"updated_at"`
+		LabelID                             int64     `db:"label_id"`
+		LabelName                           string    `db:"label_name"`
+	}
+
+	qrows, err := s.db.Pool().Query(ctx, resolveSQL, hostID)
+	if err != nil {
+		return nil, err
+	}
+	rr, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[resolveRow])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	configuration := configurationFromSQLC(record.SantaConfiguration)
+
+	cfg := configurationFromRow(configurationRow{
+		ID:                                  rr.ID,
+		Name:                                rr.Name,
+		Description:                         rr.Description,
+		Position:                            rr.Position,
+		ClientMode:                          rr.ClientMode,
+		EnableBundles:                       rr.EnableBundles,
+		EnableTransitiveRules:               rr.EnableTransitiveRules,
+		EnableAllEventUpload:                rr.EnableAllEventUpload,
+		FullSyncIntervalSeconds:             rr.FullSyncIntervalSeconds,
+		BatchSize:                           rr.BatchSize,
+		AllowedPathRegex:                    rr.AllowedPathRegex,
+		BlockedPathRegex:                    rr.BlockedPathRegex,
+		RemovableMediaAction:                rr.RemovableMediaAction,
+		RemovableMediaRemountFlags:          rr.RemovableMediaRemountFlags,
+		EncryptedRemovableMediaAction:       rr.EncryptedRemovableMediaAction,
+		EncryptedRemovableMediaRemountFlags: rr.EncryptedRemovableMediaRemountFlags,
+		EventDetailURL:                      rr.EventDetailURL,
+		EventDetailText:                     rr.EventDetailText,
+		CreatedAt:                           rr.CreatedAt,
+		UpdatedAt:                           rr.UpdatedAt,
+	})
 	return &ConfigurationMatch{
-		Configuration:   configuration,
-		MatchedViaLabel: &LabelMatch{ID: record.LabelID, Name: record.LabelName},
+		Configuration:   cfg,
+		MatchedViaLabel: &LabelMatch{ID: rr.LabelID, Name: rr.LabelName},
 	}, nil
 }
 
@@ -199,29 +305,33 @@ func replaceConfigurationTargets(
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	q := sqlc.New(tx)
-	if err := q.DeleteSantaConfigurationTargets(
+	if _, err := tx.Exec(
 		ctx,
-		sqlc.DeleteSantaConfigurationTargetsParams{ConfigurationID: configurationID},
+		`DELETE FROM santa_configuration_targets WHERE configuration_id = $1`,
+		configurationID,
 	); err != nil {
 		return err
 	}
 	if len(targets.Include) > 0 {
-		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
-			ConfigurationID: configurationID,
-			LabelIds:        targeting.LabelRefIDs(targets.Include),
-			Direction:       sqlc.TargetDirection(targeting.Include),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
+			SELECT $1, labels.label_id, 'include'::target_direction, labels.ord - 1
+			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
+			configurationID,
+			targeting.LabelRefIDs(targets.Include),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	if len(targets.Exclude) > 0 {
-		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
-			ConfigurationID: configurationID,
-			LabelIds:        targeting.LabelRefIDs(targets.Exclude),
-			Direction:       sqlc.TargetDirection(targeting.Exclude),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
+			SELECT $1, labels.label_id, 'exclude'::target_direction, labels.ord - 1
+			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
+			configurationID,
+			targeting.LabelRefIDs(targets.Exclude),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	return nil
@@ -241,10 +351,23 @@ func (s *Store) attachConfigurationTargets(
 		configurations[i].Targets = emptyConfigurationTargets()
 	}
 
-	rows, err := s.q.ListSantaConfigurationTargets(
-		ctx,
-		sqlc.ListSantaConfigurationTargetsParams{ConfigurationIds: configurationIDs},
+	type targetRow struct {
+		ConfigurationID int64  `db:"configuration_id"`
+		LabelID         int64  `db:"label_id"`
+		Direction       string `db:"direction"`
+	}
+
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT configuration_id, label_id, direction::text AS direction
+		FROM santa_configuration_targets
+		WHERE configuration_id = ANY($1::bigint[])
+		ORDER BY configuration_id, direction, position`,
+		configurationIDs,
 	)
+	if err != nil {
+		return err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[targetRow])
 	if err != nil {
 		return err
 	}
@@ -325,79 +448,37 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	return where.Build()
 }
 
-func configurationListQuery(
-	params ConfigurationListParams,
-	where string,
-	args []any,
-) dbutil.ListQuery {
-	return dbutil.ListQuery{
-		SelectSQL:    configurationSelectSQL,
-		WhereSQL:     where,
-		Args:         args,
-		OrderKeys:    configurationOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
-		Params:       params.ListParams,
-	}
+var configurationOrderKeys = map[string]dbutil.OrderExpr{
+	"name":        {SQL: "lower(c.name)"},
+	"description": {SQL: "lower(c.description)"},
+	"position":    {SQL: "c.position"},
+	"updated_at":  {SQL: "c.updated_at"},
 }
 
-func configurationOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
-		"name":        {SQL: "lower(c.name)"},
-		"description": {SQL: "lower(c.description)"},
-		"position":    {SQL: "c.position"},
-		"updated_at":  {SQL: "c.updated_at"},
-	}
+type configurationRow struct {
+	ID                                  int64     `db:"id"`
+	Name                                string    `db:"name"`
+	Description                         string    `db:"description"`
+	Position                            int32     `db:"position"`
+	ClientMode                          string    `db:"client_mode"`
+	EnableBundles                       bool      `db:"enable_bundles"`
+	EnableTransitiveRules               bool      `db:"enable_transitive_rules"`
+	EnableAllEventUpload                bool      `db:"enable_all_event_upload"`
+	FullSyncIntervalSeconds             int32     `db:"full_sync_interval_seconds"`
+	BatchSize                           int32     `db:"batch_size"`
+	AllowedPathRegex                    string    `db:"allowed_path_regex"`
+	BlockedPathRegex                    string    `db:"blocked_path_regex"`
+	RemovableMediaAction                *string   `db:"removable_media_action"`
+	RemovableMediaRemountFlags          []string  `db:"removable_media_remount_flags"`
+	EncryptedRemovableMediaAction       *string   `db:"encrypted_removable_media_action"`
+	EncryptedRemovableMediaRemountFlags []string  `db:"encrypted_removable_media_remount_flags"`
+	EventDetailURL                      string    `db:"event_detail_url"`
+	EventDetailText                     string    `db:"event_detail_text"`
+	CreatedAt                           time.Time `db:"created_at"`
+	UpdatedAt                           time.Time `db:"updated_at"`
 }
 
-func createConfigurationParams(configuration ConfigurationMutation) sqlc.CreateSantaConfigurationParams {
-	removableMediaAction, removableMediaFlags := removableMediaPolicySQLC(configuration.RemovableMediaPolicy)
-	encryptedRemovableMediaAction, encryptedRemovableMediaFlags := removableMediaPolicySQLC(
-		configuration.EncryptedRemovableMediaPolicy,
-	)
-	return sqlc.CreateSantaConfigurationParams{
-		Name:                                configuration.Name,
-		Description:                         configuration.Description,
-		ClientMode:                          sqlc.SantaClientMode(configuration.ClientMode),
-		EnableBundles:                       configuration.EnableBundles,
-		EnableTransitiveRules:               configuration.EnableTransitiveRules,
-		EnableAllEventUpload:                configuration.EnableAllEventUpload,
-		FullSyncIntervalSeconds:             configuration.FullSyncIntervalSeconds,
-		BatchSize:                           configuration.BatchSize,
-		AllowedPathRegex:                    configuration.AllowedPathRegex,
-		BlockedPathRegex:                    configuration.BlockedPathRegex,
-		RemovableMediaAction:                removableMediaAction,
-		RemovableMediaRemountFlags:          removableMediaFlags,
-		EncryptedRemovableMediaAction:       encryptedRemovableMediaAction,
-		EncryptedRemovableMediaRemountFlags: encryptedRemovableMediaFlags,
-		EventDetailURL:                      configuration.EventDetailURL,
-		EventDetailText:                     configuration.EventDetailText,
-	}
-}
-
-func updateConfigurationParams(id int64, configuration ConfigurationMutation) sqlc.UpdateSantaConfigurationParams {
-	params := createConfigurationParams(configuration)
-	return sqlc.UpdateSantaConfigurationParams{
-		Name:                                params.Name,
-		Description:                         params.Description,
-		ClientMode:                          params.ClientMode,
-		EnableBundles:                       params.EnableBundles,
-		EnableTransitiveRules:               params.EnableTransitiveRules,
-		EnableAllEventUpload:                params.EnableAllEventUpload,
-		FullSyncIntervalSeconds:             params.FullSyncIntervalSeconds,
-		BatchSize:                           params.BatchSize,
-		AllowedPathRegex:                    params.AllowedPathRegex,
-		BlockedPathRegex:                    params.BlockedPathRegex,
-		RemovableMediaAction:                params.RemovableMediaAction,
-		RemovableMediaRemountFlags:          params.RemovableMediaRemountFlags,
-		EncryptedRemovableMediaAction:       params.EncryptedRemovableMediaAction,
-		EncryptedRemovableMediaRemountFlags: params.EncryptedRemovableMediaRemountFlags,
-		EventDetailURL:                      params.EventDetailURL,
-		EventDetailText:                     params.EventDetailText,
-		ID:                                  id,
-	}
-}
-
-func configurationFromSQLC(row sqlc.SantaConfiguration) Configuration {
+func configurationFromRow(row configurationRow) Configuration {
 	return Configuration{
 		ID:                      row.ID,
 		Name:                    row.Name,
@@ -411,11 +492,8 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) Configuration {
 		BatchSize:               row.BatchSize,
 		AllowedPathRegex:        row.AllowedPathRegex,
 		BlockedPathRegex:        row.BlockedPathRegex,
-		RemovableMediaPolicy: removableMediaPolicyFromSQLC(
-			row.RemovableMediaAction,
-			row.RemovableMediaRemountFlags,
-		),
-		EncryptedRemovableMediaPolicy: removableMediaPolicyFromSQLC(
+		RemovableMediaPolicy:    removableMediaPolicyFromRow(row.RemovableMediaAction, row.RemovableMediaRemountFlags),
+		EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
 			row.EncryptedRemovableMediaAction,
 			row.EncryptedRemovableMediaRemountFlags,
 		),
@@ -427,15 +505,7 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) Configuration {
 	}
 }
 
-func removableMediaPolicySQLC(policy RemovableMediaPolicy) (*sqlc.SantaRemovableMediaAction, []string) {
-	if policy.Action == "" {
-		return nil, nil
-	}
-	action := sqlc.SantaRemovableMediaAction(policy.Action)
-	return &action, policy.RemountFlags
-}
-
-func removableMediaPolicyFromSQLC(action *sqlc.SantaRemovableMediaAction, flags []string) RemovableMediaPolicy {
+func removableMediaPolicyFromRow(action *string, flags []string) RemovableMediaPolicy {
 	if action == nil {
 		return RemovableMediaPolicy{}
 	}
@@ -443,6 +513,57 @@ func removableMediaPolicyFromSQLC(action *sqlc.SantaRemovableMediaAction, flags 
 		Action:       RemovableMediaAction(*action),
 		RemountFlags: flags,
 	}
+}
+
+type configurationWrite struct {
+	ID                                  int64    `db:"id"`
+	Name                                string   `db:"name"`
+	Description                         string   `db:"description"`
+	ClientMode                          string   `db:"client_mode"`
+	EnableBundles                       bool     `db:"enable_bundles"`
+	EnableTransitiveRules               bool     `db:"enable_transitive_rules"`
+	EnableAllEventUpload                bool     `db:"enable_all_event_upload"`
+	FullSyncIntervalSeconds             int32    `db:"full_sync_interval_seconds"`
+	BatchSize                           int32    `db:"batch_size"`
+	AllowedPathRegex                    string   `db:"allowed_path_regex"`
+	BlockedPathRegex                    string   `db:"blocked_path_regex"`
+	RemovableMediaAction                *string  `db:"removable_media_action"`
+	RemovableMediaRemountFlags          []string `db:"removable_media_remount_flags"`
+	EncryptedRemovableMediaAction       *string  `db:"encrypted_removable_media_action"`
+	EncryptedRemovableMediaRemountFlags []string `db:"encrypted_removable_media_remount_flags"`
+	EventDetailURL                      string   `db:"event_detail_url"`
+	EventDetailText                     string   `db:"event_detail_text"`
+}
+
+func newConfigurationWrite(p ConfigurationMutation) configurationWrite {
+	rma, rmf := removableMediaWriteFields(p.RemovableMediaPolicy)
+	erma, ermf := removableMediaWriteFields(p.EncryptedRemovableMediaPolicy)
+	return configurationWrite{
+		Name:                                p.Name,
+		Description:                         p.Description,
+		ClientMode:                          string(p.ClientMode),
+		EnableBundles:                       p.EnableBundles,
+		EnableTransitiveRules:               p.EnableTransitiveRules,
+		EnableAllEventUpload:                p.EnableAllEventUpload,
+		FullSyncIntervalSeconds:             p.FullSyncIntervalSeconds,
+		BatchSize:                           p.BatchSize,
+		AllowedPathRegex:                    p.AllowedPathRegex,
+		BlockedPathRegex:                    p.BlockedPathRegex,
+		RemovableMediaAction:                rma,
+		RemovableMediaRemountFlags:          rmf,
+		EncryptedRemovableMediaAction:       erma,
+		EncryptedRemovableMediaRemountFlags: ermf,
+		EventDetailURL:                      p.EventDetailURL,
+		EventDetailText:                     p.EventDetailText,
+	}
+}
+
+func removableMediaWriteFields(policy RemovableMediaPolicy) (*string, []string) {
+	if policy.Action == "" {
+		return nil, nil
+	}
+	action := string(policy.Action)
+	return &action, policy.RemountFlags
 }
 
 const configurationSelectSQL = `
@@ -468,3 +589,66 @@ SELECT
 	c.created_at,
 	c.updated_at
 FROM santa_configurations c`
+
+const insertConfigurationSQL = `
+INSERT INTO santa_configurations (
+	name,
+	description,
+	position,
+	client_mode,
+	enable_bundles,
+	enable_transitive_rules,
+	enable_all_event_upload,
+	full_sync_interval_seconds,
+	batch_size,
+	allowed_path_regex,
+	blocked_path_regex,
+	removable_media_action,
+	removable_media_remount_flags,
+	encrypted_removable_media_action,
+	encrypted_removable_media_remount_flags,
+	event_detail_url,
+	event_detail_text
+) VALUES (
+	@name,
+	@description,
+	(SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
+	@client_mode::santa_client_mode,
+	@enable_bundles,
+	@enable_transitive_rules,
+	@enable_all_event_upload,
+	@full_sync_interval_seconds::integer,
+	@batch_size::integer,
+	@allowed_path_regex,
+	@blocked_path_regex,
+	@removable_media_action::santa_removable_media_action,
+	@removable_media_remount_flags::text[],
+	@encrypted_removable_media_action::santa_removable_media_action,
+	@encrypted_removable_media_remount_flags::text[],
+	@event_detail_url,
+	@event_detail_text
+)
+RETURNING id`
+
+const updateConfigurationSQL = `
+UPDATE santa_configurations
+SET
+	name = @name,
+	description = @description,
+	client_mode = @client_mode::santa_client_mode,
+	enable_bundles = @enable_bundles,
+	enable_transitive_rules = @enable_transitive_rules,
+	enable_all_event_upload = @enable_all_event_upload,
+	full_sync_interval_seconds = @full_sync_interval_seconds::integer,
+	batch_size = @batch_size::integer,
+	allowed_path_regex = @allowed_path_regex,
+	blocked_path_regex = @blocked_path_regex,
+	removable_media_action = @removable_media_action::santa_removable_media_action,
+	removable_media_remount_flags = @removable_media_remount_flags::text[],
+	encrypted_removable_media_action = @encrypted_removable_media_action::santa_removable_media_action,
+	encrypted_removable_media_remount_flags = @encrypted_removable_media_remount_flags::text[],
+	event_detail_url = @event_detail_url,
+	event_detail_text = @event_detail_text,
+	updated_at = now()
+WHERE id = @id
+RETURNING id`

@@ -81,7 +81,7 @@ func registerListSantaConfigurations(api huma.API, store *Store) {
 		Summary:     "List Santa configurations",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaConfigurationListInput) (*santaConfigurationListOutput, error) {
-		rows, count, err := store.ListConfigurations(ctx, input.params())
+		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -107,7 +107,7 @@ func registerCreateSantaConfiguration(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaConfigurationCreateInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.CreateConfiguration(ctx, input.Body)
+		configuration, err := store.Create(ctx, input.Body)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -124,7 +124,7 @@ func registerGetSantaConfiguration(api huma.API, store *Store) {
 		Summary:     "Get a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.GetConfigurationByID(ctx, input.ConfigurationID)
+		configuration, err := store.GetByID(ctx, input.ConfigurationID)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -147,7 +147,7 @@ func registerUpdateSantaConfiguration(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaConfigurationUpdateInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.UpdateConfiguration(ctx, input.ConfigurationID, input.Body)
+		configuration, err := store.Update(ctx, input.ConfigurationID, input.Body)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -164,7 +164,7 @@ func registerDeleteSantaConfiguration(api huma.API, store *Store) {
 		Summary:     "Delete a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
-		if err := store.DeleteConfiguration(ctx, input.ConfigurationID); err != nil {
+		if err := store.Delete(ctx, input.ConfigurationID); err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &struct{}{}, nil

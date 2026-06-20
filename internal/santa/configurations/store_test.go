@@ -32,48 +32,48 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 
 	short := baseline("short sync")
 	short.FullSyncIntervalSeconds = 59
-	if _, err := store.CreateConfiguration(ctx, short); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, short); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("short full sync error = %v, want ErrInvalidInput", err)
 	}
 
 	tinyBatch := baseline("tiny batch")
 	tinyBatch.BatchSize = 1
-	if _, err := store.CreateConfiguration(ctx, tinyBatch); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, tinyBatch); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("tiny batch size error = %v, want ErrInvalidInput", err)
 	}
 
 	missingName := baseline("")
-	if _, err := store.CreateConfiguration(ctx, missingName); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, missingName); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("missing name error = %v, want ErrInvalidInput", err)
 	}
 
 	emptyClientMode := baseline("empty client mode")
 	emptyClientMode.ClientMode = ""
-	if _, err := store.CreateConfiguration(ctx, emptyClientMode); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, emptyClientMode); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("empty client mode error = %v, want ErrInvalidInput", err)
 	}
 
 	invalidLabel := baseline("invalid label")
 	invalidLabel.Targets = configurationTargets(labelRefs(0), nil)
-	if _, err := store.CreateConfiguration(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("invalid label ID error = %v, want ErrInvalidInput", err)
 	}
 
 	missingLabel := baseline("missing label")
 	missingLabel.Targets = configurationTargets(labelRefs(999_999), nil)
-	if _, err := store.CreateConfiguration(ctx, missingLabel); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.Create(ctx, missingLabel); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("missing label ID error = %v, want ErrNotFound", err)
 	}
 
 	duplicateTargets := baseline("duplicate targets")
 	duplicateTargets.Targets = configurationTargets(labelRefs(firstLabelID, firstLabelID), nil)
-	if _, err := store.CreateConfiguration(ctx, duplicateTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, duplicateTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("duplicate target error = %v, want ErrInvalidInput", err)
 	}
 
 	overlappingTargets := baseline("overlapping targets")
 	overlappingTargets.Targets = configurationTargets(labelRefs(firstLabelID), labelRefs(firstLabelID))
-	if _, err := store.CreateConfiguration(ctx, overlappingTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, overlappingTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("overlapping target error = %v, want ErrInvalidInput", err)
 	}
 
@@ -81,7 +81,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	remountWithoutFlags.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
 		Action: configurations.RemovableMediaActionRemount,
 	}
-	if _, err := store.CreateConfiguration(ctx, remountWithoutFlags); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := store.Create(ctx, remountWithoutFlags); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("remount without flags error = %v, want ErrInvalidInput", err)
 	}
 
@@ -96,7 +96,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	}
 	create.Targets = configurationTargets(labelRefs(firstLabelID, secondLabelID), labelRefs(thirdLabelID))
 
-	config, err := store.CreateConfiguration(ctx, create)
+	config, err := store.Create(ctx, create)
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
@@ -115,14 +115,14 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 
 	overlapping := baseline("Overlapping")
 	overlapping.Targets = configurationTargets(labelRefs(firstLabelID), nil)
-	if _, err := store.CreateConfiguration(ctx, overlapping); err != nil {
+	if _, err := store.Create(ctx, overlapping); err != nil {
 		t.Fatalf("overlapping configuration create error = %v, want allowed overlap", err)
 	}
 
 	update := baseline("Updated")
 	update.Description = "Updated policy"
 	update.Targets = configurationTargets(labelRefs(thirdLabelID), nil)
-	updated, err := store.UpdateConfiguration(ctx, config.ID, update)
+	updated, err := store.Update(ctx, config.ID, update)
 	if err != nil {
 		t.Fatalf("update configuration: %v", err)
 	}
@@ -162,13 +162,13 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 
 	first := baseline("First")
 	first.Targets = configurationTargets(labelRefs(secondLabelID, firstLabelID), nil)
-	firstConfig, err := store.CreateConfiguration(ctx, first)
+	firstConfig, err := store.Create(ctx, first)
 	if err != nil {
 		t.Fatalf("create first configuration: %v", err)
 	}
 	second := baseline("Second")
 	second.Targets = configurationTargets(labelRefs(firstLabelID), nil)
-	secondConfig, err := store.CreateConfiguration(ctx, second)
+	secondConfig, err := store.Create(ctx, second)
 	if err != nil {
 		t.Fatalf("create second configuration: %v", err)
 	}
@@ -256,13 +256,13 @@ func TestConfigurationResolverUsesExclusions(t *testing.T) {
 
 	broad := baseline("All Students except SAC")
 	broad.Targets = configurationTargets(labelRefs(allStudentsID), labelRefs(sacID))
-	broadConfig, err := store.CreateConfiguration(ctx, broad)
+	broadConfig, err := store.Create(ctx, broad)
 	if err != nil {
 		t.Fatalf("create broad configuration: %v", err)
 	}
 	narrow := baseline("SAC")
 	narrow.Targets = configurationTargets(labelRefs(sacID), nil)
-	narrowConfig, err := store.CreateConfiguration(ctx, narrow)
+	narrowConfig, err := store.Create(ctx, narrow)
 	if err != nil {
 		t.Fatalf("create narrow configuration: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestConfigurationResolverRequiresIncludeTarget(t *testing.T) {
 
 	excludeOnly := baseline("Exclude only")
 	excludeOnly.Targets = configurationTargets(nil, labelRefs(excludedID))
-	if _, err := store.CreateConfiguration(ctx, excludeOnly); err != nil {
+	if _, err := store.Create(ctx, excludeOnly); err != nil {
 		t.Fatalf("create exclude-only configuration: %v", err)
 	}
 
@@ -321,11 +321,11 @@ func TestConfigurationStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := configurations.NewStore(db)
 
-	first, err := store.CreateConfiguration(ctx, baseline("First"))
+	first, err := store.Create(ctx, baseline("First"))
 	if err != nil {
 		t.Fatalf("create first configuration: %v", err)
 	}
-	second, err := store.CreateConfiguration(ctx, baseline("Second"))
+	second, err := store.Create(ctx, baseline("Second"))
 	if err != nil {
 		t.Fatalf("create second configuration: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestConfigurationStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 		t.Fatalf("deleted = %d, want 1", deleted)
 	}
 
-	got, _, err := store.ListConfigurations(ctx, configurations.ConfigurationListParams{})
+	got, _, err := store.List(ctx, configurations.ConfigurationListParams{})
 	if err != nil {
 		t.Fatalf("list configurations: %v", err)
 	}
