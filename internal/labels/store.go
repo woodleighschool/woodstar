@@ -2,7 +2,6 @@ package labels
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,58 +9,59 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Store persists labels.
 type Store struct {
 	db *database.DB
-	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
+	return &Store{db: db}
 }
 
 func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	where, args := labelListWhere(params)
-	records, count, err := dbutil.ListWithCount[labelListRecord](
-		ctx,
-		s.db.Pool(),
-		labelListQuery(params, where, args),
-	)
+	listQuery := dbutil.ListQuery{
+		SelectSQL:    labelSelectSQL,
+		WhereSQL:     where,
+		GroupBySQL:   "GROUP BY l.id",
+		Args:         args,
+		OrderKeys:    labelOrderKeys(),
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
+		Params:       params.ListParams,
+	}
+	rows, count, err := dbutil.ListWithCount[labelRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
-	labels := make([]Label, len(records))
-	for i, record := range records {
-		label, err := labelFromListRecord(record)
-		if err != nil {
-			return nil, 0, err
-		}
-		labels[i] = label
+	labels := make([]Label, len(rows))
+	for i, row := range rows {
+		labels[i] = labelFromRow(row)
 	}
 	return labels, count, nil
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
-	return getLabelByID(ctx, s.q, id)
+	return getLabelByID(ctx, s.db.Pool(), id)
 }
 
 func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
-	rows, err := s.q.ListLabelsForHost(ctx, sqlc.ListLabelsForHostParams{HostID: hostID})
+	rows, err := s.db.Pool().Query(ctx, labelSelectSQL+`
+JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
+GROUP BY l.id
+ORDER BY lower(l.name), l.id`, hostID)
 	if err != nil {
 		return nil, err
 	}
-	labels := make([]Label, len(rows))
-	for i, row := range rows {
-		l, err := labelFromSQLC(row.Label)
-		if err != nil {
-			return nil, err
-		}
-		l.HostsCount = row.HostsCount
-		labels[i] = *l
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[labelRow])
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]Label, len(records))
+	for i, record := range records {
+		labels[i] = labelFromRow(record)
 	}
 	return labels, nil
 }
@@ -71,36 +71,24 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
+	write := newLabelWrite(params)
+	write.LabelType = string(LabelTypeRegular)
+
 	var out *Label
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		var criteria []byte
-		if params.Criteria != nil {
-			var err error
-			criteria, err = criteriaJSON(*params.Criteria)
-			if err != nil {
-				return err
-			}
+		var id int64
+		if err := tx.QueryRow(ctx, insertLabelSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+			return dbutil.MutationError(err)
 		}
-		row, err := q.CreateLabel(ctx, sqlc.CreateLabelParams{
-			Name:                params.Name,
-			Description:         params.Description,
-			Query:               params.Query,
-			Criteria:            criteria,
-			LabelType:           string(LabelTypeRegular),
-			LabelMembershipType: string(params.LabelMembershipType),
-		})
-		if err != nil {
+		if err := replaceMembership(ctx, tx, id, params); err != nil {
 			return err
 		}
-		if err := s.replaceMembership(ctx, q, row.ID, params); err != nil {
-			return err
-		}
-		out, err = getLabelByID(ctx, q, row.ID)
+		var err error
+		out, err = getLabelByID(ctx, tx, id)
 		return err
 	})
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, err
 	}
 	return out, nil
 }
@@ -109,62 +97,58 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
+	write := newLabelWrite(params)
+	write.ID = id
+
 	var out *Label
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		var criteria []byte
-		if params.Criteria != nil {
-			var err error
-			criteria, err = criteriaJSON(*params.Criteria)
-			if err != nil {
-				return err
-			}
+		var updatedID int64
+		if err := tx.QueryRow(ctx, updateLabelSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			return dbutil.MutationError(err)
 		}
-		row, err := q.UpdateLabel(ctx, sqlc.UpdateLabelParams{
-			Name:                params.Name,
-			Description:         params.Description,
-			Query:               params.Query,
-			Criteria:            criteria,
-			LabelMembershipType: string(params.LabelMembershipType),
-			ID:                  id,
-		})
-		if err != nil {
+		if err := replaceMembership(ctx, tx, updatedID, params); err != nil {
 			return err
 		}
-		if err := s.replaceMembership(ctx, q, row.ID, LabelMutation{
-			Query:               params.Query,
-			Criteria:            params.Criteria,
-			HostIDs:             params.HostIDs,
-			LabelMembershipType: params.LabelMembershipType,
-		}); err != nil {
-			return err
-		}
-		out, err = getLabelByID(ctx, q, row.ID)
+		var err error
+		out, err = getLabelByID(ctx, tx, updatedID)
 		return err
 	})
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, err
 	}
 	return out, nil
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
-	return dbutil.GetError(err)
+	tag, err := s.db.Pool().Exec(
+		ctx,
+		`DELETE FROM labels WHERE id = $1 AND label_type = 'regular'`,
+		id,
+	)
+	if err != nil {
+		return dbutil.DeleteConflict(err, "Label is still referenced")
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
-	rows, err := s.q.ListApplicableDynamicLabels(ctx)
+	rows, err := s.db.Pool().Query(ctx, labelSelectSQL+`
+WHERE l.label_membership_type = 'dynamic'
+GROUP BY l.id
+ORDER BY l.id`)
 	if err != nil {
 		return nil, err
 	}
-	labels := make([]Label, len(rows))
-	for i, row := range rows {
-		label, err := labelFromSQLC(row)
-		if err != nil {
-			return nil, err
-		}
-		labels[i] = *label
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[labelRow])
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]Label, len(records))
+	for i, record := range records {
+		labels[i] = labelFromRow(record)
 	}
 	return labels, nil
 }
@@ -173,14 +157,20 @@ func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
 ) (map[int64]struct{}, error) {
-	rows, err := s.q.ListApplicableDynamicLabelIDs(ctx, sqlc.ListApplicableDynamicLabelIDsParams{
-		Ids: ids,
-	})
+	rows, err := s.db.Pool().Query(ctx, `
+SELECT id
+FROM labels
+WHERE id = ANY($1::bigint[]) AND label_membership_type = 'dynamic'
+ORDER BY id`, ids)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[int64]struct{}, len(rows))
-	for _, id := range rows {
+	matched, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]struct{}, len(matched))
+	for _, id := range matched {
 		out[id] = struct{}{}
 	}
 	return out, nil
@@ -188,24 +178,37 @@ func (s *Store) ApplicableDynamicIDs(
 
 func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
 	if matched {
-		return s.q.UpsertLabelMembership(ctx, sqlc.UpsertLabelMembershipParams{LabelID: labelID, HostID: hostID})
+		_, err := s.db.Pool().Exec(ctx, `
+INSERT INTO label_membership (label_id, host_id)
+VALUES ($1, $2)
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`, labelID, hostID)
+		return err
 	}
-	return s.q.DeleteLabelMembership(ctx, sqlc.DeleteLabelMembershipParams{LabelID: labelID, HostID: hostID})
+	_, err := s.db.Pool().Exec(
+		ctx,
+		`DELETE FROM label_membership WHERE label_id = $1 AND host_id = $2`,
+		labelID,
+		hostID,
+	)
+	return err
 }
 
 func (s *Store) RefreshDerived(ctx context.Context) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		derived, err := q.ListDerivedLabels(ctx)
+		rows, err := tx.Query(ctx, `
+SELECT id, criteria
+FROM labels
+WHERE label_membership_type = 'derived'
+ORDER BY id`)
+		if err != nil {
+			return err
+		}
+		derived, err := pgx.CollectRows(rows, pgx.RowToStructByName[derivedLabelRow])
 		if err != nil {
 			return err
 		}
 		for _, label := range derived {
-			criteria, err := decodeCriteria(label.Criteria)
-			if err != nil {
-				return err
-			}
-			if err := refreshDerivedMembership(ctx, q, label.ID, &criteria); err != nil {
+			if err := refreshDerivedMembership(ctx, tx, label.ID, label.Criteria.value); err != nil {
 				return err
 			}
 		}
@@ -294,37 +297,6 @@ func validateCriteria(criteria *Criteria) error {
 	return nil
 }
 
-func labelListQuery(params LabelListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
-		SelectSQL: `SELECT
-	l.id,
-	l.name,
-	l.builtin_key,
-	l.description,
-	l.query,
-	l.criteria,
-	l.label_type,
-	l.label_membership_type,
-	l.created_at,
-	l.updated_at,
-	count(lm.host_id)::integer AS hosts_count
-FROM labels l
-LEFT JOIN label_membership lm ON lm.label_id = l.id`,
-		WhereSQL:   where,
-		GroupBySQL: "GROUP BY l.id",
-		Args:       args,
-		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":                  {SQL: "lower(l.name)"},
-			"label_type":            {SQL: "l.label_type"},
-			"label_membership_type": {SQL: "l.label_membership_type"},
-			"hosts_count":           {SQL: "hosts_count"},
-			"updated_at":            {SQL: "l.updated_at"},
-		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
-		Params:       params.ListParams,
-	}
-}
-
 func labelListWhere(params LabelListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
@@ -339,127 +311,145 @@ func labelListWhere(params LabelListParams) (string, []any) {
 	return where.Build()
 }
 
-type labelListRecord struct {
-	ID                  int64
-	Name                string
-	BuiltinKey          *string
-	Description         string
-	Query               *string
-	Criteria            []byte
-	LabelType           string
-	LabelMembershipType string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	HostsCount          int32
+func labelOrderKeys() map[string]dbutil.OrderExpr {
+	return map[string]dbutil.OrderExpr{
+		"name":                  {SQL: "lower(l.name)"},
+		"label_type":            {SQL: "l.label_type"},
+		"label_membership_type": {SQL: "l.label_membership_type"},
+		"hosts_count":           {SQL: "hosts_count"},
+		"updated_at":            {SQL: "l.updated_at"},
+	}
 }
 
-func labelFromSQLC(s sqlc.Label) (*Label, error) {
-	var criteria *Criteria
-	if len(s.Criteria) > 0 {
-		decoded, err := decodeCriteria(s.Criteria)
-		if err != nil {
-			return nil, err
-		}
-		criteria = &decoded
-	}
+type labelRow struct {
+	ID                  int64         `db:"id"`
+	Name                string        `db:"name"`
+	BuiltinKey          *string       `db:"builtin_key"`
+	Description         string        `db:"description"`
+	Query               *string       `db:"query"`
+	Criteria            labelCriteria `db:"criteria"`
+	LabelType           string        `db:"label_type"`
+	LabelMembershipType string        `db:"label_membership_type"`
+	HostsCount          int32         `db:"hosts_count"`
+	CreatedAt           time.Time     `db:"created_at"`
+	UpdatedAt           time.Time     `db:"updated_at"`
+}
+
+func labelFromRow(row labelRow) Label {
 	var builtinKey *BuiltinKey
-	if s.BuiltinKey != nil {
-		key := BuiltinKey(*s.BuiltinKey)
+	if row.BuiltinKey != nil {
+		key := BuiltinKey(*row.BuiltinKey)
 		builtinKey = &key
 	}
-	return &Label{
-		ID:                  s.ID,
-		Name:                s.Name,
+	return Label{
+		ID:                  row.ID,
+		Name:                row.Name,
 		BuiltinKey:          builtinKey,
-		Description:         s.Description,
-		Query:               s.Query,
-		Criteria:            criteria,
-		LabelType:           LabelType(s.LabelType),
-		LabelMembershipType: LabelMembershipType(s.LabelMembershipType),
-		CreatedAt:           s.CreatedAt,
-		UpdatedAt:           s.UpdatedAt,
-	}, nil
-}
-
-func labelFromListRecord(s labelListRecord) (Label, error) {
-	label, err := labelFromSQLC(sqlc.Label{
-		ID:                  s.ID,
-		Name:                s.Name,
-		BuiltinKey:          s.BuiltinKey,
-		Description:         s.Description,
-		Query:               s.Query,
-		Criteria:            s.Criteria,
-		LabelType:           s.LabelType,
-		LabelMembershipType: s.LabelMembershipType,
-		CreatedAt:           s.CreatedAt,
-		UpdatedAt:           s.UpdatedAt,
-	})
-	if err != nil {
-		return Label{}, err
+		Description:         row.Description,
+		Query:               row.Query,
+		Criteria:            row.Criteria.value,
+		LabelType:           LabelType(row.LabelType),
+		LabelMembershipType: LabelMembershipType(row.LabelMembershipType),
+		HostsCount:          row.HostsCount,
+		CreatedAt:           row.CreatedAt,
+		UpdatedAt:           row.UpdatedAt,
 	}
-	label.HostsCount = s.HostsCount
-	return *label, nil
 }
 
-func criteriaJSON(criteria Criteria) ([]byte, error) {
-	normalized := Criteria{Attribute: criteria.Attribute, Values: cleanCriteriaValues(criteria.Values)}
-	return normalized.json()
+type derivedLabelRow struct {
+	ID       int64         `db:"id"`
+	Criteria labelCriteria `db:"criteria"`
 }
 
-func decodeCriteria(raw []byte) (Criteria, error) {
-	var criteria Criteria
-	if err := json.Unmarshal(raw, &criteria); err != nil {
-		return Criteria{}, fmt.Errorf("decode label criteria: %w", err)
+type labelWrite struct {
+	ID                  int64         `db:"id"`
+	Name                string        `db:"name"`
+	Description         string        `db:"description"`
+	Query               *string       `db:"query"`
+	Criteria            labelCriteria `db:"criteria"`
+	LabelType           string        `db:"label_type"`
+	LabelMembershipType string        `db:"label_membership_type"`
+}
+
+func newLabelWrite(params LabelMutation) labelWrite {
+	return labelWrite{
+		Name:                params.Name,
+		Description:         params.Description,
+		Query:               params.Query,
+		Criteria:            labelCriteria{value: params.Criteria},
+		LabelMembershipType: string(params.LabelMembershipType),
 	}
-	return criteria, nil
 }
 
-func getLabelByID(ctx context.Context, q *sqlc.Queries, id int64) (*Label, error) {
-	row, err := q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
-	if err != nil {
-		return nil, dbutil.GetError(err)
+func getLabelByID(ctx context.Context, q dbutil.Queryer, id int64) (*Label, error) {
+	if id <= 0 {
+		return nil, dbutil.ErrNotFound
 	}
-	label, err := labelFromSQLC(row.Label)
+	row, err := dbutil.GetOne[labelRow](ctx, q, labelSelectSQL+"\nWHERE l.id = $1\nGROUP BY l.id", id)
 	if err != nil {
 		return nil, err
 	}
-	label.HostsCount = row.HostsCount
+	label := labelFromRow(row)
 	if label.LabelMembershipType == LabelMembershipTypeManual {
-		hostIDs, err := q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
+		hostIDs, err := manualLabelHostIDs(ctx, q, id)
 		if err != nil {
 			return nil, err
 		}
 		label.HostIDs = hostIDs
 	}
-	return label, nil
+	return &label, nil
 }
 
-func (s *Store) replaceMembership(
+func manualLabelHostIDs(ctx context.Context, q dbutil.Queryer, labelID int64) ([]int64, error) {
+	rows, err := q.Query(ctx, `
+SELECT host_id
+FROM label_membership lm
+JOIN labels l ON l.id = lm.label_id
+WHERE lm.label_id = $1 AND l.label_membership_type = 'manual'
+ORDER BY lm.host_id`, labelID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+func replaceMembership(
 	ctx context.Context,
-	q *sqlc.Queries,
+	tx pgx.Tx,
 	labelID int64,
 	params LabelMutation,
 ) error {
 	switch params.LabelMembershipType {
 	case LabelMembershipTypeManual:
-		hostIDs := compactHostIDs(params.HostIDs)
-		if err := q.DeleteLabelMembershipsForLabel(
-			ctx,
-			sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID},
-		); err != nil {
-			return err
-		}
-		if len(hostIDs) == 0 {
-			return nil
-		}
-		return q.InsertLabelMemberships(ctx, sqlc.InsertLabelMembershipsParams{LabelID: labelID, HostIds: hostIDs})
+		return replaceManualMembership(ctx, tx, labelID, params.HostIDs)
 	case LabelMembershipTypeDerived:
-		return refreshDerivedMembership(ctx, q, labelID, params.Criteria)
+		return refreshDerivedMembership(ctx, tx, labelID, params.Criteria)
 	case LabelMembershipTypeDynamic:
-		return q.DeleteLabelMembershipsForLabel(ctx, sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID})
+		return deleteMembership(ctx, tx, labelID)
 	default:
 		return nil
 	}
+}
+
+func replaceManualMembership(ctx context.Context, tx pgx.Tx, labelID int64, hostIDs []int64) error {
+	if err := deleteMembership(ctx, tx, labelID); err != nil {
+		return err
+	}
+	hostIDs = compactHostIDs(hostIDs)
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO label_membership (label_id, host_id)
+SELECT $1, unnest($2::bigint[])`, labelID, hostIDs); err != nil {
+		return dbutil.MutationError(err)
+	}
+	return nil
+}
+
+func deleteMembership(ctx context.Context, tx pgx.Tx, labelID int64) error {
+	_, err := tx.Exec(ctx, `DELETE FROM label_membership WHERE label_id = $1`, labelID)
+	return err
 }
 
 func compactHostIDs(hostIDs []int64) []int64 {
@@ -469,34 +459,25 @@ func compactHostIDs(hostIDs []int64) []int64 {
 	return dbutil.Dedup(hostIDs)
 }
 
-func refreshDerivedMembership(ctx context.Context, q *sqlc.Queries, labelID int64, criteria *Criteria) error {
+func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, criteria *Criteria) error {
 	if err := validateCriteria(criteria); err != nil {
 		return err
 	}
-	if err := q.DeleteLabelMembershipsForLabel(
-		ctx,
-		sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID},
-	); err != nil {
+	if err := deleteMembership(ctx, tx, labelID); err != nil {
 		return err
 	}
 
 	values := cleanCriteriaValues(criteria.Values)
 	switch criteria.Attribute {
 	case DerivedAttributeUserDepartment:
-		return q.InsertUserDepartmentLabelMemberships(
-			ctx,
-			sqlc.InsertUserDepartmentLabelMembershipsParams{LabelID: labelID, Values: values},
-		)
+		_, err := tx.Exec(ctx, insertUserDepartmentMembershipSQL, labelID, values)
+		return err
 	case DerivedAttributeDirectoryGroup:
-		return q.InsertDirectoryGroupLabelMemberships(
-			ctx,
-			sqlc.InsertDirectoryGroupLabelMembershipsParams{LabelID: labelID, Values: values},
-		)
+		_, err := tx.Exec(ctx, insertDirectoryGroupMembershipSQL, labelID, values)
+		return err
 	case DerivedAttributeUser:
-		return q.InsertUserLabelMemberships(
-			ctx,
-			sqlc.InsertUserLabelMembershipsParams{LabelID: labelID, Values: values},
-		)
+		_, err := tx.Exec(ctx, insertUserMembershipSQL, labelID, values)
+		return err
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
@@ -513,3 +494,76 @@ func cleanCriteriaValues(values []string) []string {
 	}
 	return dbutil.Dedup(out)
 }
+
+const labelSelectSQL = `
+SELECT
+	l.id,
+	l.name,
+	l.builtin_key,
+	l.description,
+	l.query,
+	l.criteria,
+	l.label_type,
+	l.label_membership_type,
+	count(lm.host_id)::integer AS hosts_count,
+	l.created_at,
+	l.updated_at
+FROM labels l
+LEFT JOIN label_membership lm ON lm.label_id = l.id`
+
+const insertLabelSQL = `
+INSERT INTO labels (
+	name,
+	description,
+	query,
+	criteria,
+	label_type,
+	label_membership_type
+)
+VALUES (
+	@name,
+	@description,
+	@query,
+	@criteria::jsonb,
+	@label_type,
+	@label_membership_type
+)
+RETURNING id`
+
+const updateLabelSQL = `
+UPDATE labels
+SET
+	name = @name,
+	description = @description,
+	query = @query,
+	criteria = @criteria::jsonb,
+	label_membership_type = @label_membership_type,
+	updated_at = now()
+WHERE id = @id AND label_type = 'regular'
+RETURNING id`
+
+const insertUserDepartmentMembershipSQL = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.deleted_at IS NULL AND u.department = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+
+const insertDirectoryGroupMembershipSQL = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+JOIN directory_group_memberships dgm ON dgm.user_id = u.id
+JOIN directory_groups dg ON dg.id = dgm.group_id
+WHERE u.deleted_at IS NULL AND dg.external_id = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+
+const insertUserMembershipSQL = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.deleted_at IS NULL AND u.id::text = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`

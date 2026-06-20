@@ -1,7 +1,6 @@
 package labels
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -81,10 +80,6 @@ type Label struct {
 type Criteria struct {
 	Attribute DerivedAttribute `json:"attribute"`
 	Values    []string         `json:"values"`
-}
-
-func (c Criteria) json() ([]byte, error) {
-	return json.Marshal(c)
 }
 
 // LabelListParams filters labels.
