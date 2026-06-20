@@ -90,7 +90,10 @@ func registerCreateCheck(api huma.API, checkStore *Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
-		check, err := checkStore.Create(ctx, input.Body, adminctx.CurrentUserID(ctx))
+		check, err := checkStore.Create(ctx, CheckCreateMutation{
+			CheckMutation:   input.Body,
+			CreatedByUserID: adminctx.CurrentUserID(ctx),
+		})
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}

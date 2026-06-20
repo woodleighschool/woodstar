@@ -6,7 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -28,6 +27,12 @@ func (s *Store) loadCheckTarget(ctx context.Context, checkID int64) (CheckTarget
 	return emptyCheckTargets(), nil
 }
 
+type checkTargetRow struct {
+	CheckID   int64  `db:"check_id"`
+	LabelID   int64  `db:"label_id"`
+	Direction string `db:"direction"`
+}
+
 func (s *Store) loadCheckTargets(
 	ctx context.Context,
 	checkIDs []int64,
@@ -39,11 +44,15 @@ func (s *Store) loadCheckTargets(
 	for _, checkID := range checkIDs {
 		targets[checkID] = emptyCheckTargets()
 	}
-	rows, err := s.q.ListCheckTargets(ctx, sqlc.ListCheckTargetsParams{CheckIds: checkIDs})
+	rows, err := s.db.Pool().Query(ctx, listCheckTargetsSQL, checkIDs)
 	if err != nil {
 		return nil, err
 	}
-	for _, row := range rows {
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkTargetRow])
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range records {
 		targetSet := targets[row.CheckID]
 		ref := targeting.LabelRef{LabelID: row.LabelID}
 		switch targeting.Direction(row.Direction) {
@@ -64,26 +73,29 @@ func replaceCheckTargets(ctx context.Context, tx pgx.Tx, checkID int64, targets 
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	q := sqlc.New(tx)
-	if err := q.DeleteCheckTargets(ctx, sqlc.DeleteCheckTargetsParams{CheckID: checkID}); err != nil {
-		return err
+	if _, err := tx.Exec(ctx, deleteCheckTargetsSQL, checkID); err != nil {
+		return dbutil.MutationError(err)
 	}
 	if len(targets.Include) > 0 {
-		if err := q.InsertCheckTargets(ctx, sqlc.InsertCheckTargetsParams{
-			CheckID:   checkID,
-			LabelIds:  targeting.LabelRefIDs(targets.Include),
-			Direction: sqlc.TargetDirection(targeting.Include),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(
+			ctx,
+			insertCheckTargetsSQL,
+			checkID,
+			string(targeting.Include),
+			targeting.LabelRefIDs(targets.Include),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	if len(targets.Exclude) > 0 {
-		if err := q.InsertCheckTargets(ctx, sqlc.InsertCheckTargetsParams{
-			CheckID:   checkID,
-			LabelIds:  targeting.LabelRefIDs(targets.Exclude),
-			Direction: sqlc.TargetDirection(targeting.Exclude),
-		}); err != nil {
-			return err
+		if _, err := tx.Exec(
+			ctx,
+			insertCheckTargetsSQL,
+			checkID,
+			string(targeting.Exclude),
+			targeting.LabelRefIDs(targets.Exclude),
+		); err != nil {
+			return dbutil.MutationError(err)
 		}
 	}
 	return nil
@@ -112,3 +124,21 @@ func emptyCheckTargets() CheckTargets {
 		Exclude: []targeting.LabelRef{},
 	}
 }
+
+const listCheckTargetsSQL = `
+SELECT check_id, label_id, direction::text AS direction
+FROM osquery_check_targets
+WHERE check_id = ANY($1::bigint[])
+ORDER BY
+    check_id,
+    direction,
+    position`
+
+const deleteCheckTargetsSQL = `
+DELETE FROM osquery_check_targets
+WHERE check_id = $1`
+
+const insertCheckTargetsSQL = `
+INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
+SELECT $1, labels.label_id, $2::target_direction, labels.ord - 1
+FROM unnest($3::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`

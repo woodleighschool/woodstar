@@ -4,11 +4,11 @@ package checks
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
@@ -16,28 +16,120 @@ import (
 // Store persists checks and per-host membership state.
 type Store struct {
 	db *database.DB
-	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
+	return &Store{db: db}
+}
+
+func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, error) {
+	if err := in.Validate(); err != nil {
+		return nil, err
+	}
+	write := newCheckWrite(in.CheckMutation)
+	write.CreatedByUserID = in.CreatedByUserID
+
+	var id int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, insertCheckSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+			return dbutil.MutationError(err)
+		}
+		return replaceCheckTargets(ctx, tx, id, in.Targets)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(ctx, id)
+}
+
+func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check, error) {
+	if err := in.Validate(); err != nil {
+		return nil, err
+	}
+	write := newCheckWrite(in)
+	write.ID = id
+
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var updatedID int64
+		if err := tx.QueryRow(ctx, updateCheckSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			return dbutil.MutationError(err)
+		}
+		return replaceCheckTargets(ctx, tx, id, in.Targets)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(ctx, id)
+}
+
+func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
+	if id <= 0 {
+		return nil, dbutil.ErrNotFound
+	}
+	row, err := dbutil.GetOne[checkRow](ctx, s.db.Pool(), checkSelectSQL+"\nWHERE c.id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	check := checkFromRow(row)
+	targets, err := s.loadCheckTarget(ctx, check.ID)
+	if err != nil {
+		return nil, err
+	}
+	check.Targets = targets
+	counts, err := s.loadCheckCounts(ctx, []int64{check.ID})
+	if err != nil {
+		return nil, err
+	}
+	check.PassingHostCount = counts[check.ID].Passing
+	check.FailingHostCount = counts[check.ID].Failing
+	return check, nil
+}
+
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM checks WHERE id = $1`, id)
+	if err != nil {
+		return dbutil.DeleteConflict(err, "check is still referenced")
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+// DeleteMany removes multiple checks. Missing IDs are ignored for bulk idempotency.
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, `DELETE FROM checks WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+	if err != nil {
+		return 0, err
+	}
+	deletedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return 0, err
+	}
+	return len(deletedIDs), nil
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
 	where, args := checkListWhere(params)
-	listQuery := checkListQuery(where, args, params)
-
-	checks, count, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, func(row pgx.Row) (Check, error) {
-		check, err := scanCheck(row)
-		if err != nil {
-			return Check{}, err
-		}
-		return *check, nil
-	})
+	listQuery := dbutil.ListQuery{
+		SelectSQL: checkSelectSQL,
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: checkOrderKeys(),
+		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: "c.updated_at"},
+			{SQL: "c.id"},
+		},
+		Params: params.ListParams,
+	}
+	rows, count, err := dbutil.ListWithCount[checkRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
-
+	checks := checksFromRows(rows)
 	checkIDs := make([]int64, 0, len(checks))
 	for _, check := range checks {
 		checkIDs = append(checkIDs, check.ID)
@@ -58,131 +150,34 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	return checks, count, nil
 }
 
-func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
-	row, err := s.q.GetCheckByID(ctx, sqlc.GetCheckByIDParams{ID: id})
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	check := checkFromSQLC(row)
-	targets, err := s.loadCheckTarget(ctx, check.ID)
-	if err != nil {
-		return nil, err
-	}
-	check.Targets = targets
-	counts, err := s.loadCheckCounts(ctx, []int64{check.ID})
-	if err != nil {
-		return nil, err
-	}
-	check.PassingHostCount = counts[check.ID].Passing
-	check.FailingHostCount = counts[check.ID].Failing
-	return check, nil
-}
-
-func (s *Store) Create(ctx context.Context, params CheckMutation, createdByUserID *int64) (*Check, error) {
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	var created *Check
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
-			Name:            params.Name,
-			Description:     params.Description,
-			Query:           params.Query,
-			CreatedByUserID: createdByUserID,
-		})
-		if err != nil {
-			return err
-		}
-		check := checkFromSQLC(row)
-		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
-			return err
-		}
-		check.Targets = normalizeCheckTargets(params.Targets)
-		created = check
-		return nil
-	})
-	if err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	return created, nil
-}
-
-func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Check, error) {
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	var updated *Check
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
-			Name:        params.Name,
-			Description: params.Description,
-			Query:       params.Query,
-			ID:          id,
-		})
-		if err != nil {
-			return dbutil.GetError(err)
-		}
-		check := checkFromSQLC(row)
-		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
-			return err
-		}
-		check.Targets = normalizeCheckTargets(params.Targets)
-		updated = check
-		return nil
-	})
-	if err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	return updated, nil
-}
-
-func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteCheck(ctx, sqlc.DeleteCheckParams{ID: id})
-	if err != nil {
-		return dbutil.GetError(err)
-	}
-	return nil
-}
-
-// DeleteMany removes multiple checks. Missing IDs are ignored for bulk idempotency.
-func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	deletedIDs, err := s.q.DeleteChecks(ctx, sqlc.DeleteChecksParams{Ids: ids})
-	if err != nil {
-		return 0, err
-	}
-	return len(deletedIDs), nil
-}
-
 func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
-	rows, err := s.q.ListApplicableChecksForHost(ctx, sqlc.ListApplicableChecksForHostParams{HostID: host.ID})
+	rows, err := s.db.Pool().Query(ctx, listApplicableChecksForHostSQL, host.ID)
 	if err != nil {
 		return nil, err
 	}
-	checks := make([]Check, 0, len(rows))
-	for _, row := range rows {
-		checks = append(checks, *checkFromSQLC(row))
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkRow])
+	if err != nil {
+		return nil, err
 	}
-	return checks, nil
+	return checksFromRows(records), nil
 }
 
 // UpsertMembership records a check result. A nil passes value means not run.
 func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
-	return s.q.UpsertCheckMembership(ctx, sqlc.UpsertCheckMembershipParams{
-		CheckID: checkID,
-		HostID:  hostID,
-		Passes:  passes,
-	})
+	_, err := s.db.Pool().Exec(ctx, upsertCheckMembershipSQL, checkID, hostID, passes)
+	return err
 }
 
 func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostStatus, error) {
-	rows, err := s.q.ListCheckHostStatuses(ctx, sqlc.ListCheckHostStatusesParams{CheckID: checkID})
+	rows, err := s.db.Pool().Query(ctx, listCheckHostStatusesSQL, checkID)
 	if err != nil {
 		return nil, err
 	}
-	return checkHostStatusesFromCheckRows(rows), nil
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
+	if err != nil {
+		return nil, err
+	}
+	return checkHostStatusesFromRows(records), nil
 }
 
 // HostIDsByStatus returns host IDs with the latest persisted status for checkID.
@@ -194,62 +189,26 @@ func (s *Store) HostIDsByStatus(ctx context.Context, checkID int64, status Check
 	if err != nil {
 		return nil, err
 	}
-	return s.q.ListCheckHostIDsByPasses(ctx, sqlc.ListCheckHostIDsByPassesParams{
-		CheckID: checkID,
-		Passes:  passes,
-	})
-}
-
-func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
-	rows, err := s.q.ListHostCheckStatusesForHost(ctx, sqlc.ListHostCheckStatusesForHostParams{HostID: host.ID})
+	rows, err := s.db.Pool().Query(ctx, listCheckHostIDsByPassesSQL, checkID, passes)
 	if err != nil {
 		return nil, err
 	}
-	return checkHostStatusesFromHostRows(rows), nil
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
-func scanCheck(row pgx.Row) (*Check, error) {
-	var check Check
-	err := row.Scan(
-		&check.ID,
-		&check.Name,
-		&check.Description,
-		&check.Query,
-		&check.CreatedByUserID,
-		&check.CreatedAt,
-		&check.UpdatedAt,
-	)
-	return &check, err
-}
-
-func checkFromSQLC(row sqlc.Check) *Check {
-	return &Check{
-		ID:              row.ID,
-		Name:            row.Name,
-		Description:     row.Description,
-		Query:           row.Query,
-		CreatedByUserID: row.CreatedByUserID,
-		CreatedAt:       row.CreatedAt,
-		UpdatedAt:       row.UpdatedAt,
+func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
+	rows, err := s.db.Pool().Query(ctx, listHostCheckStatusesForHostSQL, host.ID)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func checkHostStatusesFromCheckRows(rows []sqlc.ListCheckHostStatusesRow) []CheckHostStatus {
-	statuses := make([]CheckHostStatus, 0, len(rows))
-	for _, row := range rows {
-		statuses = append(statuses, CheckHostStatus{
-			CheckID:   row.CheckID,
-			CheckName: row.CheckName,
-			HostID:    row.HostID,
-			HostName:  row.HostName,
-			Response:  checkStatusFromPasses(row.Passes),
-			UpdatedAt: row.UpdatedAt,
-		})
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
+	if err != nil {
+		return nil, err
 	}
-	return statuses
+	return checkHostStatusesFromRows(records), nil
 }
 
-func checkHostStatusesFromHostRows(rows []sqlc.ListHostCheckStatusesForHostRow) []CheckHostStatus {
+func checkHostStatusesFromRows(rows []checkHostStatusRow) []CheckHostStatus {
 	statuses := make([]CheckHostStatus, 0, len(rows))
 	for _, row := range rows {
 		statuses = append(statuses, CheckHostStatus{
@@ -295,16 +254,24 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 	if len(checkIDs) == 0 {
 		return map[int64]checkCounts{}, nil
 	}
-	rows, err := s.q.ListCheckCounts(ctx, sqlc.ListCheckCountsParams{CheckIds: checkIDs})
+	rows, err := s.db.Pool().Query(ctx, listCheckCountsSQL, checkIDs)
 	if err != nil {
 		return nil, err
 	}
-
+	type countRow struct {
+		CheckID          int64 `db:"check_id"`
+		PassingHostCount int32 `db:"passing_host_count"`
+		FailingHostCount int32 `db:"failing_host_count"`
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[countRow])
+	if err != nil {
+		return nil, err
+	}
 	counts := make(map[int64]checkCounts, len(checkIDs))
-	for _, row := range rows {
-		counts[row.CheckID] = checkCounts{
-			Passing: row.PassingHostCount,
-			Failing: row.FailingHostCount,
+	for _, r := range records {
+		counts[r.CheckID] = checkCounts{
+			Passing: r.PassingHostCount,
+			Failing: r.FailingHostCount,
 		}
 	}
 	return counts, nil
@@ -313,28 +280,72 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 func checkListWhere(params CheckListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		where.Addf(
-			"(c.name ILIKE %s OR c.description ILIKE %s OR c.query ILIKE %s)",
-			"%"+params.Q+"%",
-			"%"+params.Q+"%",
-			"%"+params.Q+"%",
-		)
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("(c.name ILIKE " + search + " OR c.description ILIKE " + search + " OR c.query ILIKE " + search + ")")
 	}
 	return where.Build()
 }
 
-func checkListQuery(where string, args []any, params CheckListParams) dbutil.ListQuery {
-	return dbutil.ListQuery{
-		SelectSQL: checkSelectSQL,
-		WhereSQL:  where,
-		Args:      args,
-		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":       {SQL: "c.name"},
-			"created_at": {SQL: "c.created_at"},
-			"updated_at": {SQL: "c.updated_at"},
-		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.updated_at"}, {SQL: "c.id"}},
-		Params:       params.ListParams,
+func checkOrderKeys() map[string]dbutil.OrderExpr {
+	return map[string]dbutil.OrderExpr{
+		"name":       {SQL: "c.name"},
+		"created_at": {SQL: "c.created_at"},
+		"updated_at": {SQL: "c.updated_at"},
+	}
+}
+
+type checkRow struct {
+	ID              int64     `db:"id"`
+	Name            string    `db:"name"`
+	Description     string    `db:"description"`
+	Query           string    `db:"query"`
+	CreatedByUserID *int64    `db:"created_by_user_id"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
+}
+
+type checkHostStatusRow struct {
+	CheckID   int64      `db:"check_id"`
+	CheckName string     `db:"check_name"`
+	HostID    int64      `db:"host_id"`
+	HostName  string     `db:"host_name"`
+	Passes    *bool      `db:"passes"`
+	UpdatedAt *time.Time `db:"updated_at"`
+}
+
+func checkFromRow(row checkRow) *Check {
+	return &Check{
+		ID:              row.ID,
+		Name:            row.Name,
+		Description:     row.Description,
+		Query:           row.Query,
+		CreatedByUserID: row.CreatedByUserID,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+	}
+}
+
+func checksFromRows(rows []checkRow) []Check {
+	checks := make([]Check, len(rows))
+	for i, row := range rows {
+		checks[i] = *checkFromRow(row)
+	}
+	return checks
+}
+
+type checkWrite struct {
+	ID              int64  `db:"id"`
+	Name            string `db:"name"`
+	Description     string `db:"description"`
+	Query           string `db:"query"`
+	CreatedByUserID *int64 `db:"created_by_user_id"`
+}
+
+func newCheckWrite(in CheckMutation) checkWrite {
+	return checkWrite{
+		Name:        in.Name,
+		Description: in.Description,
+		Query:       in.Query,
 	}
 }
 
@@ -342,3 +353,155 @@ const checkSelectSQL = `
 SELECT c.id, c.name, c.description, c.query,
        c.created_by_user_id, c.created_at, c.updated_at
 FROM checks c`
+
+const insertCheckSQL = `
+INSERT INTO checks (name, description, query, created_by_user_id)
+VALUES (@name, @description, @query, @created_by_user_id)
+RETURNING id`
+
+const updateCheckSQL = `
+UPDATE checks
+SET
+    name = @name,
+    description = @description,
+    query = @query,
+    updated_at = now()
+WHERE id = @id
+RETURNING id`
+
+const listApplicableChecksForHostSQL = `
+WITH host_row AS (
+    SELECT id
+    FROM hosts h
+    WHERE h.id = $1
+)
+SELECT
+    c.id,
+    c.name,
+    c.description,
+    c.query,
+    c.created_by_user_id,
+    c.created_at,
+    c.updated_at
+FROM checks c
+JOIN host_row h ON true
+WHERE EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'exclude'
+  )
+ORDER BY c.id`
+
+const upsertCheckMembershipSQL = `
+INSERT INTO check_membership (check_id, host_id, passes, updated_at)
+VALUES ($1, $2, $3, now())
+ON CONFLICT (check_id, host_id) DO UPDATE SET
+    passes = EXCLUDED.passes,
+    updated_at = now()`
+
+const listCheckHostIDsByPassesSQL = `
+SELECT host_id
+FROM check_membership
+WHERE check_id = $1
+  AND passes = $2::boolean
+ORDER BY host_id`
+
+const listCheckHostStatusesSQL = `
+WITH check_row AS (
+    SELECT *
+    FROM checks c
+    WHERE c.id = $1
+),
+host_rows AS (
+    SELECT id, display_name
+    FROM hosts
+)
+SELECT
+    c.id AS check_id,
+    c.name AS check_name,
+    h.id AS host_id,
+    h.display_name AS host_name,
+    m.passes,
+    m.updated_at
+FROM check_row c
+JOIN host_rows h ON true
+LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+WHERE EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'exclude'
+  )
+ORDER BY
+    CASE
+        WHEN m.passes IS FALSE THEN 0
+        WHEN m.passes IS NULL THEN 1
+        ELSE 2
+    END,
+    lower(h.display_name),
+    h.id`
+
+const listHostCheckStatusesForHostSQL = `
+WITH host_row AS (
+    SELECT id, display_name
+    FROM hosts h
+    WHERE h.id = $1
+)
+SELECT
+    c.id AS check_id,
+    c.name AS check_name,
+    h.id AS host_id,
+    h.display_name AS host_name,
+    m.passes,
+    m.updated_at
+FROM checks c
+JOIN host_row h ON true
+LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+WHERE EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.direction = 'exclude'
+  )
+ORDER BY
+    CASE
+        WHEN m.passes IS FALSE THEN 0
+        WHEN m.passes IS NULL THEN 1
+        ELSE 2
+    END,
+    lower(c.name),
+    c.id`
+
+const listCheckCountsSQL = `
+SELECT
+    check_id,
+    COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
+    COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
+FROM check_membership
+WHERE check_id = ANY($1::bigint[])
+GROUP BY check_id`

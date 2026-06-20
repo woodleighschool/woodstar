@@ -32,6 +32,12 @@ type CheckMutation struct {
 	Targets     CheckTargets `json:"targets"`
 }
 
+// CheckCreateMutation is the create input for a check.
+type CheckCreateMutation struct {
+	CheckMutation
+	CreatedByUserID *int64
+}
+
 func (p CheckMutation) Validate() error {
 	if p.Name == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)

@@ -19,11 +19,11 @@ func TestListIncludesTargets(t *testing.T) {
 	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-passing-host")
 	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host")
 
-	check, err := store.Create(ctx, CheckMutation{
+	check, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Targeted check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{labelA.ID}, []int64{labelB.ID}),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -55,11 +55,11 @@ func TestUpdateReplacesTargets(t *testing.T) {
 	second := createManualLabel(t, ctx, labelStore, "Check second")
 	third := createManualLabel(t, ctx, labelStore, "Check third")
 
-	check, err := store.Create(ctx, CheckMutation{
+	check, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Replacement check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -94,25 +94,25 @@ func TestApplicableForHostUsesTargetRows(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, CheckMutation{
+	if _, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Matching check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{matching.ID}, nil),
-	}, nil); err != nil {
+	})); err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
-	if _, err := store.Create(ctx, CheckMutation{
+	if _, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Nonmatching check",
 		Query:   "select 2;",
 		Targets: checkTargets([]int64{other.ID}, nil),
-	}, nil); err != nil {
+	})); err != nil {
 		t.Fatalf("create nonmatching check: %v", err)
 	}
-	if _, err := store.Create(ctx, CheckMutation{
+	if _, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Excluded check",
 		Query:   "select 3;",
 		Targets: checkTargets([]int64{matching.ID}, []int64{excluded.ID}),
-	}, nil); err != nil {
+	})); err != nil {
 		t.Fatalf("create excluded check: %v", err)
 	}
 
@@ -133,11 +133,11 @@ func TestApplicableForHostRequiresIncludeTarget(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, CheckMutation{
+	if _, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Exclude-only check",
 		Query:   "select 1;",
 		Targets: checkTargets(nil, []int64{excluded.ID}),
-	}, nil); err != nil {
+	})); err != nil {
 		t.Fatalf("create exclude-only check: %v", err)
 	}
 
@@ -153,11 +153,11 @@ func TestApplicableForHostRequiresIncludeTarget(t *testing.T) {
 func TestCreateCheckWithMissingLabelReturnsNotFound(t *testing.T) {
 	store, _, _, ctx := newIntegrationCheckStore(t)
 
-	_, err := store.Create(ctx, CheckMutation{
+	_, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Missing label target",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{999_999}, nil),
-	}, nil)
+	}))
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
@@ -167,11 +167,11 @@ func TestCreateCheckRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationCheckStore(t)
 	label := createManualLabel(t, ctx, labelStore, "Check Overlap")
 
-	_, err := store.Create(ctx, CheckMutation{
+	_, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Overlapping check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{label.ID}, []int64{label.ID}),
-	}, nil)
+	}))
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
 	}
@@ -182,11 +182,11 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
-	matching, err := store.Create(ctx, CheckMutation{
+	matching, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Matching check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
@@ -209,27 +209,27 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
-	passing, err := store.Create(ctx, CheckMutation{
+	passing, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Passing check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
-	failing, err := store.Create(ctx, CheckMutation{
+	failing, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Failing check",
 		Query:   "select 0;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create failing check: %v", err)
 	}
-	unevaluated, err := store.Create(ctx, CheckMutation{
+	unevaluated, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Unevaluated check",
 		Query:   "select 2;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create unevaluated check: %v", err)
 	}
@@ -281,11 +281,11 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	check, err := store.Create(ctx, CheckMutation{
+	check, err := store.Create(ctx, makeCheck(CheckMutation{
 		Name:    "Status list check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	}, nil)
+	}))
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 
 func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
-	check, err := store.Create(ctx, CheckMutation{Name: "Host ID status check", Query: "select 1"}, nil)
+	check, err := store.Create(ctx, makeCheck(CheckMutation{Name: "Host ID status check", Query: "select 1"}))
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -452,6 +452,10 @@ func allHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int
 	}
 	t.Fatalf("All Hosts label not found")
 	return 0
+}
+
+func makeCheck(m CheckMutation) CheckCreateMutation {
+	return CheckCreateMutation{CheckMutation: m}
 }
 
 func checkTargets(includeIDs, excludeIDs []int64) CheckTargets {
