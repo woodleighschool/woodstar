@@ -53,11 +53,14 @@ func (s *Store) replaceTargets(
 			LabelID:    exclude.LabelID,
 		})
 	}
-	return dbutil.ReplaceChildren(
+	if err := dbutil.ReplaceChildren(
 		ctx, tx,
 		deleteSoftwareTargetsSQL, []any{softwareID},
 		insertSoftwareTargetSQL, rows,
-	)
+	); err != nil {
+		return dbutil.MutationError(err)
+	}
+	return nil
 }
 
 func (s *Store) validatePackageSelectors(
@@ -260,6 +263,6 @@ VALUES (
 	@position,
 	@label_id,
 	NULLIF(@actions::text[]::munki_manifest_action[], ARRAY[]::munki_manifest_action[]),
-	NULLIF(@package_selection::munki_package_selection, ''),
+	NULLIF(@package_selection, '')::munki_package_selection,
 	@pinned_package_id
 )`
