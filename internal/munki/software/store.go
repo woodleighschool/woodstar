@@ -20,7 +20,7 @@ type objectStore interface {
 
 type packageStore interface {
 	GetByID(context.Context, int64) (*packages.Package, error)
-	AttachRelations(context.Context, []packages.Package) ([]packages.Package, error)
+	PackagesByID(context.Context, []int64) ([]packages.Package, error)
 }
 
 type Store struct {

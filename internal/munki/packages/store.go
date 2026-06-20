@@ -95,11 +95,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[PackageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
+	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	packages, err := s.AttachRelations(ctx, []Package{PackageFromRow(row)})
+	packages, err := s.attachRelations(ctx, []Package{packageFromRow(row)})
 	if err != nil {
 		return nil, err
 	}
@@ -185,11 +185,11 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[PackageRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[packageRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
-	packages, err := s.AttachRelations(ctx, packagesFromRows(rows))
+	packages, err := s.attachRelations(ctx, packagesFromRows(rows))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -206,11 +206,29 @@ ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[PackageRow])
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
 	if err != nil {
 		return nil, err
 	}
-	return s.AttachRelations(ctx, packagesFromRows(records))
+	return s.attachRelations(ctx, packagesFromRows(records))
+}
+
+// PackagesByID assembles the given packages with relations attached. The result
+// order is unspecified; callers index it by Package.ID.
+func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error) {
+	ids = dbutil.Dedup(ids)
+	if len(ids) == 0 {
+		return []Package{}, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+"\nWHERE p.id = ANY($1::bigint[])", ids)
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
+	if err != nil {
+		return nil, err
+	}
+	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
 func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
@@ -342,16 +360,16 @@ func applyDefaults(params PackageMutation) PackageMutation {
 	return params
 }
 
-func packagesFromRows(rows []PackageRow) []Package {
+func packagesFromRows(rows []packageRow) []Package {
 	packages := make([]Package, len(rows))
 	for i, row := range rows {
-		packages[i] = PackageFromRow(row)
+		packages[i] = packageFromRow(row)
 	}
 	return packages
 }
 
-// PackageFromRow assembles a Package domain value from a scanned PackageRow.
-func PackageFromRow(row PackageRow) Package {
+// packageFromRow assembles a Package domain value from a scanned packageRow.
+func packageFromRow(row packageRow) Package {
 	return Package{
 		ID:                       row.ID,
 		SoftwareID:               row.SoftwareID,
@@ -452,8 +470,8 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-// PackageRow is the canonical scan target for the munki package projection.
-type PackageRow struct {
+// packageRow is the canonical scan target for the munki package projection.
+type packageRow struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
@@ -516,7 +534,7 @@ type PackageRow struct {
 	UpdatedAt                    time.Time
 }
 
-func (row PackageRow) PreinstallAlert() PackageAlert {
+func (row packageRow) PreinstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreinstallAlertEnabled,
 		Title:       row.PreinstallAlertTitle,
@@ -526,7 +544,7 @@ func (row PackageRow) PreinstallAlert() PackageAlert {
 	}
 }
 
-func (row PackageRow) PreuninstallAlert() PackageAlert {
+func (row packageRow) PreuninstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreuninstallAlertEnabled,
 		Title:       row.PreuninstallAlertTitle,
@@ -536,7 +554,7 @@ func (row PackageRow) PreuninstallAlert() PackageAlert {
 	}
 }
 
-func (row PackageRow) InstallerFile() *InstallerFile {
+func (row packageRow) InstallerFile() *InstallerFile {
 	if row.InstallerObjectID == nil || row.InstallerFilename == nil {
 		return nil
 	}
@@ -830,10 +848,9 @@ SET
 WHERE id = @id
 RETURNING id`
 
-// PackageColumnsSQL is the canonical PackageRow projection. Callers that join
-// the package tables under the p/s/installer_obj aliases reuse it to scan into
-// PackageRow, keeping one projection across the package and effective queries.
-const PackageColumnsSQL = `
+// packageColumnsSQL is the canonical packageRow projection, shared by the
+// by-id and list reads under the p/s/installer_obj aliases.
+const packageColumnsSQL = `
 	p.id,
 	p.software_id,
 	s.name AS software_name,
@@ -896,7 +913,7 @@ const PackageColumnsSQL = `
 	p.updated_at`
 
 const packageSelectSQL = `
-SELECT` + PackageColumnsSQL + `
+SELECT` + packageColumnsSQL + `
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id`
@@ -965,8 +982,8 @@ type packageRelations struct {
 	updateFor []PackageReference
 }
 
-// AttachRelations loads requires and update_for references for package rows.
-func (s *Store) AttachRelations(ctx context.Context, packages []Package) ([]Package, error) {
+// attachRelations loads requires and update_for references for package rows.
+func (s *Store) attachRelations(ctx context.Context, packages []Package) ([]Package, error) {
 	relations, err := s.packageRelationsByPackage(ctx, packageIDs(packages))
 	if err != nil {
 		return nil, err

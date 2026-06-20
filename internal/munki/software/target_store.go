@@ -187,10 +187,10 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 }
 
 // effectivePackageRow scans the host-effective query: the include target shape
-// plus the canonical package projection reused from the packages store.
+// plus the id of the package it resolves to. Package bodies are assembled by the
+// packages store, which owns that projection.
 type effectivePackageRow struct {
-	packages.PackageRow
-
+	PackageID        int64    `db:"package_id"`
 	TargetID         int64    `db:"target_id"`
 	TargetSoftwareID int64    `db:"target_software_id"`
 	Actions          []string `db:"actions"`
@@ -208,9 +208,29 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	if err != nil {
 		return nil, err
 	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.PackageID)
+	}
+	pkgs, err := s.packages.PackagesByID(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]packages.Package, len(pkgs))
+	for _, pkg := range pkgs {
+		byID[pkg.ID] = pkg
+	}
+
 	effective := make([]EffectivePackage, 0, len(rows))
 	for _, row := range rows {
-		pkg := packages.PackageFromRow(row.PackageRow)
+		pkg, ok := byID[row.PackageID]
+		if !ok {
+			continue
+		}
 		effective = append(effective, EffectivePackage{
 			TargetID:             row.TargetID,
 			SoftwareID:           row.TargetSoftwareID,
@@ -220,20 +240,19 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			Selector:             packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}
-	resolved := ResolveEffectivePackages(effective)
-	return s.attachPackageRelations(ctx, resolved)
+	return ResolveEffectivePackages(effective), nil
 }
 
 const effectivePackagesForHostSQL = `
 SELECT
+	p.id AS package_id,
 	(a.position + 1)::bigint AS target_id,
 	a.software_id AS target_software_id,
 	a.actions::text[] AS actions,
 	a.package_selection::text AS package_selection,
-	a.pinned_package_id,` + packages.PackageColumnsSQL + `
+	a.pinned_package_id
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
-JOIN munki_software s ON s.id = a.software_id
 JOIN munki_packages p ON p.software_id = a.software_id
 	AND (
 		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
@@ -253,32 +272,6 @@ WHERE a.direction = 'include'
         AND excluded.direction = 'exclude'
   )
 ORDER BY a.software_id, a.position, p.id`
-
-func (s *Store) attachPackageRelations(
-	ctx context.Context,
-	effective []EffectivePackage,
-) ([]EffectivePackage, error) {
-	pkgs := make([]packages.Package, 0, len(effective))
-	for _, pkg := range effective {
-		if pkg.Package.ID > 0 {
-			pkgs = append(pkgs, pkg.Package)
-		}
-	}
-	pkgs, err := s.packages.AttachRelations(ctx, pkgs)
-	if err != nil {
-		return nil, err
-	}
-	byID := make(map[int64]packages.Package, len(pkgs))
-	for _, pkg := range pkgs {
-		byID[pkg.ID] = pkg
-	}
-	for i := range effective {
-		if pkg, ok := byID[effective[i].Package.ID]; ok {
-			effective[i].Package = pkg
-		}
-	}
-	return effective, nil
-}
 
 type softwareTargetWrite struct {
 	SoftwareID       int64    `db:"software_id"`
