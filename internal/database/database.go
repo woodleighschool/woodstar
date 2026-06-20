@@ -8,8 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // DB wraps the Postgres connection pool used by stores.
@@ -55,11 +53,6 @@ func (db *DB) Close() {
 // Ping checks whether the database is reachable.
 func (db *DB) Ping(ctx context.Context) error {
 	return db.pool.Ping(ctx)
-}
-
-// Queries returns generated database queries backed by this connection pool.
-func (db *DB) Queries() *sqlc.Queries {
-	return sqlc.New(db.pool)
 }
 
 // Pool returns the underlying pgxpool.Pool for callers that need raw access (e.g. scs pgxstore).

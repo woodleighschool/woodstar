@@ -112,16 +112,9 @@ if ! diff -qr web/src/lib/api-client "$client" >/dev/null; then
 fi
 """
 
-[tasks.sqlc]
-description = "Generate sqlc database code"
-run = "go tool github.com/sqlc-dev/sqlc/cmd/sqlc generate"
-
 [tasks.generate]
 description = "Regenerate checked-in generated artifacts"
-run = """
-mise run sqlc
-mise run openapi-types
-"""
+run = "mise run openapi-types"
 
 [tasks.go-lint]
 description = "Run Go linters"

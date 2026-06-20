@@ -16,7 +16,7 @@ Backend and repo-wide rules for AI agents working on Woodstar.
 - Backend packages: `internal/`, organized by capability. Avoid catch-all packages such as `internal/app`, `internal/common`, `pkg/utils`, or vague domain buckets.
 - Admin/browser HTTP composition: `internal/adminapi`. Domain packages expose explicit admin route registration; `adminapi` wires auth, Huma groups, protocols, and the embedded SPA.
 - Agent protocols: `internal/{orbit,osquery,munki,santa}/protocol`.
-- Database: `internal/database`, migrations, `internal/database/queries`, generated `internal/database/sqlc`, and `internal/database/dbtest`.
+- Database: `internal/database`, migrations, and `internal/database/dbtest`. Stores use raw pgx; there is no sqlc layer.
 - Small shared leaves: `config`, `logging`, `dbutil`, `httpauth`, `httpjson`, `humaschema`, `targeting`, `webui`.
 - Frontend: `web/`. Read `web/AGENTS.md` before changing React, routes, generated API types, or frontend tooling.
 - Engineering notes: `docs/`. Keep `README.md` concise.
@@ -31,7 +31,7 @@ Use mise tasks as the repo contract. Root tasks are the normal product workflow:
 - DB/full Go suite: `mise run full-test`
 - Protocol/auth integration slice: `mise run test-integration`
 - Lint/format: `mise run lint`, Go only `mise run go-lint`, web only `mise //web:lint`, `mise run format`, Go only `mise run go-format`, web only `mise //web:format`
-- Generated artifacts: `mise run sqlc`, `mise run openapi-types`, or `mise run generate`
+- Generated artifacts: `mise run openapi-types`, or `mise run generate`
 - OpenAPI freshness: `mise run test-openapi`
 - Full local gate: `mise run precommit`
 - Docs when in scope: `mise //docs:check`, `mise //docs:format`, or work from `docs/`
@@ -40,8 +40,7 @@ Use mise tasks as the repo contract. Root tasks are the normal product workflow:
 
 ## Backend Shape
 
-- Domain types are real structs in their owning package. Do not embed `sqlc` rows in public domain types.
-- Map `sqlc.X` to domain `X` explicitly where it protects boundaries, hides internal columns, normalizes enum/platform types, or joins computed fields.
+- Domain types are real structs in their owning package.
 - Services are for orchestration: secrets/passwords, background lifecycle, protocol coordination, external sync, policy, or multi-store work. Plain CRUD can use stores directly.
 - Orbit and osquery are separate enrolling clients. Both can create or refresh hosts using their own node keys and protocol contracts.
 - Santa and Munki enrich existing hosts. Their ingest/sync paths look up hosts and no-op when absent; they do not create canonical host identity.
@@ -67,8 +66,8 @@ Use mise tasks as the repo contract. Root tasks are the normal product workflow:
 - Huma `message` strings are part of the SPA contract. Do not add broad error-code taxonomies unless a real frontend flow needs a narrow structured field.
 - Route registration must be side-effect-free. Schema generation reuses route registration with empty dependencies.
 - Schema changes need migrations. Runtime schema changes do not happen by hand.
-- Fixed CRUD queries belong in sqlc when the shape is stable. Dynamic list/search/filter queries should use raw SQL through `dbutil.ListQuery`.
-- Never edit generated sqlc or generated frontend API client files manually.
+- All database queries use raw pgx. Dynamic list/search/filter queries use `dbutil.ListQuery`.
+- Never edit the generated frontend API client files manually.
 - API contract changes must refresh `web/openapi.yaml` and generated frontend types with `mise run openapi-types`.
 
 ## Go And Tests
@@ -80,7 +79,7 @@ Use mise tasks as the repo contract. Root tasks are the normal product workflow:
 - Tests live beside code as `*_test.go`. Prefer table-driven tests and existing fixtures.
 - Protocol-facing tests should exercise the actual request/response behavior.
 - Use `os.WriteFile(..., 0o600)` in tests unless broader permissions are required.
-- Use `internal/database/dbtest` only for database semantics worth protecting; do not add DB harnesses just to prove sqlc or constructors work.
+- Use `internal/database/dbtest` only for database semantics worth protecting; do not add DB harnesses just to prove constructors work.
 - For DB, protocol, Santa, osquery, or API changes, prefer `mise run full-test` and `mise run test-openapi` before handoff.
 
 ## Security
