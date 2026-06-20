@@ -113,14 +113,14 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 	for _, tt := range invalidCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := store.CreateRule(ctx, tt.params)
+			_, err := store.Create(ctx, tt.params)
 			if !errors.Is(err, dbutil.ErrInvalidInput) {
 				t.Fatalf("CreateRule error = %v, want ErrInvalidInput", err)
 			}
 		})
 	}
 
-	rule, err := store.CreateRule(ctx, rules.RuleMutation{
+	rule, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:      rules.RuleTypeBinary,
 		Identifier:    binaryIdentifier,
 		Name:          "Example",
@@ -147,7 +147,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		t.Fatalf("exclude targets = nil, want empty array")
 	}
 
-	_, err = store.CreateRule(ctx, rules.RuleMutation{
+	_, err = store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: binaryIdentifier,
 		Name:       "Duplicate",
@@ -157,7 +157,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 
 	celExpression := "target.path.startsWith('/Applications')"
-	updated, err := store.UpdateRule(ctx, rule.ID, rules.RuleMutation{
+	updated, err := store.Update(ctx, rule.ID, rules.RuleMutation{
 		RuleType:      rules.RuleTypeSigningID,
 		Identifier:    "ABCDE12345:com.example.updated",
 		Name:          "Updated",
@@ -192,7 +192,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
 
-	_, err := store.CreateRule(ctx, rules.RuleMutation{
+	_, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("d", 64),
 		Name:       "Missing Include Label",
@@ -203,7 +203,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 	}
 
 	labelID := createSantaRuleLabel(t, db, "Rule Missing Exclude Include")
-	_, err = store.CreateRule(ctx, rules.RuleMutation{
+	_, err = store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("e", 64),
 		Name:       "Missing Exclude Label",
@@ -309,7 +309,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		t.Fatalf("set second label membership: %v", err)
 	}
 
-	hostRule, err := store.CreateRule(ctx, rules.RuleMutation{
+	hostRule, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Name:       "Targeted Binary",
 		Identifier: strings.Repeat("1", 64),
@@ -321,7 +321,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host rule: %v", err)
 	}
-	excludedRule, err := store.CreateRule(ctx, rules.RuleMutation{
+	excludedRule, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeTeamID,
 		Identifier: "TEAMID1234",
 		Name:       "Excluded Team",
@@ -367,7 +367,7 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	}
 	allHostsLabelID := santaRuleAllHostsLabelID(t, db)
 
-	rule, err := store.CreateRule(ctx, rules.RuleMutation{
+	rule, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeTeamID,
 		Identifier: "ALLHOST123",
 		Name:       "All Hosts Team",
@@ -447,7 +447,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 		t.Fatalf("link bundle executables: %v", err)
 	}
 
-	rule, err := store.CreateRule(ctx, rules.RuleMutation{
+	rule, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBundle,
 		Identifier: bundleHash,
 		Name:       "Bundle Rule",
@@ -544,7 +544,7 @@ func TestRuleReferencesSearchBundlesAndSoftwareInventory(t *testing.T) {
 		t.Fatalf("bundle references = %+v, want complete bundle candidate", references)
 	}
 
-	_, err = store.CreateRule(ctx, rules.RuleMutation{
+	_, err = store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBundle,
 		Identifier: incompleteBundleHash,
 		Name:       "Incomplete Bundle",
@@ -684,14 +684,14 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
 
-	first, err := store.CreateRule(
+	first, err := store.Create(
 		ctx,
 		rules.RuleMutation{RuleType: rules.RuleTypeBinary, Identifier: strings.Repeat("3", 64), Name: "Bulk Binary"},
 	)
 	if err != nil {
 		t.Fatalf("create first rule: %v", err)
 	}
-	second, err := store.CreateRule(ctx, rules.RuleMutation{
+	second, err := store.Create(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeTeamID,
 		Identifier: "BULKTEAM12",
 		Name:       "Bulk Team",
@@ -707,10 +707,10 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	if deleted != 1 {
 		t.Fatalf("deleted = %d, want 1", deleted)
 	}
-	if _, err := store.GetRuleByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("deleted rule lookup error = %v, want ErrNotFound", err)
 	}
-	if _, err := store.GetRuleByID(ctx, second.ID); err != nil {
+	if _, err := store.GetByID(ctx, second.ID); err != nil {
 		t.Fatalf("kept rule lookup: %v", err)
 	}
 }

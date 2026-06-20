@@ -75,7 +75,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}
 
 	ruleIdentifier := strings.Repeat("a", 64)
-	if _, err := stores.rules.CreateRule(ctx, santarules.RuleMutation{
+	if _, err := stores.rules.Create(ctx, santarules.RuleMutation{
 		RuleType:      santarules.RuleTypeBinary,
 		Identifier:    ruleIdentifier,
 		Name:          "Contract rule " + suffix,

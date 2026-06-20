@@ -62,7 +62,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
-	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
+	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
 		RuleType:      santarules.RuleTypeBinary,
 		Identifier:    binaryIdentifier,
 		Name:          "Blocked binary",
@@ -128,7 +128,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("downloaded rule = %+v", download.Rules[0])
 	}
 
-	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
+	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
 		RuleType:   santarules.RuleTypeCertificate,
 		Identifier: certificateIdentifier,
 		Name:       "Blocked certificate",
