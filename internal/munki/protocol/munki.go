@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/httpauth"
-	"github.com/woodleighschool/woodstar/internal/httpclientip"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -137,7 +137,7 @@ func (h handler) redirectToDistributionPoint(
 	installer munki.PackageInstaller,
 ) (string, bool) {
 	return h.selector.SelectRedirect(r.Context(), mdp.SelectionRequest{
-		ClientIP:              httpclientip.FromRequest(r),
+		ClientIP:              chimiddleware.GetClientIP(r.Context()),
 		PackageID:             installer.PackageID,
 		InstallerItemLocation: installer.InstallerItemLocation,
 		SHA256:                installer.SHA256,
