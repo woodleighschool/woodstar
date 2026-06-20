@@ -3,24 +3,102 @@ package directory
 import (
 	"context"
 	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Store persists directory users, groups, memberships, and source snapshots.
 type Store struct {
 	db *database.DB
-	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
+	return &Store{db: db}
+}
+
+type userRow struct {
+	ID                int64      `db:"id"`
+	Email             string     `db:"email"`
+	Name              string     `db:"name"`
+	PasswordHash      *string    `db:"password_hash"`
+	Role              *string    `db:"role"`
+	APIKey            *string    `db:"api_key"`
+	APIKeyCreatedAt   *time.Time `db:"api_key_created_at"`
+	Source            string     `db:"source"`
+	ExternalID        *string    `db:"external_id"`
+	UserPrincipalName *string    `db:"user_principal_name"`
+	MailNickname      *string    `db:"mail_nickname"`
+	GivenName         *string    `db:"given_name"`
+	FamilyName        *string    `db:"family_name"`
+	Department        *string    `db:"department"`
+	DeletedAt         *time.Time `db:"deleted_at"`
+	CreatedAt         time.Time  `db:"created_at"`
+	UpdatedAt         time.Time  `db:"updated_at"`
+}
+
+const userSelectSQL = `
+SELECT
+    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at
+FROM users`
+
+func userFromRow(r userRow) User {
+	role := roleFromString(r.Role)
+	return User{
+		ID:                r.ID,
+		Email:             r.Email,
+		Name:              r.Name,
+		PasswordHash:      derefString(r.PasswordHash),
+		Role:              role,
+		Source:            Source(r.Source),
+		ExternalID:        derefString(r.ExternalID),
+		UserPrincipalName: derefString(r.UserPrincipalName),
+		MailNickname:      derefString(r.MailNickname),
+		GivenName:         derefString(r.GivenName),
+		FamilyName:        derefString(r.FamilyName),
+		Department:        derefString(r.Department),
+		CanLogin:          r.DeletedAt == nil && role != nil,
+		DeletedAt:         r.DeletedAt,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt,
+	}
+}
+
+func accountFromRow(r userRow) Account {
+	account := Account{
+		User:            userFromRow(r),
+		APIKeyCreatedAt: r.APIKeyCreatedAt,
+	}
+	if r.APIKey != nil {
+		account.APIKey = *r.APIKey
+	}
+	return account
+}
+
+func roleFromString(role *string) *Role {
+	if role == nil {
+		return nil
+	}
+	value := Role(*role)
+	return &value
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (s *Store) UserExists(ctx context.Context) (bool, error) {
-	return s.q.UserExists(ctx)
+	var exists bool
+	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users)`).Scan(&exists)
+	return exists, err
 }
 
 type userCreateRecord struct {
@@ -31,60 +109,87 @@ type userCreateRecord struct {
 }
 
 func (s *Store) createUser(ctx context.Context, params userCreateRecord) (*User, error) {
-	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
-		Email:        strings.ToLower(params.Email),
-		Name:         params.Name,
-		PasswordHash: &params.PasswordHash,
-		Role:         sqlc.UserRole(params.Role),
-	})
+	var id int64
+	err := s.db.Pool().QueryRow(ctx, `
+INSERT INTO users (email, name, password_hash, role, source)
+VALUES ($1, $2, $3, $4::user_role, 'local')
+RETURNING id`,
+		strings.ToLower(params.Email), params.Name, params.PasswordHash, string(params.Role),
+	).Scan(&id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	return s.GetUserByID(ctx, id)
 }
 
 func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := s.q.GetLoginUserByEmail(ctx, sqlc.GetLoginUserByEmailParams{Email: strings.ToLower(email)})
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+WHERE deleted_at IS NULL
+  AND source = 'local'
+  AND role IS NOT NULL
+  AND password_hash IS NOT NULL
+  AND (
+      lower(email) = lower($1)
+      OR lower(COALESCE(user_principal_name, '')) = lower($1)
+  )
+ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
+LIMIT 1`, strings.ToLower(email))
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	out := userFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := s.q.GetSSOUserByEmail(ctx, sqlc.GetSSOUserByEmailParams{Email: strings.ToLower(email)})
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+WHERE deleted_at IS NULL
+  AND role IS NOT NULL
+  AND (
+      lower(email) = lower($1)
+      OR lower(COALESCE(user_principal_name, '')) = lower($1)
+  )
+ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
+LIMIT 1`, strings.ToLower(email))
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	out := userFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
-	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+WHERE id = $1
+  AND deleted_at IS NULL`, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	out := userFromRow(row)
+	return &out, nil
 }
 
 // GetAccountByID returns the signed-in user's self-view, including API key fields.
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
-	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+WHERE id = $1
+  AND deleted_at IS NULL`, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(accountFromSQLC(row)), nil
+	out := accountFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, int, error) {
 	where, args := userWhere(params)
-	list, count, err := dbutil.ListWithCount[sqlc.User](ctx, s.db.Pool(), userListQuery(params, where, args))
+	rows, count, err := dbutil.ListWithCount[userRow](ctx, s.db.Pool(), userListQuery(params, where, args))
 	if err != nil {
 		return nil, 0, err
 	}
-	out := make([]User, len(list))
-	for i, row := range list {
-		out[i] = userFromSQLC(row)
+	out := make([]User, len(rows))
+	for i, row := range rows {
+		out[i] = userFromRow(row)
 	}
 	return out, count, nil
 }
@@ -101,116 +206,150 @@ type userUpdateRecord struct {
 }
 
 func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecord) (*User, error) {
-	var role *sqlc.UserRole
+	var roleStr *string
 	if params.Role != nil {
-		value := sqlc.UserRole(*params.Role)
-		role = &value
+		v := string(*params.Role)
+		roleStr = &v
 	}
-
-	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
-		Name:         params.Name,
-		Role:         role,
-		PasswordHash: params.PasswordHash,
-		ID:           id,
-	})
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    name = CASE WHEN source = 'local' THEN $1 ELSE name END,
+    role = $2::user_role,
+    password_hash = CASE
+        WHEN source = 'local' THEN COALESCE($3, password_hash)
+        ELSE password_hash
+    END,
+    updated_at = now()
+WHERE id = $4
+RETURNING
+    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at`,
+		params.Name, roleStr, params.PasswordHash, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	out := userFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) updateAccount(ctx context.Context, id int64, params accountUpdateRecord) (*Account, error) {
-	row, err := s.q.UpdateAccountByID(ctx, sqlc.UpdateAccountByIDParams{
-		Name:         params.Name,
-		PasswordHash: params.PasswordHash,
-		ID:           id,
-	})
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    name = CASE WHEN source = 'local' THEN $1 ELSE name END,
+    password_hash = CASE
+        WHEN source = 'local' THEN COALESCE($2, password_hash)
+        ELSE password_hash
+    END,
+    updated_at = now()
+WHERE id = $3
+RETURNING
+    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at`,
+		params.Name, params.PasswordHash, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(accountFromSQLC(row)), nil
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.GetError(err)
+	}
+	out := accountFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) DeleteUser(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
+	var deletedID int64
+	err := s.db.Pool().QueryRow(ctx, `
+DELETE FROM users
+WHERE id = $1
+  AND source = 'local'
+  AND deleted_at IS NULL
+RETURNING id`, id).Scan(&deletedID)
 	return dbutil.GetError(err)
 }
 
 func (s *Store) SoftDeleteUser(ctx context.Context, id int64) error {
-	_, err := s.q.SoftDeleteDirectoryUser(ctx, sqlc.SoftDeleteDirectoryUserParams{ID: id})
+	var updatedID int64
+	err := s.db.Pool().QueryRow(ctx, `
+UPDATE users
+SET
+    deleted_at = now(),
+    updated_at = now()
+WHERE id = $1
+  AND source <> 'local'
+  AND deleted_at IS NULL
+RETURNING id`, id).Scan(&updatedID)
 	return dbutil.GetError(err)
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
-	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+WHERE api_key = $1
+  AND deleted_at IS NULL
+  AND role IS NOT NULL`, key)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(userFromSQLC(row)), nil
+	out := userFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
-	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    api_key = $1,
+    api_key_created_at = now(),
+    updated_at = now()
+WHERE id = $2
+  AND deleted_at IS NULL
+  AND role IS NOT NULL
+RETURNING
+    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at`,
+		key, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	return new(accountFromSQLC(row)), nil
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	out := accountFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) clearAccountAPIKey(ctx context.Context, id int64) (*Account, error) {
-	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    api_key = NULL,
+    api_key_created_at = NULL,
+    updated_at = now()
+WHERE id = $1
+RETURNING
+    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at`,
+		id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return new(accountFromSQLC(row)), nil
-}
-
-func userFromSQLC(s sqlc.User) User {
-	role := roleFromSQLC(s.Role)
-	return User{
-		ID:                s.ID,
-		Email:             s.Email,
-		Name:              s.Name,
-		PasswordHash:      stringValue(s.PasswordHash),
-		Role:              role,
-		Source:            Source(s.Source),
-		ExternalID:        stringValue(s.ExternalID),
-		UserPrincipalName: stringValue(s.UserPrincipalName),
-		MailNickname:      stringValue(s.MailNickname),
-		GivenName:         stringValue(s.GivenName),
-		FamilyName:        stringValue(s.FamilyName),
-		Department:        stringValue(s.Department),
-		CanLogin:          s.DeletedAt == nil && role != nil,
-		DeletedAt:         s.DeletedAt,
-		CreatedAt:         s.CreatedAt,
-		UpdatedAt:         s.UpdatedAt,
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.GetError(err)
 	}
-}
-
-func accountFromSQLC(s sqlc.User) Account {
-	account := Account{
-		User:            userFromSQLC(s),
-		APIKeyCreatedAt: s.APIKeyCreatedAt,
-	}
-	if s.APIKey != nil {
-		account.APIKey = *s.APIKey
-	}
-	return account
-}
-
-func roleFromSQLC(role *sqlc.UserRole) *Role {
-	if role == nil {
-		return nil
-	}
-	value := Role(*role)
-	return &value
-}
-
-func stringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
+	out := accountFromRow(row)
+	return &out, nil
 }
 
 func userWhere(params UserListParams) (string, []any) {
@@ -284,10 +423,9 @@ func userListQuery(params UserListParams, where string, args []any) dbutil.ListQ
 
 func userListSelectSQL(params UserListParams) string {
 	if params.GroupID <= 0 {
-		return "SELECT u.* FROM users u"
+		return `SELECT u.id, u.email, u.name, u.password_hash, u.role::text AS role, u.api_key, u.api_key_created_at, u.source::text AS source, u.external_id, u.user_principal_name, u.mail_nickname, u.given_name, u.family_name, u.department, u.deleted_at, u.created_at, u.updated_at FROM users u`
 	}
-	return `
-SELECT u.*
+	return `SELECT u.id, u.email, u.name, u.password_hash, u.role::text AS role, u.api_key, u.api_key_created_at, u.source::text AS source, u.external_id, u.user_principal_name, u.mail_nickname, u.given_name, u.family_name, u.department, u.deleted_at, u.created_at, u.updated_at
 FROM users u
 JOIN directory_group_memberships gm ON gm.user_id = u.id`
 }
