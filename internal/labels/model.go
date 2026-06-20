@@ -185,7 +185,7 @@ func cleanCriteriaValues(values []string) []string {
 		}
 		out = append(out, value)
 	}
-	return dbutil.Dedup(out)
+	return out
 }
 
 func (BuiltinKey) Schema(_ huma.Registry) *huma.Schema {

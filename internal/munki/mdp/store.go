@@ -179,30 +179,45 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 // existing ids, persisted two-phase to satisfy the unique position constraint.
 func (s *Store) Reorder(ctx context.Context, orderedIDs []int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id FROM munki_distribution_points ORDER BY position, id`)
-		if err != nil {
+		var updated, total int
+		if err := tx.QueryRow(ctx, `
+WITH ordered AS (
+	SELECT id, position::int
+	FROM unnest($1::bigint[]) WITH ORDINALITY AS input(id, position)
+),
+stats AS (
+	SELECT
+		(SELECT count(*) FROM munki_distribution_points) AS total,
+		(SELECT count(*) FROM ordered) AS requested,
+		(SELECT count(DISTINCT id) FROM ordered) AS distinct_requested,
+		(
+			SELECT count(*)
+			FROM ordered
+			JOIN munki_distribution_points c ON c.id = ordered.id
+		) AS matched
+),
+updated AS (
+	UPDATE munki_distribution_points c
+	SET position = -ordered.position
+	FROM ordered, stats
+	WHERE stats.total = stats.requested
+	  AND stats.requested = stats.distinct_requested
+	  AND stats.requested = stats.matched
+	  AND c.id = ordered.id
+	RETURNING c.id
+)
+SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
+			orderedIDs,
+		).Scan(&updated, &total); err != nil {
 			return err
 		}
-		currentIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
-		if err != nil {
-			return err
-		}
-		if !dbutil.SameInt64Set(orderedIDs, currentIDs) {
+		if updated != total {
 			return fmt.Errorf(
 				"%w: ordered_ids must exactly match existing distribution point IDs",
 				dbutil.ErrInvalidInput,
 			)
 		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE munki_distribution_points c
-			SET position = -ordered.position
-			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
-			WHERE c.id = ordered.id`,
-			orderedIDs,
-		); err != nil {
-			return err
-		}
-		_, err = tx.Exec(ctx, `UPDATE munki_distribution_points SET position = -position - 1`)
+		_, err := tx.Exec(ctx, `UPDATE munki_distribution_points SET position = -position - 1`)
 		return err
 	})
 }

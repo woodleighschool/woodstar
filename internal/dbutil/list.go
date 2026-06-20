@@ -41,5 +41,5 @@ func SplitListValues(values []string) []string {
 			out = append(out, item)
 		}
 	}
-	return Dedup(out)
+	return out
 }

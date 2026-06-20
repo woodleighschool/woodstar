@@ -216,7 +216,6 @@ ORDER BY lower(s.name), s.id, p.id`)
 // PackagesByID assembles the given packages with relations attached. The result
 // order is unspecified; callers index it by Package.ID.
 func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error) {
-	ids = dbutil.Dedup(ids)
 	if len(ids) == 0 {
 		return []Package{}, nil
 	}
@@ -1054,7 +1053,7 @@ func packageIDs(packages []Package) []int64 {
 		}
 		ids = append(ids, pkg.ID)
 	}
-	return dbutil.Dedup(ids)
+	return ids
 }
 
 func optionalPositiveInt64(value int64) *int64 {

@@ -9,24 +9,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-// MunkiName returns the stable software identity Woodstar gives Munki.
-func MunkiName(pkg Package) string {
-	return MunkiSoftwareName(pkg.SoftwareID)
-}
-
-// MunkiSoftwareName returns the stable pkginfo name for a Woodstar software item.
-func MunkiSoftwareName(softwareID int64) string {
+func munkiSoftwareName(softwareID int64) string {
 	return strconv.FormatInt(softwareID, 10)
-}
-
-// MunkiVersionedName returns Munki's manifest syntax for a specific package version.
-func MunkiVersionedName(pkg Package) string {
-	return MunkiVersionedSoftwareName(pkg.SoftwareID, pkg.Version)
 }
 
 // MunkiVersionedSoftwareName returns Munki's name--version syntax for a specific package version.
 func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string {
-	name := MunkiSoftwareName(softwareID)
+	name := munkiSoftwareName(softwareID)
 	version := strings.TrimSpace(packageVersion)
 	if version == "" {
 		return name
@@ -145,7 +134,7 @@ type munkiPkginfoAlert struct {
 
 func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
-		Name:                     MunkiName(pkg),
+		Name:                     munkiSoftwareName(pkg.SoftwareID),
 		Version:                  pkg.Version,
 		DisplayName:              pkg.SoftwareName,
 		Description:              pkg.SoftwareDescription,

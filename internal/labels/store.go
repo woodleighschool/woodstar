@@ -360,7 +360,6 @@ func replaceManualMembership(ctx context.Context, tx pgx.Tx, labelID int64, host
 	if err := deleteMembership(ctx, tx, labelID); err != nil {
 		return err
 	}
-	hostIDs = compactHostIDs(hostIDs)
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -375,13 +374,6 @@ SELECT $1, unnest($2::bigint[])`, labelID, hostIDs); err != nil {
 func deleteMembership(ctx context.Context, tx pgx.Tx, labelID int64) error {
 	_, err := tx.Exec(ctx, `DELETE FROM label_membership WHERE label_id = $1`, labelID)
 	return err
-}
-
-func compactHostIDs(hostIDs []int64) []int64 {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-	return dbutil.Dedup(hostIDs)
 }
 
 func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, criteria *Criteria) error {

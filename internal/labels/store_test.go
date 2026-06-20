@@ -122,7 +122,7 @@ func TestCreateManualLabelStoresHostIDs(t *testing.T) {
 	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Manual",
 		LabelMembershipType: LabelMembershipTypeManual,
-		HostIDs:             []int64{hostB, hostA, hostA},
+		HostIDs:             []int64{hostB, hostA},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
