@@ -2,7 +2,6 @@ package packages
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,6 +16,11 @@ import (
 // ObjectPrefix namespaces package installer objects in storage.
 const ObjectPrefix = "munki/packages"
 
+const (
+	relationKindRequires  = "requires"
+	relationKindUpdateFor = "update_for"
+)
+
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
 	DeleteUnreferenced(context.Context, ...int64) error
@@ -24,127 +28,79 @@ type objectStore interface {
 
 type Store struct {
 	db      *database.DB
-	q       *sqlc.Queries
 	objects objectStore
 }
 
 func NewStore(db *database.DB, objects objectStore) *Store {
 	return &Store{
 		db:      db,
-		q:       db.Queries(),
 		objects: objects,
 	}
 }
 
-func (s *Store) Create(ctx context.Context, softwareID int64, params PackageMutation) (*Package, error) {
-	if softwareID <= 0 {
+func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package, error) {
+	if in.SoftwareID <= 0 {
 		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	params, fields, err := s.prepareMutation(ctx, params)
+	params, err := s.prepareMutation(ctx, in.PackageMutation)
 	if err != nil {
 		return nil, err
 	}
 	params = carryExistingObjects(params, Package{})
-	tx, err := s.db.Pool().Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	write := newPackageWrite(in.SoftwareID, params)
 
-	qtx := s.q.WithTx(tx)
-	row, err := qtx.CreateMunkiPackage(ctx, createMunkiPackageParams(softwareID, params, fields))
+	var id int64
+	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, insertPackageSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+			return dbutil.MutationError(err)
+		}
+		return writePackageRelations(ctx, tx, id, params)
+	})
 	if err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindRequires,
-		params.Requires,
-	); err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindUpdateFor,
-		params.UpdateFor,
-	); err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return s.GetByID(ctx, row.ID)
+	return s.GetByID(ctx, id)
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
-	params, fields, err := s.prepareMutation(ctx, params)
+	params, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := s.db.Pool().Begin(ctx)
+	existing, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	params = carryExistingObjects(params, *existing)
+	write := newPackageWrite(existing.SoftwareID, params)
+	write.ID = id
 
-	qtx := s.q.WithTx(tx)
-	existingRow, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: id})
+	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var updatedID int64
+		if err := tx.QueryRow(ctx, updatePackageSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			return dbutil.MutationError(err)
+		}
+		return writePackageRelations(ctx, tx, id, params)
+	})
 	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	existing := Package{
-		InstallerObjectID: existingRow.InstallerObjectID,
-	}
-	params = carryExistingObjects(params, existing)
-	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))
-	if err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindRequires,
-		params.Requires,
-	); err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindUpdateFor,
-		params.UpdateFor,
-	); err != nil {
-		return nil, dbutil.MutationError(err)
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	replacedIDs := storage.ReplacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
 	if err := s.objects.DeleteUnreferenced(ctx, replacedIDs...); err != nil {
 		return nil, err
 	}
-	return s.GetByID(ctx, row.ID)
+	return s.GetByID(ctx, id)
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := s.q.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: id})
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	pkg, err := packageFromRecord(packageFromSQLCRow(row))
+	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	packages, err := s.AttachRelations(ctx, []Package{pkg})
+	packages, err := s.AttachRelations(ctx, []Package{packageFromRow(row)})
 	if err != nil {
 		return nil, err
 	}
@@ -152,18 +108,15 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	objectIDs, err := s.q.ListMunkiPackageObjectIDsByIDs(
-		ctx,
-		sqlc.ListMunkiPackageObjectIDsByIDsParams{Ids: []int64{id}},
-	)
+	objectIDs, err := s.packageObjectIDs(ctx, s.db.Pool(), []int64{id})
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.DeleteMunkiPackage(ctx, sqlc.DeleteMunkiPackageParams{ID: id})
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM munki_packages WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Munki package is still referenced")
 	}
-	if rows == 0 {
+	if tag.RowsAffected() == 0 {
 		return dbutil.ErrNotFound
 	}
 	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
@@ -177,22 +130,23 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	var deleted int
 	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		qtx := s.q.WithTx(tx)
-		rows, err := qtx.ListMunkiPackageObjectIDsByIDs(
-			ctx,
-			sqlc.ListMunkiPackageObjectIDsByIDsParams{Ids: ids},
-		)
+		var err error
+		objectIDs, err = s.packageObjectIDs(ctx, tx, ids)
 		if err != nil {
 			return err
 		}
-		objectIDs = append(objectIDs, rows...)
-		if err := qtx.DeleteMunkiPackageRelationsByPackageIDs(
+		if _, err := tx.Exec(
 			ctx,
-			sqlc.DeleteMunkiPackageRelationsByPackageIDsParams{Ids: ids},
+			`DELETE FROM munki_package_relations WHERE package_id = ANY($1::bigint[])`,
+			ids,
 		); err != nil {
 			return err
 		}
-		deletedIDs, err := qtx.DeleteMunkiPackages(ctx, sqlc.DeleteMunkiPackagesParams{Ids: ids})
+		rows, err := tx.Query(ctx, `DELETE FROM munki_packages WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+		if err != nil {
+			return dbutil.DeleteConflict(err, "Munki package is still referenced")
+		}
+		deletedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 		if err != nil {
 			return dbutil.DeleteConflict(err, "Munki package is still referenced")
 		}
@@ -224,15 +178,11 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		},
 		Params: params.ListParams,
 	}
-	records, count, err := dbutil.ListWithCount[packageRecord](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[packageRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
-	packages, err := packagesFromRecords(records)
-	if err != nil {
-		return nil, 0, err
-	}
-	packages, err = s.AttachRelations(ctx, packages)
+	packages, err := s.AttachRelations(ctx, packagesFromRows(rows))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -242,38 +192,26 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 // ListRepositoryPackages returns every package that may appear in the shared
 // Munki catalog.
 func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
-	rows, err := s.q.ListMunkiRepositoryPackages(ctx)
+	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+`
+WHERE p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
 	}
-	records := make([]packageRecord, len(rows))
-	for i, row := range rows {
-		records[i] = packageRecordFromRepositorySQLC(row)
-	}
-	packages, err := packagesFromRecords(records)
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
 	if err != nil {
 		return nil, err
 	}
-	return s.AttachRelations(ctx, packages)
+	return s.AttachRelations(ctx, packagesFromRows(records))
 }
 
-func (s *Store) prepareMutation(
-	ctx context.Context,
-	params PackageMutation,
-) (PackageMutation, packageJSONFields, error) {
+func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	params = applyDefaults(params)
 	if err := params.Validate(); err != nil {
-		return PackageMutation{}, packageJSONFields{}, err
+		return PackageMutation{}, err
 	}
-	params, err := s.validatePackageObjects(ctx, params)
-	if err != nil {
-		return PackageMutation{}, packageJSONFields{}, err
-	}
-	fields, err := packageJSONFromMutation(params)
-	if err != nil {
-		return PackageMutation{}, packageJSONFields{}, err
-	}
-	return params, fields, nil
+	return s.validatePackageObjects(ctx, params)
 }
 
 func (s *Store) validatePackageObjects(ctx context.Context, params PackageMutation) (PackageMutation, error) {
@@ -315,23 +253,12 @@ func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int6
 	}
 	var oldObjectID *int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		qtx := s.q.WithTx(tx)
-		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
+		var err error
+		oldObjectID, err = installerObjectID(ctx, tx, packageID)
 		if err != nil {
-			return dbutil.GetError(err)
+			return err
 		}
-		oldObjectID = existing.InstallerObjectID
-		rows, err := qtx.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-			ID:       packageID,
-			ObjectID: &objectID,
-		})
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		if rows == 0 {
-			return dbutil.ErrNotFound
-		}
-		return nil
+		return setInstallerObjectID(ctx, tx, packageID, &objectID)
 	})
 	if err != nil {
 		return err
@@ -344,31 +271,61 @@ func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int6
 func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error {
 	var oldObjectID *int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		qtx := s.q.WithTx(tx)
-		existing, err := qtx.GetMunkiPackageByID(ctx, sqlc.GetMunkiPackageByIDParams{ID: packageID})
+		var err error
+		oldObjectID, err = installerObjectID(ctx, tx, packageID)
 		if err != nil {
-			return dbutil.GetError(err)
+			return err
 		}
-		oldObjectID = existing.InstallerObjectID
 		if oldObjectID == nil {
 			return nil
 		}
-		rows, err := qtx.SetMunkiPackageInstallerObject(ctx, sqlc.SetMunkiPackageInstallerObjectParams{
-			ID:       packageID,
-			ObjectID: nil,
-		})
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		if rows == 0 {
-			return dbutil.ErrNotFound
-		}
-		return nil
+		return setInstallerObjectID(ctx, tx, packageID, nil)
 	})
 	if err != nil {
 		return err
 	}
 	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, nil)...)
+}
+
+type rowQuerier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+func (s *Store) packageObjectIDs(ctx context.Context, q rowQuerier, ids []int64) ([]int64, error) {
+	rows, err := q.Query(ctx, `
+		SELECT refs.object_id::bigint AS object_id
+		FROM munki_packages p
+		CROSS JOIN LATERAL unnest(array_remove(ARRAY[p.installer_object_id], NULL)::bigint[]) AS refs(object_id)
+		WHERE p.id = ANY($1::bigint[])`, ids)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+func installerObjectID(ctx context.Context, tx pgx.Tx, packageID int64) (*int64, error) {
+	var objectID *int64
+	err := tx.QueryRow(ctx, `SELECT installer_object_id FROM munki_packages WHERE id = $1`, packageID).Scan(&objectID)
+	if err != nil {
+		return nil, dbutil.GetError(err)
+	}
+	return objectID, nil
+}
+
+func setInstallerObjectID(ctx context.Context, tx pgx.Tx, packageID int64, objectID *int64) error {
+	tag, err := tx.Exec(
+		ctx,
+		`UPDATE munki_packages SET installer_object_id = $2, updated_at = now() WHERE id = $1`,
+		packageID,
+		objectID,
+	)
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
 }
 
 func applyDefaults(params PackageMutation) PackageMutation {
@@ -382,27 +339,15 @@ func applyDefaults(params PackageMutation) PackageMutation {
 	return params
 }
 
-func packageFromRecord(row packageRecord) (Package, error) {
-	installerChoices, err := decodePackageJSON[PackageInstallerChoice](row.InstallerChoicesXML)
-	if err != nil {
-		return Package{}, err
+func packagesFromRows(rows []packageRow) []Package {
+	packages := make([]Package, len(rows))
+	for i, row := range rows {
+		packages[i] = packageFromRow(row)
 	}
-	installerEnvironment, err := decodePackageJSON[PackageInstallerEnvironmentVariable](row.InstallerEnvironment)
-	if err != nil {
-		return Package{}, err
-	}
-	installs, err := decodePackageJSON[PackageInstallItem](row.Installs)
-	if err != nil {
-		return Package{}, err
-	}
-	receipts, err := decodePackageJSON[PackageReceipt](row.Receipts)
-	if err != nil {
-		return Package{}, err
-	}
-	itemsToCopy, err := decodePackageJSON[PackageItemToCopy](row.ItemsToCopy)
-	if err != nil {
-		return Package{}, err
-	}
+	return packages
+}
+
+func packageFromRow(row packageRow) Package {
 	return Package{
 		ID:                       row.ID,
 		SoftwareID:               row.SoftwareID,
@@ -435,11 +380,11 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		InstalledSize:            row.InstalledSize,
 		InstallerFile:            row.InstallerFile(),
 		PackagePath:              row.PackagePath,
-		InstallerChoicesXML:      installerChoices,
-		InstallerEnvironment:     installerEnvironment,
-		Installs:                 installs,
-		Receipts:                 receipts,
-		ItemsToCopy:              itemsToCopy,
+		InstallerChoicesXML:      []PackageInstallerChoice(row.InstallerChoicesXML),
+		InstallerEnvironment:     []PackageInstallerEnvironmentVariable(row.InstallerEnvironment),
+		Installs:                 []PackageInstallItem(row.Installs),
+		Receipts:                 []PackageReceipt(row.Receipts),
+		ItemsToCopy:              []PackageItemToCopy(row.ItemsToCopy),
 		Notes:                    row.Notes,
 		InstallcheckScript:       row.InstallcheckScript,
 		UninstallcheckScript:     row.UninstallcheckScript,
@@ -456,24 +401,14 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		Eligible:                 row.Eligible,
 		CreatedAt:                row.CreatedAt,
 		UpdatedAt:                row.UpdatedAt,
-	}, nil
-}
-
-func packagesFromRecords(records []packageRecord) ([]Package, error) {
-	packages := make([]Package, len(records))
-	for i, row := range records {
-		pkg, err := packageFromRecord(row)
-		if err != nil {
-			return nil, err
-		}
-		packages[i] = pkg
 	}
-	return packages, nil
 }
 
 // FromEffectiveRow maps the host-effective package query row into a package read model.
+//
+// TODO(store-rewrite): convert with the munki host-effective slice.
 func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (Package, error) {
-	return packageFromRecord(packageRecordFromEffectiveSQLC(row))
+	return packageFromRow(packageRowFromEffectiveSQLC(row)), nil
 }
 
 func packageListWhere(params PackageListParams) (string, []any) {
@@ -520,182 +455,7 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-type packageJSONFields struct {
-	InstallerChoicesXML  []byte
-	InstallerEnvironment []byte
-	Installs             []byte
-	Receipts             []byte
-	ItemsToCopy          []byte
-}
-
-func packageJSONFromMutation(params PackageMutation) (packageJSONFields, error) {
-	installerChoices, err := marshalPackageJSON(params.InstallerChoicesXML)
-	if err != nil {
-		return packageJSONFields{}, err
-	}
-	installerEnvironment, err := marshalPackageJSON(params.InstallerEnvironment)
-	if err != nil {
-		return packageJSONFields{}, err
-	}
-	installs, err := marshalPackageJSON(params.Installs)
-	if err != nil {
-		return packageJSONFields{}, err
-	}
-	receipts, err := marshalPackageJSON(params.Receipts)
-	if err != nil {
-		return packageJSONFields{}, err
-	}
-	itemsToCopy, err := marshalPackageJSON(params.ItemsToCopy)
-	if err != nil {
-		return packageJSONFields{}, err
-	}
-	return packageJSONFields{
-		InstallerChoicesXML:  installerChoices,
-		InstallerEnvironment: installerEnvironment,
-		Installs:             installs,
-		Receipts:             receipts,
-		ItemsToCopy:          itemsToCopy,
-	}, nil
-}
-
-func marshalPackageJSON[T any](values []T) ([]byte, error) {
-	if values == nil {
-		values = []T{}
-	}
-	return json.Marshal(values)
-}
-
-func decodePackageJSON[T any](raw []byte) ([]T, error) {
-	if len(raw) == 0 {
-		return []T{}, nil
-	}
-	var out []T
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, err
-	}
-	if out == nil {
-		return []T{}, nil
-	}
-	return out, nil
-}
-
-func createMunkiPackageParams(
-	softwareID int64,
-	params PackageMutation,
-	fields packageJSONFields,
-) sqlc.CreateMunkiPackageParams {
-	return sqlc.CreateMunkiPackageParams{
-		SoftwareID:                         softwareID,
-		Version:                            params.Version,
-		InstallerType:                      string(params.InstallerType),
-		UninstallMethod:                    string(params.UninstallMethod),
-		RestartAction:                      string(params.RestartAction),
-		MinimumMunkiVersion:                params.MinimumMunkiVersion,
-		MinimumOSVersion:                   params.MinimumOSVersion,
-		MaximumOSVersion:                   params.MaximumOSVersion,
-		SupportedArchitectures:             params.SupportedArchitectures,
-		BlockingApplications:               params.BlockingApplications,
-		InstallableCondition:               params.InstallableCondition,
-		BlockingApplicationsManualQuitOnly: params.BlockingAppsManualQuit,
-		BlockingApplicationsQuitScript:     params.BlockingAppsQuitScript,
-		UnattendedInstall:                  params.UnattendedInstall,
-		UnattendedUninstall:                params.UnattendedUninstall,
-		OnDemand:                           params.OnDemand,
-		Precache:                           params.Precache,
-		Autoremove:                         params.Autoremove,
-		AppleItem:                          params.AppleItem,
-		SuppressBundleRelocation:           params.SuppressBundleRelocation,
-		ForceInstallAfterDate:              params.ForceInstallAfterDate,
-		InstalledSize:                      params.InstalledSize,
-		PackagePath:                        params.PackagePath,
-		InstallerChoicesXml:                fields.InstallerChoicesXML,
-		InstallerEnvironment:               fields.InstallerEnvironment,
-		Installs:                           fields.Installs,
-		Receipts:                           fields.Receipts,
-		ItemsToCopy:                        fields.ItemsToCopy,
-		Notes:                              params.Notes,
-		InstallcheckScript:                 params.InstallcheckScript,
-		UninstallcheckScript:               params.UninstallcheckScript,
-		PreinstallScript:                   params.PreinstallScript,
-		PostinstallScript:                  params.PostinstallScript,
-		PreuninstallScript:                 params.PreuninstallScript,
-		PostuninstallScript:                params.PostuninstallScript,
-		UninstallScript:                    params.UninstallScript,
-		VersionScript:                      params.VersionScript,
-		PreinstallAlertEnabled:             params.PreinstallAlert.Enabled,
-		PreinstallAlertTitle:               params.PreinstallAlert.Title,
-		PreinstallAlertDetail:              params.PreinstallAlert.Detail,
-		PreinstallAlertOkLabel:             params.PreinstallAlert.OKLabel,
-		PreinstallAlertCancelLabel:         params.PreinstallAlert.CancelLabel,
-		PreuninstallAlertEnabled:           params.PreuninstallAlert.Enabled,
-		PreuninstallAlertTitle:             params.PreuninstallAlert.Title,
-		PreuninstallAlertDetail:            params.PreuninstallAlert.Detail,
-		PreuninstallAlertOkLabel:           params.PreuninstallAlert.OKLabel,
-		PreuninstallAlertCancelLabel:       params.PreuninstallAlert.CancelLabel,
-		InstallerObjectID:                  params.InstallerObjectID,
-		Eligible:                           params.Eligible,
-	}
-}
-
-func updateMunkiPackageParams(
-	id int64,
-	params PackageMutation,
-	fields packageJSONFields,
-) sqlc.UpdateMunkiPackageParams {
-	return sqlc.UpdateMunkiPackageParams{
-		Version:                            params.Version,
-		InstallerType:                      string(params.InstallerType),
-		UninstallMethod:                    string(params.UninstallMethod),
-		RestartAction:                      string(params.RestartAction),
-		MinimumMunkiVersion:                params.MinimumMunkiVersion,
-		MinimumOSVersion:                   params.MinimumOSVersion,
-		MaximumOSVersion:                   params.MaximumOSVersion,
-		SupportedArchitectures:             params.SupportedArchitectures,
-		BlockingApplications:               params.BlockingApplications,
-		InstallableCondition:               params.InstallableCondition,
-		BlockingApplicationsManualQuitOnly: params.BlockingAppsManualQuit,
-		BlockingApplicationsQuitScript:     params.BlockingAppsQuitScript,
-		UnattendedInstall:                  params.UnattendedInstall,
-		UnattendedUninstall:                params.UnattendedUninstall,
-		OnDemand:                           params.OnDemand,
-		Precache:                           params.Precache,
-		Autoremove:                         params.Autoremove,
-		AppleItem:                          params.AppleItem,
-		SuppressBundleRelocation:           params.SuppressBundleRelocation,
-		ForceInstallAfterDate:              params.ForceInstallAfterDate,
-		InstalledSize:                      params.InstalledSize,
-		PackagePath:                        params.PackagePath,
-		InstallerChoicesXml:                fields.InstallerChoicesXML,
-		InstallerEnvironment:               fields.InstallerEnvironment,
-		Installs:                           fields.Installs,
-		Receipts:                           fields.Receipts,
-		ItemsToCopy:                        fields.ItemsToCopy,
-		Notes:                              params.Notes,
-		InstallcheckScript:                 params.InstallcheckScript,
-		UninstallcheckScript:               params.UninstallcheckScript,
-		PreinstallScript:                   params.PreinstallScript,
-		PostinstallScript:                  params.PostinstallScript,
-		PreuninstallScript:                 params.PreuninstallScript,
-		PostuninstallScript:                params.PostuninstallScript,
-		UninstallScript:                    params.UninstallScript,
-		VersionScript:                      params.VersionScript,
-		PreinstallAlertEnabled:             params.PreinstallAlert.Enabled,
-		PreinstallAlertTitle:               params.PreinstallAlert.Title,
-		PreinstallAlertDetail:              params.PreinstallAlert.Detail,
-		PreinstallAlertOkLabel:             params.PreinstallAlert.OKLabel,
-		PreinstallAlertCancelLabel:         params.PreinstallAlert.CancelLabel,
-		PreuninstallAlertEnabled:           params.PreuninstallAlert.Enabled,
-		PreuninstallAlertTitle:             params.PreuninstallAlert.Title,
-		PreuninstallAlertDetail:            params.PreuninstallAlert.Detail,
-		PreuninstallAlertOkLabel:           params.PreuninstallAlert.OKLabel,
-		PreuninstallAlertCancelLabel:       params.PreuninstallAlert.CancelLabel,
-		InstallerObjectID:                  params.InstallerObjectID,
-		Eligible:                           params.Eligible,
-		ID:                                 id,
-	}
-}
-
-type packageRecord struct {
+type packageRow struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
@@ -727,11 +487,11 @@ type packageRecord struct {
 	InstallerSizeBytes           *int64
 	InstallerSHA256              *string `db:"installer_sha256"`
 	PackagePath                  string
-	InstallerChoicesXML          []byte `db:"installer_choices_xml"`
-	InstallerEnvironment         []byte
-	Installs                     []byte
-	Receipts                     []byte
-	ItemsToCopy                  []byte
+	InstallerChoicesXML          packageInstallerChoices `db:"installer_choices_xml"`
+	InstallerEnvironment         packageInstallerEnvironment
+	Installs                     packageInstallItems
+	Receipts                     packageReceipts
+	ItemsToCopy                  packageItemsToCopy
 	Notes                        string
 	InstallcheckScript           string
 	UninstallcheckScript         string
@@ -758,7 +518,7 @@ type packageRecord struct {
 	UpdatedAt                    time.Time
 }
 
-func (row packageRecord) PreinstallAlert() PackageAlert {
+func (row packageRow) PreinstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreinstallAlertEnabled,
 		Title:       row.PreinstallAlertTitle,
@@ -768,7 +528,7 @@ func (row packageRecord) PreinstallAlert() PackageAlert {
 	}
 }
 
-func (row packageRecord) PreuninstallAlert() PackageAlert {
+func (row packageRow) PreuninstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreuninstallAlertEnabled,
 		Title:       row.PreuninstallAlertTitle,
@@ -778,7 +538,7 @@ func (row packageRecord) PreuninstallAlert() PackageAlert {
 	}
 }
 
-func (row packageRecord) InstallerFile() *InstallerFile {
+func (row packageRow) InstallerFile() *InstallerFile {
 	if row.InstallerObjectID == nil || row.InstallerFilename == nil {
 		return nil
 	}
@@ -805,138 +565,8 @@ func (row packageRecord) InstallerFile() *InstallerFile {
 	}
 }
 
-func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
-	return packageRecord{
-		ID:                           row.ID,
-		SoftwareID:                   row.SoftwareID,
-		SoftwareName:                 row.SoftwareName,
-		SoftwareDescription:          row.SoftwareDescription,
-		SoftwareCategory:             row.SoftwareCategory,
-		SoftwareDeveloper:            row.SoftwareDeveloper,
-		SoftwareIconObjectID:         row.SoftwareIconObjectID,
-		Version:                      row.Version,
-		InstallerType:                row.InstallerType,
-		UninstallMethod:              row.UninstallMethod,
-		RestartAction:                row.RestartAction,
-		MinimumMunkiVersion:          row.MinimumMunkiVersion,
-		MinimumOSVersion:             row.MinimumOSVersion,
-		MaximumOSVersion:             row.MaximumOSVersion,
-		SupportedArchitectures:       row.SupportedArchitectures,
-		BlockingApplications:         row.BlockingApplications,
-		InstallableCondition:         row.InstallableCondition,
-		BlockingAppsManualQuit:       row.BlockingApplicationsManualQuitOnly,
-		BlockingAppsQuitScript:       row.BlockingApplicationsQuitScript,
-		UnattendedInstall:            row.UnattendedInstall,
-		UnattendedUninstall:          row.UnattendedUninstall,
-		OnDemand:                     row.OnDemand,
-		Precache:                     row.Precache,
-		Autoremove:                   row.Autoremove,
-		AppleItem:                    row.AppleItem,
-		SuppressBundleRelocation:     row.SuppressBundleRelocation,
-		ForceInstallAfterDate:        row.ForceInstallAfterDate,
-		InstalledSize:                row.InstalledSize,
-		InstallerFilename:            row.InstallerFilename,
-		InstallerSizeBytes:           row.InstallerSizeBytes,
-		InstallerSHA256:              row.InstallerSha256,
-		PackagePath:                  row.PackagePath,
-		InstallerChoicesXML:          row.InstallerChoicesXml,
-		InstallerEnvironment:         row.InstallerEnvironment,
-		Installs:                     row.Installs,
-		Receipts:                     row.Receipts,
-		ItemsToCopy:                  row.ItemsToCopy,
-		Notes:                        row.Notes,
-		InstallcheckScript:           row.InstallcheckScript,
-		UninstallcheckScript:         row.UninstallcheckScript,
-		PreinstallScript:             row.PreinstallScript,
-		PostinstallScript:            row.PostinstallScript,
-		PreuninstallScript:           row.PreuninstallScript,
-		PostuninstallScript:          row.PostuninstallScript,
-		UninstallScript:              row.UninstallScript,
-		VersionScript:                row.VersionScript,
-		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
-		PreinstallAlertTitle:         row.PreinstallAlertTitle,
-		PreinstallAlertDetail:        row.PreinstallAlertDetail,
-		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
-		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
-		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
-		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
-		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
-		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
-		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
-		InstallerObjectID:            row.InstallerObjectID,
-		Eligible:                     row.Eligible,
-		CreatedAt:                    row.CreatedAt,
-		UpdatedAt:                    row.UpdatedAt,
-	}
-}
-
-func packageRecordFromRepositorySQLC(row sqlc.ListMunkiRepositoryPackagesRow) packageRecord {
-	return packageRecord{
-		ID:                           row.ID,
-		SoftwareID:                   row.SoftwareID,
-		SoftwareName:                 row.SoftwareName,
-		SoftwareDescription:          row.SoftwareDescription,
-		SoftwareCategory:             row.SoftwareCategory,
-		SoftwareDeveloper:            row.SoftwareDeveloper,
-		SoftwareIconObjectID:         row.SoftwareIconObjectID,
-		Version:                      row.Version,
-		InstallerType:                row.InstallerType,
-		UninstallMethod:              row.UninstallMethod,
-		RestartAction:                row.RestartAction,
-		MinimumMunkiVersion:          row.MinimumMunkiVersion,
-		MinimumOSVersion:             row.MinimumOSVersion,
-		MaximumOSVersion:             row.MaximumOSVersion,
-		SupportedArchitectures:       row.SupportedArchitectures,
-		BlockingApplications:         row.BlockingApplications,
-		InstallableCondition:         row.InstallableCondition,
-		BlockingAppsManualQuit:       row.BlockingApplicationsManualQuitOnly,
-		BlockingAppsQuitScript:       row.BlockingApplicationsQuitScript,
-		UnattendedInstall:            row.UnattendedInstall,
-		UnattendedUninstall:          row.UnattendedUninstall,
-		OnDemand:                     row.OnDemand,
-		Precache:                     row.Precache,
-		Autoremove:                   row.Autoremove,
-		AppleItem:                    row.AppleItem,
-		SuppressBundleRelocation:     row.SuppressBundleRelocation,
-		ForceInstallAfterDate:        row.ForceInstallAfterDate,
-		InstalledSize:                row.InstalledSize,
-		InstallerFilename:            row.InstallerFilename,
-		InstallerSizeBytes:           row.InstallerSizeBytes,
-		InstallerSHA256:              row.InstallerSha256,
-		PackagePath:                  row.PackagePath,
-		InstallerChoicesXML:          row.InstallerChoicesXml,
-		InstallerEnvironment:         row.InstallerEnvironment,
-		Installs:                     row.Installs,
-		Receipts:                     row.Receipts,
-		ItemsToCopy:                  row.ItemsToCopy,
-		Notes:                        row.Notes,
-		InstallcheckScript:           row.InstallcheckScript,
-		UninstallcheckScript:         row.UninstallcheckScript,
-		PreinstallScript:             row.PreinstallScript,
-		PostinstallScript:            row.PostinstallScript,
-		PreuninstallScript:           row.PreuninstallScript,
-		PostuninstallScript:          row.PostuninstallScript,
-		UninstallScript:              row.UninstallScript,
-		VersionScript:                row.VersionScript,
-		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
-		PreinstallAlertTitle:         row.PreinstallAlertTitle,
-		PreinstallAlertDetail:        row.PreinstallAlertDetail,
-		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
-		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
-		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
-		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
-		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
-		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
-		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
-		InstallerObjectID:            row.InstallerObjectID,
-		Eligible:                     row.Eligible,
-		CreatedAt:                    row.CreatedAt,
-		UpdatedAt:                    row.UpdatedAt,
-	}
-}
-
-func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRow) packageRecord {
-	return packageRecord{
+func packageRowFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRow) packageRow {
+	out := packageRow{
 		ID:                           row.PackageID,
 		SoftwareID:                   row.SoftwareID,
 		SoftwareName:                 row.SoftwareName,
@@ -966,11 +596,6 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		ForceInstallAfterDate:        row.ForceInstallAfterDate,
 		InstalledSize:                row.InstalledSize,
 		PackagePath:                  row.PackagePath,
-		InstallerChoicesXML:          row.InstallerChoicesXml,
-		InstallerEnvironment:         row.InstallerEnvironment,
-		Installs:                     row.Installs,
-		Receipts:                     row.Receipts,
-		ItemsToCopy:                  row.ItemsToCopy,
 		Notes:                        row.Notes,
 		InstallcheckScript:           row.InstallcheckScript,
 		UninstallcheckScript:         row.UninstallcheckScript,
@@ -993,7 +618,280 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		InstallerObjectID:            row.InstallerObjectID,
 		Eligible:                     true,
 	}
+	_ = out.InstallerChoicesXML.Scan(row.InstallerChoicesXml)
+	_ = out.InstallerEnvironment.Scan(row.InstallerEnvironment)
+	_ = out.Installs.Scan(row.Installs)
+	_ = out.Receipts.Scan(row.Receipts)
+	_ = out.ItemsToCopy.Scan(row.ItemsToCopy)
+	return out
 }
+
+type packageWrite struct {
+	ID                           int64                       `db:"id"`
+	SoftwareID                   int64                       `db:"software_id"`
+	Version                      string                      `db:"version"`
+	InstallerType                string                      `db:"installer_type"`
+	UninstallMethod              string                      `db:"uninstall_method"`
+	RestartAction                string                      `db:"restart_action"`
+	MinimumMunkiVersion          string                      `db:"minimum_munki_version"`
+	MinimumOSVersion             string                      `db:"minimum_os_version"`
+	MaximumOSVersion             string                      `db:"maximum_os_version"`
+	SupportedArchitectures       []string                    `db:"supported_architectures"`
+	BlockingApplications         []string                    `db:"blocking_applications"`
+	InstallableCondition         string                      `db:"installable_condition"`
+	BlockingAppsManualQuit       bool                        `db:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript       string                      `db:"blocking_applications_quit_script"`
+	UnattendedInstall            bool                        `db:"unattended_install"`
+	UnattendedUninstall          bool                        `db:"unattended_uninstall"`
+	OnDemand                     bool                        `db:"on_demand"`
+	Precache                     bool                        `db:"precache"`
+	Autoremove                   bool                        `db:"autoremove"`
+	AppleItem                    bool                        `db:"apple_item"`
+	SuppressBundleRelocation     bool                        `db:"suppress_bundle_relocation"`
+	ForceInstallAfterDate        *time.Time                  `db:"force_install_after_date"`
+	InstalledSize                int64                       `db:"installed_size"`
+	PackagePath                  string                      `db:"package_path"`
+	InstallerChoicesXML          packageInstallerChoices     `db:"installer_choices_xml"`
+	InstallerEnvironment         packageInstallerEnvironment `db:"installer_environment"`
+	Installs                     packageInstallItems         `db:"installs"`
+	Receipts                     packageReceipts             `db:"receipts"`
+	ItemsToCopy                  packageItemsToCopy          `db:"items_to_copy"`
+	Notes                        string                      `db:"notes"`
+	InstallcheckScript           string                      `db:"installcheck_script"`
+	UninstallcheckScript         string                      `db:"uninstallcheck_script"`
+	PreinstallScript             string                      `db:"preinstall_script"`
+	PostinstallScript            string                      `db:"postinstall_script"`
+	PreuninstallScript           string                      `db:"preuninstall_script"`
+	PostuninstallScript          string                      `db:"postuninstall_script"`
+	UninstallScript              string                      `db:"uninstall_script"`
+	VersionScript                string                      `db:"version_script"`
+	PreinstallAlertEnabled       bool                        `db:"preinstall_alert_enabled"`
+	PreinstallAlertTitle         string                      `db:"preinstall_alert_title"`
+	PreinstallAlertDetail        string                      `db:"preinstall_alert_detail"`
+	PreinstallAlertOKLabel       string                      `db:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel   string                      `db:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled     bool                        `db:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle       string                      `db:"preuninstall_alert_title"`
+	PreuninstallAlertDetail      string                      `db:"preuninstall_alert_detail"`
+	PreuninstallAlertOKLabel     string                      `db:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel string                      `db:"preuninstall_alert_cancel_label"`
+	InstallerObjectID            *int64                      `db:"installer_object_id"`
+	Eligible                     bool                        `db:"eligible"`
+}
+
+func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
+	return packageWrite{
+		SoftwareID:                   softwareID,
+		Version:                      params.Version,
+		InstallerType:                string(params.InstallerType),
+		UninstallMethod:              string(params.UninstallMethod),
+		RestartAction:                string(params.RestartAction),
+		MinimumMunkiVersion:          params.MinimumMunkiVersion,
+		MinimumOSVersion:             params.MinimumOSVersion,
+		MaximumOSVersion:             params.MaximumOSVersion,
+		SupportedArchitectures:       params.SupportedArchitectures,
+		BlockingApplications:         params.BlockingApplications,
+		InstallableCondition:         params.InstallableCondition,
+		BlockingAppsManualQuit:       params.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:       params.BlockingAppsQuitScript,
+		UnattendedInstall:            params.UnattendedInstall,
+		UnattendedUninstall:          params.UnattendedUninstall,
+		OnDemand:                     params.OnDemand,
+		Precache:                     params.Precache,
+		Autoremove:                   params.Autoremove,
+		AppleItem:                    params.AppleItem,
+		SuppressBundleRelocation:     params.SuppressBundleRelocation,
+		ForceInstallAfterDate:        params.ForceInstallAfterDate,
+		InstalledSize:                params.InstalledSize,
+		PackagePath:                  params.PackagePath,
+		InstallerChoicesXML:          packageInstallerChoices(params.InstallerChoicesXML),
+		InstallerEnvironment:         packageInstallerEnvironment(params.InstallerEnvironment),
+		Installs:                     packageInstallItems(params.Installs),
+		Receipts:                     packageReceipts(params.Receipts),
+		ItemsToCopy:                  packageItemsToCopy(params.ItemsToCopy),
+		Notes:                        params.Notes,
+		InstallcheckScript:           params.InstallcheckScript,
+		UninstallcheckScript:         params.UninstallcheckScript,
+		PreinstallScript:             params.PreinstallScript,
+		PostinstallScript:            params.PostinstallScript,
+		PreuninstallScript:           params.PreuninstallScript,
+		PostuninstallScript:          params.PostuninstallScript,
+		UninstallScript:              params.UninstallScript,
+		VersionScript:                params.VersionScript,
+		PreinstallAlertEnabled:       params.PreinstallAlert.Enabled,
+		PreinstallAlertTitle:         params.PreinstallAlert.Title,
+		PreinstallAlertDetail:        params.PreinstallAlert.Detail,
+		PreinstallAlertOKLabel:       params.PreinstallAlert.OKLabel,
+		PreinstallAlertCancelLabel:   params.PreinstallAlert.CancelLabel,
+		PreuninstallAlertEnabled:     params.PreuninstallAlert.Enabled,
+		PreuninstallAlertTitle:       params.PreuninstallAlert.Title,
+		PreuninstallAlertDetail:      params.PreuninstallAlert.Detail,
+		PreuninstallAlertOKLabel:     params.PreuninstallAlert.OKLabel,
+		PreuninstallAlertCancelLabel: params.PreuninstallAlert.CancelLabel,
+		InstallerObjectID:            params.InstallerObjectID,
+		Eligible:                     params.Eligible,
+	}
+}
+
+const insertPackageSQL = `
+INSERT INTO munki_packages (
+	software_id,
+	version,
+	installer_type,
+	uninstall_method,
+	restart_action,
+	minimum_munki_version,
+	minimum_os_version,
+	maximum_os_version,
+	supported_architectures,
+	blocking_applications,
+	installable_condition,
+	blocking_applications_manual_quit_only,
+	blocking_applications_quit_script,
+	unattended_install,
+	unattended_uninstall,
+	on_demand,
+	precache,
+	autoremove,
+	apple_item,
+	suppress_bundle_relocation,
+	force_install_after_date,
+	installed_size,
+	package_path,
+	installer_choices_xml,
+	installer_environment,
+	installs,
+	receipts,
+	items_to_copy,
+	notes,
+	installcheck_script,
+	uninstallcheck_script,
+	preinstall_script,
+	postinstall_script,
+	preuninstall_script,
+	postuninstall_script,
+	uninstall_script,
+	version_script,
+	preinstall_alert_enabled,
+	preinstall_alert_title,
+	preinstall_alert_detail,
+	preinstall_alert_ok_label,
+	preinstall_alert_cancel_label,
+	preuninstall_alert_enabled,
+	preuninstall_alert_title,
+	preuninstall_alert_detail,
+	preuninstall_alert_ok_label,
+	preuninstall_alert_cancel_label,
+	installer_object_id,
+	eligible
+)
+VALUES (
+	@software_id,
+	@version,
+	@installer_type,
+	@uninstall_method,
+	@restart_action,
+	@minimum_munki_version,
+	@minimum_os_version,
+	@maximum_os_version,
+	@supported_architectures::text[],
+	@blocking_applications::text[],
+	@installable_condition,
+	@blocking_applications_manual_quit_only,
+	@blocking_applications_quit_script,
+	@unattended_install,
+	@unattended_uninstall,
+	@on_demand,
+	@precache,
+	@autoremove,
+	@apple_item,
+	@suppress_bundle_relocation,
+	@force_install_after_date::timestamptz,
+	@installed_size,
+	@package_path,
+	@installer_choices_xml::jsonb,
+	@installer_environment::jsonb,
+	@installs::jsonb,
+	@receipts::jsonb,
+	@items_to_copy::jsonb,
+	@notes,
+	@installcheck_script,
+	@uninstallcheck_script,
+	@preinstall_script,
+	@postinstall_script,
+	@preuninstall_script,
+	@postuninstall_script,
+	@uninstall_script,
+	@version_script,
+	@preinstall_alert_enabled,
+	@preinstall_alert_title,
+	@preinstall_alert_detail,
+	@preinstall_alert_ok_label,
+	@preinstall_alert_cancel_label,
+	@preuninstall_alert_enabled,
+	@preuninstall_alert_title,
+	@preuninstall_alert_detail,
+	@preuninstall_alert_ok_label,
+	@preuninstall_alert_cancel_label,
+	@installer_object_id::bigint,
+	@eligible
+)
+RETURNING id`
+
+const updatePackageSQL = `
+UPDATE munki_packages
+SET
+	version = @version,
+	installer_type = @installer_type,
+	uninstall_method = @uninstall_method,
+	restart_action = @restart_action,
+	minimum_munki_version = @minimum_munki_version,
+	minimum_os_version = @minimum_os_version,
+	maximum_os_version = @maximum_os_version,
+	supported_architectures = @supported_architectures::text[],
+	blocking_applications = @blocking_applications::text[],
+	installable_condition = @installable_condition,
+	blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
+	blocking_applications_quit_script = @blocking_applications_quit_script,
+	unattended_install = @unattended_install,
+	unattended_uninstall = @unattended_uninstall,
+	on_demand = @on_demand,
+	precache = @precache,
+	autoremove = @autoremove,
+	apple_item = @apple_item,
+	suppress_bundle_relocation = @suppress_bundle_relocation,
+	force_install_after_date = @force_install_after_date::timestamptz,
+	installed_size = @installed_size,
+	package_path = @package_path,
+	installer_choices_xml = @installer_choices_xml::jsonb,
+	installer_environment = @installer_environment::jsonb,
+	installs = @installs::jsonb,
+	receipts = @receipts::jsonb,
+	items_to_copy = @items_to_copy::jsonb,
+	notes = @notes,
+	installcheck_script = @installcheck_script,
+	uninstallcheck_script = @uninstallcheck_script,
+	preinstall_script = @preinstall_script,
+	postinstall_script = @postinstall_script,
+	preuninstall_script = @preuninstall_script,
+	postuninstall_script = @postuninstall_script,
+	uninstall_script = @uninstall_script,
+	version_script = @version_script,
+	preinstall_alert_enabled = @preinstall_alert_enabled,
+	preinstall_alert_title = @preinstall_alert_title,
+	preinstall_alert_detail = @preinstall_alert_detail,
+	preinstall_alert_ok_label = @preinstall_alert_ok_label,
+	preinstall_alert_cancel_label = @preinstall_alert_cancel_label,
+	preuninstall_alert_enabled = @preuninstall_alert_enabled,
+	preuninstall_alert_title = @preuninstall_alert_title,
+	preuninstall_alert_detail = @preuninstall_alert_detail,
+	preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
+	preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
+	installer_object_id = @installer_object_id::bigint,
+	eligible = @eligible,
+	updated_at = now()
+WHERE id = @id
+RETURNING id`
 
 const packageSelectSQL = `
 SELECT
@@ -1061,36 +959,56 @@ FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id`
 
+func writePackageRelations(ctx context.Context, tx pgx.Tx, packageID int64, params PackageMutation) error {
+	if err := replacePackageRelations(ctx, tx, packageID, relationKindRequires, params.Requires); err != nil {
+		return dbutil.MutationError(err)
+	}
+	if err := replacePackageRelations(ctx, tx, packageID, relationKindUpdateFor, params.UpdateFor); err != nil {
+		return dbutil.MutationError(err)
+	}
+	return nil
+}
+
 func replacePackageRelations(
 	ctx context.Context,
-	q *sqlc.Queries,
+	tx pgx.Tx,
 	packageID int64,
-	kind sqlc.MunkiPackageRelationKind,
+	kind string,
 	references []PackageReference,
 ) error {
-	if err := q.DeleteMunkiPackageRelationsByKind(ctx, sqlc.DeleteMunkiPackageRelationsByKindParams{
-		PackageID:    packageID,
-		RelationKind: kind,
-	}); err != nil {
+	if _, err := tx.Exec(
+		ctx,
+		`DELETE FROM munki_package_relations
+		WHERE package_id = $1 AND relation_kind = $2::munki_package_relation_kind`,
+		packageID,
+		kind,
+	); err != nil {
 		return err
 	}
 	for position, ref := range references {
-		if err := q.CreateMunkiPackageRelation(ctx, sqlc.CreateMunkiPackageRelationParams{
-			PackageID:        packageID,
-			RelationKind:     kind,
-			TargetSoftwareID: ref.SoftwareID,
-			TargetPackageID:  optionalPositiveInt64(ref.PackageID),
-			Position:         int32(position),
-		}); err != nil {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO munki_package_relations (
+				package_id,
+				relation_kind,
+				target_software_id,
+				target_package_id,
+				position
+			) VALUES ($1, $2::munki_package_relation_kind, $3, $4, $5)`,
+			packageID,
+			kind,
+			ref.SoftwareID,
+			optionalPositiveInt64(ref.PackageID),
+			int32(position),
+		); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-type packageRelationRecord struct {
+type packageRelationRow struct {
 	PackageID       int64
-	RelationKind    sqlc.MunkiPackageRelationKind
+	RelationKind    string
 	SoftwareID      int64
 	SoftwareName    string
 	TargetPackageID *int64
@@ -1140,7 +1058,7 @@ func (s *Store) packageRelationsByPackage(
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRelationRecord])
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRelationRow])
 	if err != nil {
 		return nil, err
 	}
@@ -1156,9 +1074,9 @@ func (s *Store) packageRelationsByPackage(
 		}
 		rel := out[record.PackageID]
 		switch record.RelationKind {
-		case sqlc.MunkiPackageRelationKindRequires:
+		case relationKindRequires:
 			rel.requires = append(rel.requires, reference)
-		case sqlc.MunkiPackageRelationKindUpdateFor:
+		case relationKindUpdateFor:
 			rel.updateFor = append(rel.updateFor, reference)
 		}
 		out[record.PackageID] = rel

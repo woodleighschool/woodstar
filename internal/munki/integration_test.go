@@ -95,12 +95,15 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "148.0.0.1",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Eligible:      true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "148.0.0.1",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
@@ -180,11 +183,14 @@ func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
 	}
 	installerObject := createMunkiPackageObject(t, ctx, stores, "ObjectApp.pkg", "a")
 
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:           "1.0",
-		InstallerObjectID: &installerObject.ID,
-		Eligible:          true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:           "1.0",
+			InstallerObjectID: &installerObject.ID,
+			Eligible:          true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
@@ -251,11 +257,14 @@ func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 	}
 	iconObject := createMunkiIconObject(t, ctx, stores, "IconApp.png", "b")
 
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:           "1.0",
-		InstallerObjectID: &iconObject.ID,
-		Eligible:          true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:           "1.0",
+			InstallerObjectID: &iconObject.ID,
+			Eligible:          true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want invalid input", err)
 	}
@@ -277,12 +286,15 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 		t.Fatalf("title icon object id = %v, want %d", title.IconObjectID, icon.ID)
 	}
 
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "1.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Eligible:      true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
@@ -413,11 +425,14 @@ func TestCreatePackageRejectsUnsupportedArchitecture(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:                "1.0",
-		SupportedArchitectures: []string{"ppc"},
-		Eligible:               true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:                "1.0",
+			SupportedArchitectures: []string{"ppc"},
+			Eligible:               true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want invalid input", err)
 	}
@@ -441,32 +456,41 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	unset, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "1.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Eligible:      true,
-	})
+	unset, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create unset package: %v", err)
 	}
-	empty, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:              "2.0",
-		InstallerType:        packages.InstallerTypeNoPkg,
-		BlockingApplications: []string{},
-		OnDemand:             true,
-		Eligible:             true,
-	})
+	empty, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:              "2.0",
+			InstallerType:        packages.InstallerTypeNoPkg,
+			BlockingApplications: []string{},
+			OnDemand:             true,
+			Eligible:             true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create empty package: %v", err)
 	}
-	populated, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:              "3.0",
-		InstallerType:        packages.InstallerTypeNoPkg,
-		BlockingApplications: []string{"Blocking App"},
-		OnDemand:             true,
-		Eligible:             true,
-	})
+	populated, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:              "3.0",
+			InstallerType:        packages.InstallerTypeNoPkg,
+			BlockingApplications: []string{"Blocking App"},
+			OnDemand:             true,
+			Eligible:             true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create populated package: %v", err)
 	}
@@ -517,15 +541,18 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 	}
 	missingPackageID := int64(999999)
 
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "1.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Requires: []packages.PackageReference{
-			{SoftwareID: title.ID, PackageID: missingPackageID},
-		},
-		Eligible: true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Requires: []packages.PackageReference{
+				{SoftwareID: title.ID, PackageID: missingPackageID},
+			},
+			Eligible: true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("CreatePackage error = %v, want ErrNotFound", err)
 	}
@@ -540,13 +567,16 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "1.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Requires:      []packages.PackageReference{{SoftwareID: title.ID, PackageID: -1}},
-		Eligible:      true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Requires:      []packages.PackageReference{{SoftwareID: title.ID, PackageID: -1}},
+			Eligible:      true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want ErrInvalidInput", err)
 	}
@@ -561,15 +591,18 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
-	dependentPackage, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "2.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Requires: []packages.PackageReference{
-			{SoftwareID: title.ID, PackageID: targetPackage.ID},
-		},
-		Eligible: true,
-	})
+	dependentPackage, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "2.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Requires: []packages.PackageReference{
+				{SoftwareID: title.ID, PackageID: targetPackage.ID},
+			},
+			Eligible: true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create dependent package: %v", err)
 	}
@@ -597,15 +630,18 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 		t.Fatalf("create software: %v", err)
 	}
 	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
-	dependentPackage, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "2.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Requires: []packages.PackageReference{
-			{SoftwareID: title.ID, PackageID: targetPackage.ID},
-		},
-		Eligible: true,
-	})
+	dependentPackage, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "2.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Requires: []packages.PackageReference{
+				{SoftwareID: title.ID, PackageID: targetPackage.ID},
+			},
+			Eligible: true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create dependent package: %v", err)
 	}
@@ -637,15 +673,18 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "2.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Requires: []packages.PackageReference{
-			{SoftwareID: title.ID, PackageID: targetPackage.ID},
-		},
-		Eligible: true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "2.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Requires: []packages.PackageReference{
+				{SoftwareID: title.ID, PackageID: targetPackage.ID},
+			},
+			Eligible: true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create dependent package: %v", err)
 	}
@@ -664,11 +703,14 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 	installerObject := createMunkiPackageObject(t, ctx, stores, "DeleteObject.pkg", "b")
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:           "1.0",
-		InstallerObjectID: &installerObject.ID,
-		Eligible:          true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:           "1.0",
+			InstallerObjectID: &installerObject.ID,
+			Eligible:          true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
@@ -698,12 +740,15 @@ func TestCreatePackageRejectsInvalidSoftwareID(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	_, err := stores.packages.Create(ctx, -1, packages.PackageMutation{
-		Version:       "1.0",
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Eligible:      true,
-	})
+	_, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: -1, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want ErrInvalidInput", err)
 	}
@@ -718,11 +763,14 @@ func TestCreatePackageBadInstalledSizeFallsThroughToInvalidInput(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 
-	_, err = stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:       "1.0",
-		InstalledSize: -1,
-		Eligible:      true,
-	})
+	_, err = stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstalledSize: -1,
+			Eligible:      true,
+		}},
+	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want ErrInvalidInput", err)
 	}
@@ -744,16 +792,19 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 		t.Fatalf("create dependency title: %v", err)
 	}
 	dependency := createMunkiPackage(t, ctx, stores, dependencyTitle.ID, "DependencyApp", "2.0")
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:            "1.0",
-		InstallerType:      packages.InstallerTypeNoPkg,
-		InstallcheckScript: "#!/bin/zsh\nexit 0\n",
-		Requires: []packages.PackageReference{
-			{SoftwareID: dependencyTitle.ID},
-			{SoftwareID: dependencyTitle.ID, PackageID: dependency.ID},
-		},
-		Eligible: true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:            "1.0",
+			InstallerType:      packages.InstallerTypeNoPkg,
+			InstallcheckScript: "#!/bin/zsh\nexit 0\n",
+			Requires: []packages.PackageReference{
+				{SoftwareID: dependencyTitle.ID},
+				{SoftwareID: dependencyTitle.ID, PackageID: dependency.ID},
+			},
+			Eligible: true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
@@ -787,11 +838,14 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 	}
 	installerObject := createMunkiPackageObject(t, ctx, stores, "SwitchableApp.pkg", "f")
 
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:           "1.0",
-		InstallerObjectID: &installerObject.ID,
-		Eligible:          true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
+			Version:           "1.0",
+			InstallerObjectID: &installerObject.ID,
+			Eligible:          true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
@@ -1217,12 +1271,15 @@ func createMunkiPackage(
 	version string,
 ) packages.Package {
 	t.Helper()
-	pkg, err := stores.packages.Create(ctx, softwareID, packages.PackageMutation{
-		Version:       version,
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
-		Eligible:      true,
-	})
+	pkg, err := stores.packages.Create(
+		ctx,
+		packages.PackageCreateMutation{SoftwareID: softwareID, PackageMutation: packages.PackageMutation{
+			Version:       version,
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		}},
+	)
 	if err != nil {
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}

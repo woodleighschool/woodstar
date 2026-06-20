@@ -148,7 +148,7 @@ func registerCreateMunkiPackage(
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Create(ctx, input.Body.SoftwareID, input.Body.PackageMutation)
+		pkg, err := store.Create(ctx, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
