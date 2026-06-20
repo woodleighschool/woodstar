@@ -3,9 +3,11 @@ package agentauth
 
 import (
 	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -15,71 +17,108 @@ type SecretVerifier interface {
 }
 
 type Store struct {
-	q *sqlc.Queries
+	db *database.DB
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{q: db.Queries()}
+	return &Store{db: db}
 }
 
+type agentSecretRow struct {
+	ID        int64      `db:"id"`
+	Agent     string     `db:"agent"`
+	Value     string     `db:"value"`
+	CreatedAt time.Time  `db:"created_at"`
+	DeletedAt *time.Time `db:"deleted_at"`
+}
+
+func agentSecretFromRow(row agentSecretRow) AgentSecret {
+	return AgentSecret{
+		ID:        row.ID,
+		Agent:     Agent(row.Agent),
+		Value:     row.Value,
+		CreatedAt: row.CreatedAt,
+	}
+}
+
+const agentRecordSQL = `
+SELECT id, agent, value, created_at, deleted_at
+FROM agent_secrets`
+
 func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
-	rows, err := s.q.ListAgentSecrets(ctx)
+	qrows, err := s.db.Pool().Query(ctx, agentRecordSQL+`
+WHERE deleted_at IS NULL
+ORDER BY agent ASC, created_at DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
-
-	secrets := make([]AgentSecret, 0, len(rows))
-	for _, row := range rows {
-		secrets = append(secrets, *agentSecretFromSQLC(row))
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[agentSecretRow])
+	if err != nil {
+		return nil, err
 	}
-	return secrets, nil
+	out := make([]AgentSecret, len(rows))
+	for i, row := range rows {
+		out[i] = agentSecretFromRow(row)
+	}
+	return out, nil
 }
 
 func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSecret, error) {
 	if !params.Agent.Valid() {
 		return nil, ErrInvalidAgent
 	}
-	row, err := s.q.CreateAgentSecret(ctx, sqlc.CreateAgentSecretParams{
-		Agent: sqlc.Agent(params.Agent),
-		Value: params.Value,
-	})
+	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
+INSERT INTO agent_secrets (agent, value)
+VALUES ($1::agent, $2)
+RETURNING id, agent, value, created_at, deleted_at`,
+		string(params.Agent), params.Value,
+	)
 	if err != nil {
-		return nil, err
+		return nil, dbutil.MutationError(err)
 	}
-	return agentSecretFromSQLC(row), nil
+	out := agentSecretFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation) (*AgentSecret, error) {
-	row, err := s.q.UpdateAgentSecret(ctx, sqlc.UpdateAgentSecretParams{
-		ID:    id,
-		Value: params.Value,
-	})
+	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
+UPDATE agent_secrets
+SET value = $1
+WHERE id = $2
+  AND deleted_at IS NULL
+RETURNING id, agent, value, created_at, deleted_at`,
+		params.Value, id,
+	)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	return agentSecretFromSQLC(row), nil
+	out := agentSecretFromRow(row)
+	return &out, nil
 }
 
 func (s *Store) Verify(ctx context.Context, agent Agent, value string) (bool, error) {
 	if !agent.Valid() || value == "" {
 		return false, nil
 	}
-	return s.q.HasActiveAgentSecret(ctx, sqlc.HasActiveAgentSecretParams{
-		Agent: sqlc.Agent(agent),
-		Value: value,
-	})
+	var exists bool
+	err := s.db.Pool().QueryRow(ctx, `
+SELECT EXISTS (
+    SELECT 1
+    FROM agent_secrets
+    WHERE agent = $1::agent
+      AND value = $2
+      AND deleted_at IS NULL
+)`, string(agent), value).Scan(&exists)
+	return exists, err
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteAgentSecret(ctx, sqlc.DeleteAgentSecretParams{ID: id})
+	var deletedID int64
+	err := s.db.Pool().QueryRow(ctx, `
+UPDATE agent_secrets
+SET deleted_at = now()
+WHERE id = $1
+  AND deleted_at IS NULL
+RETURNING id`, id).Scan(&deletedID)
 	return dbutil.GetError(err)
-}
-
-func agentSecretFromSQLC(row sqlc.AgentSecret) *AgentSecret {
-	return &AgentSecret{
-		ID:        row.ID,
-		Agent:     Agent(row.Agent),
-		Value:     row.Value,
-		CreatedAt: row.CreatedAt,
-	}
 }
