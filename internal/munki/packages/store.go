@@ -108,16 +108,24 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	objectIDs, err := s.packageObjectIDs(ctx, s.db.Pool(), []int64{id})
+	var objectIDs []int64
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var err error
+		objectIDs, err = s.packageObjectIDs(ctx, tx, []int64{id})
+		if err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM munki_packages WHERE id = $1`, id)
+		if err != nil {
+			return dbutil.DeleteConflict(err, "Munki package is still referenced")
+		}
+		if tag.RowsAffected() == 0 {
+			return dbutil.ErrNotFound
+		}
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM munki_packages WHERE id = $1`, id)
-	if err != nil {
-		return dbutil.DeleteConflict(err, "Munki package is still referenced")
-	}
-	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
 	}
 	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
 }
@@ -287,11 +295,7 @@ func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error
 	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, nil)...)
 }
 
-type rowQuerier interface {
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-}
-
-func (s *Store) packageObjectIDs(ctx context.Context, q rowQuerier, ids []int64) ([]int64, error) {
+func (s *Store) packageObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]int64, error) {
 	rows, err := q.Query(ctx, `
 		SELECT refs.object_id::bigint AS object_id
 		FROM munki_packages p
@@ -806,7 +810,7 @@ VALUES (
 	@autoremove,
 	@apple_item,
 	@suppress_bundle_relocation,
-	@force_install_after_date::timestamptz,
+	@force_install_after_date,
 	@installed_size,
 	@package_path,
 	@installer_choices_xml::jsonb,
@@ -833,7 +837,7 @@ VALUES (
 	@preuninstall_alert_detail,
 	@preuninstall_alert_ok_label,
 	@preuninstall_alert_cancel_label,
-	@installer_object_id::bigint,
+	@installer_object_id,
 	@eligible
 )
 RETURNING id`
@@ -860,7 +864,7 @@ SET
 	autoremove = @autoremove,
 	apple_item = @apple_item,
 	suppress_bundle_relocation = @suppress_bundle_relocation,
-	force_install_after_date = @force_install_after_date::timestamptz,
+	force_install_after_date = @force_install_after_date,
 	installed_size = @installed_size,
 	package_path = @package_path,
 	installer_choices_xml = @installer_choices_xml::jsonb,
@@ -887,7 +891,7 @@ SET
 	preuninstall_alert_detail = @preuninstall_alert_detail,
 	preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
 	preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
-	installer_object_id = @installer_object_id::bigint,
+	installer_object_id = @installer_object_id,
 	eligible = @eligible,
 	updated_at = now()
 WHERE id = @id
