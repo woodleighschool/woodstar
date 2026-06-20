@@ -88,7 +88,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM checks WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "check is still referenced")
+		return dbutil.DeleteConflict(err, "Check is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return dbutil.ErrNotFound

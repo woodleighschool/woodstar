@@ -60,6 +60,9 @@ func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, e
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Rule, error) {
+	if id <= 0 {
+		return nil, dbutil.ErrNotFound
+	}
 	row, err := dbutil.GetOne[ruleRow](ctx, s.db.Pool(), ruleSelectSQL+"\nWHERE id = $1", id)
 	if err != nil {
 		return nil, err

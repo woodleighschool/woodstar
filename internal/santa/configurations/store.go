@@ -54,6 +54,9 @@ func (s *Store) List(
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
+	if id <= 0 {
+		return nil, dbutil.ErrNotFound
+	}
 	row, err := dbutil.GetOne[configurationRow](
 		ctx,
 		s.db.Pool(),

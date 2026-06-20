@@ -59,6 +59,9 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
+	if id <= 0 {
+		return nil, dbutil.ErrNotFound
+	}
 	row, err := dbutil.GetOne[reportRow](ctx, s.db.Pool(), reportSelectSQL+"\nWHERE r.id = $1", id)
 	if err != nil {
 		return nil, err

@@ -104,9 +104,6 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	if id <= 0 {
-		return dbutil.ErrNotFound
-	}
 	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var err error
