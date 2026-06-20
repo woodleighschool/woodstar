@@ -31,7 +31,7 @@ func (s *Store) List(
 		SelectSQL:    configurationSelectSQL,
 		WhereSQL:     where,
 		Args:         args,
-		OrderKeys:    configurationOrderKeys,
+		OrderKeys:    configurationOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
 		Params:       params.ListParams,
 	}
@@ -113,7 +113,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM santa_configurations WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.MutationError(err)
+		return dbutil.DeleteConflict(err, "Santa configuration is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return dbutil.ErrNotFound
@@ -217,28 +217,9 @@ ORDER BY c.position, c.id
 LIMIT 1`
 
 	type resolveRow struct {
-		ID                                  int64     `db:"id"`
-		Name                                string    `db:"name"`
-		Description                         string    `db:"description"`
-		Position                            int32     `db:"position"`
-		ClientMode                          string    `db:"client_mode"`
-		EnableBundles                       bool      `db:"enable_bundles"`
-		EnableTransitiveRules               bool      `db:"enable_transitive_rules"`
-		EnableAllEventUpload                bool      `db:"enable_all_event_upload"`
-		FullSyncIntervalSeconds             int32     `db:"full_sync_interval_seconds"`
-		BatchSize                           int32     `db:"batch_size"`
-		AllowedPathRegex                    string    `db:"allowed_path_regex"`
-		BlockedPathRegex                    string    `db:"blocked_path_regex"`
-		RemovableMediaAction                *string   `db:"removable_media_action"`
-		RemovableMediaRemountFlags          []string  `db:"removable_media_remount_flags"`
-		EncryptedRemovableMediaAction       *string   `db:"encrypted_removable_media_action"`
-		EncryptedRemovableMediaRemountFlags []string  `db:"encrypted_removable_media_remount_flags"`
-		EventDetailURL                      string    `db:"event_detail_url"`
-		EventDetailText                     string    `db:"event_detail_text"`
-		CreatedAt                           time.Time `db:"created_at"`
-		UpdatedAt                           time.Time `db:"updated_at"`
-		LabelID                             int64     `db:"label_id"`
-		LabelName                           string    `db:"label_name"`
+		configurationRow
+		LabelID   int64  `db:"label_id"`
+		LabelName string `db:"label_name"`
 	}
 
 	qrows, err := s.db.Pool().Query(ctx, resolveSQL, hostID)
@@ -253,28 +234,7 @@ LIMIT 1`
 		return nil, err
 	}
 
-	cfg := configurationFromRow(configurationRow{
-		ID:                                  rr.ID,
-		Name:                                rr.Name,
-		Description:                         rr.Description,
-		Position:                            rr.Position,
-		ClientMode:                          rr.ClientMode,
-		EnableBundles:                       rr.EnableBundles,
-		EnableTransitiveRules:               rr.EnableTransitiveRules,
-		EnableAllEventUpload:                rr.EnableAllEventUpload,
-		FullSyncIntervalSeconds:             rr.FullSyncIntervalSeconds,
-		BatchSize:                           rr.BatchSize,
-		AllowedPathRegex:                    rr.AllowedPathRegex,
-		BlockedPathRegex:                    rr.BlockedPathRegex,
-		RemovableMediaAction:                rr.RemovableMediaAction,
-		RemovableMediaRemountFlags:          rr.RemovableMediaRemountFlags,
-		EncryptedRemovableMediaAction:       rr.EncryptedRemovableMediaAction,
-		EncryptedRemovableMediaRemountFlags: rr.EncryptedRemovableMediaRemountFlags,
-		EventDetailURL:                      rr.EventDetailURL,
-		EventDetailText:                     rr.EventDetailText,
-		CreatedAt:                           rr.CreatedAt,
-		UpdatedAt:                           rr.UpdatedAt,
-	})
+	cfg := configurationFromRow(rr.configurationRow)
 	return &ConfigurationMatch{
 		Configuration:   cfg,
 		MatchedViaLabel: &LabelMatch{ID: rr.LabelID, Name: rr.LabelName},
@@ -448,11 +408,13 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	return where.Build()
 }
 
-var configurationOrderKeys = map[string]dbutil.OrderExpr{
-	"name":        {SQL: "lower(c.name)"},
-	"description": {SQL: "lower(c.description)"},
-	"position":    {SQL: "c.position"},
-	"updated_at":  {SQL: "c.updated_at"},
+func configurationOrderKeys() map[string]dbutil.OrderExpr {
+	return map[string]dbutil.OrderExpr{
+		"name":        {SQL: "lower(c.name)"},
+		"description": {SQL: "lower(c.description)"},
+		"position":    {SQL: "c.position"},
+		"updated_at":  {SQL: "c.updated_at"},
+	}
 }
 
 type configurationRow struct {

@@ -38,7 +38,7 @@ func TestConfigurationsConformance(t *testing.T) {
 			},
 			ID:         func(c Configuration) int64 { return c.ID },
 			ListParams: configurationListParamsFromKnobs,
-			SortKeys:   slices.Sorted(maps.Keys(configurationOrderKeys)),
+			SortKeys:   slices.Sorted(maps.Keys(configurationOrderKeys())),
 			SearchMatch: func(c Configuration) string {
 				return c.Name
 			},
