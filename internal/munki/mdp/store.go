@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net/netip"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -18,7 +18,6 @@ import (
 // Store persists distribution points and their per-package mirror state.
 type Store struct {
 	db       *database.DB
-	q        *sqlc.Queries
 	presence *Presence
 	logger   *slog.Logger
 }
@@ -26,7 +25,7 @@ type Store struct {
 // NewStore returns a distribution point store backed by db. The presence set is
 // shared with the hub: the hub writes it, the store reads it to gate redirects.
 func NewStore(db *database.DB, presence *Presence, logger *slog.Logger) *Store {
-	return &Store{db: db, q: db.Queries(), presence: presence, logger: logger}
+	return &Store{db: db, presence: presence, logger: logger}
 }
 
 // List returns distribution points in admin order with live presence.
@@ -37,7 +36,7 @@ func (s *Store) List(
 	where, args := distributionPointListWhere(params)
 	listQuery := distributionPointListQuery(params, where, args)
 
-	records, count, err := dbutil.ListWithCount[sqlc.MunkiDistributionPoint](
+	records, count, err := dbutil.ListWithCount[distributionPointRow](
 		ctx,
 		s.db.Pool(),
 		listQuery,
@@ -48,30 +47,38 @@ func (s *Store) List(
 
 	points := make([]DistributionPoint, len(records))
 	for i, record := range records {
-		points[i] = s.distributionPoint(record)
+		points[i] = s.distributionPointFromRow(record)
 	}
 	return points, count, nil
 }
 
 // GetByID returns one distribution point with its per-package mirror state.
 func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail, error) {
-	row, err := s.q.GetMunkiDistributionPointByID(ctx, sqlc.GetMunkiDistributionPointByIDParams{ID: id})
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	states, err := s.q.ListMunkiDistributionPackageStates(
+	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
-		sqlc.ListMunkiDistributionPackageStatesParams{DistributionPointID: id},
+		s.db.Pool(),
+		distributionPointSelectSQL+"\nWHERE c.id = $1",
+		id,
 	)
 	if err != nil {
 		return nil, err
 	}
-	detail := DistributionPointDetail{
-		DistributionPoint: s.distributionPoint(row),
-		Packages:          make([]PackageState, len(states)),
+
+	qrows, err := s.db.Pool().Query(ctx, packageStatesSQL, id)
+	if err != nil {
+		return nil, err
 	}
-	for i, state := range states {
-		detail.Packages[i] = packageStateFromSQLC(state)
+	stateRows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[packageStateRow])
+	if err != nil {
+		return nil, err
+	}
+
+	detail := DistributionPointDetail{
+		DistributionPoint: s.distributionPointFromRow(row),
+		Packages:          make([]PackageState, len(stateRows)),
+	}
+	for i, state := range stateRows {
+		detail.Packages[i] = packageStateFromRow(state)
 	}
 	return &detail, nil
 }
@@ -86,17 +93,29 @@ func (s *Store) Create(
 	if err := mutation.Validate(); err != nil {
 		return nil, err
 	}
-	row, err := s.q.CreateMunkiDistributionPoint(ctx, sqlc.CreateMunkiDistributionPointParams{
+	write := distributionPointWrite{
 		Name:          mutation.Name,
 		Enabled:       mutation.Enabled,
 		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
 		ClientBaseURL: mutation.ClientBaseURL,
 		Key:           key,
-	})
+	}
+	row, err := dbutil.GetOne[distributionPointRow](
+		ctx,
+		s.db.Pool(),
+		insertDistributionPointSQL,
+		pgx.NamedArgs{
+			"name":            write.Name,
+			"enabled":         write.Enabled,
+			"client_cidrs":    write.ClientCidrs,
+			"client_base_url": write.ClientBaseURL,
+			"key":             write.Key,
+		},
+	)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	point := s.distributionPoint(row)
+	point := s.distributionPointFromRow(row)
 	return &point, nil
 }
 
@@ -109,34 +128,54 @@ func (s *Store) Update(
 	if err := mutation.Validate(); err != nil {
 		return nil, err
 	}
-	row, err := s.q.UpdateMunkiDistributionPoint(ctx, sqlc.UpdateMunkiDistributionPointParams{
-		ID:            id,
-		Name:          mutation.Name,
-		Enabled:       mutation.Enabled,
-		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
-		ClientBaseURL: mutation.ClientBaseURL,
-	})
+	row, err := dbutil.GetOne[distributionPointRow](
+		ctx,
+		s.db.Pool(),
+		updateDistributionPointSQL,
+		pgx.NamedArgs{
+			"id":              id,
+			"name":            mutation.Name,
+			"enabled":         mutation.Enabled,
+			"client_cidrs":    clientCIDRs(mutation.ClientCIDRs),
+			"client_base_url": mutation.ClientBaseURL,
+		},
+	)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	point := s.distributionPoint(row)
+	point := s.distributionPointFromRow(row)
 	return &point, nil
 }
 
 // Delete removes a distribution point and its package states.
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteMunkiDistributionPoint(ctx, sqlc.DeleteMunkiDistributionPointParams{ID: id})
-	return dbutil.GetError(err)
+	tag, err := s.db.Pool().Exec(
+		ctx,
+		`DELETE FROM munki_distribution_points WHERE id = $1`,
+		id,
+	)
+	if err != nil {
+		return dbutil.DeleteConflict(err, "distribution point is still referenced")
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
 }
 
 // RotateKey replaces a distribution point's key, invalidating the old one.
 func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
-	_, err := s.q.RotateMunkiDistributionPointKey(ctx, sqlc.RotateMunkiDistributionPointKeyParams{
-		ID:  id,
-		Key: key,
-	})
+	tag, err := s.db.Pool().Exec(
+		ctx,
+		`UPDATE munki_distribution_points SET "key" = $1, updated_at = now() WHERE id = $2`,
+		key,
+		id,
+	)
 	if err != nil {
 		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
 	}
 	return nil
 }
@@ -145,8 +184,11 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 // existing ids, persisted two-phase to satisfy the unique position constraint.
 func (s *Store) Reorder(ctx context.Context, orderedIDs []int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		currentIDs, err := q.ListMunkiDistributionPointIDsByPosition(ctx)
+		rows, err := tx.Query(ctx, `SELECT id FROM munki_distribution_points ORDER BY position, id`)
+		if err != nil {
+			return err
+		}
+		currentIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 		if err != nil {
 			return err
 		}
@@ -156,23 +198,32 @@ func (s *Store) Reorder(ctx context.Context, orderedIDs []int64) error {
 				dbutil.ErrInvalidInput,
 			)
 		}
-		if err := q.SetMunkiDistributionPointPositions(
-			ctx,
-			sqlc.SetMunkiDistributionPointPositionsParams{OrderedIds: orderedIDs},
+		if _, err := tx.Exec(ctx, `
+			UPDATE munki_distribution_points c
+			SET position = -ordered.position
+			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
+			WHERE c.id = ordered.id`,
+			orderedIDs,
 		); err != nil {
 			return err
 		}
-		return q.NormalizeMunkiDistributionPointPositions(ctx)
+		_, err = tx.Exec(ctx, `UPDATE munki_distribution_points SET position = -position - 1`)
+		return err
 	})
 }
 
 // AuthenticateWorker resolves a bearer key to its distribution point identity.
 func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*DistributionPoint, error) {
-	row, err := s.q.GetMunkiDistributionPointByKey(ctx, sqlc.GetMunkiDistributionPointByKeyParams{Key: key})
+	row, err := dbutil.GetOne[distributionPointRow](
+		ctx,
+		s.db.Pool(),
+		distributionPointSelectSQL+"\nWHERE c.\"key\" = $1",
+		key,
+	)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, err
 	}
-	point := s.distributionPoint(row)
+	point := s.distributionPointFromRow(row)
 	return &point, nil
 }
 
@@ -185,10 +236,11 @@ func (s *Store) ResolveForClient(
 	clientIP netip.Addr,
 	packageID int64,
 ) (*ResolvedPoint, error) {
-	rows, err := s.q.ListEligibleMunkiDistributionPointsForClient(
-		ctx,
-		sqlc.ListEligibleMunkiDistributionPointsForClientParams{ClientIP: clientIP, PackageID: packageID},
-	)
+	qrows, err := s.db.Pool().Query(ctx, eligibleDistributionPointsSQL, clientIP, packageID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resolvedPointRow])
 	if err != nil {
 		return nil, err
 	}
@@ -202,28 +254,43 @@ func (s *Store) ResolveForClient(
 
 // DesiredPackages returns every package whose installer is available to mirror.
 func (s *Store) DesiredPackages(ctx context.Context) ([]DesiredPackage, error) {
-	rows, err := s.q.ListDesiredMunkiPackages(ctx)
+	qrows, err := s.db.Pool().Query(ctx, desiredPackagesSQL)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[desiredPackageRow])
 	if err != nil {
 		return nil, err
 	}
 	packages := make([]DesiredPackage, len(rows))
 	for i, row := range rows {
-		packages[i] = desiredPackageFromSQLC(row)
+		pkg := DesiredPackage{
+			PackageID: row.PackageID,
+			Filename:  row.Filename,
+		}
+		if row.Sha256 != nil {
+			pkg.SHA256 = *row.Sha256
+		}
+		if row.SizeBytes != nil {
+			pkg.SizeBytes = *row.SizeBytes
+		}
+		packages[i] = pkg
 	}
 	return packages, nil
 }
 
 // InstallerObjectKey returns the storage key of a package's installer object.
 func (s *Store) InstallerObjectKey(ctx context.Context, packageID int64) (string, error) {
-	row, err := s.q.GetMunkiPackageInstallerObject(
-		ctx,
-		sqlc.GetMunkiPackageInstallerObjectParams{PackageID: packageID},
-	)
-	if err != nil {
-		return "", dbutil.GetError(err)
+	type installerObjectRow struct {
+		Prefix   string `db:"prefix"`
+		ID       int64  `db:"object_id"`
+		Filename string `db:"filename"`
 	}
-	obj := row.StorageObject
-	return storage.Key(obj.Prefix, obj.ID, obj.Filename), nil
+	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), installerObjectSQL, packageID)
+	if err != nil {
+		return "", err
+	}
+	return storage.Key(row.Prefix, row.ID, row.Filename), nil
 }
 
 // RecordPackageState upserts one package's mirror state for a distribution
@@ -238,13 +305,14 @@ func (s *Store) RecordPackageState(
 	sha256 string,
 	errMessage string,
 ) error {
-	return s.q.UpsertMunkiDistributionPackageState(ctx, sqlc.UpsertMunkiDistributionPackageStateParams{
-		DistributionPointID: distributionPointID,
-		PackageID:           packageID,
-		Status:              string(status),
-		ReportedSha256:      reportedSHA256(sha256),
-		Error:               errMessage,
+	_, err := s.db.Pool().Exec(ctx, upsertPackageStateSQL, pgx.NamedArgs{
+		"distribution_point_id": distributionPointID,
+		"package_id":            packageID,
+		"status":                string(status),
+		"reported_sha256":       reportedSHA256(sha256),
+		"error":                 errMessage,
 	})
+	return err
 }
 
 // clientCIDRs coerces a nil slice to empty so the not-null text[] column takes
@@ -256,7 +324,7 @@ func clientCIDRs(cidrs []string) []string {
 	return cidrs
 }
 
-func (s *Store) distributionPoint(row sqlc.MunkiDistributionPoint) DistributionPoint {
+func (s *Store) distributionPointFromRow(row distributionPointRow) DistributionPoint {
 	return DistributionPoint{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -270,7 +338,7 @@ func (s *Store) distributionPoint(row sqlc.MunkiDistributionPoint) DistributionP
 	}
 }
 
-func packageStateFromSQLC(row sqlc.ListMunkiDistributionPackageStatesRow) PackageState {
+func packageStateFromRow(row packageStateRow) PackageState {
 	return PackageState{
 		PackageID:       row.PackageID,
 		SoftwareID:      row.SoftwareID,
@@ -289,23 +357,196 @@ func softwareIconURL(softwareID int64, objectID *int64) string {
 	return "/api/munki/software/" + strconv.FormatInt(softwareID, 10) + "/icon"
 }
 
-func desiredPackageFromSQLC(row sqlc.ListDesiredMunkiPackagesRow) DesiredPackage {
-	pkg := DesiredPackage{
-		PackageID: row.PackageID,
-		Filename:  row.Filename,
-	}
-	if row.Sha256 != nil {
-		pkg.SHA256 = *row.Sha256
-	}
-	if row.SizeBytes != nil {
-		pkg.SizeBytes = *row.SizeBytes
-	}
-	return pkg
-}
-
 func reportedSHA256(sha256 string) *string {
 	if sha256 == "" {
 		return nil
 	}
 	return &sha256
 }
+
+// distributionPointRow is the scan target for the munki_distribution_points projection.
+type distributionPointRow struct {
+	ID            int64     `db:"id"`
+	Name          string    `db:"name"`
+	Enabled       bool      `db:"enabled"`
+	Position      int32     `db:"position"`
+	ClientCidrs   []string  `db:"client_cidrs"`
+	ClientBaseURL string    `db:"client_base_url"`
+	Key           string    `db:"key"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+}
+
+// distributionPointWrite carries the admin-writable fields for INSERT/UPDATE.
+type distributionPointWrite struct {
+	Name          string
+	Enabled       bool
+	ClientCidrs   []string
+	ClientBaseURL string
+	Key           string
+}
+
+// packageStateRow is the scan target for the per-distribution-point package state query.
+type packageStateRow struct {
+	PackageID            int64  `db:"package_id"`
+	SoftwareID           int64  `db:"software_id"`
+	DisplayName          string `db:"display_name"`
+	Version              string `db:"version"`
+	SoftwareIconObjectID *int64 `db:"software_icon_object_id"`
+	Status               string `db:"status"`
+	Error                string `db:"error"`
+}
+
+// resolvedPointRow is the minimal scan target for the client-resolution query.
+type resolvedPointRow struct {
+	ID            int64  `db:"id"`
+	Key           string `db:"key"`
+	ClientBaseURL string `db:"client_base_url"`
+}
+
+// desiredPackageRow is the scan target for the desired-packages query.
+type desiredPackageRow struct {
+	PackageID int64   `db:"package_id"`
+	Filename  string  `db:"filename"`
+	Sha256    *string `db:"sha256"`
+	SizeBytes *int64  `db:"size_bytes"`
+}
+
+const insertDistributionPointSQL = `
+INSERT INTO munki_distribution_points (
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key"
+)
+VALUES (
+	@name,
+	@enabled,
+	(SELECT COALESCE(MAX(position) + 1, 0) FROM munki_distribution_points),
+	@client_cidrs::text[],
+	@client_base_url,
+	@key
+)
+RETURNING
+	id,
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key",
+	created_at,
+	updated_at`
+
+const updateDistributionPointSQL = `
+UPDATE munki_distribution_points
+SET
+	name = @name,
+	enabled = @enabled,
+	client_cidrs = @client_cidrs::text[],
+	client_base_url = @client_base_url,
+	updated_at = now()
+WHERE id = @id
+RETURNING
+	id,
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key",
+	created_at,
+	updated_at`
+
+const eligibleDistributionPointsSQL = `
+SELECT
+	c.id,
+	c."key",
+	c.client_base_url
+FROM munki_distribution_points c
+WHERE c.enabled
+  AND c.client_base_url <> ''
+  AND $1::inet <<= ANY (c.client_cidrs::inet[])
+  AND EXISTS (
+      SELECT 1
+      FROM munki_distribution_package_states s
+      JOIN munki_packages p ON p.id = s.package_id
+      JOIN storage_objects o ON o.id = p.installer_object_id
+      WHERE s.distribution_point_id = c.id
+        AND s.package_id = $2
+        AND s.status = 'current'
+        AND o.available_at IS NOT NULL
+        AND o.sha256 = s.reported_sha256
+  )
+ORDER BY c.position, c.id`
+
+const packageStatesSQL = `
+SELECT
+	p.id AS package_id,
+	sw.id AS software_id,
+	sw.name AS display_name,
+	p.version,
+	sw.icon_object_id AS software_icon_object_id,
+	CASE
+		WHEN s.package_id IS NULL THEN 'pending'
+		WHEN s.status = 'error' THEN 'error'
+		WHEN o.sha256 = s.reported_sha256 THEN 'current'
+		ELSE 'syncing'
+	END::text AS status,
+	COALESCE(s.error, '') AS error
+FROM munki_packages p
+JOIN munki_software sw ON sw.id = p.software_id
+JOIN storage_objects o ON o.id = p.installer_object_id
+LEFT JOIN munki_distribution_package_states s
+	ON s.package_id = p.id
+	AND s.distribution_point_id = $1
+WHERE o.available_at IS NOT NULL
+  AND o.sha256 IS NOT NULL
+  AND o.size_bytes IS NOT NULL
+ORDER BY sw.name, p.version`
+
+const desiredPackagesSQL = `
+SELECT
+	p.id AS package_id,
+	o.filename,
+	o.sha256,
+	o.size_bytes
+FROM munki_packages p
+JOIN storage_objects o ON o.id = p.installer_object_id
+WHERE o.available_at IS NOT NULL
+  AND o.sha256 IS NOT NULL
+  AND o.size_bytes IS NOT NULL
+ORDER BY p.id`
+
+const installerObjectSQL = `
+SELECT
+	o.prefix,
+	o.id AS object_id,
+	o.filename
+FROM munki_packages p
+JOIN storage_objects o ON o.id = p.installer_object_id
+WHERE p.id = $1
+  AND o.available_at IS NOT NULL`
+
+const upsertPackageStateSQL = `
+INSERT INTO munki_distribution_package_states (
+	distribution_point_id,
+	package_id,
+	status,
+	reported_sha256,
+	error
+)
+VALUES (
+	@distribution_point_id,
+	@package_id,
+	@status,
+	@reported_sha256,
+	@error
+)
+ON CONFLICT (distribution_point_id, package_id) DO UPDATE
+SET status = EXCLUDED.status,
+    reported_sha256 = EXCLUDED.reported_sha256,
+    error = EXCLUDED.error,
+    updated_at = now()`

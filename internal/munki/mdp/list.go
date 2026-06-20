@@ -41,8 +41,7 @@ func distributionPointOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-// distributionPointSelectSQL lists every column so the row maps onto the
-// generated struct; the key is read but never serialized by the admin model.
+// distributionPointSelectSQL is the canonical distributionPointRow projection.
 const distributionPointSelectSQL = `
 SELECT
 	c.id,
