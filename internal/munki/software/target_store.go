@@ -12,9 +12,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
+const (
+	softwareTargetDirectionInclude = "include"
+	softwareTargetDirectionExclude = "exclude"
+)
+
 func (s *Store) replaceTargets(
 	ctx context.Context,
-	qtx *sqlc.Queries,
+	tx pgx.Tx,
 	softwareID int64,
 	targets Targets,
 ) error {
@@ -25,32 +30,33 @@ func (s *Store) replaceTargets(
 	if err := s.validatePackageSelectors(ctx, softwareID, targets.Include); err != nil {
 		return err
 	}
-	if err := validateExcludedLabels(ctx, qtx, targets.Exclude); err != nil {
+	if err := validateExcludedLabels(ctx, tx, targets.Exclude); err != nil {
 		return err
 	}
-	if err := qtx.DeleteMunkiSoftwareTargetsBySoftware(
-		ctx,
-		sqlc.DeleteMunkiSoftwareTargetsBySoftwareParams{SoftwareID: softwareID},
-	); err != nil {
-		return err
+	rows := make([]softwareTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
+	for i, include := range targets.Include {
+		rows = append(rows, softwareTargetWrite{
+			SoftwareID:       softwareID,
+			Direction:        softwareTargetDirectionInclude,
+			Position:         int32(i),
+			LabelID:          include.LabelID,
+			Actions:          storageActions(include.Actions),
+			PackageSelection: storagePackageSelection(include.Package),
+			PinnedPackageID:  include.Package.PackageID,
+		})
 	}
-	for index, include := range targets.Include {
-		if err := qtx.CreateMunkiSoftwareInclude(
-			ctx,
-			createIncludeParams(softwareID, int32(index+1), include),
-		); err != nil {
-			return err
-		}
-	}
-	if len(targets.Exclude) == 0 {
-		return nil
-	}
-	return qtx.InsertMunkiSoftwareExcludeLabels(
-		ctx,
-		sqlc.InsertMunkiSoftwareExcludeLabelsParams{
+	for i, exclude := range targets.Exclude {
+		rows = append(rows, softwareTargetWrite{
 			SoftwareID: softwareID,
-			LabelIds:   targeting.LabelRefIDs(targets.Exclude),
-		},
+			Direction:  softwareTargetDirectionExclude,
+			Position:   int32(i),
+			LabelID:    exclude.LabelID,
+		})
+	}
+	return dbutil.ReplaceChildren(
+		ctx, tx,
+		deleteSoftwareTargetsSQL, []any{softwareID},
+		insertSoftwareTargetSQL, rows,
 	)
 }
 
@@ -74,50 +80,40 @@ func (s *Store) validatePackageSelectors(
 	return nil
 }
 
-func createIncludeParams(
-	softwareID int64,
-	priority int32,
-	include Include,
-) sqlc.CreateMunkiSoftwareIncludeParams {
-	params := sqlc.CreateMunkiSoftwareIncludeParams{
-		SoftwareID:       softwareID,
-		Priority:         priority,
-		LabelID:          include.LabelID,
-		Actions:          storageActions(include.Actions),
-		PackageSelection: storagePackageSelection(include.Package),
-		PinnedPackageID:  include.Package.PackageID,
-	}
-	return params
-}
-
-func validateExcludedLabels(ctx context.Context, qtx *sqlc.Queries, excludes []targeting.LabelRef) error {
+func validateExcludedLabels(ctx context.Context, q dbutil.Queryer, excludes []targeting.LabelRef) error {
 	if len(excludes) == 0 {
 		return nil
 	}
-	builtinExcludeIDs, err := qtx.ListBuiltinLabelIDs(ctx, sqlc.ListBuiltinLabelIDsParams{
-		LabelIds: targeting.LabelRefIDs(excludes),
-	})
+	ids := targeting.LabelRefIDs(excludes)
+	rows, err := q.Query(ctx, `
+		SELECT id
+		FROM labels
+		WHERE id = ANY($1::bigint[]) AND label_type = 'builtin'`, ids)
 	if err != nil {
 		return err
 	}
-	if len(builtinExcludeIDs) > 0 {
+	builtinIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	if len(builtinIDs) > 0 {
 		return fmt.Errorf("%w: builtin labels cannot be excluded from Munki software", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
 
-func storagePackageSelection(selector PackageSelector) sqlc.MunkiPackageSelection {
+func storagePackageSelection(selector PackageSelector) string {
 	switch selector.Strategy {
 	case PackageSpecific:
-		return sqlc.MunkiPackageSelectionSpecific
+		return string(PackageSpecific)
 	default:
-		return sqlc.MunkiPackageSelectionLatest
+		return string(PackageLatest)
 	}
 }
 
-func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID *int64) PackageSelector {
-	switch selection {
-	case sqlc.MunkiPackageSelectionSpecific:
+func packageSelectorFromStorage(selection string, packageID *int64) PackageSelector {
+	switch PackageStrategy(selection) {
+	case PackageSpecific:
 		return PackageSelector{Strategy: PackageSpecific, PackageID: packageID}
 	default:
 		return PackageSelector{Strategy: PackageLatest}
@@ -145,38 +141,55 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 	if softwareID <= 0 {
 		return Targets{}, dbutil.ErrNotFound
 	}
-	rows, err := s.db.Pool().Query(
+	type targetRow struct {
+		Direction        string   `db:"direction"`
+		LabelID          int64    `db:"label_id"`
+		Actions          []string `db:"actions"`
+		PackageSelection string   `db:"package_selection"`
+		PinnedPackageID  *int64   `db:"pinned_package_id"`
+	}
+	qrows, err := s.db.Pool().Query(
 		ctx,
-		softwareIncludeSelectSQL+"\nWHERE a.direction = 'include' AND a.software_id = $1\nORDER BY a.position, a.label_id",
+		`SELECT
+			direction::text AS direction,
+			label_id,
+			COALESCE(actions::text[], ARRAY[]::text[]) AS actions,
+			COALESCE(package_selection::text, '') AS package_selection,
+			pinned_package_id
+		FROM munki_software_targets
+		WHERE software_id = $1
+		ORDER BY direction, position, label_id`,
 		softwareID,
 	)
 	if err != nil {
 		return Targets{}, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[softwareIncludeRecord])
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[targetRow])
 	if err != nil {
 		return Targets{}, err
 	}
 	targets := emptyTargets()
-	for _, record := range records {
-		targets.Include = append(targets.Include, includeFromRecord(record))
-	}
-	excludes, err := s.q.ListMunkiSoftwareExcludeLabels(
-		ctx,
-		sqlc.ListMunkiSoftwareExcludeLabelsParams{SoftwareIds: []int64{softwareID}},
-	)
-	if err != nil {
-		return Targets{}, err
-	}
-	for _, row := range excludes {
-		targets.Exclude = append(targets.Exclude, targeting.LabelRef{LabelID: row.LabelID})
+	for _, row := range rows {
+		switch targeting.Direction(row.Direction) {
+		case targeting.Include:
+			targets.Include = append(targets.Include, Include{
+				LabelID: row.LabelID,
+				Package: packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
+				Actions: actionsFromStorage(row.Actions),
+			})
+		case targeting.Exclude:
+			targets.Exclude = append(targets.Exclude, targeting.LabelRef{LabelID: row.LabelID})
+		}
 	}
 	return targets, nil
 }
 
 // EffectivePackagesForHost resolves Munki package candidates for one host.
+//
+// TODO(store-rewrite): convert with the munki host-effective slice.
 func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
-	rows, err := s.q.ListEffectiveMunkiPackagesForHost(ctx, sqlc.ListEffectiveMunkiPackagesForHostParams{
+	q := s.db.Queries()
+	rows, err := q.ListEffectiveMunkiPackagesForHost(ctx, sqlc.ListEffectiveMunkiPackagesForHostParams{
 		HostID: hostID,
 	})
 	if err != nil {
@@ -194,7 +207,7 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			Actions:              actionsFromStorage(row.Actions),
 			Package:              pkg,
 			SoftwareIconObjectID: pkg.SoftwareIconObjectID,
-			Selector:             packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
+			Selector:             packageSelectorFromStorage(string(row.PackageSelection), row.PinnedPackageID),
 		})
 	}
 	resolved := ResolveEffectivePackages(effective)
@@ -227,28 +240,26 @@ func (s *Store) attachPackageRelations(
 	return effective, nil
 }
 
-func includeFromRecord(row softwareIncludeRecord) Include {
-	return Include{
-		LabelID: row.LabelID,
-		Package: packageSelectorFromStorage(
-			row.PackageSelection,
-			row.PinnedPackageID,
-		),
-		Actions: actionsFromStorage(row.Actions),
-	}
+type softwareTargetWrite struct {
+	SoftwareID       int64    `db:"software_id"`
+	Direction        string   `db:"direction"`
+	Position         int32    `db:"position"`
+	LabelID          int64    `db:"label_id"`
+	Actions          []string `db:"actions"`
+	PackageSelection string   `db:"package_selection"`
+	PinnedPackageID  *int64   `db:"pinned_package_id"`
 }
 
-type softwareIncludeRecord struct {
-	LabelID          int64
-	Actions          []string
-	PackageSelection sqlc.MunkiPackageSelection
-	PinnedPackageID  *int64
-}
+const deleteSoftwareTargetsSQL = `DELETE FROM munki_software_targets WHERE software_id = $1`
 
-const softwareIncludeSelectSQL = `
-SELECT
-	a.label_id,
-	a.actions::text[] AS actions,
-	a.package_selection,
-	a.pinned_package_id
-FROM munki_software_targets a`
+const insertSoftwareTargetSQL = `
+INSERT INTO munki_software_targets (software_id, direction, position, label_id, actions, package_selection, pinned_package_id)
+VALUES (
+	@software_id,
+	@direction::target_direction,
+	@position,
+	@label_id,
+	NULLIF(@actions::text[]::munki_manifest_action[], ARRAY[]::munki_manifest_action[]),
+	NULLIF(@package_selection::munki_package_selection, ''),
+	@pinned_package_id
+)`
