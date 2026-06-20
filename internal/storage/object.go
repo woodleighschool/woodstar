@@ -12,23 +12,34 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Object is a row in the storage registry: one stored (or pending) blob. The
 // byte key is derived, never stored, so the path format lives in one place.
 type Object struct {
-	ID          int64
-	Prefix      string
-	Filename    string
-	ContentType string
-	SizeBytes   *int64
-	SHA256      *string
-	AvailableAt *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int64      `db:"id"`
+	Prefix      string     `db:"prefix"`
+	Filename    string     `db:"filename"`
+	ContentType string     `db:"content_type"`
+	SizeBytes   *int64     `db:"size_bytes"`
+	SHA256      *string    `db:"sha256"`
+	AvailableAt *time.Time `db:"available_at"`
+	CreatedAt   time.Time  `db:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at"`
+}
+
+const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at
+FROM storage_objects`
+
+// objectUnrefRow is the minimal projection used by DeleteUnreferenced.
+type objectUnrefRow struct {
+	Prefix   string `db:"prefix"`
+	ID       int64  `db:"id"`
+	Filename string `db:"filename"`
 }
 
 // Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
@@ -50,13 +61,12 @@ func (o Object) Available() bool {
 // ObjectStore is the database registry of stored objects.
 type ObjectStore struct {
 	db      *database.DB
-	q       *sqlc.Queries
 	backend Store
 }
 
 // NewObjectStore returns a registry backed by db.
 func NewObjectStore(db *database.DB, backend Store) *ObjectStore {
-	return &ObjectStore{db: db, q: db.Queries(), backend: backend}
+	return &ObjectStore{db: db, backend: backend}
 }
 
 // CreatePending inserts a pending object and returns it with its assigned id.
@@ -69,31 +79,40 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, conte
 	if err != nil {
 		return nil, err
 	}
-	row, err := s.q.CreateStorageObject(ctx, sqlc.CreateStorageObjectParams{
-		Prefix:      prefix,
-		Filename:    filename,
-		ContentType: contentType,
+	const sql = `INSERT INTO storage_objects (prefix, filename, content_type)
+VALUES (@prefix, @filename, @content_type)
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
+		"prefix":       prefix,
+		"filename":     filename,
+		"content_type": contentType,
 	})
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	obj := objectFromSQLC(row)
 	return &obj, nil
 }
 
 // Confirm records the landed object's size, sha, and content type, and marks it
 // available. A content type of "" keeps whatever was set at creation.
-func (s *ObjectStore) Confirm(ctx context.Context, id, size int64, contentType, sha256 string) (*Object, error) {
-	row, err := s.q.ConfirmStorageObject(ctx, sqlc.ConfirmStorageObjectParams{
-		ID:          id,
-		SizeBytes:   &size,
-		Sha256:      &sha256,
-		ContentType: contentType,
+func (s *ObjectStore) Confirm(ctx context.Context, id, size int64, contentType, sha256sum string) (*Object, error) {
+	const sql = `UPDATE storage_objects
+SET size_bytes = @size_bytes,
+    sha256 = @sha256,
+    content_type = COALESCE(NULLIF(@content_type::text, ''), content_type),
+    available_at = now(),
+    updated_at = now()
+WHERE id = @id
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
+		"id":           id,
+		"size_bytes":   &size,
+		"sha256":       &sha256sum,
+		"content_type": contentType,
 	})
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
-	obj := objectFromSQLC(row)
 	return &obj, nil
 }
 
@@ -128,26 +147,29 @@ func (s *ObjectStore) ConfirmUploaded(ctx context.Context, id int64) (*Object, e
 
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
-	row, err := s.q.GetStorageObjectByID(ctx, sqlc.GetStorageObjectByIDParams{ID: id})
+	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), objectSelectSQL+"\nWHERE id = $1", id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
-	obj := objectFromSQLC(row)
 	return &obj, nil
 }
 
 // ListByIDs returns objects keyed by id. Missing IDs are ignored.
 func (s *ObjectStore) ListByIDs(ctx context.Context, ids []int64) (map[int64]Object, error) {
-	rows, err := s.q.ListStorageObjectsByIDs(ctx, sqlc.ListStorageObjectsByIDsParams{Ids: ids})
+	rows, err := s.db.Pool().Query(ctx,
+		objectSelectSQL+"\nWHERE id = ANY($1::bigint[])", ids)
 	if err != nil {
 		return nil, err
 	}
-	objects := make(map[int64]Object, len(rows))
-	for _, row := range rows {
-		obj := objectFromSQLC(row)
-		objects[obj.ID] = obj
+	objects, err := pgx.CollectRows(rows, pgx.RowToStructByName[Object])
+	if err != nil {
+		return nil, err
 	}
-	return objects, nil
+	result := make(map[int64]Object, len(objects))
+	for _, obj := range objects {
+		result[obj.ID] = obj
+	}
+	return result, nil
 }
 
 // ListByPrefix returns available objects under a prefix, newest first.
@@ -157,33 +179,24 @@ func (s *ObjectStore) ListByPrefix(
 	params dbutil.ListParams,
 ) ([]Object, int, error) {
 	params = dbutil.CleanListParams(params)
-	count, err := s.q.CountStorageObjectsByPrefix(ctx, sqlc.CountStorageObjectsByPrefixParams{Prefix: prefix})
-	if err != nil {
-		return nil, 0, err
+	listQuery := dbutil.ListQuery{
+		SelectSQL:    objectSelectSQL,
+		WhereSQL:     "WHERE prefix = $1 AND available_at IS NOT NULL",
+		Args:         []any{prefix},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "created_at DESC"}, {SQL: "id DESC"}},
+		Params:       params,
 	}
-	rows, err := s.q.ListStorageObjectsByPrefix(ctx, sqlc.ListStorageObjectsByPrefixParams{
-		Prefix:     prefix,
-		OffsetRows: params.PageIndex * params.PageSize,
-		LimitRows:  params.PageSize,
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-	objects := make([]Object, len(rows))
-	for i, row := range rows {
-		objects[i] = objectFromSQLC(row)
-	}
-	return objects, int(count), nil
+	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
 }
 
 // DeleteByID removes an object row. It fails with a conflict if a consumer FK
 // still references it.
 func (s *ObjectStore) DeleteByID(ctx context.Context, id int64) error {
-	rows, err := s.q.DeleteStorageObject(ctx, sqlc.DeleteStorageObjectParams{ID: id})
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM storage_objects WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "storage object is still referenced")
 	}
-	if rows == 0 {
+	if tag.RowsAffected() == 0 {
 		return dbutil.ErrNotFound
 	}
 	return nil
@@ -193,14 +206,23 @@ func (s *ObjectStore) DeleteByID(ctx context.Context, id int64) error {
 // resource references anymore. Failed backend deletes leave rows in place so the
 // database does not claim cleanup happened when bytes still exist.
 func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) error {
-	rows, err := s.q.ListUnreferencedStorageObjects(
-		ctx,
-		sqlc.ListUnreferencedStorageObjectsParams{Ids: ids},
-	)
+	const sql = `SELECT o.prefix, o.id, o.filename
+FROM storage_objects o
+WHERE o.id = ANY($1::bigint[])
+  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_packages p
+      WHERE p.installer_object_id = o.id
+  )`
+	rows, err := s.db.Pool().Query(ctx, sql, ids)
 	if err != nil {
 		return err
 	}
-	for _, row := range rows {
+	unref, err := pgx.CollectRows(rows, pgx.RowToStructByName[objectUnrefRow])
+	if err != nil {
+		return err
+	}
+	for _, row := range unref {
 		key := Key(row.Prefix, row.ID, row.Filename)
 		if s.backend != nil {
 			if err := s.backend.Delete(ctx, key); err != nil {
@@ -224,20 +246,6 @@ func ReplacedObjectIDs(oldID, newID *int64) []int64 {
 		return nil
 	}
 	return []int64{*oldID}
-}
-
-func objectFromSQLC(row sqlc.StorageObject) Object {
-	return Object{
-		ID:          row.ID,
-		Prefix:      row.Prefix,
-		Filename:    row.Filename,
-		ContentType: row.ContentType,
-		SizeBytes:   row.SizeBytes,
-		SHA256:      row.Sha256,
-		AvailableAt: row.AvailableAt,
-		CreatedAt:   row.CreatedAt,
-		UpdatedAt:   row.UpdatedAt,
-	}
 }
 
 // prefixPattern constrains a storage prefix to the lowercase slash-separated
