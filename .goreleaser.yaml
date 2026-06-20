@@ -3,7 +3,8 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
+    - mise run tidy
+    - mise //web:build
 
 builds:
   - id: woodstar
@@ -30,6 +31,35 @@ archives:
 
 release:
   draft: false
+
+dockers_v2:
+  - id: woodstar
+    ids:
+      - woodstar
+    dockerfile: Dockerfile.release
+    images:
+      - ghcr.io/woodleighschool/woodstar
+    tags:
+      - "{{ .Version }}"
+      - rolling
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    annotations:
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.description: Woodstar macOS observability and admin server
+      org.opencontainers.image.licenses: Apache-2.0
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.title: woodstar
+      org.opencontainers.image.version: "{{ .Version }}"
+
+docker_signs:
+  - artifacts: manifests
+    args:
+      - sign
+      - "${artifact}@${digest}"
+      - --yes
 
 changelog:
   format: "[{{ .SHA }}](https://github.com/woodleighschool/woodstar/commit/{{ .SHA }}) {{ .Message }}"
