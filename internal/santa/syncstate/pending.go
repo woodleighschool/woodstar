@@ -236,8 +236,8 @@ func rewritePendingState(
 }
 
 type santaPendingStateRow struct {
-	PendingPayloadRuleCount int32 `db:"pending_payload_rule_count"`
-	PendingFullSync         bool  `db:"pending_full_sync"`
+	PendingPayloadRuleCount int32
+	PendingFullSync         bool
 }
 
 func (s *Store) LoadPendingPayloadPage(

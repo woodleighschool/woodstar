@@ -85,10 +85,10 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 }
 
 type observedSantaHostStateRow struct {
-	SantaVersion       string     `db:"santa_version"`
-	ClientModeReported string     `db:"client_mode_reported"`
-	LastSeenAt         *time.Time `db:"last_seen_at"`
-	LastCleanSyncAt    *time.Time `db:"last_clean_sync_at"`
+	SantaVersion       string
+	ClientModeReported string
+	LastSeenAt         *time.Time
+	LastCleanSyncAt    *time.Time
 }
 
 const getObservedSantaHostStateSQL = `

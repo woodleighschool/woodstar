@@ -93,7 +93,7 @@ func (s *Store) Create(
 	if err := mutation.Validate(); err != nil {
 		return nil, err
 	}
-	write := distributionPointWrite{
+	write := distributionPointCreateWrite{
 		Name:          mutation.Name,
 		Enabled:       mutation.Enabled,
 		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
@@ -104,13 +104,7 @@ func (s *Store) Create(
 		ctx,
 		s.db.Pool(),
 		insertDistributionPointSQL,
-		pgx.NamedArgs{
-			"name":            write.Name,
-			"enabled":         write.Enabled,
-			"client_cidrs":    write.ClientCidrs,
-			"client_base_url": write.ClientBaseURL,
-			"key":             write.Key,
-		},
+		pgx.StructArgs(write),
 	)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -128,17 +122,18 @@ func (s *Store) Update(
 	if err := mutation.Validate(); err != nil {
 		return nil, err
 	}
+	write := distributionPointUpdateWrite{
+		ID:            id,
+		Name:          mutation.Name,
+		Enabled:       mutation.Enabled,
+		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
+		ClientBaseURL: mutation.ClientBaseURL,
+	}
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
 		s.db.Pool(),
 		updateDistributionPointSQL,
-		pgx.NamedArgs{
-			"id":              id,
-			"name":            mutation.Name,
-			"enabled":         mutation.Enabled,
-			"client_cidrs":    clientCIDRs(mutation.ClientCIDRs),
-			"client_base_url": mutation.ClientBaseURL,
-		},
+		pgx.StructArgs(write),
 	)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -377,13 +372,22 @@ type distributionPointRow struct {
 	UpdatedAt     time.Time `db:"updated_at"`
 }
 
-// distributionPointWrite carries the admin-writable fields for INSERT/UPDATE.
-type distributionPointWrite struct {
-	Name          string
-	Enabled       bool
-	ClientCidrs   []string
-	ClientBaseURL string
-	Key           string
+// distributionPointCreateWrite carries all admin-writable fields for INSERT.
+type distributionPointCreateWrite struct {
+	Name          string   `db:"name"`
+	Enabled       bool     `db:"enabled"`
+	ClientCidrs   []string `db:"client_cidrs"`
+	ClientBaseURL string   `db:"client_base_url"`
+	Key           string   `db:"key"`
+}
+
+// distributionPointUpdateWrite carries the admin-writable fields for UPDATE (no key rotation).
+type distributionPointUpdateWrite struct {
+	ID            int64    `db:"id"`
+	Name          string   `db:"name"`
+	Enabled       bool     `db:"enabled"`
+	ClientCidrs   []string `db:"client_cidrs"`
+	ClientBaseURL string   `db:"client_base_url"`
 }
 
 // packageStateRow is the scan target for the per-distribution-point package state query.

@@ -40,11 +40,13 @@ type userRow struct {
 	UpdatedAt         time.Time  `db:"updated_at"`
 }
 
+const userColumnsSQL = `id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
+    source::text AS source, external_id, user_principal_name, mail_nickname,
+    given_name, family_name, department, deleted_at, created_at, updated_at`
+
 const userSelectSQL = `
 SELECT
-    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at
+    ` + userColumnsSQL + `
 FROM users`
 
 func userFromRow(r userRow) User {
@@ -222,10 +224,7 @@ SET
     END,
     updated_at = now()
 WHERE id = $4
-RETURNING
-    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at`,
+RETURNING `+userColumnsSQL,
 		params.Name, roleStr, params.PasswordHash, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -249,10 +248,7 @@ SET
     END,
     updated_at = now()
 WHERE id = $3
-RETURNING
-    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at`,
+RETURNING `+userColumnsSQL,
 		params.Name, params.PasswordHash, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
@@ -312,10 +308,7 @@ SET
 WHERE id = $2
   AND deleted_at IS NULL
   AND role IS NOT NULL
-RETURNING
-    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at`,
+RETURNING `+userColumnsSQL,
 		key, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -336,10 +329,7 @@ SET
     api_key_created_at = NULL,
     updated_at = now()
 WHERE id = $1
-RETURNING
-    id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at`,
+RETURNING `+userColumnsSQL,
 		id)
 	if err != nil {
 		return nil, dbutil.GetError(err)

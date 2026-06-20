@@ -74,7 +74,7 @@ func (s *Store) hostSoftwareRows(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[hostSoftwareDBRow])
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[hostSoftwareScanRow])
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ type hostSoftwareAccumulator struct {
 	versionByKey map[string]int
 }
 
-func buildHostSoftwareRows(rows []hostSoftwareDBRow) ([]HostSoftwareRow, error) {
+func buildHostSoftwareRows(rows []hostSoftwareScanRow) ([]HostSoftwareRow, error) {
 	acc := hostSoftwareAccumulator{
 		titles:       newOrderedGroup[int64, HostSoftwareRow](),
 		versionByKey: make(map[string]int),
@@ -101,7 +101,7 @@ func (acc *hostSoftwareAccumulator) rows() []HostSoftwareRow {
 	return acc.titles.values()
 }
 
-func (acc *hostSoftwareAccumulator) add(row hostSoftwareDBRow) {
+func (acc *hostSoftwareAccumulator) add(row hostSoftwareScanRow) {
 	title := acc.title(row)
 	versionIndex := acc.versionIndex(title, row)
 	if row.InstalledPath == "" {
@@ -118,7 +118,7 @@ func (acc *hostSoftwareAccumulator) add(row hostSoftwareDBRow) {
 	})
 }
 
-func (acc *hostSoftwareAccumulator) title(row hostSoftwareDBRow) *HostSoftwareRow {
+func (acc *hostSoftwareAccumulator) title(row hostSoftwareScanRow) *HostSoftwareRow {
 	return acc.titles.get(row.TitleID, func() HostSoftwareRow {
 		return HostSoftwareRow{
 			ID:           row.TitleID,
@@ -130,7 +130,7 @@ func (acc *hostSoftwareAccumulator) title(row hostSoftwareDBRow) *HostSoftwareRo
 	})
 }
 
-func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hostSoftwareDBRow) int {
+func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hostSoftwareScanRow) int {
 	key := fmt.Sprintf("%d:%d", row.TitleID, row.SoftwareID)
 	versionIndex, ok := acc.versionByKey[key]
 	if ok {
@@ -227,7 +227,7 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 	return where.Build()
 }
 
-type hostSoftwareDBRow struct {
+type hostSoftwareScanRow struct {
 	TitleID          int64      `db:"title_id"`
 	TitleName        string     `db:"title_name"`
 	DisplayName      string     `db:"display_name"`
