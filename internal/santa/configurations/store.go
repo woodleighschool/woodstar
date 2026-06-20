@@ -218,6 +218,7 @@ LIMIT 1`
 
 	type resolveRow struct {
 		configurationRow
+
 		LabelID   int64  `db:"label_id"`
 		LabelName string `db:"label_name"`
 	}

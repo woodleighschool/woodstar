@@ -297,16 +297,7 @@ type softwareRow struct {
 }
 
 func softwareFromRow(row softwareRow) Software {
-	return Software{
-		ID:           row.ID,
-		Name:         row.Name,
-		Description:  row.Description,
-		Category:     row.Category,
-		Developer:    row.Developer,
-		IconObjectID: row.IconObjectID,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
-	}
+	return Software(row)
 }
 
 type softwareWrite struct {

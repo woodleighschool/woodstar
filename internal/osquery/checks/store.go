@@ -408,6 +408,7 @@ ON CONFLICT (check_id, host_id) DO UPDATE SET
     passes = EXCLUDED.passes,
     updated_at = now()`
 
+//nolint:gosec // G101: 'passes' is a boolean status column, not a credential
 const listCheckHostIDsByPassesSQL = `
 SELECT host_id
 FROM check_membership
@@ -417,7 +418,7 @@ ORDER BY host_id`
 
 const listCheckHostStatusesSQL = `
 WITH check_row AS (
-    SELECT *
+    SELECT id, name
     FROM checks c
     WHERE c.id = $1
 ),

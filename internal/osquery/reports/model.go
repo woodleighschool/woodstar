@@ -35,6 +35,7 @@ type ReportMutation struct {
 // carries the optional creator user ID which is not caller-settable via the API.
 type ReportCreateMutation struct {
 	ReportMutation
+
 	CreatedByUserID *int64
 }
 

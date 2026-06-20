@@ -35,6 +35,7 @@ type CheckMutation struct {
 // CheckCreateMutation is the create input for a check.
 type CheckCreateMutation struct {
 	CheckMutation
+
 	CreatedByUserID *int64
 }
 
