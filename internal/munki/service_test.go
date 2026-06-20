@@ -5,27 +5,23 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
+func TestResolvePackageFileUsesRepositoryPackages(t *testing.T) {
 	installerID := int64(42)
 	store := servicePackageStore{
-		packages: []munkisoftware.EffectivePackage{
+		repositoryPackages: []packages.Package{
 			{
-				TargetID:   1,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package: packages.Package{
-					ID:                10,
-					SoftwareName:      "GoogleChrome",
-					InstallerType:     packages.InstallerTypePkg,
-					InstallerObjectID: &installerID,
-				},
+				ID:                10,
+				SoftwareName:      "GoogleChrome",
+				InstallerType:     packages.InstallerTypePkg,
+				InstallerObjectID: &installerID,
 			},
 		},
 	}
@@ -33,9 +29,8 @@ func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 		installerID: {ID: installerID, Prefix: packages.ObjectPrefix, Filename: "GoogleChrome.pkg"},
 	}}
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
-	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	installer, err := service.ResolvePackageFile(context.Background(), client, "packages/10/installer/GoogleChrome.pkg")
+	installer, err := service.ResolvePackageFile(context.Background(), "packages/10/installer/GoogleChrome.pkg")
 	if err != nil {
 		t.Fatalf("ResolvePackageFile allowed package: %v", err)
 	}
@@ -46,7 +41,7 @@ func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 		t.Fatalf("package id = %d, want 10", installer.PackageID)
 	}
 
-	_, err = service.ResolvePackageFile(context.Background(), client, "munki/packages/99/Blocked.pkg")
+	_, err = service.ResolvePackageFile(context.Background(), "munki/packages/99/Blocked.pkg")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("blocked key error = %v, want ErrNotFound", err)
 	}
@@ -54,30 +49,29 @@ func TestResolvePackageFileRequiresEffectivePackage(t *testing.T) {
 
 func TestManifestRequiresClientIdentifierName(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: servicePackageStore{},
+		Hosts:    serviceHostStore{host: &hosts.Host{ID: 1, Hardware: hosts.HostHardware{Serial: "C02MUNKI"}}},
+		Software: servicePackageStore{},
 	})
-	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	if _, err := service.Manifest(context.Background(), client, "C02OTHER"); !errors.Is(err, munki.ErrNotFound) {
+	if _, err := service.Manifest(context.Background(), "C02OTHER"); !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("Manifest wrong name error = %v, want ErrNotFound", err)
 	}
-	if _, err := service.Manifest(context.Background(), client, "C02MUNKI"); err != nil {
+	if _, err := service.Manifest(context.Background(), "C02MUNKI"); err != nil {
 		t.Fatalf("Manifest client name error = %v, want nil", err)
 	}
 }
 
-func TestCatalogRequiresProductionName(t *testing.T) {
+func TestCatalogRequiresWoodstarName(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: servicePackageStore{},
 		Objects:  serviceObjectStore{},
 	})
-	client := munki.ClientHost{ID: 1, Serial: "C02MUNKI"}
 
-	if _, err := service.Catalog(context.Background(), client, "testing"); !errors.Is(err, munki.ErrNotFound) {
+	if _, err := service.Catalog(context.Background(), "testing"); !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("Catalog wrong name error = %v, want ErrNotFound", err)
 	}
-	if _, err := service.Catalog(context.Background(), client, "production"); err != nil {
-		t.Fatalf("Catalog production error = %v, want nil", err)
+	if _, err := service.Catalog(context.Background(), "woodstar"); err != nil {
+		t.Fatalf("Catalog woodstar error = %v, want nil", err)
 	}
 }
 
@@ -96,7 +90,19 @@ func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64
 }
 
 type servicePackageStore struct {
-	packages []munkisoftware.EffectivePackage
+	packages           []munkisoftware.EffectivePackage
+	repositoryPackages []packages.Package
+}
+
+type serviceHostStore struct {
+	host *hosts.Host
+}
+
+func (s serviceHostStore) GetByHardwareSerial(_ context.Context, serial string) (*hosts.Host, error) {
+	if s.host == nil || s.host.Hardware.Serial != serial {
+		return nil, dbutil.ErrNotFound
+	}
+	return s.host, nil
 }
 
 func (s servicePackageStore) EffectivePackagesForHost(
@@ -107,4 +113,10 @@ func (s servicePackageStore) EffectivePackagesForHost(
 		return nil, nil
 	}
 	return s.packages, nil
+}
+
+func (s servicePackageStore) ListRepositoryPackages(
+	_ context.Context,
+) ([]packages.Package, error) {
+	return s.repositoryPackages, nil
 }

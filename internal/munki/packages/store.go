@@ -239,6 +239,24 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 	return packages, count, nil
 }
 
+// ListRepositoryPackages returns every package that may appear in the shared
+// Munki catalog.
+func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
+	rows, err := s.q.ListMunkiRepositoryPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records := make([]packageRecord, len(rows))
+	for i, row := range rows {
+		records[i] = packageRecordFromRepositorySQLC(row)
+	}
+	packages, err := packagesFromRecords(records)
+	if err != nil {
+		return nil, err
+	}
+	return s.AttachRelations(ctx, packages)
+}
+
 func (s *Store) prepareMutation(
 	ctx context.Context,
 	params PackageMutation,
@@ -788,6 +806,71 @@ func (row packageRecord) InstallerFile() *InstallerFile {
 }
 
 func packageFromSQLCRow(row sqlc.GetMunkiPackageByIDRow) packageRecord {
+	return packageRecord{
+		ID:                           row.ID,
+		SoftwareID:                   row.SoftwareID,
+		SoftwareName:                 row.SoftwareName,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
+		SoftwareIconObjectID:         row.SoftwareIconObjectID,
+		Version:                      row.Version,
+		InstallerType:                row.InstallerType,
+		UninstallMethod:              row.UninstallMethod,
+		RestartAction:                row.RestartAction,
+		MinimumMunkiVersion:          row.MinimumMunkiVersion,
+		MinimumOSVersion:             row.MinimumOSVersion,
+		MaximumOSVersion:             row.MaximumOSVersion,
+		SupportedArchitectures:       row.SupportedArchitectures,
+		BlockingApplications:         row.BlockingApplications,
+		InstallableCondition:         row.InstallableCondition,
+		BlockingAppsManualQuit:       row.BlockingApplicationsManualQuitOnly,
+		BlockingAppsQuitScript:       row.BlockingApplicationsQuitScript,
+		UnattendedInstall:            row.UnattendedInstall,
+		UnattendedUninstall:          row.UnattendedUninstall,
+		OnDemand:                     row.OnDemand,
+		Precache:                     row.Precache,
+		Autoremove:                   row.Autoremove,
+		AppleItem:                    row.AppleItem,
+		SuppressBundleRelocation:     row.SuppressBundleRelocation,
+		ForceInstallAfterDate:        row.ForceInstallAfterDate,
+		InstalledSize:                row.InstalledSize,
+		InstallerFilename:            row.InstallerFilename,
+		InstallerSizeBytes:           row.InstallerSizeBytes,
+		InstallerSHA256:              row.InstallerSha256,
+		PackagePath:                  row.PackagePath,
+		InstallerChoicesXML:          row.InstallerChoicesXml,
+		InstallerEnvironment:         row.InstallerEnvironment,
+		Installs:                     row.Installs,
+		Receipts:                     row.Receipts,
+		ItemsToCopy:                  row.ItemsToCopy,
+		Notes:                        row.Notes,
+		InstallcheckScript:           row.InstallcheckScript,
+		UninstallcheckScript:         row.UninstallcheckScript,
+		PreinstallScript:             row.PreinstallScript,
+		PostinstallScript:            row.PostinstallScript,
+		PreuninstallScript:           row.PreuninstallScript,
+		PostuninstallScript:          row.PostuninstallScript,
+		UninstallScript:              row.UninstallScript,
+		VersionScript:                row.VersionScript,
+		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
+		PreinstallAlertTitle:         row.PreinstallAlertTitle,
+		PreinstallAlertDetail:        row.PreinstallAlertDetail,
+		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
+		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
+		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
+		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
+		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
+		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
+		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
+		InstallerObjectID:            row.InstallerObjectID,
+		Eligible:                     row.Eligible,
+		CreatedAt:                    row.CreatedAt,
+		UpdatedAt:                    row.UpdatedAt,
+	}
+}
+
+func packageRecordFromRepositorySQLC(row sqlc.ListMunkiRepositoryPackagesRow) packageRecord {
 	return packageRecord{
 		ID:                           row.ID,
 		SoftwareID:                   row.SoftwareID,

@@ -17,8 +17,6 @@ func TestSignVerifyCarriesGrantClaims(t *testing.T) {
 		PackageID:           12,
 		SHA256:              "abc123",
 		SizeBytes:           4096,
-		HostID:              7,
-		Serial:              "C02ABC",
 		DistributionPointID: 3,
 	}
 

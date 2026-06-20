@@ -17,12 +17,9 @@ import (
 const redirectTTL = 15 * time.Minute
 
 // SelectionRequest is one authorized package download awaiting a location. The
-// integrity fields bind the minted grant to specific bytes; host and serial are
-// audit claims.
+// integrity fields bind the minted grant to specific bytes.
 type SelectionRequest struct {
 	ClientIP              string
-	HostID                int64
-	Serial                string
 	PackageID             int64
 	InstallerItemLocation string
 	SHA256                string
@@ -59,8 +56,6 @@ func (s *Store) SelectRedirect(ctx context.Context, req SelectionRequest) (strin
 		InstallerItemLocation: req.InstallerItemLocation,
 		SHA256:                req.SHA256,
 		SizeBytes:             req.SizeBytes,
-		HostID:                req.HostID,
-		Serial:                req.Serial,
 		DistributionPointID:   point.ID,
 	})
 	if err != nil {
@@ -97,8 +92,6 @@ func (s *Store) logDecision(
 		"operation", "select",
 		"reason", reason,
 		"package_id", req.PackageID,
-		"host_id", req.HostID,
-		"serial", req.Serial,
 		"client_ip", req.ClientIP,
 		"distribution_point_id", pointID,
 	)

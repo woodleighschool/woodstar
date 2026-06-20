@@ -574,6 +574,220 @@ func (q *Queries) ListMunkiPackageObjectIDsByIDs(ctx context.Context, arg ListMu
 	return items, nil
 }
 
+const listMunkiRepositoryPackages = `-- name: ListMunkiRepositoryPackages :many
+SELECT
+    p.id,
+    p.software_id,
+    s.name AS software_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
+    s.icon_object_id AS software_icon_object_id,
+    p.version,
+    p.installer_type,
+    p.uninstall_method,
+    p.restart_action,
+    p.minimum_munki_version,
+    p.minimum_os_version,
+    p.maximum_os_version,
+    p.supported_architectures,
+    p.blocking_applications,
+    p.installable_condition,
+    p.blocking_applications_manual_quit_only,
+    p.blocking_applications_quit_script,
+    p.unattended_install,
+    p.unattended_uninstall,
+    p.on_demand,
+    p.precache,
+    p.autoremove,
+    p.apple_item,
+    p.suppress_bundle_relocation,
+    p.force_install_after_date,
+    p.installed_size,
+    installer_obj.filename AS installer_filename,
+    installer_obj.size_bytes AS installer_size_bytes,
+    installer_obj.sha256 AS installer_sha256,
+    p.package_path,
+    p.installer_choices_xml,
+    p.installer_environment,
+    p.installs,
+    p.receipts,
+    p.items_to_copy,
+    p.notes,
+    p.installcheck_script,
+    p.uninstallcheck_script,
+    p.preinstall_script,
+    p.postinstall_script,
+    p.preuninstall_script,
+    p.postuninstall_script,
+    p.uninstall_script,
+    p.version_script,
+    p.preinstall_alert_enabled,
+    p.preinstall_alert_title,
+    p.preinstall_alert_detail,
+    p.preinstall_alert_ok_label,
+    p.preinstall_alert_cancel_label,
+    p.preuninstall_alert_enabled,
+    p.preuninstall_alert_title,
+    p.preuninstall_alert_detail,
+    p.preuninstall_alert_ok_label,
+    p.preuninstall_alert_cancel_label,
+    p.installer_object_id,
+    p.eligible,
+    p.created_at,
+    p.updated_at
+FROM munki_packages p
+JOIN munki_software s ON s.id = p.software_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+WHERE p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+ORDER BY lower(s.name), s.id, p.id
+`
+
+type ListMunkiRepositoryPackagesRow struct {
+	ID                                 int64      `json:"id"`
+	SoftwareID                         int64      `json:"software_id"`
+	SoftwareName                       string     `json:"software_name"`
+	SoftwareDescription                string     `json:"software_description"`
+	SoftwareCategory                   string     `json:"software_category"`
+	SoftwareDeveloper                  string     `json:"software_developer"`
+	SoftwareIconObjectID               *int64     `json:"software_icon_object_id"`
+	Version                            string     `json:"version"`
+	InstallerType                      string     `json:"installer_type"`
+	UninstallMethod                    string     `json:"uninstall_method"`
+	RestartAction                      string     `json:"restart_action"`
+	MinimumMunkiVersion                string     `json:"minimum_munki_version"`
+	MinimumOSVersion                   string     `json:"minimum_os_version"`
+	MaximumOSVersion                   string     `json:"maximum_os_version"`
+	SupportedArchitectures             []string   `json:"supported_architectures"`
+	BlockingApplications               []string   `json:"blocking_applications"`
+	InstallableCondition               string     `json:"installable_condition"`
+	BlockingApplicationsManualQuitOnly bool       `json:"blocking_applications_manual_quit_only"`
+	BlockingApplicationsQuitScript     string     `json:"blocking_applications_quit_script"`
+	UnattendedInstall                  bool       `json:"unattended_install"`
+	UnattendedUninstall                bool       `json:"unattended_uninstall"`
+	OnDemand                           bool       `json:"on_demand"`
+	Precache                           bool       `json:"precache"`
+	Autoremove                         bool       `json:"autoremove"`
+	AppleItem                          bool       `json:"apple_item"`
+	SuppressBundleRelocation           bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
+	InstalledSize                      int64      `json:"installed_size"`
+	InstallerFilename                  *string    `json:"installer_filename"`
+	InstallerSizeBytes                 *int64     `json:"installer_size_bytes"`
+	InstallerSha256                    *string    `json:"installer_sha256"`
+	PackagePath                        string     `json:"package_path"`
+	InstallerChoicesXml                []byte     `json:"installer_choices_xml"`
+	InstallerEnvironment               []byte     `json:"installer_environment"`
+	Installs                           []byte     `json:"installs"`
+	Receipts                           []byte     `json:"receipts"`
+	ItemsToCopy                        []byte     `json:"items_to_copy"`
+	Notes                              string     `json:"notes"`
+	InstallcheckScript                 string     `json:"installcheck_script"`
+	UninstallcheckScript               string     `json:"uninstallcheck_script"`
+	PreinstallScript                   string     `json:"preinstall_script"`
+	PostinstallScript                  string     `json:"postinstall_script"`
+	PreuninstallScript                 string     `json:"preuninstall_script"`
+	PostuninstallScript                string     `json:"postuninstall_script"`
+	UninstallScript                    string     `json:"uninstall_script"`
+	VersionScript                      string     `json:"version_script"`
+	PreinstallAlertEnabled             bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle               string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail              string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel             string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel         string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled           bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle             string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
+	InstallerObjectID                  *int64     `json:"installer_object_id"`
+	Eligible                           bool       `json:"eligible"`
+	CreatedAt                          time.Time  `json:"created_at"`
+	UpdatedAt                          time.Time  `json:"updated_at"`
+}
+
+func (q *Queries) ListMunkiRepositoryPackages(ctx context.Context) ([]ListMunkiRepositoryPackagesRow, error) {
+	rows, err := q.db.Query(ctx, listMunkiRepositoryPackages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMunkiRepositoryPackagesRow{}
+	for rows.Next() {
+		var i ListMunkiRepositoryPackagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SoftwareID,
+			&i.SoftwareName,
+			&i.SoftwareDescription,
+			&i.SoftwareCategory,
+			&i.SoftwareDeveloper,
+			&i.SoftwareIconObjectID,
+			&i.Version,
+			&i.InstallerType,
+			&i.UninstallMethod,
+			&i.RestartAction,
+			&i.MinimumMunkiVersion,
+			&i.MinimumOSVersion,
+			&i.MaximumOSVersion,
+			&i.SupportedArchitectures,
+			&i.BlockingApplications,
+			&i.InstallableCondition,
+			&i.BlockingApplicationsManualQuitOnly,
+			&i.BlockingApplicationsQuitScript,
+			&i.UnattendedInstall,
+			&i.UnattendedUninstall,
+			&i.OnDemand,
+			&i.Precache,
+			&i.Autoremove,
+			&i.AppleItem,
+			&i.SuppressBundleRelocation,
+			&i.ForceInstallAfterDate,
+			&i.InstalledSize,
+			&i.InstallerFilename,
+			&i.InstallerSizeBytes,
+			&i.InstallerSha256,
+			&i.PackagePath,
+			&i.InstallerChoicesXml,
+			&i.InstallerEnvironment,
+			&i.Installs,
+			&i.Receipts,
+			&i.ItemsToCopy,
+			&i.Notes,
+			&i.InstallcheckScript,
+			&i.UninstallcheckScript,
+			&i.PreinstallScript,
+			&i.PostinstallScript,
+			&i.PreuninstallScript,
+			&i.PostuninstallScript,
+			&i.UninstallScript,
+			&i.VersionScript,
+			&i.PreinstallAlertEnabled,
+			&i.PreinstallAlertTitle,
+			&i.PreinstallAlertDetail,
+			&i.PreinstallAlertOkLabel,
+			&i.PreinstallAlertCancelLabel,
+			&i.PreuninstallAlertEnabled,
+			&i.PreuninstallAlertTitle,
+			&i.PreuninstallAlertDetail,
+			&i.PreuninstallAlertOkLabel,
+			&i.PreuninstallAlertCancelLabel,
+			&i.InstallerObjectID,
+			&i.Eligible,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setMunkiPackageInstallerObject = `-- name: SetMunkiPackageInstallerObject :execrows
 UPDATE munki_packages
 SET installer_object_id = $1,

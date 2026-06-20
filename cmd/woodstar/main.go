@@ -317,7 +317,8 @@ func buildWiring(
 
 	w.munkiRepo = munki.NewRepositoryService(munki.Dependencies{
 		Hosts:    w.hosts,
-		Packages: w.munkiSoftware,
+		Software: w.munkiSoftware,
+		Packages: w.munkiPackages,
 		Objects:  w.storageObjects,
 	})
 	munkiPresence := mdp.NewPresence()

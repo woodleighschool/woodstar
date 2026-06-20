@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"slices"
-	"strings"
 
 	"howett.net/plist"
 
@@ -15,6 +14,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
+const catalogName = "woodstar"
+
 // ErrNotFound reports that a requested Munki repository object does not exist.
 var ErrNotFound = errors.New("munki resource not found")
 
@@ -22,24 +23,26 @@ type hostResolver interface {
 	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
 }
 
-type packageResolver interface {
+type effectivePackageResolver interface {
 	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
+}
+
+type packageResolver interface {
+	ListRepositoryPackages(context.Context) ([]packages.Package, error)
 }
 
 type objectResolver interface {
 	ListByIDs(context.Context, []int64) (map[int64]storage.Object, error)
 }
 
-// ClientHost identifies the existing Woodstar host making a Munki request.
-type ClientHost struct {
-	ID          int64
-	Serial      string
-	DisplayName string
+type manifestHost struct {
+	ID int64
 }
 
 // RepositoryService renders the Munki client-facing repository surface.
 type RepositoryService struct {
 	hosts    hostResolver
+	software effectivePackageResolver
 	packages packageResolver
 	objects  objectResolver
 }
@@ -47,6 +50,7 @@ type RepositoryService struct {
 // Dependencies are the collaborators the Munki repository renderer needs.
 type Dependencies struct {
 	Hosts    hostResolver
+	Software effectivePackageResolver
 	Packages packageResolver
 	Objects  objectResolver
 }
@@ -55,38 +59,37 @@ type Dependencies struct {
 func NewRepositoryService(deps Dependencies) *RepositoryService {
 	return &RepositoryService{
 		hosts:    deps.Hosts,
+		software: deps.Software,
 		packages: deps.Packages,
 		objects:  deps.Objects,
 	}
 }
 
-// ResolveClient resolves the Munki request identity to an existing host.
-func (s *RepositoryService) ResolveClient(ctx context.Context, serial string) (ClientHost, error) {
+func (s *RepositoryService) resolveManifestHost(ctx context.Context, serial string) (manifestHost, error) {
 	host, err := s.hosts.GetByHardwareSerial(ctx, serial)
 	if errors.Is(err, dbutil.ErrNotFound) {
-		return ClientHost{}, ErrNotFound
+		return manifestHost{}, ErrNotFound
 	}
 	if err != nil {
-		return ClientHost{}, err
+		return manifestHost{}, err
 	}
-	return ClientHost{
-		ID:          host.ID,
-		Serial:      host.Hardware.Serial,
-		DisplayName: host.DisplayName,
+	return manifestHost{
+		ID: host.ID,
 	}, nil
 }
 
-// Manifest returns a Munki manifest plist for name.
-func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, name string) ([]byte, error) {
-	if strings.TrimSpace(name) != client.Serial {
-		return nil, ErrNotFound
+// Manifest returns the Munki manifest for the host serial in name.
+func (s *RepositoryService) Manifest(ctx context.Context, name string) ([]byte, error) {
+	client, err := s.resolveManifestHost(ctx, name)
+	if err != nil {
+		return nil, err
 	}
 	pkgs, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return nil, err
 	}
 	manifest := renderedManifest{
-		Catalogs:          []string{"production"},
+		Catalogs:          []string{catalogName},
 		ManagedInstalls:   []string{},
 		ManagedUninstalls: []string{},
 		ManagedUpdates:    []string{},
@@ -101,11 +104,11 @@ func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, nam
 }
 
 // Catalog returns a Munki catalog plist for name.
-func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name string) ([]byte, error) {
-	if name != "production" {
+func (s *RepositoryService) Catalog(ctx context.Context, name string) ([]byte, error) {
+	if name != catalogName {
 		return nil, ErrNotFound
 	}
-	pkgs, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.packages.ListRepositoryPackages(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -127,19 +130,17 @@ type PackageInstaller struct {
 	SizeBytes             int64
 }
 
-// ResolvePackageFile authorizes a package installer Munki path for a client and
-// returns the package identity and storage key for serving. The identity lets
-// the delivery path mint a distribution grant; the key serves Woodstar-direct.
+// ResolvePackageFile resolves a package installer Munki path to the package
+// identity and storage key for serving. The identity lets the delivery path mint
+// a distribution grant; the key serves Woodstar-direct.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
-	client ClientHost,
 	key string,
 ) (PackageInstaller, error) {
-	key = strings.TrimSpace(key)
 	if key == "" {
 		return PackageInstaller{}, ErrNotFound
 	}
-	pkgs, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.packages.ListRepositoryPackages(ctx)
 	if err != nil {
 		return PackageInstaller{}, err
 	}
@@ -148,15 +149,15 @@ func (s *RepositoryService) ResolvePackageFile(
 		return PackageInstaller{}, err
 	}
 	for _, pkg := range pkgs {
-		if pkg.Package.InstallerType == packages.InstallerTypeNoPkg {
+		if pkg.InstallerType == packages.InstallerTypeNoPkg {
 			continue
 		}
-		obj := objectByID(objects, pkg.Package.InstallerObjectID)
-		if obj == nil || packages.InstallerItemLocation(pkg.Package, *obj) != key {
+		obj := objectByID(objects, pkg.InstallerObjectID)
+		if obj == nil || packages.InstallerItemLocation(pkg, *obj) != key {
 			continue
 		}
 		return PackageInstaller{
-			PackageID:             pkg.Package.ID,
+			PackageID:             pkg.ID,
 			InstallerItemLocation: key,
 			Key:                   obj.Key(),
 			SHA256:                objectSHA256(*obj),
@@ -166,18 +167,16 @@ func (s *RepositoryService) ResolvePackageFile(
 	return PackageInstaller{}, ErrNotFound
 }
 
-// ResolveIconFile authorizes a software icon name for a client and returns
-// the private object key for serving.
+// ResolveIconFile resolves a software icon name to the private object key for
+// serving.
 func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
-	client ClientHost,
 	key string,
 ) (string, error) {
-	key = strings.TrimSpace(key)
 	if key == "" {
 		return "", ErrNotFound
 	}
-	pkgs, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.packages.ListRepositoryPackages(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +197,7 @@ func (s *RepositoryService) effectivePackages(
 	ctx context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
-	return s.packages.EffectivePackagesForHost(ctx, hostID)
+	return s.software.EffectivePackagesForHost(ctx, hostID)
 }
 
 func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectivePackage) {
@@ -230,31 +229,31 @@ func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 
 func (s *RepositoryService) catalogItems(
 	ctx context.Context,
-	effective []munkisoftware.EffectivePackage,
+	pkgs []packages.Package,
 ) ([]any, error) {
-	objects, err := s.objectsForPackages(ctx, effective)
+	objects, err := s.objectsForPackages(ctx, pkgs)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]any, 0, len(effective))
-	seen := make(map[int64]bool, len(effective))
-	for _, pkg := range effective {
-		if seen[pkg.Package.ID] {
+	items := make([]any, 0, len(pkgs))
+	seen := make(map[int64]bool, len(pkgs))
+	for _, pkg := range pkgs {
+		if seen[pkg.ID] {
 			continue
 		}
-		seen[pkg.Package.ID] = true
-		items = append(items, packages.Pkginfo(pkg.Package, packageObjects(pkg, objects)))
+		seen[pkg.ID] = true
+		items = append(items, packages.Pkginfo(pkg, packageObjects(pkg, objects)))
 	}
 	return items, nil
 }
 
 func (s *RepositoryService) objectsForPackages(
 	ctx context.Context,
-	effective []munkisoftware.EffectivePackage,
+	pkgs []packages.Package,
 ) (map[int64]storage.Object, error) {
-	ids := make([]int64, 0, len(effective)*3)
-	for _, pkg := range effective {
-		ids = appendObjectID(ids, pkg.Package.InstallerObjectID)
+	ids := make([]int64, 0, len(pkgs)*2)
+	for _, pkg := range pkgs {
+		ids = appendObjectID(ids, pkg.InstallerObjectID)
 		ids = appendObjectID(ids, pkg.SoftwareIconObjectID)
 	}
 	if len(ids) == 0 {
@@ -264,11 +263,11 @@ func (s *RepositoryService) objectsForPackages(
 }
 
 func packageObjects(
-	pkg munkisoftware.EffectivePackage,
+	pkg packages.Package,
 	objects map[int64]storage.Object,
 ) packages.PkginfoObjects {
 	return packages.PkginfoObjects{
-		Installer: objectByID(objects, pkg.Package.InstallerObjectID),
+		Installer: objectByID(objects, pkg.InstallerObjectID),
 		Icon:      objectByID(objects, pkg.SoftwareIconObjectID),
 	}
 }

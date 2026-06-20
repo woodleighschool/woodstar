@@ -14,6 +14,8 @@ import (
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -68,7 +70,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 		assert func(*testing.T, []byte)
 	}{
 		{path: "/munki/manifests/C02MUNKI", assert: assertManifestPlist},
-		{path: "/munki/catalogs/production", assert: assertCatalogPlist},
+		{path: "/munki/catalogs/woodstar", assert: assertCatalogPlist},
 	}
 
 	for _, tc := range cases {
@@ -76,7 +78,6 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
 			req.Header.Set("Authorization", "Bearer munki-secret")
-			req.Header.Set("Serial", "C02MUNKI")
 
 			router.ServeHTTP(rec, req)
 
@@ -106,9 +107,8 @@ func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -120,9 +120,8 @@ func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req = httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 	req.Header.Set("If-None-Match", etag)
 	router.ServeHTTP(rec, req)
 
@@ -158,7 +157,7 @@ func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 		}},
 	})
 
-	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
+	body, err := service.Catalog(context.Background(), "woodstar")
 	if err != nil {
 		t.Fatalf("catalog: %v", err)
 	}
@@ -194,7 +193,7 @@ func TestMunkiCatalogOmitsPackageURLsWithoutInstallerItemLocation(t *testing.T) 
 		}},
 	})
 
-	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
+	body, err := service.Catalog(context.Background(), "woodstar")
 	if err != nil {
 		t.Fatalf("catalog: %v", err)
 	}
@@ -235,8 +234,8 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if _, err := plist.Unmarshal(body, &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if got := decoded.Catalogs; len(got) != 1 || got[0] != "production" {
-		t.Fatalf("catalogs = %v, want [production]", got)
+	if got := decoded.Catalogs; len(got) != 1 || got[0] != "woodstar" {
+		t.Fatalf("catalogs = %v, want [woodstar]", got)
 	}
 	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
 		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
@@ -298,7 +297,6 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	manifest := httptest.NewRecorder()
 	manifestReq := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	manifestReq.Header.Set("Authorization", "Bearer munki-secret")
-	manifestReq.Header.Set("Serial", "C02MUNKI")
 	router.ServeHTTP(manifest, manifestReq)
 
 	if manifest.Code != http.StatusOK {
@@ -315,9 +313,8 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	}
 
 	catalog := httptest.NewRecorder()
-	catalogReq := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	catalogReq := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
 	catalogReq.Header.Set("Authorization", "Bearer munki-secret")
-	catalogReq.Header.Set("Serial", "C02MUNKI")
 	router.ServeHTTP(catalog, catalogReq)
 
 	if catalog.Code != http.StatusOK {
@@ -367,7 +364,6 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -406,7 +402,6 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -448,7 +443,6 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 			if tc.authorization != "" {
 				req.Header.Set("Authorization", tc.authorization)
 			}
-			req.Header.Set("Serial", "C02MUNKI")
 
 			router.ServeHTTP(rec, req)
 
@@ -459,28 +453,25 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
+func TestMunkiHTTPRequiresExistingManifestSerial(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepository(),
 	)
 
 	cases := []struct {
-		name   string
-		serial string
+		name string
+		path string
 	}{
-		{name: "missing"},
-		{name: "unknown", serial: "C02UNKNOWN"},
+		{name: "unknown serial", path: "/munki/manifests/C02UNKNOWN"},
+		{name: "site default", path: "/munki/manifests/site_default"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
 			req.Header.Set("Authorization", "Bearer munki-secret")
-			if tc.serial != "" {
-				req.Header.Set("Serial", tc.serial)
-			}
 
 			router.ServeHTTP(rec, req)
 
@@ -491,31 +482,13 @@ func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRequiresManifestNameToMatchSerialHeader(t *testing.T) {
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository(),
-	)
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/site_default", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNotFound, rec.Body.String())
-	}
-}
-
 func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 	verifier := &recordingVerifier{token: "munki-secret"}
 	repository := newStaticRepository()
 	router := newMunkiContractRouter(verifier, repository)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -525,12 +498,9 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 	if verifier.agent != agentauth.AgentMunki {
 		t.Fatalf("agent = %q, want munki", verifier.agent)
 	}
-	if repository.serial != "C02MUNKI" {
-		t.Fatalf("serial = %q, want C02MUNKI", repository.serial)
-	}
 }
 
-func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
+func TestMunkiHTTPRedirectsPackageFileWithBearer(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
 	store := &fakePresigner{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
@@ -543,7 +513,6 @@ func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -559,9 +528,6 @@ func TestMunkiHTTPRedirectsPackageFileWithMunkiIdentity(t *testing.T) {
 	}
 	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
 		t.Fatalf("presigned key = %q", store.gotKey)
-	}
-	if repository.serial != "C02MUNKI" {
-		t.Fatalf("serial = %q, want C02MUNKI", repository.serial)
 	}
 }
 
@@ -590,7 +556,6 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {
@@ -604,9 +569,6 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	}
 	if selector.got.InstallerItemLocation != "packages/20/installer/GoogleChrome.pkg" {
 		t.Fatalf("selection installer_item_location = %q", selector.got.InstallerItemLocation)
-	}
-	if selector.got.Serial != "C02MUNKI" || selector.got.HostID != 1 {
-		t.Fatalf("selection identity claims = %+v", selector.got)
 	}
 	if store.gotKey != "" {
 		t.Fatalf("Woodstar presign should be skipped, got key %q", store.gotKey)
@@ -633,7 +595,6 @@ func TestMunkiHTTPServesDirectWhenNoDistributionPoint(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {
@@ -679,7 +640,7 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 		}},
 	})
 
-	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
+	body, err := service.Catalog(context.Background(), "woodstar")
 	if err != nil {
 		t.Fatalf("catalog: %v", err)
 	}
@@ -716,7 +677,6 @@ func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/icons/7-GoogleChrome.png", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -735,9 +695,8 @@ func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 	router := newMunkiContractRouter(errorVerifier{}, newStaticRepository())
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/production", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -828,16 +787,15 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service   *munki.RepositoryService
-	want      string
-	serial    string
-	fileURL   string
-	fileErr   error
-	fileClass string
-	fileKey   string
-	packageID int64
-	fileSHA   string
-	fileSize  int64
+	service      *munki.RepositoryService
+	manifestName string
+	fileURL      string
+	fileErr      error
+	fileClass    string
+	fileKey      string
+	packageID    int64
+	fileSHA      string
+	fileSize     int64
 }
 
 func newStaticRepository() *staticRepository {
@@ -846,30 +804,25 @@ func newStaticRepository() *staticRepository {
 
 func newStaticRepositoryWithPackages(packages []munkisoftware.EffectivePackage) *staticRepository {
 	return &staticRepository{
-		service: munki.NewRepositoryService(munki.Dependencies{Packages: staticPackageResolver{packages: packages}}),
-		want:    "C02MUNKI",
+		service: munki.NewRepositoryService(munki.Dependencies{
+			Hosts:    staticHostResolver{serial: "C02MUNKI"},
+			Software: staticPackageResolver{packages: packages},
+			Packages: staticPackageResolver{packages: packages},
+		}),
 	}
 }
 
-func (r *staticRepository) ResolveClient(_ context.Context, serial string) (munki.ClientHost, error) {
-	r.serial = serial
-	if serial != r.want {
-		return munki.ClientHost{}, munki.ErrNotFound
-	}
-	return munki.ClientHost{ID: 1, Serial: serial, DisplayName: "Test MacBook"}, nil
+func (r *staticRepository) Manifest(ctx context.Context, name string) ([]byte, error) {
+	r.manifestName = name
+	return r.service.Manifest(ctx, name)
 }
 
-func (r *staticRepository) Manifest(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
-	return r.service.Manifest(ctx, client, name)
-}
-
-func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
-	return r.service.Catalog(ctx, client, name)
+func (r *staticRepository) Catalog(ctx context.Context, name string) ([]byte, error) {
+	return r.service.Catalog(ctx, name)
 }
 
 func (r *staticRepository) ResolvePackageFile(
 	_ context.Context,
-	_ munki.ClientHost,
 	key string,
 ) (munki.PackageInstaller, error) {
 	r.fileClass = "package"
@@ -892,7 +845,6 @@ func (r *staticRepository) ResolvePackageFile(
 
 func (r *staticRepository) ResolveIconFile(
 	_ context.Context,
-	_ munki.ClientHost,
 	key string,
 ) (string, error) {
 	return r.resolve("icon", key)
@@ -919,6 +871,31 @@ func (r staticPackageResolver) EffectivePackagesForHost(
 	_ int64,
 ) ([]munkisoftware.EffectivePackage, error) {
 	return munkisoftware.ResolveEffectivePackages(r.packages), nil
+}
+
+func (r staticPackageResolver) ListRepositoryPackages(
+	_ context.Context,
+) ([]packages.Package, error) {
+	pkgs := make([]packages.Package, 0, len(r.packages))
+	for _, pkg := range r.packages {
+		pkgs = append(pkgs, pkg.Package)
+	}
+	return pkgs, nil
+}
+
+type staticHostResolver struct {
+	serial string
+}
+
+func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string) (*hosts.Host, error) {
+	if serial != r.serial {
+		return nil, dbutil.ErrNotFound
+	}
+	return &hosts.Host{
+		ID:          1,
+		DisplayName: "Test MacBook",
+		Hardware:    hosts.HostHardware{Serial: serial},
+	}, nil
 }
 
 type staticObjectResolver struct {

@@ -174,6 +174,75 @@ JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
 WHERE p.id = @id;
 
+-- name: ListMunkiRepositoryPackages :many
+SELECT
+    p.id,
+    p.software_id,
+    s.name AS software_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
+    s.icon_object_id AS software_icon_object_id,
+    p.version,
+    p.installer_type,
+    p.uninstall_method,
+    p.restart_action,
+    p.minimum_munki_version,
+    p.minimum_os_version,
+    p.maximum_os_version,
+    p.supported_architectures,
+    p.blocking_applications,
+    p.installable_condition,
+    p.blocking_applications_manual_quit_only,
+    p.blocking_applications_quit_script,
+    p.unattended_install,
+    p.unattended_uninstall,
+    p.on_demand,
+    p.precache,
+    p.autoremove,
+    p.apple_item,
+    p.suppress_bundle_relocation,
+    p.force_install_after_date,
+    p.installed_size,
+    installer_obj.filename AS installer_filename,
+    installer_obj.size_bytes AS installer_size_bytes,
+    installer_obj.sha256 AS installer_sha256,
+    p.package_path,
+    p.installer_choices_xml,
+    p.installer_environment,
+    p.installs,
+    p.receipts,
+    p.items_to_copy,
+    p.notes,
+    p.installcheck_script,
+    p.uninstallcheck_script,
+    p.preinstall_script,
+    p.postinstall_script,
+    p.preuninstall_script,
+    p.postuninstall_script,
+    p.uninstall_script,
+    p.version_script,
+    p.preinstall_alert_enabled,
+    p.preinstall_alert_title,
+    p.preinstall_alert_detail,
+    p.preinstall_alert_ok_label,
+    p.preinstall_alert_cancel_label,
+    p.preuninstall_alert_enabled,
+    p.preuninstall_alert_title,
+    p.preuninstall_alert_detail,
+    p.preuninstall_alert_ok_label,
+    p.preuninstall_alert_cancel_label,
+    p.installer_object_id,
+    p.eligible,
+    p.created_at,
+    p.updated_at
+FROM munki_packages p
+JOIN munki_software s ON s.id = p.software_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+WHERE p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+ORDER BY lower(s.name), s.id, p.id;
+
 -- name: DeleteMunkiPackage :execrows
 DELETE FROM munki_packages
 WHERE id = @id;

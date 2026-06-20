@@ -79,8 +79,6 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.DebugContext(r.Context(), "serving package",
 		"package_id", claims.PackageID,
-		"host_id", claims.HostID,
-		"serial", claims.Serial,
 	)
 	// Serve-path integrity is the grant/mirror SHA match plus this size stat, not
 	// a full re-hash. Installers are large, their bytes were hashed at download

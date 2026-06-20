@@ -25,8 +25,6 @@ func TestSelectRedirectMintsVerifiableGrant(t *testing.T) {
 
 	redirect, ok := store.SelectRedirect(ctx, mdp.SelectionRequest{
 		ClientIP:              "10.1.2.3",
-		HostID:                7,
-		Serial:                "C02ABC",
 		PackageID:             pkg,
 		InstallerItemLocation: "packages/20/installer/Chrome.pkg",
 		SHA256:                sha,
@@ -53,8 +51,8 @@ func TestSelectRedirectMintsVerifiableGrant(t *testing.T) {
 	if claims.InstallerItemLocation != "packages/20/installer/Chrome.pkg" {
 		t.Fatalf("grant installer_item_location = %q", claims.InstallerItemLocation)
 	}
-	if claims.DistributionPointID != point.ID || claims.HostID != 7 || claims.Serial != "C02ABC" {
-		t.Fatalf("grant audit claims = %+v", claims)
+	if claims.DistributionPointID != point.ID {
+		t.Fatalf("grant distribution_point_id = %d, want %d", claims.DistributionPointID, point.ID)
 	}
 }
 
