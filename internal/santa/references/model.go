@@ -18,17 +18,17 @@ type SoftwareReference struct {
 }
 
 type BundleReference struct {
-	SHA256               string     `json:"sha256"`
-	BundleID             string     `json:"bundle_id"`
-	Name                 string     `json:"name"`
-	Path                 string     `json:"path"`
-	Version              string     `json:"version"`
-	VersionString        string     `json:"version_string"`
-	BinaryCount          int32      `json:"binary_count"`
-	CollectedBinaryCount int32      `json:"collected_binary_count"`
-	HashMillis           int32      `json:"hash_millis"`
-	UploadedAt           *time.Time `json:"uploaded_at,omitempty"`
-	Complete             bool       `json:"complete"`
+	SHA256               string     `json:"sha256"                 db:"sha256"`
+	BundleID             string     `json:"bundle_id"              db:"bundle_id"`
+	Name                 string     `json:"name"                   db:"name"`
+	Path                 string     `json:"path"                   db:"path"`
+	Version              string     `json:"version"                db:"version"`
+	VersionString        string     `json:"version_string"         db:"version_string"`
+	BinaryCount          int32      `json:"binary_count"           db:"binary_count"`
+	CollectedBinaryCount int32      `json:"collected_binary_count" db:"collected_binary_count"`
+	HashMillis           int32      `json:"hash_millis"            db:"hash_millis"`
+	UploadedAt           *time.Time `json:"uploaded_at,omitempty"  db:"uploaded_at"`
+	Complete             bool       `json:"complete"               db:"complete"`
 }
 
 type ExecutableReference struct {
@@ -53,13 +53,13 @@ type SigningIdentityReference struct {
 }
 
 type CertificateReference struct {
-	SHA256             string     `json:"sha256"`
-	CommonName         string     `json:"common_name"`
-	Organization       string     `json:"organization"`
-	OrganizationalUnit string     `json:"organizational_unit"`
-	ValidFrom          *time.Time `json:"valid_from,omitempty"`
-	ValidUntil         *time.Time `json:"valid_until,omitempty"`
-	RuleCount          int32      `json:"rule_count"`
+	SHA256             string     `json:"sha256"                db:"sha256"`
+	CommonName         string     `json:"common_name"           db:"common_name"`
+	Organization       string     `json:"organization"          db:"organization"`
+	OrganizationalUnit string     `json:"organizational_unit"   db:"organizational_unit"`
+	ValidFrom          *time.Time `json:"valid_from,omitempty"  db:"valid_from"`
+	ValidUntil         *time.Time `json:"valid_until,omitempty" db:"valid_until"`
+	RuleCount          int32      `json:"rule_count"            db:"rule_count"`
 }
 
 type RuleReference struct {

@@ -3,7 +3,6 @@ package software
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -66,7 +65,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	}
 	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[softwareRow](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", id)
+		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", id)
 		if err != nil {
 			return err
 		}
@@ -94,11 +93,10 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[softwareRow](ctx, s.db.Pool(), softwareSelectSQL+"\nWHERE st.id = $1", id)
+	sw, err := dbutil.GetOne[Software](ctx, s.db.Pool(), softwareSelectSQL+"\nWHERE st.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	sw := softwareFromRow(row)
 	return &sw, nil
 }
 
@@ -165,13 +163,9 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
 	}
-	rows, count, err := dbutil.ListWithCount[softwareRow](ctx, s.db.Pool(), listQuery)
+	software, count, err := dbutil.ListWithCount[Software](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
-	}
-	software := make([]Software, len(rows))
-	for i, row := range rows {
-		software[i] = softwareFromRow(row)
 	}
 	return software, count, nil
 }
@@ -210,7 +204,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	}
 	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[softwareRow](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", softwareID)
+		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", softwareID)
 		if err != nil {
 			return err
 		}
@@ -272,21 +266,6 @@ func softwareObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]in
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
-}
-
-type softwareRow struct {
-	ID           int64     `db:"id"`
-	Name         string    `db:"name"`
-	Description  string    `db:"description"`
-	Category     string    `db:"category"`
-	Developer    string    `db:"developer"`
-	IconObjectID *int64    `db:"icon_object_id"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
-}
-
-func softwareFromRow(row softwareRow) Software {
-	return Software(row)
 }
 
 type softwareWrite struct {

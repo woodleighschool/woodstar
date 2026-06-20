@@ -3,7 +3,6 @@ package references
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -253,38 +252,12 @@ LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
 GROUP BY b.id
 ORDER BY lower(COALESCE(NULLIF(b.name, ''), b.bundle_id, b.sha256)), b.sha256`
 
-type bundleReferenceRow struct {
-	SHA256               string     `db:"sha256"`
-	BundleID             string     `db:"bundle_id"`
-	Name                 string     `db:"name"`
-	Path                 string     `db:"path"`
-	Version              string     `db:"version"`
-	VersionString        string     `db:"version_string"`
-	BinaryCount          int32      `db:"binary_count"`
-	CollectedBinaryCount int32      `db:"collected_binary_count"`
-	HashMillis           int32      `db:"hash_millis"`
-	UploadedAt           *time.Time `db:"uploaded_at"`
-	Complete             bool       `db:"complete"`
-}
-
-func bundleFromRow(row bundleReferenceRow) BundleReference {
-	return BundleReference(row)
-}
-
 func (s *Store) bundles(ctx context.Context, facts softwareFacts) ([]BundleReference, error) {
 	qrows, err := s.db.Pool().Query(ctx, listSoftwareReferenceBundlesSQL, factsArgs(facts))
 	if err != nil {
 		return nil, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[bundleReferenceRow])
-	if err != nil {
-		return nil, err
-	}
-	bundles := make([]BundleReference, len(rows))
-	for i, row := range rows {
-		bundles[i] = bundleFromRow(row)
-	}
-	return bundles, nil
+	return pgx.CollectRows(qrows, pgx.RowToStructByName[BundleReference])
 }
 
 const listSoftwareReferenceExecutablesSQL = matchedExecutablesCTE + `
@@ -445,34 +418,12 @@ LEFT JOIN santa_rules r ON r.rule_type = 'certificate' AND r.identifier = c.sha2
 GROUP BY c.id
 ORDER BY lower(COALESCE(NULLIF(c.common_name, ''), c.sha256)), c.sha256`
 
-type certificateReferenceRow struct {
-	SHA256             string     `db:"sha256"`
-	CommonName         string     `db:"common_name"`
-	Organization       string     `db:"organization"`
-	OrganizationalUnit string     `db:"organizational_unit"`
-	ValidFrom          *time.Time `db:"valid_from"`
-	ValidUntil         *time.Time `db:"valid_until"`
-	RuleCount          int32      `db:"rule_count"`
-}
-
-func certificateFromRow(row certificateReferenceRow) CertificateReference {
-	return CertificateReference(row)
-}
-
 func (s *Store) certificates(ctx context.Context, facts softwareFacts) ([]CertificateReference, error) {
 	qrows, err := s.db.Pool().Query(ctx, listSoftwareReferenceCertificatesSQL, factsArgs(facts))
 	if err != nil {
 		return nil, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[certificateReferenceRow])
-	if err != nil {
-		return nil, err
-	}
-	certificates := make([]CertificateReference, len(rows))
-	for i, row := range rows {
-		certificates[i] = certificateFromRow(row)
-	}
-	return certificates, nil
+	return pgx.CollectRows(qrows, pgx.RowToStructByName[CertificateReference])
 }
 
 const listSoftwareReferenceRulesSQL = matchedExecutablesCTE + `,

@@ -27,12 +27,12 @@ func (m Mutation) validate() error {
 
 // Software is Woodstar-managed metadata for a Munki software item.
 type Software struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	Category     string    `json:"category"`
-	Developer    string    `json:"developer"`
-	IconObjectID *int64    `json:"icon_object_id,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           int64     `json:"id"                       db:"id"`
+	Name         string    `json:"name"                     db:"name"`
+	Description  string    `json:"description"              db:"description"`
+	Category     string    `json:"category"                 db:"category"`
+	Developer    string    `json:"developer"                db:"developer"`
+	IconObjectID *int64    `json:"icon_object_id,omitempty" db:"icon_object_id"`
+	CreatedAt    time.Time `json:"created_at"               db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"               db:"updated_at"`
 }

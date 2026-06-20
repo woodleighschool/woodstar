@@ -295,15 +295,7 @@ func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error)
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostUserRow])
-	if err != nil {
-		return nil, err
-	}
-	users := make([]HostUser, len(records))
-	for i, record := range records {
-		users[i] = hostUserFromRow(record)
-	}
-	return users, nil
+	return pgx.CollectRows(rows, pgx.RowToStructByName[HostUser])
 }
 
 func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
@@ -311,15 +303,7 @@ func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery,
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostBatteryRow])
-	if err != nil {
-		return nil, err
-	}
-	batteries := make([]HostBattery, len(records))
-	for i, record := range records {
-		batteries[i] = hostBatteryFromRow(record)
-	}
-	return batteries, nil
+	return pgx.CollectRows(rows, pgx.RowToStructByName[HostBattery])
 }
 
 func (s *Store) ListCertificates(ctx context.Context, hostID int64) ([]HostCertificate, error) {
@@ -615,44 +599,6 @@ func hostFromRow(row hostRow, now time.Time) Host {
 		OsqueryNodeKey:     row.OsqueryNodeKey,
 		InventoryQueryHash: row.InventoryQueryHash,
 	}
-}
-
-type hostUserRow struct {
-	ID          int64     `db:"id"`
-	HostID      int64     `db:"host_id"`
-	UID         string    `db:"uid"`
-	Username    string    `db:"username"`
-	Type        string    `db:"type"`
-	Description string    `db:"description"`
-	Directory   string    `db:"directory"`
-	Shell       string    `db:"shell"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
-}
-
-func hostUserFromRow(row hostUserRow) HostUser {
-	return HostUser(row)
-}
-
-type hostBatteryRow struct {
-	ID               int64     `db:"id"`
-	HostID           int64     `db:"host_id"`
-	SerialNumber     string    `db:"serial_number"`
-	Manufacturer     string    `db:"manufacturer"`
-	Model            string    `db:"model"`
-	Chemistry        string    `db:"chemistry"`
-	CycleCount       *int32    `db:"cycle_count"`
-	Health           string    `db:"health"`
-	DesignedCapacity *int32    `db:"designed_capacity"`
-	MaxCapacity      *int32    `db:"max_capacity"`
-	CurrentCapacity  *int32    `db:"current_capacity"`
-	PercentRemaining *float64  `db:"percent_remaining"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
-}
-
-func hostBatteryFromRow(row hostBatteryRow) HostBattery {
-	return HostBattery(row)
 }
 
 type hostCertificateRow struct {
