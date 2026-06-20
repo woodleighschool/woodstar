@@ -48,6 +48,16 @@ Use mise tasks as the repo contract. Root tasks are the normal product workflow:
 - `agentauth` owns shared agent secrets accepted by agent-facing protocols. Issued node keys remain on hosts.
 - Labels and targeting stay concrete. Do not introduce a generic targeting-expression engine without a real product need.
 
+## Store Pattern
+
+- One data-access mechanism: pgx with raw SQL scanned into structs. No ORM, no query codegen.
+- One canonical `SELECT` projection per entity as a Go const; Get and List share it (Get adds `WHERE pk`, List feeds `dbutil.ListQuery`). Never a second projection for the list variant.
+- Scan target is `<entity>Row` with `db:` tags. Scan straight into the domain struct when it is columnar; add one `<entity>FromRow` assembler only when the domain is nested or computed. A 1:1 row-to-domain copy is a `Domain(row)` conversion, not a struct literal.
+- jsonb or array sub-objects get a `sql.Scanner` plus `driver.Valuer` named type (Scanner pointer receiver, Valuer value receiver, one `//nolint:recvcheck`).
+- Reads: `dbutil.GetOne` (single by key), `dbutil.ListWithCount` (paginated), `pgx.CollectRows` (plain multi-row), or `QueryRow().Scan` (one-off). Writes and upserts: hand SQL with `@named` params via `pgx.StructArgs` over an `<entity>Write` struct, or `pgx.NamedArgs` for one-offs. Use `now()` in SQL, never in-Go `time.Now()` for persisted timestamps; re-read via Get for the response body. Ordered child sets use `dbutil.ReplaceChildren`.
+- Errors: `dbutil.GetError` for reads, `MutationError` for writes, `DeleteConflict` for delete-time foreign keys.
+- First-class resource stores (CRUD plus List over one owning table) implement the uniform `Create`, `GetByID`, `Update`, `Delete`, `List` contract and are gated by `dbtest/crudtest` conformance. Service and ingest stores (upsert-by-key, effective-state, denormalized reads) keep the same primitives but bespoke method shapes and no conformance test.
+
 ## Dependency Direction
 
 - `auth` may depend on user/account concepts; user/domain packages must not depend on `auth`.
