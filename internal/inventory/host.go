@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/jackc/pgx/v5"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -39,19 +40,45 @@ func (s *Store) ListForHost(
 	return software, total, nil
 }
 
+const hostSoftwareRowsSQL = `
+SELECT
+    st.id AS title_id,
+    st.name AS title_name,
+    st.display_name,
+    st.source,
+    st.extension_for,
+    s.id AS software_id,
+    s.version,
+    s.bundle_identifier,
+    hs.last_opened_at,
+    COALESCE(paths.installed_path, '') AS installed_path,
+    COALESCE(paths.team_identifier, '') AS team_identifier,
+    COALESCE(paths.cdhash_sha256, '') AS cdhash_sha256,
+    COALESCE(paths.executable_sha256, '') AS executable_sha256,
+    COALESCE(paths.executable_path, '') AS executable_path
+FROM host_software hs
+JOIN software s ON s.id = hs.software_id
+JOIN software_titles st ON st.id = s.title_id
+LEFT JOIN host_software_installed_paths paths
+    ON paths.host_id = hs.host_id AND paths.software_id = hs.software_id
+WHERE hs.host_id = $1
+  AND st.id = ANY($2::bigint[])
+ORDER BY array_position($2::bigint[], st.id), lower(s.version), paths.installed_path`
+
 func (s *Store) hostSoftwareRows(
 	ctx context.Context,
 	hostID int64,
 	titleIDs []int64,
 ) ([]HostSoftwareRow, error) {
-	rows, err := s.q.ListHostSoftwareRows(ctx, sqlc.ListHostSoftwareRowsParams{
-		HostID:   hostID,
-		TitleIds: titleIDs,
-	})
+	qrows, err := s.db.Pool().Query(ctx, hostSoftwareRowsSQL, hostID, titleIDs)
 	if err != nil {
 		return nil, err
 	}
-	return scanHostSoftwareRows(rows)
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[hostSoftwareDBRow])
+	if err != nil {
+		return nil, err
+	}
+	return buildHostSoftwareRows(rows)
 }
 
 type hostSoftwareAccumulator struct {
@@ -59,13 +86,13 @@ type hostSoftwareAccumulator struct {
 	versionByKey map[string]int
 }
 
-func scanHostSoftwareRows(rows []sqlc.ListHostSoftwareRowsRow) ([]HostSoftwareRow, error) {
+func buildHostSoftwareRows(rows []hostSoftwareDBRow) ([]HostSoftwareRow, error) {
 	acc := hostSoftwareAccumulator{
 		titles:       newOrderedGroup[int64, HostSoftwareRow](),
 		versionByKey: make(map[string]int),
 	}
 	for _, row := range rows {
-		acc.add(hostSoftwareDBRowFromSQLC(row))
+		acc.add(row)
 	}
 	return acc.rows(), nil
 }
@@ -201,37 +228,18 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 }
 
 type hostSoftwareDBRow struct {
-	TitleID          int64
-	TitleName        string
-	DisplayName      string
-	Source           string
-	ExtensionFor     string
-	SoftwareID       int64
-	Version          string
-	BundleIdentifier string
-	LastOpenedAt     *time.Time
-	InstalledPath    string
-	TeamIdentifier   string
-	CDHashSHA256     string
-	ExecutableSHA256 string
-	ExecutablePath   string
-}
-
-func hostSoftwareDBRowFromSQLC(row sqlc.ListHostSoftwareRowsRow) hostSoftwareDBRow {
-	return hostSoftwareDBRow{
-		TitleID:          row.TitleID,
-		TitleName:        row.TitleName,
-		DisplayName:      row.DisplayName,
-		Source:           row.Source,
-		ExtensionFor:     row.ExtensionFor,
-		SoftwareID:       row.SoftwareID,
-		Version:          row.Version,
-		BundleIdentifier: row.BundleIdentifier,
-		LastOpenedAt:     row.LastOpenedAt,
-		InstalledPath:    row.InstalledPath,
-		TeamIdentifier:   row.TeamIdentifier,
-		CDHashSHA256:     row.CdhashSha256,
-		ExecutableSHA256: row.ExecutableSha256,
-		ExecutablePath:   row.ExecutablePath,
-	}
+	TitleID          int64      `db:"title_id"`
+	TitleName        string     `db:"title_name"`
+	DisplayName      string     `db:"display_name"`
+	Source           string     `db:"source"`
+	ExtensionFor     string     `db:"extension_for"`
+	SoftwareID       int64      `db:"software_id"`
+	Version          string     `db:"version"`
+	BundleIdentifier string     `db:"bundle_identifier"`
+	LastOpenedAt     *time.Time `db:"last_opened_at"`
+	InstalledPath    string     `db:"installed_path"`
+	TeamIdentifier   string     `db:"team_identifier"`
+	CDHashSHA256     string     `db:"cdhash_sha256"`
+	ExecutableSHA256 string     `db:"executable_sha256"`
+	ExecutablePath   string     `db:"executable_path"`
 }

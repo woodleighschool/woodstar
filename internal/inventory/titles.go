@@ -5,7 +5,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -122,6 +121,27 @@ func browserFor(source, extensionFor string) string {
 	}
 }
 
+type softwareTitleVersionRow struct {
+	TitleID          int64  `db:"title_id"`
+	ID               int64  `db:"id"`
+	Version          string `db:"version"`
+	BundleIdentifier string `db:"bundle_identifier"`
+	HostsCount       int32  `db:"hosts_count"`
+}
+
+const softwareTitleVersionsSQL = `
+SELECT
+    s.title_id,
+    s.id,
+    s.version,
+    s.bundle_identifier,
+    COUNT(DISTINCT hs.host_id)::integer AS hosts_count
+FROM software s
+LEFT JOIN host_software hs ON hs.software_id = s.id
+WHERE s.title_id = ANY($1::bigint[])
+GROUP BY s.id
+ORDER BY array_position($1::bigint[], s.title_id), lower(s.version), s.id`
+
 func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []SoftwareTitle) error {
 	if len(titles) == 0 {
 		return nil
@@ -133,22 +153,26 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 		titleIndex[titles[i].ID] = i
 	}
 
-	rows, err := s.q.ListSoftwareTitleVersions(ctx, sqlc.ListSoftwareTitleVersionsParams{TitleIds: titleIDs})
+	qrows, err := s.db.Pool().Query(ctx, softwareTitleVersionsSQL, titleIDs)
+	if err != nil {
+		return err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[softwareTitleVersionRow])
 	if err != nil {
 		return err
 	}
 
 	for _, row := range rows {
-		var version SoftwareVersion
-		version.ID = row.ID
-		version.Version = row.Version
-		version.BundleIdentifier = row.BundleIdentifier
-		version.HostsCount = row.HostsCount
 		i, ok := titleIndex[row.TitleID]
 		if !ok {
 			continue
 		}
-		titles[i].Versions = append(titles[i].Versions, version)
+		titles[i].Versions = append(titles[i].Versions, SoftwareVersion{
+			ID:               row.ID,
+			Version:          row.Version,
+			BundleIdentifier: row.BundleIdentifier,
+			HostsCount:       row.HostsCount,
+		})
 	}
 	return nil
 }
