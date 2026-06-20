@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,13 +19,6 @@ import (
 type Store struct {
 	db *database.DB
 }
-
-var (
-	sha256IdentifierRE    = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
-	cdhashIdentifierRE    = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
-	signingIDIdentifierRE = regexp.MustCompile(`^(?:[A-Z0-9]{10}|platform):[a-zA-Z0-9.-]+$`)
-	teamIDIdentifierRE    = regexp.MustCompile(`^[A-Z0-9]{10}$`)
-)
 
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
@@ -454,69 +445,6 @@ func (s *Store) attachRuleTargets(ctx context.Context, rules []Rule, ruleIDs []i
 			tgts.Exclude = append(tgts.Exclude, targeting.LabelRef{LabelID: row.LabelID})
 		}
 		rules[i].Targets = tgts
-	}
-	return nil
-}
-
-func (p RuleMutation) Validate() error {
-	if !validRuleType(p.RuleType) {
-		return fmt.Errorf("%w: rule_type is required", dbutil.ErrInvalidInput)
-	}
-	if p.Identifier == "" {
-		return fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
-	}
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	if err := validateRuleIdentifier(p.RuleType, p.Identifier); err != nil {
-		return err
-	}
-	if err := p.Targets.validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func validRuleType(ruleType RuleType) bool {
-	return slices.Contains(RuleTypeValues, ruleType)
-}
-
-func validPolicy(policy Policy) bool {
-	return slices.Contains(PolicyValues, policy)
-}
-
-func validateRuleIdentifier(ruleType RuleType, identifier string) error {
-	switch ruleType {
-	case RuleTypeBinary:
-		if !sha256IdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 64 character SHA-256 hex hash", dbutil.ErrInvalidInput)
-		}
-	case RuleTypeCertificate:
-		if !sha256IdentifierRE.MatchString(identifier) {
-			return fmt.Errorf(
-				"%w: identifier must be a 64 character certificate SHA-256 hex fingerprint",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	case RuleTypeBundle:
-		if !sha256IdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 64 character bundle SHA-256 hex hash", dbutil.ErrInvalidInput)
-		}
-	case RuleTypeCDHash:
-		if !cdhashIdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 40 character CDHash hex value", dbutil.ErrInvalidInput)
-		}
-	case RuleTypeSigningID:
-		if !signingIDIdentifierRE.MatchString(identifier) {
-			return fmt.Errorf(
-				"%w: identifier must be TEAMID:bundle.identifier or platform:bundle.identifier",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	case RuleTypeTeamID:
-		if !teamIDIdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 10 character uppercase Team ID", dbutil.ErrInvalidInput)
-		}
 	}
 	return nil
 }

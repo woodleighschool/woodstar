@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -358,46 +357,6 @@ func (s *Store) attachConfigurationTargets(
 			}
 			configurations[i].Targets = targetSet
 		}
-	}
-	return nil
-}
-
-// Validate enforces caller-facing rules before storage.
-func (p ConfigurationMutation) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	if !slices.Contains(ClientModeValues, p.ClientMode) {
-		return fmt.Errorf("%w: client_mode is required", dbutil.ErrInvalidInput)
-	}
-	if p.FullSyncIntervalSeconds < 60 {
-		return fmt.Errorf("%w: full_sync_interval_seconds must be at least 60", dbutil.ErrInvalidInput)
-	}
-	if p.BatchSize < 5 || p.BatchSize > 100 {
-		return fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
-	}
-	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
-		return err
-	}
-	if err := p.Targets.validate(); err != nil {
-		return err
-	}
-	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
-}
-
-func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) error {
-	if policy.Action == "" {
-		return nil
-	}
-	if !slices.Contains(RemovableMediaActionValues, policy.Action) {
-		return fmt.Errorf("%w: %s.action is invalid", dbutil.ErrInvalidInput, name)
-	}
-	if policy.Action == RemovableMediaActionRemount && len(policy.RemountFlags) == 0 {
-		return fmt.Errorf(
-			"%w: %s.remount_flags are required when action is remount",
-			dbutil.ErrInvalidInput,
-			name,
-		)
 	}
 	return nil
 }

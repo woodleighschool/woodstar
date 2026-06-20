@@ -3,7 +3,6 @@ package labels
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -216,85 +215,11 @@ ORDER BY id`)
 	})
 }
 
-// Validate checks the label shape before the DB sees it.
-func (p LabelMutation) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
-}
-
 func (p LabelMutation) withDefaults() LabelMutation {
 	if p.LabelMembershipType == "" {
 		p.LabelMembershipType = LabelMembershipTypeDynamic
 	}
 	return p
-}
-
-func validateMembershipPairing(
-	membershipType LabelMembershipType,
-	query *string,
-	criteria *Criteria,
-	hostIDs []int64,
-) error {
-	switch membershipType {
-	case LabelMembershipTypeDynamic:
-		return validateDynamicMembership(query, criteria, hostIDs)
-	case LabelMembershipTypeManual:
-		return validateManualMembership(query, criteria)
-	case LabelMembershipTypeDerived:
-		return validateDerivedMembership(query, criteria, hostIDs)
-	default:
-		return fmt.Errorf("%w: membership type must be dynamic, manual, or derived", dbutil.ErrInvalidInput)
-	}
-}
-
-func validateDynamicMembership(query *string, criteria *Criteria, hostIDs []int64) error {
-	if query == nil || strings.TrimSpace(*query) == "" {
-		return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
-	}
-	if criteria != nil {
-		return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
-	}
-	if len(hostIDs) > 0 {
-		return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
-func validateManualMembership(query *string, criteria *Criteria) error {
-	if query != nil {
-		return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
-	}
-	if criteria != nil {
-		return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
-func validateDerivedMembership(query *string, criteria *Criteria, hostIDs []int64) error {
-	if query != nil {
-		return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
-	}
-	if len(hostIDs) > 0 {
-		return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
-	}
-	return validateCriteria(criteria)
-}
-
-func validateCriteria(criteria *Criteria) error {
-	if criteria == nil {
-		return fmt.Errorf("%w: criteria is required for derived labels", dbutil.ErrInvalidInput)
-	}
-	switch criteria.Attribute {
-	case DerivedAttributeUserDepartment, DerivedAttributeDirectoryGroup, DerivedAttributeUser:
-	default:
-		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
-	}
-	if len(cleanCriteriaValues(criteria.Values)) == 0 {
-		return fmt.Errorf("%w: derived label values are required", dbutil.ErrInvalidInput)
-	}
-	return nil
 }
 
 func labelListWhere(params LabelListParams) (string, []any) {
@@ -481,18 +406,6 @@ func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, cri
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
-}
-
-func cleanCriteriaValues(values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		out = append(out, value)
-	}
-	return dbutil.Dedup(out)
 }
 
 const labelSelectSQL = `

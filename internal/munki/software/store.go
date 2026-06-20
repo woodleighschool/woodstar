@@ -3,7 +3,6 @@ package software
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -234,13 +233,6 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 		return err
 	}
 	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldIconObjectID, &objectID)...)
-}
-
-func (m Mutation) validate() error {
-	if strings.TrimSpace(m.Name) == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	return nil
 }
 
 func softwareOrderKeys() map[string]dbutil.OrderExpr {

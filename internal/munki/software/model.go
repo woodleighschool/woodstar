@@ -1,6 +1,12 @@
 package software
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+)
 
 // Mutation is the input shape for creating or updating Munki software.
 type Mutation struct {
@@ -10,6 +16,13 @@ type Mutation struct {
 	Developer    string  `json:"developer,omitempty"`
 	IconObjectID *int64  `json:"icon_object_id,omitempty"`
 	Targets      Targets `json:"targets"                                nullable:"false"`
+}
+
+func (m Mutation) validate() error {
+	if strings.TrimSpace(m.Name) == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 // Software is Woodstar-managed metadata for a Munki software item.
