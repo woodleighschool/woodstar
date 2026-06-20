@@ -6,7 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/targeting"
@@ -187,35 +186,73 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 	return targets, nil
 }
 
+// effectivePackageRow scans the host-effective query: the include target shape
+// plus the canonical package projection reused from the packages store.
+type effectivePackageRow struct {
+	packages.PackageRow
+
+	TargetID         int64    `db:"target_id"`
+	TargetSoftwareID int64    `db:"target_software_id"`
+	Actions          []string `db:"actions"`
+	PackageSelection string   `db:"package_selection"`
+	PinnedPackageID  *int64   `db:"pinned_package_id"`
+}
+
 // EffectivePackagesForHost resolves Munki package candidates for one host.
-//
-// TODO(store-rewrite): convert with the munki host-effective slice.
 func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
-	q := s.db.Queries()
-	rows, err := q.ListEffectiveMunkiPackagesForHost(ctx, sqlc.ListEffectiveMunkiPackagesForHostParams{
-		HostID: hostID,
-	})
+	qrows, err := s.db.Pool().Query(ctx, effectivePackagesForHostSQL, hostID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[effectivePackageRow])
 	if err != nil {
 		return nil, err
 	}
 	effective := make([]EffectivePackage, 0, len(rows))
 	for _, row := range rows {
-		pkg, err := packages.FromEffectiveRow(row)
-		if err != nil {
-			return nil, err
-		}
+		pkg := packages.PackageFromRow(row.PackageRow)
 		effective = append(effective, EffectivePackage{
 			TargetID:             row.TargetID,
 			SoftwareID:           row.TargetSoftwareID,
 			Actions:              actionsFromStorage(row.Actions),
 			Package:              pkg,
 			SoftwareIconObjectID: pkg.SoftwareIconObjectID,
-			Selector:             packageSelectorFromStorage(string(row.PackageSelection), row.PinnedPackageID),
+			Selector:             packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}
 	resolved := ResolveEffectivePackages(effective)
 	return s.attachPackageRelations(ctx, resolved)
 }
+
+const effectivePackagesForHostSQL = `
+SELECT
+	(a.position + 1)::bigint AS target_id,
+	a.software_id AS target_software_id,
+	a.actions::text[] AS actions,
+	a.package_selection::text AS package_selection,
+	a.pinned_package_id,` + packages.PackageColumnsSQL + `
+FROM munki_software_targets a
+JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
+JOIN munki_software s ON s.id = a.software_id
+JOIN munki_packages p ON p.software_id = a.software_id
+	AND (
+		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
+		OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
+	)
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+WHERE a.direction = 'include'
+  AND p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM munki_software_targets excluded
+      JOIN label_membership excluded_lm
+        ON excluded_lm.label_id = excluded.label_id
+       AND excluded_lm.host_id = $1
+      WHERE excluded.software_id = a.software_id
+        AND excluded.direction = 'exclude'
+  )
+ORDER BY a.software_id, a.position, p.id`
 
 func (s *Store) attachPackageRelations(
 	ctx context.Context,

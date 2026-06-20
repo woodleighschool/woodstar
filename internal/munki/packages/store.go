@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -96,11 +95,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
+	row, err := dbutil.GetOne[PackageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	packages, err := s.AttachRelations(ctx, []Package{packageFromRow(row)})
+	packages, err := s.AttachRelations(ctx, []Package{PackageFromRow(row)})
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +185,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[packageRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[PackageRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -207,7 +206,7 @@ ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[PackageRow])
 	if err != nil {
 		return nil, err
 	}
@@ -343,15 +342,16 @@ func applyDefaults(params PackageMutation) PackageMutation {
 	return params
 }
 
-func packagesFromRows(rows []packageRow) []Package {
+func packagesFromRows(rows []PackageRow) []Package {
 	packages := make([]Package, len(rows))
 	for i, row := range rows {
-		packages[i] = packageFromRow(row)
+		packages[i] = PackageFromRow(row)
 	}
 	return packages
 }
 
-func packageFromRow(row packageRow) Package {
+// PackageFromRow assembles a Package domain value from a scanned PackageRow.
+func PackageFromRow(row PackageRow) Package {
 	return Package{
 		ID:                       row.ID,
 		SoftwareID:               row.SoftwareID,
@@ -408,13 +408,6 @@ func packageFromRow(row packageRow) Package {
 	}
 }
 
-// FromEffectiveRow maps the host-effective package query row into a package read model.
-//
-// TODO(store-rewrite): convert with the munki host-effective slice.
-func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (Package, error) {
-	return packageFromRow(packageRowFromEffectiveSQLC(row)), nil
-}
-
 func packageListWhere(params PackageListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.SoftwareID > 0 {
@@ -459,7 +452,8 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-type packageRow struct {
+// PackageRow is the canonical scan target for the munki package projection.
+type PackageRow struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
@@ -522,7 +516,7 @@ type packageRow struct {
 	UpdatedAt                    time.Time
 }
 
-func (row packageRow) PreinstallAlert() PackageAlert {
+func (row PackageRow) PreinstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreinstallAlertEnabled,
 		Title:       row.PreinstallAlertTitle,
@@ -532,7 +526,7 @@ func (row packageRow) PreinstallAlert() PackageAlert {
 	}
 }
 
-func (row packageRow) PreuninstallAlert() PackageAlert {
+func (row PackageRow) PreuninstallAlert() PackageAlert {
 	return PackageAlert{
 		Enabled:     row.PreuninstallAlertEnabled,
 		Title:       row.PreuninstallAlertTitle,
@@ -542,7 +536,7 @@ func (row packageRow) PreuninstallAlert() PackageAlert {
 	}
 }
 
-func (row packageRow) InstallerFile() *InstallerFile {
+func (row PackageRow) InstallerFile() *InstallerFile {
 	if row.InstallerObjectID == nil || row.InstallerFilename == nil {
 		return nil
 	}
@@ -567,67 +561,6 @@ func (row packageRow) InstallerFile() *InstallerFile {
 		SizeBytes:             size,
 		SHA256:                sha,
 	}
-}
-
-func packageRowFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRow) packageRow {
-	out := packageRow{
-		ID:                           row.PackageID,
-		SoftwareID:                   row.SoftwareID,
-		SoftwareName:                 row.SoftwareName,
-		SoftwareDescription:          row.SoftwareDescription,
-		SoftwareCategory:             row.SoftwareCategory,
-		SoftwareDeveloper:            row.SoftwareDeveloper,
-		SoftwareIconObjectID:         row.SoftwareIconObjectID,
-		Version:                      row.Version,
-		InstallerType:                row.InstallerType,
-		UninstallMethod:              row.UninstallMethod,
-		RestartAction:                row.RestartAction,
-		MinimumMunkiVersion:          row.MinimumMunkiVersion,
-		MinimumOSVersion:             row.MinimumOSVersion,
-		MaximumOSVersion:             row.MaximumOSVersion,
-		SupportedArchitectures:       row.SupportedArchitectures,
-		BlockingApplications:         row.BlockingApplications,
-		InstallableCondition:         row.InstallableCondition,
-		BlockingAppsManualQuit:       row.BlockingApplicationsManualQuitOnly,
-		BlockingAppsQuitScript:       row.BlockingApplicationsQuitScript,
-		UnattendedInstall:            row.UnattendedInstall,
-		UnattendedUninstall:          row.UnattendedUninstall,
-		OnDemand:                     row.OnDemand,
-		Precache:                     row.Precache,
-		Autoremove:                   row.Autoremove,
-		AppleItem:                    row.AppleItem,
-		SuppressBundleRelocation:     row.SuppressBundleRelocation,
-		ForceInstallAfterDate:        row.ForceInstallAfterDate,
-		InstalledSize:                row.InstalledSize,
-		PackagePath:                  row.PackagePath,
-		Notes:                        row.Notes,
-		InstallcheckScript:           row.InstallcheckScript,
-		UninstallcheckScript:         row.UninstallcheckScript,
-		PreinstallScript:             row.PreinstallScript,
-		PostinstallScript:            row.PostinstallScript,
-		PreuninstallScript:           row.PreuninstallScript,
-		PostuninstallScript:          row.PostuninstallScript,
-		UninstallScript:              row.UninstallScript,
-		VersionScript:                row.VersionScript,
-		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
-		PreinstallAlertTitle:         row.PreinstallAlertTitle,
-		PreinstallAlertDetail:        row.PreinstallAlertDetail,
-		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
-		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
-		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
-		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
-		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
-		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
-		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
-		InstallerObjectID:            row.InstallerObjectID,
-		Eligible:                     true,
-	}
-	_ = out.InstallerChoicesXML.Scan(row.InstallerChoicesXml)
-	_ = out.InstallerEnvironment.Scan(row.InstallerEnvironment)
-	_ = out.Installs.Scan(row.Installs)
-	_ = out.Receipts.Scan(row.Receipts)
-	_ = out.ItemsToCopy.Scan(row.ItemsToCopy)
-	return out
 }
 
 type packageWrite struct {
@@ -897,8 +830,10 @@ SET
 WHERE id = @id
 RETURNING id`
 
-const packageSelectSQL = `
-SELECT
+// PackageColumnsSQL is the canonical PackageRow projection. Callers that join
+// the package tables under the p/s/installer_obj aliases reuse it to scan into
+// PackageRow, keeping one projection across the package and effective queries.
+const PackageColumnsSQL = `
 	p.id,
 	p.software_id,
 	s.name AS software_name,
@@ -958,7 +893,10 @@ SELECT
 	p.installer_object_id,
 	p.eligible,
 	p.created_at,
-	p.updated_at
+	p.updated_at`
+
+const packageSelectSQL = `
+SELECT` + PackageColumnsSQL + `
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id`
