@@ -3,13 +3,13 @@ package hosts
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -17,7 +17,6 @@ import (
 // Store persists hosts.
 type Store struct {
 	db     *database.DB
-	q      *sqlc.Queries
 	labels hostLabelReader
 }
 
@@ -26,12 +25,12 @@ type hostLabelReader interface {
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries(), labels: labels.NewStore(db)}
+	return &Store{db: db, labels: labels.NewStore(db)}
 }
 
 // UpsertOnOrbitEnroll creates or refreshes a host from Orbit enroll.
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
-	row, err := s.q.UpsertHostOnOrbitEnroll(ctx, sqlc.UpsertHostOnOrbitEnrollParams{
+	write := orbitEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
 		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
 		Hostname:                update.Hostname,
@@ -39,22 +38,13 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 		HardwareSerial:          update.Hardware.Serial,
 		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
 		OrbitNodeKey:            update.OrbitNodeKey,
-	})
-	if err != nil {
-		return nil, err
 	}
-	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{
-		HostID:     row.ID,
-		BuiltinKey: string(labels.BuiltinKeyAllHosts),
-	}); err != nil {
-		return nil, err
-	}
-	return new(hostFromSQLC(row, time.Now())), nil
+	return s.upsertOnEnroll(ctx, upsertHostOnOrbitEnrollSQL, write)
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
-	row, err := s.q.UpsertHostOnOsqueryEnroll(ctx, sqlc.UpsertHostOnOsqueryEnrollParams{
+	write := osqueryEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
 		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
 		Hostname:                update.Hostname,
@@ -76,17 +66,33 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		MemoryBytes:             update.Hardware.MemoryBytes,
 		HardwareVendor:          update.Hardware.Vendor,
 		OSKernelVersion:         update.OS.KernelVersion,
+	}
+	return s.upsertOnEnroll(ctx, upsertHostOnOsqueryEnrollSQL, write)
+}
+
+func (s *Store) upsertOnEnroll(ctx context.Context, sql string, write any) (*Host, error) {
+	now := time.Now()
+	var host Host
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, sql, pgx.StructArgs(write))
+		if err != nil {
+			return err
+		}
+		row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[hostRow])
+		if err != nil {
+			return err
+		}
+		host = hostFromRow(row, now)
+		_, err = tx.Exec(ctx, addHostToAllHostsLabelSQL, pgx.NamedArgs{
+			"host_id":     host.ID,
+			"builtin_key": string(labels.BuiltinKeyAllHosts),
+		})
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{
-		HostID:     row.ID,
-		BuiltinKey: string(labels.BuiltinKeyAllHosts),
-	}); err != nil {
-		return nil, err
-	}
-	return new(hostFromSQLC(row, time.Now())), nil
+	return &host, nil
 }
 
 func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
@@ -95,14 +101,14 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 		return nil, 0, err
 	}
 	listQuery := hostListQuery(params, where, args)
-	dbHosts, count, err := dbutil.ListWithCount[sqlc.Host](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[hostRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
 	now := time.Now()
-	hosts := make([]Host, len(dbHosts))
-	for i, row := range dbHosts {
-		hosts[i] = hostFromSQLC(row, now)
+	hosts := make([]Host, len(rows))
+	for i, row := range rows {
+		hosts[i] = hostFromRow(row, now)
 	}
 	if err := s.attachUserAffinity(ctx, hosts); err != nil {
 		return nil, 0, err
@@ -111,11 +117,12 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
-	row, err := s.q.GetHostByID(ctx, sqlc.GetHostByIDParams{ID: id})
+	row, err := dbutil.GetOne[hostRow](ctx, s.db.Pool(), hostSelectSQL+"\nWHERE id = $1", id)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, err
 	}
-	return new(hostFromSQLC(row, time.Now())), nil
+	host := hostFromRow(row, time.Now())
+	return &host, nil
 }
 
 // GetByHardwareSerial returns the existing host with serial.
@@ -124,23 +131,37 @@ func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, 
 	if serial == "" {
 		return nil, dbutil.ErrNotFound
 	}
-	rows, err := s.q.ListHostsByHardwareSerial(ctx, sqlc.ListHostsByHardwareSerialParams{HardwareSerial: serial})
+	rows, err := s.db.Pool().Query(ctx, hostSelectSQL+`
+WHERE hardware_serial = $1 AND hardware_serial <> ''
+ORDER BY updated_at DESC, id DESC
+LIMIT 2`, serial)
 	if err != nil {
 		return nil, err
 	}
-	switch len(rows) {
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostRow])
+	if err != nil {
+		return nil, err
+	}
+	switch len(records) {
 	case 0:
 		return nil, dbutil.ErrNotFound
 	case 1:
-		return new(hostFromSQLC(rows[0], time.Now())), nil
+		host := hostFromRow(records[0], time.Now())
+		return &host, nil
 	default:
 		return nil, fmt.Errorf("multiple hosts have hardware serial %q", serial)
 	}
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteHost(ctx, sqlc.DeleteHostParams{ID: id})
-	return dbutil.GetError(err)
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM hosts WHERE id = $1`, id)
+	if err != nil {
+		return dbutil.GetError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
 }
 
 // DeleteMany removes hosts. Missing IDs are fine.
@@ -148,7 +169,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	deleted, err := s.q.DeleteHosts(ctx, sqlc.DeleteHostsParams{Ids: ids})
+	rows, err := s.db.Pool().Query(ctx, `DELETE FROM hosts WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+	if err != nil {
+		return 0, err
+	}
+	deleted, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return 0, err
 	}
@@ -156,23 +181,24 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	row, err := s.q.TouchHostByOrbitNodeKey(ctx, sqlc.TouchHostByOrbitNodeKeyParams{OrbitNodeKey: nodeKey})
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	return new(hostFromSQLC(row, time.Now())), nil
+	return s.touchByNodeKey(ctx, touchHostByOrbitNodeKeySQL, nodeKey)
 }
 
 func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	row, err := s.q.TouchHostByOsqueryNodeKey(ctx, sqlc.TouchHostByOsqueryNodeKeyParams{OsqueryNodeKey: nodeKey})
+	return s.touchByNodeKey(ctx, touchHostByOsqueryNodeKeySQL, nodeKey)
+}
+
+func (s *Store) touchByNodeKey(ctx context.Context, sql, nodeKey string) (*Host, error) {
+	row, err := dbutil.GetOne[hostRow](ctx, s.db.Pool(), sql, nodeKey)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, err
 	}
-	return new(hostFromSQLC(row, time.Now())), nil
+	host := hostFromRow(row, time.Now())
+	return &host, nil
 }
 
 func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update InventoryUpdate) error {
-	return s.q.ApplyHostInventory(ctx, sqlc.ApplyHostInventoryParams{
+	write := applyInventoryWrite{
 		ID:                                hostID,
 		Hostname:                          update.Hostname,
 		ComputerName:                      update.ComputerName,
@@ -200,28 +226,21 @@ func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update Invento
 		PrimaryMAC:                        update.Network.PrimaryMAC,
 		OsqueryDistributedIntervalSeconds: update.Agents.Osquery.DistributedIntervalSeconds,
 		OsqueryConfigRefreshSeconds:       update.Agents.Osquery.ConfigRefreshSeconds,
-	})
+	}
+	_, err := s.db.Pool().Exec(ctx, applyHostInventorySQL, pgx.StructArgs(write))
+	return err
 }
 
 func (s *Store) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		if err := q.DeleteHostUsers(ctx, sqlc.DeleteHostUsersParams{HostID: hostID}); err != nil {
+		if _, err := tx.Exec(ctx, deleteHostUsersSQL, hostID); err != nil {
 			return err
 		}
 		for _, user := range users {
 			if user.UID == "" || user.Username == "" {
 				continue
 			}
-			if err := q.InsertHostUser(ctx, sqlc.InsertHostUserParams{
-				HostID:      hostID,
-				UID:         user.UID,
-				Username:    user.Username,
-				Type:        user.Type,
-				Description: user.Description,
-				Directory:   user.Directory,
-				Shell:       user.Shell,
-			}); err != nil {
+			if _, err := tx.Exec(ctx, insertHostUserSQL, pgx.StructArgs(newHostUserWrite(hostID, user))); err != nil {
 				return err
 			}
 		}
@@ -231,27 +250,18 @@ func (s *Store) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser
 
 func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		if err := q.DeleteHostBatteries(ctx, sqlc.DeleteHostBatteriesParams{HostID: hostID}); err != nil {
+		if _, err := tx.Exec(ctx, deleteHostBatteriesSQL, hostID); err != nil {
 			return err
 		}
 		for _, battery := range batteries {
 			if battery.SerialNumber == "" {
 				continue
 			}
-			if err := q.InsertHostBattery(ctx, sqlc.InsertHostBatteryParams{
-				HostID:           hostID,
-				SerialNumber:     battery.SerialNumber,
-				Manufacturer:     battery.Manufacturer,
-				Model:            battery.Model,
-				Chemistry:        battery.Chemistry,
-				CycleCount:       battery.CycleCount,
-				Health:           battery.Health,
-				DesignedCapacity: battery.DesignedCapacity,
-				MaxCapacity:      battery.MaxCapacity,
-				CurrentCapacity:  battery.CurrentCapacity,
-				PercentRemaining: battery.PercentRemaining,
-			}); err != nil {
+			if _, err := tx.Exec(
+				ctx,
+				insertHostBatterySQL,
+				pgx.StructArgs(newHostBatteryWrite(hostID, battery)),
+			); err != nil {
 				return err
 			}
 		}
@@ -261,38 +271,18 @@ func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []
 
 func (s *Store) ReplaceCertificates(ctx context.Context, hostID int64, certificates []HostCertificate) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		if err := q.DeleteHostCertificates(ctx, sqlc.DeleteHostCertificatesParams{HostID: hostID}); err != nil {
+		if _, err := tx.Exec(ctx, deleteHostCertificatesSQL, hostID); err != nil {
 			return err
 		}
 		for _, certificate := range certificates {
 			if certificate.SHA1 == "" {
 				continue
 			}
-			if err := q.InsertHostCertificate(ctx, sqlc.InsertHostCertificateParams{
-				HostID:                    hostID,
-				Sha1:                      certificate.SHA1,
-				CommonName:                certificate.CommonName,
-				SubjectCountry:            certificate.Subject.Country,
-				SubjectOrganization:       certificate.Subject.Organization,
-				SubjectOrganizationalUnit: certificate.Subject.OrganizationalUnit,
-				SubjectCommonName:         certificate.Subject.CommonName,
-				IssuerCountry:             certificate.Issuer.Country,
-				IssuerOrganization:        certificate.Issuer.Organization,
-				IssuerOrganizationalUnit:  certificate.Issuer.OrganizationalUnit,
-				IssuerCommonName:          certificate.Issuer.CommonName,
-				KeyAlgorithm:              certificate.KeyAlgorithm,
-				KeyStrength:               certificate.KeyStrength,
-				KeyUsage:                  certificate.KeyUsage,
-				SigningAlgorithm:          certificate.SigningAlgorithm,
-				NotValidAfter:             certificate.NotValidAfter,
-				NotValidBefore:            certificate.NotValidBefore,
-				Serial:                    certificate.Serial,
-				CertificateAuthority:      certificate.CertificateAuthority,
-				Source:                    certificate.Source,
-				Username:                  certificate.Username,
-				Path:                      certificate.Path,
-			}); err != nil {
+			if _, err := tx.Exec(
+				ctx,
+				insertHostCertificateSQL,
+				pgx.StructArgs(newHostCertificateWrite(hostID, certificate)),
+			); err != nil {
 				return err
 			}
 		}
@@ -301,46 +291,59 @@ func (s *Store) ReplaceCertificates(ctx context.Context, hostID int64, certifica
 }
 
 func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
-	rows, err := s.q.ListHostUsers(ctx, sqlc.ListHostUsersParams{HostID: hostID})
+	rows, err := s.db.Pool().Query(ctx, listHostUsersSQL, hostID)
 	if err != nil {
 		return nil, err
 	}
-	users := make([]HostUser, len(rows))
-	for i, row := range rows {
-		users[i] = hostUserFromSQLC(row)
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostUserRow])
+	if err != nil {
+		return nil, err
+	}
+	users := make([]HostUser, len(records))
+	for i, record := range records {
+		users[i] = hostUserFromRow(record)
 	}
 	return users, nil
 }
 
 func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
-	rows, err := s.q.ListHostBatteries(ctx, sqlc.ListHostBatteriesParams{HostID: hostID})
+	rows, err := s.db.Pool().Query(ctx, listHostBatteriesSQL, hostID)
 	if err != nil {
 		return nil, err
 	}
-	batteries := make([]HostBattery, len(rows))
-	for i, row := range rows {
-		batteries[i] = hostBatteryFromSQLC(row)
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostBatteryRow])
+	if err != nil {
+		return nil, err
+	}
+	batteries := make([]HostBattery, len(records))
+	for i, record := range records {
+		batteries[i] = hostBatteryFromRow(record)
 	}
 	return batteries, nil
 }
 
 func (s *Store) ListCertificates(ctx context.Context, hostID int64) ([]HostCertificate, error) {
-	rows, err := s.q.ListHostCertificates(ctx, sqlc.ListHostCertificatesParams{HostID: hostID})
+	rows, err := s.db.Pool().Query(ctx, listHostCertificatesSQL, hostID)
 	if err != nil {
 		return nil, err
 	}
-	certificates := make([]HostCertificate, len(rows))
-	for i, row := range rows {
-		certificates[i] = hostCertificateFromSQLC(row)
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostCertificateRow])
+	if err != nil {
+		return nil, err
+	}
+	certificates := make([]HostCertificate, len(records))
+	for i, record := range records {
+		certificates[i] = hostCertificateFromRow(record)
 	}
 	return certificates, nil
 }
 
 func (s *Store) MarkInventoryFresh(ctx context.Context, hostID int64, inventoryQueryHash string) error {
-	return s.q.MarkHostInventoryFresh(ctx, sqlc.MarkHostInventoryFreshParams{
-		ID:                 hostID,
-		InventoryQueryHash: inventoryQueryHash,
+	_, err := s.db.Pool().Exec(ctx, markHostInventoryFreshSQL, pgx.NamedArgs{
+		"id":                   hostID,
+		"inventory_query_hash": inventoryQueryHash,
 	})
+	return err
 }
 
 func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
@@ -363,7 +366,7 @@ func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
 
 func hostListQuery(params HostListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL: "SELECT * FROM hosts",
+		SelectSQL: hostSelectSQL,
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
@@ -469,20 +472,25 @@ func (s *Store) loadUserAffinity(ctx context.Context, hostIDs []int64) (map[int6
 		return affinity, nil
 	}
 
-	mappingRows, err := s.q.ListHostUserAffinityMappingsForHosts(ctx, sqlc.ListHostUserAffinityMappingsForHostsParams{
-		HostIds: hostIDs,
-	})
+	mappingRows, err := s.db.Pool().Query(ctx, listHostUserAffinityMappingsForHostsSQL, hostIDs)
 	if err != nil {
 		return nil, err
 	}
-	grouped := groupHostUserAffinityMappings(mappingRows)
-	primaryRows, err := s.q.ListHostUserAffinityPrimaries(ctx, sqlc.ListHostUserAffinityPrimariesParams{
-		HostIds: hostIDs,
-	})
+	mappings, err := pgx.CollectRows(mappingRows, pgx.RowToStructByName[hostUserAffinityMappingRow])
 	if err != nil {
 		return nil, err
 	}
-	for _, row := range primaryRows {
+	grouped := groupHostUserAffinityMappings(mappings)
+
+	primaryRows, err := s.db.Pool().Query(ctx, listHostUserAffinityPrimariesSQL, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	primaries, err := pgx.CollectRows(primaryRows, pgx.RowToStructByName[hostUserAffinityPrimaryRow])
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range primaries {
 		hostAffinity := affinity[row.HostID]
 		hostAffinity.Primary = &HostUserAffinityPrimary{
 			Email:      row.Email,
@@ -494,143 +502,217 @@ func (s *Store) loadUserAffinity(ctx context.Context, hostIDs []int64) (map[int6
 		}
 		affinity[row.HostID] = hostAffinity
 	}
-	for hostID, mappings := range grouped {
+	for hostID, hostMappings := range grouped {
 		hostAffinity := affinity[hostID]
-		hostAffinity.Mappings = mappings
+		hostAffinity.Mappings = hostMappings
 		affinity[hostID] = hostAffinity
 	}
 	return affinity, nil
 }
 
-func hostFromSQLC(s sqlc.Host, now time.Time) Host {
+// hostRow is the canonical scan target for the hosts projection.
+type hostRow struct {
+	ID                                int64       `db:"id"`
+	HardwareUUID                      string      `db:"hardware_uuid"`
+	DisplayName                       string      `db:"display_name"`
+	Hostname                          string      `db:"hostname"`
+	ComputerName                      string      `db:"computer_name"`
+	HardwareSerial                    string      `db:"hardware_serial"`
+	HardwareModelIdentifier           string      `db:"hardware_model_identifier"`
+	HardwareVendor                    string      `db:"hardware_vendor"`
+	OSName                            string      `db:"os_name"`
+	OSVersion                         string      `db:"os_version"`
+	OSBuild                           string      `db:"os_build"`
+	OSPlatform                        string      `db:"os_platform"`
+	OsqueryVersion                    string      `db:"osquery_version"`
+	OrbitVersion                      string      `db:"orbit_version"`
+	OrbitNodeKey                      string      `db:"orbit_node_key"`
+	OsqueryNodeKey                    string      `db:"osquery_node_key"`
+	EnrollmentAgent                   string      `db:"enrollment_agent"`
+	CPUType                           string      `db:"cpu_type"`
+	CPUSubtype                        string      `db:"cpu_subtype"`
+	CPUBrand                          string      `db:"cpu_brand"`
+	CPULogicalCores                   int32       `db:"cpu_logical_cores"`
+	CPUPhysicalCores                  int32       `db:"cpu_physical_cores"`
+	MemoryBytes                       int64       `db:"memory_bytes"`
+	OSKernelVersion                   string      `db:"os_kernel_version"`
+	LastRestartedAt                   *time.Time  `db:"last_restarted_at"`
+	BootVolumeAvailableBytes          *int64      `db:"boot_volume_available_bytes"`
+	BootVolumeTotalBytes              *int64      `db:"boot_volume_total_bytes"`
+	LastRemoteIP                      *netip.Addr `db:"last_remote_ip"`
+	PrimaryIP                         *netip.Addr `db:"primary_ip"`
+	PrimaryMAC                        string      `db:"primary_mac"`
+	OsqueryDistributedIntervalSeconds *int32      `db:"osquery_distributed_interval_seconds"`
+	OsqueryConfigRefreshSeconds       *int32      `db:"osquery_config_refresh_seconds"`
+	InventoryQueryHash                string      `db:"inventory_query_hash"`
+	EnrolledAt                        *time.Time  `db:"enrolled_at"`
+	LastSeenAt                        *time.Time  `db:"last_seen_at"`
+	InventoryUpdatedAt                *time.Time  `db:"inventory_updated_at"`
+	CreatedAt                         time.Time   `db:"created_at"`
+	UpdatedAt                         time.Time   `db:"updated_at"`
+}
+
+func hostFromRow(row hostRow, now time.Time) Host {
 	return Host{
-		ID:           s.ID,
-		DisplayName:  s.DisplayName,
-		Status:       statusFromLastSeen(s.LastSeenAt, now),
-		Hostname:     s.Hostname,
-		ComputerName: s.ComputerName,
+		ID:           row.ID,
+		DisplayName:  row.DisplayName,
+		Status:       statusFromLastSeen(row.LastSeenAt, now),
+		Hostname:     row.Hostname,
+		ComputerName: row.ComputerName,
 		Enrollment: HostEnrollment{
-			Agent:      s.EnrollmentAgent,
-			EnrolledAt: s.EnrolledAt,
+			Agent:      row.EnrollmentAgent,
+			EnrolledAt: row.EnrolledAt,
 		},
 		Hardware: HostHardware{
-			UUID:            s.HardwareUUID,
-			Serial:          s.HardwareSerial,
-			Vendor:          s.HardwareVendor,
-			ModelIdentifier: s.HardwareModelIdentifier,
-			MemoryBytes:     s.MemoryBytes,
+			UUID:            row.HardwareUUID,
+			Serial:          row.HardwareSerial,
+			Vendor:          row.HardwareVendor,
+			ModelIdentifier: row.HardwareModelIdentifier,
+			MemoryBytes:     row.MemoryBytes,
 			CPU: HostCPU{
-				Architecture:  s.CPUType,
-				Subtype:       s.CPUSubtype,
-				Brand:         s.CPUBrand,
-				LogicalCores:  s.CPULogicalCores,
-				PhysicalCores: s.CPUPhysicalCores,
+				Architecture:  row.CPUType,
+				Subtype:       row.CPUSubtype,
+				Brand:         row.CPUBrand,
+				LogicalCores:  row.CPULogicalCores,
+				PhysicalCores: row.CPUPhysicalCores,
 			},
 		},
 		OS: HostOS{
-			Platform:      s.OSPlatform,
-			Name:          s.OSName,
-			Version:       s.OSVersion,
-			Build:         s.OSBuild,
-			KernelVersion: s.OSKernelVersion,
+			Platform:      row.OSPlatform,
+			Name:          row.OSName,
+			Version:       row.OSVersion,
+			Build:         row.OSBuild,
+			KernelVersion: row.OSKernelVersion,
 		},
 		Storage: HostStorage{
 			BootVolume: HostBootVolume{
-				AvailableBytes: s.BootVolumeAvailableBytes,
-				TotalBytes:     s.BootVolumeTotalBytes,
+				AvailableBytes: row.BootVolumeAvailableBytes,
+				TotalBytes:     row.BootVolumeTotalBytes,
 			},
 		},
 		Network: HostNetwork{
-			PrimaryIP:    s.PrimaryIP,
-			PrimaryMAC:   s.PrimaryMAC,
-			LastRemoteIP: s.LastRemoteIP,
+			PrimaryIP:    row.PrimaryIP,
+			PrimaryMAC:   row.PrimaryMAC,
+			LastRemoteIP: row.LastRemoteIP,
 		},
 		Agents: HostAgents{
 			Osquery: HostOsqueryAgent{
-				Version:                    s.OsqueryVersion,
-				DistributedIntervalSeconds: s.OsqueryDistributedIntervalSeconds,
-				ConfigRefreshSeconds:       s.OsqueryConfigRefreshSeconds,
+				Version:                    row.OsqueryVersion,
+				DistributedIntervalSeconds: row.OsqueryDistributedIntervalSeconds,
+				ConfigRefreshSeconds:       row.OsqueryConfigRefreshSeconds,
 			},
-			Orbit: HostOrbitAgent{Version: s.OrbitVersion},
+			Orbit: HostOrbitAgent{Version: row.OrbitVersion},
 		},
 		UserAffinity: HostUserAffinity{Mappings: []HostUserAffinityMapping{}},
 		Timestamps: HostTimestamps{
-			CreatedAt:          s.CreatedAt,
-			UpdatedAt:          s.UpdatedAt,
-			LastSeenAt:         s.LastSeenAt,
-			InventoryUpdatedAt: s.InventoryUpdatedAt,
-			LastRestartedAt:    s.LastRestartedAt,
+			CreatedAt:          row.CreatedAt,
+			UpdatedAt:          row.UpdatedAt,
+			LastSeenAt:         row.LastSeenAt,
+			InventoryUpdatedAt: row.InventoryUpdatedAt,
+			LastRestartedAt:    row.LastRestartedAt,
 		},
-		OrbitNodeKey:       s.OrbitNodeKey,
-		OsqueryNodeKey:     s.OsqueryNodeKey,
-		InventoryQueryHash: s.InventoryQueryHash,
+		OrbitNodeKey:       row.OrbitNodeKey,
+		OsqueryNodeKey:     row.OsqueryNodeKey,
+		InventoryQueryHash: row.InventoryQueryHash,
 	}
 }
 
-func hostUserFromSQLC(s sqlc.HostUser) HostUser {
-	return HostUser{
-		ID:          s.ID,
-		HostID:      s.HostID,
-		UID:         s.UID,
-		Username:    s.Username,
-		Type:        s.Type,
-		Description: s.Description,
-		Directory:   s.Directory,
-		Shell:       s.Shell,
-		CreatedAt:   s.CreatedAt,
-		UpdatedAt:   s.UpdatedAt,
-	}
+type hostUserRow struct {
+	ID          int64     `db:"id"`
+	HostID      int64     `db:"host_id"`
+	UID         string    `db:"uid"`
+	Username    string    `db:"username"`
+	Type        string    `db:"type"`
+	Description string    `db:"description"`
+	Directory   string    `db:"directory"`
+	Shell       string    `db:"shell"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
 }
 
-func hostBatteryFromSQLC(s sqlc.HostBattery) HostBattery {
-	return HostBattery{
-		ID:               s.ID,
-		HostID:           s.HostID,
-		SerialNumber:     s.SerialNumber,
-		Manufacturer:     s.Manufacturer,
-		Model:            s.Model,
-		Chemistry:        s.Chemistry,
-		CycleCount:       s.CycleCount,
-		Health:           s.Health,
-		DesignedCapacity: s.DesignedCapacity,
-		MaxCapacity:      s.MaxCapacity,
-		CurrentCapacity:  s.CurrentCapacity,
-		PercentRemaining: s.PercentRemaining,
-		CreatedAt:        s.CreatedAt,
-		UpdatedAt:        s.UpdatedAt,
-	}
+func hostUserFromRow(row hostUserRow) HostUser {
+	return HostUser(row)
 }
 
-func hostCertificateFromSQLC(s sqlc.HostCertificate) HostCertificate {
+type hostBatteryRow struct {
+	ID               int64     `db:"id"`
+	HostID           int64     `db:"host_id"`
+	SerialNumber     string    `db:"serial_number"`
+	Manufacturer     string    `db:"manufacturer"`
+	Model            string    `db:"model"`
+	Chemistry        string    `db:"chemistry"`
+	CycleCount       *int32    `db:"cycle_count"`
+	Health           string    `db:"health"`
+	DesignedCapacity *int32    `db:"designed_capacity"`
+	MaxCapacity      *int32    `db:"max_capacity"`
+	CurrentCapacity  *int32    `db:"current_capacity"`
+	PercentRemaining *float64  `db:"percent_remaining"`
+	CreatedAt        time.Time `db:"created_at"`
+	UpdatedAt        time.Time `db:"updated_at"`
+}
+
+func hostBatteryFromRow(row hostBatteryRow) HostBattery {
+	return HostBattery(row)
+}
+
+type hostCertificateRow struct {
+	ID                        int64      `db:"id"`
+	HostID                    int64      `db:"host_id"`
+	SHA1                      string     `db:"sha1"`
+	CommonName                string     `db:"common_name"`
+	SubjectCountry            string     `db:"subject_country"`
+	SubjectOrganization       string     `db:"subject_organization"`
+	SubjectOrganizationalUnit string     `db:"subject_organizational_unit"`
+	SubjectCommonName         string     `db:"subject_common_name"`
+	IssuerCountry             string     `db:"issuer_country"`
+	IssuerOrganization        string     `db:"issuer_organization"`
+	IssuerOrganizationalUnit  string     `db:"issuer_organizational_unit"`
+	IssuerCommonName          string     `db:"issuer_common_name"`
+	KeyAlgorithm              string     `db:"key_algorithm"`
+	KeyStrength               *int32     `db:"key_strength"`
+	KeyUsage                  string     `db:"key_usage"`
+	SigningAlgorithm          string     `db:"signing_algorithm"`
+	NotValidAfter             *time.Time `db:"not_valid_after"`
+	NotValidBefore            *time.Time `db:"not_valid_before"`
+	Serial                    string     `db:"serial"`
+	CertificateAuthority      bool       `db:"certificate_authority"`
+	Source                    string     `db:"source"`
+	Username                  string     `db:"username"`
+	Path                      string     `db:"path"`
+	CreatedAt                 time.Time  `db:"created_at"`
+	UpdatedAt                 time.Time  `db:"updated_at"`
+}
+
+func hostCertificateFromRow(row hostCertificateRow) HostCertificate {
 	return HostCertificate{
-		ID:         s.ID,
-		HostID:     s.HostID,
-		SHA1:       s.Sha1,
-		CommonName: s.CommonName,
+		ID:         row.ID,
+		HostID:     row.HostID,
+		SHA1:       row.SHA1,
+		CommonName: row.CommonName,
 		Subject: CertificateName{
-			Country:            s.SubjectCountry,
-			Organization:       s.SubjectOrganization,
-			OrganizationalUnit: s.SubjectOrganizationalUnit,
-			CommonName:         s.SubjectCommonName,
+			Country:            row.SubjectCountry,
+			Organization:       row.SubjectOrganization,
+			OrganizationalUnit: row.SubjectOrganizationalUnit,
+			CommonName:         row.SubjectCommonName,
 		},
 		Issuer: CertificateName{
-			Country:            s.IssuerCountry,
-			Organization:       s.IssuerOrganization,
-			OrganizationalUnit: s.IssuerOrganizationalUnit,
-			CommonName:         s.IssuerCommonName,
+			Country:            row.IssuerCountry,
+			Organization:       row.IssuerOrganization,
+			OrganizationalUnit: row.IssuerOrganizationalUnit,
+			CommonName:         row.IssuerCommonName,
 		},
-		KeyAlgorithm:         s.KeyAlgorithm,
-		KeyStrength:          s.KeyStrength,
-		KeyUsage:             s.KeyUsage,
-		SigningAlgorithm:     s.SigningAlgorithm,
-		NotValidAfter:        s.NotValidAfter,
-		NotValidBefore:       s.NotValidBefore,
-		Serial:               s.Serial,
-		CertificateAuthority: s.CertificateAuthority,
-		Source:               s.Source,
-		Username:             s.Username,
-		Path:                 s.Path,
-		CreatedAt:            s.CreatedAt,
-		UpdatedAt:            s.UpdatedAt,
+		KeyAlgorithm:         row.KeyAlgorithm,
+		KeyStrength:          row.KeyStrength,
+		KeyUsage:             row.KeyUsage,
+		SigningAlgorithm:     row.SigningAlgorithm,
+		NotValidAfter:        row.NotValidAfter,
+		NotValidBefore:       row.NotValidBefore,
+		Serial:               row.Serial,
+		CertificateAuthority: row.CertificateAuthority,
+		Source:               row.Source,
+		Username:             row.Username,
+		Path:                 row.Path,
+		CreatedAt:            row.CreatedAt,
+		UpdatedAt:            row.UpdatedAt,
 	}
 }
