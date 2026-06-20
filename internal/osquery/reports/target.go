@@ -68,35 +68,47 @@ func (s *Store) attachReportTargets(
 	return nil
 }
 
+type reportTargetWrite struct {
+	ReportID  int64  `db:"report_id"`
+	LabelID   int64  `db:"label_id"`
+	Direction string `db:"direction"`
+	Position  int32  `db:"position"`
+}
+
+const deleteReportTargetsSQL = `DELETE FROM osquery_report_targets WHERE report_id = $1`
+
+const insertReportTargetSQL = `
+INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
+VALUES (@report_id, @label_id, @direction::target_direction, @position)`
+
 func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, targets ReportTargets) error {
 	targets = normalizeReportTargets(targets)
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM osquery_report_targets WHERE report_id = $1`, reportID); err != nil {
-		return err
+	rows := make([]reportTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
+	for i, ref := range targets.Include {
+		rows = append(rows, reportTargetWrite{
+			ReportID:  reportID,
+			LabelID:   ref.LabelID,
+			Direction: string(targeting.Include),
+			Position:  int32(i),
+		})
 	}
-	if len(targets.Include) > 0 {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
-			SELECT $1, labels.label_id, 'include'::target_direction, labels.ord - 1
-			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
-			reportID,
-			targeting.LabelRefIDs(targets.Include),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
+	for i, ref := range targets.Exclude {
+		rows = append(rows, reportTargetWrite{
+			ReportID:  reportID,
+			LabelID:   ref.LabelID,
+			Direction: string(targeting.Exclude),
+			Position:  int32(i),
+		})
 	}
-	if len(targets.Exclude) > 0 {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
-			SELECT $1, labels.label_id, 'exclude'::target_direction, labels.ord - 1
-			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
-			reportID,
-			targeting.LabelRefIDs(targets.Exclude),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
+	if err := dbutil.ReplaceChildren(
+		ctx, tx,
+		deleteReportTargetsSQL, []any{reportID},
+		insertReportTargetSQL, rows,
+	); err != nil {
+		return dbutil.MutationError(err)
 	}
 	return nil
 }

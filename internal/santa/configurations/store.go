@@ -255,6 +255,19 @@ func (s *Store) ResolveConfigurationForHostWithTargets(ctx context.Context, host
 	return match, nil
 }
 
+type configurationTargetWrite struct {
+	ConfigurationID int64  `db:"configuration_id"`
+	LabelID         int64  `db:"label_id"`
+	Direction       string `db:"direction"`
+	Position        int32  `db:"position"`
+}
+
+const deleteConfigurationTargetsSQL = `DELETE FROM santa_configuration_targets WHERE configuration_id = $1`
+
+const insertConfigurationTargetSQL = `
+INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
+VALUES (@configuration_id, @label_id, @direction::target_direction, @position)`
+
 func replaceConfigurationTargets(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -265,34 +278,29 @@ func replaceConfigurationTargets(
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(
-		ctx,
-		`DELETE FROM santa_configuration_targets WHERE configuration_id = $1`,
-		configurationID,
+	rows := make([]configurationTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
+	for i, ref := range targets.Include {
+		rows = append(rows, configurationTargetWrite{
+			ConfigurationID: configurationID,
+			LabelID:         ref.LabelID,
+			Direction:       string(targeting.Include),
+			Position:        int32(i),
+		})
+	}
+	for i, ref := range targets.Exclude {
+		rows = append(rows, configurationTargetWrite{
+			ConfigurationID: configurationID,
+			LabelID:         ref.LabelID,
+			Direction:       string(targeting.Exclude),
+			Position:        int32(i),
+		})
+	}
+	if err := dbutil.ReplaceChildren(
+		ctx, tx,
+		deleteConfigurationTargetsSQL, []any{configurationID},
+		insertConfigurationTargetSQL, rows,
 	); err != nil {
-		return err
-	}
-	if len(targets.Include) > 0 {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
-			SELECT $1, labels.label_id, 'include'::target_direction, labels.ord - 1
-			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
-			configurationID,
-			targeting.LabelRefIDs(targets.Include),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
-	}
-	if len(targets.Exclude) > 0 {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
-			SELECT $1, labels.label_id, 'exclude'::target_direction, labels.ord - 1
-			FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`,
-			configurationID,
-			targeting.LabelRefIDs(targets.Exclude),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
+		return dbutil.MutationError(err)
 	}
 	return nil
 }

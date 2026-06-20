@@ -68,35 +68,45 @@ func (s *Store) loadCheckTargets(
 	return targets, nil
 }
 
+type checkTargetWrite struct {
+	CheckID   int64  `db:"check_id"`
+	LabelID   int64  `db:"label_id"`
+	Direction string `db:"direction"`
+	Position  int32  `db:"position"`
+}
+
+const insertCheckTargetSQL = `
+INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
+VALUES (@check_id, @label_id, @direction::target_direction, @position)`
+
 func replaceCheckTargets(ctx context.Context, tx pgx.Tx, checkID int64, targets CheckTargets) error {
 	targets = normalizeCheckTargets(targets)
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, deleteCheckTargetsSQL, checkID); err != nil {
+	rows := make([]checkTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
+	for i, ref := range targets.Include {
+		rows = append(rows, checkTargetWrite{
+			CheckID:   checkID,
+			LabelID:   ref.LabelID,
+			Direction: string(targeting.Include),
+			Position:  int32(i),
+		})
+	}
+	for i, ref := range targets.Exclude {
+		rows = append(rows, checkTargetWrite{
+			CheckID:   checkID,
+			LabelID:   ref.LabelID,
+			Direction: string(targeting.Exclude),
+			Position:  int32(i),
+		})
+	}
+	if err := dbutil.ReplaceChildren(
+		ctx, tx,
+		deleteCheckTargetsSQL, []any{checkID},
+		insertCheckTargetSQL, rows,
+	); err != nil {
 		return dbutil.MutationError(err)
-	}
-	if len(targets.Include) > 0 {
-		if _, err := tx.Exec(
-			ctx,
-			insertCheckTargetsSQL,
-			checkID,
-			string(targeting.Include),
-			targeting.LabelRefIDs(targets.Include),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
-	}
-	if len(targets.Exclude) > 0 {
-		if _, err := tx.Exec(
-			ctx,
-			insertCheckTargetsSQL,
-			checkID,
-			string(targeting.Exclude),
-			targeting.LabelRefIDs(targets.Exclude),
-		); err != nil {
-			return dbutil.MutationError(err)
-		}
 	}
 	return nil
 }
@@ -134,11 +144,4 @@ ORDER BY
     direction,
     position`
 
-const deleteCheckTargetsSQL = `
-DELETE FROM osquery_check_targets
-WHERE check_id = $1`
-
-const insertCheckTargetsSQL = `
-INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
-SELECT $1, labels.label_id, $2::target_direction, labels.ord - 1
-FROM unnest($3::bigint[]) WITH ORDINALITY AS labels(label_id, ord)`
+const deleteCheckTargetsSQL = `DELETE FROM osquery_check_targets WHERE check_id = $1`

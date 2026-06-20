@@ -973,6 +973,22 @@ func writePackageRelations(ctx context.Context, tx pgx.Tx, packageID int64, para
 	return nil
 }
 
+type packageRelationWrite struct {
+	PackageID        int64  `db:"package_id"`
+	RelationKind     string `db:"relation_kind"`
+	TargetSoftwareID int64  `db:"target_software_id"`
+	TargetPackageID  *int64 `db:"target_package_id"`
+	Position         int32  `db:"position"`
+}
+
+const deletePackageRelationsSQL = `
+DELETE FROM munki_package_relations
+WHERE package_id = $1 AND relation_kind = $2::munki_package_relation_kind`
+
+const insertPackageRelationSQL = `
+INSERT INTO munki_package_relations (package_id, relation_kind, target_software_id, target_package_id, position)
+VALUES (@package_id, @relation_kind::munki_package_relation_kind, @target_software_id, @target_package_id, @position)`
+
 func replacePackageRelations(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -980,34 +996,21 @@ func replacePackageRelations(
 	kind string,
 	references []PackageReference,
 ) error {
-	if _, err := tx.Exec(
-		ctx,
-		`DELETE FROM munki_package_relations
-		WHERE package_id = $1 AND relation_kind = $2::munki_package_relation_kind`,
-		packageID,
-		kind,
-	); err != nil {
-		return err
-	}
-	for position, ref := range references {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO munki_package_relations (
-				package_id,
-				relation_kind,
-				target_software_id,
-				target_package_id,
-				position
-			) VALUES ($1, $2::munki_package_relation_kind, $3, $4, $5)`,
-			packageID,
-			kind,
-			ref.SoftwareID,
-			optionalPositiveInt64(ref.PackageID),
-			int32(position),
-		); err != nil {
-			return err
+	rows := make([]packageRelationWrite, len(references))
+	for i, ref := range references {
+		rows[i] = packageRelationWrite{
+			PackageID:        packageID,
+			RelationKind:     kind,
+			TargetSoftwareID: ref.SoftwareID,
+			TargetPackageID:  optionalPositiveInt64(ref.PackageID),
+			Position:         int32(i),
 		}
 	}
-	return nil
+	return dbutil.ReplaceChildren(
+		ctx, tx,
+		deletePackageRelationsSQL, []any{packageID, kind},
+		insertPackageRelationSQL, rows,
+	)
 }
 
 type packageRelationRow struct {
