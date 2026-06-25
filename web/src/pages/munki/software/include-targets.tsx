@@ -6,17 +6,7 @@ import { AssignmentLabelField } from "@/components/targeting/assignment-label-fi
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Combobox,
-  ComboboxAnchor,
-  ComboboxBadgeItem,
-  ComboboxBadgeList,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxTrigger,
-} from "@/components/ui/combobox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -67,7 +58,13 @@ import {
   targetPackageFromValue,
   targetPackageValue,
 } from "./fields";
-import { MUNKI_SOFTWARE_ACTION_OPTIONS } from "./munki-software";
+import {
+  MUNKI_OPTIONAL_MODIFIER_VALUES,
+  MUNKI_PRIMARY_ACTION_VALUES,
+  MUNKI_SOFTWARE_ACTION_OPTIONS,
+  MUNKI_SOFTWARE_ACTIONS,
+  type MunkiPrimaryAction,
+} from "./munki-software";
 
 export interface MunkiSoftwareTargetRow {
   id: number;
@@ -308,6 +305,29 @@ function MunkiIncludeRowActions({
   );
 }
 
+interface ActionSelection {
+  intent: MunkiPrimaryAction | "";
+  featured: boolean;
+  preselect: boolean;
+}
+
+function selectionFromActions(actions: MunkiInclude["actions"]): ActionSelection {
+  return {
+    intent: MUNKI_PRIMARY_ACTION_VALUES.find((action) => actions.includes(action)) ?? "",
+    featured: actions.includes("featured_items"),
+    preselect: actions.includes("default_installs"),
+  };
+}
+
+function actionsFromSelection(selection: ActionSelection): MunkiInclude["actions"] {
+  if (selection.intent === "") return [];
+  if (selection.intent !== "optional_installs") return [selection.intent];
+  const actions: MunkiInclude["actions"] = ["optional_installs"];
+  if (selection.featured) actions.push("featured_items");
+  if (selection.preselect) actions.push("default_installs");
+  return actions;
+}
+
 function TargetActionsField({
   value,
   onChange,
@@ -315,48 +335,60 @@ function TargetActionsField({
   value: MunkiInclude["actions"];
   onChange: (actions: MunkiInclude["actions"]) => void;
 }) {
-  const selected = MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) => value.includes(option.value));
-  const warning = targetActionWarning(value);
+  const selection = selectionFromActions(value);
+  const update = (next: Partial<ActionSelection>) =>
+    onChange(actionsFromSelection({ ...selection, ...next }));
 
   return (
     <Field>
       <FieldLabel>Actions</FieldLabel>
-      <Combobox
-        multiple
-        value={value}
-        onValueChange={(next) =>
-          onChange(
-            next.filter((action): action is MunkiInclude["actions"][number] =>
-              MUNKI_SOFTWARE_ACTION_OPTIONS.some((option) => option.value === action),
-            ),
-          )
-        }
+      <RadioGroup
+        value={selection.intent}
+        onValueChange={(intent) => update({ intent: intent as MunkiPrimaryAction })}
       >
-        <ComboboxAnchor className="h-auto min-h-9 flex-wrap py-1.5 pr-2">
-          <ComboboxBadgeList>
-            {selected.map((option) => (
-              <ComboboxBadgeItem key={option.value} value={option.value}>
-                {option.label}
-              </ComboboxBadgeItem>
-            ))}
-          </ComboboxBadgeList>
-          <ComboboxInput
-            className="h-[calc(--spacing(5.5))] min-w-16 flex-1 px-0 py-0 text-sm"
-            placeholder={selected.length === 0 ? "Pick actions" : ""}
-            required={selected.length === 0}
-          />
-          <ComboboxTrigger aria-label="Open actions" className="ml-auto" />
-        </ComboboxAnchor>
-        <ComboboxContent>
-          <ComboboxEmpty>No Actions Found.</ComboboxEmpty>
-          {MUNKI_SOFTWARE_ACTION_OPTIONS.map((option) => (
-            <ComboboxItem key={option.value} value={option.value} label={option.label}>
-              <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            </ComboboxItem>
-          ))}
-        </ComboboxContent>
-      </Combobox>
-      {warning ? <p className="text-xs text-warning">{warning}</p> : null}
+        {MUNKI_PRIMARY_ACTION_VALUES.map((action) => {
+          const id = `munki-target-action-${action}`;
+          return (
+            <Field key={action} orientation="horizontal">
+              <RadioGroupItem id={id} value={action} />
+              <FieldContent>
+                <FieldLabel htmlFor={id}>{MUNKI_SOFTWARE_ACTIONS[action].name}</FieldLabel>
+                <FieldDescription>{MUNKI_SOFTWARE_ACTIONS[action].description}</FieldDescription>
+              </FieldContent>
+            </Field>
+          );
+        })}
+      </RadioGroup>
+      {selection.intent === "optional_installs" ? (
+        <div className="grid gap-3 pl-6">
+          {MUNKI_OPTIONAL_MODIFIER_VALUES.map((modifier) => {
+            const id = `munki-target-action-${modifier}`;
+            const checked =
+              modifier === "featured_items" ? selection.featured : selection.preselect;
+            return (
+              <Field key={modifier} orientation="horizontal">
+                <Checkbox
+                  id={id}
+                  checked={checked}
+                  onCheckedChange={(state) =>
+                    update(
+                      modifier === "featured_items"
+                        ? { featured: state === true }
+                        : { preselect: state === true },
+                    )
+                  }
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor={id}>{MUNKI_SOFTWARE_ACTIONS[modifier].name}</FieldLabel>
+                  <FieldDescription>
+                    {MUNKI_SOFTWARE_ACTIONS[modifier].description}
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            );
+          })}
+        </div>
+      ) : null}
     </Field>
   );
 }
@@ -372,13 +404,6 @@ function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
     );
   }
   return "Latest";
-}
-
-function targetActionWarning(actions: MunkiInclude["actions"]) {
-  if (actions.includes("featured_items") && !actions.includes("optional_installs")) {
-    return "Munki ignores featured items unless the item is also optional.";
-  }
-  return "";
 }
 
 function nextTargetID(rows: MunkiSoftwareTargetRow[]) {

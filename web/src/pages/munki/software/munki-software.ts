@@ -51,15 +51,15 @@ export const MUNKI_SOFTWARE_ACTION_VALUES = [
 export const MUNKI_SOFTWARE_ACTIONS = {
   managed_installs: {
     name: "Managed Installs",
-    description: "Forces installation by writing managed_installs.",
+    description: "Installs the item on matching hosts and keeps it installed.",
   },
   managed_uninstalls: {
     name: "Managed Uninstalls",
-    description: "Forces removal by writing managed_uninstalls.",
+    description: "Removes the item from matching hosts and keeps it uninstalled.",
   },
   managed_updates: {
     name: "Managed Updates",
-    description: "Updates installed items by writing managed_updates.",
+    description: "Updates the item only on hosts where it is already installed.",
   },
   optional_installs: {
     name: "Optional Installs",
@@ -67,15 +67,31 @@ export const MUNKI_SOFTWARE_ACTIONS = {
   },
   featured_items: {
     name: "Featured Items",
-    description: "Highlights the item in Managed Software Center when it is also optional.",
+    description: "Highlights the item in Managed Software Center.",
   },
   default_installs: {
     name: "Default Installs",
-    description: "Preselects the optional item for new self-service manifests.",
+    description: "Installs the item by default; users can remove it in Managed Software Center.",
   },
 } satisfies EnumMetadataMap<MunkiSoftwareAction>;
 
 export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(MUNKI_SOFTWARE_ACTIONS);
+
+// An include resolves to one primary intent plus, for optional installs, the
+// featured/default modifiers. These subsets drive the radio + checkbox editor.
+export const MUNKI_PRIMARY_ACTION_VALUES = [
+  "managed_installs",
+  "managed_uninstalls",
+  "managed_updates",
+  "optional_installs",
+] as const satisfies readonly MunkiSoftwareAction[];
+
+export type MunkiPrimaryAction = (typeof MUNKI_PRIMARY_ACTION_VALUES)[number];
+
+export const MUNKI_OPTIONAL_MODIFIER_VALUES = [
+  "featured_items",
+  "default_installs",
+] as const satisfies readonly MunkiSoftwareAction[];
 
 export const MUNKI_PACKAGE_STRATEGY_VALUES = [
   "latest",
