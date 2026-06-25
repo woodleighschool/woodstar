@@ -23,10 +23,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
-func TestHostUserAffinityManualOverride(t *testing.T) {
+func TestHostPrimaryUserManualOverride(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
-	userAffinities := hosts.NewUserAffinityStore(db)
+	primaryUsers := hosts.NewPrimaryUserStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "host-manual-user-map"},
@@ -35,26 +35,26 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if err := userAffinities.Upsert(
+	if err := primaryUsers.Upsert(
 		ctx,
 		host.ID,
 		"agent@example.test",
-		hosts.UserAffinitySourceOrbitProfile,
+		hosts.PrimaryUserSourceOrbitProfile,
 	); err != nil {
-		t.Fatalf("seed orbit mapping: %v", err)
+		t.Fatalf("seed orbit primary user: %v", err)
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
 		adminapi.RegisterHostAdminRoutes(api, adminapi.HostRoutesOptions{
-			Store:          hostStore,
-			UserAffinities: userAffinities,
+			Store:        hostStore,
+			PrimaryUsers: primaryUsers,
 		})
 	})
 	rec := hostAPIRequest(
 		t,
 		router,
 		http.MethodPut,
-		fmt.Sprintf("/api/hosts/%d/user-affinity", host.ID),
+		fmt.Sprintf("/api/hosts/%d/primary-user", host.ID),
 		`{"email":"manual@example.test"}`,
 	)
 	if rec.Code != http.StatusOK {
@@ -62,38 +62,36 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 	}
 
 	var body struct {
-		UserAffinity struct {
-			Mappings []struct {
-				Email  string `json:"email"`
-				Source string `json:"source"`
-			} `json:"mappings"`
-		} `json:"user_affinity"`
+		PrimaryUserSources []struct {
+			Email  string `json:"email"`
+			Source string `json:"source"`
+		} `json:"primary_user_sources"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode host detail: %v", err)
 	}
-	if len(body.UserAffinity.Mappings) != 2 ||
-		body.UserAffinity.Mappings[0].Email != "manual@example.test" ||
-		body.UserAffinity.Mappings[0].Source != string(hosts.UserAffinitySourceManual) {
-		t.Fatalf("user affinity mappings after put = %+v, want manual mapping first", body.UserAffinity.Mappings)
+	if len(body.PrimaryUserSources) != 2 ||
+		body.PrimaryUserSources[0].Email != "manual@example.test" ||
+		body.PrimaryUserSources[0].Source != string(hosts.PrimaryUserSourceManual) {
+		t.Fatalf("primary user sources after put = %+v, want manual source first", body.PrimaryUserSources)
 	}
 
 	rec = hostAPIRequest(
 		t,
 		router,
 		http.MethodDelete,
-		fmt.Sprintf("/api/hosts/%d/user-affinity", host.ID),
+		fmt.Sprintf("/api/hosts/%d/primary-user", host.ID),
 		"",
 	)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	body.UserAffinity.Mappings = nil
+	body.PrimaryUserSources = nil
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode host detail after delete: %v", err)
 	}
-	if len(body.UserAffinity.Mappings) != 1 || body.UserAffinity.Mappings[0].Email != "agent@example.test" {
-		t.Fatalf("user affinity mappings after delete = %+v, want agent mapping only", body.UserAffinity.Mappings)
+	if len(body.PrimaryUserSources) != 1 || body.PrimaryUserSources[0].Email != "agent@example.test" {
+		t.Fatalf("primary user sources after delete = %+v, want agent source only", body.PrimaryUserSources)
 	}
 }
 

@@ -11,17 +11,17 @@ import (
 
 // EnrollmentService performs Orbit enrollment and config operations.
 type EnrollmentService struct {
-	hostStore         *hosts.Store
-	secretStore       *agentauth.Store
-	userAffinityStore *hosts.UserAffinityStore
+	hostStore        *hosts.Store
+	secretStore      *agentauth.Store
+	primaryUserStore *hosts.PrimaryUserStore
 }
 
 func NewEnrollmentService(
 	hostStore *hosts.Store,
 	secretStore *agentauth.Store,
-	userAffinityStore *hosts.UserAffinityStore,
+	primaryUserStore *hosts.PrimaryUserStore,
 ) *EnrollmentService {
-	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, userAffinityStore: userAffinityStore}
+	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, primaryUserStore: primaryUserStore}
 }
 
 // Enroll validates the request, upserts the host, and returns a fresh node key.
@@ -67,11 +67,11 @@ func (s *EnrollmentService) ValidateNodeKey(ctx context.Context, nodeKey string)
 	return err
 }
 
-// SetUserAffinity records a profile-provided email for the host.
-func (s *EnrollmentService) SetUserAffinity(ctx context.Context, nodeKey, email string) error {
+// SetPrimaryUser records a profile-provided email for the host.
+func (s *EnrollmentService) SetPrimaryUser(ctx context.Context, nodeKey, email string) error {
 	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		return err
 	}
-	return s.userAffinityStore.Upsert(ctx, host.ID, email, hosts.UserAffinitySourceOrbitProfile)
+	return s.primaryUserStore.Upsert(ctx, host.ID, email, hosts.PrimaryUserSourceOrbitProfile)
 }

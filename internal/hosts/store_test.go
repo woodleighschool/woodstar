@@ -74,6 +74,152 @@ func TestApplyInventoryAcceptsBigMemory(t *testing.T) {
 	}
 }
 
+func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	primaryUsers := NewPrimaryUserStore(store.db)
+
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-primary-user-direct-user"},
+		OrbitNodeKey: "test-primary-user-direct-user-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if _, err := store.db.Pool().Exec(ctx, `
+INSERT INTO users (
+	email, name, source, external_id, user_principal_name,
+	mail_nickname, given_name, family_name, department
+)
+VALUES (
+	'test1@woodleigh.vic.edu.au',
+	'Test One',
+	'entra',
+	'test1-entra',
+	'test1@woodleigh.vic.edu.au',
+	'test1',
+	'Test',
+	'One',
+	'Students'
+)`); err != nil {
+		t.Fatalf("insert directory user: %v", err)
+	}
+	if err := primaryUsers.Upsert(
+		ctx,
+		host.ID,
+		"test1@woodleigh.vic.edu.au",
+		PrimaryUserSourceOrbitProfile,
+	); err != nil {
+		t.Fatalf("seed primary user: %v", err)
+	}
+
+	detail, err := store.LoadDetail(ctx, host)
+	if err != nil {
+		t.Fatalf("load detail: %v", err)
+	}
+	primaryUser := detail.PrimaryUser
+	if primaryUser == nil {
+		t.Fatal("PrimaryUser is nil")
+	}
+	if primaryUser.Email != "test1@woodleigh.vic.edu.au" ||
+		primaryUser.Username != "test1" ||
+		primaryUser.Name != "Test One" ||
+		primaryUser.Department != "Students" ||
+		primaryUser.Source != PrimaryUserSourceOrbitProfile {
+		t.Fatalf("PrimaryUser = %+v, want enriched test1 orbit primary user", primaryUser)
+	}
+}
+
+func TestPrimaryUserManualSourceOverridesReportedSource(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	primaryUsers := NewPrimaryUserStore(store.db)
+
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-primary-user-manual-override"},
+		OrbitNodeKey: "test-primary-user-manual-override-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if _, err := store.db.Pool().Exec(ctx, `
+INSERT INTO users (
+	email, name, source, external_id, user_principal_name,
+	mail_nickname, department
+)
+VALUES
+	('reported-one@example.test', 'Reported One', 'entra', 'reported-one', 'reported-one@example.test', 'reported-one', 'Students'),
+	('reported-two@example.test', 'Reported Two', 'entra', 'reported-two', 'reported-two@example.test', 'reported-two', 'Staff'),
+	('manual@example.test', 'Manual User', 'entra', 'manual-user', 'manual@example.test', 'manual', 'Operations')`); err != nil {
+		t.Fatalf("insert directory users: %v", err)
+	}
+
+	if err := primaryUsers.Upsert(
+		ctx,
+		host.ID,
+		"reported-one@example.test",
+		PrimaryUserSourceOrbitProfile,
+	); err != nil {
+		t.Fatalf("seed reported primary user: %v", err)
+	}
+	expectPrimaryUser(
+		t,
+		ctx,
+		store,
+		host.ID,
+		"reported-one@example.test",
+		PrimaryUserSourceOrbitProfile,
+		"reported-one",
+	)
+
+	if err := primaryUsers.Upsert(
+		ctx,
+		host.ID,
+		"manual@example.test",
+		PrimaryUserSourceManual,
+	); err != nil {
+		t.Fatalf("set manual primary user: %v", err)
+	}
+	expectPrimaryUser(
+		t,
+		ctx,
+		store,
+		host.ID,
+		"manual@example.test",
+		PrimaryUserSourceManual,
+		"manual",
+	)
+
+	if err := primaryUsers.Upsert(
+		ctx,
+		host.ID,
+		"reported-two@example.test",
+		PrimaryUserSourceOrbitProfile,
+	); err != nil {
+		t.Fatalf("update reported primary user: %v", err)
+	}
+	expectPrimaryUser(
+		t,
+		ctx,
+		store,
+		host.ID,
+		"manual@example.test",
+		PrimaryUserSourceManual,
+		"manual",
+	)
+
+	if err := primaryUsers.Delete(ctx, host.ID, PrimaryUserSourceManual); err != nil {
+		t.Fatalf("clear manual primary user: %v", err)
+	}
+	expectPrimaryUser(
+		t,
+		ctx,
+		store,
+		host.ID,
+		"reported-two@example.test",
+		PrimaryUserSourceOrbitProfile,
+		"reported-two",
+	)
+}
+
 // New hosts land in All Hosts.
 func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
@@ -286,6 +432,39 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	}
 	if !sameIDs(got, []int64{onlineHost.ID}) {
 		t.Fatalf("online host ids = %v, want only online host", got)
+	}
+}
+
+func expectPrimaryUser(
+	t *testing.T,
+	ctx context.Context,
+	store *Store,
+	hostID int64,
+	wantEmail string,
+	wantSource PrimaryUserSource,
+	wantUsername string,
+) {
+	t.Helper()
+	host, err := store.GetByID(ctx, hostID)
+	if err != nil {
+		t.Fatalf("get host: %v", err)
+	}
+	detail, err := store.LoadDetail(ctx, host)
+	if err != nil {
+		t.Fatalf("load detail: %v", err)
+	}
+	primaryUser := detail.PrimaryUser
+	if primaryUser == nil {
+		t.Fatal("PrimaryUser is nil")
+	}
+	if primaryUser.Email != wantEmail || primaryUser.Source != wantSource || primaryUser.Username != wantUsername {
+		t.Fatalf(
+			"PrimaryUser = %+v, want email %q source %q username %q",
+			primaryUser,
+			wantEmail,
+			wantSource,
+			wantUsername,
+		)
 	}
 }
 

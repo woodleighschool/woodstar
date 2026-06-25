@@ -3,8 +3,7 @@
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE directory_source AS ENUM ('local', 'entra');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
-CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
-CREATE TYPE host_user_link_source AS ENUM ('manual', 'reported_user_affinity');
+CREATE TYPE host_primary_user_source AS ENUM ('manual', 'orbit_profile');
 CREATE TYPE target_direction AS ENUM ('include', 'exclude');
 
 -- Users, sessions, Enrollment ------------------------------------------
@@ -40,6 +39,9 @@ CREATE UNIQUE INDEX users_api_key_idx
 CREATE INDEX users_department_idx
     ON users (department)
     WHERE department IS NOT NULL;
+CREATE INDEX users_lower_email_idx ON users (lower(email));
+CREATE INDEX users_lower_upn_idx ON users (lower(user_principal_name))
+    WHERE user_principal_name IS NOT NULL;
 
 -- Owned by alexedwards/scs/pgxstore.
 CREATE TABLE sessions (
@@ -141,28 +143,18 @@ CREATE INDEX hosts_active_seen_idx
 CREATE INDEX hosts_inventory_stale_idx
     ON hosts (inventory_updated_at NULLS FIRST);
 
-CREATE TABLE host_user_affinity_mappings (
+CREATE TABLE host_primary_user_sources (
     id BIGSERIAL PRIMARY KEY,
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
     email TEXT NOT NULL,
-    source host_user_affinity_source NOT NULL,
+    source host_primary_user_source NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (host_id, source)
 );
 
-CREATE INDEX host_user_affinity_mappings_host_idx ON host_user_affinity_mappings (host_id);
-CREATE INDEX host_user_affinity_mappings_email_idx ON host_user_affinity_mappings (email);
-
-CREATE TABLE host_user_links (
-    host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    source host_user_link_source NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX host_user_links_user_idx ON host_user_links (user_id);
+CREATE INDEX host_primary_user_sources_host_idx ON host_primary_user_sources (host_id);
+CREATE INDEX host_primary_user_sources_email_idx ON host_primary_user_sources (email);
 
 CREATE TABLE host_users (
     id BIGSERIAL PRIMARY KEY,

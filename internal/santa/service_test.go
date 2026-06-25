@@ -30,7 +30,6 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurationStore,
-		UserAffinities: hosts.NewUserAffinityStore(db),
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
@@ -99,21 +98,6 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if preflight.Configuration.FullSyncIntervalSeconds != 120 {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
-	loadedHost, err := hostStore.GetByID(ctx, host.ID)
-	if err != nil {
-		t.Fatalf("get host after preflight: %v", err)
-	}
-	detail, err := hostStore.LoadDetail(ctx, loadedHost)
-	if err != nil {
-		t.Fatalf("load host user affinity after preflight: %v", err)
-	}
-	affinity := detail.UserAffinity.Primary
-	if affinity == nil ||
-		affinity.Email != "test1@woodleigh.vic.edu.au" ||
-		affinity.Source != hosts.UserAffinitySourceSantaPrimaryUser {
-		t.Fatalf("user affinity after preflight = %+v, want santa primary user", affinity)
-	}
-
 	download, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("rule download: %v", err)

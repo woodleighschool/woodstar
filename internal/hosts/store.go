@@ -110,7 +110,7 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 	for i, row := range rows {
 		hosts[i] = hostFromRow(row, now)
 	}
-	if err := s.attachUserAffinity(ctx, hosts); err != nil {
+	if err := s.attachPrimaryUser(ctx, hosts); err != nil {
 		return nil, 0, err
 	}
 	return hosts, count, nil
@@ -330,7 +330,7 @@ func (s *Store) MarkInventoryFresh(ctx context.Context, hostID int64, inventoryQ
 	return err
 }
 
-func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
+func (s *Store) attachPrimaryUser(ctx context.Context, hosts []Host) error {
 	if len(hosts) == 0 {
 		return nil
 	}
@@ -338,12 +338,14 @@ func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
 	for i := range hosts {
 		hostIDs[i] = hosts[i].ID
 	}
-	affinity, err := s.loadUserAffinity(ctx, hostIDs)
+	primaryUsers, err := s.loadPrimaryUser(ctx, hostIDs)
 	if err != nil {
 		return err
 	}
 	for i := range hosts {
-		hosts[i].UserAffinity = affinity[hosts[i].ID]
+		primaryUser := primaryUsers[hosts[i].ID]
+		hosts[i].PrimaryUser = primaryUser.Primary
+		hosts[i].PrimaryUserSources = primaryUser.Sources
 	}
 	return nil
 }
@@ -385,8 +387,8 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 				OR hardware_model_identifier ILIKE ` + search + `
 				OR os_version ILIKE ` + search + `
 				OR EXISTS (
-					SELECT 1 FROM host_user_affinity_mappings he
-					WHERE he.host_id = hosts.id AND he.email ILIKE ` + search + `
+					SELECT 1 FROM host_primary_user_sources s
+					WHERE s.host_id = hosts.id AND s.email ILIKE ` + search + `
 				)
 			)`)
 	}
@@ -447,51 +449,51 @@ func statusFromLastSeen(lastSeen *time.Time, now time.Time) HostStatus {
 	return HostStatusOnline
 }
 
-func (s *Store) loadUserAffinity(ctx context.Context, hostIDs []int64) (map[int64]HostUserAffinity, error) {
-	affinity := make(map[int64]HostUserAffinity, len(hostIDs))
+func (s *Store) loadPrimaryUser(ctx context.Context, hostIDs []int64) (map[int64]hostPrimaryUser, error) {
+	primaryUsers := make(map[int64]hostPrimaryUser, len(hostIDs))
 	for _, hostID := range hostIDs {
-		affinity[hostID] = HostUserAffinity{Mappings: []HostUserAffinityMapping{}}
+		primaryUsers[hostID] = hostPrimaryUser{Sources: []HostPrimaryUserSource{}}
 	}
 	if len(hostIDs) == 0 {
-		return affinity, nil
+		return primaryUsers, nil
 	}
 
-	mappingRows, err := s.db.Pool().Query(ctx, listHostUserAffinityMappingsForHostsSQL, hostIDs)
+	sourceRows, err := s.db.Pool().Query(ctx, listHostPrimaryUserSourcesForHostsSQL, hostIDs)
 	if err != nil {
 		return nil, err
 	}
-	mappings, err := pgx.CollectRows(mappingRows, pgx.RowToStructByName[hostUserAffinityMappingRow])
+	sources, err := pgx.CollectRows(sourceRows, pgx.RowToStructByName[hostPrimaryUserSourceRow])
 	if err != nil {
 		return nil, err
 	}
-	grouped := groupHostUserAffinityMappings(mappings)
+	grouped := groupHostPrimaryUserSources(sources)
 
-	primaryRows, err := s.db.Pool().Query(ctx, listHostUserAffinityPrimariesSQL, hostIDs)
+	primaryRows, err := s.db.Pool().Query(ctx, listHostPrimaryUsersSQL, hostIDs)
 	if err != nil {
 		return nil, err
 	}
-	primaries, err := pgx.CollectRows(primaryRows, pgx.RowToStructByName[hostUserAffinityPrimaryRow])
+	primaries, err := pgx.CollectRows(primaryRows, pgx.RowToStructByName[hostPrimaryUserRow])
 	if err != nil {
 		return nil, err
 	}
 	for _, row := range primaries {
-		hostAffinity := affinity[row.HostID]
-		hostAffinity.Primary = &HostUserAffinityPrimary{
+		primaryUser := primaryUsers[row.HostID]
+		primaryUser.Primary = &HostPrimaryUser{
 			Email:      row.Email,
 			Username:   row.Username,
 			Name:       row.Name,
 			Department: row.Department,
 			Groups:     row.Groups,
-			Source:     UserAffinitySource(row.Source),
+			Source:     PrimaryUserSource(row.Source),
 		}
-		affinity[row.HostID] = hostAffinity
+		primaryUsers[row.HostID] = primaryUser
 	}
-	for hostID, hostMappings := range grouped {
-		hostAffinity := affinity[hostID]
-		hostAffinity.Mappings = hostMappings
-		affinity[hostID] = hostAffinity
+	for hostID, sources := range grouped {
+		primaryUser := primaryUsers[hostID]
+		primaryUser.Sources = sources
+		primaryUsers[hostID] = primaryUser
 	}
-	return affinity, nil
+	return primaryUsers, nil
 }
 
 // hostRow is the canonical scan target for the hosts projection.
@@ -587,7 +589,7 @@ func hostFromRow(row hostRow, now time.Time) Host {
 			},
 			Orbit: HostOrbitAgent{Version: row.OrbitVersion},
 		},
-		UserAffinity: HostUserAffinity{Mappings: []HostUserAffinityMapping{}},
+		PrimaryUserSources: []HostPrimaryUserSource{},
 		Timestamps: HostTimestamps{
 			CreatedAt:          row.CreatedAt,
 			UpdatedAt:          row.UpdatedAt,

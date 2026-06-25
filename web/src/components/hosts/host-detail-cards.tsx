@@ -6,8 +6,8 @@ import { z } from "zod";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { FormField } from "@/components/form-field";
-import { manualUserAffinityMapping } from "@/components/hosts/host-user-affinity";
-import { userAffinitySourceLabel } from "@/components/hosts/user-affinity-source-labels";
+import { manualPrimaryUserSource } from "@/components/hosts/primary-user";
+import { primaryUserSourceLabel } from "@/components/hosts/primary-user-source-labels";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { LabelChips } from "@/components/labels/label-chips";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +36,8 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   type Host,
   type HostDetail,
-  useClearHostUserAffinity,
-  useSetHostUserAffinity,
+  useClearHostPrimaryUser,
+  useSetHostPrimaryUser,
 } from "@/hooks/use-hosts";
 import { requiredString } from "@/lib/form-validation";
 import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
@@ -127,43 +127,43 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
 export function HostIdentityCard({ host }: { host: HostDetail }) {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const affinity = host.user_affinity.primary;
+  const primaryUser = host.primary_user;
   const canEdit = user?.role === "admin";
-  const hasManualMapping = manualUserAffinityMapping(host.user_affinity.mappings) !== null;
+  const hasManualSource = manualPrimaryUserSource(host.primary_user_sources) !== null;
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>User Affinity</CardTitle>
+        <CardTitle>Primary User</CardTitle>
         {canEdit ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-            {hasManualMapping ? <Pencil /> : <UserPlus />}
-            {hasManualMapping ? "Edit user" : "Set user"}
+            {hasManualSource ? <Pencil /> : <UserPlus />}
+            {hasManualSource ? "Edit user" : "Set user"}
           </Button>
         ) : null}
       </CardHeader>
       <CardContent>
         <KeyValueGrid>
-          <KeyValueItem label="Name" value={affinity?.name} />
-          <KeyValueItem label="Username" value={affinity?.username} />
-          <KeyValueItem label="Email" value={affinity?.email} />
-          <KeyValueItem label="Department" value={affinity?.department} />
+          <KeyValueItem label="Name" value={primaryUser?.name} />
+          <KeyValueItem label="Username" value={primaryUser?.username} />
+          <KeyValueItem label="Email" value={primaryUser?.email} />
+          <KeyValueItem label="Department" value={primaryUser?.department} />
           <KeyValueItem
             label="Source"
-            value={affinity ? userAffinitySourceLabel(affinity.source) : undefined}
+            value={primaryUser ? primaryUserSourceLabel(primaryUser.source) : undefined}
           />
           <KeyValueItem
             label="Groups"
             value={
-              affinity?.groups && affinity.groups.length > 0 ? (
-                <UserGroups groups={affinity.groups} />
+              primaryUser?.groups && primaryUser.groups.length > 0 ? (
+                <UserGroups groups={primaryUser.groups} />
               ) : undefined
             }
             className="sm:col-span-2"
           />
         </KeyValueGrid>
       </CardContent>
-      {dialogOpen ? <HostUserMappingDialog host={host} onOpenChange={setDialogOpen} /> : null}
+      {dialogOpen ? <HostPrimaryUserDialog host={host} onOpenChange={setDialogOpen} /> : null}
     </Card>
   );
 }
@@ -236,30 +236,30 @@ function UserGroups({ groups }: { groups: readonly string[] }) {
   );
 }
 
-function HostUserMappingDialog({
+function HostPrimaryUserDialog({
   host,
   onOpenChange,
 }: {
   host: HostDetail;
   onOpenChange: (open: boolean) => void;
 }) {
-  const manual = manualUserAffinityMapping(host.user_affinity.mappings);
-  const setMapping = useSetHostUserAffinity();
-  const clearMapping = useClearHostUserAffinity();
-  const pending = setMapping.isPending || clearMapping.isPending;
+  const manual = manualPrimaryUserSource(host.primary_user_sources);
+  const setPrimaryUser = useSetHostPrimaryUser();
+  const clearPrimaryUser = useClearHostPrimaryUser();
+  const pending = setPrimaryUser.isPending || clearPrimaryUser.isPending;
 
   const form = useForm({
-    defaultValues: { email: manual?.email ?? host.user_affinity.primary?.email ?? "" },
+    defaultValues: { email: manual?.email ?? host.primary_user?.email ?? "" },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: z.object({ email: requiredString("Email / UPN") }) },
     onSubmit: async ({ value }) => {
-      await setMapping.mutateAsync({ id: host.id, body: { email: value.email } });
+      await setPrimaryUser.mutateAsync({ id: host.id, body: { email: value.email } });
       onOpenChange(false);
     },
   });
 
   async function handleClear() {
-    await clearMapping.mutateAsync(host.id);
+    await clearPrimaryUser.mutateAsync(host.id);
     onOpenChange(false);
   }
 
@@ -267,7 +267,7 @@ function HostUserMappingDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{manual ? "Edit User Affinity" : "Set User Affinity"}</DialogTitle>
+          <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
           <DialogDescription>
             Set the email or UPN Woodstar should prefer for this host.
           </DialogDescription>

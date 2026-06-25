@@ -21,13 +21,15 @@ func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error)
 	if err != nil {
 		return nil, err
 	}
-	affinity, err := s.loadUserAffinity(ctx, []int64{host.ID})
+	primaryUsers, err := s.loadPrimaryUser(ctx, []int64{host.ID})
 	if err != nil {
 		return nil, err
 	}
 
 	detailHost := *host
-	detailHost.UserAffinity = affinity[host.ID]
+	primaryUser := primaryUsers[host.ID]
+	detailHost.PrimaryUser = primaryUser.Primary
+	detailHost.PrimaryUserSources = primaryUser.Sources
 	return &HostDetail{
 		Host:         detailHost,
 		Labels:       hostLabels,

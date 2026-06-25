@@ -218,14 +218,14 @@ type wiring struct {
 	storageBackend storage.Backend
 	storageKey     []byte
 
-	auth           *auth.Service
-	users          *directory.UserService
-	directory      *directory.Store
-	hosts          *hosts.Store
-	userAffinities *hosts.UserAffinityStore
-	secrets        *agentauth.Store
-	software       *inventory.Store
-	labels         *labels.Store
+	auth         *auth.Service
+	users        *directory.UserService
+	directory    *directory.Store
+	hosts        *hosts.Store
+	primaryUsers *hosts.PrimaryUserStore
+	secrets      *agentauth.Store
+	software     *inventory.Store
+	labels       *labels.Store
 
 	reports      *reports.Store
 	checks       *checks.Store
@@ -271,7 +271,7 @@ func buildWiring(
 	// Core stores.
 	w.directory = directory.NewStore(db)
 	w.hosts = hosts.NewStore(db)
-	w.userAffinities = hosts.NewUserAffinityStore(db)
+	w.primaryUsers = hosts.NewPrimaryUserStore(db)
 	w.secrets = agentauth.NewStore(db)
 	w.software = inventory.NewStore(db)
 	w.labels = labels.NewStore(db)
@@ -297,7 +297,7 @@ func buildWiring(
 
 	w.users = directory.NewUserService(w.directory)
 	w.auth = newAuth(ctx, cfg, w.users, sessions, logger)
-	w.orbitAgent = orbit.NewEnrollmentService(w.hosts, w.secrets, w.userAffinities)
+	w.orbitAgent = orbit.NewEnrollmentService(w.hosts, w.secrets, w.primaryUsers)
 
 	inventoryProjector := ingest.NewProjector(w.hosts, w.software, logger.With("component", "inventory"))
 	munkiIngestor := munki.NewDetailIngestor(w.munkiHostState)
@@ -333,7 +333,6 @@ func buildWiring(
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
 		Configurations: w.configurations,
-		UserAffinities: w.userAffinities,
 		Events:         w.events,
 		Rules:          w.rules,
 		Sync:           syncStore,
@@ -377,11 +376,11 @@ func (w *wiring) adminRegistrars() []adminapi.AdminRegistrar {
 		func(g adminapi.AdminGroups) { directory.RegisterGroupAdminRoutes(g.Ordinary, w.directory) },
 		func(g adminapi.AdminGroups) {
 			adminapi.RegisterHostAdminRoutes(g.Ordinary, adminapi.HostRoutesOptions{
-				Store:          w.hosts,
-				UserAffinities: w.userAffinities,
-				CheckStore:     w.checks,
-				MunkiState:     w.munkiHostState,
-				SantaState:     w.santaState,
+				Store:        w.hosts,
+				PrimaryUsers: w.primaryUsers,
+				CheckStore:   w.checks,
+				MunkiState:   w.munkiHostState,
+				SantaState:   w.santaState,
 			})
 		},
 		func(g adminapi.AdminGroups) { inventory.RegisterAdminRoutes(g.Ordinary, w.software) },

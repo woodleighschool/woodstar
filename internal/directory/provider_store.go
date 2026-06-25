@@ -21,7 +21,7 @@ func (s *Store) ApplyProviderSnapshot(ctx context.Context, source Source, snapsh
 		if err := applyUserSnapshot(ctx, tx, source, snapshot.Users); err != nil {
 			return err
 		}
-		return reconcileLinks(ctx, tx)
+		return nil
 	})
 }
 

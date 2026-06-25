@@ -236,7 +236,7 @@ const hostColumns: ColumnDef<Host>[] = [
     id: "primary_user",
     header: () => "User Email",
     enableSorting: false,
-    cell: ({ row }) => row.original.user_affinity.primary?.email ?? "",
+    cell: ({ row }) => row.original.primary_user?.email ?? "",
     meta: { label: "User Email" },
   },
   {

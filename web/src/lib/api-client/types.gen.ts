@@ -114,10 +114,11 @@ export type Host = {
     id: number;
     network: HostNetwork;
     os: HostOs;
+    primary_user?: HostPrimaryUser;
+    primary_user_sources: Array<HostPrimaryUserSource>;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
-    user_affinity: HostUserAffinity;
 };
 
 export type HostAgents = {
@@ -182,11 +183,12 @@ export type HostDetail = {
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
+    primary_user?: HostPrimaryUser;
+    primary_user_sources: Array<HostPrimaryUserSource>;
     santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
-    user_affinity: HostUserAffinity;
     users: Array<HostUser>;
 };
 
@@ -228,6 +230,24 @@ export type HostOsqueryAgent = {
     version: string;
 };
 
+export type HostPrimaryUser = {
+    department: string;
+    email: string;
+    groups: Array<string>;
+    name: string;
+    source: 'manual' | 'orbit_profile';
+    username: string;
+};
+
+export type HostPrimaryUserPutBody = {
+    email: string;
+};
+
+export type HostPrimaryUserSource = {
+    email: string;
+    source: 'manual' | 'orbit_profile';
+};
+
 export type HostSoftwareInstalledVersion = {
     bundle_identifier: string;
     installed_paths: Array<string>;
@@ -264,29 +284,6 @@ export type HostUser = {
     type: string;
     uid: string;
     username: string;
-};
-
-export type HostUserAffinity = {
-    mappings: Array<HostUserAffinityMapping>;
-    primary?: HostUserAffinityPrimary;
-};
-
-export type HostUserAffinityMapping = {
-    email: string;
-    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
-};
-
-export type HostUserAffinityPrimary = {
-    department: string;
-    email: string;
-    groups: Array<string>;
-    name: string;
-    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
-    username: string;
-};
-
-export type HostUserAffinityPutBody = {
-    email: string;
 };
 
 export type Label = {
@@ -1325,11 +1322,12 @@ export type HostDetailWritable = {
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
+    primary_user?: HostPrimaryUser;
+    primary_user_sources: Array<HostPrimaryUserSource>;
     santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
-    user_affinity: HostUserAffinity;
     users: Array<HostUser>;
 };
 
@@ -2103,6 +2101,96 @@ export type ListHostOsqueryReportResultsResponses = {
 
 export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
 
+export type ClearHostPrimaryUserData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/primary-user';
+};
+
+export type ClearHostPrimaryUserErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ClearHostPrimaryUserError = ClearHostPrimaryUserErrors[keyof ClearHostPrimaryUserErrors];
+
+export type ClearHostPrimaryUserResponses = {
+    /**
+     * OK
+     */
+    200: HostDetail;
+};
+
+export type ClearHostPrimaryUserResponse = ClearHostPrimaryUserResponses[keyof ClearHostPrimaryUserResponses];
+
+export type SetHostPrimaryUserData = {
+    body: HostPrimaryUserPutBody;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/primary-user';
+};
+
+export type SetHostPrimaryUserErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type SetHostPrimaryUserError = SetHostPrimaryUserErrors[keyof SetHostPrimaryUserErrors];
+
+export type SetHostPrimaryUserResponses = {
+    /**
+     * OK
+     */
+    200: HostDetail;
+};
+
+export type SetHostPrimaryUserResponse = SetHostPrimaryUserResponses[keyof SetHostPrimaryUserResponses];
+
 export type ListHostSantaRulesData = {
     body?: never;
     path: {
@@ -2195,96 +2283,6 @@ export type ListHostSoftwareResponses = {
 };
 
 export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];
-
-export type DeleteHostUserAffinityData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/user-affinity';
-};
-
-export type DeleteHostUserAffinityErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type DeleteHostUserAffinityError = DeleteHostUserAffinityErrors[keyof DeleteHostUserAffinityErrors];
-
-export type DeleteHostUserAffinityResponses = {
-    /**
-     * OK
-     */
-    200: HostDetail;
-};
-
-export type DeleteHostUserAffinityResponse = DeleteHostUserAffinityResponses[keyof DeleteHostUserAffinityResponses];
-
-export type PutHostUserAffinityData = {
-    body: HostUserAffinityPutBody;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/user-affinity';
-};
-
-export type PutHostUserAffinityErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type PutHostUserAffinityError = PutHostUserAffinityErrors[keyof PutHostUserAffinityErrors];
-
-export type PutHostUserAffinityResponses = {
-    /**
-     * OK
-     */
-    200: HostDetail;
-};
-
-export type PutHostUserAffinityResponse = PutHostUserAffinityResponses[keyof PutHostUserAffinityResponses];
 
 export type ListLabelsData = {
     body?: never;

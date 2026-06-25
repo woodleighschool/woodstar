@@ -13,15 +13,15 @@ import type {
 } from "@/lib/api";
 import {
   bulkDeleteHosts,
+  clearHostPrimaryUser,
   deleteHost,
-  deleteHostUserAffinity,
   getHost,
   listHostOsqueryChecks,
   listHostOsqueryReports,
   listHosts,
   listHostSantaRules,
   listHostSoftware,
-  putHostUserAffinity,
+  setHostPrimaryUser,
   unwrap,
 } from "@/lib/api";
 import type {
@@ -44,7 +44,7 @@ type HostChecksResult = OsqueryCheckHostStatus[];
 type HostSantaRulesResult = PageRuleStatus;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
-interface HostUserAffinityMutation {
+interface HostPrimaryUserMutation {
   email: string;
 }
 
@@ -109,24 +109,24 @@ export function useBulkDeleteHosts() {
   });
 }
 
-export function useSetHostUserAffinity() {
+export function useSetHostPrimaryUser() {
   const queryClient = useQueryClient();
-  return useMutation<HostDetail, ApiError, { id: number; body: HostUserAffinityMutation }>({
-    mutationFn: ({ id, body }) => unwrap(putHostUserAffinity({ path: { id }, body })),
+  return useMutation<HostDetail, ApiError, { id: number; body: HostPrimaryUserMutation }>({
+    mutationFn: ({ id, body }) => unwrap(setHostPrimaryUser({ path: { id }, body })),
     onSuccess: async (host) => {
-      toast.success("User affinity set");
+      toast.success("Primary user set");
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
   });
 }
 
-export function useClearHostUserAffinity() {
+export function useClearHostPrimaryUser() {
   const queryClient = useQueryClient();
   return useMutation<HostDetail, ApiError, number>({
-    mutationFn: (id) => unwrap(deleteHostUserAffinity({ path: { id } })),
+    mutationFn: (id) => unwrap(clearHostPrimaryUser({ path: { id } })),
     onSuccess: async (host) => {
-      toast.success("User affinity cleared");
+      toast.success("Primary user cleared");
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },

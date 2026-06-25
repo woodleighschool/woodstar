@@ -247,9 +247,9 @@ func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {
 	hostA := insertHost(t, db, "derived-a")
 	hostB := insertHost(t, db, "derived-b")
 	aliceID := insertUser(t, db, "alice", "alice@example.com", "Engineering")
-	bobID := insertUser(t, db, "bob", "bob@example.com", "Operations")
-	linkHostUser(t, db, hostA, aliceID)
-	linkHostUser(t, db, hostB, bobID)
+	insertUser(t, db, "bob", "bob@example.com", "Operations")
+	linkHostPrimaryUser(t, db, hostA, "alice@example.com")
+	linkHostPrimaryUser(t, db, hostB, "bob@example.com")
 	staffID := insertDirectoryGroup(t, db, "staff", "Staff")
 	linkDirectoryGroupMembership(t, db, aliceID, staffID)
 
@@ -304,7 +304,7 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 	store := NewStore(db)
 	hostID := insertHost(t, db, "derived-refresh")
 	userID := insertUser(t, db, "refresh-user", "refresh@example.com", "Engineering")
-	linkHostUser(t, db, hostID, userID)
+	linkHostPrimaryUser(t, db, hostID, "refresh@example.com")
 
 	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Refresh derived",
@@ -355,12 +355,12 @@ RETURNING id`, email, externalID, dbutil.NullString(department)).Scan(&id); err 
 	return id
 }
 
-func linkHostUser(t *testing.T, db *database.DB, hostID int64, userID int64) {
+func linkHostPrimaryUser(t *testing.T, db *database.DB, hostID int64, email string) {
 	t.Helper()
 	if _, err := db.Pool().Exec(context.Background(), `
-INSERT INTO host_user_links (host_id, user_id, source)
-VALUES ($1, $2, 'manual')`, hostID, userID); err != nil {
-		t.Fatalf("link host user: %v", err)
+INSERT INTO host_primary_user_sources (host_id, email, source)
+VALUES ($1, $2, 'manual')`, hostID, email); err != nil {
+		t.Fatalf("link host primary user: %v", err)
 	}
 }
 

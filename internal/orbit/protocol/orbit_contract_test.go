@@ -21,7 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
-func TestOrbitHTTPEnrollConfigAndUserAffinity(t *testing.T) {
+func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	stores := newOrbitContractStores(database)
 	router := newOrbitContractRouter(stores)
@@ -81,8 +81,8 @@ func TestOrbitHTTPEnrollConfigAndUserAffinity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load host detail: %v", err)
 	}
-	if !hasUserAffinityMapping(detail.UserAffinity.Mappings, userEmail) {
-		t.Fatalf("user affinity mapping %q not found: %#v", userEmail, detail.UserAffinity.Mappings)
+	if !hasPrimaryUserSource(detail.PrimaryUserSources, userEmail) {
+		t.Fatalf("primary user source %q not found: %#v", userEmail, detail.PrimaryUserSources)
 	}
 }
 
@@ -98,16 +98,16 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 }
 
 type orbitContractStores struct {
-	hosts          *hosts.Store
-	userAffinities *hosts.UserAffinityStore
-	agentSecrets   *agentauth.Store
+	hosts        *hosts.Store
+	primaryUsers *hosts.PrimaryUserStore
+	agentSecrets *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
-		hosts:          hosts.NewStore(database),
-		userAffinities: hosts.NewUserAffinityStore(database),
-		agentSecrets:   agentauth.NewStore(database),
+		hosts:        hosts.NewStore(database),
+		primaryUsers: hosts.NewPrimaryUserStore(database),
+		agentSecrets: agentauth.NewStore(database),
 	}
 }
 
@@ -115,15 +115,15 @@ func newOrbitContractRouter(stores orbitContractStores) http.Handler {
 	router := chi.NewRouter()
 	RegisterOrbitRoutes(
 		router,
-		orbit.NewEnrollmentService(stores.hosts, stores.agentSecrets, stores.userAffinities),
+		orbit.NewEnrollmentService(stores.hosts, stores.agentSecrets, stores.primaryUsers),
 		slog.New(slog.DiscardHandler),
 	)
 	return router
 }
 
-func hasUserAffinityMapping(mappings []hosts.HostUserAffinityMapping, email string) bool {
-	for _, mapping := range mappings {
-		if mapping.Email == email && mapping.Source == hosts.UserAffinitySourceOrbitProfile {
+func hasPrimaryUserSource(sources []hosts.HostPrimaryUserSource, email string) bool {
+	for _, source := range sources {
+		if source.Email == email && source.Source == hosts.PrimaryUserSourceOrbitProfile {
 			return true
 		}
 	}

@@ -231,14 +231,18 @@ components:
           $ref: "#/components/schemas/HostNetwork"
         os:
           $ref: "#/components/schemas/HostOS"
+        primary_user:
+          $ref: "#/components/schemas/HostPrimaryUser"
+        primary_user_sources:
+          items:
+            $ref: "#/components/schemas/HostPrimaryUserSource"
+          type: array
         status:
           type: string
         storage:
           $ref: "#/components/schemas/HostStorage"
         timestamps:
           $ref: "#/components/schemas/HostTimestamps"
-        user_affinity:
-          $ref: "#/components/schemas/HostUserAffinity"
       required:
         - id
         - display_name
@@ -251,7 +255,7 @@ components:
         - storage
         - network
         - agents
-        - user_affinity
+        - primary_user_sources
         - timestamps
       type: object
     HostAgents:
@@ -416,6 +420,12 @@ components:
           $ref: "#/components/schemas/HostNetwork"
         os:
           $ref: "#/components/schemas/HostOS"
+        primary_user:
+          $ref: "#/components/schemas/HostPrimaryUser"
+        primary_user_sources:
+          items:
+            $ref: "#/components/schemas/HostPrimaryUserSource"
+          type: array
         santa:
           $ref: "#/components/schemas/SantaHostState"
         status:
@@ -424,8 +434,6 @@ components:
           $ref: "#/components/schemas/HostStorage"
         timestamps:
           $ref: "#/components/schemas/HostTimestamps"
-        user_affinity:
-          $ref: "#/components/schemas/HostUserAffinity"
         users:
           items:
             $ref: "#/components/schemas/HostUser"
@@ -446,7 +454,7 @@ components:
         - storage
         - network
         - agents
-        - user_affinity
+        - primary_user_sources
         - timestamps
       type: object
     HostEnrollment:
@@ -539,6 +547,58 @@ components:
           type: string
       required:
         - version
+      type: object
+    HostPrimaryUser:
+      additionalProperties: false
+      properties:
+        department:
+          type: string
+        email:
+          type: string
+        groups:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        source:
+          enum:
+            - manual
+            - orbit_profile
+          type: string
+        username:
+          type: string
+      required:
+        - email
+        - username
+        - name
+        - department
+        - groups
+        - source
+      type: object
+    HostPrimaryUserPutBody:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          minLength: 3
+          type: string
+      required:
+        - email
+      type: object
+    HostPrimaryUserSource:
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+        source:
+          enum:
+            - manual
+            - orbit_profile
+          type: string
+      required:
+        - email
+        - source
       type: object
     HostSoftwareInstalledVersion:
       additionalProperties: false
@@ -642,72 +702,6 @@ components:
         - description
         - directory
         - shell
-      type: object
-    HostUserAffinity:
-      additionalProperties: false
-      properties:
-        mappings:
-          items:
-            $ref: "#/components/schemas/HostUserAffinityMapping"
-          type: array
-        primary:
-          $ref: "#/components/schemas/HostUserAffinityPrimary"
-      required:
-        - mappings
-      type: object
-    HostUserAffinityMapping:
-      additionalProperties: false
-      properties:
-        email:
-          type: string
-        source:
-          enum:
-            - manual
-            - orbit_profile
-            - santa_primary_user
-          type: string
-      required:
-        - email
-        - source
-      type: object
-    HostUserAffinityPrimary:
-      additionalProperties: false
-      properties:
-        department:
-          type: string
-        email:
-          type: string
-        groups:
-          items:
-            type: string
-          type: array
-        name:
-          type: string
-        source:
-          enum:
-            - manual
-            - orbit_profile
-            - santa_primary_user
-          type: string
-        username:
-          type: string
-      required:
-        - email
-        - username
-        - name
-        - department
-        - groups
-        - source
-      type: object
-    HostUserAffinityPutBody:
-      additionalProperties: false
-      properties:
-        email:
-          format: email
-          minLength: 3
-          type: string
-      required:
-        - email
       type: object
     Label:
       additionalProperties: false
@@ -4581,6 +4575,117 @@ paths:
       tags:
         - Reports
         - Hosts
+  /api/hosts/{id}/primary-user:
+    delete:
+      operationId: clear-host-primary-user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostDetail"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Clear the host primary user
+      tags:
+        - Hosts
+    put:
+      operationId: set-host-primary-user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostPrimaryUserPutBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostDetail"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Set the host primary user
+      tags:
+        - Hosts
   /api/hosts/{id}/santa/rules:
     get:
       operationId: list-host-santa-rules
@@ -4730,117 +4835,6 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: List software installed on a host
-      tags:
-        - Hosts
-  /api/hosts/{id}/user-affinity:
-    delete:
-      operationId: delete-host-user-affinity
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostDetail"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Clear the host user affinity
-      tags:
-        - Hosts
-    put:
-      operationId: put-host-user-affinity
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HostUserAffinityPutBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostDetail"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Set the host user affinity
       tags:
         - Hosts
   /api/labels:

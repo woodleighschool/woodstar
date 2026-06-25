@@ -192,7 +192,10 @@ func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
 	}
 	if itemsToRemove[1]["destination_path"] != "/Applications/Utilities" ||
 		itemsToRemove[1]["source_item"] != "Nested/Tool.app" {
-		t.Fatalf("items_to_remove = %#v, want source_item fallback when destination_item is absent", got["items_to_remove"])
+		t.Fatalf(
+			"items_to_remove = %#v, want source_item fallback when destination_item is absent",
+			got["items_to_remove"],
+		)
 	}
 	if _, ok := itemsToRemove[1]["destination_item"]; ok {
 		t.Fatalf("items_to_remove rendered empty destination_item: %#v", itemsToRemove[1])

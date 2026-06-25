@@ -26,11 +26,11 @@ type HostDetail struct {
 }
 
 type HostRoutesOptions struct {
-	Store          *hosts.Store
-	UserAffinities *hosts.UserAffinityStore
-	CheckStore     *checks.Store
-	MunkiState     munkiHostStateLoader
-	SantaState     santaHostStateLoader
+	Store        *hosts.Store
+	PrimaryUsers *hosts.PrimaryUserStore
+	CheckStore   *checks.Store
+	MunkiState   munkiHostStateLoader
+	SantaState   santaHostStateLoader
 }
 
 type hostDetailOutput struct {
@@ -41,13 +41,13 @@ type hostGetInput struct {
 	ID int64 `path:"id"`
 }
 
-type hostUserAffinityPutBody struct {
+type hostPrimaryUserPutBody struct {
 	Email string `json:"email" format:"email" minLength:"3"`
 }
 
-type hostUserAffinityPutInput struct {
+type hostPrimaryUserPutInput struct {
 	ID   int64 `path:"id"`
-	Body hostUserAffinityPutBody
+	Body hostPrimaryUserPutBody
 }
 
 // RegisterHostAdminRoutes registers the host routes whose response is composed
@@ -58,8 +58,8 @@ func RegisterHostAdminRoutes(api huma.API, opts HostRoutesOptions) {
 		CheckFilter: hostCheckStatusFilter(opts.CheckStore),
 	})
 	registerGetHost(api, opts)
-	registerPutHostUserAffinity(api, opts)
-	registerDeleteHostUserAffinity(api, opts)
+	registerSetHostPrimaryUser(api, opts)
+	registerClearHostPrimaryUser(api, opts)
 }
 
 func hostCheckStatusFilter(checkStore *checks.Store) hosts.CheckStatusFilter {
@@ -130,20 +130,20 @@ func registerGetHost(api huma.API, opts HostRoutesOptions) {
 	})
 }
 
-func registerPutHostUserAffinity(api huma.API, opts HostRoutesOptions) {
+func registerSetHostPrimaryUser(api huma.API, opts HostRoutesOptions) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-host-user-affinity",
+		OperationID: "set-host-primary-user",
 		Method:      http.MethodPut,
-		Path:        "/api/hosts/{id}/user-affinity",
+		Path:        "/api/hosts/{id}/primary-user",
 		Tags:        []string{hostsTag},
-		Summary:     "Set the host user affinity",
+		Summary:     "Set the host primary user",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusForbidden,
 			http.StatusNotFound,
 		},
-	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput, error) {
+	}, func(ctx context.Context, input *hostPrimaryUserPutInput) (*hostDetailOutput, error) {
 		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
@@ -153,7 +153,7 @@ func registerPutHostUserAffinity(api huma.API, opts HostRoutesOptions) {
 		if email == "" {
 			return nil, huma.Error400BadRequest("email is required")
 		}
-		if err := opts.UserAffinities.Upsert(ctx, input.ID, email, hosts.UserAffinitySourceManual); err != nil {
+		if err := opts.PrimaryUsers.Upsert(ctx, input.ID, email, hosts.PrimaryUserSourceManual); err != nil {
 			return nil, err
 		}
 		body, err := loadHostDetailBody(ctx, opts, input.ID)
@@ -164,13 +164,13 @@ func registerPutHostUserAffinity(api huma.API, opts HostRoutesOptions) {
 	})
 }
 
-func registerDeleteHostUserAffinity(api huma.API, opts HostRoutesOptions) {
+func registerClearHostPrimaryUser(api huma.API, opts HostRoutesOptions) {
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-host-user-affinity",
+		OperationID: "clear-host-primary-user",
 		Method:      http.MethodDelete,
-		Path:        "/api/hosts/{id}/user-affinity",
+		Path:        "/api/hosts/{id}/primary-user",
 		Tags:        []string{hostsTag},
-		Summary:     "Clear the host user affinity",
+		Summary:     "Clear the host primary user",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
@@ -178,7 +178,7 @@ func registerDeleteHostUserAffinity(api huma.API, opts HostRoutesOptions) {
 		} else if err != nil {
 			return nil, err
 		}
-		if err := opts.UserAffinities.Delete(ctx, input.ID, hosts.UserAffinitySourceManual); err != nil {
+		if err := opts.PrimaryUsers.Delete(ctx, input.ID, hosts.PrimaryUserSourceManual); err != nil {
 			return nil, err
 		}
 		body, err := loadHostDetailBody(ctx, opts, input.ID)

@@ -447,28 +447,62 @@ SET
 WHERE id = @id AND label_type = 'regular'
 RETURNING id`
 
-const insertUserDepartmentMembershipSQL = `
+const primaryUserSourceOrderSQL = `CASE source
+	WHEN 'manual' THEN 0
+	WHEN 'orbit_profile' THEN 1
+	ELSE 10
+END`
+
+const resolvedPrimaryUsersSQL = `
+WITH preferred AS (
+	SELECT DISTINCT ON (host_id)
+		host_id,
+		email,
+		source::text AS source
+	FROM host_primary_user_sources
+	ORDER BY host_id, ` + primaryUserSourceOrderSQL + `, source
+),
+resolved AS (
+	SELECT
+		p.host_id,
+		u.id AS user_id,
+		COALESCE(u.department, '') AS department
+	FROM preferred p
+	JOIN LATERAL (
+		SELECT u.id, u.department
+		FROM users u
+		WHERE u.deleted_at IS NULL
+		  AND (
+			lower(u.email) = lower(p.email)
+			OR (
+				u.user_principal_name IS NOT NULL
+				AND lower(u.user_principal_name) = lower(p.email)
+			)
+		  )
+		ORDER BY CASE WHEN lower(u.email) = lower(p.email) THEN 0 ELSE 1 END, u.id
+		LIMIT 1
+	) u ON true
+)`
+
+const insertUserDepartmentMembershipSQL = resolvedPrimaryUsersSQL + `
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hul.host_id
-FROM host_user_links hul
-JOIN users u ON u.id = hul.user_id
-WHERE u.deleted_at IS NULL AND u.department = ANY($2::text[])
+SELECT DISTINCT $1::bigint, resolved.host_id
+FROM resolved
+WHERE resolved.department = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
 
-const insertDirectoryGroupMembershipSQL = `
+const insertDirectoryGroupMembershipSQL = resolvedPrimaryUsersSQL + `
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hul.host_id
-FROM host_user_links hul
-JOIN users u ON u.id = hul.user_id
-JOIN directory_group_memberships dgm ON dgm.user_id = u.id
+SELECT DISTINCT $1::bigint, resolved.host_id
+FROM resolved
+JOIN directory_group_memberships dgm ON dgm.user_id = resolved.user_id
 JOIN directory_groups dg ON dg.id = dgm.group_id
-WHERE u.deleted_at IS NULL AND dg.external_id = ANY($2::text[])
+WHERE dg.external_id = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
 
-const insertUserMembershipSQL = `
+const insertUserMembershipSQL = resolvedPrimaryUsersSQL + `
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hul.host_id
-FROM host_user_links hul
-JOIN users u ON u.id = hul.user_id
-WHERE u.deleted_at IS NULL AND u.id::text = ANY($2::text[])
+SELECT DISTINCT $1::bigint, resolved.host_id
+FROM resolved
+WHERE resolved.user_id::text = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`

@@ -103,7 +103,7 @@ func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger
 			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		if err := svc.SetUserAffinity(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
+		if err := svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
 			logger.WarnContext(
 				r.Context(),
 				"orbit device mapping rejected", "operation", "device_mapping",

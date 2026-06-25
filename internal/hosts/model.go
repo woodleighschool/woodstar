@@ -55,19 +55,20 @@ const (
 
 // Host is an enrolled Mac. Used for list rows and as the base of HostDetail.
 type Host struct {
-	ID           int64            `json:"id"`
-	DisplayName  string           `json:"display_name"`
-	Status       HostStatus       `json:"status"`
-	Hostname     string           `json:"hostname"`
-	ComputerName string           `json:"computer_name"`
-	Enrollment   HostEnrollment   `json:"enrollment"`
-	Hardware     HostHardware     `json:"hardware"`
-	OS           HostOS           `json:"os"`
-	Storage      HostStorage      `json:"storage"`
-	Network      HostNetwork      `json:"network"`
-	Agents       HostAgents       `json:"agents"`
-	UserAffinity HostUserAffinity `json:"user_affinity"`
-	Timestamps   HostTimestamps   `json:"timestamps"`
+	ID                 int64                   `json:"id"`
+	DisplayName        string                  `json:"display_name"`
+	Status             HostStatus              `json:"status"`
+	Hostname           string                  `json:"hostname"`
+	ComputerName       string                  `json:"computer_name"`
+	Enrollment         HostEnrollment          `json:"enrollment"`
+	Hardware           HostHardware            `json:"hardware"`
+	OS                 HostOS                  `json:"os"`
+	Storage            HostStorage             `json:"storage"`
+	Network            HostNetwork             `json:"network"`
+	Agents             HostAgents              `json:"agents"`
+	PrimaryUser        *HostPrimaryUser        `json:"primary_user,omitempty"`
+	PrimaryUserSources []HostPrimaryUserSource `json:"primary_user_sources"`
+	Timestamps         HostTimestamps          `json:"timestamps"`
 
 	OrbitNodeKey       string `json:"-"`
 	OsqueryNodeKey     string `json:"-"`
@@ -152,19 +153,13 @@ type HostDetail struct {
 	Certificates []HostCertificate `json:"certificates"`
 }
 
-// HostUserAffinity is Woodstar's resolved user affinity plus raw mappings.
-type HostUserAffinity struct {
-	Primary  *HostUserAffinityPrimary  `json:"primary,omitempty"`
-	Mappings []HostUserAffinityMapping `json:"mappings"`
-}
-
-type HostUserAffinityPrimary struct {
-	Email      string             `json:"email"`
-	Username   string             `json:"username"`
-	Name       string             `json:"name"`
-	Department string             `json:"department"`
-	Groups     []string           `json:"groups"`
-	Source     UserAffinitySource `json:"source"`
+type HostPrimaryUser struct {
+	Email      string            `json:"email"`
+	Username   string            `json:"username"`
+	Name       string            `json:"name"`
+	Department string            `json:"department"`
+	Groups     []string          `json:"groups"`
+	Source     PrimaryUserSource `json:"source"`
 }
 
 // HostUser is one local account reported by osquery.
@@ -230,12 +225,12 @@ type CertificateName struct {
 	CommonName         string `json:"common_name"`
 }
 
-// HostUserAffinityMapping is a user association observed for a host.
-type HostUserAffinityMapping struct {
-	ID        int64              `json:"-"`
-	HostID    int64              `json:"-"`
-	Email     string             `json:"email"`
-	Source    UserAffinitySource `json:"source"`
-	CreatedAt time.Time          `json:"-"`
-	UpdatedAt time.Time          `json:"-"`
+// HostPrimaryUserSource is a primary-user observation or manual override for a host.
+type HostPrimaryUserSource struct {
+	ID        int64             `json:"-"`
+	HostID    int64             `json:"-"`
+	Email     string            `json:"email"`
+	Source    PrimaryUserSource `json:"source"`
+	CreatedAt time.Time         `json:"-"`
+	UpdatedAt time.Time         `json:"-"`
 }
