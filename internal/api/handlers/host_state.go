@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -27,6 +28,7 @@ func registerHostState[T any](
 	missingMessage string,
 	hostStore *hosts.Store,
 	load func(context.Context, int64) (*T, error),
+	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: operationID,
@@ -39,11 +41,11 @@ func registerHostState[T any](
 		if _, err := hostStore.GetByID(ctx, input.HostID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, operationID, err, "host_id", input.HostID)
 		}
 		state, err := load(ctx, input.HostID)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, operationID, err, "host_id", input.HostID)
 		}
 		if state == nil {
 			return nil, huma.Error404NotFound(missingMessage)

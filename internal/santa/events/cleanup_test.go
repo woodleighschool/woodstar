@@ -2,6 +2,7 @@ package events_test
 
 import (
 	"context"
+	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 // still be running while the rest of shutdown advances.
 func TestCleanupStopWaitsForInFlightSweep(t *testing.T) {
 	store := &observingStore{started: make(chan struct{})}
-	cleanup := events.StartCleanup(t.Context(), store, 1, time.Hour, nil)
+	cleanup := events.StartCleanup(t.Context(), store, 1, time.Hour, slog.New(slog.DiscardHandler))
 
 	select {
 	case <-store.started:

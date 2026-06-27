@@ -38,7 +38,7 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 		fetchedAt := parseCalendarTime(item.CalendarTime)
 		if err := s.reportStore.OverwriteResults(ctx, reportID, hostID, item.Snapshot, fetchedAt); err != nil {
 			if errors.Is(err, reports.ErrSnapshotTooLarge) {
-				s.logger.WarnContext(ctx, "snapshot dropped", "report_id", reportID, "host_id", hostID, "error", err)
+				s.logger.WarnContext(ctx, "snapshot dropped", "report_id", reportID, "host_id", hostID, "err", err)
 				continue
 			}
 			return err

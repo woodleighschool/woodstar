@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -127,7 +128,7 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 }
 
 func TestIngestDetailDispatchesRegisteredHandler(t *testing.T) {
-	projector := NewProjector(nil, nil, nil)
+	projector := NewProjector(nil, nil, slog.New(slog.DiscardHandler))
 
 	var (
 		gotHostID int64

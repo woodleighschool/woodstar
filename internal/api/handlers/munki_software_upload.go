@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -34,6 +35,19 @@ func registerIconRoutes(
 	software *munkisoftware.Store,
 	objects *storage.ObjectStore,
 	presigner storage.Presigner,
+	logger *slog.Logger,
+) {
+	registerCreateSoftwareIconRoute(api, software, objects, presigner, logger)
+	registerConfirmSoftwareIconRoute(api, software, objects, presigner, logger)
+	registerListMunkiIconsRoute(api, objects, presigner, logger)
+}
+
+func registerCreateSoftwareIconRoute(
+	api huma.API,
+	software *munkisoftware.Store,
+	objects *storage.ObjectStore,
+	presigner storage.Presigner,
+	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software-icon-upload",
@@ -49,7 +63,15 @@ func registerIconRoutes(
 		},
 	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
 		if _, err := software.GetByID(ctx, input.SoftwareID); err != nil {
-			return nil, ResourceMutationError(munkiupload.Label, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"create-munki-software-icon-upload",
+				munkiupload.Label,
+				err,
+				"software_id",
+				input.SoftwareID,
+			)
 		}
 		obj, target, err := munkiupload.Create(
 			ctx,
@@ -60,11 +82,27 @@ func registerIconRoutes(
 			input.Body.ContentType,
 		)
 		if err != nil {
-			return nil, ResourceMutationError(munkiupload.Label, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"create-munki-software-icon-upload",
+				munkiupload.Label,
+				err,
+				"software_id",
+				input.SoftwareID,
+			)
 		}
 		return munkiUploadOutputFromTarget(obj, target), nil
 	})
+}
 
+func registerConfirmSoftwareIconRoute(
+	api huma.API,
+	software *munkisoftware.Store,
+	objects *storage.ObjectStore,
+	presigner storage.Presigner,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "confirm-munki-software-icon-upload",
 		Method:        http.MethodPost,
@@ -88,15 +126,38 @@ func registerIconRoutes(
 			},
 		)
 		if err != nil {
-			return nil, ResourceMutationError(munkiupload.Label, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"confirm-munki-software-icon-upload",
+				munkiupload.Label,
+				err,
+				"software_id", input.SoftwareID,
+				"object_id", input.ObjectID,
+			)
 		}
 		view, err := munkiObjectViewWithContentURL(ctx, presigner, *obj)
 		if err != nil {
-			return nil, ResourceMutationError(munkiupload.Label, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"confirm-munki-software-icon-upload",
+				munkiupload.Label,
+				err,
+				"software_id", input.SoftwareID,
+				"object_id", input.ObjectID,
+			)
 		}
 		return &munkiObjectOutput{Body: view}, nil
 	})
+}
 
+func registerListMunkiIconsRoute(
+	api huma.API,
+	objects *storage.ObjectStore,
+	presigner storage.Presigner,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-icons",
 		Method:      http.MethodGet,
@@ -107,13 +168,13 @@ func registerIconRoutes(
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
 		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.Params())
 		if err != nil {
-			return nil, ResourceMutationError("Munki icon", err)
+			return nil, resourceError(ctx, logger, "list-munki-icons", "Munki icon", err)
 		}
 		views := make([]MunkiObjectView, len(rows))
 		for i, row := range rows {
 			view, err := munkiObjectViewWithContentURL(ctx, presigner, row)
 			if err != nil {
-				return nil, ResourceMutationError("Munki icon", err)
+				return nil, resourceError(ctx, logger, "list-munki-icons", "Munki icon", err, "object_id", row.ID)
 			}
 			views[i] = view
 		}

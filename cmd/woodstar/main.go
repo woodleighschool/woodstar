@@ -114,7 +114,7 @@ func runMDP(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("load mdp config: %w", err)
 	}
-	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	logger := logging.New(os.Stderr, logging.ParseLevel(cfg.LogLevel))
 	mdp, err := worker.New(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("init mdp worker: %w", err)
@@ -130,7 +130,7 @@ func serve(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	logger := logging.New(os.Stderr, logging.ParseLevel(cfg.LogLevel))
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -160,12 +160,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	stopJobs := start(ctx, wiring.starters()...)
 	defer stopJobs()
 
-	if err := runHTTPServer(ctx, server, listener); err != nil {
-		return err
-	}
-
-	logger.InfoContext(context.Background(), "server stopped")
-	return nil
+	return runHTTPServer(ctx, server, listener)
 }
 
 func runHTTPServer(
@@ -317,7 +312,7 @@ func buildWiring(
 		Objects:  w.storageObjects,
 	})
 	munkiPresence := mdp.NewPresence()
-	munkiDistributionLogger := logger.With("component", "munki-distribution")
+	munkiDistributionLogger := logger.With("component", "munki_distribution")
 	w.munkiDistribution = mdp.NewStore(db, munkiPresence, munkiDistributionLogger)
 	w.munkiDistributionHub = mdp.NewHub(
 		w.munkiDistribution,
@@ -404,6 +399,7 @@ func newAuth(
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
 ) *auth.Service {
+	logger = logger.With("component", "auth")
 	service := auth.NewService(users, sessions)
 	if !cfg.OIDCEnabled() {
 		return service
@@ -419,15 +415,14 @@ func newAuth(
 	})
 	if err != nil {
 		logger.WarnContext(ctx, "sso disabled",
-			"component", "auth",
-			"operation", "oidc-discovery",
+			"operation", "oidc_discovery",
 			"err", err,
 		)
 		return service
 	}
 
 	logger.InfoContext(ctx, "sso enabled",
-		"component", "auth",
+		"operation", "oidc_discovery",
 		"issuer", cfg.OIDCIssuerURL,
 	)
 

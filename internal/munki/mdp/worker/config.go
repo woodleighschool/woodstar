@@ -20,6 +20,7 @@ type Config struct {
 	DataDir             string `env:"DATA_DIR,required,notEmpty"`
 	ListenAddr          string `env:"LISTEN_ADDR"                  envDefault:":8080"`
 	LogLevel            string `env:"LOG_LEVEL"                    envDefault:"info"`
+	LogFormat           string `env:"LOG_FORMAT"                   envDefault:"text"`
 	DownloadConcurrency int    `env:"DOWNLOAD_CONCURRENCY"         envDefault:"4"`
 }
 

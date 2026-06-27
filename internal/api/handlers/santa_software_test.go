@@ -20,7 +20,7 @@ func TestSoftwareSantaReferenceEndpoint(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerSoftwareSantaReference(api, references.NewStore(db))
+	registerSoftwareSantaReference(api, references.NewStore(db), discardLogger())
 
 	var titleID int64
 	if err := db.Pool().QueryRow(ctx, `

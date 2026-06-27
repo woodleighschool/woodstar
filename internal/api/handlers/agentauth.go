@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -39,13 +40,13 @@ type agentSecretDeleteInput struct {
 }
 
 func registerAgentAuth(g Groups, deps Dependencies) {
-	registerListAgentSecrets(g.Sensitive, deps.Secrets)
-	registerCreateAgentSecret(g.Sensitive, deps.Secrets)
-	registerUpdateAgentSecret(g.Sensitive, deps.Secrets)
-	registerDeleteAgentSecret(g.Sensitive, deps.Secrets)
+	registerListAgentSecrets(g.Sensitive, deps.Secrets, deps.Logger)
+	registerCreateAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
+	registerUpdateAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
+	registerDeleteAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
 }
 
-func registerListAgentSecrets(api huma.API, store *agentauth.Store) {
+func registerListAgentSecrets(api huma.API, store *agentauth.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-agent-secrets",
 		Method:      http.MethodGet,
@@ -56,13 +57,13 @@ func registerListAgentSecrets(api huma.API, store *agentauth.Store) {
 	}, func(ctx context.Context, _ *struct{}) (*agentSecretListOutput, error) {
 		secrets, err := store.List(ctx)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "list-agent-secrets", err)
 		}
 		return &agentSecretListOutput{Body: secrets}, nil
 	})
 }
 
-func registerCreateAgentSecret(api huma.API, store *agentauth.Store) {
+func registerCreateAgentSecret(api huma.API, store *agentauth.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-agent-secret",
 		Method:        http.MethodPost,
@@ -80,13 +81,13 @@ func registerCreateAgentSecret(api huma.API, store *agentauth.Store) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "create-agent-secret", err, "agent", input.Body.Agent)
 		}
 		return &agentSecretCreateOutput{Body: *secret}, nil
 	})
 }
 
-func registerUpdateAgentSecret(api huma.API, store *agentauth.Store) {
+func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-agent-secret",
 		Method:      http.MethodPut,
@@ -108,13 +109,19 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		}
 		if err != nil {
-			return nil, err
+			return nil, handlerError(
+				ctx,
+				logger,
+				"update-agent-secret",
+				err,
+				"agent_secret_id", input.AgentSecretID,
+			)
 		}
 		return &agentSecretCreateOutput{Body: *secret}, nil
 	})
 }
 
-func registerDeleteAgentSecret(api huma.API, store *agentauth.Store) {
+func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-agent-secret",
 		Method:      http.MethodDelete,
@@ -126,7 +133,13 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store) {
 		if err := store.Delete(ctx, input.AgentSecretID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		} else if err != nil {
-			return nil, err
+			return nil, handlerError(
+				ctx,
+				logger,
+				"delete-agent-secret",
+				err,
+				"agent_secret_id", input.AgentSecretID,
+			)
 		}
 		return &struct{}{}, nil
 	})

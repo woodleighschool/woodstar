@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -62,14 +63,14 @@ type userDeleteInput struct {
 }
 
 func registerDirectory(g Groups, deps Dependencies) {
-	registerListUsers(g.Ordinary, deps.Users)
-	registerListUserDepartments(g.Ordinary, deps.Users)
-	registerCreateUser(g.Ordinary, deps.Users)
-	registerGetUser(g.Ordinary, deps.Users)
-	registerPutUser(g.Ordinary, deps.Users)
-	registerDeleteUser(g.Ordinary, deps.Users)
-	registerListGroups(g.Ordinary, deps.Directory)
-	registerGetGroup(g.Ordinary, deps.Directory)
+	registerListUsers(g.Ordinary, deps.Users, deps.Logger)
+	registerListUserDepartments(g.Ordinary, deps.Users, deps.Logger)
+	registerCreateUser(g.Ordinary, deps.Users, deps.Logger)
+	registerGetUser(g.Ordinary, deps.Users, deps.Logger)
+	registerPutUser(g.Ordinary, deps.Users, deps.Logger)
+	registerDeleteUser(g.Ordinary, deps.Users, deps.Logger)
+	registerListGroups(g.Ordinary, deps.Directory, deps.Logger)
+	registerGetGroup(g.Ordinary, deps.Directory, deps.Logger)
 }
 
 func (i userListInput) params() directory.UserListParams {
@@ -89,7 +90,7 @@ func (i departmentListInput) params() directory.UserListParams {
 	}
 }
 
-func registerListUsers(api huma.API, userService *directory.UserService) {
+func registerListUsers(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,
@@ -100,13 +101,13 @@ func registerListUsers(api huma.API, userService *directory.UserService) {
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(userResource, err)
+			return nil, resourceError(ctx, logger, "list-users", userResource, err)
 		}
 		return &userListOutput{Body: Page[directory.User]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
-func registerListUserDepartments(api huma.API, userService *directory.UserService) {
+func registerListUserDepartments(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-user-departments",
 		Method:      http.MethodGet,
@@ -117,13 +118,13 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError("department", err)
+			return nil, resourceError(ctx, logger, "list-user-departments", "department", err)
 		}
 		return &departmentListOutput{Body: Page[directory.Department]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
-func registerCreateUser(api huma.API, userService *directory.UserService) {
+func registerCreateUser(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-user",
 		Method:        http.MethodPost,
@@ -140,13 +141,13 @@ func registerCreateUser(api huma.API, userService *directory.UserService) {
 	}, func(ctx context.Context, input *userCreateInput) (*userOutput, error) {
 		user, err := userService.Create(ctx, input.Body)
 		if err != nil {
-			return nil, userMutationError(err)
+			return nil, handlerError(ctx, logger, "create-user", userMutationError(err))
 		}
 		return &userOutput{Body: *user}, nil
 	})
 }
 
-func registerGetUser(api huma.API, userService *directory.UserService) {
+func registerGetUser(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-user",
 		Method:      http.MethodGet,
@@ -157,13 +158,13 @@ func registerGetUser(api huma.API, userService *directory.UserService) {
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
 		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
-			return nil, userMutationError(err)
+			return nil, handlerError(ctx, logger, "get-user", userMutationError(err), "user_id", input.ID)
 		}
 		return &userOutput{Body: *user}, nil
 	})
 }
 
-func registerPutUser(api huma.API, userService *directory.UserService) {
+func registerPutUser(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-user",
 		Method:      http.MethodPut,
@@ -180,13 +181,13 @@ func registerPutUser(api huma.API, userService *directory.UserService) {
 	}, func(ctx context.Context, input *userPutInput) (*userOutput, error) {
 		user, err := userService.Update(ctx, input.ID, input.Body)
 		if err != nil {
-			return nil, userMutationError(err)
+			return nil, handlerError(ctx, logger, "update-user", userMutationError(err), "user_id", input.ID)
 		}
 		return &userOutput{Body: *user}, nil
 	})
 }
 
-func registerDeleteUser(api huma.API, userService *directory.UserService) {
+func registerDeleteUser(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-user",
 		Method:      http.MethodDelete,
@@ -201,7 +202,7 @@ func registerDeleteUser(api huma.API, userService *directory.UserService) {
 		},
 	}, func(ctx context.Context, input *userDeleteInput) (*struct{}, error) {
 		if err := userService.Delete(ctx, input.ID); err != nil {
-			return nil, userMutationError(err)
+			return nil, handlerError(ctx, logger, "delete-user", userMutationError(err), "user_id", input.ID)
 		}
 		return &struct{}{}, nil
 	})

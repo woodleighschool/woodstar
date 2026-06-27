@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -13,7 +14,12 @@ type hostMunkiStateLoader interface {
 	LoadHostState(context.Context, int64) (*munki.HostState, error)
 }
 
-func registerHostMunkiState(api huma.API, store hostMunkiStateLoader, hostStore *hosts.Store) {
+func registerHostMunkiState(
+	api huma.API,
+	store hostMunkiStateLoader,
+	hostStore *hosts.Store,
+	logger *slog.Logger,
+) {
 	registerHostState(
 		api,
 		"get-host-munki-state",
@@ -22,5 +28,6 @@ func registerHostMunkiState(api huma.API, store hostMunkiStateLoader, hostStore 
 		"munki state not found",
 		hostStore,
 		store.LoadHostState,
+		logger,
 	)
 }

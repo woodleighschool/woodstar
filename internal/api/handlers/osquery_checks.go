@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -58,17 +59,17 @@ type checkResultsOutput struct {
 	Body []checks.CheckHostStatus
 }
 
-func registerOsqueryChecks(api huma.API, checkStore *checks.Store) {
-	registerListChecks(api, checkStore)
-	registerCreateCheck(api, checkStore)
-	registerGetCheck(api, checkStore)
-	registerUpdateCheck(api, checkStore)
-	registerDeleteCheck(api, checkStore)
-	registerBulkDeleteChecks(api, checkStore)
-	registerCheckResults(api, checkStore)
+func registerOsqueryChecks(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
+	registerListChecks(api, checkStore, logger)
+	registerCreateCheck(api, checkStore, logger)
+	registerGetCheck(api, checkStore, logger)
+	registerUpdateCheck(api, checkStore, logger)
+	registerDeleteCheck(api, checkStore, logger)
+	registerBulkDeleteChecks(api, checkStore, logger)
+	registerCheckResults(api, checkStore, logger)
 }
 
-func registerListChecks(api huma.API, checkStore *checks.Store) {
+func registerListChecks(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-checks",
 		Method:      http.MethodGet,
@@ -79,13 +80,13 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
 		items, count, err := checkStore.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(checkResource, err)
+			return nil, resourceError(ctx, logger, "list-osquery-checks", checkResource, err)
 		}
 		return &checkListOutput{Body: Page[checks.Check]{Items: items, Count: int32(count)}}, nil
 	})
 }
 
-func registerCreateCheck(api huma.API, checkStore *checks.Store) {
+func registerCreateCheck(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-osquery-check",
 		Method:        http.MethodPost,
@@ -100,13 +101,13 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
 		})
 		if err != nil {
-			return nil, ResourceMutationError(checkResource, err)
+			return nil, resourceError(ctx, logger, "create-osquery-check", checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
 }
 
-func registerGetCheck(api huma.API, checkStore *checks.Store) {
+func registerGetCheck(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-osquery-check",
 		Method:      http.MethodGet,
@@ -117,13 +118,13 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
 		check, err := checkStore.GetByID(ctx, input.CheckID)
 		if err != nil {
-			return nil, ResourceMutationError(checkResource, err)
+			return nil, resourceError(ctx, logger, "get-osquery-check", checkResource, err, "check_id", input.CheckID)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
 }
 
-func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
+func registerUpdateCheck(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-osquery-check",
 		Method:      http.MethodPut,
@@ -134,13 +135,21 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
 		check, err := checkStore.Update(ctx, input.CheckID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(checkResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"update-osquery-check",
+				checkResource,
+				err,
+				"check_id",
+				input.CheckID,
+			)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
 }
 
-func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
+func registerDeleteCheck(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-osquery-check",
 		Method:      http.MethodDelete,
@@ -150,13 +159,21 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
 		if err := checkStore.Delete(ctx, input.CheckID); err != nil {
-			return nil, ResourceMutationError(checkResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"delete-osquery-check",
+				checkResource,
+				err,
+				"check_id",
+				input.CheckID,
+			)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
+func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-osquery-checks",
 		Method:      http.MethodPost,
@@ -166,13 +183,13 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *checkBulkDeleteInput) (*struct{}, error) {
 		if _, err := checkStore.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "bulk-delete-osquery-checks", err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerCheckResults(api huma.API, checkStore *checks.Store) {
+func registerCheckResults(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-check-results",
 		Method:      http.MethodGet,
@@ -188,7 +205,7 @@ func registerCheckResults(api huma.API, checkStore *checks.Store) {
 		}
 		rows, err := checkStore.CheckResults(ctx, input.CheckID, response)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "list-osquery-check-results", err, "check_id", input.CheckID)
 		}
 		return &checkResultsOutput{Body: rows}, nil
 	})

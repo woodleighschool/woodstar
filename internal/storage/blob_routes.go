@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -20,16 +21,17 @@ type blobClaims struct {
 }
 
 // RegisterBlobRoutes mounts capability-authenticated raw blob transfer routes.
-func RegisterBlobRoutes(r chi.Router, store Store, key []byte) {
-	h := blobHandler{store: store, key: key}
+func RegisterBlobRoutes(r chi.Router, store Store, key []byte, logger *slog.Logger) {
+	h := blobHandler{store: store, key: key, logger: logger}
 	r.Get("/storage/*", h.get)
 	r.Put("/storage/*", h.put)
 	r.Options("/storage/*", h.options)
 }
 
 type blobHandler struct {
-	store Store
-	key   []byte
+	store  Store
+	key    []byte
+	logger *slog.Logger
 }
 
 func (h blobHandler) get(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +40,9 @@ func (h blobHandler) get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ServeObject(w, r, h.store, claims.Key, ServeOptions{ContentType: claims.ContentType})
+	if err := ServeObject(w, r, h.store, claims.Key, ServeOptions{ContentType: claims.ContentType}); err != nil {
+		h.logError(r, "get-storage-object", err, "key", claims.Key)
+	}
 }
 
 func (h blobHandler) put(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +54,18 @@ func (h blobHandler) put(w http.ResponseWriter, r *http.Request) {
 	if err := h.store.Put(r.Context(), claims.Key, r.Body, PutOptions{
 		ContentType: claims.ContentType,
 	}); err != nil {
+		h.logError(r, "put-storage-object", err, "key", claims.Key)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h blobHandler) logError(r *http.Request, operation string, err error, attrs ...any) {
+	args := []any{"operation", operation, "status", http.StatusInternalServerError}
+	args = append(args, attrs...)
+	args = append(args, "err", err)
+	h.logger.ErrorContext(r.Context(), "storage blob handler failed", args...)
 }
 
 func (h blobHandler) options(w http.ResponseWriter, _ *http.Request) {

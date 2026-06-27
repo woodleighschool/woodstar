@@ -91,8 +91,7 @@ func APIKeyFromQuery(param string) func(http.Handler) http.Handler {
 func requireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		if _, err := ctxkeys.RequireAdmin(ctx.Context()); err != nil {
-			var statusErr huma.StatusError
-			if errors.As(err, &statusErr) {
+			if statusErr, ok := errors.AsType[huma.StatusError](err); ok {
 				_ = huma.WriteErr(api, ctx, statusErr.GetStatus(), err.Error())
 				return
 			}

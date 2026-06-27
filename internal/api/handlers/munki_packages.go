@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -78,17 +79,18 @@ func registerMunkiPackages(
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
 	notifier desiredNotifier,
+	logger *slog.Logger,
 ) {
-	registerListMunkiPackages(api, store)
-	registerCreateMunkiPackage(api, store)
-	registerGetMunkiPackage(api, store)
-	registerPutMunkiPackage(api, store)
-	registerDeleteMunkiPackage(api, store, notifier)
-	registerBulkDeleteMunkiPackages(api, store, notifier)
-	registerObjectRoutes(api, store, objects, storageStore, notifier)
+	registerListMunkiPackages(api, store, logger)
+	registerCreateMunkiPackage(api, store, logger)
+	registerGetMunkiPackage(api, store, logger)
+	registerPutMunkiPackage(api, store, logger)
+	registerDeleteMunkiPackage(api, store, notifier, logger)
+	registerBulkDeleteMunkiPackages(api, store, notifier, logger)
+	registerObjectRoutes(api, store, objects, storageStore, notifier, logger)
 }
 
-func registerListMunkiPackages(api huma.API, store *packages.Store) {
+func registerListMunkiPackages(api huma.API, store *packages.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-packages",
 		Method:      http.MethodGet,
@@ -99,7 +101,7 @@ func registerListMunkiPackages(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(ctx, logger, "list-munki-packages", munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
 			Body: Page[munkiPackage]{
@@ -110,7 +112,7 @@ func registerListMunkiPackages(api huma.API, store *packages.Store) {
 	})
 }
 
-func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
+func registerCreateMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
@@ -128,13 +130,13 @@ func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(ctx, logger, "create-munki-package", munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
-func registerGetMunkiPackage(api huma.API, store *packages.Store) {
+func registerGetMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
@@ -145,13 +147,21 @@ func registerGetMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.PackageID)
 		if err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"get-munki-package",
+				munkiPackageLabel,
+				err,
+				"package_id",
+				input.PackageID,
+			)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
-func registerPutMunkiPackage(api huma.API, store *packages.Store) {
+func registerPutMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-package",
 		Method:      http.MethodPut,
@@ -168,13 +178,26 @@ func registerPutMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackagePutInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Update(ctx, input.PackageID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"update-munki-package",
+				munkiPackageLabel,
+				err,
+				"package_id",
+				input.PackageID,
+			)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
 }
 
-func registerDeleteMunkiPackage(api huma.API, store *packages.Store, notifier desiredNotifier) {
+func registerDeleteMunkiPackage(
+	api huma.API,
+	store *packages.Store,
+	notifier desiredNotifier,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-package",
 		Method:      http.MethodDelete,
@@ -184,14 +207,27 @@ func registerDeleteMunkiPackage(api huma.API, store *packages.Store, notifier de
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.PackageID); err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"delete-munki-package",
+				munkiPackageLabel,
+				err,
+				"package_id",
+				input.PackageID,
+			)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteMunkiPackages(api huma.API, store *packages.Store, notifier desiredNotifier) {
+func registerBulkDeleteMunkiPackages(
+	api huma.API,
+	store *packages.Store,
+	notifier desiredNotifier,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-packages",
 		Method:      http.MethodPost,
@@ -201,7 +237,7 @@ func registerBulkDeleteMunkiPackages(api huma.API, store *packages.Store, notifi
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, ResourceMutationError(munkiPackageLabel, err)
+			return nil, resourceError(ctx, logger, "bulk-delete-munki-packages", munkiPackageLabel, err)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil

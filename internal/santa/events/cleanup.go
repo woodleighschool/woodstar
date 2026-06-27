@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -62,7 +63,7 @@ func cleanupLoop(
 
 func sweep(ctx context.Context, store CleanupStore, retentionDays int, logger *slog.Logger) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	if _, err := store.SweepEventsBefore(ctx, cutoff); err != nil && logger != nil {
-		logger.WarnContext(ctx, "Santa event cleanup failed", "err", err)
+	if _, err := store.SweepEventsBefore(ctx, cutoff); err != nil && !errors.Is(err, context.Canceled) {
+		logger.WarnContext(ctx, "santa event cleanup failed", "operation", "sweep", "err", err)
 	}
 }

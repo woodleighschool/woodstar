@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -53,17 +54,17 @@ type reportResultsOutput struct {
 	Body []reports.ReportResult
 }
 
-func registerOsqueryReports(api huma.API, reportStore *reports.Store) {
-	registerListReports(api, reportStore)
-	registerCreateReport(api, reportStore)
-	registerGetReport(api, reportStore)
-	registerUpdateReport(api, reportStore)
-	registerDeleteReport(api, reportStore)
-	registerBulkDeleteReports(api, reportStore)
-	registerReportResults(api, reportStore)
+func registerOsqueryReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
+	registerListReports(api, reportStore, logger)
+	registerCreateReport(api, reportStore, logger)
+	registerGetReport(api, reportStore, logger)
+	registerUpdateReport(api, reportStore, logger)
+	registerDeleteReport(api, reportStore, logger)
+	registerBulkDeleteReports(api, reportStore, logger)
+	registerReportResults(api, reportStore, logger)
 }
 
-func registerListReports(api huma.API, reportStore *reports.Store) {
+func registerListReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-reports",
 		Method:      http.MethodGet,
@@ -74,13 +75,13 @@ func registerListReports(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportListInput) (*reportListOutput, error) {
 		items, count, err := reportStore.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(reportResource, err)
+			return nil, resourceError(ctx, logger, "list-osquery-reports", reportResource, err)
 		}
 		return &reportListOutput{Body: Page[reports.Report]{Items: items, Count: int32(count)}}, nil
 	})
 }
 
-func registerCreateReport(api huma.API, reportStore *reports.Store) {
+func registerCreateReport(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-osquery-report",
 		Method:        http.MethodPost,
@@ -95,13 +96,13 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
 		})
 		if err != nil {
-			return nil, ResourceMutationError(reportResource, err)
+			return nil, resourceError(ctx, logger, "create-osquery-report", reportResource, err)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
 }
 
-func registerGetReport(api huma.API, reportStore *reports.Store) {
+func registerGetReport(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-osquery-report",
 		Method:      http.MethodGet,
@@ -112,13 +113,21 @@ func registerGetReport(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
 		report, err := reportStore.GetByID(ctx, input.ReportID)
 		if err != nil {
-			return nil, ResourceMutationError(reportResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"get-osquery-report",
+				reportResource,
+				err,
+				"report_id",
+				input.ReportID,
+			)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
 }
 
-func registerUpdateReport(api huma.API, reportStore *reports.Store) {
+func registerUpdateReport(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-osquery-report",
 		Method:      http.MethodPut,
@@ -129,13 +138,21 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
 		report, err := reportStore.Update(ctx, input.ReportID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(reportResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"update-osquery-report",
+				reportResource,
+				err,
+				"report_id",
+				input.ReportID,
+			)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
 }
 
-func registerDeleteReport(api huma.API, reportStore *reports.Store) {
+func registerDeleteReport(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-osquery-report",
 		Method:      http.MethodDelete,
@@ -145,13 +162,21 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
 		if err := reportStore.Delete(ctx, input.ReportID); err != nil {
-			return nil, ResourceMutationError(reportResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"delete-osquery-report",
+				reportResource,
+				err,
+				"report_id",
+				input.ReportID,
+			)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
+func registerBulkDeleteReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-osquery-reports",
 		Method:      http.MethodPost,
@@ -161,13 +186,13 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *reportBulkDeleteInput) (*struct{}, error) {
 		if _, err := reportStore.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "bulk-delete-osquery-reports", err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerReportResults(api huma.API, reportStore *reports.Store) {
+func registerReportResults(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-report-results",
 		Method:      http.MethodGet,
@@ -178,7 +203,7 @@ func registerReportResults(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
 		rows, err := reportStore.Results(ctx, input.ReportID)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "list-osquery-report-results", err, "report_id", input.ReportID)
 		}
 		return &reportResultsOutput{Body: rows}, nil
 	})

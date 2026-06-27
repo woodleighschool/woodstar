@@ -52,8 +52,8 @@ func TestRequireAdmin(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
-			var status huma.StatusError
-			if !errors.As(err, &status) {
+			status, ok := errors.AsType[huma.StatusError](err)
+			if !ok {
 				t.Fatalf("error is not huma.StatusError: %v", err)
 			}
 			if status.GetStatus() != tt.wantStatus {

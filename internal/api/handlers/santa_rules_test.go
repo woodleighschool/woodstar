@@ -22,7 +22,7 @@ import (
 func TestSantaRuleReferencesEndpointReturnsCandidates(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerSantaRules(api, rules.NewStore(db))
+		registerSantaRules(api, rules.NewStore(db), discardLogger())
 	})
 
 	identifier := strings.Repeat("5", 64)
@@ -60,7 +60,7 @@ func TestSantaRuleReferencesEndpointReturnsCandidates(t *testing.T) {
 func TestSantaRuleEndpointCreatesSigningIDWithoutTargets(t *testing.T) {
 	db, _ := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerSantaRules(api, rules.NewStore(db))
+		registerSantaRules(api, rules.NewStore(db), discardLogger())
 	})
 
 	rec := santaRulesRequest(
@@ -98,7 +98,7 @@ func TestSantaRuleEndpointCreatesSigningIDWithoutTargets(t *testing.T) {
 func TestSantaRuleEndpointReplacesTargetsOnPut(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerSantaRules(api, rules.NewStore(db))
+		registerSantaRules(api, rules.NewStore(db), discardLogger())
 	})
 
 	labelStore := labels.NewStore(db)
@@ -189,7 +189,7 @@ func TestHostSantaRulesEndpointChecksHostBeforeListingRules(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	ruleStore := rules.NewStore(db)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerHostSantaRules(api, ruleStore, hostStore)
+		registerHostSantaRules(api, ruleStore, hostStore, discardLogger())
 	})
 
 	rec := santaRulesRequest(t, router, http.MethodGet, "/api/hosts/999999/santa/rules", "")

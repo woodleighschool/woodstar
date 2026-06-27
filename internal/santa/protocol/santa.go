@@ -687,9 +687,6 @@ func writeStatusOnly(w http.ResponseWriter, statusCode int) {
 }
 
 func (h handler) log(r *http.Request, statusCode int, err error) {
-	if h.logger == nil {
-		return
-	}
 	args := []any{
 		"status", statusCode,
 		"method", r.Method,

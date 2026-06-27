@@ -91,7 +91,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerSantaEvents(api, eventsStore)
+	registerSantaEvents(api, eventsStore, discardLogger())
 
 	rec := santaEventsRequest(t, router, "/api/santa/events?decisions=blocked&page_size=1")
 	if rec.Code != http.StatusOK {

@@ -2,11 +2,14 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path"
 	"time"
 )
+
+var errObjectNotSeekable = errors.New("storage object reader is not seekable")
 
 // ServeOptions carries HTTP metadata for a caller-authorized object read.
 type ServeOptions struct {
@@ -17,22 +20,22 @@ type ServeOptions struct {
 }
 
 // ServeObject streams an already-authorized object key from store.
-func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string, opts ServeOptions) {
+func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string, opts ServeOptions) error {
 	reader, info, err := store.Open(r.Context(), key)
 	if errors.Is(err, ErrObjectNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		return
+		return nil
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return fmt.Errorf("open object: %w", err)
 	}
 	defer reader.Close()
 
 	seeker, ok := reader.(io.ReadSeeker)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errObjectNotSeekable
 	}
 
 	contentType := opts.ContentType
@@ -53,4 +56,5 @@ func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string
 		filename = path.Base(key)
 	}
 	http.ServeContent(w, r, filename, time.Time{}, seeker)
+	return nil
 }

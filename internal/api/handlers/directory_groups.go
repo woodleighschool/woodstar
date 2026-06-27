@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -41,7 +42,7 @@ func (i groupListInput) params() directory.GroupListParams {
 	}
 }
 
-func registerListGroups(api huma.API, groupStore *directory.Store) {
+func registerListGroups(api huma.API, groupStore *directory.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-groups",
 		Method:      http.MethodGet,
@@ -52,13 +53,13 @@ func registerListGroups(api huma.API, groupStore *directory.Store) {
 	}, func(ctx context.Context, input *groupListInput) (*groupListOutput, error) {
 		list, count, err := groupStore.ListGroups(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(groupResource, err)
+			return nil, resourceError(ctx, logger, "list-groups", groupResource, err)
 		}
 		return &groupListOutput{Body: Page[directory.Group]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
-func registerGetGroup(api huma.API, groupStore *directory.Store) {
+func registerGetGroup(api huma.API, groupStore *directory.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-group",
 		Method:      http.MethodGet,
@@ -69,7 +70,7 @@ func registerGetGroup(api huma.API, groupStore *directory.Store) {
 	}, func(ctx context.Context, input *groupGetInput) (*groupOutput, error) {
 		group, err := groupStore.GetGroupByID(ctx, input.ID)
 		if err != nil {
-			return nil, ResourceMutationError(groupResource, err)
+			return nil, resourceError(ctx, logger, "get-group", groupResource, err, "group_id", input.ID)
 		}
 		return &groupOutput{Body: *group}, nil
 	})

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -188,9 +189,42 @@ func TestBlobGetFailsWhenStoreCannotSeek(t *testing.T) {
 	}
 }
 
+func TestBlobGetLogsInternalServeFailures(t *testing.T) {
+	t.Parallel()
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	router := chi.NewRouter()
+	RegisterBlobRoutes(router, nonSeekStore{}, testCapabilityKey, logger)
+	token := signBlobCapability(t, blobClaims{
+		Op:  capability.OpGet,
+		Key: "munki/packages/1/Installer.pkg",
+		Exp: time.Now().Add(time.Minute).Unix(),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	line := logs.String()
+	for _, want := range []string{
+		`"msg":"storage blob handler failed"`,
+		`"operation":"get-storage-object"`,
+		`"status":500`,
+		`"key":"munki/packages/1/Installer.pkg"`,
+		`"err":"storage object reader is not seekable"`,
+	} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("log line %q does not contain %s", line, want)
+		}
+	}
+}
+
 func newBlobTestRouter(store Store) chi.Router {
 	r := chi.NewRouter()
-	RegisterBlobRoutes(r, store, testCapabilityKey)
+	RegisterBlobRoutes(r, store, testCapabilityKey, discardLogger())
 	return r
 }
 
@@ -201,6 +235,10 @@ func signBlobCapability(t *testing.T, claims blobClaims) string {
 		t.Fatalf("Sign: %v", err)
 	}
 	return token
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
 
 type nonSeekStore struct{}

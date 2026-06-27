@@ -45,7 +45,7 @@ type Server struct {
 func NewServer(deps handlers.Dependencies) *Server {
 	server := &Server{
 		config:  deps.Config,
-		logger:  deps.Logger,
+		logger:  deps.Logger.With("component", "server"),
 		version: deps.Version,
 	}
 	server.httpServer = &http.Server{
@@ -68,7 +68,6 @@ func (s *Server) Addr() string {
 func (s *Server) Serve(listener net.Listener) error {
 	s.logger.Info(
 		"starting woodstar",
-		"component", "server",
 		"operation", "start",
 		"addr", s.httpServer.Addr,
 		"public_url", s.config.PublicURL,
@@ -82,7 +81,7 @@ func (s *Server) Serve(listener net.Listener) error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
+	s.logger.InfoContext(ctx, "stopping woodstar", "operation", "shutdown")
 	return s.httpServer.Shutdown(ctx)
 }
 
@@ -117,7 +116,7 @@ func routes(deps handlers.Dependencies) http.Handler {
 // protocols that live beside the app API on the same HTTP server.
 func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
-	storage.RegisterBlobRoutes(r, deps.StorageBackend, deps.StorageKey)
+	storage.RegisterBlobRoutes(r, deps.StorageBackend, deps.StorageKey, deps.Logger.With("component", "storage"))
 	orbitprotocol.RegisterOrbitRoutes(r, deps.OrbitAgent, deps.Logger.With("component", "orbit"))
 	osqueryprotocol.RegisterOsqueryRoutes(r, deps.OsqueryAgent, deps.Logger.With("component", "osquery"))
 	munkiprotocol.RegisterMunkiRoutes(
@@ -133,7 +132,7 @@ func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
 		deps.MunkiDistributionHub,
 		deps.MunkiDistribution,
 		deps.StorageBackend,
-		deps.Logger.With("component", "munki-distribution"),
+		deps.Logger.With("component", "munki_distribution"),
 	)
 	santaprotocol.RegisterSantaRoutes(r, deps.Secrets, deps.SantaSync, deps.Logger.With("component", "santa"))
 }

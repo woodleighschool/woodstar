@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -122,6 +123,7 @@ func registerLiveQueries(
 	api huma.API,
 	manager *livequery.Manager,
 	hostStore *hosts.Store,
+	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-live-query",
@@ -134,7 +136,7 @@ func registerLiveQueries(
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
 		hostIDs, err := input.Body.resolveTargets(ctx, hostStore)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "create-live-query", err)
 		}
 		return &liveQueryCreateOutput{Body: manager.Start(input.Body.SQL, hostIDs)}, nil
 	})
@@ -149,7 +151,7 @@ func registerLiveQueries(
 	}, func(ctx context.Context, input *liveQueryTargetCountInput) (*liveQueryTargetCountOutput, error) {
 		metrics, err := hostStore.CountSelectedTargets(ctx, input.Body.Selected.targetSelection(), time.Now().UTC())
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "count-live-query-targets", err)
 		}
 		return &liveQueryTargetCountOutput{Body: OsqueryLiveQueryTargetCountOutputBody{
 			TargetsCount:   metrics.Total,

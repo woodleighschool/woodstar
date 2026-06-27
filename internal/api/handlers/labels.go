@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -56,14 +57,14 @@ func (i labelListInput) params() labels.LabelListParams {
 }
 
 func registerLabels(g Groups, deps Dependencies) {
-	registerListLabels(g.Ordinary, deps.Labels)
-	registerCreateLabel(g.Ordinary, deps.Labels)
-	registerGetLabel(g.Ordinary, deps.Labels)
-	registerUpdateLabel(g.Ordinary, deps.Labels)
-	registerDeleteLabel(g.Ordinary, deps.Labels)
+	registerListLabels(g.Ordinary, deps.Labels, deps.Logger)
+	registerCreateLabel(g.Ordinary, deps.Labels, deps.Logger)
+	registerGetLabel(g.Ordinary, deps.Labels, deps.Logger)
+	registerUpdateLabel(g.Ordinary, deps.Labels, deps.Logger)
+	registerDeleteLabel(g.Ordinary, deps.Labels, deps.Logger)
 }
 
-func registerListLabels(api huma.API, labelStore *labels.Store) {
+func registerListLabels(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-labels",
 		Method:      http.MethodGet,
@@ -74,13 +75,13 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
 		rows, count, err := labelStore.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(labelResource, err)
+			return nil, resourceError(ctx, logger, "list-labels", labelResource, err)
 		}
 		return &labelListOutput{Body: Page[labels.Label]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
-func registerCreateLabel(api huma.API, labelStore *labels.Store) {
+func registerCreateLabel(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-label",
 		Method:        http.MethodPost,
@@ -92,13 +93,13 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
 		label, err := labelStore.Create(ctx, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(labelResource, err)
+			return nil, resourceError(ctx, logger, "create-label", labelResource, err)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
 }
 
-func registerGetLabel(api huma.API, labelStore *labels.Store) {
+func registerGetLabel(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-label",
 		Method:      http.MethodGet,
@@ -109,13 +110,13 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 	}, func(ctx context.Context, input *labelGetInput) (*labelOutput, error) {
 		label, err := labelStore.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, ResourceMutationError(labelResource, err)
+			return nil, resourceError(ctx, logger, "get-label", labelResource, err, "label_id", input.ID)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
 }
 
-func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
+func registerUpdateLabel(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-label",
 		Method:      http.MethodPut,
@@ -126,13 +127,13 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
 		label, err := labelStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(labelResource, err)
+			return nil, resourceError(ctx, logger, "update-label", labelResource, err, "label_id", input.ID)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
 }
 
-func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
+func registerDeleteLabel(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-label",
 		Method:      http.MethodDelete,
@@ -142,7 +143,7 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *labelDeleteInput) (*struct{}, error) {
 		if err := labelStore.Delete(ctx, input.ID); err != nil {
-			return nil, ResourceMutationError(labelResource, err)
+			return nil, resourceError(ctx, logger, "delete-label", labelResource, err, "label_id", input.ID)
 		}
 		return &struct{}{}, nil
 	})

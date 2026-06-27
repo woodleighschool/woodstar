@@ -39,7 +39,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 		Session:   humaAPI,
 		Protected: humaAPI,
 		Router:    router,
-	}, auth.NewService(userService, testSessionManager()), userService)
+	}, auth.NewService(userService, testSessionManager()), userService, discardLogger())
 
 	body := strings.NewReader(`{"email":"admin@example.test","password":"wrong-password"}`)
 	rec := httptest.NewRecorder()

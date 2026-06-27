@@ -25,8 +25,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			mapped := userMutationError(tt.err)
-			var status huma.StatusError
-			if !errors.As(mapped, &status) {
+			status, ok := errors.AsType[huma.StatusError](mapped)
+			if !ok {
 				t.Fatalf("not a huma.StatusError: %v", mapped)
 			}
 			if status.GetStatus() != tt.wantStatus {

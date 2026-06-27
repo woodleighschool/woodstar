@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -87,17 +88,18 @@ func (input distributionPointListInput) params() mdp.DistributionPointListParams
 func registerMunkiDistributionPoints(
 	api huma.API,
 	store *mdp.Store,
+	logger *slog.Logger,
 ) {
-	registerListDistributionPoints(api, store)
-	registerCreateDistributionPoint(api, store)
-	registerGetDistributionPoint(api, store)
-	registerUpdateDistributionPoint(api, store)
-	registerDeleteDistributionPoint(api, store)
-	registerReorderDistributionPoints(api, store)
-	registerRotateDistributionPointKey(api, store)
+	registerListDistributionPoints(api, store, logger)
+	registerCreateDistributionPoint(api, store, logger)
+	registerGetDistributionPoint(api, store, logger)
+	registerUpdateDistributionPoint(api, store, logger)
+	registerDeleteDistributionPoint(api, store, logger)
+	registerReorderDistributionPoints(api, store, logger)
+	registerRotateDistributionPointKey(api, store, logger)
 }
 
-func registerListDistributionPoints(api huma.API, store *mdp.Store) {
+func registerListDistributionPoints(api huma.API, store *mdp.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-distribution-points",
 		Method:      http.MethodGet,
@@ -108,7 +110,7 @@ func registerListDistributionPoints(api huma.API, store *mdp.Store) {
 	}, func(ctx context.Context, input *distributionPointListInput) (*distributionPointListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(ctx, logger, "list-munki-distribution-points", distributionPointMutationError(err))
 		}
 		return &distributionPointListOutput{
 			Body: Page[mdp.DistributionPoint]{Items: rows, Count: int32(count)},
@@ -116,7 +118,7 @@ func registerListDistributionPoints(api huma.API, store *mdp.Store) {
 	})
 }
 
-func registerCreateDistributionPoint(api huma.API, store *mdp.Store) {
+func registerCreateDistributionPoint(api huma.API, store *mdp.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-distribution-point",
 		Method:        http.MethodPost,
@@ -133,11 +135,16 @@ func registerCreateDistributionPoint(api huma.API, store *mdp.Store) {
 	}, func(ctx context.Context, input *distributionPointCreateInput) (*distributionPointCreateOutput, error) {
 		key, err := randtoken.Generate(keyByteLen)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "create-munki-distribution-point", err)
 		}
 		point, err := store.Create(ctx, input.Body, key)
 		if err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"create-munki-distribution-point",
+				distributionPointMutationError(err),
+			)
 		}
 		return &distributionPointCreateOutput{
 			Body: MunkiRevealedDistributionPoint{DistributionPoint: *point, Key: key},
@@ -148,6 +155,7 @@ func registerCreateDistributionPoint(api huma.API, store *mdp.Store) {
 func registerGetDistributionPoint(
 	api huma.API,
 	store *mdp.Store,
+	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-distribution-point",
@@ -159,7 +167,13 @@ func registerGetDistributionPoint(
 	}, func(ctx context.Context, input *distributionPointGetInput) (*distributionPointDetailOutput, error) {
 		detail, err := store.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"get-munki-distribution-point",
+				distributionPointMutationError(err),
+				"distribution_point_id", input.ID,
+			)
 		}
 		return &distributionPointDetailOutput{Body: *detail}, nil
 	})
@@ -168,6 +182,7 @@ func registerGetDistributionPoint(
 func registerUpdateDistributionPoint(
 	api huma.API,
 	store *mdp.Store,
+	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-distribution-point",
@@ -184,17 +199,29 @@ func registerUpdateDistributionPoint(
 		},
 	}, func(ctx context.Context, input *distributionPointUpdateInput) (*distributionPointDetailOutput, error) {
 		if _, err := store.Update(ctx, input.ID, input.Body); err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"update-munki-distribution-point",
+				distributionPointMutationError(err),
+				"distribution_point_id", input.ID,
+			)
 		}
 		detail, err := store.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"update-munki-distribution-point",
+				distributionPointMutationError(err),
+				"distribution_point_id", input.ID,
+			)
 		}
 		return &distributionPointDetailOutput{Body: *detail}, nil
 	})
 }
 
-func registerDeleteDistributionPoint(api huma.API, store *mdp.Store) {
+func registerDeleteDistributionPoint(api huma.API, store *mdp.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-distribution-point",
 		Method:      http.MethodDelete,
@@ -204,13 +231,19 @@ func registerDeleteDistributionPoint(api huma.API, store *mdp.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *distributionPointDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"delete-munki-distribution-point",
+				distributionPointMutationError(err),
+				"distribution_point_id", input.ID,
+			)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerReorderDistributionPoints(api huma.API, store *mdp.Store) {
+func registerReorderDistributionPoints(api huma.API, store *mdp.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "reorder-munki-distribution-points",
 		Method:      http.MethodPut,
@@ -220,13 +253,18 @@ func registerReorderDistributionPoints(api huma.API, store *mdp.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *distributionPointReorderInput) (*struct{}, error) {
 		if err := store.Reorder(ctx, input.Body.OrderedIDs); err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"reorder-munki-distribution-points",
+				distributionPointMutationError(err),
+			)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerRotateDistributionPointKey(api huma.API, store *mdp.Store) {
+func registerRotateDistributionPointKey(api huma.API, store *mdp.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "rotate-munki-distribution-point-key",
 		Method:      http.MethodPost,
@@ -237,10 +275,22 @@ func registerRotateDistributionPointKey(api huma.API, store *mdp.Store) {
 	}, func(ctx context.Context, input *distributionPointRotateInput) (*distributionPointKeyOutput, error) {
 		key, err := randtoken.Generate(keyByteLen)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(
+				ctx,
+				logger,
+				"rotate-munki-distribution-point-key",
+				err,
+				"distribution_point_id", input.ID,
+			)
 		}
 		if err := store.RotateKey(ctx, input.ID, key); err != nil {
-			return nil, distributionPointMutationError(err)
+			return nil, handlerError(
+				ctx,
+				logger,
+				"rotate-munki-distribution-point-key",
+				distributionPointMutationError(err),
+				"distribution_point_id", input.ID,
+			)
 		}
 		return &distributionPointKeyOutput{Body: MunkiDistributionPointKeyBody{Key: key}}, nil
 	})

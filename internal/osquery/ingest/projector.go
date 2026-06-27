@@ -101,17 +101,15 @@ func (p *Projector) IngestSoftware(
 	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
 		return err
 	}
-	if p.logger != nil {
-		p.logger.DebugContext(
-			ctx,
-			"software inventory ingested", "operation", "software_ingest",
-			"host_id", hostID,
-			"row_count", len(rows),
-			"entry_count", len(entries),
-			"codesign_count", len(queryRows[catalog.QuerySoftwareMacOSCodesign]),
-			"executable_hash_count", len(queryRows[catalog.QuerySoftwareMacOSExecutableHash]),
-		)
-	}
+	p.logger.DebugContext(
+		ctx,
+		"software inventory ingested", "operation", "software_ingest",
+		"host_id", hostID,
+		"row_count", len(rows),
+		"entry_count", len(entries),
+		"codesign_count", len(queryRows[catalog.QuerySoftwareMacOSCodesign]),
+		"executable_hash_count", len(queryRows[catalog.QuerySoftwareMacOSExecutableHash]),
+	)
 	return nil
 }
 

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -48,20 +49,20 @@ type loginInput struct {
 }
 
 // RegisterAuth mounts setup, session, login, logout, and account endpoints.
-func RegisterAuth(g Groups, authService *auth.Service, userService *directory.UserService) {
-	registerSetup(g.Public, authService)
-	registerSession(g.Session, authService)
-	registerLogin(g.Public, authService)
-	registerLogout(g.Protected, authService)
+func RegisterAuth(g Groups, authService *auth.Service, userService *directory.UserService, logger *slog.Logger) {
+	registerSetup(g.Public, authService, logger)
+	registerSession(g.Session, authService, logger)
+	registerLogin(g.Public, authService, logger)
+	registerLogout(g.Protected, authService, logger)
 	auth.RegisterSSO(g.Router, authService)
 
-	registerGetAccount(g.Protected, authService)
-	registerPutAccount(g.Protected, userService)
-	registerRotateAPIKey(g.Protected, authService)
-	registerRevokeAPIKey(g.Protected, authService)
+	registerGetAccount(g.Protected, authService, logger)
+	registerPutAccount(g.Protected, userService, logger)
+	registerRotateAPIKey(g.Protected, authService, logger)
+	registerRevokeAPIKey(g.Protected, authService, logger)
 }
 
-func registerSetup(api huma.API, authService *auth.Service) {
+func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "complete-setup",
 		Method:        http.MethodPost,
@@ -77,13 +78,13 @@ func registerSetup(api huma.API, authService *auth.Service) {
 			Password: input.Body.Password,
 		})
 		if err != nil {
-			return nil, authError(err)
+			return nil, handlerError(ctx, logger, "complete-setup", authError(err))
 		}
 		return &authUserOutput{Body: *user}, nil
 	})
 }
 
-func registerSession(api huma.API, authService *auth.Service) {
+func registerSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-session",
 		Method:      http.MethodGet,
@@ -93,7 +94,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
 		complete, err := authService.SetupComplete(ctx)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "get-session", err)
 		}
 		out := &sessionOutput{Body: sessionBody{
 			SetupComplete: complete,
@@ -106,7 +107,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerLogin(api huma.API, authService *auth.Service) {
+func registerLogin(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "create-session",
 		Method:      http.MethodPost,
@@ -117,13 +118,13 @@ func registerLogin(api huma.API, authService *auth.Service) {
 	}, func(ctx context.Context, input *loginInput) (*authUserOutput, error) {
 		user, err := authService.Login(ctx, input.Body.Email, input.Body.Password)
 		if err != nil {
-			return nil, authError(err)
+			return nil, handlerError(ctx, logger, "create-session", authError(err))
 		}
 		return &authUserOutput{Body: *user}, nil
 	})
 }
 
-func registerLogout(api huma.API, authService *auth.Service) {
+func registerLogout(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-session",
 		Method:      http.MethodPost,
@@ -133,7 +134,7 @@ func registerLogout(api huma.API, authService *auth.Service) {
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 		if err := authService.Logout(ctx); err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "delete-session", err)
 		}
 		return &struct{}{}, nil
 	})

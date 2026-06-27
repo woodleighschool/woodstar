@@ -64,7 +64,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 			return
 		}
 
-		logger.InfoContext(
+		logger.DebugContext(
 			r.Context(),
 			"orbit host enrolled", "operation", "enroll",
 			"host_id", host.ID,

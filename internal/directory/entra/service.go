@@ -64,7 +64,6 @@ func (s *Service) Sync(ctx context.Context) error {
 		}
 	}
 	s.logger.InfoContext(ctx, "entra sync complete",
-		"component", "entra",
 		"operation", "sync",
 		"users", len(snapshot.Users),
 		"groups", len(snapshot.Groups),
@@ -102,7 +101,6 @@ func (s *Service) runOnce(ctx context.Context) {
 			return
 		}
 		s.logger.ErrorContext(ctx, "entra sync failed",
-			"component", "entra",
 			"operation", "sync",
 			"err", err,
 		)

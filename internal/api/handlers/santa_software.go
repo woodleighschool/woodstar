@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -19,7 +20,7 @@ type softwareSantaGetOutput struct {
 	Body references.SoftwareReference
 }
 
-func registerSoftwareSantaReference(api huma.API, store *references.Store) {
+func registerSoftwareSantaReference(api huma.API, store *references.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-software-santa-reference",
 		Method:      http.MethodGet,
@@ -33,7 +34,7 @@ func registerSoftwareSantaReference(api huma.API, store *references.Store) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "get-software-santa-reference", err, "software_id", input.SoftwareID)
 		}
 		return &softwareSantaGetOutput{Body: *ref}, nil
 	})

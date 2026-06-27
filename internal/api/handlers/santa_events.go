@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -83,14 +84,14 @@ func (input santaFileAccessEventListInput) params() events.FileAccessEventListPa
 	}
 }
 
-func registerSantaEvents(api huma.API, store *events.Store) {
-	registerListSantaEvents(api, store)
-	registerGetSantaEvent(api, store)
-	registerListSantaFileAccessEvents(api, store)
-	registerGetSantaFileAccessEvent(api, store)
+func registerSantaEvents(api huma.API, store *events.Store, logger *slog.Logger) {
+	registerListSantaEvents(api, store, logger)
+	registerGetSantaEvent(api, store, logger)
+	registerListSantaFileAccessEvents(api, store, logger)
+	registerGetSantaFileAccessEvent(api, store, logger)
 }
 
-func registerListSantaEvents(api huma.API, store *events.Store) {
+func registerListSantaEvents(api huma.API, store *events.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-events",
 		Method:      http.MethodGet,
@@ -101,13 +102,13 @@ func registerListSantaEvents(api huma.API, store *events.Store) {
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		rows, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError("Santa event", err)
+			return nil, resourceError(ctx, logger, "list-santa-events", "Santa event", err)
 		}
 		return &santaEventListOutput{Body: Page[events.ExecutionEvent]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
-func registerGetSantaEvent(api huma.API, store *events.Store) {
+func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-event",
 		Method:      http.MethodGet,
@@ -121,13 +122,21 @@ func registerGetSantaEvent(api huma.API, store *events.Store) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
 		if err != nil {
-			return nil, ResourceMutationError(santaEventResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"get-santa-event",
+				santaEventResource,
+				err,
+				"event_id",
+				input.EventID,
+			)
 		}
 		return &santaEventGetOutput{Body: event}, nil
 	})
 }
 
-func registerListSantaFileAccessEvents(api huma.API, store *events.Store) {
+func registerListSantaFileAccessEvents(api huma.API, store *events.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-file-access-events",
 		Method:      http.MethodGet,
@@ -138,7 +147,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store) {
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		rows, count, err := store.ListFileAccessEvents(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError("Santa file access event", err)
+			return nil, resourceError(ctx, logger, "list-santa-file-access-events", "Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
 			Body: Page[events.FileAccessEvent]{Items: rows, Count: int32(count)},
@@ -146,7 +155,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store) {
 	})
 }
 
-func registerGetSantaFileAccessEvent(api huma.API, store *events.Store) {
+func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-file-access-event",
 		Method:      http.MethodGet,
@@ -160,7 +169,14 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}
 		if err != nil {
-			return nil, ResourceMutationError("Santa file access event", err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"get-santa-file-access-event",
+				"Santa file access event",
+				err,
+				"event_id", input.EventID,
+			)
 		}
 		return &santaFileAccessEventGetOutput{Body: event}, nil
 	})

@@ -1,13 +1,48 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
+
+func handlerError(ctx context.Context, logger *slog.Logger, operation string, err error, attrs ...any) error {
+	if err == nil {
+		return nil
+	}
+
+	status := http.StatusInternalServerError
+	if statusErr, ok := errors.AsType[huma.StatusError](err); ok {
+		status = statusErr.GetStatus()
+	}
+	if status >= http.StatusInternalServerError {
+		args := []any{
+			"operation", operation,
+			"status", status,
+		}
+		args = append(args, attrs...)
+		args = append(args, "err", err)
+		logger.ErrorContext(ctx, "api handler failed", args...)
+	}
+	return err
+}
+
+func resourceError(
+	ctx context.Context,
+	logger *slog.Logger,
+	operation string,
+	resource string,
+	err error,
+	attrs ...any,
+) error {
+	return handlerError(ctx, logger, operation, ResourceMutationError(resource, err), attrs...)
+}
 
 // ResourceMutationError translates store errors into resource-shaped HTTP errors.
 func ResourceMutationError(resource string, err error) error {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -70,17 +71,17 @@ func (input santaRuleReferenceListInput) params() rules.RuleReferenceListParams 
 	return rules.RuleReferenceListParams(input)
 }
 
-func registerSantaRules(api huma.API, store *rules.Store) {
-	registerListSantaRules(api, store)
-	registerListSantaRuleReferences(api, store)
-	registerCreateSantaRule(api, store)
-	registerGetSantaRule(api, store)
-	registerUpdateSantaRule(api, store)
-	registerDeleteSantaRule(api, store)
-	registerBulkDeleteSantaRules(api, store)
+func registerSantaRules(api huma.API, store *rules.Store, logger *slog.Logger) {
+	registerListSantaRules(api, store, logger)
+	registerListSantaRuleReferences(api, store, logger)
+	registerCreateSantaRule(api, store, logger)
+	registerGetSantaRule(api, store, logger)
+	registerUpdateSantaRule(api, store, logger)
+	registerDeleteSantaRule(api, store, logger)
+	registerBulkDeleteSantaRules(api, store, logger)
 }
 
-func registerListSantaRules(api huma.API, store *rules.Store) {
+func registerListSantaRules(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-rules",
 		Method:      http.MethodGet,
@@ -91,13 +92,13 @@ func registerListSantaRules(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleListInput) (*santaRuleListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "list-santa-rules", santaRuleResource, err)
 		}
 		return &santaRuleListOutput{Body: Page[rules.Rule]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
-func registerListSantaRuleReferences(api huma.API, store *rules.Store) {
+func registerListSantaRuleReferences(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-rule-references",
 		Method:      http.MethodGet,
@@ -108,13 +109,13 @@ func registerListSantaRuleReferences(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleReferenceListInput) (*santaRuleReferenceListOutput, error) {
 		candidates, err := store.ListRuleReferences(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "list-santa-rule-references", santaRuleResource, err)
 		}
 		return &santaRuleReferenceListOutput{Body: candidates}, nil
 	})
 }
 
-func registerCreateSantaRule(api huma.API, store *rules.Store) {
+func registerCreateSantaRule(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-santa-rule",
 		Method:        http.MethodPost,
@@ -132,13 +133,13 @@ func registerCreateSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleCreateInput) (*santaRuleOutput, error) {
 		rule, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "create-santa-rule", santaRuleResource, err)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
 }
 
-func registerGetSantaRule(api huma.API, store *rules.Store) {
+func registerGetSantaRule(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-rule",
 		Method:      http.MethodGet,
@@ -149,13 +150,13 @@ func registerGetSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
 		rule, err := store.GetByID(ctx, input.RuleID)
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "get-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
 }
 
-func registerUpdateSantaRule(api huma.API, store *rules.Store) {
+func registerUpdateSantaRule(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-santa-rule",
 		Method:      http.MethodPut,
@@ -172,13 +173,13 @@ func registerUpdateSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleUpdateInput) (*santaRuleOutput, error) {
 		rule, err := store.Update(ctx, input.RuleID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "update-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
 }
 
-func registerDeleteSantaRule(api huma.API, store *rules.Store) {
+func registerDeleteSantaRule(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-santa-rule",
 		Method:      http.MethodDelete,
@@ -188,13 +189,13 @@ func registerDeleteSantaRule(api huma.API, store *rules.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.RuleID); err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "delete-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteSantaRules(api huma.API, store *rules.Store) {
+func registerBulkDeleteSantaRules(api huma.API, store *rules.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-santa-rules",
 		Method:      http.MethodPost,
@@ -204,7 +205,7 @@ func registerBulkDeleteSantaRules(api huma.API, store *rules.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(ctx, logger, "bulk-delete-santa-rules", santaRuleResource, err)
 		}
 		return &struct{}{}, nil
 	})

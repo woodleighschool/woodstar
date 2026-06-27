@@ -22,7 +22,7 @@ func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerSantaConfigurations(api, configurations.NewStore(db))
+	registerSantaConfigurations(api, configurations.NewStore(db), discardLogger())
 
 	label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
 		Name:                "Conflict Label",

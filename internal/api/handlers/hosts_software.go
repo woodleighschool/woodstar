@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -30,7 +31,12 @@ type hostSoftwareOutput struct {
 	Body Page[inventory.HostSoftwareRow]
 }
 
-func registerHostSoftware(api huma.API, softwareStore *inventory.Store, hostStore *hosts.Store) {
+func registerHostSoftware(
+	api huma.API,
+	softwareStore *inventory.Store,
+	hostStore *hosts.Store,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
@@ -43,11 +49,11 @@ func registerHostSoftware(api huma.API, softwareStore *inventory.Store, hostStor
 		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "list-host-software", err, "host_id", id)
 		}
 		rows, count, err := softwareStore.ListForHost(ctx, id, params)
 		if err != nil {
-			return nil, ResourceMutationError("software", err)
+			return nil, resourceError(ctx, logger, "list-host-software", "software", err, "host_id", id)
 		}
 		return &hostSoftwareOutput{
 			Body: Page[inventory.HostSoftwareRow]{Items: rows, Count: int32(count)},

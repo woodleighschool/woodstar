@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -25,6 +26,7 @@ func registerAccountAction(
 	api huma.API,
 	op huma.Operation,
 	action func(context.Context, int64) (*directory.Account, error),
+	logger *slog.Logger,
 ) {
 	huma.Register(api, op, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
 		user, err := ctxkeys.RequireUser(ctx)
@@ -33,13 +35,13 @@ func registerAccountAction(
 		}
 		account, err := action(ctx, user.ID)
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, op.OperationID, err, "user_id", user.ID)
 		}
 		return &accountOutput{Body: *account}, nil
 	})
 }
 
-func registerGetAccount(api huma.API, authService *auth.Service) {
+func registerGetAccount(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	registerAccountAction(api, huma.Operation{
 		OperationID: "get-account",
 		Method:      http.MethodGet,
@@ -47,10 +49,10 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 		Tags:        []string{accountTag},
 		Summary:     "Get the signed-in user's account, including any API key",
 		Errors:      []int{http.StatusUnauthorized},
-	}, authService.Account)
+	}, authService.Account, logger)
 }
 
-func registerPutAccount(api huma.API, userService *directory.UserService) {
+func registerPutAccount(api huma.API, userService *directory.UserService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-account",
 		Method:      http.MethodPut,
@@ -69,13 +71,13 @@ func registerPutAccount(api huma.API, userService *directory.UserService) {
 		}
 		account, err := userService.UpdateAccount(ctx, user.ID, input.Body)
 		if err != nil {
-			return nil, accountMutationError(err)
+			return nil, handlerError(ctx, logger, "update-account", accountMutationError(err), "user_id", user.ID)
 		}
 		return &accountOutput{Body: *account}, nil
 	})
 }
 
-func registerRotateAPIKey(api huma.API, authService *auth.Service) {
+func registerRotateAPIKey(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	registerAccountAction(api, huma.Operation{
 		OperationID:   "rotate-account-api-key",
 		Method:        http.MethodPost,
@@ -84,10 +86,10 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service) {
 		Summary:       "Generate a new API key for the signed-in user, replacing any prior key",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusUnauthorized},
-	}, authService.RotateAPIKey)
+	}, authService.RotateAPIKey, logger)
 }
 
-func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
+func registerRevokeAPIKey(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	registerAccountAction(api, huma.Operation{
 		OperationID: "revoke-account-api-key",
 		Method:      http.MethodDelete,
@@ -95,7 +97,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 		Tags:        []string{accountTag},
 		Summary:     "Clear the API key on the signed-in user's account",
 		Errors:      []int{http.StatusUnauthorized},
-	}, authService.RevokeAPIKey)
+	}, authService.RevokeAPIKey, logger)
 }
 
 func accountMutationError(err error) error {

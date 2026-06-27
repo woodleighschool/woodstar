@@ -1,4 +1,4 @@
-// Package logging sets up slog.
+// Package logging configures the application's slog logger.
 package logging
 
 import (
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ParseLevel turns config text into a slog level.
+// ParseLevel turns config text into a slog level, defaulting to info.
 func ParseLevel(value string) slog.Level {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "debug":
@@ -21,7 +21,7 @@ func ParseLevel(value string) slog.Level {
 	}
 }
 
-// NewLogger writes JSON logs to w.
-func NewLogger(w io.Writer, level slog.Level) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}))
+// New builds a logger that writes human-readable lines to w at the given level.
+func New(w io.Writer, level slog.Level) *slog.Logger {
+	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}))
 }

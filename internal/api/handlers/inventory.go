@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -37,12 +38,12 @@ type inventorySoftwareGetOutput struct {
 }
 
 func registerInventory(g Groups, deps Dependencies) {
-	registerListInventorySoftware(g.Ordinary, deps.Software)
-	registerGetInventorySoftware(g.Ordinary, deps.Software)
-	registerHostSoftware(g.Ordinary, deps.Software, deps.Hosts)
+	registerListInventorySoftware(g.Ordinary, deps.Software, deps.Logger)
+	registerGetInventorySoftware(g.Ordinary, deps.Software, deps.Logger)
+	registerHostSoftware(g.Ordinary, deps.Software, deps.Hosts, deps.Logger)
 }
 
-func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store) {
+func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,
@@ -53,7 +54,7 @@ func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store)
 	}, func(ctx context.Context, input *inventorySoftwareListInput) (*inventorySoftwareListOutput, error) {
 		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError("software", err)
+			return nil, resourceError(ctx, logger, "list-software", "software", err)
 		}
 		return &inventorySoftwareListOutput{
 			Body: Page[inventory.SoftwareTitle]{Items: titles, Count: int32(count)},
@@ -61,7 +62,7 @@ func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store)
 	})
 }
 
-func registerGetInventorySoftware(api huma.API, softwareStore *inventory.Store) {
+func registerGetInventorySoftware(api huma.API, softwareStore *inventory.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-software",
 		Method:      http.MethodGet,
@@ -75,7 +76,7 @@ func registerGetInventorySoftware(api huma.API, softwareStore *inventory.Store) 
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "get-software", err, "software_id", input.SoftwareID)
 		}
 		return &inventorySoftwareGetOutput{Body: *title}, nil
 	})

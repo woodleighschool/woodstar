@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -77,17 +78,18 @@ func registerMunkiSoftware(
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
 	notifier desiredNotifier,
+	logger *slog.Logger,
 ) {
-	registerListMunkiSoftware(api, store)
-	registerCreateMunkiSoftware(api, store, packageStore)
-	registerGetMunkiSoftware(api, store, packageStore)
-	registerPutMunkiSoftware(api, store, packageStore)
-	registerDeleteMunkiSoftware(api, store, notifier)
-	registerBulkDeleteMunkiSoftware(api, store, notifier)
-	registerIconRoutes(api, store, objects, storageStore)
+	registerListMunkiSoftware(api, store, logger)
+	registerCreateMunkiSoftware(api, store, packageStore, logger)
+	registerGetMunkiSoftware(api, store, packageStore, logger)
+	registerPutMunkiSoftware(api, store, packageStore, logger)
+	registerDeleteMunkiSoftware(api, store, notifier, logger)
+	registerBulkDeleteMunkiSoftware(api, store, notifier, logger)
+	registerIconRoutes(api, store, objects, storageStore, logger)
 }
 
-func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
+func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-software",
 		Method:      http.MethodGet,
@@ -98,7 +100,7 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, ResourceMutationError(munkiSoftwareLabel, err)
+			return nil, resourceError(ctx, logger, "list-munki-software", munkiSoftwareLabel, err)
 		}
 		items := make([]munkiSoftware, len(rows))
 		for i, row := range rows {
@@ -113,7 +115,12 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 	})
 }
 
-func registerCreateMunkiSoftware(api huma.API, store *munkisoftware.Store, packageStore *packages.Store) {
+func registerCreateMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	packageStore *packages.Store,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software",
 		Method:        http.MethodPost,
@@ -131,13 +138,18 @@ func registerCreateMunkiSoftware(api huma.API, store *munkisoftware.Store, packa
 	}, func(ctx context.Context, input *munkiSoftwareCreateInput) (*munkiSoftwareDetailOutput, error) {
 		title, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(munkiSoftwareLabel, err)
+			return nil, resourceError(ctx, logger, "create-munki-software", munkiSoftwareLabel, err)
 		}
-		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore)
+		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore, logger, "create-munki-software")
 	})
 }
 
-func registerGetMunkiSoftware(api huma.API, store *munkisoftware.Store, packageStore *packages.Store) {
+func registerGetMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	packageStore *packages.Store,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-software",
 		Method:      http.MethodGet,
@@ -146,11 +158,16 @@ func registerGetMunkiSoftware(api huma.API, store *munkisoftware.Store, packageS
 		Summary:     "Get Munki software",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareGetInput) (*munkiSoftwareDetailOutput, error) {
-		return loadMunkiSoftwareDetail(ctx, input.SoftwareID, store, packageStore)
+		return loadMunkiSoftwareDetail(ctx, input.SoftwareID, store, packageStore, logger, "get-munki-software")
 	})
 }
 
-func registerPutMunkiSoftware(api huma.API, store *munkisoftware.Store, packageStore *packages.Store) {
+func registerPutMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	packageStore *packages.Store,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-software",
 		Method:      http.MethodPut,
@@ -167,13 +184,26 @@ func registerPutMunkiSoftware(api huma.API, store *munkisoftware.Store, packageS
 	}, func(ctx context.Context, input *munkiSoftwarePutInput) (*munkiSoftwareDetailOutput, error) {
 		title, err := store.Update(ctx, input.SoftwareID, input.Body)
 		if err != nil {
-			return nil, ResourceMutationError(munkiSoftwareLabel, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"update-munki-software",
+				munkiSoftwareLabel,
+				err,
+				"software_id",
+				input.SoftwareID,
+			)
 		}
-		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore)
+		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore, logger, "update-munki-software")
 	})
 }
 
-func registerDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store, notifier desiredNotifier) {
+func registerDeleteMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	notifier desiredNotifier,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-software",
 		Method:      http.MethodDelete,
@@ -183,14 +213,27 @@ func registerDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store, notif
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.SoftwareID); err != nil {
-			return nil, ResourceMutationError(munkiSoftwareLabel, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"delete-munki-software",
+				munkiSoftwareLabel,
+				err,
+				"software_id",
+				input.SoftwareID,
+			)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store, notifier desiredNotifier) {
+func registerBulkDeleteMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	notifier desiredNotifier,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-software",
 		Method:      http.MethodPost,
@@ -200,7 +243,7 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store, n
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiSoftwareBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, ResourceMutationError(munkiSoftwareLabel, err)
+			return nil, resourceError(ctx, logger, "bulk-delete-munki-software", munkiSoftwareLabel, err)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil
@@ -212,21 +255,23 @@ func loadMunkiSoftwareDetail(
 	id int64,
 	store *munkisoftware.Store,
 	packageStore *packages.Store,
+	logger *slog.Logger,
+	operation string,
 ) (*munkiSoftwareDetailOutput, error) {
 	title, err := store.GetByID(ctx, id)
 	if err != nil {
-		return nil, ResourceMutationError(munkiSoftwareLabel, err)
+		return nil, resourceError(ctx, logger, operation, munkiSoftwareLabel, err, "software_id", id)
 	}
 	packageRows, _, err := packageStore.List(ctx, packages.PackageListParams{
 		ListParams: dbutil.ListParams{PageSize: 1000},
 		SoftwareID: id,
 	})
 	if err != nil {
-		return nil, ResourceMutationError(munkiPackageLabel, err)
+		return nil, resourceError(ctx, logger, operation, munkiPackageLabel, err, "software_id", id)
 	}
 	targets, err := store.TargetsForSoftware(ctx, id)
 	if err != nil {
-		return nil, ResourceMutationError(munkiSoftwareLabel, err)
+		return nil, resourceError(ctx, logger, operation, munkiSoftwareLabel, err, "software_id", id)
 	}
 	return &munkiSoftwareDetailOutput{
 		Body: munkiSoftwareDetail{

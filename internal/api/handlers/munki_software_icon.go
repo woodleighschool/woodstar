@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -20,8 +21,9 @@ func registerMunkiSoftwareIconContent(
 	store *munkisoftware.Store,
 	objects *storage.ObjectStore,
 	backend storage.Store,
+	logger *slog.Logger,
 ) {
-	h := iconContentHandler{store: store, objects: objects, backend: backend}
+	h := iconContentHandler{store: store, objects: objects, backend: backend, logger: logger}
 	r.Get(munkiSoftwareIDPath+"/icon", h.get)
 }
 
@@ -29,6 +31,7 @@ type iconContentHandler struct {
 	store   *munkisoftware.Store
 	objects *storage.ObjectStore
 	backend storage.Store
+	logger  *slog.Logger
 }
 
 func (h iconContentHandler) get(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +47,7 @@ func (h iconContentHandler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		_ = handlerError(r.Context(), h.logger, "get-munki-software-icon-content", err, "software_id", softwareID)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -58,6 +62,14 @@ func (h iconContentHandler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		_ = handlerError(
+			r.Context(),
+			h.logger,
+			"get-munki-software-icon-content",
+			err,
+			"software_id", softwareID,
+			"object_id", *title.IconObjectID,
+		)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -66,12 +78,21 @@ func (h iconContentHandler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storage.ServeObject(w, r, h.backend, obj.Key(), storage.ServeOptions{
+	if err := storage.ServeObject(w, r, h.backend, obj.Key(), storage.ServeOptions{
 		ContentType:  obj.ContentType,
 		Filename:     obj.Filename,
 		CacheControl: iconCacheControl,
 		ETag:         objectETag(obj),
-	})
+	}); err != nil {
+		_ = handlerError(
+			r.Context(),
+			h.logger,
+			"get-munki-software-icon-content",
+			err,
+			"software_id", softwareID,
+			"object_id", obj.ID,
+		)
+	}
 }
 
 func objectETag(obj *storage.Object) string {

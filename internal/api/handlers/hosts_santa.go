@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -27,7 +28,12 @@ type hostSantaRulesInput struct {
 	HostID int64 `path:"id"`
 }
 
-func registerHostSantaState(api huma.API, store hostSantaStateLoader, hostStore *hosts.Store) {
+func registerHostSantaState(
+	api huma.API,
+	store hostSantaStateLoader,
+	hostStore *hosts.Store,
+	logger *slog.Logger,
+) {
 	registerHostState(
 		api,
 		"get-host-santa-state",
@@ -36,10 +42,11 @@ func registerHostSantaState(api huma.API, store hostSantaStateLoader, hostStore 
 		"santa state not found",
 		hostStore,
 		store.LoadHostState,
+		logger,
 	)
 }
 
-func registerHostSantaRules(api huma.API, ruleStore *rules.Store, hostStore *hosts.Store) {
+func registerHostSantaRules(api huma.API, ruleStore *rules.Store, hostStore *hosts.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-santa-rules",
 		Method:      http.MethodGet,
@@ -54,13 +61,20 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, hostStore *hos
 		if _, err := hostStore.GetByID(ctx, input.HostID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
-			return nil, err
+			return nil, handlerError(ctx, logger, "list-host-santa-rules", err, "host_id", input.HostID)
 		}
 		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.HostID, rules.RuleStatusListParams{
 			ListParams: input.ListQueryInput.Params(),
 		})
 		if err != nil {
-			return nil, ResourceMutationError(santaRuleResource, err)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-host-santa-rules",
+				santaRuleResource,
+				err,
+				"host_id", input.HostID,
+			)
 		}
 		return &hostSantaRulesOutput{
 			Body: Page[rules.RuleStatus]{Items: rows, Count: int32(count)},
