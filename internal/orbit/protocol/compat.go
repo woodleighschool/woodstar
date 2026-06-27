@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/httpjson"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
@@ -13,7 +13,7 @@ func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.EnrollmentService
 	r.Post(
 		"/api/fleet/orbit/scripts/request",
 		requireOrbitNodeKey(svc, func(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
-			httpjson.Write(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})
+			httpx.Write(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})
 		}),
 	)
 	r.Post("/api/fleet/orbit/scripts/result", requireOrbitNodeKey(svc, orbitNoContentHandler))
@@ -54,13 +54,13 @@ func requireOrbitNodeKey(
 	next func(http.ResponseWriter, *http.Request, orbitNodeKeyRequest),
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[orbitNodeKeyRequest](r)
+		req, err := httpx.Decode[orbitNodeKeyRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		if err := svc.ValidateNodeKey(r.Context(), req.OrbitNodeKey); err != nil {
-			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
 		next(w, r, req)
@@ -77,11 +77,11 @@ type setupExperienceResponse struct {
 }
 
 func orbitEmptyObjectHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
-	httpjson.Write(w, http.StatusOK, struct{}{})
+	httpx.Write(w, http.StatusOK, struct{}{})
 }
 
 func setupExperienceStatusHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
-	httpjson.Write(w, http.StatusOK, setupExperienceResponse{OK: true})
+	httpx.Write(w, http.StatusOK, setupExperienceResponse{OK: true})
 }
 
 func orbitNoContentHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {

@@ -14,7 +14,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/httpauth"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -205,7 +205,7 @@ func requestETagMatches(header string, etag string) bool {
 }
 
 func (h handler) authorized(r *http.Request) (bool, error) {
-	token, ok := httpauth.BearerToken(r.Header.Get("Authorization"))
+	token, ok := httpx.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		return false, nil
 	}

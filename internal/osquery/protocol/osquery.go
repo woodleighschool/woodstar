@@ -11,7 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
-	"github.com/woodleighschool/woodstar/internal/httpjson"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -33,9 +33,9 @@ func RegisterOsqueryRoutes(r chi.Router, svc *osquery.AgentService, logger *slog
 
 func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[osquery.EnrollRequest](r)
+		req, err := httpx.Decode[osquery.EnrollRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
@@ -47,10 +47,10 @@ func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 				"reason", "invalid_enroll_secret",
 				"host_identifier", req.HostIdentifier,
 			)
-			httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
-			httpjson.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
+			httpx.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
 			return
 		case err != nil:
 			logger.ErrorContext(
@@ -59,18 +59,18 @@ func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 				"host_identifier", req.HostIdentifier,
 				"err", err,
 			)
-			httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed")
+			httpx.WriteError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
-		httpjson.Write(w, http.StatusOK, osquery.EnrollResponse{NodeKey: nodeKey})
+		httpx.Write(w, http.StatusOK, osquery.EnrollResponse{NodeKey: nodeKey})
 	}
 }
 
 func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[osquery.ConfigRequest](r)
+		req, err := httpx.Decode[osquery.ConfigRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := svc.Config(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()))
@@ -80,9 +80,9 @@ func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 
 func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[osquery.DistributedReadRequest](r)
+		req, err := httpx.Decode[osquery.DistributedReadRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()))
@@ -92,9 +92,9 @@ func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logge
 
 func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[osquery.DistributedWriteRequest](r)
+		req, err := httpx.Decode[osquery.DistributedWriteRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := svc.DistributedWrite(r.Context(), req, chimiddleware.GetClientIP(r.Context()))
@@ -104,9 +104,9 @@ func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logg
 
 func osqueryLogHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[osquery.LogRequest](r)
+		req, err := httpx.Decode[osquery.LogRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := svc.Log(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()), req)
@@ -124,12 +124,12 @@ func writeOsqueryResult(
 ) {
 	if err != nil {
 		logger.ErrorContext(r.Context(), "osquery handler failed", "operation", operation, "err", err)
-		httpjson.WriteError(w, http.StatusInternalServerError, "request failed")
+		httpx.WriteError(w, http.StatusInternalServerError, "request failed")
 		return
 	}
-	httpjson.Write(w, http.StatusOK, body)
+	httpx.Write(w, http.StatusOK, body)
 }
 
 func osqueryEmptyJSONHandler(w http.ResponseWriter, _ *http.Request) {
-	httpjson.Write(w, http.StatusOK, struct{}{})
+	httpx.Write(w, http.StatusOK, struct{}{})
 }

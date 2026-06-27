@@ -1,13 +1,27 @@
-// Package httpjson provides small JSON helpers for raw net/http endpoints.
-package httpjson
+// Package httpx provides helpers for raw net/http endpoints that bypass Huma.
+package httpx
 
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 type ErrorBody struct {
 	Error string `json:"error"`
+}
+
+// BearerToken parses a single-token Bearer Authorization header.
+func BearerToken(authorization string) (string, bool) {
+	scheme, value, ok := strings.Cut(authorization, " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" || strings.ContainsAny(value, " \t\r\n") {
+		return "", false
+	}
+	return value, true
 }
 
 // Write encodes body as JSON and writes it with the given status. Write

@@ -10,7 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
-	"github.com/woodleighschool/woodstar/internal/httpjson"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
@@ -33,16 +33,16 @@ func RegisterOrbitRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slo
 
 func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[orbit.EnrollRequest](r)
+		req, err := httpx.Decode[orbit.EnrollRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
-			httpjson.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
+			httpx.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
 			return
 		case errors.Is(err, agentauth.ErrInvalidSecret):
 			logger.WarnContext(
@@ -51,7 +51,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 				"reason", "invalid_enroll_secret",
 				"hardware_uuid", req.HardwareUUID,
 			)
-			httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case err != nil:
 			logger.ErrorContext(
@@ -60,7 +60,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 				"hardware_uuid", req.HardwareUUID,
 				"err", err,
 			)
-			httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed")
+			httpx.WriteError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
 
@@ -71,15 +71,15 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 			"hardware_uuid", host.Hardware.UUID,
 			"display_name", host.DisplayName,
 		)
-		httpjson.Write(w, http.StatusOK, orbit.EnrollResponse{OrbitNodeKey: nodeKey})
+		httpx.Write(w, http.StatusOK, orbit.EnrollResponse{OrbitNodeKey: nodeKey})
 	}
 }
 
 func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[orbit.ConfigRequest](r)
+		req, err := httpx.Decode[orbit.ConfigRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
@@ -89,18 +89,18 @@ func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 				"orbit config rejected", "operation", "config",
 				"reason", "invalid_node_key",
 			)
-			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
-		httpjson.Write(w, http.StatusOK, resp)
+		httpx.Write(w, http.StatusOK, resp)
 	}
 }
 
 func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[orbit.DeviceMappingRequest](r)
+		req, err := httpx.Decode[orbit.DeviceMappingRequest](r)
 		if err != nil {
-			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		if err := svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
@@ -109,10 +109,10 @@ func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger
 				"orbit device mapping rejected", "operation", "device_mapping",
 				"reason", "invalid_node_key",
 			)
-			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
-		httpjson.Write(w, http.StatusOK, struct{}{})
+		httpx.Write(w, http.StatusOK, struct{}{})
 	}
 }
 

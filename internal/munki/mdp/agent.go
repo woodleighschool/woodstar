@@ -12,8 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/httpauth"
-	"github.com/woodleighschool/woodstar/internal/httpjson"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -95,11 +94,11 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	httpjson.Write(w, http.StatusOK, downloadURLResponse{DownloadURL: url})
+	httpx.Write(w, http.StatusOK, downloadURLResponse{DownloadURL: url})
 }
 
 func (h workerHandler) authenticate(w http.ResponseWriter, r *http.Request) (*DistributionPoint, bool) {
-	token, ok := httpauth.BearerToken(r.Header.Get("Authorization"))
+	token, ok := httpx.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return nil, false

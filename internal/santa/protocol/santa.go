@@ -22,7 +22,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/httpauth"
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -378,7 +378,7 @@ func processChainFromProto(processes []*syncv1.Process) []santaevents.ProcessInp
 }
 
 func (h handler) authorize(r *http.Request) error {
-	token, ok := httpauth.BearerToken(r.Header.Get("Authorization"))
+	token, ok := httpx.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		return errUnauthorized
 	}
