@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
@@ -18,7 +17,7 @@ const (
 )
 
 type reportListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 }
 
 type reportGetInput struct {
@@ -39,11 +38,11 @@ type reportDeleteInput struct {
 }
 
 type reportBulkDeleteInput struct {
-	Body apitypes.BulkIDsBody
+	Body BulkIDsBody
 }
 
 type reportListOutput struct {
-	Body apitypes.Page[reports.Report]
+	Body Page[reports.Report]
 }
 
 type reportOutput struct {
@@ -75,9 +74,9 @@ func registerListReports(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportListInput) (*reportListOutput, error) {
 		items, count, err := reportStore.List(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(reportResource, err)
+			return nil, ResourceMutationError(reportResource, err)
 		}
-		return &reportListOutput{Body: apitypes.Page[reports.Report]{Items: items, Count: int32(count)}}, nil
+		return &reportListOutput{Body: Page[reports.Report]{Items: items, Count: int32(count)}}, nil
 	})
 }
 
@@ -96,7 +95,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
 		})
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(reportResource, err)
+			return nil, ResourceMutationError(reportResource, err)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
@@ -113,7 +112,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
 		report, err := reportStore.GetByID(ctx, input.ReportID)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(reportResource, err)
+			return nil, ResourceMutationError(reportResource, err)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
@@ -130,7 +129,7 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
 		report, err := reportStore.Update(ctx, input.ReportID, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(reportResource, err)
+			return nil, ResourceMutationError(reportResource, err)
 		}
 		return &reportOutput{Body: *report}, nil
 	})
@@ -146,7 +145,7 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
 		if err := reportStore.Delete(ctx, input.ReportID); err != nil {
-			return nil, apitypes.ResourceMutationError(reportResource, err)
+			return nil, ResourceMutationError(reportResource, err)
 		}
 		return &struct{}{}, nil
 	})

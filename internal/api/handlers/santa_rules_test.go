@@ -13,7 +13,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -216,7 +215,7 @@ func TestHostSantaRulesEndpointChecksHostBeforeListingRules(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("host rules status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var body apitypes.Page[rules.RuleStatus]
+	var body Page[rules.RuleStatus]
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode host rules body: %v", err)
 	}

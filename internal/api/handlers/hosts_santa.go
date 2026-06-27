@@ -7,20 +7,36 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
+type hostSantaStateLoader interface {
+	LoadHostState(context.Context, int64) (*santa.HostState, error)
+}
+
 type hostSantaRulesOutput struct {
-	Body apitypes.Page[rules.RuleStatus]
+	Body Page[rules.RuleStatus]
 }
 
 type hostSantaRulesInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	HostID int64 `path:"id"`
+}
+
+func registerHostSantaState(api huma.API, store hostSantaStateLoader, hostStore *hosts.Store) {
+	registerHostState(
+		api,
+		"get-host-santa-state",
+		"/api/hosts/{id}/santa",
+		"Get Santa state for a host",
+		"santa state not found",
+		hostStore,
+		store.LoadHostState,
+	)
 }
 
 func registerHostSantaRules(api huma.API, ruleStore *rules.Store, hostStore *hosts.Store) {
@@ -44,10 +60,10 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, hostStore *hos
 			ListParams: input.ListQueryInput.Params(),
 		})
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &hostSantaRulesOutput{
-			Body: apitypes.Page[rules.RuleStatus]{Items: rows, Count: int32(count)},
+			Body: Page[rules.RuleStatus]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }

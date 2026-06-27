@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -23,11 +22,11 @@ type munkiSoftwareConfirmInput struct {
 }
 
 type munkiIconObjectsInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 }
 
 type munkiIconObjectsOutput struct {
-	Body apitypes.Page[MunkiObjectView]
+	Body Page[MunkiObjectView]
 }
 
 func registerIconRoutes(
@@ -50,7 +49,7 @@ func registerIconRoutes(
 		},
 	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
 		if _, err := software.GetByID(ctx, input.SoftwareID); err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		obj, target, err := munkiupload.Create(
 			ctx,
@@ -61,7 +60,7 @@ func registerIconRoutes(
 			input.Body.ContentType,
 		)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		return munkiUploadOutputFromTarget(obj, target), nil
 	})
@@ -89,11 +88,11 @@ func registerIconRoutes(
 			},
 		)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		view, err := munkiObjectViewWithContentURL(ctx, presigner, *obj)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		return &munkiObjectOutput{Body: view}, nil
 	})
@@ -108,17 +107,17 @@ func registerIconRoutes(
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
 		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.Params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("Munki icon", err)
+			return nil, ResourceMutationError("Munki icon", err)
 		}
 		views := make([]MunkiObjectView, len(rows))
 		for i, row := range rows {
 			view, err := munkiObjectViewWithContentURL(ctx, presigner, row)
 			if err != nil {
-				return nil, apitypes.ResourceMutationError("Munki icon", err)
+				return nil, ResourceMutationError("Munki icon", err)
 			}
 			views[i] = view
 		}
-		return &munkiIconObjectsOutput{Body: apitypes.Page[MunkiObjectView]{
+		return &munkiIconObjectsOutput{Body: Page[MunkiObjectView]{
 			Items: views,
 			Count: int32(count),
 		}}, nil

@@ -14,7 +14,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -120,7 +119,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var executionList apitypes.Page[events.ExecutionEvent]
+	var executionList Page[events.ExecutionEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &executionList); err != nil {
 		t.Fatalf("decode execution list: %v", err)
 	}
@@ -137,7 +136,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file access status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var fileAccessList apitypes.Page[events.FileAccessEvent]
+	var fileAccessList Page[events.FileAccessEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &fileAccessList); err != nil {
 		t.Fatalf("decode file access list: %v", err)
 	}

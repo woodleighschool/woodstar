@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
@@ -18,7 +17,7 @@ const (
 )
 
 type groupListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Values []string `query:"values,omitempty"`
 }
@@ -28,7 +27,7 @@ type groupGetInput struct {
 }
 
 type groupListOutput struct {
-	Body apitypes.Page[directory.Group]
+	Body Page[directory.Group]
 }
 
 type groupOutput struct {
@@ -53,9 +52,9 @@ func registerListGroups(api huma.API, groupStore *directory.Store) {
 	}, func(ctx context.Context, input *groupListInput) (*groupListOutput, error) {
 		list, count, err := groupStore.ListGroups(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(groupResource, err)
+			return nil, ResourceMutationError(groupResource, err)
 		}
-		return &groupListOutput{Body: apitypes.Page[directory.Group]{Items: list, Count: int32(count)}}, nil
+		return &groupListOutput{Body: Page[directory.Group]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
@@ -70,7 +69,7 @@ func registerGetGroup(api huma.API, groupStore *directory.Store) {
 	}, func(ctx context.Context, input *groupGetInput) (*groupOutput, error) {
 		group, err := groupStore.GetGroupByID(ctx, input.ID)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(groupResource, err)
+			return nil, ResourceMutationError(groupResource, err)
 		}
 		return &groupOutput{Body: *group}, nil
 	})

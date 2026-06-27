@@ -8,7 +8,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
@@ -106,6 +105,6 @@ func accountMutationError(err error) error {
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:
-		return apitypes.ResourceMutationError("user", err)
+		return ResourceMutationError("user", err)
 	}
 }

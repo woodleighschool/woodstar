@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
@@ -18,7 +17,7 @@ const (
 )
 
 type checkListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 }
 
 type checkGetInput struct {
@@ -44,11 +43,11 @@ type checkDeleteInput struct {
 }
 
 type checkBulkDeleteInput struct {
-	Body apitypes.BulkIDsBody
+	Body BulkIDsBody
 }
 
 type checkListOutput struct {
-	Body apitypes.Page[checks.Check]
+	Body Page[checks.Check]
 }
 
 type checkOutput struct {
@@ -80,9 +79,9 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
 		items, count, err := checkStore.List(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(checkResource, err)
+			return nil, ResourceMutationError(checkResource, err)
 		}
-		return &checkListOutput{Body: apitypes.Page[checks.Check]{Items: items, Count: int32(count)}}, nil
+		return &checkListOutput{Body: Page[checks.Check]{Items: items, Count: int32(count)}}, nil
 	})
 }
 
@@ -101,7 +100,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
 		})
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(checkResource, err)
+			return nil, ResourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -118,7 +117,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
 		check, err := checkStore.GetByID(ctx, input.CheckID)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(checkResource, err)
+			return nil, ResourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -135,7 +134,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
 		check, err := checkStore.Update(ctx, input.CheckID, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(checkResource, err)
+			return nil, ResourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -151,7 +150,7 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
 		if err := checkStore.Delete(ctx, input.CheckID); err != nil {
-			return nil, apitypes.ResourceMutationError(checkResource, err)
+			return nil, ResourceMutationError(checkResource, err)
 		}
 		return &struct{}{}, nil
 	})

@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
@@ -19,11 +18,11 @@ const (
 )
 
 type userListOutput struct {
-	Body apitypes.Page[directory.User]
+	Body Page[directory.User]
 }
 
 type departmentListOutput struct {
-	Body apitypes.Page[directory.Department]
+	Body Page[directory.Department]
 }
 
 type userOutput struct {
@@ -31,7 +30,7 @@ type userOutput struct {
 }
 
 type userListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Values  []string `query:"values,omitempty"`
 	Role    string   `query:"role,omitempty"     enum:"admin,viewer,none"`
@@ -40,7 +39,7 @@ type userListInput struct {
 }
 
 type departmentListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Values []string `query:"values,omitempty"`
 }
@@ -101,9 +100,9 @@ func registerListUsers(api huma.API, userService *directory.UserService) {
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(userResource, err)
+			return nil, ResourceMutationError(userResource, err)
 		}
-		return &userListOutput{Body: apitypes.Page[directory.User]{Items: list, Count: int32(count)}}, nil
+		return &userListOutput{Body: Page[directory.User]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
@@ -118,9 +117,9 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("department", err)
+			return nil, ResourceMutationError("department", err)
 		}
-		return &departmentListOutput{Body: apitypes.Page[directory.Department]{Items: list, Count: int32(count)}}, nil
+		return &departmentListOutput{Body: Page[directory.Department]{Items: list, Count: int32(count)}}, nil
 	})
 }
 
@@ -215,6 +214,6 @@ func userMutationError(err error) error {
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:
-		return apitypes.ResourceMutationError(userResource, err)
+		return ResourceMutationError(userResource, err)
 	}
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -48,7 +47,7 @@ func registerObjectRoutes(
 		},
 	}, func(ctx context.Context, input *munkiPackageUploadInput) (*munkiUploadOutput, error) {
 		if _, err := packageStore.GetByID(ctx, input.PackageID); err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		obj, target, err := munkiupload.Create(
 			ctx,
@@ -59,7 +58,7 @@ func registerObjectRoutes(
 			input.Body.ContentType,
 		)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		return munkiUploadOutputFromTarget(obj, target), nil
 	})
@@ -87,12 +86,12 @@ func registerObjectRoutes(
 			},
 		)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		notifyDesired(notifier)
 		view, err := munkiObjectViewWithContentURL(ctx, store, *obj)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		return &munkiObjectOutput{Body: view}, nil
 	})
@@ -112,7 +111,7 @@ func registerObjectRoutes(
 		},
 	}, func(ctx context.Context, input *munkiPackageObjectInput) (*struct{}, error) {
 		if err := packageStore.ClearInstallerObject(ctx, input.PackageID); err != nil {
-			return nil, apitypes.ResourceMutationError(munkiupload.Label, err)
+			return nil, ResourceMutationError(munkiupload.Label, err)
 		}
 		notifyDesired(notifier)
 		return nil, nil

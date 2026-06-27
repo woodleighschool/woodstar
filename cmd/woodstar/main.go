@@ -131,7 +131,6 @@ func serve(parent context.Context, cfg config.Config) error {
 	}
 
 	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
-	api.InstallHumaErrorHandler(logger)
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {

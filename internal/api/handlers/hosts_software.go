@@ -7,14 +7,13 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 )
 
 type hostSoftwareInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	HostID int64    `path:"id"`
 	Source []string `          query:"source,omitempty"`
@@ -28,7 +27,7 @@ func (i hostSoftwareInput) params() (int64, inventory.HostSoftwareListParams) {
 }
 
 type hostSoftwareOutput struct {
-	Body apitypes.Page[inventory.HostSoftwareRow]
+	Body Page[inventory.HostSoftwareRow]
 }
 
 func registerHostSoftware(api huma.API, softwareStore *inventory.Store, hostStore *hosts.Store) {
@@ -48,10 +47,10 @@ func registerHostSoftware(api huma.API, softwareStore *inventory.Store, hostStor
 		}
 		rows, count, err := softwareStore.ListForHost(ctx, id, params)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("software", err)
+			return nil, ResourceMutationError("software", err)
 		}
 		return &hostSoftwareOutput{
-			Body: apitypes.Page[inventory.HostSoftwareRow]{Items: rows, Count: int32(count)},
+			Body: Page[inventory.HostSoftwareRow]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }

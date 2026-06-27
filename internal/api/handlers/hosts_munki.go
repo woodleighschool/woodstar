@@ -9,11 +9,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 )
 
-type munkiHostStateLoader interface {
+type hostMunkiStateLoader interface {
 	LoadHostState(context.Context, int64) (*munki.HostState, error)
 }
 
-func registerMunkiHostState(api huma.API, store munkiHostStateLoader, hostStore *hosts.Store) {
+func registerHostMunkiState(api huma.API, store hostMunkiStateLoader, hostStore *hosts.Store) {
 	registerHostState(
 		api,
 		"get-host-munki-state",

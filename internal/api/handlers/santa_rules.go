@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
@@ -16,7 +15,7 @@ const (
 )
 
 type santaRuleListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	RuleType rules.RuleType `query:"rule_type,omitempty"`
 }
@@ -45,11 +44,11 @@ type santaRuleDeleteInput struct {
 }
 
 type santaRuleBulkDeleteInput struct {
-	Body apitypes.BulkIDsBody
+	Body BulkIDsBody
 }
 
 type santaRuleListOutput struct {
-	Body apitypes.Page[rules.Rule]
+	Body Page[rules.Rule]
 }
 
 type santaRuleOutput struct {
@@ -92,9 +91,9 @@ func registerListSantaRules(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleListInput) (*santaRuleListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleListOutput{Body: apitypes.Page[rules.Rule]{Items: rows, Count: int32(count)}}, nil
+		return &santaRuleListOutput{Body: Page[rules.Rule]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
@@ -109,7 +108,7 @@ func registerListSantaRuleReferences(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleReferenceListInput) (*santaRuleReferenceListOutput, error) {
 		candidates, err := store.ListRuleReferences(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &santaRuleReferenceListOutput{Body: candidates}, nil
 	})
@@ -133,7 +132,7 @@ func registerCreateSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleCreateInput) (*santaRuleOutput, error) {
 		rule, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
@@ -150,7 +149,7 @@ func registerGetSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
 		rule, err := store.GetByID(ctx, input.RuleID)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
@@ -173,7 +172,7 @@ func registerUpdateSantaRule(api huma.API, store *rules.Store) {
 	}, func(ctx context.Context, input *santaRuleUpdateInput) (*santaRuleOutput, error) {
 		rule, err := store.Update(ctx, input.RuleID, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
@@ -189,7 +188,7 @@ func registerDeleteSantaRule(api huma.API, store *rules.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.RuleID); err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -205,7 +204,7 @@ func registerBulkDeleteSantaRules(api huma.API, store *rules.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
+			return nil, ResourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil
 	})

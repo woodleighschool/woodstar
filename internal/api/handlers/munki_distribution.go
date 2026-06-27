@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
@@ -21,7 +20,7 @@ const (
 )
 
 type distributionPointListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 }
 
 type distributionPointGetInput struct {
@@ -54,7 +53,7 @@ type MunkiDistributionPointReorderBody struct {
 }
 
 type distributionPointListOutput struct {
-	Body apitypes.Page[mdp.DistributionPoint]
+	Body Page[mdp.DistributionPoint]
 }
 
 type distributionPointDetailOutput struct {
@@ -112,7 +111,7 @@ func registerListDistributionPoints(api huma.API, store *mdp.Store) {
 			return nil, distributionPointMutationError(err)
 		}
 		return &distributionPointListOutput{
-			Body: apitypes.Page[mdp.DistributionPoint]{Items: rows, Count: int32(count)},
+			Body: Page[mdp.DistributionPoint]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }
@@ -248,5 +247,5 @@ func registerRotateDistributionPointKey(api huma.API, store *mdp.Store) {
 }
 
 func distributionPointMutationError(err error) error {
-	return apitypes.ResourceMutationError(distributionPointResource, err)
+	return ResourceMutationError(distributionPointResource, err)
 }

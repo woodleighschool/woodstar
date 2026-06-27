@@ -8,7 +8,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 )
@@ -21,7 +20,7 @@ const (
 )
 
 type santaEventListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	HostID    int64                   `query:"host_id,omitempty"`
 	Decisions []events.DecisionFilter `query:"decisions,omitempty"`
@@ -30,7 +29,7 @@ type santaEventListInput struct {
 }
 
 type santaEventListOutput struct {
-	Body apitypes.Page[events.ExecutionEvent]
+	Body Page[events.ExecutionEvent]
 }
 
 type santaEventGetInput struct {
@@ -42,7 +41,7 @@ type santaEventGetOutput struct {
 }
 
 type santaFileAccessEventListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	HostID    int64                       `query:"host_id,omitempty"`
 	Decisions []events.FileAccessDecision `query:"decisions,omitempty"`
@@ -50,7 +49,7 @@ type santaFileAccessEventListInput struct {
 }
 
 type santaFileAccessEventListOutput struct {
-	Body apitypes.Page[events.FileAccessEvent]
+	Body Page[events.FileAccessEvent]
 }
 
 type santaFileAccessEventGetInput struct {
@@ -102,9 +101,9 @@ func registerListSantaEvents(api huma.API, store *events.Store) {
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		rows, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("Santa event", err)
+			return nil, ResourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: apitypes.Page[events.ExecutionEvent]{Items: rows, Count: int32(count)}}, nil
+		return &santaEventListOutput{Body: Page[events.ExecutionEvent]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
@@ -122,7 +121,7 @@ func registerGetSantaEvent(api huma.API, store *events.Store) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(santaEventResource, err)
+			return nil, ResourceMutationError(santaEventResource, err)
 		}
 		return &santaEventGetOutput{Body: event}, nil
 	})
@@ -139,10 +138,10 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store) {
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		rows, count, err := store.ListFileAccessEvents(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("Santa file access event", err)
+			return nil, ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: apitypes.Page[events.FileAccessEvent]{Items: rows, Count: int32(count)},
+			Body: Page[events.FileAccessEvent]{Items: rows, Count: int32(count)},
 		}, nil
 	})
 }
@@ -161,7 +160,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("Santa file access event", err)
+			return nil, ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventGetOutput{Body: event}, nil
 	})

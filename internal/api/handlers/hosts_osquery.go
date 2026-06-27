@@ -10,11 +10,25 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
+type hostOsqueryChecksInput struct {
+	HostID int64 `path:"id"`
+}
+
+type hostOsqueryReportsInput struct {
+	HostID int64 `path:"id"`
+}
+
 type hostReportsOutput struct {
 	Body []reports.HostReport
+}
+
+type hostReportResultsInput struct {
+	HostID   int64 `path:"id"`
+	ReportID int64 `path:"report_id"`
 }
 
 type hostReportResultsOutput struct {
@@ -29,13 +43,28 @@ type hostReportResultsBody struct {
 	Items       []reports.ReportResult `json:"items"`
 }
 
-type hostReportResultsInput struct {
-	HostID   int64 `path:"id"`
-	ReportID int64 `path:"report_id"`
-}
-
-type osqueryReportHostInput struct {
-	HostID int64 `path:"id"`
+func registerHostOsqueryChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-host-osquery-checks",
+		Method:      http.MethodGet,
+		Path:        "/api/hosts/{id}/osquery/checks",
+		Tags:        []string{checksTag, hostsTag},
+		Summary:     "List checks for a host",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*checkResultsOutput, error) {
+		host, err := hostStore.GetByID(ctx, input.HostID)
+		if errors.Is(err, dbutil.ErrNotFound) {
+			return nil, huma.Error404NotFound("host not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		rows, err := checkStore.HostChecks(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		return &checkResultsOutput{Body: rows}, nil
+	})
 }
 
 func registerHostOsqueryReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
@@ -51,7 +80,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *osqueryReportHostInput) (*hostReportsOutput, error) {
+	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostReportsOutput, error) {
 		host, err := hostStore.GetByID(ctx, input.HostID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")

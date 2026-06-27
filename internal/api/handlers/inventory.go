@@ -7,13 +7,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 )
 
 type inventorySoftwareListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Source []string `query:"source,omitempty"`
 }
@@ -30,7 +29,7 @@ type inventorySoftwareGetInput struct {
 }
 
 type inventorySoftwareListOutput struct {
-	Body apitypes.Page[inventory.SoftwareTitle]
+	Body Page[inventory.SoftwareTitle]
 }
 
 type inventorySoftwareGetOutput struct {
@@ -54,10 +53,10 @@ func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store)
 	}, func(ctx context.Context, input *inventorySoftwareListInput) (*inventorySoftwareListOutput, error) {
 		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError("software", err)
+			return nil, ResourceMutationError("software", err)
 		}
 		return &inventorySoftwareListOutput{
-			Body: apitypes.Page[inventory.SoftwareTitle]{Items: titles, Count: int32(count)},
+			Body: Page[inventory.SoftwareTitle]{Items: titles, Count: int32(count)},
 		}, nil
 	})
 }

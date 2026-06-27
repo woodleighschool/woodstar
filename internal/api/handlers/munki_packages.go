@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -18,7 +17,7 @@ const (
 )
 
 type munkiPackageListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Types      []packages.InstallerType `query:"type,omitempty"`
 	SoftwareID int64                    `query:"software_id,omitempty"`
@@ -42,11 +41,11 @@ type munkiPackageDeleteInput struct {
 }
 
 type munkiPackageBulkDeleteInput struct {
-	Body apitypes.BulkIDsBody
+	Body BulkIDsBody
 }
 
 type munkiPackageListOutput struct {
-	Body apitypes.Page[munkiPackage]
+	Body Page[munkiPackage]
 }
 
 type munkiPackageOutput struct {
@@ -100,10 +99,10 @@ func registerListMunkiPackages(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[munkiPackage]{
+			Body: Page[munkiPackage]{
 				Items: munkiPackagesFromPackages(rows),
 				Count: int32(count),
 			},
@@ -129,7 +128,7 @@ func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
@@ -146,7 +145,7 @@ func registerGetMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.PackageID)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
@@ -169,7 +168,7 @@ func registerPutMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackagePutInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Update(ctx, input.PackageID, input.Body)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
 	})
@@ -185,7 +184,7 @@ func registerDeleteMunkiPackage(api huma.API, store *packages.Store, notifier de
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.PackageID); err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil
@@ -202,7 +201,7 @@ func registerBulkDeleteMunkiPackages(api huma.API, store *packages.Store, notifi
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+			return nil, ResourceMutationError(munkiPackageLabel, err)
 		}
 		notifyDesired(notifier)
 		return &struct{}{}, nil

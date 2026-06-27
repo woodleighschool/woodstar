@@ -1,4 +1,4 @@
-package apitypes
+package handlers
 
 import (
 	"errors"
@@ -40,9 +40,9 @@ type Page[T any] struct {
 }
 
 // ListQueryInput is the shared query contract for paginated list endpoints. It
-// carries optional `q`, 1-based `page`, `per_page`, and a single `sort` token
-// such as `name.asc` or `last_seen_at.desc`. Per-resource filters are added as
-// their own query fields, keyed by column ID.
+// carries optional q, 1-based page, per_page, and a single sort token such as
+// name.asc or last_seen_at.desc. Per-resource filters are added as their own
+// query fields, keyed by column ID.
 type ListQueryInput struct {
 	Q       string `query:"q,omitempty"`
 	Page    int32  `query:"page,omitempty"     minimum:"1"`

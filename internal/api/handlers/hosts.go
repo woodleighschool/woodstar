@@ -8,7 +8,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
@@ -16,7 +15,7 @@ import (
 const hostResource = "host"
 
 type hostListOutput struct {
-	Body apitypes.Page[hosts.Host]
+	Body Page[hosts.Host]
 }
 
 type hostDetailOutput struct {
@@ -28,7 +27,7 @@ type hostGetInput struct {
 }
 
 type hostListInput struct {
-	apitypes.ListQueryInput
+	ListQueryInput
 
 	Status          string  `query:"status,omitempty"`
 	LabelID         int64   `query:"label_id,omitempty"`
@@ -49,7 +48,7 @@ func (i hostListInput) params() hosts.HostListParams {
 }
 
 type hostBulkDeleteInput struct {
-	Body apitypes.BulkIDsBody
+	Body BulkIDsBody
 }
 
 type hostPrimaryUserPutBody struct {
@@ -82,9 +81,9 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 		params := input.params()
 		rows, count, err := hostStore.List(ctx, params)
 		if err != nil {
-			return nil, apitypes.ResourceMutationError(hostResource, err)
+			return nil, ResourceMutationError(hostResource, err)
 		}
-		return &hostListOutput{Body: apitypes.Page[hosts.Host]{Items: rows, Count: int32(count)}}, nil
+		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: int32(count)}}, nil
 	})
 }
 
@@ -189,7 +188,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
-			return nil, apitypes.ResourceMutationError(hostResource, err)
+			return nil, ResourceMutationError(hostResource, err)
 		}
 		return &struct{}{}, nil
 	})

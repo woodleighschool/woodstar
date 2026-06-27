@@ -1,4 +1,4 @@
-package apitypes
+package handlers
 
 import (
 	"errors"
