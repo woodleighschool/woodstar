@@ -174,8 +174,9 @@ function HostCount({
 }) {
   return (
     <Link
-      to="/hosts"
-      search={{ check_id: checkId, check_response: response }}
+      to="/osquery/checks/$checkId/results"
+      params={{ checkId: String(checkId) }}
+      search={{ response }}
       className="hover:underline"
     >
       {value} {value === 1 ? "host" : "hosts"}

@@ -168,7 +168,22 @@ func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int6
 	return err
 }
 
-func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostStatus, error) {
+func (s *Store) CheckResults(ctx context.Context, checkID int64, response *CheckStatus) ([]CheckHostStatus, error) {
+	if response != nil {
+		passes, err := passesForCheckStatus(*response)
+		if err != nil {
+			return nil, err
+		}
+		rows, err := s.db.Pool().Query(ctx, listCheckHostStatusesByPassesSQL, checkID, passes)
+		if err != nil {
+			return nil, err
+		}
+		records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
+		if err != nil {
+			return nil, err
+		}
+		return checkHostStatusesFromRows(records), nil
+	}
 	rows, err := s.db.Pool().Query(ctx, listCheckHostStatusesSQL, checkID)
 	if err != nil {
 		return nil, err
@@ -178,22 +193,6 @@ func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostSta
 		return nil, err
 	}
 	return checkHostStatusesFromRows(records), nil
-}
-
-// HostIDsByStatus returns host IDs with the latest persisted status for checkID.
-func (s *Store) HostIDsByStatus(ctx context.Context, checkID int64, status CheckStatus) ([]int64, error) {
-	if checkID <= 0 {
-		return nil, fmt.Errorf("%w: check_id must be positive", dbutil.ErrInvalidInput)
-	}
-	passes, err := passesForCheckStatus(status)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.db.Pool().Query(ctx, listCheckHostIDsByPassesSQL, checkID, passes)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
 func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
@@ -409,12 +408,23 @@ ON CONFLICT (check_id, host_id) DO UPDATE SET
     updated_at = now()`
 
 //nolint:gosec // G101: 'passes' is a boolean status column, not a credential
-const listCheckHostIDsByPassesSQL = `
-SELECT host_id
-FROM check_membership
-WHERE check_id = $1
-  AND passes = $2::boolean
-ORDER BY host_id`
+const listCheckHostStatusesByPassesSQL = `
+WITH check_row AS (
+    SELECT id, name
+    FROM checks c
+    WHERE c.id = $1
+)
+SELECT
+    c.id AS check_id,
+    c.name AS check_name,
+    h.id AS host_id,
+    h.display_name AS host_name,
+    m.passes,
+    m.updated_at
+FROM check_row c
+JOIN check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
+JOIN hosts h ON h.id = m.host_id
+ORDER BY lower(h.display_name), h.id`
 
 const listCheckHostStatusesSQL = `
 WITH check_row AS (

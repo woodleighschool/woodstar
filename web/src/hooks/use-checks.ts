@@ -13,19 +13,23 @@ import {
   createOsqueryCheck,
   deleteOsqueryCheck,
   getOsqueryCheck,
-  listOsqueryCheckHosts,
+  listOsqueryCheckResults,
   listOsqueryChecks,
   unwrap,
   updateOsqueryCheck,
 } from "@/lib/api";
-import type { ListOsqueryChecksData } from "@/lib/api-client/types.gen";
+import type {
+  ListOsqueryCheckResultsData,
+  ListOsqueryChecksData,
+} from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 
 export type { OsqueryCheck, OsqueryCheckHostStatus, OsqueryCheckMutation };
 export type CheckListResult = PageCheck;
-export type CheckHosts = OsqueryCheckHostStatus[];
+export type CheckResults = OsqueryCheckHostStatus[];
 export type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
+export type CheckResultsParams = NonNullable<ListOsqueryCheckResultsData["query"]>;
 
 export function useChecks(params: CheckListParams = {}) {
   const queryParams = baseListParams(params);
@@ -51,13 +55,18 @@ export function useCheck(id: number | null) {
   });
 }
 
-export function useCheckHosts(id: number | null) {
-  return useQuery<CheckHosts, ApiError>({
-    queryKey: queryKeys.checkHosts(id),
+export function useCheckResults(id: number | null, params: CheckResultsParams = {}) {
+  const queryParams = {
+    response: params.response,
+  };
+
+  return useQuery<CheckResults, ApiError>({
+    queryKey: queryKeys.checkResults(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        listOsqueryCheckHosts({
+        listOsqueryCheckResults({
           path: { id: id ?? 0 },
+          query: queryParams,
           signal,
         }),
       ),
@@ -90,7 +99,7 @@ export function useUpdateCheck(id: number | null) {
       toast.success("Check saved");
       void queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
       void queryClient.invalidateQueries({ queryKey: queryKeys.check(id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.checkHosts(id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.checkResults(id) });
     },
   });
 }

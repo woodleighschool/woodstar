@@ -45,8 +45,8 @@ func TestWoodstarSchemaNamerScopesCapabilityTypes(t *testing.T) {
 			want: "MunkiItem",
 		},
 		{
-			name: "prefix not repeated when already present",
-			typ:  reflect.TypeFor[packages.MunkiPackage](),
+			name: "munki package type is scoped",
+			typ:  reflect.TypeFor[packages.Package](),
 			want: "MunkiPackage",
 		},
 		{

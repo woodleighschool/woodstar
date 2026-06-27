@@ -1,6 +1,5 @@
 import { useParams } from "@tanstack/react-router";
 
-import { HostChecksTab } from "@/components/hosts/host-checks-tab";
 import {
   HostCertificatesCard,
   HostIdentityCard,
@@ -10,18 +9,21 @@ import {
 } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
 import { HostMunkiTab } from "@/components/hosts/host-munki-tab";
-import { HostReportsTab } from "@/components/hosts/host-reports-tab";
+import { HostOsqueryChecksTab } from "@/components/hosts/host-osquery-checks-tab";
+import { HostOsqueryReportsTab } from "@/components/hosts/host-osquery-reports-tab";
 import { HostSantaTab } from "@/components/hosts/host-santa-tab";
 import { HostSoftwareTab } from "@/components/hosts/host-software-tab";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryGate } from "@/components/query-gate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useHost } from "@/hooks/use-hosts";
+import { useHost, useHostMunkiState, useHostSantaState } from "@/hooks/use-hosts";
 
 export function HostDetailPage() {
   const { hostId } = useParams({ from: "/_authenticated/hosts/$hostId" });
   const hostID = Number(hostId);
   const query = useHost(hostID);
+  const munkiQuery = useHostMunkiState(hostID);
+  const santaQuery = useHostSantaState(hostID);
   const host = query.data;
 
   if (query.error || !host) {
@@ -34,6 +36,11 @@ export function HostDetailPage() {
     );
   }
 
+  const showMunkiTab =
+    munkiQuery.data !== null && (munkiQuery.data !== undefined || munkiQuery.error);
+  const showSantaTab =
+    santaQuery.data !== null && (santaQuery.data !== undefined || santaQuery.error);
+
   return (
     <PageShell className="gap-6">
       <HostHeader host={host} />
@@ -44,8 +51,8 @@ export function HostDetailPage() {
           <TabsTrigger value="software">Software</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="checks">Checks</TabsTrigger>
-          {host.munki ? <TabsTrigger value="munki">Munki</TabsTrigger> : null}
-          {host.santa ? <TabsTrigger value="santa">Santa</TabsTrigger> : null}
+          {showMunkiTab ? <TabsTrigger value="munki">Munki</TabsTrigger> : null}
+          {showSantaTab ? <TabsTrigger value="santa">Santa</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="details">
@@ -65,22 +72,38 @@ export function HostDetailPage() {
         </TabsContent>
 
         <TabsContent value="reports">
-          <HostReportsTab hostId={hostID} />
+          <HostOsqueryReportsTab hostId={hostID} />
         </TabsContent>
 
         <TabsContent value="checks">
-          <HostChecksTab hostId={hostID} />
+          <HostOsqueryChecksTab hostId={hostID} />
         </TabsContent>
 
-        {host.munki ? (
+        {showMunkiTab ? (
           <TabsContent value="munki">
-            <HostMunkiTab host={host} />
+            {munkiQuery.error ? (
+              <QueryGate
+                title="Failed to load Munki state"
+                error={munkiQuery.error}
+                onRetry={() => void munkiQuery.refetch()}
+              />
+            ) : munkiQuery.data ? (
+              <HostMunkiTab munki={munkiQuery.data} />
+            ) : null}
           </TabsContent>
         ) : null}
 
-        {host.santa ? (
+        {showSantaTab ? (
           <TabsContent value="santa">
-            <HostSantaTab hostId={hostID} host={host} />
+            {santaQuery.error ? (
+              <QueryGate
+                title="Failed to load Santa state"
+                error={santaQuery.error}
+                onRetry={() => void santaQuery.refetch()}
+              />
+            ) : santaQuery.data ? (
+              <HostSantaTab hostId={hostID} santa={santaQuery.data} />
+            ) : null}
           </TabsContent>
         ) : null}
       </Tabs>

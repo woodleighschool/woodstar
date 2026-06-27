@@ -24,8 +24,10 @@ export const queryKeys = {
   host: (id: number | null) => ["hosts", id] as const,
   hostSoftware: (id: number | null, params?: unknown) =>
     ["hosts", id, "software", params ?? {}] as const,
-  hostReports: (id: number | null) => ["hosts", id, "reports"] as const,
-  hostChecks: (id: number | null) => ["hosts", id, "checks"] as const,
+  hostMunkiState: (id: number | null) => ["hosts", id, "munki"] as const,
+  hostOsqueryReports: (id: number | null) => ["hosts", id, "osquery", "reports"] as const,
+  hostOsqueryChecks: (id: number | null) => ["hosts", id, "osquery", "checks"] as const,
+  hostSantaState: (id: number | null) => ["hosts", id, "santa"] as const,
   hostSantaRules: (id: number | null, params?: unknown) =>
     ["hosts", id, "santa", "rules", params ?? {}] as const,
   labels: (params?: unknown) => ["labels", params ?? {}] as const,
@@ -35,7 +37,8 @@ export const queryKeys = {
   reportResults: (id: number | null) => ["reports", id, "results"] as const,
   checks: (params?: unknown) => ["checks", params ?? {}] as const,
   check: (id: number | null) => ["checks", id] as const,
-  checkHosts: (id: number | null) => ["checks", id, "hosts"] as const,
+  checkResults: (id: number | null, params?: unknown) =>
+    ["checks", id, "results", params ?? {}] as const,
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: number | null) => ["software", id] as const,
   softwareSantaReference: (id: number | null) => ["software", id, "santa"] as const,

@@ -2,20 +2,24 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import type {
-  ApiError,
   Host,
   HostDetail,
+  MunkiHostState,
   OsqueryCheckHostStatus,
   OsqueryHostReport,
   PageHost,
   PageHostSoftwareRow,
   PageRuleStatus,
+  SantaHostState,
 } from "@/lib/api";
 import {
+  ApiError,
   bulkDeleteHosts,
   clearHostPrimaryUser,
   deleteHost,
   getHost,
+  getHostMunkiState,
+  getHostSantaState,
   listHostOsqueryChecks,
   listHostOsqueryReports,
   listHosts,
@@ -33,14 +37,14 @@ import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type { Host, HostDetail, OsqueryHostReport };
+export type { Host, HostDetail, MunkiHostState, OsqueryHostReport, SantaHostState };
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 
 type HostListResult = PageHost;
 type HostSoftwareListResult = PageHostSoftwareRow;
-type HostReportsResult = OsqueryHostReport[];
-type HostChecksResult = OsqueryCheckHostStatus[];
+type HostOsqueryReportsResult = OsqueryHostReport[];
+type HostOsqueryChecksResult = OsqueryCheckHostStatus[];
 type HostSantaRulesResult = PageRuleStatus;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
@@ -58,8 +62,6 @@ export function useHosts(params: HostListParams = {}) {
     software_title_id: params.software_title_id,
     software_id: params.software_id,
     ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
-    check_id: params.check_id,
-    check_response: params.check_response,
   };
 
   return useQuery<HostListResult, ApiError>({
@@ -85,6 +87,36 @@ export function useHost(id: number | null) {
           signal,
         }),
       ),
+    enabled: id !== null,
+  });
+}
+
+export function useHostMunkiState(id: number | null) {
+  return useQuery<MunkiHostState | null, ApiError>({
+    queryKey: queryKeys.hostMunkiState(id),
+    queryFn: async ({ signal }) => {
+      try {
+        return await unwrap(getHostMunkiState({ path: { id: id ?? 0 }, signal }));
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: id !== null,
+  });
+}
+
+export function useHostSantaState(id: number | null) {
+  return useQuery<SantaHostState | null, ApiError>({
+    queryKey: queryKeys.hostSantaState(id),
+    queryFn: async ({ signal }) => {
+      try {
+        return await unwrap(getHostSantaState({ path: { id: id ?? 0 }, signal }));
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
     enabled: id !== null,
   });
 }
@@ -156,9 +188,9 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
   });
 }
 
-export function useHostReports(id: number | null) {
-  return useQuery<HostReportsResult, ApiError>({
-    queryKey: queryKeys.hostReports(id),
+export function useHostOsqueryReports(id: number | null) {
+  return useQuery<HostOsqueryReportsResult, ApiError>({
+    queryKey: queryKeys.hostOsqueryReports(id),
     queryFn: ({ signal }) =>
       unwrap(
         listHostOsqueryReports({
@@ -170,9 +202,9 @@ export function useHostReports(id: number | null) {
   });
 }
 
-export function useHostChecks(id: number | null) {
-  return useQuery<HostChecksResult, ApiError>({
-    queryKey: queryKeys.hostChecks(id),
+export function useHostOsqueryChecks(id: number | null) {
+  return useQuery<HostOsqueryChecksResult, ApiError>({
+    queryKey: queryKeys.hostOsqueryChecks(id),
     queryFn: ({ signal }) =>
       unwrap(
         listHostOsqueryChecks({

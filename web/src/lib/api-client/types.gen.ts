@@ -180,12 +180,10 @@ export type HostDetail = {
     hostname: string;
     id: number;
     labels: Array<Label>;
-    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
-    santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
@@ -246,6 +244,14 @@ export type HostPrimaryUserPutBody = {
 export type HostPrimaryUserSource = {
     email: string;
     source: 'manual' | 'orbit_profile';
+};
+
+export type HostReportResultsBody = {
+    host_id: number;
+    host_name: string;
+    items: Array<OsqueryReportResult>;
+    last_fetched?: string;
+    report_id: number;
 };
 
 export type HostSoftwareInstalledVersion = {
@@ -739,14 +745,6 @@ export type OsqueryHostReport = {
     last_fetched?: string;
     n_host_results: number;
     name: string;
-    report_id: number;
-};
-
-export type OsqueryHostReportResultsBody = {
-    host_id: number;
-    host_name: string;
-    items: Array<OsqueryReportResult>;
-    last_fetched?: string;
     report_id: number;
 };
 
@@ -1319,12 +1317,10 @@ export type HostDetailWritable = {
     hostname: string;
     id: number;
     labels: Array<LabelWritable>;
-    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
-    santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
@@ -1696,9 +1692,13 @@ export type DeleteSessionData = {
 
 export type DeleteSessionErrors = {
     /**
-     * Error
+     * Unauthorized
      */
-    default: ErrorModel;
+    401: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
 };
 
 export type DeleteSessionError = DeleteSessionErrors[keyof DeleteSessionErrors];
@@ -1828,8 +1828,6 @@ export type ListHostsData = {
         software_title_id?: number;
         software_id?: number;
         ids?: Array<number>;
-        check_id?: number;
-        check_response?: 'pass' | 'fail';
     };
     url: '/api/hosts';
 };
@@ -1983,6 +1981,45 @@ export type GetHostResponses = {
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
 
+export type GetHostMunkiStateData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/munki';
+};
+
+export type GetHostMunkiStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetHostMunkiStateError = GetHostMunkiStateErrors[keyof GetHostMunkiStateErrors];
+
+export type GetHostMunkiStateResponses = {
+    /**
+     * OK
+     */
+    200: MunkiHostState;
+};
+
+export type GetHostMunkiStateResponse = GetHostMunkiStateResponses[keyof GetHostMunkiStateResponses];
+
 export type ListHostOsqueryChecksData = {
     body?: never;
     path: {
@@ -2096,7 +2133,7 @@ export type ListHostOsqueryReportResultsResponses = {
     /**
      * OK
      */
-    200: OsqueryHostReportResultsBody;
+    200: HostReportResultsBody;
 };
 
 export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
@@ -2190,6 +2227,45 @@ export type SetHostPrimaryUserResponses = {
 };
 
 export type SetHostPrimaryUserResponse = SetHostPrimaryUserResponses[keyof SetHostPrimaryUserResponses];
+
+export type GetHostSantaStateData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/santa';
+};
+
+export type GetHostSantaStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetHostSantaStateError = GetHostSantaStateErrors[keyof GetHostSantaStateErrors];
+
+export type GetHostSantaStateResponses = {
+    /**
+     * OK
+     */
+    200: SantaHostState;
+};
+
+export type GetHostSantaStateResponse = GetHostSantaStateResponses[keyof GetHostSantaStateResponses];
 
 export type ListHostSantaRulesData = {
     body?: never;
@@ -4030,16 +4106,18 @@ export type UpdateOsqueryCheckResponses = {
 
 export type UpdateOsqueryCheckResponse = UpdateOsqueryCheckResponses[keyof UpdateOsqueryCheckResponses];
 
-export type ListOsqueryCheckHostsData = {
+export type ListOsqueryCheckResultsData = {
     body?: never;
     path: {
         id: number;
     };
-    query?: never;
-    url: '/api/osquery/checks/{id}/hosts';
+    query?: {
+        response?: 'pass' | 'fail';
+    };
+    url: '/api/osquery/checks/{id}/results';
 };
 
-export type ListOsqueryCheckHostsErrors = {
+export type ListOsqueryCheckResultsErrors = {
     /**
      * Unauthorized
      */
@@ -4058,16 +4136,16 @@ export type ListOsqueryCheckHostsErrors = {
     500: ErrorModel;
 };
 
-export type ListOsqueryCheckHostsError = ListOsqueryCheckHostsErrors[keyof ListOsqueryCheckHostsErrors];
+export type ListOsqueryCheckResultsError = ListOsqueryCheckResultsErrors[keyof ListOsqueryCheckResultsErrors];
 
-export type ListOsqueryCheckHostsResponses = {
+export type ListOsqueryCheckResultsResponses = {
     /**
      * OK
      */
     200: Array<OsqueryCheckHostStatus>;
 };
 
-export type ListOsqueryCheckHostsResponse = ListOsqueryCheckHostsResponses[keyof ListOsqueryCheckHostsResponses];
+export type ListOsqueryCheckResultsResponse = ListOsqueryCheckResultsResponses[keyof ListOsqueryCheckResultsResponses];
 
 export type ListOsqueryReportsData = {
     body?: never;

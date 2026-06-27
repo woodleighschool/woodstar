@@ -278,7 +278,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	}
 }
 
-func TestHostStatusesIncludeMembershipState(t *testing.T) {
+func TestCheckResultsIncludeMembershipState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	check, err := store.Create(ctx, makeCheck(CheckMutation{
@@ -302,12 +302,12 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 		t.Fatalf("upsert passing membership: %v", err)
 	}
 
-	got, err := store.HostStatuses(ctx, check.ID)
+	got, err := store.CheckResults(ctx, check.ID, nil)
 	if err != nil {
-		t.Fatalf("host statuses: %v", err)
+		t.Fatalf("check results: %v", err)
 	}
 	if len(got) != 3 {
-		t.Fatalf("HostStatuses returned %d hosts, want 3: %+v", len(got), got)
+		t.Fatalf("CheckResults returned %d hosts, want 3: %+v", len(got), got)
 	}
 	failStatus := CheckStatusFail
 	passStatus := CheckStatusPass
@@ -325,7 +325,7 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 			!equalCheckStatusPtr(got[i].Response, wantStatus.response) ||
 			(got[i].UpdatedAt != nil) != wantStatus.updated {
 			t.Fatalf(
-				"HostStatuses[%d] = %+v, want host=%d response=%v updated=%v",
+				"CheckResults[%d] = %+v, want host=%d response=%v updated=%v",
 				i,
 				got[i],
 				wantStatus.hostID,
@@ -336,7 +336,7 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	}
 }
 
-func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
+func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
 	check, err := store.Create(ctx, makeCheck(CheckMutation{Name: "Host ID status check", Query: "select 1"}))
 	if err != nil {
@@ -358,23 +358,34 @@ func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
 		t.Fatalf("upsert unevaluated membership: %v", err)
 	}
 
-	passingIDs, err := store.HostIDsByStatus(ctx, check.ID, CheckStatusPass)
+	passStatus := CheckStatusPass
+	passingResults, err := store.CheckResults(ctx, check.ID, &passStatus)
 	if err != nil {
-		t.Fatalf("pass host ids: %v", err)
+		t.Fatalf("pass results: %v", err)
 	}
-	if !sameInt64s(passingIDs, []int64{passingHost.ID}) {
-		t.Fatalf("pass host ids = %+v, want [%d]", passingIDs, passingHost.ID)
+	if len(passingResults) != 1 ||
+		passingResults[0].HostID != passingHost.ID ||
+		passingResults[0].HostName == "" ||
+		passingResults[0].Response == nil ||
+		*passingResults[0].Response != CheckStatusPass {
+		t.Fatalf("pass results = %+v, want passing host status", passingResults)
 	}
 
-	failingIDs, err := store.HostIDsByStatus(ctx, check.ID, CheckStatusFail)
+	failStatus := CheckStatusFail
+	failingResults, err := store.CheckResults(ctx, check.ID, &failStatus)
 	if err != nil {
-		t.Fatalf("fail host ids: %v", err)
+		t.Fatalf("fail results: %v", err)
 	}
-	if !sameInt64s(failingIDs, []int64{failingHost.ID}) {
-		t.Fatalf("fail host ids = %+v, want [%d]", failingIDs, failingHost.ID)
+	if len(failingResults) != 1 ||
+		failingResults[0].HostID != failingHost.ID ||
+		failingResults[0].HostName == "" ||
+		failingResults[0].Response == nil ||
+		*failingResults[0].Response != CheckStatusFail {
+		t.Fatalf("fail results = %+v, want failing host status", failingResults)
 	}
 
-	_, err = store.HostIDsByStatus(ctx, check.ID, CheckStatus("unknown"))
+	unknownStatus := CheckStatus("unknown")
+	_, err = store.CheckResults(ctx, check.ID, &unknownStatus)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
 	}
@@ -389,18 +400,6 @@ func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 	default:
 		return *a == *b
 	}
-}
-
-func sameInt64s(got []int64, want []int64) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func newIntegrationCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {

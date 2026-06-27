@@ -10,15 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { HostDetail } from "@/hooks/use-hosts";
+import type { MunkiHostState } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
-type MunkiHostState = NonNullable<HostDetail["munki"]>;
-
-export function HostMunkiTab({ host }: { host: HostDetail }) {
-  const munki = host.munki;
-  if (!munki) return null;
-
+export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
   const items = munki.items ?? [];
   const problems = [
     ...problemRows("Errors", munki.errors),

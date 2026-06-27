@@ -11,16 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type HostDetail, useHostSantaRules } from "@/hooks/use-hosts";
+import { type SantaHostState, useHostSantaRules } from "@/hooks/use-hosts";
 import type { SantaRuleStatus } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
 
-export function HostSantaTab({ hostId, host }: { hostId: number | null; host: HostDetail }) {
+export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHostState }) {
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
-  const santa = host.santa;
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
   const matchedLabelName = santa?.configuration?.matched_via_label?.name;
@@ -82,21 +81,19 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     [],
   );
 
-  if (!santa) return null;
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
           <div className="mb-5 flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link to="/santa/events" search={{ host_id: host.id }}>
+              <Link to="/santa/events" search={{ host_id: hostId }}>
                 <Activity data-icon="inline-start" />
                 View Execution Events
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link to="/santa/events/file-access" search={{ host_id: host.id }}>
+              <Link to="/santa/events/file-access" search={{ host_id: hostId }}>
                 <FolderLock data-icon="inline-start" />
                 View File Access Events
               </Link>

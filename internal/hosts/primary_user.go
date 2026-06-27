@@ -136,7 +136,7 @@ ORDER BY host_id, ` + primaryUserSourceOrderSQL + `, source`
 
 const listHostPrimaryUsersSQL = `
 WITH preferred AS (
-	SELECT DISTINCT ON (s.host_id)
+	SELECT DISTINCT ON (host_id)
 		host_id,
 		email,
 		source::text AS source

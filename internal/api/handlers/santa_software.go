@@ -1,0 +1,40 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
+)
+
+type softwareSantaGetInput struct {
+	SoftwareID int64 `path:"id"`
+}
+
+type softwareSantaGetOutput struct {
+	Body references.SoftwareReference
+}
+
+func registerSoftwareSantaReference(api huma.API, store *references.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-software-santa-reference",
+		Method:      http.MethodGet,
+		Path:        "/api/software/{id}/santa",
+		Tags:        []string{softwareTag},
+		Summary:     "Get Santa reference data for a software title",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *softwareSantaGetInput) (*softwareSantaGetOutput, error) {
+		ref, err := store.GetSoftwareReference(ctx, input.SoftwareID)
+		if errors.Is(err, dbutil.ErrNotFound) {
+			return nil, huma.Error404NotFound("software title not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &softwareSantaGetOutput{Body: *ref}, nil
+	})
+}

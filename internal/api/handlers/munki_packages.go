@@ -1,0 +1,222 @@
+package handlers
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/woodleighschool/woodstar/internal/apitypes"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/storage"
+)
+
+const (
+	munkiPackagePath   = "/api/munki/packages"
+	munkiPackageIDPath = "/api/munki/packages/{id}"
+	munkiPackageLabel  = "Munki package"
+)
+
+type munkiPackageListInput struct {
+	apitypes.ListQueryInput
+
+	Types      []packages.InstallerType `query:"type,omitempty"`
+	SoftwareID int64                    `query:"software_id,omitempty"`
+}
+
+type munkiPackageGetInput struct {
+	PackageID int64 `path:"id"`
+}
+
+type munkiPackageCreateInput struct {
+	Body packages.PackageCreateMutation
+}
+
+type munkiPackagePutInput struct {
+	PackageID int64 `path:"id"`
+	Body      packages.PackageMutation
+}
+
+type munkiPackageDeleteInput struct {
+	PackageID int64 `path:"id"`
+}
+
+type munkiPackageBulkDeleteInput struct {
+	Body apitypes.BulkIDsBody
+}
+
+type munkiPackageListOutput struct {
+	Body apitypes.Page[munkiPackage]
+}
+
+type munkiPackageOutput struct {
+	Body munkiPackage
+}
+
+type munkiPackage struct {
+	packages.Package
+}
+
+func (input munkiPackageListInput) params() packages.PackageListParams {
+	return packages.PackageListParams{
+		ListParams:     input.ListQueryInput.Params(),
+		InstallerTypes: installerTypeFilterValues(input.Types),
+		SoftwareID:     input.SoftwareID,
+	}
+}
+
+func installerTypeFilterValues(types []packages.InstallerType) []string {
+	values := make([]string, len(types))
+	for i, installerType := range types {
+		values[i] = string(installerType)
+	}
+	return values
+}
+
+func registerMunkiPackages(
+	api huma.API,
+	store *packages.Store,
+	objects *storage.ObjectStore,
+	storageStore storage.Presigner,
+	notifier desiredNotifier,
+) {
+	registerListMunkiPackages(api, store)
+	registerCreateMunkiPackage(api, store)
+	registerGetMunkiPackage(api, store)
+	registerPutMunkiPackage(api, store)
+	registerDeleteMunkiPackage(api, store, notifier)
+	registerBulkDeleteMunkiPackages(api, store, notifier)
+	registerObjectRoutes(api, store, objects, storageStore, notifier)
+}
+
+func registerListMunkiPackages(api huma.API, store *packages.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-munki-packages",
+		Method:      http.MethodGet,
+		Path:        munkiPackagePath,
+		Tags:        []string{munkiTag},
+		Summary:     "List Munki packages",
+		Errors:      []int{http.StatusUnauthorized},
+	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
+		rows, count, err := store.List(ctx, input.params())
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageListOutput{
+			Body: apitypes.Page[munkiPackage]{
+				Items: munkiPackagesFromPackages(rows),
+				Count: int32(count),
+			},
+		}, nil
+	})
+}
+
+func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-munki-package",
+		Method:        http.MethodPost,
+		Path:          munkiPackagePath,
+		Tags:          []string{munkiTag},
+		Summary:       "Create a Munki package",
+		DefaultStatus: http.StatusCreated,
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
+		pkg, err := store.Create(ctx, input.Body)
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+	})
+}
+
+func registerGetMunkiPackage(api huma.API, store *packages.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-munki-package",
+		Method:      http.MethodGet,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Get a Munki package",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
+		pkg, err := store.GetByID(ctx, input.PackageID)
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+	})
+}
+
+func registerPutMunkiPackage(api huma.API, store *packages.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "update-munki-package",
+		Method:      http.MethodPut,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Update a Munki package",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiPackagePutInput) (*munkiPackageOutput, error) {
+		pkg, err := store.Update(ctx, input.PackageID, input.Body)
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+	})
+}
+
+func registerDeleteMunkiPackage(api huma.API, store *packages.Store, notifier desiredNotifier) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-munki-package",
+		Method:      http.MethodDelete,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Delete a Munki package",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
+		if err := store.Delete(ctx, input.PackageID); err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		notifyDesired(notifier)
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteMunkiPackages(api huma.API, store *packages.Store, notifier desiredNotifier) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-munki-packages",
+		Method:      http.MethodPost,
+		Path:        munkiPackagePath + "/bulk-delete",
+		Tags:        []string{munkiTag},
+		Summary:     "Delete Munki packages",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
+	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
+		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		notifyDesired(notifier)
+		return &struct{}{}, nil
+	})
+}
+
+func munkiPackageFromPackage(pkg packages.Package) munkiPackage {
+	return munkiPackage{Package: pkg}
+}
+
+func munkiPackagesFromPackages(rows []packages.Package) []munkiPackage {
+	items := make([]munkiPackage, len(rows))
+	for i, row := range rows {
+		items[i] = munkiPackageFromPackage(row)
+	}
+	return items
+}

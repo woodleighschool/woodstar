@@ -3,12 +3,13 @@ package main
 import (
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi"
+	"github.com/woodleighschool/woodstar/internal/api"
+	apihandlers "github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 )
 
 func TestBuildSchemaAPIWithZeroValueWiring(t *testing.T) {
-	payload, err := adminapi.BuildSchemaAPI(buildinfo.Version, (&wiring{}).adminRegistrars()).OpenAPI().YAML()
+	payload, err := api.BuildSchemaAPI(buildinfo.Version, apihandlers.Dependencies{}).OpenAPI().YAML()
 	if err != nil {
 		t.Fatalf("encode openapi: %v", err)
 	}

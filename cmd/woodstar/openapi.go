@@ -6,7 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi"
+	"github.com/woodleighschool/woodstar/internal/api"
+	apihandlers "github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 )
 
@@ -15,12 +16,12 @@ func openAPICommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "openapi",
-		Short: "Print the OpenAPI document for the Woodstar admin API",
-		Long: `Builds the same Huma admin API the server registers and writes its OpenAPI 3.1
+		Short: "Print the OpenAPI document for the Woodstar API",
+		Long: `Builds the same Huma app API the server registers and writes its OpenAPI 3.1
 document as YAML to stdout (or to the path given by --output). Handlers are
 not invoked, so this command does not require a database.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			payload, err := adminapi.BuildSchemaAPI(buildinfo.Version, (&wiring{}).adminRegistrars()).OpenAPI().YAML()
+			payload, err := api.BuildSchemaAPI(buildinfo.Version, apihandlers.Dependencies{}).OpenAPI().YAML()
 			if err != nil {
 				return fmt.Errorf("encode openapi: %w", err)
 			}

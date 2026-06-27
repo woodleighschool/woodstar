@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ServerCog } from "lucide-react";
-import { parseAsInteger, parseAsStringEnum, useQueryStates } from "nuqs";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
@@ -18,7 +18,6 @@ import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { useAuth } from "@/hooks/use-auth";
-import { useCheck } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { type Host, useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
@@ -33,16 +32,13 @@ const STATUS_OPTIONS = [
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 
-// Deep-link filters set by other pages (e.g. "hosts failing this check"). Read
-// and cleared via nuqs so chip removal stays reactive and does not clobber the
-// nuqs-owned table state; the hosts route declares them in validateSearch for
-// type-safe cross-page Links.
+// Deep-link filters set by other pages. Read and cleared via nuqs so chip
+// removal stays reactive and does not clobber the nuqs-owned table state; the
+// hosts route declares them in validateSearch for type-safe cross-page Links.
 const deepLinkParsers = {
   label_id: parseAsInteger,
   software_title_id: parseAsInteger,
   software_id: parseAsInteger,
-  check_id: parseAsInteger,
-  check_response: parseAsStringEnum(["pass", "fail"]),
 };
 
 export function HostListPage() {
@@ -51,7 +47,6 @@ export function HostListPage() {
   const isAdmin = user?.role === "admin";
   const [deepLink, setDeepLink] = useQueryStates(deepLinkParsers);
 
-  const checkQuery = useCheck(deepLink.check_id);
   const softwareTitle = useSoftwareTitle(deepLink.software_title_id);
   const softwareLabel = softwareFilterLabel({
     title: softwareTitle.data,
@@ -70,8 +65,6 @@ export function HostListPage() {
     label_id: deepLink.label_id ?? undefined,
     software_title_id: deepLink.software_title_id ?? undefined,
     software_id: deepLink.software_id ?? undefined,
-    check_id: deepLink.check_id ?? undefined,
-    check_response: deepLink.check_response ?? undefined,
   });
 
   const hosts = query.data?.items ?? [];
@@ -82,8 +75,7 @@ export function HostListPage() {
     !!status ||
     deepLink.label_id != null ||
     deepLink.software_id != null ||
-    deepLink.software_title_id != null ||
-    deepLink.check_id != null;
+    deepLink.software_title_id != null;
 
   const columns = React.useMemo<ColumnDef<Host>[]>(
     () => (isAdmin ? hostColumns : hostColumns.filter((column) => column.id !== "select")),
@@ -105,22 +97,13 @@ export function HostListPage() {
         title="Hosts"
         description="Track enrolled hosts, inventory, checks, reports, and Santa state."
         context={
-          <>
-            {deepLink.check_id != null ? (
-              <FilterChip
-                label="Check"
-                value={checkQuery.data?.name ?? `#${deepLink.check_id}`}
-                onRemove={() => void setDeepLink({ check_id: null, check_response: null })}
-              />
-            ) : null}
-            {softwareLabel ? (
-              <FilterChip
-                label="Software"
-                value={softwareLabel}
-                onRemove={() => void setDeepLink({ software_id: null, software_title_id: null })}
-              />
-            ) : null}
-          </>
+          softwareLabel ? (
+            <FilterChip
+              label="Software"
+              value={softwareLabel}
+              onRemove={() => void setDeepLink({ software_id: null, software_title_id: null })}
+            />
+          ) : null
         }
       />
 
