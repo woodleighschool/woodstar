@@ -54,12 +54,12 @@ func RegisterAuth(g Groups, authService *auth.Service, userService *directory.Us
 	registerSession(g.Session, authService, logger)
 	registerLogin(g.Public, authService, logger)
 	registerLogout(g.Protected, authService, logger)
-	auth.RegisterSSO(g.Router, authService)
 
 	registerGetAccount(g.Protected, authService, logger)
 	registerPutAccount(g.Protected, userService, logger)
 	registerRotateAPIKey(g.Protected, authService, logger)
 	registerRevokeAPIKey(g.Protected, authService, logger)
+	registerOIDC(g.Router, authService, logger)
 }
 
 func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger) {
