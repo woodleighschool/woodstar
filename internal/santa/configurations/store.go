@@ -196,6 +196,8 @@ SELECT
     c.enable_bundles,
     c.enable_transitive_rules,
     c.enable_all_event_upload,
+    c.disable_unknown_event_upload,
+    c.override_file_access_action::text AS override_file_access_action,
     c.full_sync_interval_seconds,
     c.batch_size,
     c.allowed_path_regex,
@@ -412,6 +414,8 @@ type configurationRow struct {
 	EnableBundles                       bool      `db:"enable_bundles"`
 	EnableTransitiveRules               bool      `db:"enable_transitive_rules"`
 	EnableAllEventUpload                bool      `db:"enable_all_event_upload"`
+	DisableUnknownEventUpload           bool      `db:"disable_unknown_event_upload"`
+	OverrideFileAccessAction            string    `db:"override_file_access_action"`
 	FullSyncIntervalSeconds             int32     `db:"full_sync_interval_seconds"`
 	BatchSize                           int32     `db:"batch_size"`
 	AllowedPathRegex                    string    `db:"allowed_path_regex"`
@@ -428,19 +432,21 @@ type configurationRow struct {
 
 func configurationFromRow(row configurationRow) Configuration {
 	return Configuration{
-		ID:                      row.ID,
-		Name:                    row.Name,
-		Description:             row.Description,
-		Position:                row.Position,
-		ClientMode:              ClientMode(row.ClientMode),
-		EnableBundles:           row.EnableBundles,
-		EnableTransitiveRules:   row.EnableTransitiveRules,
-		EnableAllEventUpload:    row.EnableAllEventUpload,
-		FullSyncIntervalSeconds: row.FullSyncIntervalSeconds,
-		BatchSize:               row.BatchSize,
-		AllowedPathRegex:        row.AllowedPathRegex,
-		BlockedPathRegex:        row.BlockedPathRegex,
-		RemovableMediaPolicy:    removableMediaPolicyFromRow(row.RemovableMediaAction, row.RemovableMediaRemountFlags),
+		ID:                        row.ID,
+		Name:                      row.Name,
+		Description:               row.Description,
+		Position:                  row.Position,
+		ClientMode:                ClientMode(row.ClientMode),
+		EnableBundles:             row.EnableBundles,
+		EnableTransitiveRules:     row.EnableTransitiveRules,
+		EnableAllEventUpload:      row.EnableAllEventUpload,
+		DisableUnknownEventUpload: row.DisableUnknownEventUpload,
+		OverrideFileAccessAction:  FileAccessAction(row.OverrideFileAccessAction),
+		FullSyncIntervalSeconds:   row.FullSyncIntervalSeconds,
+		BatchSize:                 row.BatchSize,
+		AllowedPathRegex:          row.AllowedPathRegex,
+		BlockedPathRegex:          row.BlockedPathRegex,
+		RemovableMediaPolicy:      removableMediaPolicyFromRow(row.RemovableMediaAction, row.RemovableMediaRemountFlags),
 		EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
 			row.EncryptedRemovableMediaAction,
 			row.EncryptedRemovableMediaRemountFlags,
@@ -471,6 +477,8 @@ type configurationWrite struct {
 	EnableBundles                       bool     `db:"enable_bundles"`
 	EnableTransitiveRules               bool     `db:"enable_transitive_rules"`
 	EnableAllEventUpload                bool     `db:"enable_all_event_upload"`
+	DisableUnknownEventUpload           bool     `db:"disable_unknown_event_upload"`
+	OverrideFileAccessAction            string   `db:"override_file_access_action"`
 	FullSyncIntervalSeconds             int32    `db:"full_sync_interval_seconds"`
 	BatchSize                           int32    `db:"batch_size"`
 	AllowedPathRegex                    string   `db:"allowed_path_regex"`
@@ -493,6 +501,8 @@ func newConfigurationWrite(p ConfigurationMutation) configurationWrite {
 		EnableBundles:                       p.EnableBundles,
 		EnableTransitiveRules:               p.EnableTransitiveRules,
 		EnableAllEventUpload:                p.EnableAllEventUpload,
+		DisableUnknownEventUpload:           p.DisableUnknownEventUpload,
+		OverrideFileAccessAction:            string(p.OverrideFileAccessAction),
 		FullSyncIntervalSeconds:             p.FullSyncIntervalSeconds,
 		BatchSize:                           p.BatchSize,
 		AllowedPathRegex:                    p.AllowedPathRegex,
@@ -524,6 +534,8 @@ SELECT
 	c.enable_bundles,
 	c.enable_transitive_rules,
 	c.enable_all_event_upload,
+	c.disable_unknown_event_upload,
+	c.override_file_access_action::text AS override_file_access_action,
 	c.full_sync_interval_seconds,
 	c.batch_size,
 	c.allowed_path_regex,
@@ -547,6 +559,8 @@ INSERT INTO santa_configurations (
 	enable_bundles,
 	enable_transitive_rules,
 	enable_all_event_upload,
+	disable_unknown_event_upload,
+	override_file_access_action,
 	full_sync_interval_seconds,
 	batch_size,
 	allowed_path_regex,
@@ -565,6 +579,8 @@ INSERT INTO santa_configurations (
 	@enable_bundles,
 	@enable_transitive_rules,
 	@enable_all_event_upload,
+	@disable_unknown_event_upload,
+	@override_file_access_action::santa_file_access_action,
 	@full_sync_interval_seconds::integer,
 	@batch_size::integer,
 	@allowed_path_regex,
@@ -587,6 +603,8 @@ SET
 	enable_bundles = @enable_bundles,
 	enable_transitive_rules = @enable_transitive_rules,
 	enable_all_event_upload = @enable_all_event_upload,
+	disable_unknown_event_upload = @disable_unknown_event_upload,
+	override_file_access_action = @override_file_access_action::santa_file_access_action,
 	full_sync_interval_seconds = @full_sync_interval_seconds::integer,
 	batch_size = @batch_size::integer,
 	allowed_path_regex = @allowed_path_regex,

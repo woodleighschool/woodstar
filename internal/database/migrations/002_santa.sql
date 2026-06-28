@@ -2,6 +2,7 @@
 
 CREATE TYPE santa_client_mode AS ENUM ('unknown', 'monitor', 'lockdown', 'standalone');
 CREATE TYPE santa_removable_media_action AS ENUM ('allow', 'block', 'remount');
+CREATE TYPE santa_file_access_action AS ENUM ('none', 'audit_only', 'disable');
 CREATE TYPE santa_rule_type AS ENUM ('binary', 'certificate', 'teamid', 'signingid', 'cdhash', 'bundle');
 CREATE TYPE santa_policy AS ENUM (
     'allowlist',
@@ -111,6 +112,8 @@ CREATE TABLE santa_configurations (
     enable_bundles BOOLEAN NOT NULL,
     enable_transitive_rules BOOLEAN NOT NULL,
     enable_all_event_upload BOOLEAN NOT NULL,
+    disable_unknown_event_upload BOOLEAN NOT NULL,
+    override_file_access_action santa_file_access_action NOT NULL,
     full_sync_interval_seconds INT NOT NULL CHECK (full_sync_interval_seconds >= 60),
     batch_size INT NOT NULL CHECK (batch_size BETWEEN 5 AND 100),
     allowed_path_regex TEXT NOT NULL,

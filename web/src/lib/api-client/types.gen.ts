@@ -953,6 +953,7 @@ export type SantaConfiguration = {
     client_mode: 'monitor' | 'lockdown' | 'standalone';
     created_at: string;
     description: string;
+    disable_unknown_event_upload: boolean;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -962,6 +963,7 @@ export type SantaConfiguration = {
     full_sync_interval_seconds: number;
     id: number;
     name: string;
+    override_file_access_action: 'none' | 'audit_only' | 'disable';
     position: number;
     removable_media_policy?: SantaRemovableMediaPolicy;
     targets: SantaConfigurationTargets;
@@ -975,6 +977,7 @@ export type SantaConfigurationMatch = {
     client_mode: 'monitor' | 'lockdown' | 'standalone';
     created_at: string;
     description: string;
+    disable_unknown_event_upload: boolean;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -985,6 +988,7 @@ export type SantaConfigurationMatch = {
     id: number;
     matched_via_label?: SantaLabelMatch;
     name: string;
+    override_file_access_action: 'none' | 'audit_only' | 'disable';
     position: number;
     removable_media_policy?: SantaRemovableMediaPolicy;
     targets: SantaConfigurationTargets;
@@ -997,6 +1001,7 @@ export type SantaConfigurationMutation = {
     blocked_path_regex?: string;
     client_mode: 'monitor' | 'lockdown' | 'standalone';
     description?: string;
+    disable_unknown_event_upload: boolean;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -1005,6 +1010,7 @@ export type SantaConfigurationMutation = {
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     name: string;
+    override_file_access_action: 'none' | 'audit_only' | 'disable';
     removable_media_policy?: SantaRemovableMediaPolicy;
     targets: SantaConfigurationTargets;
 };

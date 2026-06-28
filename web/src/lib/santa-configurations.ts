@@ -10,6 +10,10 @@ export type SantaClientMode =
   | SantaHostState["client_mode_reported"]
   | SantaConfiguration["client_mode"];
 
+export type SantaFileAccessAction = NonNullable<
+  SantaConfigurationMutation["override_file_access_action"]
+>;
+
 type StoredMediaAction = NonNullable<
   NonNullable<SantaConfigurationMutation["removable_media_policy"]>["action"]
 >;
@@ -66,6 +70,20 @@ export const MEDIA_ACTIONS = {
 } satisfies EnumMetadataMap<SantaMediaAction>;
 
 export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS);
+
+export const FILE_ACCESS_ACTION_VALUES = [
+  "none",
+  "audit_only",
+  "disable",
+] as const satisfies readonly SantaFileAccessAction[];
+
+export const FILE_ACCESS_ACTIONS = {
+  none: { name: "No Override" },
+  audit_only: { name: "Audit Only" },
+  disable: { name: "Disable" },
+} satisfies EnumMetadataMap<SantaFileAccessAction>;
+
+export const FILE_ACCESS_ACTION_OPTIONS = enumOptions(FILE_ACCESS_ACTIONS);
 
 export const REMOUNT_FLAG_VALUES = [
   "rdonly",

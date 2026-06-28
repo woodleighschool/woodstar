@@ -50,11 +50,12 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("set label membership: %v", err)
 	}
 	if _, err := configurationStore.Create(ctx, configurations.ConfigurationMutation{
-		Name:                    "Sync Config",
-		ClientMode:              configurations.ClientModeLockdown,
-		EnableBundles:           true,
-		FullSyncIntervalSeconds: 120,
-		BatchSize:               50,
+		Name:                     "Sync Config",
+		ClientMode:               configurations.ClientModeLockdown,
+		EnableBundles:            true,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  120,
+		BatchSize:                50,
 		Targets: configurations.ConfigurationTargets{
 			Include: []targeting.LabelRef{{LabelID: labelID}},
 		},

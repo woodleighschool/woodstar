@@ -62,11 +62,13 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}
 
 	if _, err := stores.configurations.Create(ctx, configurations.ConfigurationMutation{
-		Name:                    "Contract configuration " + suffix,
-		ClientMode:              configurations.ClientModeLockdown,
-		EnableBundles:           true,
-		FullSyncIntervalSeconds: 600,
-		BatchSize:               50,
+		Name:                      "Contract configuration " + suffix,
+		ClientMode:                configurations.ClientModeLockdown,
+		EnableBundles:             true,
+		DisableUnknownEventUpload: true,
+		OverrideFileAccessAction:  configurations.FileAccessActionAuditOnly,
+		FullSyncIntervalSeconds:   600,
+		BatchSize:                 50,
 		Targets: configurations.ConfigurationTargets{
 			Include: []targeting.LabelRef{{LabelID: label.ID}},
 		},
@@ -115,6 +117,13 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}
 	if preflight.EnableBundles == nil || !preflight.GetEnableBundles() {
 		t.Fatalf("enable bundles = %v, want true", preflight.EnableBundles)
+	}
+	if preflight.DisableUnknownEventUpload == nil || !preflight.GetDisableUnknownEventUpload() {
+		t.Fatalf("disable unknown event upload = %v, want true", preflight.DisableUnknownEventUpload)
+	}
+	if preflight.OverrideFileAccessAction == nil ||
+		preflight.GetOverrideFileAccessAction() != syncv1.FileAccessAction_AUDIT_ONLY {
+		t.Fatalf("override file access action = %v, want AUDIT_ONLY", preflight.OverrideFileAccessAction)
 	}
 
 	var download syncv1.RuleDownloadResponse

@@ -212,7 +212,9 @@ func preflightResponseToProto(resp santa.PreflightResponse) (*syncv1.PreflightRe
 	syncType := protoSyncType(resp.SyncType)
 	out := &syncv1.PreflightResponse{SyncType: &syncType}
 	if resp.Configuration != nil {
-		applyConfigurationToPreflightResponse(out, resp.Configuration)
+		if err := applyConfigurationToPreflightResponse(out, resp.Configuration); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -478,11 +480,21 @@ func marshalCompressedProto(msg proto.Message) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, config *configurations.Configuration) {
-	resp.ClientMode = protoClientMode(config.ClientMode)
+func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, config *configurations.Configuration) error {
+	clientMode, err := protoClientMode(config.ClientMode)
+	if err != nil {
+		return err
+	}
+	resp.ClientMode = clientMode
 	resp.EnableBundles = &config.EnableBundles
 	resp.EnableTransitiveRules = &config.EnableTransitiveRules
 	resp.EnableAllEventUpload = &config.EnableAllEventUpload
+	resp.DisableUnknownEventUpload = &config.DisableUnknownEventUpload
+	fileAccessAction, err := protoFileAccessAction(config.OverrideFileAccessAction)
+	if err != nil {
+		return err
+	}
+	resp.OverrideFileAccessAction = &fileAccessAction
 	resp.FullSyncIntervalSeconds = uint32(config.FullSyncIntervalSeconds)
 	resp.BatchSize = uint32(config.BatchSize)
 	if config.AllowedPathRegex != "" {
@@ -499,6 +511,7 @@ func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, confi
 	}
 	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(config.RemovableMediaPolicy)
 	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(config.EncryptedRemovableMediaPolicy)
+	return nil
 }
 
 func protoRemovableMediaPolicy(policy configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
@@ -518,6 +531,19 @@ func protoRemovableMediaPolicy(policy configurations.RemovableMediaPolicy) *sync
 	}
 }
 
+func protoFileAccessAction(action configurations.FileAccessAction) (syncv1.FileAccessAction, error) {
+	switch action {
+	case configurations.FileAccessActionNone:
+		return syncv1.FileAccessAction_NONE, nil
+	case configurations.FileAccessActionAuditOnly:
+		return syncv1.FileAccessAction_AUDIT_ONLY, nil
+	case configurations.FileAccessActionDisable:
+		return syncv1.FileAccessAction_DISABLE, nil
+	default:
+		return syncv1.FileAccessAction_FILE_ACCESS_ACTION_UNSPECIFIED, fmt.Errorf("%w: unsupported override_file_access_action %q", dbutil.ErrInvalidInput, action)
+	}
+}
+
 func clientModeFromProto(mode syncv1.ClientMode) configurations.ReportedClientMode {
 	switch mode {
 	case syncv1.ClientMode_MONITOR:
@@ -531,16 +557,16 @@ func clientModeFromProto(mode syncv1.ClientMode) configurations.ReportedClientMo
 	}
 }
 
-func protoClientMode(mode configurations.ClientMode) syncv1.ClientMode {
+func protoClientMode(mode configurations.ClientMode) (syncv1.ClientMode, error) {
 	switch mode {
 	case configurations.ClientModeMonitor:
-		return syncv1.ClientMode_MONITOR
+		return syncv1.ClientMode_MONITOR, nil
 	case configurations.ClientModeLockdown:
-		return syncv1.ClientMode_LOCKDOWN
+		return syncv1.ClientMode_LOCKDOWN, nil
 	case configurations.ClientModeStandalone:
-		return syncv1.ClientMode_STANDALONE
+		return syncv1.ClientMode_STANDALONE, nil
 	default:
-		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE
+		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE, fmt.Errorf("%w: unsupported client_mode %q", dbutil.ErrInvalidInput, mode)
 	}
 }
 

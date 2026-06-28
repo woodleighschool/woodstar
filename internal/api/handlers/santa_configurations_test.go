@@ -77,6 +77,8 @@ func santaConfigurationBody(name string, labelID int64) string {
 		"enable_bundles": false,
 		"enable_transitive_rules": false,
 		"enable_all_event_upload": false,
+		"disable_unknown_event_upload": false,
+		"override_file_access_action": "none",
 		"full_sync_interval_seconds": 600,
 		"batch_size": 50,
 		"targets": {"include": [{"label_id": %d}], "exclude": []}

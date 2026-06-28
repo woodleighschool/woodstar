@@ -38,10 +38,13 @@ import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-vali
 import {
   CLIENT_MODE_OPTIONS,
   CLIENT_MODE_VALUES,
+  FILE_ACCESS_ACTION_OPTIONS,
+  FILE_ACCESS_ACTION_VALUES,
   MEDIA_ACTION_OPTIONS,
   MEDIA_ACTION_VALUES,
   REMOUNT_FLAG_OPTIONS,
   REMOUNT_FLAG_VALUES,
+  type SantaFileAccessAction,
   type SantaMediaAction,
   type SantaRemountFlag,
 } from "@/lib/santa-configurations";
@@ -56,6 +59,8 @@ interface ConfigurationFormState {
   enable_bundles: boolean;
   enable_transitive_rules: boolean;
   enable_all_event_upload: boolean;
+  disable_unknown_event_upload: boolean;
+  override_file_access_action: SantaFileAccessAction;
   full_sync_interval_seconds: number;
   batch_size: number;
   allowed_path_regex: string;
@@ -77,6 +82,8 @@ const configurationFormSchema = z
     enable_bundles: z.boolean(),
     enable_transitive_rules: z.boolean(),
     enable_all_event_upload: z.boolean(),
+    disable_unknown_event_upload: z.boolean(),
+    override_file_access_action: z.enum(FILE_ACCESS_ACTION_VALUES),
     full_sync_interval_seconds: integerRange("Full sync interval", 60),
     batch_size: integerRange("Batch size", 5, 100),
     allowed_path_regex: z.string().trim(),
@@ -121,6 +128,8 @@ export const emptyConfigurationForm: ConfigurationFormState = {
   enable_bundles: false,
   enable_transitive_rules: false,
   enable_all_event_upload: false,
+  disable_unknown_event_upload: false,
+  override_file_access_action: "none",
   full_sync_interval_seconds: 600,
   batch_size: 50,
   allowed_path_regex: "",
@@ -269,6 +278,49 @@ export function ConfigurationForm({
                   />
                 )}
               />
+              <form.Field
+                name="disable_unknown_event_upload"
+                children={(field) => (
+                  <BoolField
+                    id="santa-disable-unknown-event-upload"
+                    label="Disable Unknown Event Upload"
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                )}
+              />
+              <form.Field name="override_file_access_action">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="File Access Override"
+                    htmlFor="santa-file-access-override"
+                    required
+                  >
+                    {(control) => (
+                      <Select
+                        value={field.state.value}
+                        onValueChange={(value) =>
+                          field.handleChange(value as SantaFileAccessAction)
+                        }
+                      >
+                        <SelectTrigger {...control} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {FILE_ACCESS_ACTION_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
               <div className="grid gap-4 md:grid-cols-2">
                 <form.Field name="full_sync_interval_seconds">
                   {(field) => (
@@ -536,6 +588,8 @@ export function formFromConfiguration(configuration: SantaConfiguration): Config
     enable_bundles: configuration.enable_bundles,
     enable_transitive_rules: configuration.enable_transitive_rules,
     enable_all_event_upload: configuration.enable_all_event_upload,
+    disable_unknown_event_upload: configuration.disable_unknown_event_upload,
+    override_file_access_action: configuration.override_file_access_action,
     full_sync_interval_seconds: configuration.full_sync_interval_seconds,
     batch_size: configuration.batch_size,
     allowed_path_regex: configuration.allowed_path_regex ?? "",
@@ -563,6 +617,8 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     enable_bundles: form.enable_bundles,
     enable_transitive_rules: form.enable_transitive_rules,
     enable_all_event_upload: form.enable_all_event_upload,
+    disable_unknown_event_upload: form.disable_unknown_event_upload,
+    override_file_access_action: form.override_file_access_action,
     full_sync_interval_seconds: form.full_sync_interval_seconds,
     batch_size: form.batch_size,
     allowed_path_regex: nonEmpty(form.allowed_path_regex),

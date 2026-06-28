@@ -16,10 +16,11 @@ import (
 // baseline returns a valid ConfigurationMutation using Santa's own defaults.
 func baseline(name string) configurations.ConfigurationMutation {
 	return configurations.ConfigurationMutation{
-		Name:                    name,
-		ClientMode:              configurations.ClientModeMonitor,
-		FullSyncIntervalSeconds: 600,
-		BatchSize:               50,
+		Name:                     name,
+		ClientMode:               configurations.ClientModeMonitor,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
 	}
 }
 
@@ -51,6 +52,12 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	emptyClientMode.ClientMode = ""
 	if _, err := store.Create(ctx, emptyClientMode); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("empty client mode error = %v, want ErrInvalidInput", err)
+	}
+
+	invalidFileAccessAction := baseline("invalid file access action")
+	invalidFileAccessAction.OverrideFileAccessAction = ""
+	if _, err := store.Create(ctx, invalidFileAccessAction); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("invalid file access action error = %v, want ErrInvalidInput", err)
 	}
 
 	invalidLabel := baseline("invalid label")
@@ -89,6 +96,8 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	create.Description = "Baseline policy"
 	create.ClientMode = configurations.ClientModeLockdown
 	create.EnableBundles = true
+	create.DisableUnknownEventUpload = true
+	create.OverrideFileAccessAction = configurations.FileAccessActionDisable
 	create.FullSyncIntervalSeconds = 120
 	create.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
 		Action:       configurations.RemovableMediaActionRemount,
@@ -104,7 +113,10 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
 		t.Fatalf("configuration = %+v, want baseline lockdown policy", config)
 	}
-	if !config.EnableBundles || len(config.RemovableMediaPolicy.RemountFlags) != 2 {
+	if !config.EnableBundles ||
+		!config.DisableUnknownEventUpload ||
+		config.OverrideFileAccessAction != configurations.FileAccessActionDisable ||
+		len(config.RemovableMediaPolicy.RemountFlags) != 2 {
 		t.Fatalf("settings were not preserved: %+v", config)
 	}
 	if !sameLabelRefs(config.Targets.Include, labelRefs(firstLabelID, secondLabelID)) ||
@@ -130,7 +142,10 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		updated.ClientMode != configurations.ClientModeMonitor {
 		t.Fatalf("updated configuration = %+v", updated)
 	}
-	if updated.EnableBundles || !updated.RemovableMediaPolicy.IsZero() {
+	if updated.EnableBundles ||
+		updated.DisableUnknownEventUpload ||
+		updated.OverrideFileAccessAction != configurations.FileAccessActionNone ||
+		!updated.RemovableMediaPolicy.IsZero() {
 		t.Fatalf("update did not replace settings: %+v", updated)
 	}
 	if !sameLabelRefs(updated.Targets.Include, labelRefs(thirdLabelID)) || len(updated.Targets.Exclude) != 0 {

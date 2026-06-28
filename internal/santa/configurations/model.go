@@ -46,16 +46,30 @@ var (
 
 type RemovableMediaAction string
 
+type FileAccessAction string
+
 const (
 	RemovableMediaActionAllow   RemovableMediaAction = "allow"
 	RemovableMediaActionBlock   RemovableMediaAction = "block"
 	RemovableMediaActionRemount RemovableMediaAction = "remount"
 )
 
+const (
+	FileAccessActionNone      FileAccessAction = "none"
+	FileAccessActionAuditOnly FileAccessAction = "audit_only"
+	FileAccessActionDisable   FileAccessAction = "disable"
+)
+
 var RemovableMediaActionValues = []RemovableMediaAction{
 	RemovableMediaActionAllow,
 	RemovableMediaActionBlock,
 	RemovableMediaActionRemount,
+}
+
+var FileAccessActionValues = []FileAccessAction{
+	FileAccessActionNone,
+	FileAccessActionAuditOnly,
+	FileAccessActionDisable,
 }
 
 type ConfigurationListParams struct {
@@ -81,6 +95,10 @@ func (RemovableMediaAction) Schema(_ huma.Registry) *huma.Schema {
 	return schema.StringEnum(RemovableMediaActionValues...)
 }
 
+func (FileAccessAction) Schema(_ huma.Registry) *huma.Schema {
+	return schema.StringEnum(FileAccessActionValues...)
+}
+
 // IsZero reports whether the policy is the no-policy zero value.
 func (p RemovableMediaPolicy) IsZero() bool {
 	return p.Action == "" && len(p.RemountFlags) == 0
@@ -96,6 +114,8 @@ type ConfigurationMutation struct {
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
+	DisableUnknownEventUpload     bool                 `json:"disable_unknown_event_upload"`
+	OverrideFileAccessAction      FileAccessAction     `json:"override_file_access_action"`
 	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"                minimum:"60"`
 	BatchSize                     int32                `json:"batch_size"                                minimum:"5"  maximum:"100"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`
@@ -120,6 +140,9 @@ func (p ConfigurationMutation) Validate() error {
 	}
 	if p.BatchSize < 5 || p.BatchSize > 100 {
 		return fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
+	}
+	if !slices.Contains(FileAccessActionValues, p.OverrideFileAccessAction) {
+		return fmt.Errorf("%w: override_file_access_action is required", dbutil.ErrInvalidInput)
 	}
 	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
 		return err
@@ -156,6 +179,8 @@ type Configuration struct {
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
+	DisableUnknownEventUpload     bool                 `json:"disable_unknown_event_upload"`
+	OverrideFileAccessAction      FileAccessAction     `json:"override_file_access_action"`
 	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"`
 	BatchSize                     int32                `json:"batch_size"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`

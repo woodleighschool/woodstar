@@ -22,18 +22,20 @@ func TestConfigurationsConformance(t *testing.T) {
 			Store: store,
 			NewValid: func(_ *testing.T, _ context.Context) ConfigurationMutation {
 				return ConfigurationMutation{
-					Name:                    "Conformance Config",
-					ClientMode:              ClientModeMonitor,
-					FullSyncIntervalSeconds: 600,
-					BatchSize:               50,
+					Name:                     "Conformance Config",
+					ClientMode:               ClientModeMonitor,
+					OverrideFileAccessAction: FileAccessActionNone,
+					FullSyncIntervalSeconds:  600,
+					BatchSize:                50,
 				}
 			},
 			Mutate: func(_ Configuration) ConfigurationMutation {
 				return ConfigurationMutation{
-					Name:                    "Conformance Config Updated",
-					ClientMode:              ClientModeLockdown,
-					FullSyncIntervalSeconds: 120,
-					BatchSize:               10,
+					Name:                     "Conformance Config Updated",
+					ClientMode:               ClientModeLockdown,
+					OverrideFileAccessAction: FileAccessActionAuditOnly,
+					FullSyncIntervalSeconds:  120,
+					BatchSize:                10,
 				}
 			},
 			ID:         func(c Configuration) int64 { return c.ID },

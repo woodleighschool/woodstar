@@ -2588,6 +2588,8 @@ components:
           type: string
         description:
           type: string
+        disable_unknown_event_upload:
+          type: boolean
         enable_all_event_upload:
           type: boolean
         enable_bundles:
@@ -2608,6 +2610,12 @@ components:
           type: integer
         name:
           type: string
+        override_file_access_action:
+          enum:
+            - none
+            - audit_only
+            - disable
+          type: string
         position:
           format: int32
           type: integer
@@ -2627,6 +2635,8 @@ components:
         - enable_bundles
         - enable_transitive_rules
         - enable_all_event_upload
+        - disable_unknown_event_upload
+        - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
         - targets
@@ -2654,6 +2664,8 @@ components:
           type: string
         description:
           type: string
+        disable_unknown_event_upload:
+          type: boolean
         enable_all_event_upload:
           type: boolean
         enable_bundles:
@@ -2676,6 +2688,12 @@ components:
           $ref: "#/components/schemas/SantaLabelMatch"
         name:
           type: string
+        override_file_access_action:
+          enum:
+            - none
+            - audit_only
+            - disable
+          type: string
         position:
           format: int32
           type: integer
@@ -2695,6 +2713,8 @@ components:
         - enable_bundles
         - enable_transitive_rules
         - enable_all_event_upload
+        - disable_unknown_event_upload
+        - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
         - targets
@@ -2721,6 +2741,8 @@ components:
           type: string
         description:
           type: string
+        disable_unknown_event_upload:
+          type: boolean
         enable_all_event_upload:
           type: boolean
         enable_bundles:
@@ -2739,6 +2761,12 @@ components:
           type: integer
         name:
           type: string
+        override_file_access_action:
+          enum:
+            - none
+            - audit_only
+            - disable
+          type: string
         removable_media_policy:
           $ref: "#/components/schemas/SantaRemovableMediaPolicy"
         targets:
@@ -2749,6 +2777,8 @@ components:
         - enable_bundles
         - enable_transitive_rules
         - enable_all_event_upload
+        - disable_unknown_event_upload
+        - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
         - targets
