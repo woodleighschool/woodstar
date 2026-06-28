@@ -24,6 +24,7 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.1
+	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/protobuf v1.36.11

@@ -41,7 +41,7 @@ func TestHostPrimaryUserManualOverride(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		registerHosts(Groups{Ordinary: api}, Dependencies{Hosts: hostStore, PrimaryUser: primaryUsers})
+		RegisterHosts(api, hostStore, primaryUsers, discardLogger())
 	})
 	rec := hostAPIRequest(
 		t,

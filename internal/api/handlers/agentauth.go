@@ -39,11 +39,12 @@ type agentSecretDeleteInput struct {
 	AgentSecretID int64 `path:"id"`
 }
 
-func registerAgentAuth(g Groups, deps Dependencies) {
-	registerListAgentSecrets(g.Sensitive, deps.Secrets, deps.Logger)
-	registerCreateAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
-	registerUpdateAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
-	registerDeleteAgentSecret(g.Sensitive, deps.Secrets, deps.Logger)
+// RegisterAgentAuth mounts shared agent-secret management endpoints.
+func RegisterAgentAuth(api huma.API, store *agentauth.Store, logger *slog.Logger) {
+	registerListAgentSecrets(api, store, logger)
+	registerCreateAgentSecret(api, store, logger)
+	registerUpdateAgentSecret(api, store, logger)
+	registerDeleteAgentSecret(api, store, logger)
 }
 
 func registerListAgentSecrets(api huma.API, store *agentauth.Store, logger *slog.Logger) {

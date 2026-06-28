@@ -62,15 +62,21 @@ type userDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-func registerDirectory(g Groups, deps Dependencies) {
-	registerListUsers(g.Ordinary, deps.Users, deps.Logger)
-	registerListUserDepartments(g.Ordinary, deps.Users, deps.Logger)
-	registerCreateUser(g.Ordinary, deps.Users, deps.Logger)
-	registerGetUser(g.Ordinary, deps.Users, deps.Logger)
-	registerPutUser(g.Ordinary, deps.Users, deps.Logger)
-	registerDeleteUser(g.Ordinary, deps.Users, deps.Logger)
-	registerListGroups(g.Ordinary, deps.Directory, deps.Logger)
-	registerGetGroup(g.Ordinary, deps.Directory, deps.Logger)
+// RegisterDirectory mounts user and group admin endpoints.
+func RegisterDirectory(
+	api huma.API,
+	userService *directory.UserService,
+	store *directory.Store,
+	logger *slog.Logger,
+) {
+	registerListUsers(api, userService, logger)
+	registerListUserDepartments(api, userService, logger)
+	registerCreateUser(api, userService, logger)
+	registerGetUser(api, userService, logger)
+	registerPutUser(api, userService, logger)
+	registerDeleteUser(api, userService, logger)
+	registerListGroups(api, store, logger)
+	registerGetGroup(api, store, logger)
 }
 
 func (i userListInput) params() directory.UserListParams {

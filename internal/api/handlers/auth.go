@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -49,17 +50,25 @@ type loginInput struct {
 }
 
 // RegisterAuth mounts setup, session, login, logout, and account endpoints.
-func RegisterAuth(g Groups, authService *auth.Service, userService *directory.UserService, logger *slog.Logger) {
-	registerSetup(g.Public, authService, logger)
-	registerSession(g.Session, authService, logger)
-	registerLogin(g.Public, authService, logger)
-	registerLogout(g.Protected, authService, logger)
+func RegisterAuth(
+	public huma.API,
+	session huma.API,
+	protected huma.API,
+	router chi.Router,
+	authService *auth.Service,
+	userService *directory.UserService,
+	logger *slog.Logger,
+) {
+	registerSetup(public, authService, logger)
+	registerSession(session, authService, logger)
+	registerLogin(public, authService, logger)
+	registerLogout(protected, authService, logger)
 
-	registerGetAccount(g.Protected, authService, logger)
-	registerPutAccount(g.Protected, userService, logger)
-	registerRotateAPIKey(g.Protected, authService, logger)
-	registerRevokeAPIKey(g.Protected, authService, logger)
-	registerOIDC(g.Router, authService, logger)
+	registerGetAccount(protected, authService, logger)
+	registerPutAccount(protected, userService, logger)
+	registerRotateAPIKey(protected, authService, logger)
+	registerRevokeAPIKey(protected, authService, logger)
+	registerOIDC(router, authService, logger)
 }
 
 func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger) {

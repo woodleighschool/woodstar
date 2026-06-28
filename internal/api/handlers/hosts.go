@@ -61,13 +61,19 @@ type hostPrimaryUserPutInput struct {
 	Body hostPrimaryUserPutBody
 }
 
-func registerHosts(g Groups, deps Dependencies) {
-	registerListHosts(g.Ordinary, deps.Hosts, deps.Logger)
-	registerGetHost(g.Ordinary, deps.Hosts, deps.Logger)
-	registerDeleteHost(g.Ordinary, deps.Hosts, deps.Logger)
-	registerBulkDeleteHosts(g.Ordinary, deps.Hosts, deps.Logger)
-	registerSetHostPrimaryUser(g.Ordinary, deps.Hosts, deps.PrimaryUser, deps.Logger)
-	registerClearHostPrimaryUser(g.Ordinary, deps.Hosts, deps.PrimaryUser, deps.Logger)
+// RegisterHosts mounts host inventory and host ownership endpoints.
+func RegisterHosts(
+	api huma.API,
+	hostStore *hosts.Store,
+	primaryUsers *hosts.PrimaryUserStore,
+	logger *slog.Logger,
+) {
+	registerListHosts(api, hostStore, logger)
+	registerGetHost(api, hostStore, logger)
+	registerDeleteHost(api, hostStore, logger)
+	registerBulkDeleteHosts(api, hostStore, logger)
+	registerSetHostPrimaryUser(api, hostStore, primaryUsers, logger)
+	registerClearHostPrimaryUser(api, hostStore, primaryUsers, logger)
 }
 
 func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger) {

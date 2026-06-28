@@ -38,7 +38,7 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 	req := httptest.NewRequest(http.MethodOptions, "/storage/munki/packages/1/Installer.pkg", nil)
 	req.Header.Set("Origin", "https://panel.example.com")
 	req.Header.Set("Access-Control-Request-Method", http.MethodPut)
-	req.Header.Set("Access-Control-Request-Headers", "Content-Type, Range")
+	req.Header.Set("Access-Control-Request-Headers", "content-type,range")
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
@@ -50,8 +50,8 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Fatalf("Access-Control-Allow-Credentials = %q, want true", got)
 	}
-	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Range") {
-		t.Fatalf("Access-Control-Allow-Headers = %q, want Range", got)
+	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "range") {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want range", got)
 	}
 }
 

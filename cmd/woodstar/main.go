@@ -20,7 +20,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api"
-	apihandlers "github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -334,8 +333,8 @@ func buildWiring(
 
 // apiDependencies projects the constructed stores and services into the HTTP
 // server. The API package owns route topology; main owns construction order.
-func (w *wiring) apiDependencies() apihandlers.Dependencies {
-	return apihandlers.Dependencies{
+func (w *wiring) apiDependencies() *api.Dependencies {
+	return &api.Dependencies{
 		Config:         w.cfg,
 		DB:             w.db,
 		Version:        buildinfo.Version,

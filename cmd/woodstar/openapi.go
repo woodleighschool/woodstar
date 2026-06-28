@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/api"
-	apihandlers "github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 )
 
@@ -43,8 +42,8 @@ not invoked, so this command does not require a database.`,
 	return cmd
 }
 
-func schemaDependencies() apihandlers.Dependencies {
-	return apihandlers.Dependencies{
+func schemaDependencies() *api.Dependencies {
+	return &api.Dependencies{
 		Logger: slog.New(slog.DiscardHandler),
 	}
 }

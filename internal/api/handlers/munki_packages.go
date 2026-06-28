@@ -45,6 +45,16 @@ type munkiPackageBulkDeleteInput struct {
 	Body BulkIDsBody
 }
 
+type desiredNotifier interface {
+	DesiredChanged()
+}
+
+func notifyDesired(notifier desiredNotifier) {
+	if notifier != nil {
+		notifier.DesiredChanged()
+	}
+}
+
 type munkiPackageListOutput struct {
 	Body Page[munkiPackage]
 }

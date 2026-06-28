@@ -56,12 +56,13 @@ func (i labelListInput) params() labels.LabelListParams {
 	}
 }
 
-func registerLabels(g Groups, deps Dependencies) {
-	registerListLabels(g.Ordinary, deps.Labels, deps.Logger)
-	registerCreateLabel(g.Ordinary, deps.Labels, deps.Logger)
-	registerGetLabel(g.Ordinary, deps.Labels, deps.Logger)
-	registerUpdateLabel(g.Ordinary, deps.Labels, deps.Logger)
-	registerDeleteLabel(g.Ordinary, deps.Labels, deps.Logger)
+// RegisterLabels mounts label management endpoints.
+func RegisterLabels(api huma.API, labelStore *labels.Store, logger *slog.Logger) {
+	registerListLabels(api, labelStore, logger)
+	registerCreateLabel(api, labelStore, logger)
+	registerGetLabel(api, labelStore, logger)
+	registerUpdateLabel(api, labelStore, logger)
+	registerDeleteLabel(api, labelStore, logger)
 }
 
 func registerListLabels(api huma.API, labelStore *labels.Store, logger *slog.Logger) {

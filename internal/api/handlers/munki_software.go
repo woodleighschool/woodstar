@@ -7,8 +7,14 @@ import (
 	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/api/middleware"
+	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -22,6 +28,35 @@ const (
 
 type munkiSoftwareListInput struct {
 	ListQueryInput
+}
+
+// RegisterMunki mounts Munki host state, package, software, and distribution
+// point endpoints.
+func RegisterMunki(
+	api huma.API,
+	router chi.Router,
+	authService *auth.Service,
+	hostState *munki.Store,
+	hostStore *hosts.Store,
+	softwareStore *munkisoftware.Store,
+	packageStore *packages.Store,
+	objects *storage.ObjectStore,
+	storageStore storage.Backend,
+	notifier desiredNotifier,
+	distributionStore *mdp.Store,
+	logger *slog.Logger,
+) {
+	registerHostMunkiState(api, hostState, hostStore, logger)
+	registerMunkiSoftware(api, softwareStore, packageStore, objects, storageStore, notifier, logger)
+	registerMunkiSoftwareIconContent(
+		router.With(middleware.RequireHTTPAuth(authService)),
+		softwareStore,
+		objects,
+		storageStore,
+		logger,
+	)
+	registerMunkiPackages(api, packageStore, objects, storageStore, notifier, logger)
+	registerMunkiDistributionPoints(api, distributionStore, logger)
 }
 
 type munkiSoftwareGetInput struct {

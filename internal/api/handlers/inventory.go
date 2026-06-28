@@ -9,6 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 )
 
@@ -37,10 +38,16 @@ type inventorySoftwareGetOutput struct {
 	Body inventory.SoftwareTitle
 }
 
-func registerInventory(g Groups, deps Dependencies) {
-	registerListInventorySoftware(g.Ordinary, deps.Software, deps.Logger)
-	registerGetInventorySoftware(g.Ordinary, deps.Software, deps.Logger)
-	registerHostSoftware(g.Ordinary, deps.Software, deps.Hosts, deps.Logger)
+// RegisterInventory mounts the observed software inventory endpoints.
+func RegisterInventory(
+	api huma.API,
+	softwareStore *inventory.Store,
+	hostStore *hosts.Store,
+	logger *slog.Logger,
+) {
+	registerListInventorySoftware(api, softwareStore, logger)
+	registerGetInventorySoftware(api, softwareStore, logger)
+	registerHostSoftware(api, softwareStore, hostStore, logger)
 }
 
 func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store, logger *slog.Logger) {

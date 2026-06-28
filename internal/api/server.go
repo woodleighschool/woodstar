@@ -12,20 +12,43 @@ import (
 	"time"
 
 	"github.com/CAFxX/httpcompression"
+	"github.com/alexedwards/scs/v2"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
+	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/orbit"
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
+	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/santa/events"
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
 func init() {
@@ -41,8 +64,53 @@ type Server struct {
 	version    string
 }
 
+// Dependencies is everything the HTTP server needs. Package main constructs
+// stores and services; package api owns how they become routes.
+type Dependencies struct {
+	Config         config.Config
+	DB             *database.DB
+	Version        string
+	Logger         *slog.Logger
+	WebHandler     *webui.Handler
+	SessionManager *scs.SessionManager
+
+	AuthService *auth.Service
+	Users       *directory.UserService
+	Directory   *directory.Store
+	Hosts       *hosts.Store
+	PrimaryUser *hosts.PrimaryUserStore
+	Secrets     *agentauth.Store
+	Software    *inventory.Store
+	Labels      *labels.Store
+
+	Reports      *reports.Store
+	Checks       *checks.Store
+	LiveQueries  *livequery.Manager
+	OsqueryAgent *osquery.AgentService
+
+	OrbitAgent *orbit.EnrollmentService
+
+	StorageBackend storage.Backend
+	StorageKey     []byte
+	StorageObjects *storage.ObjectStore
+
+	MunkiPackages        *packages.Store
+	MunkiSoftware        *munkisoftware.Store
+	MunkiHostState       *munki.Store
+	MunkiRepo            *munki.RepositoryService
+	MunkiDistribution    *mdp.Store
+	MunkiDistributionHub *mdp.Hub
+
+	SantaConfigurations *configurations.Store
+	SantaEvents         *events.Store
+	SantaRules          *rules.Store
+	SantaReferences     *references.Store
+	SantaSync           *santa.SyncService
+	SantaState          *santa.HostStateService
+}
+
 // NewServer returns an HTTP server.
-func NewServer(deps handlers.Dependencies) *Server {
+func NewServer(deps *Dependencies) *Server {
 	server := &Server{
 		config:  deps.Config,
 		logger:  deps.Logger.With("component", "server"),
@@ -85,7 +153,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-func routes(deps handlers.Dependencies) http.Handler {
+func routes(deps *Dependencies) http.Handler {
 	r := chi.NewRouter()
 	r.Use(clientIPMiddleware(deps.Config))
 	r.Use(chimiddleware.RequestID)
@@ -116,7 +184,7 @@ func routes(deps handlers.Dependencies) http.Handler {
 
 // protocolRoutes mounts every agent-facing protocol endpoint. They are wire
 // protocols that live beside the app API on the same HTTP server.
-func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
+func protocolRoutes(r chi.Router, deps *Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
 	orbitprotocol.RegisterOrbitRoutes(r, deps.OrbitAgent, deps.Logger.With("component", "orbit"))
 	osqueryprotocol.RegisterOsqueryRoutes(r, deps.OsqueryAgent, deps.Logger.With("component", "osquery"))
@@ -138,7 +206,7 @@ func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
 	santaprotocol.RegisterSantaRoutes(r, deps.Secrets, deps.SantaSync, deps.Logger.With("component", "santa"))
 }
 
-func browserRoutes(r chi.Router, deps handlers.Dependencies) {
+func browserRoutes(r chi.Router, deps *Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
 	r.Group(func(r chi.Router) {
 		handlers.RegisterBlobStorage(r, deps.StorageBackend, deps.StorageKey, deps.Logger.With("component", "storage"))
@@ -152,12 +220,12 @@ func browserRoutes(r chi.Router, deps handlers.Dependencies) {
 }
 
 // Mount attaches public and authenticated app API routes to r.
-func Mount(r chi.Router, deps handlers.Dependencies) {
+func Mount(r chi.Router, deps *Dependencies) {
 	humaAPI := humachi.New(r, humaConfig(deps.Version))
 	registerAppRoutes(r, humaAPI, deps)
 }
 
-func registerAppRoutes(r chi.Router, humaAPI huma.API, deps handlers.Dependencies) {
+func registerAppRoutes(r chi.Router, humaAPI huma.API, deps *Dependencies) {
 	session := huma.NewGroup(humaAPI)
 	session.UseMiddleware(middleware.OptionalHumaAuth(humaAPI, deps.AuthService))
 
@@ -171,15 +239,40 @@ func registerAppRoutes(r chi.Router, humaAPI huma.API, deps handlers.Dependencie
 	sensitive := huma.NewGroup(protected)
 	sensitive.UseModifier(middleware.RequireAdminForAll(humaAPI))
 
-	groups := handlers.Groups{
-		Public:    humaAPI,
-		Session:   session,
-		Protected: protected,
-		Ordinary:  ordinary,
-		Sensitive: sensitive,
-		Router:    r,
-	}
-	handlers.Register(groups, deps)
+	apiLogger := deps.Logger.With("component", "api")
+
+	// Create handlers
+	handlers.RegisterAuth(humaAPI, session, protected, r, deps.AuthService, deps.Users, apiLogger)
+	handlers.RegisterDirectory(ordinary, deps.Users, deps.Directory, apiLogger)
+	handlers.RegisterHosts(ordinary, deps.Hosts, deps.PrimaryUser, apiLogger)
+	handlers.RegisterInventory(ordinary, deps.Software, deps.Hosts, apiLogger)
+	handlers.RegisterLabels(ordinary, deps.Labels, apiLogger)
+	handlers.RegisterAgentAuth(sensitive, deps.Secrets, apiLogger)
+	handlers.RegisterOsquery(ordinary, sensitive, deps.Reports, deps.Checks, deps.LiveQueries, deps.Hosts, apiLogger)
+	handlers.RegisterMunki(
+		ordinary,
+		r,
+		deps.AuthService,
+		deps.MunkiHostState,
+		deps.Hosts,
+		deps.MunkiSoftware,
+		deps.MunkiPackages,
+		deps.StorageObjects,
+		deps.StorageBackend,
+		deps.MunkiDistributionHub,
+		deps.MunkiDistribution,
+		apiLogger,
+	)
+	handlers.RegisterSanta(
+		ordinary,
+		deps.SantaState,
+		deps.Hosts,
+		deps.SantaConfigurations,
+		deps.SantaRules,
+		deps.SantaEvents,
+		deps.SantaReferences,
+		apiLogger,
+	)
 }
 
 // humaConfig returns the Huma config shared by serve and openapi.
@@ -211,7 +304,7 @@ func humaConfig(version string) huma.Config {
 // BuildSchemaAPI builds the app API for OpenAPI schema generation only. Route
 // registration binds handlers but never invokes them, so nil stores and
 // services are valid here.
-func BuildSchemaAPI(version string, deps handlers.Dependencies) huma.API {
+func BuildSchemaAPI(version string, deps *Dependencies) huma.API {
 	r := chi.NewRouter()
 	humaAPI := humachi.New(r, humaConfig(version))
 	deps.Version = version

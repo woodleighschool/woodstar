@@ -7,7 +7,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
 const (
@@ -17,6 +22,25 @@ const (
 
 type santaConfigurationListInput struct {
 	ListQueryInput
+}
+
+// RegisterSanta mounts Santa policy, event, and host state endpoints.
+func RegisterSanta(
+	api huma.API,
+	hostState *santa.HostStateService,
+	hostStore *hosts.Store,
+	configurationStore *configurations.Store,
+	ruleStore *rules.Store,
+	eventStore *events.Store,
+	referenceStore *references.Store,
+	logger *slog.Logger,
+) {
+	registerHostSantaState(api, hostState, hostStore, logger)
+	registerSantaConfigurations(api, configurationStore, logger)
+	registerSantaRules(api, ruleStore, logger)
+	registerSantaEvents(api, eventStore, logger)
+	registerHostSantaRules(api, ruleStore, hostStore, logger)
+	registerSoftwareSantaReference(api, referenceStore, logger)
 }
 
 type santaConfigurationGetInput struct {
