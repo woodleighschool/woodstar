@@ -9,13 +9,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func munkiSoftwareName(softwareID int64) string {
-	return strconv.FormatInt(softwareID, 10)
-}
-
 // MunkiVersionedSoftwareName returns Munki's name--version syntax for a specific package version.
 func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string {
-	name := munkiSoftwareName(softwareID)
+	name := strconv.FormatInt(softwareID, 10)
 	version := strings.TrimSpace(packageVersion)
 	if version == "" {
 		return name
@@ -141,7 +137,7 @@ type munkiPkginfoAlert struct {
 
 func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
-		Name:                     munkiSoftwareName(pkg.SoftwareID),
+		Name:                     strconv.FormatInt(pkg.SoftwareID, 10),
 		Version:                  pkg.Version,
 		DisplayName:              pkg.SoftwareName,
 		Description:              pkg.SoftwareDescription,
@@ -187,12 +183,12 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	}
 	if pkg.InstallerType != InstallerTypeNoPkg && objects.Installer != nil {
 		item.InstallerItemLocation = InstallerItemLocation(pkg, *objects.Installer)
-		item.InstallerItemHash = objectHash(*objects.Installer)
-		item.InstallerItemSize = objectSizeKB(*objects.Installer)
+		item.InstallerItemHash = objects.Installer.SHA256Value()
+		item.InstallerItemSize = objects.Installer.SizeKBValue()
 	}
 	if objects.Icon != nil {
 		item.IconName = IconName(*objects.Icon)
-		item.IconHash = objectHash(*objects.Icon)
+		item.IconHash = objects.Icon.SHA256Value()
 	}
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
 		item.InstallerType = pkg.InstallerType
@@ -248,20 +244,6 @@ func packageObjectLocation(packageID int64, role string, obj storage.Object) str
 	return fmt.Sprintf("packages/%d/%s/%s", packageID, role, obj.Filename)
 }
 
-func objectHash(obj storage.Object) string {
-	if obj.SHA256 == nil {
-		return ""
-	}
-	return *obj.SHA256
-}
-
-func objectSizeKB(obj storage.Object) int64 {
-	if obj.SizeBytes == nil || *obj.SizeBytes <= 0 {
-		return 0
-	}
-	return (*obj.SizeBytes + 1023) / 1024
-}
-
 func (alert munkiPkginfoAlert) Empty() bool {
 	return alert.Title == "" &&
 		alert.Detail == "" &&
@@ -275,7 +257,7 @@ func munkiReferenceNames(references []PackageReference) []string {
 	}
 	out := make([]string, 0, len(references))
 	for _, ref := range references {
-		if name := munkiReferenceName(ref); name != "" {
+		if name := MunkiVersionedSoftwareName(ref.SoftwareID, ref.PackageVersion); name != "" {
 			out = append(out, name)
 		}
 	}
@@ -283,10 +265,6 @@ func munkiReferenceNames(references []PackageReference) []string {
 		return nil
 	}
 	return out
-}
-
-func munkiReferenceName(ref PackageReference) string {
-	return MunkiVersionedSoftwareName(ref.SoftwareID, ref.PackageVersion)
 }
 
 func munkiBlockingApplications(none bool, values []string) *[]string {

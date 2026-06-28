@@ -5,8 +5,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
@@ -41,18 +39,16 @@ func agentSecretFromRow(row agentSecretRow) AgentSecret {
 	}
 }
 
-const agentRecordSQL = `
-SELECT id, agent, value, created_at, deleted_at
+const agentSecretColumnsSQL = `id, agent, value, created_at, deleted_at`
+
+const agentSecretSelectSQL = `
+SELECT ` + agentSecretColumnsSQL + `
 FROM agent_secrets`
 
 func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
-	qrows, err := s.db.Pool().Query(ctx, agentRecordSQL+`
+	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.db.Pool(), agentSecretSelectSQL+`
 WHERE deleted_at IS NULL
 ORDER BY agent ASC, created_at DESC, id DESC`)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[agentSecretRow])
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +66,7 @@ func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSec
 	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
 INSERT INTO agent_secrets (agent, value)
 VALUES ($1::agent, $2)
-RETURNING id, agent, value, created_at, deleted_at`,
+RETURNING `+agentSecretColumnsSQL,
 		string(params.Agent), params.Value,
 	)
 	if err != nil {
@@ -86,7 +82,7 @@ UPDATE agent_secrets
 SET value = $1
 WHERE id = $2
   AND deleted_at IS NULL
-RETURNING id, agent, value, created_at, deleted_at`,
+RETURNING `+agentSecretColumnsSQL,
 		params.Value, id,
 	)
 	if err != nil {

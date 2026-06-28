@@ -1,11 +1,9 @@
-import type {
-  SantaEvent,
-  SantaEventDecisionFilter,
-  SantaExecutionDecision,
-  SantaFileAccessDecision,
-  SantaFileAccessEvent,
-} from "@/hooks/use-santa-events";
+import type { SantaEventDecisionFilter } from "@/hooks/use-santa-events";
+import type { SantaExecutionEvent as SantaEvent, SantaFileAccessEvent } from "@/lib/api";
 import { enumOptions, type StatusMetadataMap } from "@/lib/enum-metadata";
+
+export type SantaExecutionDecision = SantaEvent["decision"];
+export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 
 export const EXECUTION_DECISIONS = {
   unknown: {

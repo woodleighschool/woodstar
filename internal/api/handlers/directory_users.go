@@ -81,7 +81,7 @@ func RegisterDirectory(
 
 func (i userListInput) params() directory.UserListParams {
 	return directory.UserListParams{
-		ListParams: i.ListQueryInput.Params(),
+		ListParams: i.ListQueryInput.params(),
 		Values:     dbutil.SplitListValues(i.Values),
 		Role:       i.Role,
 		Source:     i.Source,
@@ -91,7 +91,7 @@ func (i userListInput) params() directory.UserListParams {
 
 func (i departmentListInput) params() directory.UserListParams {
 	return directory.UserListParams{
-		ListParams: i.ListQueryInput.Params(),
+		ListParams: i.ListQueryInput.params(),
 		Values:     dbutil.SplitListValues(i.Values),
 	}
 }
@@ -109,7 +109,7 @@ func registerListUsers(api huma.API, userService *directory.UserService, logger 
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-users", userResource, err)
 		}
-		return &userListOutput{Body: Page[directory.User]{Items: list, Count: int32(count)}}, nil
+		return &userListOutput{Body: Page[directory.User]{Items: list, Count: count}}, nil
 	})
 }
 
@@ -126,7 +126,7 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-user-departments", "department", err)
 		}
-		return &departmentListOutput{Body: Page[directory.Department]{Items: list, Count: int32(count)}}, nil
+		return &departmentListOutput{Body: Page[directory.Department]{Items: list, Count: count}}, nil
 	})
 }
 
@@ -164,7 +164,7 @@ func registerGetUser(api huma.API, userService *directory.UserService, logger *s
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
 		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "get-user", userMutationError(err), "user_id", input.ID)
+			return nil, resourceError(ctx, logger, "get-user", userResource, err, "user_id", input.ID)
 		}
 		return &userOutput{Body: *user}, nil
 	})
@@ -221,6 +221,6 @@ func userMutationError(err error) error {
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:
-		return ResourceMutationError(userResource, err)
+		return resourceMutationError(userResource, err)
 	}
 }

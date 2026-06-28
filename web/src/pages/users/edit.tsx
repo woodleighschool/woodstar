@@ -8,16 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { type User, useUpdateUser, useUser } from "@/hooks/use-users";
+import { useUpdateUser, useUser } from "@/hooks/use-users";
+import type { User } from "@/lib/api";
+import { parseRouteID } from "@/lib/route-params";
 import { AccountPage } from "@/pages/account";
 import { UserForm, userFromDetail } from "@/pages/users/fields";
 
 export function UserEditPage() {
   const params = useParams({ strict: false });
   const userId = params.userId ?? "";
-  const userID = Number(userId);
+  const userID = parseRouteID(userId);
   const user = useUser(userID);
   const { user: currentUser } = useAuth();
+
+  if (userID === null) {
+    return <QueryGate title="Failed to load user" error={{ message: "User route is invalid." }} />;
+  }
 
   if (user.error || !user.data) {
     return (

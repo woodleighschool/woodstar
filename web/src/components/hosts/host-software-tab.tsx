@@ -28,8 +28,8 @@ import { Input } from "@/components/ui/input";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useHostSoftware } from "@/hooks/use-hosts";
 import type {
+  HostSoftware,
   HostSoftwareInstalledVersion,
-  HostSoftwareRow,
   PathSignatureInformation,
 } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
@@ -42,7 +42,7 @@ import {
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
 
-const softwareColumns: ColumnDef<HostSoftwareRow>[] = [
+const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "name",
     accessorFn: (row) => row.display_name || row.name,
@@ -222,7 +222,7 @@ function InstalledPathCell({
   typeLabel,
   paths,
 }: {
-  row: HostSoftwareRow;
+  row: HostSoftware;
   versionLabel: string;
   typeLabel: string;
   paths: InstalledPath[];

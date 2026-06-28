@@ -21,23 +21,18 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import type { SantaRuleType } from "@/hooks/use-santa-rules";
-import {
-  type SoftwareSantaReference,
-  type SoftwareTitle,
-  type SoftwareVersion,
-  useSoftwareSantaReference,
-  useSoftwareTitle,
-} from "@/hooks/use-software";
+import { useSoftwareSantaReference, useSoftwareTitle } from "@/hooks/use-software";
+import type { SantaRule, SantaSoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
 import { ruleTypeLabel } from "@/lib/santa-rules";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 
-type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
-type CertificateReference = NonNullable<SoftwareSantaReference["certificates"]>[number];
-type ExecutableReference = NonNullable<SoftwareSantaReference["executables"]>[number];
-type RuleReference = NonNullable<SoftwareSantaReference["rules"]>[number];
-type SigningIdentityReference = NonNullable<SoftwareSantaReference["signing_identities"]>[number];
+type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
+type CertificateReference = NonNullable<SantaSoftwareReference["certificates"]>[number];
+type ExecutableReference = NonNullable<SantaSoftwareReference["executables"]>[number];
+type RuleReference = NonNullable<SantaSoftwareReference["rules"]>[number];
+type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_identities"]>[number];
+type SantaRuleType = SantaRule["rule_type"];
 
 export function SoftwareDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });

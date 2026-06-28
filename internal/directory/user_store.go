@@ -40,14 +40,42 @@ type userRow struct {
 	UpdatedAt         time.Time  `db:"updated_at"`
 }
 
-const userColumnsSQL = `id, email, name, password_hash, role::text AS role, api_key, api_key_created_at,
-    source::text AS source, external_id, user_principal_name, mail_nickname,
-    given_name, family_name, department, deleted_at, created_at, updated_at`
+var userColumnExprs = []string{
+	"id",
+	"email",
+	"name",
+	"password_hash",
+	"role::text AS role",
+	"api_key",
+	"api_key_created_at",
+	"source::text AS source",
+	"external_id",
+	"user_principal_name",
+	"mail_nickname",
+	"given_name",
+	"family_name",
+	"department",
+	"deleted_at",
+	"created_at",
+	"updated_at",
+}
 
-const userSelectSQL = `
+var userSelectSQL = `
 SELECT
-    ` + userColumnsSQL + `
+    ` + userColumnsSQL("") + `
 FROM users`
+
+func userColumnsSQL(alias string) string {
+	prefix := ""
+	if alias != "" {
+		prefix = alias + "."
+	}
+	columns := make([]string, len(userColumnExprs))
+	for i, column := range userColumnExprs {
+		columns[i] = prefix + column
+	}
+	return strings.Join(columns, ", ")
+}
 
 func userFromRow(r userRow) User {
 	role := roleFromString(r.Role)
@@ -125,7 +153,7 @@ RETURNING id`,
 }
 
 func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+	return s.getUserByEmail(ctx, email, `
 WHERE deleted_at IS NULL
   AND source = 'local'
   AND role IS NOT NULL
@@ -135,24 +163,23 @@ WHERE deleted_at IS NULL
       OR lower(COALESCE(user_principal_name, '')) = lower($1)
   )
 ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
-LIMIT 1`, strings.ToLower(email))
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	out := userFromRow(row)
-	return &out, nil
+LIMIT 1`)
 }
 
 func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+	return s.getUserByEmail(ctx, email, `
 WHERE deleted_at IS NULL
   AND role IS NOT NULL
   AND (
       lower(email) = lower($1)
       OR lower(COALESCE(user_principal_name, '')) = lower($1)
-  )
+)
 ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
-LIMIT 1`, strings.ToLower(email))
+LIMIT 1`)
+}
+
+func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+whereSQL, strings.ToLower(email))
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -224,7 +251,7 @@ SET
     END,
     updated_at = now()
 WHERE id = $4
-RETURNING `+userColumnsSQL,
+RETURNING `+userColumnsSQL(""),
 		params.Name, roleStr, params.PasswordHash, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -248,14 +275,14 @@ SET
     END,
     updated_at = now()
 WHERE id = $3
-RETURNING `+userColumnsSQL,
+RETURNING `+userColumnsSQL(""),
 		params.Name, params.PasswordHash, id)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
@@ -308,7 +335,7 @@ SET
 WHERE id = $2
   AND deleted_at IS NULL
   AND role IS NOT NULL
-RETURNING `+userColumnsSQL,
+RETURNING `+userColumnsSQL(""),
 		key, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -329,14 +356,14 @@ SET
     api_key_created_at = NULL,
     updated_at = now()
 WHERE id = $1
-RETURNING `+userColumnsSQL,
+RETURNING `+userColumnsSQL(""),
 		id)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, dbutil.MutationError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
@@ -412,11 +439,12 @@ func userListQuery(params UserListParams, where string, args []any) dbutil.ListQ
 }
 
 func userListSelectSQL(params UserListParams) string {
+	selectSQL := `SELECT ` + userColumnsSQL("u") + `
+FROM users u`
 	if params.GroupID <= 0 {
-		return `SELECT u.id, u.email, u.name, u.password_hash, u.role::text AS role, u.api_key, u.api_key_created_at, u.source::text AS source, u.external_id, u.user_principal_name, u.mail_nickname, u.given_name, u.family_name, u.department, u.deleted_at, u.created_at, u.updated_at FROM users u`
+		return selectSQL
 	}
-	return `SELECT u.id, u.email, u.name, u.password_hash, u.role::text AS role, u.api_key, u.api_key_created_at, u.source::text AS source, u.external_id, u.user_principal_name, u.mail_nickname, u.given_name, u.family_name, u.department, u.deleted_at, u.created_at, u.updated_at
-FROM users u
+	return selectSQL + `
 JOIN directory_group_memberships gm ON gm.user_id = u.id`
 }
 

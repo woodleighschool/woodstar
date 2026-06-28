@@ -20,3 +20,14 @@ func GetOne[T any](ctx context.Context, q Queryer, sql string, args ...any) (T, 
 	}
 	return row, nil
 }
+
+// GetAll scans every row into T by column name.
+// q may be a *pgxpool.Pool or a pgx.Tx.
+func GetAll[T any](ctx context.Context, q Queryer, sql string, args ...any) ([]T, error) {
+	rows, err := q.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, pgx.RowToStructByName[T])
+}

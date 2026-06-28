@@ -445,7 +445,12 @@ func decodeRequest(r *http.Request, msg proto.Message) error {
 
 func validateRequestMachineID(pathMachineID string, req machineIDProtoMessage) error {
 	if req.GetMachineId() != pathMachineID {
-		return fmt.Errorf("%w: body machine_id %q does not match path machine_id %q", dbutil.ErrInvalidInput, req.GetMachineId(), pathMachineID)
+		return fmt.Errorf(
+			"%w: body machine_id %q does not match path machine_id %q",
+			dbutil.ErrInvalidInput,
+			req.GetMachineId(),
+			pathMachineID,
+		)
 	}
 	return nil
 }
@@ -540,7 +545,11 @@ func protoFileAccessAction(action configurations.FileAccessAction) (syncv1.FileA
 	case configurations.FileAccessActionDisable:
 		return syncv1.FileAccessAction_DISABLE, nil
 	default:
-		return syncv1.FileAccessAction_FILE_ACCESS_ACTION_UNSPECIFIED, fmt.Errorf("%w: unsupported override_file_access_action %q", dbutil.ErrInvalidInput, action)
+		return syncv1.FileAccessAction_FILE_ACCESS_ACTION_UNSPECIFIED, fmt.Errorf(
+			"%w: unsupported override_file_access_action %q",
+			dbutil.ErrInvalidInput,
+			action,
+		)
 	}
 }
 
@@ -566,7 +575,11 @@ func protoClientMode(mode configurations.ClientMode) (syncv1.ClientMode, error) 
 	case configurations.ClientModeStandalone:
 		return syncv1.ClientMode_STANDALONE, nil
 	default:
-		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE, fmt.Errorf("%w: unsupported client_mode %q", dbutil.ErrInvalidInput, mode)
+		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE, fmt.Errorf(
+			"%w: unsupported client_mode %q",
+			dbutil.ErrInvalidInput,
+			mode,
+		)
 	}
 }
 

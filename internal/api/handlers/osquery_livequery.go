@@ -10,8 +10,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/sse"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
@@ -108,15 +108,15 @@ type OsqueryLiveQueryResultEvent struct {
 }
 
 func (liveQueryPingStatus) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(liveQueryPingStatusValues...)
+	return openapischema.StringEnum(liveQueryPingStatusValues...)
 }
 
 func (liveQueryCompletedStatus) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(liveQueryCompletedStatusValues...)
+	return openapischema.StringEnum(liveQueryCompletedStatusValues...)
 }
 
 func (liveQueryResultStatus) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(liveQueryResultStatusValues...)
+	return openapischema.StringEnum(liveQueryResultStatusValues...)
 }
 
 func registerLiveQueries(

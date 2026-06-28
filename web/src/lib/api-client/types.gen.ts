@@ -254,21 +254,21 @@ export type HostReportResultsBody = {
     report_id: number;
 };
 
-export type HostSoftwareInstalledVersion = {
-    bundle_identifier: string;
-    installed_paths: Array<string>;
-    last_opened_at?: string;
-    signature_information: Array<PathSignatureInformation>;
-    version: string;
-};
-
-export type HostSoftwareRow = {
+export type HostSoftware = {
     display_name: string;
     extension_for: string;
     id: number;
     installed_versions: Array<HostSoftwareInstalledVersion>;
     name: string;
     source: string;
+};
+
+export type HostSoftwareInstalledVersion = {
+    bundle_identifier: string;
+    installed_paths: Array<string>;
+    last_opened_at?: string;
+    signature_information: Array<PathSignatureInformation>;
+    version: string;
 };
 
 export type HostStorage = {
@@ -864,9 +864,9 @@ export type PageHost = {
     items: Array<Host>;
 };
 
-export type PageHostSoftwareRow = {
+export type PageHostSoftware = {
     count: number;
-    items: Array<HostSoftwareRow>;
+    items: Array<HostSoftware>;
 };
 
 export type PageLabel = {
@@ -1095,7 +1095,7 @@ export type SantaFileAccessEvent = {
 export type SantaHostState = {
     client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
     configuration?: SantaConfigurationMatch;
-    last_sync_at?: string;
+    last_seen_at?: string;
     rule_sync: SantaRuleSyncSummary;
     version: string;
 };
@@ -2361,7 +2361,7 @@ export type ListHostSoftwareResponses = {
     /**
      * OK
      */
-    200: PageHostSoftwareRow;
+    200: PageHostSoftware;
 };
 
 export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];

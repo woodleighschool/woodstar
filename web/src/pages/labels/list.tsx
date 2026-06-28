@@ -4,6 +4,7 @@ import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
@@ -12,16 +13,6 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,7 +24,8 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type Label, type LabelListParams, useDeleteLabel, useLabels } from "@/hooks/use-labels";
+import { type LabelListParams, useDeleteLabel, useLabels } from "@/hooks/use-labels";
+import type { Label } from "@/lib/api";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
@@ -234,33 +226,19 @@ function LabelDeleteDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Label</AlertDialogTitle>
-          <AlertDialogDescription>
-            {label
-              ? `${label.name} will be removed from hosts and filters.`
-              : "This label will be removed."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={remove.isPending}
-            onClick={(event) => {
-              event.preventDefault();
-              void handleDelete();
-            }}
-          >
-            Delete Label
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete Label"
+      description={
+        label
+          ? `${label.name} will be removed from hosts and filters.`
+          : "This label will be removed."
+      }
+      confirmLabel="Delete Label"
+      variant="destructive"
+      pending={remove.isPending}
+      onConfirm={() => void handleDelete()}
+    />
   );
 }

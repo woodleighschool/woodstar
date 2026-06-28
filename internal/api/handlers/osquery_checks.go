@@ -21,12 +21,18 @@ type checkListInput struct {
 	ListQueryInput
 }
 
+func (input checkListInput) params() checks.CheckListParams {
+	return checks.CheckListParams{
+		ListParams: input.ListQueryInput.params(),
+	}
+}
+
 type checkGetInput struct {
-	CheckID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type checkResultsInput struct {
-	CheckID  int64  `path:"id"`
+	ID       int64  `path:"id"`
 	Response string `          query:"response,omitempty" enum:"pass,fail"`
 }
 
@@ -35,12 +41,12 @@ type checkCreateInput struct {
 }
 
 type checkPutInput struct {
-	CheckID int64 `path:"id"`
-	Body    checks.CheckMutation
+	ID   int64 `path:"id"`
+	Body checks.CheckMutation
 }
 
 type checkDeleteInput struct {
-	CheckID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type checkBulkDeleteInput struct {
@@ -82,7 +88,7 @@ func registerListChecks(api huma.API, checkStore *checks.Store, logger *slog.Log
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-osquery-checks", checkResource, err)
 		}
-		return &checkListOutput{Body: Page[checks.Check]{Items: items, Count: int32(count)}}, nil
+		return &checkListOutput{Body: Page[checks.Check]{Items: items, Count: count}}, nil
 	})
 }
 
@@ -116,9 +122,9 @@ func registerGetCheck(api huma.API, checkStore *checks.Store, logger *slog.Logge
 		Summary:     "Get a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
-		check, err := checkStore.GetByID(ctx, input.CheckID)
+		check, err := checkStore.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "get-osquery-check", checkResource, err, "check_id", input.CheckID)
+			return nil, resourceError(ctx, logger, "get-osquery-check", checkResource, err, "id", input.ID)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -133,7 +139,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 		Summary:     "Replace a check",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
-		check, err := checkStore.Update(ctx, input.CheckID, input.Body)
+		check, err := checkStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -141,8 +147,8 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 				"update-osquery-check",
 				checkResource,
 				err,
-				"check_id",
-				input.CheckID,
+				"id",
+				input.ID,
 			)
 		}
 		return &checkOutput{Body: *check}, nil
@@ -158,15 +164,15 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 		Summary:     "Delete a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
-		if err := checkStore.Delete(ctx, input.CheckID); err != nil {
+		if err := checkStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
 				"delete-osquery-check",
 				checkResource,
 				err,
-				"check_id",
-				input.CheckID,
+				"id",
+				input.ID,
 			)
 		}
 		return &struct{}{}, nil
@@ -203,16 +209,10 @@ func registerCheckResults(api huma.API, checkStore *checks.Store, logger *slog.L
 			status := checks.CheckStatus(input.Response)
 			response = &status
 		}
-		rows, err := checkStore.CheckResults(ctx, input.CheckID, response)
+		rows, err := checkStore.CheckResults(ctx, input.ID, response)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-osquery-check-results", err, "check_id", input.CheckID)
+			return nil, handlerError(ctx, logger, "list-osquery-check-results", err, "id", input.ID)
 		}
 		return &checkResultsOutput{Body: rows}, nil
 	})
-}
-
-func (input checkListInput) params() checks.CheckListParams {
-	return checks.CheckListParams{
-		ListParams: input.ListQueryInput.Params(),
-	}
 }

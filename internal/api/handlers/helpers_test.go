@@ -27,7 +27,7 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			mapped := ResourceMutationError("resource", tt.err)
+			mapped := resourceMutationError("resource", tt.err)
 			status, ok := errors.AsType[huma.StatusError](mapped)
 			if !ok {
 				t.Fatalf("not a huma.StatusError: %v", mapped)

@@ -33,12 +33,8 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  type Host,
-  type HostDetail,
-  useClearHostPrimaryUser,
-  useSetHostPrimaryUser,
-} from "@/hooks/use-hosts";
+import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-hosts";
+import type { Host, HostDetail } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
 

@@ -205,18 +205,6 @@ func (s *Store) ListRuleReferences(
 }
 
 func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRule, error) {
-	type hostRuleRow struct {
-		RuleID              int64  `db:"rule_id"`
-		RuleType            string `db:"rule_type"`
-		Identifier          string `db:"identifier"`
-		Name                string `db:"name"`
-		Description         string `db:"description"`
-		Policy              string `db:"policy"`
-		CelExpression       string `db:"cel_expression"`
-		CustomMessage       string `db:"custom_message"`
-		CustomURL           string `db:"custom_url"`
-		NotificationAppName string `db:"notification_app_name"`
-	}
 	qrows, err := s.db.Pool().Query(ctx, listRulesForHostSQL, hostID)
 	if err != nil {
 		return nil, err
@@ -225,22 +213,7 @@ func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRu
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]HostRule, len(rows))
-	for i, row := range rows {
-		rules[i] = HostRule{
-			RuleID:        row.RuleID,
-			RuleType:      RuleType(row.RuleType),
-			Identifier:    row.Identifier,
-			Name:          row.Name,
-			Description:   row.Description,
-			Policy:        Policy(row.Policy),
-			CELExpression: row.CelExpression,
-			CustomMessage: row.CustomMessage,
-			CustomURL:     row.CustomURL,
-			AppName:       row.NotificationAppName,
-		}
-	}
-	return rules, nil
+	return hostRulesFromRows(rows), nil
 }
 
 func (s *Store) ListRuleStatusesForHost(
@@ -259,19 +232,16 @@ func (s *Store) ListRuleStatusesForHost(
 	if err := s.db.Pool().QueryRow(ctx, countRulesForHostSQL, hostID).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-
-	type hostRuleRow struct {
-		RuleID              int64  `db:"rule_id"`
-		RuleType            string `db:"rule_type"`
-		Identifier          string `db:"identifier"`
-		Name                string `db:"name"`
-		Description         string `db:"description"`
-		Policy              string `db:"policy"`
-		CelExpression       string `db:"cel_expression"`
-		CustomMessage       string `db:"custom_message"`
-		CustomURL           string `db:"custom_url"`
-		NotificationAppName string `db:"notification_app_name"`
+	if count == 0 {
+		exists, err := s.hostExists(ctx, hostID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if !exists {
+			return nil, 0, dbutil.ErrNotFound
+		}
 	}
+
 	qrows, err := s.db.Pool().Query(
 		ctx, listRulesForHostPageSQL,
 		hostID,
@@ -285,21 +255,7 @@ func (s *Store) ListRuleStatusesForHost(
 	if err != nil {
 		return nil, 0, err
 	}
-	hostRules := make([]HostRule, len(rows))
-	for i, row := range rows {
-		hostRules[i] = HostRule{
-			RuleID:        row.RuleID,
-			RuleType:      RuleType(row.RuleType),
-			Identifier:    row.Identifier,
-			Name:          row.Name,
-			Description:   row.Description,
-			Policy:        Policy(row.Policy),
-			CELExpression: row.CelExpression,
-			CustomMessage: row.CustomMessage,
-			CustomURL:     row.CustomURL,
-			AppName:       row.NotificationAppName,
-		}
-	}
+	hostRules := hostRulesFromRows(rows)
 
 	targets := SyncTargetsFromRules(hostRules)
 	applied, err := s.appliedSyncTargetSet(ctx, hostID)
@@ -316,6 +272,44 @@ func (s *Store) ListRuleStatusesForHost(
 		})
 	}
 	return statuses, count, nil
+}
+
+func (s *Store) hostExists(ctx context.Context, hostID int64) (bool, error) {
+	var exists bool
+	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
+	return exists, err
+}
+
+type hostRuleRow struct {
+	RuleID              int64  `db:"rule_id"`
+	RuleType            string `db:"rule_type"`
+	Identifier          string `db:"identifier"`
+	Name                string `db:"name"`
+	Description         string `db:"description"`
+	Policy              string `db:"policy"`
+	CelExpression       string `db:"cel_expression"`
+	CustomMessage       string `db:"custom_message"`
+	CustomURL           string `db:"custom_url"`
+	NotificationAppName string `db:"notification_app_name"`
+}
+
+func hostRulesFromRows(rows []hostRuleRow) []HostRule {
+	rules := make([]HostRule, len(rows))
+	for i, row := range rows {
+		rules[i] = HostRule{
+			RuleID:        row.RuleID,
+			RuleType:      RuleType(row.RuleType),
+			Identifier:    row.Identifier,
+			Name:          row.Name,
+			Description:   row.Description,
+			Policy:        Policy(row.Policy),
+			CELExpression: row.CelExpression,
+			CustomMessage: row.CustomMessage,
+			CustomURL:     row.CustomURL,
+			AppName:       row.NotificationAppName,
+		}
+	}
+	return rules
 }
 
 func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[string]bool, error) {
@@ -360,9 +354,6 @@ func replaceRuleTargets(
 	targets RuleTargets,
 ) error {
 	targets = normalizeRuleTargets(targets)
-	if err := targets.validate(); err != nil {
-		return err
-	}
 	rows := make([]ruleTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
 	for i, include := range targets.Include {
 		rows = append(rows, ruleTargetWrite{
@@ -813,99 +804,7 @@ expanded_rules AS (
 )
 SELECT count(*)::integer FROM expanded_rules`
 
-//nolint:unqueryvet // expanded_rules columns are declared explicitly; CASE expression in CTE is not SELECT *
-const listRulesForHostPageSQL = `
-WITH host_labels AS (
-	SELECT label_id
-	FROM label_membership
-	WHERE host_id = $1
-),
-matching_includes AS (
-	SELECT
-		r.id AS rule_id,
-		r.rule_type,
-		r.identifier,
-		r.name,
-		r.description,
-		i.policy,
-		COALESCE(i.cel_expression, '') AS cel_expression,
-		r.custom_message,
-		r.custom_url,
-		i.position::bigint AS matched_include_id,
-		CASE r.rule_type
-			WHEN 'cdhash' THEN 1
-			WHEN 'binary' THEN 2
-			WHEN 'signingid' THEN 3
-			WHEN 'certificate' THEN 4
-			WHEN 'teamid' THEN 5
-			WHEN 'bundle' THEN 6
-			ELSE 7
-		END AS rule_type_sort,
-		row_number() OVER (PARTITION BY r.id ORDER BY i.position) AS include_rank
-	FROM santa_rules r
-	JOIN santa_rule_targets i ON i.rule_id = r.id AND i.direction = 'include'
-	JOIN host_labels include_hl ON include_hl.label_id = i.label_id
-	WHERE NOT EXISTS (
-		SELECT 1
-		FROM santa_rule_targets el
-		JOIN host_labels hl ON hl.label_id = el.label_id
-		WHERE el.rule_id = r.id
-		  AND el.direction = 'exclude'
-	)
-),
-selected_includes AS (
-	SELECT *
-	FROM matching_includes
-	WHERE include_rank = 1
-),
-expanded_rules AS (
-	SELECT
-		rule_id,
-		rule_type,
-		identifier,
-		name,
-		description,
-		policy,
-		cel_expression,
-		custom_message,
-		custom_url,
-		''::text AS notification_app_name,
-		rule_type_sort
-	FROM selected_includes
-	WHERE rule_type <> 'bundle'
-	UNION ALL
-	SELECT
-		si.rule_id,
-		'binary'::santa_rule_type AS rule_type,
-		e.sha256 AS identifier,
-		si.name,
-		si.description,
-		si.policy,
-		si.cel_expression,
-		si.custom_message,
-		si.custom_url,
-		COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
-		2 AS rule_type_sort
-	FROM selected_includes si
-	JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
-	JOIN santa_bundle_executables be ON be.bundle_id = b.id
-	JOIN santa_executables e ON e.id = be.executable_id
-	WHERE si.rule_type = 'bundle'
-	  AND e.sha256 <> ''
-)
-SELECT
-	rule_id,
-	rule_type::text,
-	identifier,
-	name,
-	description,
-	policy::text,
-	cel_expression,
-	custom_message,
-	custom_url,
-	notification_app_name
-FROM expanded_rules
-ORDER BY rule_type_sort, identifier, rule_id
+const listRulesForHostPageSQL = listRulesForHostSQL + `
 LIMIT $2 OFFSET $3`
 
 const listAppliedSyncTargetsSQL = `

@@ -4,15 +4,22 @@ import { PageShell } from "@/components/layout/page-layout";
 import { QueryGate } from "@/components/query-gate";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useLabel, useUpdateLabel } from "@/hooks/use-labels";
+import { parseRouteID } from "@/lib/route-params";
 import { LabelForm, labelFromDetail } from "@/pages/labels/fields";
 
 export function LabelEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
   const labelId = params.labelId ?? "";
-  const id = Number(labelId);
+  const id = parseRouteID(labelId);
   const detail = useLabel(id);
   const update = useUpdateLabel(id);
+
+  if (id === null) {
+    return (
+      <QueryGate title="Failed to load label" error={{ message: "Label route is invalid." }} />
+    );
+  }
 
   if (detail.error || !detail.data) {
     return (

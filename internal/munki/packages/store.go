@@ -38,10 +38,7 @@ func NewStore(db *database.DB, objects objectStore) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package, error) {
-	if in.SoftwareID <= 0 {
-		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
-	params, err := s.prepareMutation(ctx, in.PackageMutation)
+	params, err := s.prepareCreateMutation(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -199,14 +196,10 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 // ListRepositoryPackages returns every package that may appear in the shared
 // Munki catalog.
 func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
-	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+`
+	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL+`
 WHERE p.eligible
   AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
 ORDER BY lower(s.name), s.id, p.id`)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
 	if err != nil {
 		return nil, err
 	}
@@ -219,11 +212,12 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	if len(ids) == 0 {
 		return []Package{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+"\nWHERE p.id = ANY($1::bigint[])", ids)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
+	records, err := dbutil.GetAll[packageRow](
+		ctx,
+		s.db.Pool(),
+		packageSelectSQL+"\nWHERE p.id = ANY($1::bigint[])",
+		ids,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -236,15 +230,11 @@ func (s *Store) RepositoryPackagesByIconObjectID(ctx context.Context, iconObject
 	if iconObjectID <= 0 {
 		return []Package{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, packageSelectSQL+`
+	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL+`
 WHERE s.icon_object_id = $1
   AND p.eligible
   AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
 ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRow])
 	if err != nil {
 		return nil, err
 	}
@@ -253,10 +243,18 @@ ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
 
 func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	params = applyDefaults(params)
-	if err := params.Validate(); err != nil {
+	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
 	return s.validatePackageObjects(ctx, params)
+}
+
+func (s *Store) prepareCreateMutation(ctx context.Context, params PackageCreateMutation) (PackageMutation, error) {
+	params.PackageMutation = applyDefaults(params.PackageMutation)
+	if err := params.validate(); err != nil {
+		return PackageMutation{}, err
+	}
+	return s.validatePackageObjects(ctx, params.PackageMutation)
 }
 
 func (s *Store) validatePackageObjects(ctx context.Context, params PackageMutation) (PackageMutation, error) {

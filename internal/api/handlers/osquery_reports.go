@@ -21,8 +21,14 @@ type reportListInput struct {
 	ListQueryInput
 }
 
+func (input reportListInput) params() reports.ReportListParams {
+	return reports.ReportListParams{
+		ListParams: input.ListQueryInput.params(),
+	}
+}
+
 type reportGetInput struct {
-	ReportID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type reportCreateInput struct {
@@ -30,12 +36,12 @@ type reportCreateInput struct {
 }
 
 type reportPutInput struct {
-	ReportID int64 `path:"id"`
-	Body     reports.ReportMutation
+	ID   int64 `path:"id"`
+	Body reports.ReportMutation
 }
 
 type reportDeleteInput struct {
-	ReportID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type reportBulkDeleteInput struct {
@@ -77,7 +83,7 @@ func registerListReports(api huma.API, reportStore *reports.Store, logger *slog.
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-osquery-reports", reportResource, err)
 		}
-		return &reportListOutput{Body: Page[reports.Report]{Items: items, Count: int32(count)}}, nil
+		return &reportListOutput{Body: Page[reports.Report]{Items: items, Count: count}}, nil
 	})
 }
 
@@ -111,7 +117,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store, logger *slog.Lo
 		Summary:     "Get a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
-		report, err := reportStore.GetByID(ctx, input.ReportID)
+		report, err := reportStore.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -119,8 +125,8 @@ func registerGetReport(api huma.API, reportStore *reports.Store, logger *slog.Lo
 				"get-osquery-report",
 				reportResource,
 				err,
-				"report_id",
-				input.ReportID,
+				"id",
+				input.ID,
 			)
 		}
 		return &reportOutput{Body: *report}, nil
@@ -136,7 +142,7 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store, logger *slog
 		Summary:     "Replace a report",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
-		report, err := reportStore.Update(ctx, input.ReportID, input.Body)
+		report, err := reportStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -144,8 +150,8 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store, logger *slog
 				"update-osquery-report",
 				reportResource,
 				err,
-				"report_id",
-				input.ReportID,
+				"id",
+				input.ID,
 			)
 		}
 		return &reportOutput{Body: *report}, nil
@@ -161,15 +167,15 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store, logger *slog
 		Summary:     "Delete a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
-		if err := reportStore.Delete(ctx, input.ReportID); err != nil {
+		if err := reportStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
 				"delete-osquery-report",
 				reportResource,
 				err,
-				"report_id",
-				input.ReportID,
+				"id",
+				input.ID,
 			)
 		}
 		return &struct{}{}, nil
@@ -201,16 +207,10 @@ func registerReportResults(api huma.API, reportStore *reports.Store, logger *slo
 		Summary:     "List latest snapshots for a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
-		rows, err := reportStore.Results(ctx, input.ReportID)
+		rows, err := reportStore.Results(ctx, input.ID)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-osquery-report-results", err, "report_id", input.ReportID)
+			return nil, handlerError(ctx, logger, "list-osquery-report-results", err, "id", input.ID)
 		}
 		return &reportResultsOutput{Body: rows}, nil
 	})
-}
-
-func (input reportListInput) params() reports.ReportListParams {
-	return reports.ReportListParams{
-		ListParams: input.ListQueryInput.Params(),
-	}
 }

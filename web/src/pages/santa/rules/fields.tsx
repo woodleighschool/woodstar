@@ -18,9 +18,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { SantaRuleMutation, SantaRuleType } from "@/hooks/use-santa-rules";
+import type { SantaRuleMutation } from "@/lib/api";
 import { firstErrorMessage } from "@/lib/form-validation";
-import { RULE_TYPE_OPTIONS } from "@/lib/santa-rules";
+import { RULE_TYPE_OPTIONS, type SantaRuleType } from "@/lib/santa-rules";
 
 import {
   ruleBody,

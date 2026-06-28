@@ -69,9 +69,11 @@ export function useDeleteMunkiInstaller() {
   return useMutation<void, ApiError, number>({
     mutationKey: ["munki-installer-delete"],
     mutationFn: (packageId) => unwrap(deleteMunkiPackageInstaller({ path: { id: packageId } })),
-    onSuccess: (_data, packageId) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(packageId) });
+    onSuccess: async (_data, packageId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(packageId) }),
+      ]);
     },
   });
 }

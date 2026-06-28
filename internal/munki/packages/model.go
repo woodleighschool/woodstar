@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // InstallerType describes the Munki installer modes Woodstar exposes for app
@@ -29,7 +29,7 @@ var installerTypeValues = []InstallerType{
 }
 
 func (InstallerType) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(installerTypeValues...)
+	return openapischema.StringEnum(installerTypeValues...)
 }
 
 // RestartAction describes Munki's RestartAction values.
@@ -50,7 +50,7 @@ var restartActionValues = []RestartAction{
 }
 
 func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(restartActionValues...)
+	return openapischema.StringEnum(restartActionValues...)
 }
 
 // UninstallMethod describes the Munki uninstall modes Woodstar exposes.
@@ -70,7 +70,7 @@ var uninstallMethodValues = []UninstallMethod{
 }
 
 func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(uninstallMethodValues...)
+	return openapischema.StringEnum(uninstallMethodValues...)
 }
 
 // PackageReference points to Woodstar-authored software, optionally pinned to one package version.
@@ -116,7 +116,7 @@ var installItemTypeValues = []PackageInstallItemType{
 }
 
 func (PackageInstallItemType) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(installItemTypeValues...)
+	return openapischema.StringEnum(installItemTypeValues...)
 }
 
 // PackageInstallItem is one Munki installs array entry.
@@ -288,7 +288,7 @@ type PackageListParams struct {
 	SoftwareID     int64
 }
 
-func (m PackageMutation) Validate() error {
+func (m PackageMutation) validate() error {
 	if err := m.validateEnums(); err != nil {
 		return err
 	}
@@ -384,11 +384,11 @@ func (m PackageMutation) validateCollections() error {
 	return nil
 }
 
-func (m PackageCreateMutation) Validate() error {
+func (m PackageCreateMutation) validate() error {
 	if m.SoftwareID <= 0 {
 		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	return m.PackageMutation.Validate()
+	return m.PackageMutation.validate()
 }
 
 func validInstallerType(installerType InstallerType) bool {

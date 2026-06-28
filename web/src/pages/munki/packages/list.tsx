@@ -18,12 +18,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import {
-  type MunkiPackage,
-  type MunkiPackageMutation,
-  useBulkDeleteMunkiPackages,
-  useMunkiPackages,
-} from "@/hooks/use-munki-packages";
+import { useBulkDeleteMunkiPackages, useMunkiPackages } from "@/hooks/use-munki-packages";
+import type { MunkiPackage, MunkiPackageMutation } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 import { MUNKI_INSTALLER_TYPE_OPTIONS } from "@/pages/munki/software/munki-software";
@@ -110,7 +106,7 @@ export function MunkiPackageListPage() {
         meta: { label: "Updated" },
       },
     ];
-    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+    return baseColumns;
   }, [isAdmin]);
 
   const table = useDataTable({
@@ -120,6 +116,7 @@ export function MunkiPackageListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (

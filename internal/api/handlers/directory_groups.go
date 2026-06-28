@@ -37,7 +37,7 @@ type groupOutput struct {
 
 func (i groupListInput) params() directory.GroupListParams {
 	return directory.GroupListParams{
-		ListParams: i.ListQueryInput.Params(),
+		ListParams: i.ListQueryInput.params(),
 		Values:     dbutil.SplitListValues(i.Values),
 	}
 }
@@ -55,7 +55,7 @@ func registerListGroups(api huma.API, groupStore *directory.Store, logger *slog.
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-groups", groupResource, err)
 		}
-		return &groupListOutput{Body: Page[directory.Group]{Items: list, Count: int32(count)}}, nil
+		return &groupListOutput{Body: Page[directory.Group]{Items: list, Count: count}}, nil
 	})
 }
 

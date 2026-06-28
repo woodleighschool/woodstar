@@ -21,16 +21,14 @@ import {
 import type { ListOsqueryReportsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 
-export type { OsqueryReport, OsqueryReportMutation };
-export type ReportListResult = PageReport;
-export type ReportResults = OsqueryReportResult[];
 export type ReportListParams = NonNullable<ListOsqueryReportsData["query"]>;
 
 export function useReports(params: ReportListParams = {}) {
   const queryParams = baseListParams(params);
 
-  return useQuery<ReportListResult, ApiError>({
+  return useQuery<PageReport, ApiError>({
     queryKey: queryKeys.reports(queryParams),
     queryFn: ({ signal }) => unwrap(listOsqueryReports({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -43,7 +41,7 @@ export function useReport(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getOsqueryReport({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -52,16 +50,17 @@ export function useReport(id: number | null) {
 }
 
 export function useReportResults(id: number | null) {
-  return useQuery<ReportResults, ApiError>({
+  return useQuery<OsqueryReportResult[], ApiError>({
     queryKey: queryKeys.reportResults(id),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryReportResults({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -69,9 +68,9 @@ export function useCreateReport() {
   const queryClient = useQueryClient();
   return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) => unwrap(createOsqueryReport({ body })),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Report created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }
@@ -82,15 +81,17 @@ export function useUpdateReport(id: number | null) {
     mutationFn: (body) =>
       unwrap(
         updateOsqueryReport({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           body,
         }),
       ),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Report saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.report(id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reportResults(id) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.report(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reportResults(id) }),
+      ]);
     },
   });
 }
@@ -99,8 +100,8 @@ export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteOsqueryReport({ path: { id } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }
@@ -109,8 +110,8 @@ export function useBulkDeleteReports() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteOsqueryReports({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },
   });
 }

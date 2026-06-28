@@ -12,11 +12,15 @@ interface BaseListParams {
   sort?: string | null;
 }
 
-export function baseListParams(params: BaseListParams = {}) {
+interface BaseListOptions {
+  defaultPerPage?: number;
+}
+
+export function baseListParams(params: BaseListParams = {}, options: BaseListOptions = {}) {
   return {
     q: nonEmpty(params.q),
     page: params.page ?? 1,
-    per_page: params.per_page ?? DEFAULT_PAGE_SIZE,
+    per_page: params.per_page ?? options.defaultPerPage ?? DEFAULT_PAGE_SIZE,
     sort: nonEmpty(params.sort),
   };
 }

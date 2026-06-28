@@ -95,7 +95,7 @@ func (s *Store) Create(
 	mutation DistributionPointMutation,
 	key string,
 ) (*DistributionPoint, error) {
-	if err := mutation.Validate(); err != nil {
+	if err := mutation.validate(); err != nil {
 		return nil, err
 	}
 	write := distributionPointCreateWrite{
@@ -124,7 +124,7 @@ func (s *Store) Update(
 	id int64,
 	mutation DistributionPointMutation,
 ) (*DistributionPoint, error) {
-	if err := mutation.Validate(); err != nil {
+	if err := mutation.validate(); err != nil {
 		return nil, err
 	}
 	write := distributionPointUpdateWrite{

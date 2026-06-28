@@ -7,8 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // BuiltinKey identifies a built-in label independent of display text.
@@ -189,17 +189,17 @@ func cleanCriteriaValues(values []string) []string {
 }
 
 func (BuiltinKey) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(builtinKeyValues...)
+	return openapischema.StringEnum(builtinKeyValues...)
 }
 
 func (LabelType) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(LabelTypeValues...)
+	return openapischema.StringEnum(LabelTypeValues...)
 }
 
 func (LabelMembershipType) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(LabelMembershipTypeValues...)
+	return openapischema.StringEnum(LabelMembershipTypeValues...)
 }
 
 func (DerivedAttribute) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(DerivedAttributeValues...)
+	return openapischema.StringEnum(DerivedAttributeValues...)
 }

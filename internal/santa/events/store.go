@@ -171,7 +171,7 @@ func validateEventsHaveOccurrenceTimes(
 
 // ListEvents returns execution events and the total count matching params.
 func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams) ([]ExecutionEvent, int, error) {
-	params.Decisions = cleanDecisionFilters(params.Decisions)
+	params.Decisions = cleanListValues(params.Decisions)
 	where, args, err := executionEventWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -202,7 +202,7 @@ func (s *Store) ListFileAccessEvents(
 	ctx context.Context,
 	params FileAccessEventListParams,
 ) ([]FileAccessEvent, int, error) {
-	params.Decisions = cleanFileAccessDecisions(params.Decisions)
+	params.Decisions = cleanListValues(params.Decisions)
 	where, args, err := fileAccessEventWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -586,7 +586,7 @@ func fileAccessEventWhere(params FileAccessEventListParams) (string, []any, erro
 	if len(params.Decisions) > 0 {
 		clauses := make([]string, 0, len(params.Decisions))
 		for _, decision := range params.Decisions {
-			if !validFileAccessDecision(decision) {
+			if _, ok := validFileAccessDecisions[decision]; !ok {
 				return "", nil, fmt.Errorf("%w: unknown file access decision", dbutil.ErrInvalidInput)
 			}
 			clauses = append(clauses, "fae.decision = "+where.Arg(decision))
@@ -613,7 +613,7 @@ func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventL
 			clauses = append(clauses, "ee.decision::text LIKE 'block_%'")
 		default:
 			decision := ExecutionDecision(filter)
-			if !validExecutionDecision(decision) {
+			if _, ok := validExecutionDecisions[decision]; !ok {
 				return fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
 			}
 			clauses = append(clauses, "ee.decision = "+where.Arg(decision))
@@ -661,38 +661,15 @@ func fileAccessEventsFromRows(rows []fileAccessEventRow) []FileAccessEvent {
 	return events
 }
 
-func validExecutionDecision(decision ExecutionDecision) bool {
-	_, ok := validExecutionDecisions[decision]
-	return ok
-}
-
-func validFileAccessDecision(decision FileAccessDecision) bool {
-	_, ok := validFileAccessDecisions[decision]
-	return ok
-}
-
-func cleanDecisionFilters(filters []DecisionFilter) []DecisionFilter {
-	raw := make([]string, len(filters))
-	for i, filter := range filters {
-		raw[i] = string(filter)
+func cleanListValues[T ~string](items []T) []T {
+	raw := make([]string, len(items))
+	for i, item := range items {
+		raw[i] = string(item)
 	}
 	values := dbutil.SplitListValues(raw)
-	out := make([]DecisionFilter, len(values))
+	out := make([]T, len(values))
 	for i, value := range values {
-		out[i] = DecisionFilter(value)
-	}
-	return out
-}
-
-func cleanFileAccessDecisions(decisions []FileAccessDecision) []FileAccessDecision {
-	raw := make([]string, len(decisions))
-	for i, decision := range decisions {
-		raw[i] = string(decision)
-	}
-	values := dbutil.SplitListValues(raw)
-	out := make([]FileAccessDecision, len(values))
-	for i, value := range values {
-		out[i] = FileAccessDecision(value)
+		out[i] = T(value)
 	}
 	return out
 }

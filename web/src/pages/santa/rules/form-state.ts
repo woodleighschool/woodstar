@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-import type {
-  SantaRule,
-  SantaRuleMutation,
-  SantaRulePolicy,
-  SantaRuleType,
-} from "@/hooks/use-santa-rules";
-import type { LabelRef } from "@/lib/api";
+import type { LabelRef, SantaRule, SantaRuleMutation } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
-import { POLICY_VALUES, RULE_IDENTIFIER_RULES, RULE_TYPE_VALUES } from "@/lib/santa-rules";
+import {
+  POLICY_VALUES,
+  RULE_IDENTIFIER_RULES,
+  RULE_TYPE_VALUES,
+  type SantaRulePolicy,
+  type SantaRuleType,
+} from "@/lib/santa-rules";
 import { nonEmpty } from "@/lib/utils";
 
 import { santaCELExpressionError } from "./cel";

@@ -18,8 +18,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // PackageStatus is a distribution point's mirror state for one desired package.
@@ -40,7 +40,7 @@ var packageStatusValues = []PackageStatus{
 }
 
 func (PackageStatus) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(packageStatusValues...)
+	return openapischema.StringEnum(packageStatusValues...)
 }
 
 // DistributionPoint is the admin view of one ordered mirror node. The per-DP
@@ -103,9 +103,9 @@ type DesiredPackage struct {
 	SizeBytes int64
 }
 
-// Validate enforces the write rules a malformed row would otherwise push into
+// validate enforces the write rules a malformed row would otherwise push into
 // the resolver's inet cast or the redirect URL.
-func (m DistributionPointMutation) Validate() error {
+func (m DistributionPointMutation) validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}

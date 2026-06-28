@@ -50,7 +50,7 @@ type labelDeleteInput struct {
 
 func (i labelListInput) params() labels.LabelListParams {
 	return labels.LabelListParams{
-		ListParams:          i.ListQueryInput.Params(),
+		ListParams:          i.ListQueryInput.params(),
 		LabelType:           i.LabelType,
 		LabelMembershipType: i.MembershipType,
 	}
@@ -78,7 +78,7 @@ func registerListLabels(api huma.API, labelStore *labels.Store, logger *slog.Log
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-labels", labelResource, err)
 		}
-		return &labelListOutput{Body: Page[labels.Label]{Items: rows, Count: int32(count)}}, nil
+		return &labelListOutput{Body: Page[labels.Label]{Items: rows, Count: count}}, nil
 	})
 }
 

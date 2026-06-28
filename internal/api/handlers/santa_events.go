@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	santaEventResource         = "Santa event"
-	santaEventIDPath           = "/api/santa/events/{id}"
-	santaFileAccessEventPath   = "/api/santa/file-access-events"
-	santaFileAccessEventIDPath = "/api/santa/file-access-events/{id}"
+	santaEventResource       = "Santa event"
+	santaEventIDPath         = "/api/santa/events/{id}"
+	santaFileAccessEventPath = "/api/santa/file-access-events"
+	santaFileAccessIDPath    = "/api/santa/file-access-events/{id}"
 )
 
 type santaEventListInput struct {
@@ -34,7 +34,7 @@ type santaEventListOutput struct {
 }
 
 type santaEventGetInput struct {
-	EventID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaEventGetOutput struct {
@@ -54,7 +54,7 @@ type santaFileAccessEventListOutput struct {
 }
 
 type santaFileAccessEventGetInput struct {
-	EventID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaFileAccessEventGetOutput struct {
@@ -64,7 +64,7 @@ type santaFileAccessEventGetOutput struct {
 func (input santaEventListInput) params() events.ExecutionEventListParams {
 	return events.ExecutionEventListParams{
 		EventListParams: events.EventListParams{
-			ListParams: input.ListQueryInput.Params(),
+			ListParams: input.ListQueryInput.params(),
 			HostID:     input.HostID,
 			Since:      input.Since,
 		},
@@ -76,7 +76,7 @@ func (input santaEventListInput) params() events.ExecutionEventListParams {
 func (input santaFileAccessEventListInput) params() events.FileAccessEventListParams {
 	return events.FileAccessEventListParams{
 		EventListParams: events.EventListParams{
-			ListParams: input.ListQueryInput.Params(),
+			ListParams: input.ListQueryInput.params(),
 			HostID:     input.HostID,
 			Since:      input.Since,
 		},
@@ -104,7 +104,7 @@ func registerListSantaEvents(api huma.API, store *events.Store, logger *slog.Log
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-santa-events", "Santa event", err)
 		}
-		return &santaEventListOutput{Body: Page[events.ExecutionEvent]{Items: rows, Count: int32(count)}}, nil
+		return &santaEventListOutput{Body: Page[events.ExecutionEvent]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -117,7 +117,7 @@ func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logge
 		Summary:     "Get a Santa execution event",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
-		event, err := store.GetExecutionEvent(ctx, input.EventID)
+		event, err := store.GetExecutionEvent(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
@@ -129,7 +129,7 @@ func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logge
 				santaEventResource,
 				err,
 				"event_id",
-				input.EventID,
+				input.ID,
 			)
 		}
 		return &santaEventGetOutput{Body: event}, nil
@@ -150,7 +150,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store, logger
 			return nil, resourceError(ctx, logger, "list-santa-file-access-events", "Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: Page[events.FileAccessEvent]{Items: rows, Count: int32(count)},
+			Body: Page[events.FileAccessEvent]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -159,12 +159,12 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-file-access-event",
 		Method:      http.MethodGet,
-		Path:        santaFileAccessEventIDPath,
+		Path:        santaFileAccessIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa file access event",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
-		event, err := store.GetFileAccessEvent(ctx, input.EventID)
+		event, err := store.GetFileAccessEvent(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}
@@ -175,7 +175,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *
 				"get-santa-file-access-event",
 				"Santa file access event",
 				err,
-				"event_id", input.EventID,
+				"event_id", input.ID,
 			)
 		}
 		return &santaFileAccessEventGetOutput{Body: event}, nil

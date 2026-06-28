@@ -41,11 +41,11 @@ func resourceError(
 	err error,
 	attrs ...any,
 ) error {
-	return handlerError(ctx, logger, operation, ResourceMutationError(resource, err), attrs...)
+	return handlerError(ctx, logger, operation, resourceMutationError(resource, err), attrs...)
 }
 
-// ResourceMutationError translates store errors into resource-shaped HTTP errors.
-func ResourceMutationError(resource string, err error) error {
+// resourceMutationError translates store errors into resource-shaped HTTP errors.
+func resourceMutationError(resource string, err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrNotFound):
 		return huma.Error404NotFound(resource + " not found")
@@ -70,8 +70,8 @@ type BulkIDsBody struct {
 }
 
 type Page[T any] struct {
-	Items []T   `json:"items" nullable:"false"`
-	Count int32 `json:"count"`
+	Items []T `json:"items" nullable:"false"`
+	Count int `json:"count"`
 }
 
 // ListQueryInput is the shared query contract for paginated list endpoints. It
@@ -85,7 +85,7 @@ type ListQueryInput struct {
 	Sort    string `query:"sort,omitempty"`
 }
 
-func (input ListQueryInput) Params() dbutil.ListParams {
+func (input ListQueryInput) params() dbutil.ListParams {
 	var pageIndex int32
 	if input.Page > 1 {
 		pageIndex = input.Page - 1

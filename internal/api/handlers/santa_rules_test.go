@@ -184,12 +184,12 @@ func TestSantaRuleEndpointReplacesTargetsOnPut(t *testing.T) {
 	}
 }
 
-func TestHostSantaRulesEndpointChecksHostBeforeListingRules(t *testing.T) {
+func TestHostSantaRulesEndpointReturnsNotFoundForMissingHost(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	ruleStore := rules.NewStore(db)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerHostSantaRules(api, ruleStore, hostStore, discardLogger())
+		registerHostSantaRules(api, ruleStore, discardLogger())
 	})
 
 	rec := santaRulesRequest(t, router, http.MethodGet, "/api/hosts/999999/santa/rules", "")

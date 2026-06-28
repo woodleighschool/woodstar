@@ -7,8 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 type (
@@ -84,19 +84,19 @@ type RemovableMediaPolicy struct {
 }
 
 func (ClientMode) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(ClientModeValues...)
+	return openapischema.StringEnum(ClientModeValues...)
 }
 
 func (ReportedClientMode) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(ReportedClientModeValues...)
+	return openapischema.StringEnum(ReportedClientModeValues...)
 }
 
 func (RemovableMediaAction) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(RemovableMediaActionValues...)
+	return openapischema.StringEnum(RemovableMediaActionValues...)
 }
 
 func (FileAccessAction) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(FileAccessActionValues...)
+	return openapischema.StringEnum(FileAccessActionValues...)
 }
 
 // IsZero reports whether the policy is the no-policy zero value.

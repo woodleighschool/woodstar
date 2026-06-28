@@ -107,6 +107,6 @@ func accountMutationError(err error) error {
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:
-		return ResourceMutationError("user", err)
+		return resourceMutationError("user", err)
 	}
 }

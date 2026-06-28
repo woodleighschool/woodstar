@@ -82,7 +82,7 @@ type MunkiDistributionPointKeyBody struct {
 }
 
 func (input distributionPointListInput) params() mdp.DistributionPointListParams {
-	return mdp.DistributionPointListParams{ListParams: input.ListQueryInput.Params()}
+	return mdp.DistributionPointListParams{ListParams: input.ListQueryInput.params()}
 }
 
 func registerMunkiDistributionPoints(
@@ -110,10 +110,15 @@ func registerListDistributionPoints(api huma.API, store *mdp.Store, logger *slog
 	}, func(ctx context.Context, input *distributionPointListInput) (*distributionPointListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-munki-distribution-points", distributionPointMutationError(err))
+			return nil, handlerError(
+				ctx,
+				logger,
+				"list-munki-distribution-points",
+				resourceMutationError(distributionPointResource, err),
+			)
 		}
 		return &distributionPointListOutput{
-			Body: Page[mdp.DistributionPoint]{Items: rows, Count: int32(count)},
+			Body: Page[mdp.DistributionPoint]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -143,7 +148,7 @@ func registerCreateDistributionPoint(api huma.API, store *mdp.Store, logger *slo
 				ctx,
 				logger,
 				"create-munki-distribution-point",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 			)
 		}
 		return &distributionPointCreateOutput{
@@ -171,7 +176,7 @@ func registerGetDistributionPoint(
 				ctx,
 				logger,
 				"get-munki-distribution-point",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 				"distribution_point_id", input.ID,
 			)
 		}
@@ -203,7 +208,7 @@ func registerUpdateDistributionPoint(
 				ctx,
 				logger,
 				"update-munki-distribution-point",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 				"distribution_point_id", input.ID,
 			)
 		}
@@ -213,7 +218,7 @@ func registerUpdateDistributionPoint(
 				ctx,
 				logger,
 				"update-munki-distribution-point",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 				"distribution_point_id", input.ID,
 			)
 		}
@@ -235,7 +240,7 @@ func registerDeleteDistributionPoint(api huma.API, store *mdp.Store, logger *slo
 				ctx,
 				logger,
 				"delete-munki-distribution-point",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 				"distribution_point_id", input.ID,
 			)
 		}
@@ -257,7 +262,7 @@ func registerReorderDistributionPoints(api huma.API, store *mdp.Store, logger *s
 				ctx,
 				logger,
 				"reorder-munki-distribution-points",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 			)
 		}
 		return &struct{}{}, nil
@@ -288,14 +293,10 @@ func registerRotateDistributionPointKey(api huma.API, store *mdp.Store, logger *
 				ctx,
 				logger,
 				"rotate-munki-distribution-point-key",
-				distributionPointMutationError(err),
+				resourceMutationError(distributionPointResource, err),
 				"distribution_point_id", input.ID,
 			)
 		}
 		return &distributionPointKeyOutput{Body: MunkiDistributionPointKeyBody{Key: key}}, nil
 	})
-}
-
-func distributionPointMutationError(err error) error {
-	return ResourceMutationError(distributionPointResource, err)
 }

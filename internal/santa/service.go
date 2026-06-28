@@ -13,11 +13,7 @@ const ruleDownloadPageSize int32 = 500
 
 // SyncService coordinates Santa sync protocol stages.
 type SyncService struct {
-	hosts          hostStore
-	configurations configurationResolver
-	events         eventStore
-	rules          ruleStore
-	sync           syncStore
+	deps Dependencies
 }
 
 type Dependencies struct {
@@ -63,13 +59,7 @@ type syncStore interface {
 }
 
 func NewSyncService(deps Dependencies) *SyncService {
-	return &SyncService{
-		hosts:          deps.HostStore,
-		configurations: deps.Configurations,
-		events:         deps.Events,
-		rules:          deps.Rules,
-		sync:           deps.Sync,
-	}
+	return &SyncService{deps: deps}
 }
 
 func (s *SyncService) Preflight(
@@ -77,19 +67,19 @@ func (s *SyncService) Preflight(
 	machineID string,
 	req PreflightRequest,
 ) (PreflightResponse, error) {
-	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
+	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
 		return PreflightResponse{}, err
 	}
-	if err := s.hosts.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
+	if err := s.deps.HostStore.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
 		return PreflightResponse{}, err
 	}
-	rules, err := s.rules.ResolveRulesForHost(ctx, hostID)
+	rules, err := s.deps.Rules.ResolveRulesForHost(ctx, hostID)
 	if err != nil {
 		return PreflightResponse{}, err
 	}
 	targets := santarules.SyncTargetsFromRules(rules)
-	syncType, err := s.sync.PreparePending(
+	syncType, err := s.deps.Sync.PreparePending(
 		ctx,
 		hostID,
 		targets,
@@ -101,7 +91,7 @@ func (s *SyncService) Preflight(
 	}
 
 	resp := PreflightResponse{SyncType: syncType}
-	configuration, err := s.configurations.ResolveConfigurationForHost(ctx, hostID)
+	configuration, err := s.deps.Configurations.ResolveConfigurationForHost(ctx, hostID)
 	if err != nil {
 		return PreflightResponse{}, err
 	}
@@ -116,11 +106,11 @@ func (s *SyncService) EventUpload(
 	machineID string,
 	req EventUploadRequest,
 ) (EventUploadResponse, error) {
-	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
+	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
 		return EventUploadResponse{}, err
 	}
-	bundleRequests, err := s.events.IngestEvents(ctx, hostID, req.Events, req.FileAccessEvents)
+	bundleRequests, err := s.deps.Events.IngestEvents(ctx, hostID, req.Events, req.FileAccessEvents)
 	if err != nil {
 		return EventUploadResponse{}, err
 	}
@@ -132,11 +122,11 @@ func (s *SyncService) RuleDownload(
 	machineID string,
 	req RuleDownloadRequest,
 ) (RuleDownloadResponse, error) {
-	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
+	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
 		return RuleDownloadResponse{}, err
 	}
-	return s.sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
+	return s.deps.Sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
 }
 
 func (s *SyncService) Postflight(
@@ -144,11 +134,11 @@ func (s *SyncService) Postflight(
 	machineID string,
 	req PostflightRequest,
 ) (PostflightResponse, error) {
-	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
+	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
 		return PostflightResponse{}, err
 	}
-	if err := s.sync.PromotePending(
+	if err := s.deps.Sync.PromotePending(
 		ctx,
 		hostID,
 		req.RulesReceived,

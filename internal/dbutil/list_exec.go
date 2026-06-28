@@ -24,33 +24,6 @@ func queryListWithCount(ctx context.Context, pool *pgxpool.Pool, q ListQuery) (p
 	return rows, count, nil
 }
 
-// ScanListWithCount runs a ListQuery and decodes each row with scan.
-func ScanListWithCount[T any](
-	ctx context.Context,
-	pool *pgxpool.Pool,
-	q ListQuery,
-	scan func(pgx.Row) (T, error),
-) ([]T, int, error) {
-	rows, count, err := queryListWithCount(ctx, pool, q)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	items := []T{}
-	for rows.Next() {
-		item, err := scan(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-	return items, count, nil
-}
-
 // ListWithCount runs a ListQuery and decodes each row into T by column name.
 func ListWithCount[T any](ctx context.Context, pool *pgxpool.Pool, q ListQuery) ([]T, int, error) {
 	rows, count, err := queryListWithCount(ctx, pool, q)

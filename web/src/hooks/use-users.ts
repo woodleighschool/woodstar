@@ -1,15 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type {
-  ApiError,
-  Department,
-  PageDepartment,
-  PageUser,
-  User,
-  UserCreate,
-  UserMutation,
-} from "@/lib/api";
+import type { ApiError, PageDepartment, PageUser, User, UserCreate, UserMutation } from "@/lib/api";
 import {
   createUser,
   deleteUser,
@@ -22,10 +14,8 @@ import {
 import type { ListUserDepartmentsData, ListUsersData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 
-export type { Department, User, UserCreate, UserMutation };
-export type UserListResult = PageUser;
-export type DepartmentListResult = PageDepartment;
 export type UserListParams = NonNullable<ListUsersData["query"]>;
 export type DepartmentListParams = NonNullable<ListUserDepartmentsData["query"]>;
 
@@ -55,7 +45,7 @@ function userQueryParams(params: UserListParams = {}) {
 
 export function useUsers(params: UserListParams = {}) {
   const queryParams = userQueryParams(params);
-  return useQuery<UserListResult, ApiError>({
+  return useQuery<PageUser, ApiError>({
     queryKey: queryKeys.users(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
@@ -70,7 +60,7 @@ export function useUsers(params: UserListParams = {}) {
 
 export function useUserDepartments(params: DepartmentListParams = {}) {
   const queryParams = baseUserQueryParams(params);
-  return useQuery<DepartmentListResult, ApiError>({
+  return useQuery<PageDepartment, ApiError>({
     queryKey: queryKeys.userDepartments(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
@@ -90,7 +80,7 @@ export function useUser(id: number | null) {
     queryFn: async ({ signal }) =>
       unwrap(
         getUser({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),

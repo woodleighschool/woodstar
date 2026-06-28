@@ -38,7 +38,14 @@ interface UseDataTableProps<TData>
 }
 
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
-  const { columns, pageCount = -1, initialState, tableState, ...tableProps } = props;
+  const {
+    columns,
+    pageCount = -1,
+    initialState,
+    tableState,
+    enableRowSelection = false,
+    ...tableProps
+  } = props;
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
     initialState?.rowSelection ?? {},
@@ -63,7 +70,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       ...tableProps.defaultColumn,
       enableColumnFilter: false,
     },
-    enableRowSelection: true,
+    enableRowSelection,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: tableState.onPaginationChange,
     onSortingChange: tableState.onSortingChange,

@@ -20,8 +20,9 @@ import { QueryError } from "@/components/query-error";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type Host, useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
-import { type SoftwareTitle, useSoftwareTitle } from "@/hooks/use-software";
+import { useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
+import { useSoftwareTitle } from "@/hooks/use-software";
+import type { Host, SoftwareTitle } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
@@ -77,10 +78,7 @@ export function HostListPage() {
     deepLink.software_id != null ||
     deepLink.software_title_id != null;
 
-  const columns = React.useMemo<ColumnDef<Host>[]>(
-    () => (isAdmin ? hostColumns : hostColumns.filter((column) => column.id !== "select")),
-    [isAdmin],
-  );
+  const columns = React.useMemo<ColumnDef<Host>[]>(() => hostColumns, []);
 
   const table = useDataTable({
     tableState: tableSearch,
@@ -89,6 +87,7 @@ export function HostListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (

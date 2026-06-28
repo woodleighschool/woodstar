@@ -24,9 +24,10 @@ import {
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { type Group, useGroups } from "@/hooks/use-groups";
-import { type Host, useHosts } from "@/hooks/use-hosts";
-import { type Department, type User, useUserDepartments, useUsers } from "@/hooks/use-users";
+import { useGroups } from "@/hooks/use-groups";
+import { useHosts } from "@/hooks/use-hosts";
+import { useUserDepartments, useUsers } from "@/hooks/use-users";
+import type { Department, Group, Host, User } from "@/lib/api";
 import type { LabelDerivedAttribute } from "@/lib/labels";
 
 export function HostSelector({

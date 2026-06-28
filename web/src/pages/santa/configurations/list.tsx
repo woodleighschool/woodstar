@@ -5,6 +5,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
@@ -16,16 +17,6 @@ import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -47,11 +38,11 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import {
-  type SantaConfiguration,
   useBulkDeleteSantaConfigurations,
   useReorderSantaConfigurations,
   useSantaConfigurations,
 } from "@/hooks/use-santa-configurations";
+import type { SantaConfiguration } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { CLIENT_MODES } from "@/lib/santa-configurations";
 import { formatRelative } from "@/lib/utils";
@@ -99,6 +90,7 @@ export function ConfigurationListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   const emptyState = (
@@ -255,7 +247,7 @@ function configurationColumns(
       meta: { label: "Updated" },
     },
   ];
-  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
+  return columns;
 }
 
 function ConfigurationReorder({
@@ -373,30 +365,13 @@ function ReorderWarningDialog({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Reorder configurations?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Santa uses the first matching configuration for each host. Reordering can change client
-            behavior immediately.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm">
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            size="sm"
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
-          >
-            Continue
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Reorder configurations?"
+      description="Santa uses the first matching configuration for each host. Reordering can change client behavior immediately."
+      confirmLabel="Continue"
+      onConfirm={onConfirm}
+    />
   );
 }

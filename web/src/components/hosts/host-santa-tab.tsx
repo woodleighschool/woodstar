@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type SantaHostState, useHostSantaRules } from "@/hooks/use-hosts";
-import type { SantaRuleStatus } from "@/lib/api";
+import { useHostSantaRules } from "@/hooks/use-hosts";
+import type { SantaHostState, SantaRuleStatus } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
@@ -103,7 +103,7 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
             <KeyValueItem label="Version" value={santa.version} />
             <KeyValueItem label="Client Mode" value={clientModeLabel(santa.client_mode_reported)} />
             <KeyValueItem label="Configuration" value={configurationValue} />
-            <KeyValueItem label="Last Sync" value={formatRelative(santa.last_sync_at)} />
+            <KeyValueItem label="Last Sync" value={formatRelative(santa.last_seen_at)} />
             <KeyValueItem
               label="Rule Sync"
               value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}

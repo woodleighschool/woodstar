@@ -5,7 +5,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
@@ -18,17 +17,16 @@ import (
 func RegisterSanta(
 	api huma.API,
 	hostState *santa.HostStateService,
-	hostStore *hosts.Store,
 	configurationStore *configurations.Store,
 	ruleStore *rules.Store,
 	eventStore *events.Store,
 	referenceStore *references.Store,
 	logger *slog.Logger,
 ) {
-	registerHostSantaState(api, hostState, hostStore, logger)
+	registerHostSantaState(api, hostState, logger)
 	registerSantaConfigurations(api, configurationStore, logger)
 	registerSantaRules(api, ruleStore, logger)
 	registerSantaEvents(api, eventStore, logger)
-	registerHostSantaRules(api, ruleStore, hostStore, logger)
+	registerHostSantaRules(api, ruleStore, logger)
 	registerSoftwareSantaReference(api, referenceStore, logger)
 }

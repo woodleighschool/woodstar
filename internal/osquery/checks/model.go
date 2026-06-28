@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // Check is a query-backed pass/fail rule.
@@ -78,5 +78,5 @@ type CheckHostStatus struct {
 }
 
 func (CheckStatus) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(CheckStatusValues...)
+	return openapischema.StringEnum(CheckStatusValues...)
 }

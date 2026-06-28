@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@/components/query-gate";
 import { useSantaRule, useUpdateSantaRule } from "@/hooks/use-santa-rules";
+import { parseRouteID } from "@/lib/route-params";
 import { RuleForm } from "@/pages/santa/rules/fields";
 import { formFromRule } from "@/pages/santa/rules/form-state";
 
@@ -9,9 +10,13 @@ export function RuleEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
   const ruleId = params.ruleId ?? "";
-  const id = Number(ruleId);
+  const id = parseRouteID(ruleId);
   const detail = useSantaRule(id);
   const update = useUpdateSantaRule();
+
+  if (id === null) {
+    return <QueryGate title="Failed to load rule" error={{ message: "Rule route is invalid." }} />;
+  }
 
   if (detail.error || !detail.data) {
     return (

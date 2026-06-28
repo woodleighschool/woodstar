@@ -161,7 +161,7 @@ func (s *AgentService) handleLabelResult(
 	}
 	matched, ok := rowPresenceResult(status, hasStatus, rows)
 	if !ok {
-		s.logger.WarnContext(
+		s.deps.Logger.WarnContext(
 			ctx,
 			"osquery label query failed", "operation", "label_evaluation",
 			"host_id", hostID,
@@ -179,7 +179,7 @@ func (s *AgentService) finalizeLabelPass(
 	host *hosts.Host,
 	pass *labelDispatchPass,
 ) error {
-	return s.labelEvaluator.Finalize(ctx, host, pass.results)
+	return s.deps.LabelEvaluator.Finalize(ctx, host, pass.results)
 }
 
 func (s *AgentService) handleDetailResult(
@@ -201,7 +201,7 @@ func (s *AgentService) handleDetailResult(
 		if !query.Optional {
 			pass.allSucceeded = false
 		}
-		s.logger.WarnContext(
+		s.deps.Logger.WarnContext(
 			ctx,
 			"osquery detail query failed", "operation", "distributed_write",
 			"host_id", hostID,
@@ -214,7 +214,7 @@ func (s *AgentService) handleDetailResult(
 	if query.Deferred() {
 		return nil
 	}
-	return s.inventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
+	return s.deps.InventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
 }
 
 func (s *AgentService) finalizeDetailPass(
@@ -223,7 +223,7 @@ func (s *AgentService) finalizeDetailPass(
 	pass *detailDispatchPass,
 ) error {
 	if softwareRows, ok := successfulSoftwareRows(pass); ok {
-		if err := s.inventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
+		if err := s.deps.InventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
@@ -233,10 +233,10 @@ func (s *AgentService) finalizeDetailPass(
 	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
 		return nil
 	}
-	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
+	if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
 		return err
 	}
-	s.logger.DebugContext(
+	s.deps.Logger.DebugContext(
 		ctx,
 		"osquery detail inventory refreshed", "operation", "inventory_refresh",
 		"host_id", host.ID,
@@ -262,7 +262,7 @@ func (s *AgentService) clearMissingOrFailedMunkiDetails(
 		if ok && statusOK(result.status) {
 			continue
 		}
-		if err := s.inventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
+		if err := s.deps.InventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
 			return fmt.Errorf("clear stale %s detail: %w", name, err)
 		}
 	}
@@ -333,7 +333,7 @@ func (s *AgentService) handleCheckResult(
 	if ok {
 		passes = &matched
 	} else {
-		s.logger.WarnContext(
+		s.deps.Logger.WarnContext(
 			ctx,
 			"osquery check query failed", "operation", "check_evaluation",
 			"host_id", hostID,
@@ -341,7 +341,7 @@ func (s *AgentService) handleCheckResult(
 			"message", message,
 		)
 	}
-	return s.checkStore.UpsertMembership(ctx, checkID, hostID, passes)
+	return s.deps.CheckStore.UpsertMembership(ctx, checkID, hostID, passes)
 }
 
 func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {
@@ -381,7 +381,7 @@ func (s *AgentService) handleLiveResult(
 	} else {
 		resultStatus = livequery.StatusError
 	}
-	s.liveQueries.RecordResult(livequery.Result{
+	s.deps.LiveQueries.RecordResult(livequery.Result{
 		QueryID:  queryID,
 		HostID:   host.ID,
 		HostName: host.DisplayName,

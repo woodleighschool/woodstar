@@ -31,12 +31,12 @@ type agentSecretCreateOutput struct {
 }
 
 type agentSecretUpdateInput struct {
-	AgentSecretID int64 `path:"id"`
-	Body          agentauth.AgentSecretMutation
+	ID   int64 `path:"id"`
+	Body agentauth.AgentSecretMutation
 }
 
 type agentSecretDeleteInput struct {
-	AgentSecretID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 // RegisterAgentAuth mounts shared agent-secret management endpoints.
@@ -102,7 +102,7 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
-		secret, err := store.Update(ctx, input.AgentSecretID, input.Body)
+		secret, err := store.Update(ctx, input.ID, input.Body)
 		if errors.Is(err, agentauth.ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
@@ -115,7 +115,7 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 				logger,
 				"update-agent-secret",
 				err,
-				"agent_secret_id", input.AgentSecretID,
+				"id", input.ID,
 			)
 		}
 		return &agentSecretCreateOutput{Body: *secret}, nil
@@ -131,7 +131,7 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Summary:     "Delete agent secret",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.AgentSecretID); errors.Is(err, dbutil.ErrNotFound) {
+		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		} else if err != nil {
 			return nil, handlerError(
@@ -139,7 +139,7 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 				logger,
 				"delete-agent-secret",
 				err,
-				"agent_secret_id", input.AgentSecretID,
+				"id", input.ID,
 			)
 		}
 		return &struct{}{}, nil

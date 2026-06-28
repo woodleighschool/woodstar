@@ -28,7 +28,7 @@ type santaRuleReferenceListInput struct {
 }
 
 type santaRuleGetInput struct {
-	RuleID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaRuleCreateInput struct {
@@ -36,12 +36,12 @@ type santaRuleCreateInput struct {
 }
 
 type santaRuleUpdateInput struct {
-	RuleID int64 `path:"id"`
-	Body   rules.RuleMutation
+	ID   int64 `path:"id"`
+	Body rules.RuleMutation
 }
 
 type santaRuleDeleteInput struct {
-	RuleID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaRuleBulkDeleteInput struct {
@@ -62,7 +62,7 @@ type santaRuleReferenceListOutput struct {
 
 func (input santaRuleListInput) params() rules.RuleListParams {
 	return rules.RuleListParams{
-		ListParams: input.ListQueryInput.Params(),
+		ListParams: input.ListQueryInput.params(),
 		RuleType:   input.RuleType,
 	}
 }
@@ -94,7 +94,7 @@ func registerListSantaRules(api huma.API, store *rules.Store, logger *slog.Logge
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-santa-rules", santaRuleResource, err)
 		}
-		return &santaRuleListOutput{Body: Page[rules.Rule]{Items: rows, Count: int32(count)}}, nil
+		return &santaRuleListOutput{Body: Page[rules.Rule]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -148,9 +148,9 @@ func registerGetSantaRule(api huma.API, store *rules.Store, logger *slog.Logger)
 		Summary:     "Get a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
-		rule, err := store.GetByID(ctx, input.RuleID)
+		rule, err := store.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "get-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
+			return nil, resourceError(ctx, logger, "get-santa-rule", santaRuleResource, err, "id", input.ID)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
@@ -171,9 +171,9 @@ func registerUpdateSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaRuleUpdateInput) (*santaRuleOutput, error) {
-		rule, err := store.Update(ctx, input.RuleID, input.Body)
+		rule, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "update-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
+			return nil, resourceError(ctx, logger, "update-santa-rule", santaRuleResource, err, "id", input.ID)
 		}
 		return &santaRuleOutput{Body: *rule}, nil
 	})
@@ -188,8 +188,8 @@ func registerDeleteSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		Summary:     "Delete a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.RuleID); err != nil {
-			return nil, resourceError(ctx, logger, "delete-santa-rule", santaRuleResource, err, "rule_id", input.RuleID)
+		if err := store.Delete(ctx, input.ID); err != nil {
+			return nil, resourceError(ctx, logger, "delete-santa-rule", santaRuleResource, err, "id", input.ID)
 		}
 		return &struct{}{}, nil
 	})

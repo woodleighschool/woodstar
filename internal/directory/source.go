@@ -3,7 +3,7 @@ package directory
 import (
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // Source identifies the authority that owns a directory object.
@@ -17,5 +17,5 @@ const (
 var SourceValues = []Source{SourceLocal, SourceEntra}
 
 func (Source) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(SourceValues...)
+	return openapischema.StringEnum(SourceValues...)
 }

@@ -40,9 +40,8 @@ import {
 } from "@/components/ui/table";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
-import { type SantaRulePolicy } from "@/hooks/use-santa-rules";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { POLICY_OPTIONS } from "@/lib/santa-rules";
+import { POLICY_OPTIONS, type SantaRulePolicy } from "@/lib/santa-rules";
 
 import { santaCELExpressionError } from "./cel";
 import { type RuleIncludeForm } from "./form-state";

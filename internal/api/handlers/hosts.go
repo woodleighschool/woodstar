@@ -2,14 +2,11 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -39,7 +36,7 @@ type hostListInput struct {
 
 func (i hostListInput) params() hosts.HostListParams {
 	return hosts.HostListParams{
-		ListParams:      i.ListQueryInput.Params(),
+		ListParams:      i.ListQueryInput.params(),
 		Status:          i.Status,
 		LabelID:         i.LabelID,
 		SoftwareTitleID: i.SoftwareTitleID,
@@ -90,7 +87,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-hosts", hostResource, err)
 		}
-		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: int32(count)}}, nil
+		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -130,17 +127,8 @@ func registerSetHostPrimaryUser(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *hostPrimaryUserPutInput) (*hostDetailOutput, error) {
-		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, handlerError(ctx, logger, "set-host-primary-user", err, "host_id", input.ID)
-		}
-		email := strings.TrimSpace(input.Body.Email)
-		if email == "" {
-			return nil, huma.Error400BadRequest("email is required")
-		}
-		if err := primaryUsers.Upsert(ctx, input.ID, email, hosts.PrimaryUserSourceManual); err != nil {
-			return nil, handlerError(ctx, logger, "set-host-primary-user", err, "host_id", input.ID)
+		if err := primaryUsers.Upsert(ctx, input.ID, input.Body.Email, hosts.PrimaryUserSourceManual); err != nil {
+			return nil, resourceError(ctx, logger, "set-host-primary-user", hostResource, err, "host_id", input.ID)
 		}
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "set-host-primary-user")
 		if err != nil {
@@ -164,13 +152,8 @@ func registerClearHostPrimaryUser(
 		Summary:     "Clear the host primary user",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, handlerError(ctx, logger, "clear-host-primary-user", err, "host_id", input.ID)
-		}
 		if err := primaryUsers.Delete(ctx, input.ID, hosts.PrimaryUserSourceManual); err != nil {
-			return nil, handlerError(ctx, logger, "clear-host-primary-user", err, "host_id", input.ID)
+			return nil, resourceError(ctx, logger, "clear-host-primary-user", hostResource, err, "host_id", input.ID)
 		}
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "clear-host-primary-user")
 		if err != nil {
@@ -188,11 +171,8 @@ func loadHostDetailBody(
 	operation string,
 ) (*hosts.HostDetail, error) {
 	host, err := hostStore.GetByID(ctx, hostID)
-	if errors.Is(err, dbutil.ErrNotFound) {
-		return nil, huma.Error404NotFound("host not found")
-	}
 	if err != nil {
-		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
+		return nil, resourceError(ctx, logger, operation, hostResource, err, "host_id", hostID)
 	}
 	detail, err := hostStore.LoadDetail(ctx, host)
 	if err != nil {

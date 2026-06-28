@@ -2,10 +2,12 @@ package hosts
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -218,6 +220,18 @@ VALUES
 		PrimaryUserSourceOrbitProfile,
 		"reported-two",
 	)
+}
+
+func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	primaryUsers := NewPrimaryUserStore(store.db)
+
+	if err := primaryUsers.Upsert(ctx, 999999, "missing@example.test", PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("Upsert missing host error = %v, want ErrNotFound", err)
+	}
+	if err := primaryUsers.Delete(ctx, 999999, PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("Delete missing host error = %v, want ErrNotFound", err)
+	}
 }
 
 // New hosts land in All Hosts.

@@ -14,7 +14,8 @@ import { QueryError } from "@/components/query-error";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type SoftwareTitle, useSoftware } from "@/hooks/use-software";
+import { useSoftware } from "@/hooks/use-software";
+import type { SoftwareTitle } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import {
   expandSoftwareSourceFilters,

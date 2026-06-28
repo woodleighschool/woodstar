@@ -37,12 +37,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  type AgentSecret,
   useAgentSecrets,
   useCreateAgentSecret,
   useDeleteAgentSecret,
   useUpdateAgentSecret,
 } from "@/hooks/use-agent-secrets";
+import type { AgentSecret } from "@/lib/api";
 import {
   deleteDescription,
   type Integration,

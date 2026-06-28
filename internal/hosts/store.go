@@ -39,7 +39,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
 		OrbitNodeKey:            update.OrbitNodeKey,
 	}
-	return s.upsertOnEnroll(ctx, upsertHostOnOrbitEnrollSQL, write)
+	return upsertOnEnroll(ctx, s.db, upsertHostOnOrbitEnrollSQL, write)
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
@@ -67,13 +67,13 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		HardwareVendor:          update.Hardware.Vendor,
 		OSKernelVersion:         update.OS.KernelVersion,
 	}
-	return s.upsertOnEnroll(ctx, upsertHostOnOsqueryEnrollSQL, write)
+	return upsertOnEnroll(ctx, s.db, upsertHostOnOsqueryEnrollSQL, write)
 }
 
-func (s *Store) upsertOnEnroll(ctx context.Context, sql string, write any) (*Host, error) {
+func upsertOnEnroll[W any](ctx context.Context, db *database.DB, sql string, write W) (*Host, error) {
 	now := time.Now()
 	var host Host
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := db.WithTx(ctx, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, sql, pgx.StructArgs(write))
 		if err != nil {
 			return err

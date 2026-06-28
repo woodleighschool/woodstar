@@ -14,7 +14,7 @@ func (s *Store) ListForHost(
 	ctx context.Context,
 	hostID int64,
 	params HostSoftwareListParams,
-) ([]HostSoftwareRow, int, error) {
+) ([]HostSoftware, int, error) {
 	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	whereSQL, args := hostSoftwareWhere(hostID, params)
 	listQuery := hostSoftwareTitleListQuery(whereSQL, args, params)
@@ -24,13 +24,22 @@ func (s *Store) ListForHost(
 	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
+	if total == 0 {
+		exists, err := s.hostExists(ctx, hostID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if !exists {
+			return nil, 0, dbutil.ErrNotFound
+		}
+	}
 
 	titleIDs, err := s.hostSoftwareTitleIDs(ctx, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
 	if len(titleIDs) == 0 {
-		return []HostSoftwareRow{}, total, nil
+		return []HostSoftware{}, total, nil
 	}
 
 	software, err := s.hostSoftwareRows(ctx, hostID, titleIDs)
@@ -38,6 +47,12 @@ func (s *Store) ListForHost(
 		return nil, 0, err
 	}
 	return software, total, nil
+}
+
+func (s *Store) hostExists(ctx context.Context, hostID int64) (bool, error) {
+	var exists bool
+	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
+	return exists, err
 }
 
 const hostSoftwareRowsSQL = `
@@ -69,7 +84,7 @@ func (s *Store) hostSoftwareRows(
 	ctx context.Context,
 	hostID int64,
 	titleIDs []int64,
-) ([]HostSoftwareRow, error) {
+) ([]HostSoftware, error) {
 	qrows, err := s.db.Pool().Query(ctx, hostSoftwareRowsSQL, hostID, titleIDs)
 	if err != nil {
 		return nil, err
@@ -78,17 +93,17 @@ func (s *Store) hostSoftwareRows(
 	if err != nil {
 		return nil, err
 	}
-	return buildHostSoftwareRows(rows)
+	return buildHostSoftwares(rows)
 }
 
 type hostSoftwareAccumulator struct {
-	titles       orderedGroup[int64, HostSoftwareRow]
+	titles       orderedGroup[int64, HostSoftware]
 	versionByKey map[string]int
 }
 
-func buildHostSoftwareRows(rows []hostSoftwareScanRow) ([]HostSoftwareRow, error) {
+func buildHostSoftwares(rows []hostSoftwareScanRow) ([]HostSoftware, error) {
 	acc := hostSoftwareAccumulator{
-		titles:       newOrderedGroup[int64, HostSoftwareRow](),
+		titles:       newOrderedGroup[int64, HostSoftware](),
 		versionByKey: make(map[string]int),
 	}
 	for _, row := range rows {
@@ -97,7 +112,7 @@ func buildHostSoftwareRows(rows []hostSoftwareScanRow) ([]HostSoftwareRow, error
 	return acc.rows(), nil
 }
 
-func (acc *hostSoftwareAccumulator) rows() []HostSoftwareRow {
+func (acc *hostSoftwareAccumulator) rows() []HostSoftware {
 	return acc.titles.values()
 }
 
@@ -118,9 +133,9 @@ func (acc *hostSoftwareAccumulator) add(row hostSoftwareScanRow) {
 	})
 }
 
-func (acc *hostSoftwareAccumulator) title(row hostSoftwareScanRow) *HostSoftwareRow {
-	return acc.titles.get(row.TitleID, func() HostSoftwareRow {
-		return HostSoftwareRow{
+func (acc *hostSoftwareAccumulator) title(row hostSoftwareScanRow) *HostSoftware {
+	return acc.titles.get(row.TitleID, func() HostSoftware {
+		return HostSoftware{
 			ID:           row.TitleID,
 			Name:         row.TitleName,
 			DisplayName:  row.DisplayName,
@@ -130,7 +145,7 @@ func (acc *hostSoftwareAccumulator) title(row hostSoftwareScanRow) *HostSoftware
 	})
 }
 
-func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hostSoftwareScanRow) int {
+func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftware, row hostSoftwareScanRow) int {
 	key := fmt.Sprintf("%d:%d", row.TitleID, row.SoftwareID)
 	versionIndex, ok := acc.versionByKey[key]
 	if ok {

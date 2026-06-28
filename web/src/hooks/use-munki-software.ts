@@ -1,13 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type {
-  ApiError,
-  MunkiMutation,
-  MunkiSoftware,
-  MunkiSoftwareDetail,
-  PageMunkiSoftware,
-} from "@/lib/api";
+import type { ApiError, MunkiMutation, MunkiSoftwareDetail, PageMunkiSoftware } from "@/lib/api";
 import {
   bulkDeleteMunkiSoftware,
   createMunkiSoftware,
@@ -20,17 +14,12 @@ import {
 import type { ListMunkiSoftwareData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-
-export type { MunkiSoftware, MunkiSoftwareDetail, MunkiMutation };
+import { detailPath } from "@/lib/route-params";
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
 
-function queryParams(params: MunkiListParams) {
-  return baseListParams(params);
-}
-
 export function useMunkiSoftware(params: MunkiListParams = {}) {
-  const query = queryParams(params);
+  const query = baseListParams(params);
   return useQuery<PageMunkiSoftware, ApiError>({
     queryKey: queryKeys.munkiSoftware(query),
     queryFn: ({ signal }) => unwrap(listMunkiSoftware({ query, signal })),
@@ -41,7 +30,7 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
 export function useMunkiSoftwareDetail(id: number | null) {
   return useQuery<MunkiSoftwareDetail, ApiError>({
     queryKey: queryKeys.munkiSoftwareDetail(id),
-    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: { id: id ?? 0 }, signal })),
+    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: detailPath(id), signal })),
     enabled: id !== null,
   });
 }
@@ -50,9 +39,9 @@ export function useCreateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, MunkiMutation>({
     mutationFn: (body) => unwrap(createMunkiSoftware({ body })),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Software created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
     },
   });
 }
@@ -61,10 +50,12 @@ export function useUpdateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
-    onSuccess: (title) => {
+    onSuccess: async (title) => {
       toast.success("Software saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(title.id) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(title.id) }),
+      ]);
     },
   });
 }
@@ -73,9 +64,11 @@ export function useDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiSoftware({ path: { id } })),
-    onSuccess: (_data, id) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(id) });
+    onSuccess: async (_data, id) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(id) }),
+      ]);
     },
   });
 }
@@ -84,8 +77,8 @@ export function useBulkDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteMunkiSoftware({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
     },
   });
 }

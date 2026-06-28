@@ -14,9 +14,10 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { type OsqueryCheck, useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
+import { useBulkDeleteChecks, useChecks } from "@/hooks/use-checks";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
+import type { OsqueryCheck } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 
 export function CheckListPage() {
@@ -45,6 +46,7 @@ export function CheckListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (
@@ -160,7 +162,7 @@ function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
       meta: { label: "Fail" },
     },
   ];
-  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
+  return columns;
 }
 
 function HostCount({

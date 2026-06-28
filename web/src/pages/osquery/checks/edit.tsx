@@ -3,15 +3,22 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { LiveRunButton, SettingItem } from "@/components/queries/query-ui";
 import { QueryGate } from "@/components/query-gate";
 import { useCheck, useUpdateCheck } from "@/hooks/use-checks";
+import { parseRouteID } from "@/lib/route-params";
 import { CheckForm, checkFromDetail } from "@/pages/osquery/checks/fields";
 
 export function CheckEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
   const checkId = params.checkId ?? "";
-  const id = Number(checkId);
+  const id = parseRouteID(checkId);
   const detail = useCheck(id);
   const update = useUpdateCheck(id);
+
+  if (id === null) {
+    return (
+      <QueryGate title="Failed to load check" error={{ message: "Check route is invalid." }} />
+    );
+  }
 
   if (detail.error || !detail.data) {
     return (

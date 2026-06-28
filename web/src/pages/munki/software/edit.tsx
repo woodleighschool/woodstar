@@ -15,17 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { type MunkiPackage } from "@/hooks/use-munki-packages";
 import {
-  type MunkiSoftwareDetail,
   useMunkiSoftware,
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
 } from "@/hooks/use-munki-software";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
-import type { MunkiInclude } from "@/lib/api";
+import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { parseRouteID } from "@/lib/route-params";
 import { formatRelative } from "@/lib/utils";
 
 import {
@@ -39,8 +38,7 @@ import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targ
 
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
-  const softwareId = Number(params.softwareId);
-  const softwareID = Number.isFinite(softwareId) && softwareId > 0 ? softwareId : null;
+  const softwareID = parseRouteID(params.softwareId);
   const query = useMunkiSoftwareDetail(softwareID);
 
   if (softwareID === null) {

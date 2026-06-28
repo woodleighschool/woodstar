@@ -4,22 +4,15 @@ import { Link } from "@tanstack/react-router";
 import { FileArchive, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
+import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { MunkiIcon } from "@/components/munki/munki-icon";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,8 +62,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { MunkiPackage } from "@/hooks/use-munki-packages";
-import type { MunkiPackageAlert } from "@/lib/api";
+import type { MunkiPackage, MunkiPackageAlert } from "@/lib/api";
 import { cn, formatBytes } from "@/lib/utils";
 
 import {
@@ -107,7 +99,11 @@ const shellExtensions = [StreamLanguage.define(shell)];
 // uninstall_script lives on the Uninstall tab; the rest are general-purpose hooks.
 const generalScriptFields = scriptFields.filter((script) => script.key !== "uninstall_script");
 
-type PackageFieldName = keyof PackageFormState;
+type PackageFieldNameByValue<T> = {
+  [K in keyof PackageFormState]: PackageFormState[K] extends T ? K : never;
+}[keyof PackageFormState];
+type StringPackageFieldName = PackageFieldNameByValue<string>;
+type BooleanPackageFieldName = PackageFieldNameByValue<boolean>;
 
 export type SoftwareInfo = {
   id: number;
@@ -117,6 +113,65 @@ export type SoftwareInfo = {
   developer: string;
   iconUrl?: string;
 };
+
+type PackageFormProps = {
+  form: PackageEditorForm;
+  title: string;
+  submitLabel: string;
+  softwareInfo: SoftwareInfo | null;
+  softwareSelector?: ReactNode;
+  packageOptions: MunkiPackage[];
+  installerFile: File | null;
+  installerMetadata?: MunkiPackage["installer_file"];
+  hasInstallerObject: boolean;
+  onInstallerFileChange: (file: File | null) => void;
+  onDeleteInstaller?: () => Promise<void>;
+  deletingInstaller: boolean;
+  onCancel: () => void;
+};
+
+export function PackageForm({
+  form,
+  title,
+  submitLabel,
+  softwareInfo,
+  softwareSelector,
+  packageOptions,
+  installerFile,
+  installerMetadata,
+  hasInstallerObject,
+  onInstallerFileChange,
+  onDeleteInstaller,
+  deletingInstaller,
+  onCancel,
+}: PackageFormProps) {
+  return (
+    <PageShell asChild>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
+        <PageHeader title={title} />
+        <PackageEditorTabs
+          form={form}
+          softwareInfo={softwareInfo}
+          softwareSelector={softwareSelector}
+          packageOptions={packageOptions}
+          installerFile={installerFile}
+          installerMetadata={installerMetadata}
+          hasInstallerObject={hasInstallerObject}
+          onInstallerFileChange={onInstallerFileChange}
+          onDeleteInstaller={onDeleteInstaller}
+          deletingInstaller={deletingInstaller}
+        />
+        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
+      </form>
+    </PageShell>
+  );
+}
 
 export function PackageEditorTabs({
   form,
@@ -766,7 +821,7 @@ function FormTextField({
   inputMode,
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: StringPackageFieldName;
   id: string;
   label: string;
   required?: boolean;
@@ -774,25 +829,24 @@ function FormTextField({
   inputMode?: "text" | "numeric" | "decimal" | "tel" | "search" | "email" | "url";
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
-        <Field>
-          <FieldLabel htmlFor={id} required={required}>
-            {label}
-          </FieldLabel>
-          <Input
-            id={id}
-            name={field.name}
-            type={type}
-            inputMode={inputMode}
-            value={typeof field.state.value === "string" ? field.state.value : ""}
-            onBlur={field.handleBlur}
-            onChange={(event) => field.handleChange(event.target.value as never)}
-          />
-        </Field>
+    <form.Field name={name}>
+      {(field) => (
+        <FormField field={field} label={label} htmlFor={id} required={required}>
+          {(control) => (
+            <Input
+              {...control}
+              id={id}
+              name={field.name}
+              type={type}
+              inputMode={inputMode}
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(event.target.value)}
+            />
+          )}
+        </FormField>
       )}
-    />
+    </form.Field>
   );
 }
 
@@ -803,26 +857,27 @@ function FormTextareaField({
   label,
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: StringPackageFieldName;
   id: string;
   label: string;
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
-        <Field>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Textarea
-            id={id}
-            name={field.name}
-            value={typeof field.state.value === "string" ? field.state.value : ""}
-            onBlur={field.handleBlur}
-            onChange={(event) => field.handleChange(event.target.value as never)}
-          />
-        </Field>
+    <form.Field name={name}>
+      {(field) => (
+        <FormField field={field} label={label} htmlFor={id}>
+          {(control) => (
+            <Textarea
+              {...control}
+              id={id}
+              name={field.name}
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(event.target.value)}
+            />
+          )}
+        </FormField>
       )}
-    />
+    </form.Field>
   );
 }
 
@@ -834,29 +889,32 @@ function FormCodeField({
   minHeight = "[&_.cm-content]:min-h-40",
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: StringPackageFieldName;
   id: string;
   label: string;
   minHeight?: string;
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
-        <Field>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <CodeEditor
-            value={typeof field.state.value === "string" ? field.state.value : ""}
-            onChange={(value) => field.handleChange(value as never)}
-            className={minHeight}
-          />
-        </Field>
+    <form.Field name={name}>
+      {(field) => (
+        <FormField field={field} label={label} htmlFor={id}>
+          {() => (
+            <CodeEditor
+              value={field.state.value}
+              onChange={field.handleChange}
+              className={minHeight}
+            />
+          )}
+        </FormField>
       )}
-    />
+    </form.Field>
   );
 }
 
-function FormSelectField<T extends string>({
+function FormSelectField<
+  Name extends StringPackageFieldName,
+  T extends PackageFormState[Name] & string,
+>({
   form,
   name,
   id,
@@ -864,37 +922,39 @@ function FormSelectField<T extends string>({
   options,
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: Name;
   id: string;
   label: string;
   options: Array<{ value: T; label: string }>;
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
-        <Field>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Select
-            value={String((field.state.value as string | undefined) ?? "")}
-            onValueChange={(next) => field.handleChange(next as never)}
-          >
-            <SelectTrigger id={id} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+    <form.Field name={name}>
+      {(field) => (
+        <FormField field={field} label={label} htmlFor={id}>
+          {() => (
+            <Select
+              value={field.state.value}
+              onValueChange={(next) =>
+                field.handleChange(next as Parameters<typeof field.handleChange>[0])
+              }
+            >
+              <SelectTrigger id={id} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
       )}
-    />
+    </form.Field>
   );
 }
 
@@ -905,22 +965,21 @@ function FormSwitchField({
   label,
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: BooleanPackageFieldName;
   id: string;
   label: string;
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
+    <form.Field name={name}>
+      {(field) => (
         <SwitchControl
           id={id}
           label={label}
-          checked={field.state.value === true}
-          onChange={(checked) => field.handleChange(checked as never)}
+          checked={field.state.value}
+          onChange={field.handleChange}
         />
       )}
-    />
+    </form.Field>
   );
 }
 
@@ -931,22 +990,21 @@ function FormCheckboxField({
   label,
 }: {
   form: PackageEditorForm;
-  name: PackageFieldName;
+  name: BooleanPackageFieldName;
   id: string;
   label: string;
 }) {
   return (
-    <form.Field
-      name={name as never}
-      children={(field) => (
+    <form.Field name={name}>
+      {(field) => (
         <CheckboxControl
           id={id}
           label={label}
-          checked={field.state.value === true}
-          onChange={(checked) => field.handleChange(checked as never)}
+          checked={field.state.value}
+          onChange={field.handleChange}
         />
       )}
-    />
+    </form.Field>
   );
 }
 
@@ -1013,32 +1071,16 @@ function InstallerFileCard({
         </CardContent>
       </Card>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Installer?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This detaches the installer from the package and deletes the stored file when it is no
-              longer referenced.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel variant="ghost" size="sm" disabled={deleting}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              size="sm"
-              disabled={deleting}
-              onClick={() => {
-                void onDelete?.();
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Installer?"
+        description="This detaches the installer from the package and deletes the stored file when it is no longer referenced."
+        confirmLabel="Delete"
+        variant="destructive"
+        pending={deleting}
+        onConfirm={() => void onDelete?.()}
+      />
     </>
   );
 }

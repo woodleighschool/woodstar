@@ -386,6 +386,38 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	}
 }
 
+func TestListRuleStatusesForHostMissingHost(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := rules.NewStore(db)
+
+	_, _, err := store.ListRuleStatusesForHost(ctx, 999999, rules.RuleStatusListParams{})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("ListRuleStatusesForHost missing host error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestListRuleStatusesForHostEmptyHost(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	store := rules.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-rule-status-empty-host"},
+		OrbitNodeKey: "santa-rule-status-empty-host-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	rows, count, err := store.ListRuleStatusesForHost(ctx, host.ID, rules.RuleStatusListParams{})
+	if err != nil {
+		t.Fatalf("ListRuleStatusesForHost empty host: %v", err)
+	}
+	if len(rows) != 0 || count != 0 {
+		t.Fatalf("ListRuleStatusesForHost empty host = %d rows count %d, want empty page", len(rows), count)
+	}
+}
+
 func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)

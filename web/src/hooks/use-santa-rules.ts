@@ -21,14 +21,8 @@ import {
 import type { ListSantaRuleReferencesData, ListSantaRulesData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 import { nonEmpty } from "@/lib/utils";
-
-export type { SantaRule, SantaRuleMutation };
-export type SantaRuleListResult = PageRule;
-export type SantaRuleReference = SantaRuleReferenceCandidate;
-export type SantaRuleReferenceListResult = SantaRuleReference[];
-export type SantaRuleType = SantaRule["rule_type"];
-export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
 
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
 export type SantaRuleReferenceListParams = NonNullable<ListSantaRuleReferencesData["query"]>;
@@ -39,7 +33,7 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
     rule_type: params.rule_type,
   };
 
-  return useQuery<SantaRuleListResult, ApiError>({
+  return useQuery<PageRule, ApiError>({
     queryKey: queryKeys.santaRules(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaRules({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -52,7 +46,7 @@ export function useSantaRule(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getSantaRule({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -67,7 +61,7 @@ export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}
     limit: params.limit ?? 20,
   };
 
-  return useQuery<SantaRuleReferenceListResult, ApiError>({
+  return useQuery<SantaRuleReferenceCandidate[], ApiError>({
     queryKey: queryKeys.santaRuleReferences(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaRuleReferences({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -78,10 +72,12 @@ export function useCreateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, SantaRuleMutation>({
     mutationFn: (body) => unwrap(createSantaRule({ body })),
-    onSuccess: (rule) => {
+    onSuccess: async (rule) => {
       toast.success("Rule created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) }),
+      ]);
     },
   });
 }
@@ -90,10 +86,12 @@ export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateSantaRule({ path: { id }, body })),
-    onSuccess: (rule) => {
+    onSuccess: async (rule) => {
       toast.success("Rule saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) }),
+      ]);
     },
   });
 }
@@ -102,8 +100,8 @@ export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteSantaRule({ path: { id } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },
   });
 }
@@ -112,8 +110,8 @@ export function useBulkDeleteSantaRules() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteSantaRules({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },
   });
 }

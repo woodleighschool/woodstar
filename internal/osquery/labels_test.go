@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandleLabelResultStatusFilter(t *testing.T) {
-	s := &AgentService{logger: slog.New(slog.DiscardHandler)}
+	s := &AgentService{deps: Dependencies{Logger: slog.New(slog.DiscardHandler)}}
 	rows := []map[string]string{{"col": "val"}}
 
 	t.Run("failed status skips accumulation", func(t *testing.T) {

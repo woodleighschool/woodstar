@@ -7,8 +7,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 type PrimaryUserSource string
@@ -24,7 +25,7 @@ var PrimaryUserSourceValues = []PrimaryUserSource{
 }
 
 func (PrimaryUserSource) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(PrimaryUserSourceValues...)
+	return openapischema.StringEnum(PrimaryUserSourceValues...)
 }
 
 // PrimaryUserStore persists host primary-user source observations.
@@ -45,18 +46,37 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 		"email":   email,
 		"source":  string(source),
 	})
-	return err
+	return dbutil.MutationError(err)
 }
 
 func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source PrimaryUserSource) error {
 	if source == "" {
 		return nil
 	}
-	_, err := s.db.Pool().Exec(ctx, deleteHostPrimaryUserSourceSQL, pgx.NamedArgs{
+	tag, err := s.db.Pool().Exec(ctx, deleteHostPrimaryUserSourceSQL, pgx.NamedArgs{
 		"host_id": hostID,
 		"source":  string(source),
 	})
-	return err
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+	exists, err := s.hostExists(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+func (s *PrimaryUserStore) hostExists(ctx context.Context, hostID int64) (bool, error) {
+	var exists bool
+	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
+	return exists, err
 }
 
 type hostPrimaryUserSourceRow struct {

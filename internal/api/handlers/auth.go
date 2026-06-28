@@ -49,26 +49,29 @@ type loginInput struct {
 	}
 }
 
-// RegisterAuth mounts setup, session, login, logout, and account endpoints.
-func RegisterAuth(
-	public huma.API,
-	session huma.API,
-	protected huma.API,
-	router chi.Router,
-	authService *auth.Service,
-	userService *directory.UserService,
-	logger *slog.Logger,
-) {
-	registerSetup(public, authService, logger)
-	registerSession(session, authService, logger)
-	registerLogin(public, authService, logger)
-	registerLogout(protected, authService, logger)
+// AuthHandlerDeps are the route groups and services used by auth handlers.
+type AuthHandlerDeps struct {
+	Public      huma.API
+	Session     huma.API
+	Protected   huma.API
+	Router      chi.Router
+	AuthService *auth.Service
+	Users       *directory.UserService
+	Logger      *slog.Logger
+}
 
-	registerGetAccount(protected, authService, logger)
-	registerPutAccount(protected, userService, logger)
-	registerRotateAPIKey(protected, authService, logger)
-	registerRevokeAPIKey(protected, authService, logger)
-	registerOIDC(router, authService, logger)
+// RegisterAuth mounts setup, session, login, logout, and account endpoints.
+func RegisterAuth(deps AuthHandlerDeps) {
+	registerSetup(deps.Public, deps.AuthService, deps.Logger)
+	registerSession(deps.Session, deps.AuthService, deps.Logger)
+	registerLogin(deps.Public, deps.AuthService, deps.Logger)
+	registerLogout(deps.Protected, deps.AuthService, deps.Logger)
+
+	registerGetAccount(deps.Protected, deps.AuthService, deps.Logger)
+	registerPutAccount(deps.Protected, deps.Users, deps.Logger)
+	registerRotateAPIKey(deps.Protected, deps.AuthService, deps.Logger)
+	registerRevokeAPIKey(deps.Protected, deps.AuthService, deps.Logger)
+	registerOIDC(deps.Router, deps.AuthService, deps.Logger)
 }
 
 func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger) {

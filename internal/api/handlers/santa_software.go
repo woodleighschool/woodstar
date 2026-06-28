@@ -13,7 +13,7 @@ import (
 )
 
 type softwareSantaGetInput struct {
-	SoftwareID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type softwareSantaGetOutput struct {
@@ -29,12 +29,12 @@ func registerSoftwareSantaReference(api huma.API, store *references.Store, logge
 		Summary:     "Get Santa reference data for a software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareSantaGetInput) (*softwareSantaGetOutput, error) {
-		ref, err := store.GetSoftwareReference(ctx, input.SoftwareID)
+		ref, err := store.GetSoftwareReference(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {
-			return nil, handlerError(ctx, logger, "get-software-santa-reference", err, "software_id", input.SoftwareID)
+			return nil, handlerError(ctx, logger, "get-software-santa-reference", err, "software_id", input.ID)
 		}
 		return &softwareSantaGetOutput{Body: *ref}, nil
 	})

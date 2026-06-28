@@ -1,5 +1,4 @@
-import type { MunkiPackageMutation } from "@/hooks/use-munki-packages";
-import type { MunkiInclude, MunkiPackageInstallItem } from "@/lib/api";
+import type { MunkiInclude, MunkiPackageInstallItem, MunkiPackageMutation } from "@/lib/api";
 import { type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;

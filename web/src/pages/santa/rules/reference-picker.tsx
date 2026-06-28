@@ -1,11 +1,8 @@
 import { FreeTextCombobox } from "@/components/free-text-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import {
-  type SantaRuleReference,
-  type SantaRuleType,
-  useSantaRuleReferences,
-} from "@/hooks/use-santa-rules";
+import { useSantaRuleReferences } from "@/hooks/use-santa-rules";
+import type { SantaRule, SantaRuleReferenceCandidate } from "@/lib/api";
 import { ruleTypeLabel } from "@/lib/santa-rules";
 
 import { type RuleFormState, ruleIdentifierHint } from "./form-state";
@@ -75,8 +72,8 @@ export function RuleReferencePicker({
 
 function currentRuleReferenceCandidate(
   identifier: string,
-  ruleType: SantaRuleType,
-): SantaRuleReference {
+  ruleType: SantaRule["rule_type"],
+): SantaRuleReferenceCandidate {
   return {
     rule_type: ruleType,
     identifier,
@@ -85,7 +82,7 @@ function currentRuleReferenceCandidate(
   };
 }
 
-function ruleReferenceItem(reference: SantaRuleReference) {
+function ruleReferenceItem(reference: SantaRuleReferenceCandidate) {
   const disabled = reference.rule_type === "bundle" && !reference.complete;
   const secondary = ruleReferenceSecondary(reference);
   return (
@@ -110,13 +107,16 @@ function ruleReferenceItem(reference: SantaRuleReference) {
   );
 }
 
-function ruleReferenceSecondary(reference: SantaRuleReference) {
+function ruleReferenceSecondary(reference: SantaRuleReferenceCandidate) {
   if (reference.rule_type === "teamid") return undefined;
   if (!reference.display_name) return undefined;
   return reference.display_name;
 }
 
-function ruleReferenceDescription(reference: SantaRuleReference | null, ruleType: SantaRuleType) {
+function ruleReferenceDescription(
+  reference: SantaRuleReferenceCandidate | null,
+  ruleType: SantaRule["rule_type"],
+) {
   if (!reference) return ruleIdentifierHint(ruleType);
   if (reference.rule_type === "bundle" && !reference.complete) {
     return "Bundle reference is incomplete.";
@@ -125,7 +125,7 @@ function ruleReferenceDescription(reference: SantaRuleReference | null, ruleType
   return description || ruleIdentifierHint(reference.rule_type);
 }
 
-function ruleReferenceDescriptionParts(reference: SantaRuleReference) {
+function ruleReferenceDescriptionParts(reference: SantaRuleReferenceCandidate) {
   const parts: string[] = [];
   if (reference.rule_type === "teamid") {
     if (reference.certificate_organization) parts.push(reference.certificate_organization);

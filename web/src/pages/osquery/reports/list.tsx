@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type OsqueryReport, useBulkDeleteReports, useReports } from "@/hooks/use-reports";
+import { useBulkDeleteReports, useReports } from "@/hooks/use-reports";
+import type { OsqueryReport } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatInterval } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export function ReportListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (
@@ -140,5 +142,5 @@ function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
       meta: { label: "Interval" },
     },
   ];
-  return isAdmin ? columns : columns.filter((column) => column.id !== "select");
+  return columns;
 }

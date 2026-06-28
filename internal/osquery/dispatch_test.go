@@ -112,7 +112,7 @@ func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
 		allSucceeded: true,
 	}
 
-	s := &AgentService{logger: testLogger(), inventoryProjector: projector}
+	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector}}
 	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
 		t.Fatalf("finalize detail pass: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestFinalizeDetailPassDoesNotClearMunkiOnNonDetailWrite(t *testing.T) {
 		allSucceeded: true,
 	}
 
-	s := &AgentService{logger: testLogger(), inventoryProjector: projector}
+	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector}}
 	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
 		t.Fatalf("finalize detail pass: %v", err)
 	}

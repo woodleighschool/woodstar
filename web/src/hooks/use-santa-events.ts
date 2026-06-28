@@ -6,7 +6,6 @@ import type {
   PageFileAccessEvent,
   SantaExecutionEvent,
   SantaFileAccessEvent,
-  SantaHostSummary,
 } from "@/lib/api";
 import {
   getSantaEvent,
@@ -21,14 +20,8 @@ import type {
 } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 import { nonEmpty } from "@/lib/utils";
-
-export type { SantaFileAccessEvent, SantaHostSummary };
-export type SantaEvent = SantaExecutionEvent;
-export type SantaEventListResult = PageExecutionEvent;
-export type SantaFileAccessEventListResult = PageFileAccessEvent;
-export type SantaExecutionDecision = SantaEvent["decision"];
-export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 
 export type SantaEventListParams = Omit<NonNullable<ListSantaEventsData["query"]>, "since">;
 export type SantaFileAccessEventListParams = Omit<
@@ -47,7 +40,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     user: nonEmpty(params.user),
   };
 
-  return useQuery<SantaEventListResult, ApiError>({
+  return useQuery<PageExecutionEvent, ApiError>({
     queryKey: queryKeys.santaEvents(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -55,12 +48,12 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
 }
 
 export function useSantaEvent(id: number | null) {
-  return useQuery<SantaEvent, ApiError>({
+  return useQuery<SantaExecutionEvent, ApiError>({
     queryKey: queryKeys.santaEvent(id),
     queryFn: ({ signal }) =>
       unwrap(
         getSantaEvent({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -75,7 +68,7 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
   };
 
-  return useQuery<SantaFileAccessEventListResult, ApiError>({
+  return useQuery<PageFileAccessEvent, ApiError>({
     queryKey: queryKeys.santaFileAccessEvents(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaFileAccessEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -88,7 +81,7 @@ export function useSantaFileAccessEvent(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getSantaFileAccessEvent({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),

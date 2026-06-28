@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { MunkiHostState } from "@/hooks/use-hosts";
+import type { MunkiHostState } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {

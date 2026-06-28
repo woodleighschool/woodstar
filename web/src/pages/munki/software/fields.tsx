@@ -7,8 +7,7 @@ import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { MunkiSoftwareDetail } from "@/hooks/use-munki-software";
-import type { MunkiInclude } from "@/lib/api";
+import type { MunkiInclude, MunkiSoftwareDetail } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 
 import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";

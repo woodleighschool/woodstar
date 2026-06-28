@@ -38,16 +38,9 @@ type objectResolver interface {
 	ListByIDs(context.Context, []int64) (map[int64]storage.Object, error)
 }
 
-type manifestHost struct {
-	ID int64
-}
-
 // RepositoryService renders the Munki client-facing repository surface.
 type RepositoryService struct {
-	hosts    hostResolver
-	software effectivePackageResolver
-	packages packageResolver
-	objects  objectResolver
+	deps Dependencies
 }
 
 // Dependencies are the collaborators the Munki repository renderer needs.
@@ -60,34 +53,27 @@ type Dependencies struct {
 
 // NewRepositoryService returns the Munki repository renderer.
 func NewRepositoryService(deps Dependencies) *RepositoryService {
-	return &RepositoryService{
-		hosts:    deps.Hosts,
-		software: deps.Software,
-		packages: deps.Packages,
-		objects:  deps.Objects,
-	}
+	return &RepositoryService{deps: deps}
 }
 
-func (s *RepositoryService) resolveManifestHost(ctx context.Context, serial string) (manifestHost, error) {
-	host, err := s.hosts.GetByHardwareSerial(ctx, serial)
+func (s *RepositoryService) resolveManifestHostID(ctx context.Context, serial string) (int64, error) {
+	host, err := s.deps.Hosts.GetByHardwareSerial(ctx, serial)
 	if errors.Is(err, dbutil.ErrNotFound) {
-		return manifestHost{}, ErrNotFound
+		return 0, ErrNotFound
 	}
 	if err != nil {
-		return manifestHost{}, err
+		return 0, err
 	}
-	return manifestHost{
-		ID: host.ID,
-	}, nil
+	return host.ID, nil
 }
 
 // Manifest returns the Munki manifest for the host serial in name.
 func (s *RepositoryService) Manifest(ctx context.Context, name string) ([]byte, error) {
-	client, err := s.resolveManifestHost(ctx, name)
+	hostID, err := s.resolveManifestHostID(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	pkgs, err := s.effectivePackages(ctx, client.ID)
+	pkgs, err := s.effectivePackages(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +97,7 @@ func (s *RepositoryService) Catalog(ctx context.Context, name string) ([]byte, e
 	if name != catalogName {
 		return nil, ErrNotFound
 	}
-	pkgs, err := s.packages.ListRepositoryPackages(ctx)
+	pkgs, err := s.deps.Packages.ListRepositoryPackages(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +133,7 @@ func (s *RepositoryService) ResolvePackageFile(
 	if !ok {
 		return PackageInstaller{}, ErrNotFound
 	}
-	pkgs, err := s.packages.PackagesByID(ctx, []int64{packageID})
+	pkgs, err := s.deps.Packages.PackagesByID(ctx, []int64{packageID})
 	if err != nil {
 		return PackageInstaller{}, err
 	}
@@ -170,8 +156,8 @@ func (s *RepositoryService) ResolvePackageFile(
 		PackageID:             pkg.ID,
 		InstallerItemLocation: key,
 		Key:                   obj.Key(),
-		SHA256:                objectSHA256(*obj),
-		SizeBytes:             objectSize(*obj),
+		SHA256:                obj.SHA256Value(),
+		SizeBytes:             obj.SizeBytesValue(),
 	}, nil
 }
 
@@ -188,14 +174,14 @@ func (s *RepositoryService) ResolveIconFile(
 	if !ok {
 		return "", ErrNotFound
 	}
-	pkgs, err := s.packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
+	pkgs, err := s.deps.Packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
 	if err != nil {
 		return "", err
 	}
 	if len(pkgs) == 0 {
 		return "", ErrNotFound
 	}
-	objects, err := s.objects.ListByIDs(ctx, []int64{iconObjectID})
+	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{iconObjectID})
 	if err != nil {
 		return "", err
 	}
@@ -210,7 +196,7 @@ func (s *RepositoryService) effectivePackages(
 	ctx context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
-	return s.software.EffectivePackagesForHost(ctx, hostID)
+	return s.deps.Software.EffectivePackagesForHost(ctx, hostID)
 }
 
 func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectivePackage) {
@@ -269,7 +255,7 @@ func (s *RepositoryService) objectsForPackages(
 	if len(ids) == 0 {
 		return map[int64]storage.Object{}, nil
 	}
-	return s.objects.ListByIDs(ctx, ids)
+	return s.deps.Objects.ListByIDs(ctx, ids)
 }
 
 func packageObjects(
@@ -280,20 +266,6 @@ func packageObjects(
 		Installer: objectByID(objects, pkg.InstallerObjectID),
 		Icon:      objectByID(objects, pkg.SoftwareIconObjectID),
 	}
-}
-
-func objectSHA256(obj storage.Object) string {
-	if obj.SHA256 == nil {
-		return ""
-	}
-	return *obj.SHA256
-}
-
-func objectSize(obj storage.Object) int64 {
-	if obj.SizeBytes == nil {
-		return 0
-	}
-	return *obj.SizeBytes
 }
 
 func objectByID(objects map[int64]storage.Object, id *int64) *storage.Object {

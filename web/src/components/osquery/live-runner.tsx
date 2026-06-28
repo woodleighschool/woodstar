@@ -4,28 +4,19 @@ import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { ShowQueryButton } from "@/components/queries/query-ui";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { type Host, useHosts } from "@/hooks/use-hosts";
-import { type Label, useLabels } from "@/hooks/use-labels";
+import { useHosts } from "@/hooks/use-hosts";
+import { useLabels } from "@/hooks/use-labels";
 import {
   type LiveQueryResult,
   type LiveQueryRow,
@@ -37,6 +28,7 @@ import {
   useLiveQueryTargetCount,
   useStopLiveQuery,
 } from "@/hooks/use-live-queries";
+import type { Host, Label } from "@/lib/api";
 import { isAllHostsLabel } from "@/lib/labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
@@ -352,32 +344,16 @@ function RunResults({
           </Button>
         </div>
       </div>
-      <AlertDialog open={stopOpen} onOpenChange={setStopOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stop Live Run?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hosts that have not responded yet will be marked stopped for this live run.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel variant="ghost" size="sm" disabled={isStopping}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              size="sm"
-              disabled={isStopping}
-              onClick={(event) => {
-                event.preventDefault();
-                void confirmStop();
-              }}
-            >
-              Stop
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={stopOpen}
+        onOpenChange={setStopOpen}
+        title="Stop Live Run?"
+        description="Hosts that have not responded yet will be marked stopped for this live run."
+        confirmLabel="Stop"
+        variant="destructive"
+        pending={isStopping}
+        onConfirm={() => void confirmStop()}
+      />
       {kind === "report" ? (
         <ReportRunResults rows={rows} running={isRunning} />
       ) : (

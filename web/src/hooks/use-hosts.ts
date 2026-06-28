@@ -2,18 +2,17 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import type {
-  Host,
+  ApiError,
   HostDetail,
   MunkiHostState,
   OsqueryCheckHostStatus,
   OsqueryHostReport,
   PageHost,
-  PageHostSoftwareRow,
+  PageHostSoftware,
   PageRuleStatus,
   SantaHostState,
 } from "@/lib/api";
 import {
-  ApiError,
   bulkDeleteHosts,
   clearHostPrimaryUser,
   deleteHost,
@@ -25,6 +24,7 @@ import {
   listHosts,
   listHostSantaRules,
   listHostSoftware,
+  nullOn404,
   setHostPrimaryUser,
   unwrap,
 } from "@/lib/api";
@@ -35,17 +35,10 @@ import type {
 } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 import { nonEmpty } from "@/lib/utils";
 
-export type { Host, HostDetail, MunkiHostState, OsqueryHostReport, SantaHostState };
-
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
-
-type HostListResult = PageHost;
-type HostSoftwareListResult = PageHostSoftwareRow;
-type HostOsqueryReportsResult = OsqueryHostReport[];
-type HostOsqueryChecksResult = OsqueryCheckHostStatus[];
-type HostSantaRulesResult = PageRuleStatus;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 interface HostPrimaryUserMutation {
@@ -64,7 +57,7 @@ export function useHosts(params: HostListParams = {}) {
     ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
   };
 
-  return useQuery<HostListResult, ApiError>({
+  return useQuery<PageHost, ApiError>({
     queryKey: queryKeys.hosts(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
@@ -83,7 +76,7 @@ export function useHost(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getHost({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -94,14 +87,7 @@ export function useHost(id: number | null) {
 export function useHostMunkiState(id: number | null) {
   return useQuery<MunkiHostState | null, ApiError>({
     queryKey: queryKeys.hostMunkiState(id),
-    queryFn: async ({ signal }) => {
-      try {
-        return await unwrap(getHostMunkiState({ path: { id: id ?? 0 }, signal }));
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return null;
-        throw error;
-      }
-    },
+    queryFn: ({ signal }) => nullOn404(getHostMunkiState({ path: detailPath(id), signal })),
     enabled: id !== null,
   });
 }
@@ -109,14 +95,7 @@ export function useHostMunkiState(id: number | null) {
 export function useHostSantaState(id: number | null) {
   return useQuery<SantaHostState | null, ApiError>({
     queryKey: queryKeys.hostSantaState(id),
-    queryFn: async ({ signal }) => {
-      try {
-        return await unwrap(getHostSantaState({ path: { id: id ?? 0 }, signal }));
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return null;
-        throw error;
-      }
-    },
+    queryFn: ({ signal }) => nullOn404(getHostSantaState({ path: detailPath(id), signal })),
     enabled: id !== null,
   });
 }
@@ -125,8 +104,8 @@ export function useDeleteHost() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
   });
 }
@@ -135,8 +114,8 @@ export function useBulkDeleteHosts() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteHosts({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
   });
 }
@@ -173,12 +152,12 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
     source: params.source && params.source.length > 0 ? params.source : undefined,
   };
 
-  return useQuery<HostSoftwareListResult, ApiError>({
+  return useQuery<PageHostSoftware, ApiError>({
     queryKey: queryKeys.hostSoftware(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listHostSoftware({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           query: queryParams,
           signal,
         }),
@@ -189,12 +168,12 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
 }
 
 export function useHostOsqueryReports(id: number | null) {
-  return useQuery<HostOsqueryReportsResult, ApiError>({
+  return useQuery<OsqueryHostReport[], ApiError>({
     queryKey: queryKeys.hostOsqueryReports(id),
     queryFn: ({ signal }) =>
       unwrap(
         listHostOsqueryReports({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -203,12 +182,12 @@ export function useHostOsqueryReports(id: number | null) {
 }
 
 export function useHostOsqueryChecks(id: number | null) {
-  return useQuery<HostOsqueryChecksResult, ApiError>({
+  return useQuery<OsqueryCheckHostStatus[], ApiError>({
     queryKey: queryKeys.hostOsqueryChecks(id),
     queryFn: ({ signal }) =>
       unwrap(
         listHostOsqueryChecks({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -218,17 +197,15 @@ export function useHostOsqueryChecks(id: number | null) {
 
 export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
   const queryParams = {
-    page: params.page ?? 1,
-    per_page: params.per_page ?? HOST_SANTA_RULES_PAGE_SIZE,
-    sort: nonEmpty(params.sort),
+    ...baseListParams(params, { defaultPerPage: HOST_SANTA_RULES_PAGE_SIZE }),
   };
 
-  return useQuery<HostSantaRulesResult, ApiError>({
+  return useQuery<PageRuleStatus, ApiError>({
     queryKey: queryKeys.hostSantaRules(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listHostSantaRules({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           query: queryParams,
           signal,
         }),

@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 )
 
@@ -17,7 +16,6 @@ type hostMunkiStateLoader interface {
 func registerHostMunkiState(
 	api huma.API,
 	store hostMunkiStateLoader,
-	hostStore *hosts.Store,
 	logger *slog.Logger,
 ) {
 	registerHostState(
@@ -26,7 +24,6 @@ func registerHostMunkiState(
 		"/api/hosts/{id}/munki",
 		"Get Munki state for a host",
 		"munki state not found",
-		hostStore,
 		store.LoadHostState,
 		logger,
 	)

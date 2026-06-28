@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-import type { MunkiPackage, MunkiPackageMutation } from "@/hooks/use-munki-packages";
 import type {
+  MunkiPackage,
   MunkiPackageAlert,
   MunkiPackageInstallerChoice,
   MunkiPackageInstallerEnvironmentVariable,
   MunkiPackageInstallItem,
   MunkiPackageItemToCopy,
+  MunkiPackageMutation,
   MunkiPackageReceipt,
   MunkiPackageReference,
 } from "@/lib/api";
@@ -121,54 +122,90 @@ const packageIdentitySchema = z.object({
   version: requiredString("Version"),
 });
 
-export function validatePackageForm({ value }: { value: PackageFormState }) {
-  const result = packageIdentitySchema.safeParse(value);
-  if (result.success) return undefined;
-  return { fields: fieldErrors(result) };
+export function packageFormSchema(hasInstallerFile: boolean) {
+  return packageIdentitySchema.passthrough().superRefine((value, ctx) => {
+    const form = value as unknown as PackageFormState;
+    if (form.installer_type !== "nopkg" && !hasInstallerFile) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${installerTypeLabel(form.installer_type)} packages require an installer file.`,
+        path: ["installer_type"],
+      });
+    }
+    if (
+      form.installer_type === "copy_from_dmg" &&
+      cleanItemsToCopy(form.items_to_copy).length === 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Copy from DMG packages require at least one item to copy.",
+        path: ["items_to_copy"],
+      });
+    }
+    if (form.installer_type !== "nopkg") {
+      const installerChoicesError = parseInstallerChoicesError(form.installer_choices_xml);
+      if (installerChoicesError) {
+        ctx.addIssue({
+          code: "custom",
+          message: installerChoicesError,
+          path: ["installer_choices_xml"],
+        });
+      }
+    }
+    if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "No package items require an install check script, installs, receipts, or On Demand.",
+        path: ["installcheck_script"],
+      });
+    }
+    if (
+      form.uninstallable &&
+      form.uninstall_method === "removepackages" &&
+      cleanReceipts(form.receipts).length === 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Remove packages uninstall requires at least one receipt.",
+        path: ["receipts"],
+      });
+    }
+    if (
+      form.uninstallable &&
+      form.uninstall_method === "remove_copied_items" &&
+      cleanItemsToCopy(form.items_to_copy).length === 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Remove copied items uninstall requires at least one item to copy.",
+        path: ["items_to_copy"],
+      });
+    }
+    if (
+      form.uninstallable &&
+      form.uninstall_method === "uninstall_script" &&
+      nonEmpty(form.uninstall_script) === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Uninstall script method requires an uninstall script.",
+        path: ["uninstall_script"],
+      });
+    }
+  });
 }
 
-export function packageSubmitPreflightError(
-  form: PackageFormState,
-  files: { hasInstallerFile: boolean },
-) {
-  if (form.installer_type !== "nopkg" && !files.hasInstallerFile) {
-    return `${installerTypeLabel(form.installer_type)} packages require an installer file.`;
-  }
-  if (
-    form.installer_type === "copy_from_dmg" &&
-    cleanItemsToCopy(form.items_to_copy).length === 0
-  ) {
-    return "Copy from DMG packages require at least one item to copy.";
-  }
-  if (form.installer_type !== "nopkg") {
-    const installerChoicesError = parseInstallerChoicesError(form.installer_choices_xml);
-    if (installerChoicesError) return installerChoicesError;
-  }
-  if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
-    return "No package items require an install check script, installs, receipts, or On Demand.";
-  }
-  if (
-    form.uninstallable &&
-    form.uninstall_method === "removepackages" &&
-    cleanReceipts(form.receipts).length === 0
-  ) {
-    return "Remove packages uninstall requires at least one receipt.";
-  }
-  if (
-    form.uninstallable &&
-    form.uninstall_method === "remove_copied_items" &&
-    cleanItemsToCopy(form.items_to_copy).length === 0
-  ) {
-    return "Remove copied items uninstall requires at least one item to copy.";
-  }
-  if (
-    form.uninstallable &&
-    form.uninstall_method === "uninstall_script" &&
-    nonEmpty(form.uninstall_script) === undefined
-  ) {
-    return "Uninstall script method requires an uninstall script.";
-  }
-  return undefined;
+export function validatePackageForm({
+  value,
+  hasInstallerFile,
+}: {
+  value: PackageFormState;
+  hasInstallerFile: boolean;
+}) {
+  const result = packageFormSchema(hasInstallerFile).safeParse(value);
+  if (result.success) return undefined;
+  return { fields: fieldErrors(result) };
 }
 
 export function packageMutationFromForm(form: PackageFormState): MunkiPackageMutation {

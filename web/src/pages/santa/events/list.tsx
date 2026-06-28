@@ -18,14 +18,16 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useHost } from "@/hooks/use-hosts";
 import {
-  type SantaEvent,
   type SantaEventListParams,
-  type SantaFileAccessEvent,
   type SantaFileAccessEventListParams,
-  type SantaHostSummary,
   useSantaEvents,
   useSantaFileAccessEvents,
 } from "@/hooks/use-santa-events";
+import type {
+  SantaExecutionEvent as SantaEvent,
+  SantaFileAccessEvent,
+  SantaHostSummary,
+} from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 

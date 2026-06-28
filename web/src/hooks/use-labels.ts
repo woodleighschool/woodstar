@@ -6,9 +6,8 @@ import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } f
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 
-export type { Label, LabelMutation };
-export type LabelListResult = PageLabel;
 export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {
@@ -18,7 +17,7 @@ export function useLabels(params: LabelListParams = {}) {
     label_membership_type: params.label_membership_type,
   };
 
-  return useQuery<LabelListResult, ApiError>({
+  return useQuery<PageLabel, ApiError>({
     queryKey: queryKeys.labels(queryParams),
     queryFn: ({ signal }) =>
       unwrap(
@@ -37,7 +36,7 @@ export function useLabel(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getLabel({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -49,10 +48,12 @@ export function useCreateLabel() {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(createLabel({ body })),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Label created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll }),
+      ]);
     },
   });
 }
@@ -60,11 +61,13 @@ export function useCreateLabel() {
 export function useUpdateLabel(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(updateLabel({ path: { id: id ?? 0 }, body })),
-    onSuccess: () => {
+    mutationFn: (body) => unwrap(updateLabel({ path: detailPath(id), body })),
+    onSuccess: async () => {
       toast.success("Label saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll }),
+      ]);
     },
   });
 }
@@ -73,9 +76,11 @@ export function useDeleteLabel() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteLabel({ path: { id } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.labelsAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll }),
+      ]);
     },
   });
 }

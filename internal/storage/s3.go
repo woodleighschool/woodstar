@@ -168,9 +168,7 @@ func (s *s3Store) PresignPut(
 }
 
 func (s *s3Store) expires(ttl time.Duration) func(*s3.PresignOptions) {
-	if ttl <= 0 {
-		ttl = s.ttl
-	}
+	ttl = ttlOrDefault(ttl, s.ttl)
 	return func(options *s3.PresignOptions) {
 		options.Expires = ttl
 	}

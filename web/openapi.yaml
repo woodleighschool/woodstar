@@ -620,31 +620,7 @@ components:
         - host_name
         - items
       type: object
-    HostSoftwareInstalledVersion:
-      additionalProperties: false
-      properties:
-        bundle_identifier:
-          type: string
-        installed_paths:
-          items:
-            type: string
-          type: array
-        last_opened_at:
-          format: date-time
-          type: string
-        signature_information:
-          items:
-            $ref: "#/components/schemas/PathSignatureInformation"
-          type: array
-        version:
-          type: string
-      required:
-        - version
-        - bundle_identifier
-        - installed_paths
-        - signature_information
-      type: object
-    HostSoftwareRow:
+    HostSoftware:
       additionalProperties: false
       properties:
         display_name:
@@ -669,6 +645,30 @@ components:
         - source
         - extension_for
         - installed_versions
+      type: object
+    HostSoftwareInstalledVersion:
+      additionalProperties: false
+      properties:
+        bundle_identifier:
+          type: string
+        installed_paths:
+          items:
+            type: string
+          type: array
+        last_opened_at:
+          format: date-time
+          type: string
+        signature_information:
+          items:
+            $ref: "#/components/schemas/PathSignatureInformation"
+          type: array
+        version:
+          type: string
+      required:
+        - version
+        - bundle_identifier
+        - installed_paths
+        - signature_information
       type: object
     HostStorage:
       additionalProperties: false
@@ -2231,7 +2231,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2245,7 +2245,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2259,7 +2259,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2273,7 +2273,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2287,7 +2287,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2301,7 +2301,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2315,7 +2315,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2329,7 +2329,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2339,15 +2339,15 @@ components:
         - items
         - count
       type: object
-    PageHostSoftwareRow:
+    PageHostSoftware:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/HostSoftwareRow"
+            $ref: "#/components/schemas/HostSoftware"
           type: array
       required:
         - items
@@ -2357,7 +2357,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2371,7 +2371,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2385,7 +2385,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2399,7 +2399,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2413,7 +2413,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2427,7 +2427,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2441,7 +2441,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2455,7 +2455,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -2469,7 +2469,7 @@ components:
       additionalProperties: false
       properties:
         count:
-          format: int32
+          format: int64
           type: integer
         items:
           items:
@@ -3055,7 +3055,7 @@ components:
           type: string
         configuration:
           $ref: "#/components/schemas/SantaConfigurationMatch"
-        last_sync_at:
+        last_seen_at:
           format: date-time
           type: string
         rule_sync:
@@ -4913,7 +4913,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageHostSoftwareRow"
+                $ref: "#/components/schemas/PageHostSoftware"
           description: OK
         "401":
           content:

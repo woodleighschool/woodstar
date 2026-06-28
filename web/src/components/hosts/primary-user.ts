@@ -1,4 +1,4 @@
-import type { Host } from "@/hooks/use-hosts";
+import type { Host } from "@/lib/api";
 
 export type HostPrimaryUserSource = NonNullable<Host["primary_user_sources"]>[number];
 

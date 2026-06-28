@@ -15,7 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type SantaEvent, useSantaEvent } from "@/hooks/use-santa-events";
+import { useSantaEvent } from "@/hooks/use-santa-events";
+import type { SantaExecutionEvent as SantaEvent } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
 import { executableLabel, fileName } from "./decisions";

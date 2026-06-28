@@ -14,35 +14,35 @@ import (
 )
 
 type munkiPackageUploadInput struct {
-	PackageID int64 `path:"id"`
-	Body      MunkiUploadRequest
+	ID   int64 `path:"id"`
+	Body MunkiUploadRequest
 }
 
 type munkiPackageObjectInput struct {
-	PackageID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type munkiPackageConfirmInput struct {
-	PackageID int64 `path:"id"`
-	ObjectID  int64 `path:"object_id"`
+	ID       int64 `path:"id"`
+	ObjectID int64 `path:"object_id"`
 }
 
 func registerObjectRoutes(
 	api huma.API,
-	packageStore *munki.PackageService,
+	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
 	logger *slog.Logger,
 ) {
 	objectPath := munkiPackagePath + "/{id}/installer"
-	registerCreatePackageInstallerRoute(api, packageStore, objects, store, objectPath, logger)
-	registerConfirmPackageInstallerRoute(api, packageStore, objects, store, objectPath, logger)
-	registerDeletePackageInstallerRoute(api, packageStore, objectPath, logger)
+	registerCreatePackageInstallerRoute(api, packageService, objects, store, objectPath, logger)
+	registerConfirmPackageInstallerRoute(api, packageService, objects, store, objectPath, logger)
+	registerDeletePackageInstallerRoute(api, packageService, objectPath, logger)
 }
 
 func registerCreatePackageInstallerRoute(
 	api huma.API,
-	packageStore *munki.PackageService,
+	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
 	objectPath string,
@@ -61,7 +61,7 @@ func registerCreatePackageInstallerRoute(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiPackageUploadInput) (*munkiUploadOutput, error) {
-		if _, err := packageStore.GetByID(ctx, input.PackageID); err != nil {
+		if _, err := packageService.GetByID(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -69,7 +69,7 @@ func registerCreatePackageInstallerRoute(
 				munkiupload.Label,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
 		obj, target, err := munkiupload.Create(
@@ -88,7 +88,7 @@ func registerCreatePackageInstallerRoute(
 				munkiupload.Label,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
 		return munkiUploadOutputFromTarget(obj, target), nil
@@ -97,7 +97,7 @@ func registerCreatePackageInstallerRoute(
 
 func registerConfirmPackageInstallerRoute(
 	api huma.API,
-	packageStore *munki.PackageService,
+	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
 	objectPath string,
@@ -126,9 +126,9 @@ func registerConfirmPackageInstallerRoute(
 				Prefix:    packages.ObjectPrefix,
 				ObjectID:  input.ObjectID,
 				Attach: func(objectID int64) error {
-					return packageStore.SetInstallerObject(ctx, input.PackageID, objectID)
+					return packageService.SetInstallerObject(ctx, input.ID, objectID)
 				},
-				Attrs: []any{"package_id", input.PackageID},
+				Attrs: []any{"package_id", input.ID},
 			},
 		)
 	})
@@ -136,7 +136,7 @@ func registerConfirmPackageInstallerRoute(
 
 func registerDeletePackageInstallerRoute(
 	api huma.API,
-	packageStore *munki.PackageService,
+	packageService *munki.PackageService,
 	objectPath string,
 	logger *slog.Logger,
 ) {
@@ -154,7 +154,7 @@ func registerDeletePackageInstallerRoute(
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackageObjectInput) (*struct{}, error) {
-		if err := packageStore.ClearInstallerObject(ctx, input.PackageID); err != nil {
+		if err := packageService.ClearInstallerObject(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -162,9 +162,9 @@ func registerDeletePackageInstallerRoute(
 				munkiupload.Label,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
-		return nil, nil
+		return &struct{}{}, nil
 	})
 }

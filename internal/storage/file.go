@@ -200,10 +200,7 @@ func escapeKeyPath(key string) string {
 }
 
 func (s *fileStore) expires(ttl time.Duration) time.Duration {
-	if ttl <= 0 {
-		return s.ttl
-	}
-	return ttl
+	return ttlOrDefault(ttl, s.ttl)
 }
 
 // fileObjectReader exposes only the object-reader contract.

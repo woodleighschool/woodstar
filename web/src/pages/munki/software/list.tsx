@@ -17,11 +17,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import {
-  type MunkiSoftware,
-  useBulkDeleteMunkiSoftware,
-  useMunkiSoftware,
-} from "@/hooks/use-munki-software";
+import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
+import type { MunkiSoftware } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
@@ -90,7 +87,7 @@ export function MunkiSoftwareListPage() {
         meta: { label: "Updated" },
       },
     ];
-    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+    return baseColumns;
   }, [isAdmin]);
 
   const table = useDataTable({
@@ -100,6 +97,7 @@ export function MunkiSoftwareListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (

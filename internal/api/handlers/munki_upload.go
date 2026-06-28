@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -24,7 +24,7 @@ var munkiUploadTransportValues = []MunkiUploadTransport{
 }
 
 func (MunkiUploadTransport) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(munkiUploadTransportValues...)
+	return openapischema.StringEnum(munkiUploadTransportValues...)
 }
 
 type MunkiUploadTarget struct {

@@ -13,10 +13,11 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
-	titles, total, err := dbutil.ScanListWithCount(ctx, s.db.Pool(), listQuery, scanSoftwareTitle)
+	titles, total, err := dbutil.ListWithCount[SoftwareTitle](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
+	setSoftwareTitleBrowsers(titles)
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, 0, err
 	}
@@ -25,11 +26,12 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	query := softwareTitleSelectSQL + "\nWHERE st.id = $1\nGROUP BY st.id"
-	title, err := scanSoftwareTitle(s.db.Pool().QueryRow(ctx, query, id))
+	title, err := dbutil.GetOne[SoftwareTitle](ctx, s.db.Pool(), query, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
 	titles := []SoftwareTitle{title}
+	setSoftwareTitleBrowsers(titles)
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
 	}
@@ -92,22 +94,10 @@ LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id
 `
 
-func scanSoftwareTitle(row pgx.Row) (SoftwareTitle, error) {
-	var title SoftwareTitle
-	err := row.Scan(
-		&title.ID,
-		&title.Name,
-		&title.DisplayName,
-		&title.Source,
-		&title.ExtensionFor,
-		&title.BundleIdentifier,
-		&title.Vendor,
-		&title.HostsCount,
-		&title.VersionsCount,
-		&title.CountsUpdatedAt,
-	)
-	title.Browser = browserFor(title.Source, title.ExtensionFor)
-	return title, err
+func setSoftwareTitleBrowsers(titles []SoftwareTitle) {
+	for i := range titles {
+		titles[i].Browser = browserFor(titles[i].Source, titles[i].ExtensionFor)
+	}
 }
 
 // browserFor returns the browser name when source indicates a browser

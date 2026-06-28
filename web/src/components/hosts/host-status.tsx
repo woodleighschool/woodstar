@@ -1,5 +1,5 @@
 import { Status, StatusIndicator, StatusLabel } from "@/components/ui/status";
-import type { Host } from "@/hooks/use-hosts";
+import type { Host } from "@/lib/api";
 
 type HostStatusValue = Host["status"];
 

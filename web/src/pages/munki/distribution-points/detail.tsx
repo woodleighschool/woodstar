@@ -3,21 +3,12 @@ import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -30,12 +21,11 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  type MunkiDistributionPointDetail,
   useDeleteMunkiDistributionPoint,
   useLiveMunkiDistributionPoint,
   useRotateMunkiDistributionPointKey,
 } from "@/hooks/use-munki-distribution-points";
-import type { MunkiPackageState } from "@/lib/api";
+import type { MunkiDistributionPointDetail, MunkiPackageState } from "@/lib/api";
 import {
   BoolBadge,
   ConnectionBadge,
@@ -240,31 +230,15 @@ function DeleteDialog({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete distribution point?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Clients stop being redirected to this distribution point.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={pending}
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete distribution point?"
+      description="Clients stop being redirected to this distribution point."
+      confirmLabel="Delete"
+      variant="destructive"
+      pending={pending}
+      onConfirm={onConfirm}
+    />
   );
 }

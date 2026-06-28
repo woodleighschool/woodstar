@@ -26,7 +26,7 @@ type munkiPackageListInput struct {
 }
 
 type munkiPackageGetInput struct {
-	PackageID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type munkiPackageCreateInput struct {
@@ -34,12 +34,12 @@ type munkiPackageCreateInput struct {
 }
 
 type munkiPackagePutInput struct {
-	PackageID int64 `path:"id"`
-	Body      packages.PackageMutation
+	ID   int64 `path:"id"`
+	Body packages.PackageMutation
 }
 
 type munkiPackageDeleteInput struct {
-	PackageID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type munkiPackageBulkDeleteInput struct {
@@ -60,7 +60,7 @@ type munkiPackage struct {
 
 func (input munkiPackageListInput) params() packages.PackageListParams {
 	return packages.PackageListParams{
-		ListParams:     input.ListQueryInput.Params(),
+		ListParams:     input.ListQueryInput.params(),
 		InstallerTypes: installerTypeFilterValues(input.Types),
 		SoftwareID:     input.SoftwareID,
 	}
@@ -106,7 +106,7 @@ func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger
 		return &munkiPackageListOutput{
 			Body: Page[munkiPackage]{
 				Items: munkiPackagesFromPackages(rows),
-				Count: int32(count),
+				Count: count,
 			},
 		}, nil
 	})
@@ -145,7 +145,7 @@ func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *
 		Summary:     "Get a Munki package",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
-		pkg, err := store.GetByID(ctx, input.PackageID)
+		pkg, err := store.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -154,7 +154,7 @@ func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *
 				munkiPackageLabel,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
@@ -176,7 +176,7 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackagePutInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Update(ctx, input.PackageID, input.Body)
+		pkg, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -185,7 +185,7 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 				munkiPackageLabel,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
@@ -205,7 +205,7 @@ func registerDeleteMunkiPackage(
 		Summary:     "Delete a Munki package",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.PackageID); err != nil {
+		if err := store.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -213,7 +213,7 @@ func registerDeleteMunkiPackage(
 				munkiPackageLabel,
 				err,
 				"package_id",
-				input.PackageID,
+				input.ID,
 			)
 		}
 		return &struct{}{}, nil

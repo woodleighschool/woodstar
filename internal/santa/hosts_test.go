@@ -62,8 +62,8 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 	if detail.ClientModeReported != configurations.ReportedClientModeMonitor {
 		t.Fatalf("client mode = %q, want monitor", detail.ClientModeReported)
 	}
-	if detail.LastSyncAt == nil || !detail.LastSyncAt.Equal(seenAt) {
-		t.Fatalf("last sync = %v, want %v", detail.LastSyncAt, seenAt)
+	if detail.LastSeenAt == nil || !detail.LastSeenAt.Equal(seenAt) {
+		t.Fatalf("last sync = %v, want %v", detail.LastSeenAt, seenAt)
 	}
 	if detail.RuleSync.DesiredCount != 0 || detail.RuleSync.AppliedCount != 0 || detail.RuleSync.PendingCount != 0 {
 		t.Fatalf("rule sync = %+v, want zero counts", detail.RuleSync)

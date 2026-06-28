@@ -1,6 +1,6 @@
 import { HostImage } from "@/components/hosts/host-image";
 import { HostStatus } from "@/components/hosts/host-status";
-import type { Host } from "@/hooks/use-hosts";
+import type { Host } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 export function HostHeader({ host }: { host: Host }) {

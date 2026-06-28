@@ -33,15 +33,15 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	RegisterAuth(
-		humaAPI,
-		humaAPI,
-		humaAPI,
-		router,
-		auth.NewService(userService, testSessionManager()),
-		userService,
-		discardLogger(),
-	)
+	RegisterAuth(AuthHandlerDeps{
+		Public:      humaAPI,
+		Session:     humaAPI,
+		Protected:   humaAPI,
+		Router:      router,
+		AuthService: auth.NewService(userService, testSessionManager()),
+		Users:       userService,
+		Logger:      discardLogger(),
+	})
 
 	body := strings.NewReader(`{"email":"admin@example.test","password":"wrong-password"}`)
 	rec := httptest.NewRecorder()

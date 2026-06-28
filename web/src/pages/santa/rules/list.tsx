@@ -21,14 +21,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
-import {
-  type SantaRule,
-  type SantaRuleType,
-  useBulkDeleteSantaRules,
-  useSantaRules,
-} from "@/hooks/use-santa-rules";
+import { useBulkDeleteSantaRules, useSantaRules } from "@/hooks/use-santa-rules";
+import type { SantaRule } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
-import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
+import { RULE_TYPE_OPTIONS, ruleTypeLabel, type SantaRuleType } from "@/lib/santa-rules";
 
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
 
@@ -108,7 +104,7 @@ export function RuleListPage() {
         meta: { label: "Targets" },
       },
     ];
-    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "select");
+    return baseColumns;
   }, [isAdmin, labelsByID]);
 
   const table = useDataTable({
@@ -118,6 +114,7 @@ export function RuleListPage() {
     pageCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
   });
 
   return (

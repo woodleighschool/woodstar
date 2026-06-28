@@ -85,10 +85,10 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 }
 
 type observedSantaHostStateRow struct {
-	SantaVersion       string
-	ClientModeReported string
-	LastSeenAt         *time.Time
-	LastCleanSyncAt    *time.Time
+	SantaVersion       string     `db:"santa_version"`
+	ClientModeReported string     `db:"client_mode_reported"`
+	LastSeenAt         *time.Time `db:"last_seen_at"`
+	LastCleanSyncAt    *time.Time `db:"last_clean_sync_at"`
 }
 
 const getObservedSantaHostStateSQL = `
@@ -102,14 +102,8 @@ LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
 WHERE sh.host_id = $1`
 
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	var row observedSantaHostStateRow
-	err := s.db.Pool().QueryRow(ctx, getObservedSantaHostStateSQL, hostID).Scan(
-		&row.SantaVersion,
-		&row.ClientModeReported,
-		&row.LastSeenAt,
-		&row.LastCleanSyncAt,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
+	row, err := dbutil.GetOne[observedSantaHostStateRow](ctx, s.db.Pool(), getObservedSantaHostStateSQL, hostID)
+	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
@@ -117,7 +111,7 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 	}
 	detail := HostState{
 		Version:            row.SantaVersion,
-		LastSyncAt:         row.LastSeenAt,
+		LastSeenAt:         row.LastSeenAt,
 		ClientModeReported: configurations.ReportedClientMode(row.ClientModeReported),
 	}
 

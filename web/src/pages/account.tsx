@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { type Account, useAccount, useUpdateAccount } from "@/hooks/use-account";
+import { useAccount, useUpdateAccount } from "@/hooks/use-account";
+import type { Account } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";

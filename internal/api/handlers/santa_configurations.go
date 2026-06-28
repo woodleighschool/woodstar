@@ -20,7 +20,7 @@ type santaConfigurationListInput struct {
 }
 
 type santaConfigurationGetInput struct {
-	ConfigurationID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaConfigurationCreateInput struct {
@@ -28,12 +28,12 @@ type santaConfigurationCreateInput struct {
 }
 
 type santaConfigurationUpdateInput struct {
-	ConfigurationID int64 `path:"id"`
-	Body            configurations.ConfigurationMutation
+	ID   int64 `path:"id"`
+	Body configurations.ConfigurationMutation
 }
 
 type santaConfigurationDeleteInput struct {
-	ConfigurationID int64 `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaConfigurationBulkDeleteInput struct {
@@ -58,7 +58,7 @@ type santaConfigurationOutput struct {
 
 func (input santaConfigurationListInput) params() configurations.ConfigurationListParams {
 	return configurations.ConfigurationListParams{
-		ListParams: input.ListQueryInput.Params(),
+		ListParams: input.ListQueryInput.params(),
 	}
 }
 
@@ -83,10 +83,15 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store, 
 	}, func(ctx context.Context, input *santaConfigurationListInput) (*santaConfigurationListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-santa-configurations", santaConfigurationMutationError(err))
+			return nil, handlerError(
+				ctx,
+				logger,
+				"list-santa-configurations",
+				resourceMutationError(santaConfigurationResource, err),
+			)
 		}
 		return &santaConfigurationListOutput{
-			Body: Page[configurations.Configuration]{Items: rows, Count: int32(count)},
+			Body: Page[configurations.Configuration]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -109,7 +114,12 @@ func registerCreateSantaConfiguration(api huma.API, store *configurations.Store,
 	}, func(ctx context.Context, input *santaConfigurationCreateInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "create-santa-configuration", santaConfigurationMutationError(err))
+			return nil, handlerError(
+				ctx,
+				logger,
+				"create-santa-configuration",
+				resourceMutationError(santaConfigurationResource, err),
+			)
 		}
 		return &santaConfigurationOutput{Body: *configuration}, nil
 	})
@@ -124,14 +134,14 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store, lo
 		Summary:     "Get a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.GetByID(ctx, input.ConfigurationID)
+		configuration, err := store.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, handlerError(
 				ctx,
 				logger,
 				"get-santa-configuration",
-				santaConfigurationMutationError(err),
-				"configuration_id", input.ConfigurationID,
+				resourceMutationError(santaConfigurationResource, err),
+				"id", input.ID,
 			)
 		}
 		return &santaConfigurationOutput{Body: *configuration}, nil
@@ -153,14 +163,14 @@ func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store,
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaConfigurationUpdateInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.Update(ctx, input.ConfigurationID, input.Body)
+		configuration, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, handlerError(
 				ctx,
 				logger,
 				"update-santa-configuration",
-				santaConfigurationMutationError(err),
-				"configuration_id", input.ConfigurationID,
+				resourceMutationError(santaConfigurationResource, err),
+				"id", input.ID,
 			)
 		}
 		return &santaConfigurationOutput{Body: *configuration}, nil
@@ -176,13 +186,13 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store,
 		Summary:     "Delete a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.ConfigurationID); err != nil {
+		if err := store.Delete(ctx, input.ID); err != nil {
 			return nil, handlerError(
 				ctx,
 				logger,
 				"delete-santa-configuration",
-				santaConfigurationMutationError(err),
-				"configuration_id", input.ConfigurationID,
+				resourceMutationError(santaConfigurationResource, err),
+				"id", input.ID,
 			)
 		}
 		return &struct{}{}, nil
@@ -203,7 +213,7 @@ func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.S
 				ctx,
 				logger,
 				"bulk-delete-santa-configurations",
-				santaConfigurationMutationError(err),
+				resourceMutationError(santaConfigurationResource, err),
 			)
 		}
 		return &struct{}{}, nil
@@ -220,12 +230,13 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaConfigurationReorderInput) (*struct{}, error) {
 		if err := store.ReorderConfigurations(ctx, input.Body.OrderedIDs); err != nil {
-			return nil, handlerError(ctx, logger, "reorder-santa-configurations", santaConfigurationMutationError(err))
+			return nil, handlerError(
+				ctx,
+				logger,
+				"reorder-santa-configurations",
+				resourceMutationError(santaConfigurationResource, err),
+			)
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func santaConfigurationMutationError(err error) error {
-	return ResourceMutationError(santaConfigurationResource, err)
 }

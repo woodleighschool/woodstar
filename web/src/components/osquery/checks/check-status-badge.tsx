@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { OsqueryCheckHostStatus } from "@/hooks/use-checks";
+import type { OsqueryCheckHostStatus } from "@/lib/api";
 
 export function CheckStatusBadge({
   response,

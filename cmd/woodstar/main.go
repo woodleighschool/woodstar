@@ -32,6 +32,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -225,10 +226,12 @@ type wiring struct {
 
 	storageObjects    *storage.ObjectStore
 	munkiPackages     *packages.Store
+	munkiPackageSvc   *munki.PackageService
 	munkiSoftware     *munkisoftware.Store
 	munkiHostState    *munki.Store
 	munkiRepo         *munki.RepositoryService
 	munkiDistribution *mdp.Store
+	munkiMDPProtocol  *mdpprotocol.Server
 
 	configurations *configurations.Store
 	events         *events.Store
@@ -311,6 +314,11 @@ func buildWiring(
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
 	w.munkiDistribution = mdp.NewStore(db, munkiDistributionLogger)
+	w.munkiMDPProtocol = mdpprotocol.NewServer(w.munkiDistribution, storageBackend, munkiDistributionLogger)
+	w.munkiPackageSvc = munki.NewPackageService(munki.PackageServiceDependencies{
+		Packages:               w.munkiPackages,
+		DesiredPackagesChanged: w.munkiMDPProtocol.RefreshDesiredPackages,
+	})
 
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -357,7 +365,7 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			StorageKey:     slices.Clone(w.storageKey),
 			StorageObjects: w.storageObjects,
 
-			MunkiPackages:     w.munkiPackages,
+			MunkiPackages:     w.munkiPackageSvc,
 			MunkiSoftware:     w.munkiSoftware,
 			MunkiHostState:    w.munkiHostState,
 			MunkiDistribution: w.munkiDistribution,
@@ -373,9 +381,10 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			Orbit:     w.orbitAgent,
 			Osquery:   w.osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
-				Repository:   w.munkiRepo,
-				Distribution: w.munkiDistribution,
-				Storage:      w.storageBackend,
+				Repository:           w.munkiRepo,
+				Distribution:         w.munkiDistribution,
+				DistributionProtocol: w.munkiMDPProtocol,
+				Storage:              w.storageBackend,
 			},
 			Santa: w.santaSync,
 		},

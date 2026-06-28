@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Combobox,
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
+import { useLabels } from "@/hooks/use-labels";
+import type { Label as WoodstarLabel } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 interface LabelPickerProps {
@@ -58,11 +59,6 @@ export function LabelPicker({
   const noLabelsMessage = emptyMessage ?? "No Labels Available.";
   const selectedValues = selected.map((label) => String(label.id));
   const selectedLabel = selected[0] ?? null;
-  const [singleInputValue, setSingleInputValue] = useState(selectedLabel?.name ?? "");
-
-  useEffect(() => {
-    setSingleInputValue(selectedLabel?.name ?? "");
-  }, [selectedLabel?.id, selectedLabel?.name]);
 
   if (labels.isLoading) {
     return <Skeleton className="h-9 w-full" />;
@@ -73,40 +69,18 @@ export function LabelPicker({
 
   if (selectionMode === "single") {
     return (
-      <Combobox
-        value={selectedLabel ? String(selectedLabel.id) : ""}
-        inputValue={singleInputValue}
-        onInputValueChange={setSingleInputValue}
-        onValueChange={(next) => {
-          const label = rows.find((candidate) => String(candidate.id) === next);
-          onChange(label ? [label.id] : []);
-          setSingleInputValue(label?.name ?? "");
-        }}
-      >
-        <ComboboxAnchor className="w-full">
-          <ComboboxInput
-            placeholder={
-              items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
-            }
-            required={required}
-            aria-invalid={invalid ? true : undefined}
-          />
-          {singleInputValue !== "" ? (
-            <ComboboxCancel
-              aria-label="Clear label"
-              onClick={() => {
-                setSingleInputValue("");
-                onChange([]);
-              }}
-            />
-          ) : null}
-          <ComboboxTrigger aria-label="Open labels" />
-        </ComboboxAnchor>
-        <ComboboxContent>
-          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
-          {items.map(labelItem)}
-        </ComboboxContent>
-      </Combobox>
+      <SingleLabelCombobox
+        key={selectedLabel?.id ?? "none"}
+        rows={rows}
+        items={items}
+        selected={selectedLabel}
+        emptyPlaceholder={emptyPlaceholder}
+        placeholder={placeholder}
+        noLabelsMessage={noLabelsMessage}
+        required={required}
+        invalid={invalid}
+        onChange={onChange}
+      />
     );
   }
 
@@ -133,6 +107,67 @@ export function LabelPicker({
           aria-invalid={invalid ? true : undefined}
         />
         <ComboboxTrigger aria-label="Open labels" className="ml-auto" />
+      </ComboboxAnchor>
+      <ComboboxContent>
+        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
+        {items.map(labelItem)}
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+function SingleLabelCombobox({
+  rows,
+  items,
+  selected,
+  emptyPlaceholder,
+  placeholder,
+  noLabelsMessage,
+  required,
+  invalid,
+  onChange,
+}: {
+  rows: WoodstarLabel[];
+  items: WoodstarLabel[];
+  selected: WoodstarLabel | null;
+  emptyPlaceholder?: string;
+  placeholder: string;
+  noLabelsMessage: string;
+  required: boolean;
+  invalid: boolean;
+  onChange: (value: number[]) => void;
+}) {
+  const [inputValue, setInputValue] = useState(selected?.name ?? "");
+
+  return (
+    <Combobox
+      value={selected ? String(selected.id) : ""}
+      inputValue={inputValue}
+      onInputValueChange={setInputValue}
+      onValueChange={(next) => {
+        const label = rows.find((candidate) => String(candidate.id) === next);
+        onChange(label ? [label.id] : []);
+        setInputValue(label?.name ?? "");
+      }}
+    >
+      <ComboboxAnchor className="w-full">
+        <ComboboxInput
+          placeholder={
+            items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
+          }
+          required={required}
+          aria-invalid={invalid ? true : undefined}
+        />
+        {inputValue !== "" ? (
+          <ComboboxCancel
+            aria-label="Clear label"
+            onClick={() => {
+              setInputValue("");
+              onChange([]);
+            }}
+          />
+        ) : null}
+        <ComboboxTrigger aria-label="Open labels" />
       </ComboboxAnchor>
       <ComboboxContent>
         <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>

@@ -5,7 +5,6 @@ import type { ApiError, LoginInputBody, SessionBody, SetupInputBody, User } from
 import { completeSetup, createSession, deleteSession, getSession, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type { SessionBody };
 export type CurrentUser = NonNullable<SessionBody["user"]>;
 
 export function useSession(): { session: SessionBody | null; isLoading: boolean } {

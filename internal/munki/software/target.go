@@ -6,9 +6,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -78,12 +78,12 @@ type EffectivePackage struct {
 
 // Schema returns the OpenAPI schema for PackageStrategy.
 func (PackageStrategy) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(packageStrategyValues...)
+	return openapischema.StringEnum(packageStrategyValues...)
 }
 
 // Schema returns the OpenAPI schema for Action.
 func (Action) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(actionValues...)
+	return openapischema.StringEnum(actionValues...)
 }
 
 func normalizeTargets(targets Targets) Targets {

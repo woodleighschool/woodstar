@@ -39,7 +39,7 @@ func TestDistributionPointMutationValidate(t *testing.T) {
 			t.Parallel()
 			mutation := base
 			tc.mutate(&mutation)
-			err := mutation.Validate()
+			err := mutation.validate()
 			if tc.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
 				t.Fatalf("error = %v, want ErrInvalidInput", err)
 			}

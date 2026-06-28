@@ -58,6 +58,31 @@ func (o Object) Available() bool {
 	return o.AvailableAt != nil
 }
 
+// SHA256Value returns the confirmed hash, or "" while the object is pending.
+func (o Object) SHA256Value() string {
+	if o.SHA256 == nil {
+		return ""
+	}
+	return *o.SHA256
+}
+
+// SizeBytesValue returns the confirmed byte length, or 0 while the object is pending.
+func (o Object) SizeBytesValue() int64 {
+	if o.SizeBytes == nil {
+		return 0
+	}
+	return *o.SizeBytes
+}
+
+// SizeKBValue returns the rounded-up confirmed size in KiB.
+func (o Object) SizeKBValue() int64 {
+	sizeBytes := o.SizeBytesValue()
+	if sizeBytes <= 0 {
+		return 0
+	}
+	return (sizeBytes + 1023) / 1024
+}
+
 // ObjectStore is the database registry of stored objects.
 type ObjectStore struct {
 	db      *database.DB

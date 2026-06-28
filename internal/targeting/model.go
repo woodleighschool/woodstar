@@ -3,7 +3,7 @@ package targeting
 import (
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // Direction describes how a label participates in target resolution.
@@ -38,7 +38,7 @@ func LabelRefIDs(refs []LabelRef) []int64 {
 
 // Schema returns the OpenAPI schema for Direction.
 func (Direction) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(DirectionValues...)
+	return openapischema.StringEnum(DirectionValues...)
 }
 
 // ValidDirection reports whether direction is a supported target direction.

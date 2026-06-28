@@ -1,16 +1,8 @@
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useDeleteUser, type User } from "@/hooks/use-users";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useDeleteUser } from "@/hooks/use-users";
+import type { User } from "@/lib/api";
 import { nonEmpty } from "@/lib/utils";
 
 export interface UserDeleteDialogProps {
@@ -24,6 +16,8 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
   const remove = useDeleteUser();
   const isLocal = user?.source === "local";
   const action = "Delete User";
+  const name = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "";
+  const userDescription = user?.name ? `${name} (${user.email})` : name;
   const description = isLocal
     ? "This permanently deletes the local user. Their next request will sign them out automatically."
     : "This removes the user from Woodstar's current directory view. Directory sync can restore the user if the source still contains it.";
@@ -37,42 +31,18 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
   }
 
   return (
-    <AlertDialog
+    <ConfirmDialog
       open={open}
       onOpenChange={(next) => {
         if (!next) remove.reset();
         onOpenChange(next);
       }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{action}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <p className="text-sm">
-          Delete{" "}
-          <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
-          {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
-        </p>
-
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={remove.isPending}
-            onClick={(event) => {
-              event.preventDefault();
-              void handleConfirm();
-            }}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      title={action}
+      description={userDescription ? `${description} Delete ${userDescription}?` : description}
+      confirmLabel="Delete"
+      variant="destructive"
+      pending={remove.isPending}
+      onConfirm={() => void handleConfirm()}
+    />
   );
 }

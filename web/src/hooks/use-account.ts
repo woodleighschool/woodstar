@@ -10,8 +10,6 @@ import {
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type { Account, AccountMutation };
-
 export function useAccount() {
   return useQuery<Account, ApiError>({
     queryKey: queryKeys.account,

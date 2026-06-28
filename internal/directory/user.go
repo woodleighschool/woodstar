@@ -5,8 +5,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
 // Role controls permissions.
@@ -73,7 +73,7 @@ type UserMutation struct {
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {
-	return schema.StringEnum(RoleValues...)
+	return openapischema.StringEnum(RoleValues...)
 }
 
 // Account is the signed-in user's self-view, including their retrievable API key.

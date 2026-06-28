@@ -30,10 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type {
-  SantaConfiguration,
-  SantaConfigurationMutation,
-} from "@/hooks/use-santa-configurations";
+import type { SantaConfiguration, SantaConfigurationMutation } from "@/lib/api";
 import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-validation";
 import {
   CLIENT_MODE_OPTIONS,

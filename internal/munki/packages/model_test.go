@@ -23,7 +23,7 @@ func TestPackageMutationValidateAccepts(t *testing.T) {
 	m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Name: "LANG", Value: "C"}}
 	m.BlockingApplications = []string{"Foo"}
 	m.InstallerChoicesXML = []PackageInstallerChoice{{ChoiceIdentifier: "choice"}}
-	if err := m.Validate(); err != nil {
+	if err := m.validate(); err != nil {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
 }
@@ -62,7 +62,7 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 			t.Parallel()
 			m := validPackageMutation()
 			mutate(&m)
-			if err := m.Validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := m.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
 				t.Fatalf("Validate() = %v, want ErrInvalidInput", err)
 			}
 		})

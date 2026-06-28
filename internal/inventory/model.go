@@ -58,8 +58,8 @@ type HostSoftwareInstalledVersion struct {
 	LastOpenedAt         *time.Time                 `json:"last_opened_at,omitempty"`
 }
 
-// HostSoftwareRow is software inventory projected for one host.
-type HostSoftwareRow struct {
+// HostSoftware is software inventory projected for one host.
+type HostSoftware struct {
 	ID                int64                          `json:"id"`
 	Name              string                         `json:"name"`
 	DisplayName       string                         `json:"display_name"`
@@ -70,18 +70,18 @@ type HostSoftwareRow struct {
 
 // SoftwareTitle is an aggregate software title row.
 type SoftwareTitle struct {
-	ID               int64             `json:"id"`
-	Name             string            `json:"name"`
-	DisplayName      string            `json:"display_name"`
-	Source           string            `json:"source"`
-	ExtensionFor     string            `json:"extension_for"`
-	Browser          string            `json:"browser"`
-	BundleIdentifier string            `json:"bundle_identifier,omitempty"`
-	Vendor           string            `json:"-"`
-	HostsCount       int32             `json:"hosts_count"`
-	VersionsCount    int32             `json:"versions_count"`
-	CountsUpdatedAt  *time.Time        `json:"counts_updated_at"`
-	Versions         []SoftwareVersion `json:"versions"`
+	ID               int64             `db:"id"                json:"id"`
+	Name             string            `db:"name"              json:"name"`
+	DisplayName      string            `db:"display_name"      json:"display_name"`
+	Source           string            `db:"source"            json:"source"`
+	ExtensionFor     string            `db:"extension_for"     json:"extension_for"`
+	Browser          string            `db:"-"                 json:"browser"`
+	BundleIdentifier string            `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
+	Vendor           string            `db:"vendor"            json:"-"`
+	HostsCount       int32             `db:"hosts_count"       json:"hosts_count"`
+	VersionsCount    int32             `db:"versions_count"    json:"versions_count"`
+	CountsUpdatedAt  *time.Time        `db:"counts_updated_at" json:"counts_updated_at"`
+	Versions         []SoftwareVersion `db:"-"                 json:"versions"`
 }
 
 // SoftwareTitleListParams controls software title list filtering and sorting.

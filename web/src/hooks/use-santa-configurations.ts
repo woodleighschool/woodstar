@@ -21,9 +21,8 @@ import {
 import type { ListSantaConfigurationsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 
-export type { SantaConfiguration, SantaConfigurationMutation };
-export type SantaConfigurationListResult = PageConfiguration;
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]
   | SantaConfiguration["client_mode"];
@@ -33,7 +32,7 @@ export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 export function useSantaConfigurations(params: SantaListParams = {}) {
   const queryParams = baseListParams(params);
 
-  return useQuery<SantaConfigurationListResult, ApiError>({
+  return useQuery<PageConfiguration, ApiError>({
     queryKey: queryKeys.santaConfigurations(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaConfigurations({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -46,7 +45,7 @@ export function useSantaConfiguration(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         getSantaConfiguration({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -58,12 +57,14 @@ export function useCreateSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<SantaConfiguration, ApiError, SantaConfigurationMutation>({
     mutationFn: (body) => unwrap(createSantaConfiguration({ body })),
-    onSuccess: (configuration) => {
+    onSuccess: async (configuration) => {
       toast.success("Configuration created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.santaConfiguration(configuration.id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.santaConfiguration(configuration.id),
+        }),
+      ]);
     },
   });
 }
@@ -82,12 +83,14 @@ export function useUpdateSantaConfiguration() {
           body,
         }),
       ),
-    onSuccess: (configuration) => {
+    onSuccess: async (configuration) => {
       toast.success("Configuration saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.santaConfiguration(configuration.id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.santaConfiguration(configuration.id),
+        }),
+      ]);
     },
   });
 }
@@ -101,8 +104,8 @@ export function useDeleteSantaConfiguration() {
           path: { id },
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },
   });
 }
@@ -111,8 +114,8 @@ export function useBulkDeleteSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteSantaConfigurations({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },
   });
 }
@@ -121,8 +124,8 @@ export function useReorderSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ordered_ids) => unwrap(reorderSantaConfigurations({ body: { ordered_ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },
   });
 }

@@ -295,9 +295,6 @@ func replaceConfigurationTargets(
 	targets ConfigurationTargets,
 ) error {
 	targets = normalizeConfigurationTargets(targets)
-	if err := targets.validate(); err != nil {
-		return err
-	}
 	rows := make([]configurationTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
 	for i, ref := range targets.Include {
 		rows = append(rows, configurationTargetWrite{
@@ -446,7 +443,10 @@ func configurationFromRow(row configurationRow) Configuration {
 		BatchSize:                 row.BatchSize,
 		AllowedPathRegex:          row.AllowedPathRegex,
 		BlockedPathRegex:          row.BlockedPathRegex,
-		RemovableMediaPolicy:      removableMediaPolicyFromRow(row.RemovableMediaAction, row.RemovableMediaRemountFlags),
+		RemovableMediaPolicy: removableMediaPolicyFromRow(
+			row.RemovableMediaAction,
+			row.RemovableMediaRemountFlags,
+		),
 		EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
 			row.EncryptedRemovableMediaAction,
 			row.EncryptedRemovableMediaRemountFlags,

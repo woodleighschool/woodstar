@@ -19,12 +19,11 @@ import {
 import type { ListMunkiPackagesData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
+import { detailPath } from "@/lib/route-params";
 
-export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
+type MunkiPackageListParams = NonNullable<ListMunkiPackagesData["query"]>;
 
-type MunkiSoftwareListParams = NonNullable<ListMunkiPackagesData["query"]>;
-
-function softwareQueryParams(params: MunkiSoftwareListParams) {
+function packageQueryParams(params: MunkiPackageListParams) {
   return {
     ...baseListParams(params),
     type: params.type?.length ? params.type : undefined,
@@ -32,8 +31,8 @@ function softwareQueryParams(params: MunkiSoftwareListParams) {
   };
 }
 
-export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
-  const query = softwareQueryParams(params);
+export function useMunkiPackages(params: MunkiPackageListParams = {}) {
+  const query = packageQueryParams(params);
   return useQuery<PageMunkiPackage, ApiError>({
     queryKey: queryKeys.munkiPackages(query),
     queryFn: ({ signal }) => unwrap(listMunkiPackages({ query, signal })),
@@ -44,7 +43,7 @@ export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
 export function useMunkiPackage(id: number | null) {
   return useQuery<MunkiPackage, ApiError>({
     queryKey: queryKeys.munkiPackage(id),
-    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: { id: id ?? 0 }, signal })),
+    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: detailPath(id), signal })),
     enabled: id !== null,
   });
 }
@@ -53,12 +52,14 @@ export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<MunkiPackage, ApiError, MunkiPackageCreateMutation>({
     mutationFn: (body) => unwrap(createMunkiPackage({ body })),
-    onSuccess: (pkg) => {
+    onSuccess: async (pkg) => {
       toast.success("Package created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
+        }),
+      ]);
     },
   });
 }
@@ -67,13 +68,15 @@ export function useUpdateMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<MunkiPackage, ApiError, { id: number; body: MunkiPackageMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateMunkiPackage({ path: { id }, body })),
-    onSuccess: (pkg) => {
+    onSuccess: async (pkg) => {
       toast.success("Package saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
+        }),
+      ]);
     },
   });
 }
@@ -82,9 +85,11 @@ export function useBulkDeleteMunkiPackages() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteMunkiPackages({ body: { ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+      ]);
     },
   });
 }

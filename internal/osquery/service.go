@@ -21,14 +21,7 @@ import (
 
 // AgentService performs osquery TLS-plugin operations.
 type AgentService struct {
-	hostStore          hostStore
-	inventoryProjector inventoryProjector
-	labelEvaluator     labelEvaluator
-	reportStore        reportStore
-	checkStore         checkStore
-	liveQueries        liveQueries
-	secretStore        agentauth.SecretVerifier
-	logger             *slog.Logger
+	deps Dependencies
 }
 
 type Dependencies struct {
@@ -75,21 +68,12 @@ type liveQueries interface {
 }
 
 func NewAgentService(deps Dependencies) *AgentService {
-	return &AgentService{
-		hostStore:          deps.HostStore,
-		inventoryProjector: deps.InventoryProjector,
-		labelEvaluator:     deps.LabelEvaluator,
-		reportStore:        deps.ReportStore,
-		checkStore:         deps.CheckStore,
-		liveQueries:        deps.LiveQueries,
-		secretStore:        deps.SecretStore,
-		logger:             deps.Logger,
-	}
+	return &AgentService{deps: deps}
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	nodeKey, err := enrollment.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
+	nodeKey, err := enrollment.IssueNodeKey(ctx, s.deps.SecretStore, req.EnrollSecret)
 	if err != nil {
 		return "", err
 	}
@@ -103,11 +87,11 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, e
 	}
 	update.OsqueryNodeKey = nodeKey
 
-	host, err := s.hostStore.UpsertOnOsqueryEnroll(ctx, update)
+	host, err := s.deps.HostStore.UpsertOnOsqueryEnroll(ctx, update)
 	if err != nil {
 		return "", fmt.Errorf("upsert host: %w", err)
 	}
-	s.logger.DebugContext(
+	s.deps.Logger.DebugContext(
 		ctx,
 		"osquery host enrolled", "operation", "enroll",
 		"host_id", host.ID,
@@ -126,7 +110,7 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP stri
 	if !ok {
 		return ConfigResponse{NodeInvalid: true}, nil
 	}
-	schedule, err := buildScheduleForHost(ctx, s.reportStore, host)
+	schedule, err := buildScheduleForHost(ctx, s.deps.ReportStore, host)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -174,7 +158,7 @@ func (s *AgentService) DistributedRead(
 	}
 	liveCount := s.queueLiveQueries(host, detailQueries)
 
-	s.logger.DebugContext(
+	s.deps.Logger.DebugContext(
 		ctx,
 		"osquery distributed queries prepared", "operation", "distributed_read",
 		"host_id", host.ID,
@@ -196,7 +180,7 @@ func (s *AgentService) queueLabelQueries(
 	ctx context.Context,
 	queryMap map[string]string,
 ) (int, error) {
-	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx)
+	labelRows, err := s.deps.LabelEvaluator.ApplicableLabels(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -216,7 +200,7 @@ func (s *AgentService) queueCheckQueries(
 	host *hosts.Host,
 	queryMap map[string]string,
 ) (int, error) {
-	checks, err := s.checkStore.ApplicableForHost(ctx, host)
+	checks, err := s.deps.CheckStore.ApplicableForHost(ctx, host)
 	if err != nil {
 		return 0, err
 	}
@@ -229,7 +213,7 @@ func (s *AgentService) queueCheckQueries(
 // queueLiveQueries injects ephemeral live queries pending for host. The
 // in-memory manager owns lifecycle; results route back through dispatch.
 func (s *AgentService) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
-	work := s.liveQueries.PendingForHost(host.ID)
+	work := s.deps.LiveQueries.PendingForHost(host.ID)
 	for _, item := range work {
 		queryMap[queryNameID(kindLive, item.QueryID)] = item.SQL
 	}
@@ -266,14 +250,14 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string,
 	}
 	if req.LogType == "result" {
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
-			s.logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
+			s.deps.Logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
 		}
 	}
 	return LogResponse{NodeInvalid: false}, nil
 }
 
 func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, publicIP string) (*hosts.Host, bool, error) {
-	host, err := s.hostStore.GetByOsqueryNodeKey(ctx, nodeKey)
+	host, err := s.deps.HostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, false, nil
 	}
@@ -281,7 +265,7 @@ func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, public
 		return nil, false, err
 	}
 	if publicIP != "" && !hostPublicIPMatches(host, publicIP) {
-		if err := s.hostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
+		if err := s.deps.HostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
 			Network: hosts.InventoryNetwork{LastRemoteIP: publicIP},
 		}); err != nil {
 			return nil, false, err

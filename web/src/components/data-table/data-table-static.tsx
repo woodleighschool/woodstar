@@ -52,11 +52,7 @@ export function DataTableStatic<TData>({ columns, data, empty }: DataTableStatic
           ) : (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length} className="p-0">
-                {empty ?? (
-                  <div className="h-24 text-center leading-[6rem] text-muted-foreground">
-                    No results.
-                  </div>
-                )}
+                {empty}
               </TableCell>
             </TableRow>
           )}

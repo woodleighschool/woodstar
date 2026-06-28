@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { OsqueryHostReport } from "@/hooks/use-hosts";
+import type { OsqueryHostReport } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 interface ReportResultCardProps {

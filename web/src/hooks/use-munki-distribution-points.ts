@@ -3,7 +3,6 @@ import { toast } from "sonner";
 
 import type {
   ApiError,
-  MunkiDistributionPoint,
   MunkiDistributionPointDetail,
   MunkiDistributionPointKeyBody,
   MunkiDistributionPointMutation,
@@ -23,13 +22,7 @@ import {
 import type { ListMunkiDistributionPointsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
-
-export type {
-  MunkiDistributionPoint,
-  MunkiDistributionPointDetail,
-  MunkiDistributionPointMutation,
-};
-export type MunkiDistributionPointListResult = PageDistributionPoint;
+import { detailPath } from "@/lib/route-params";
 
 export type MunkiDistributionPointListParams = NonNullable<
   ListMunkiDistributionPointsData["query"]
@@ -46,7 +39,7 @@ const MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS = 5_000;
 export function useMunkiDistributionPoints(params: MunkiDistributionPointListParams = {}) {
   const queryParams = baseListParams(params);
 
-  return useQuery<MunkiDistributionPointListResult, ApiError>({
+  return useQuery<PageDistributionPoint, ApiError>({
     queryKey: queryKeys.munkiDistributionPoints(queryParams),
     queryFn: ({ signal }) => unwrap(listMunkiDistributionPoints({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
@@ -62,7 +55,7 @@ export function useMunkiDistributionPoint(
     queryFn: ({ signal }) =>
       unwrap(
         getMunkiDistributionPoint({
-          path: { id: id ?? 0 },
+          path: detailPath(id),
           signal,
         }),
       ),
@@ -83,12 +76,14 @@ export function useCreateMunkiDistributionPoint() {
   const queryClient = useQueryClient();
   return useMutation<MunkiRevealedDistributionPoint, ApiError, MunkiDistributionPointMutation>({
     mutationFn: (body) => unwrap(createMunkiDistributionPoint({ body })),
-    onSuccess: (point) => {
+    onSuccess: async (point) => {
       toast.success("Distribution point created");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.munkiDistributionPoint(point.id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.munkiDistributionPoint(point.id),
+        }),
+      ]);
     },
   });
 }
@@ -107,12 +102,14 @@ export function useUpdateMunkiDistributionPoint() {
           body,
         }),
       ),
-    onSuccess: (point) => {
+    onSuccess: async (point) => {
       toast.success("Distribution point saved");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.munkiDistributionPoint(point.id),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.munkiDistributionPoint(point.id),
+        }),
+      ]);
     },
   });
 }
@@ -126,8 +123,8 @@ export function useDeleteMunkiDistributionPoint() {
           path: { id },
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
     },
   });
 }
@@ -136,8 +133,8 @@ export function useReorderMunkiDistributionPoints() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ordered_ids) => unwrap(reorderMunkiDistributionPoints({ body: { ordered_ids } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
     },
   });
 }
@@ -151,11 +148,13 @@ export function useRotateMunkiDistributionPointKey() {
           path: { id },
         }),
       ),
-    onSuccess: (_key, id) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.munkiDistributionPoint(id),
-      });
+    onSuccess: async (_key, id) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.munkiDistributionPoint(id),
+        }),
+      ]);
     },
   });
 }

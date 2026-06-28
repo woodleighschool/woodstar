@@ -4,6 +4,7 @@ import { GripVertical, HardDrive, Plus } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
@@ -11,16 +12,6 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -41,10 +32,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
 import {
-  type MunkiDistributionPoint,
   useMunkiDistributionPoints,
   useReorderMunkiDistributionPoints,
 } from "@/hooks/use-munki-distribution-points";
+import type { MunkiDistributionPoint } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import {
   BoolBadge,
@@ -343,30 +334,13 @@ function ReorderWarningDialog({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Reorder distribution points?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Woodstar redirects to the first matching distribution point. Reordering changes client
-            behavior immediately.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm">
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            size="sm"
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
-          >
-            Continue
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Reorder distribution points?"
+      description="Woodstar redirects to the first matching distribution point. Reordering changes client behavior immediately."
+      confirmLabel="Continue"
+      onConfirm={onConfirm}
+    />
   );
 }

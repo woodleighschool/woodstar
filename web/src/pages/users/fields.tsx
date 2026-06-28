@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { User, UserMutation } from "@/hooks/use-users";
+import type { User, UserMutation } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import {
   USER_ACCESS_ROLE_OPTIONS,

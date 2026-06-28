@@ -23,7 +23,7 @@ type HostObservation struct {
 type HostState struct {
 	Version            string                             `json:"version"`
 	ClientModeReported configurations.ReportedClientMode  `json:"client_mode_reported"`
-	LastSyncAt         *time.Time                         `json:"last_sync_at,omitempty"`
+	LastSeenAt         *time.Time                         `json:"last_seen_at,omitempty"`
 	Configuration      *configurations.ConfigurationMatch `json:"configuration,omitempty"`
 	RuleSync           RuleSyncSummary                    `json:"rule_sync"`
 }

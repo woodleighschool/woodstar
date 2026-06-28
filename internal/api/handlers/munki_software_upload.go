@@ -13,13 +13,13 @@ import (
 )
 
 type munkiSoftwareUploadInput struct {
-	SoftwareID int64 `path:"id"`
-	Body       MunkiUploadRequest
+	ID   int64 `path:"id"`
+	Body MunkiUploadRequest
 }
 
 type munkiSoftwareConfirmInput struct {
-	SoftwareID int64 `path:"id"`
-	ObjectID   int64 `path:"object_id"`
+	ID       int64 `path:"id"`
+	ObjectID int64 `path:"object_id"`
 }
 
 type munkiIconObjectsInput struct {
@@ -62,7 +62,7 @@ func registerCreateSoftwareIconRoute(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
-		if _, err := software.GetByID(ctx, input.SoftwareID); err != nil {
+		if _, err := software.GetByID(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -70,7 +70,7 @@ func registerCreateSoftwareIconRoute(
 				munkiupload.Label,
 				err,
 				"software_id",
-				input.SoftwareID,
+				input.ID,
 			)
 		}
 		obj, target, err := munkiupload.Create(
@@ -89,7 +89,7 @@ func registerCreateSoftwareIconRoute(
 				munkiupload.Label,
 				err,
 				"software_id",
-				input.SoftwareID,
+				input.ID,
 			)
 		}
 		return munkiUploadOutputFromTarget(obj, target), nil
@@ -126,9 +126,9 @@ func registerConfirmSoftwareIconRoute(
 				Prefix:    munkiupload.IconObjectPrefix,
 				ObjectID:  input.ObjectID,
 				Attach: func(objectID int64) error {
-					return software.SetIcon(ctx, input.SoftwareID, objectID)
+					return software.SetIcon(ctx, input.ID, objectID)
 				},
-				Attrs: []any{"software_id", input.SoftwareID},
+				Attrs: []any{"software_id", input.ID},
 			},
 		)
 	})
@@ -148,7 +148,7 @@ func registerListMunkiIconsRoute(
 		Summary:     "List uploaded Munki icons",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
-		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.Params())
+		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.params())
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-munki-icons", "Munki icon", err)
 		}
@@ -162,7 +162,7 @@ func registerListMunkiIconsRoute(
 		}
 		return &munkiIconObjectsOutput{Body: Page[MunkiObjectView]{
 			Items: views,
-			Count: int32(count),
+			Count: count,
 		}}, nil
 	})
 }

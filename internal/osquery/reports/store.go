@@ -256,18 +256,7 @@ SET
 WHERE id = @id
 RETURNING id`
 
-const scheduledReportsForHostSQL = `
-SELECT
-	r.id,
-	r.name,
-	r.description,
-	r.query,
-	r.min_osquery_version,
-	r.schedule_interval,
-	r.created_by_user_id,
-	r.created_at,
-	r.updated_at
-FROM reports r
+const scheduledReportsForHostSQL = reportSelectSQL + `
 WHERE r.schedule_interval > 0
   AND EXISTS (
       SELECT 1

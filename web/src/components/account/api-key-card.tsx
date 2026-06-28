@@ -2,17 +2,8 @@ import { Copy, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { QueryError } from "@/components/query-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -148,58 +139,26 @@ export function APIKeyCard() {
         ) : null}
       </CardContent>
 
-      <AlertDialog open={confirmRotate} onOpenChange={setConfirmRotate}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rotate API Key?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The current key stops working immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel variant="ghost" size="sm" disabled={rotate.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              size="sm"
-              disabled={rotate.isPending}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleRotate();
-              }}
-            >
-              Rotate
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmRotate}
+        onOpenChange={setConfirmRotate}
+        title="Rotate API Key?"
+        description="The current key stops working immediately."
+        confirmLabel="Rotate"
+        pending={rotate.isPending}
+        onConfirm={() => void handleRotate()}
+      />
 
-      <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The current key stops working immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel variant="ghost" size="sm" disabled={revoke.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              size="sm"
-              disabled={revoke.isPending}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleRevoke();
-              }}
-            >
-              Revoke
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmRevoke}
+        onOpenChange={setConfirmRevoke}
+        title="Revoke API Key?"
+        description="The current key stops working immediately."
+        confirmLabel="Revoke"
+        variant="destructive"
+        pending={revoke.isPending}
+        onConfirm={() => void handleRevoke()}
+      />
     </Card>
   );
 }

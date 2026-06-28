@@ -8,7 +8,8 @@ import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type OsqueryCheckHostStatus, useCheck, useCheckResults } from "@/hooks/use-checks";
+import { useCheck, useCheckResults } from "@/hooks/use-checks";
+import type { OsqueryCheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [

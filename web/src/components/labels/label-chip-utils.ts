@@ -1,4 +1,4 @@
-import type { Label } from "@/hooks/use-labels";
+import type { Label } from "@/lib/api";
 
 export interface LabelChip {
   id: number;

@@ -23,10 +23,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
-import type {
-  MunkiDistributionPointDetail,
-  MunkiDistributionPointMutation,
-} from "@/hooks/use-munki-distribution-points";
+import type { MunkiDistributionPointDetail, MunkiDistributionPointMutation } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 
 interface StringRow {
