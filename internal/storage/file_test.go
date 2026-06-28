@@ -101,7 +101,7 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 	if got := parsed.Scheme + "://" + parsed.Host + parsed.EscapedPath(); got != "https://woodstar.example/storage/munki/icons/7/App%20Icon.png" {
 		t.Fatalf("blob URL = %q, want path-bound storage URL", got)
 	}
-	claims, err := capability.Verify[blobClaims](
+	claims, err := capability.Verify[BlobCapabilityClaims](
 		testCapabilityKey,
 		parsed.Query().Get("cap"),
 		capability.OpGet,
@@ -148,7 +148,7 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 	if parsed.Query().Get("cap") == "" {
 		t.Fatalf("url = %q, want capability token", target.URL)
 	}
-	claims, err := capability.Verify[blobClaims](
+	claims, err := capability.Verify[BlobCapabilityClaims](
 		testCapabilityKey,
 		parsed.Query().Get("cap"),
 		capability.OpPut,

@@ -21,12 +21,13 @@ var ErrInvalidPublicURL = errors.New("invalid WOODSTAR_PUBLIC_URL")
 
 // Config contains runtime settings.
 type Config struct {
-	Host          string `env:"HOST"                             envDefault:"0.0.0.0"`
-	Port          int    `env:"PORT"                             envDefault:"8080"`
-	PublicURL     string `env:"PUBLIC_URL,required,notEmpty"`
-	SessionSecret string `env:"SESSION_SECRET,required,notEmpty"`
-	DatabaseURL   string `env:"DATABASE_URL"`
-	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
+	Host               string   `env:"HOST"                             envDefault:"0.0.0.0"`
+	Port               int      `env:"PORT"                             envDefault:"8080"`
+	PublicURL          string   `env:"PUBLIC_URL,required,notEmpty"`
+	SessionSecret      string   `env:"SESSION_SECRET,required,notEmpty"`
+	DatabaseURL        string   `env:"DATABASE_URL"`
+	LogLevel           string   `env:"LOG_LEVEL"                        envDefault:"info"`
+	CORSAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS"`
 
 	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90"`
 	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h"`
@@ -116,8 +117,46 @@ func (cfg *Config) normalize() error {
 	if err := cfg.normalizeStorage(); err != nil {
 		return err
 	}
+	if err := cfg.normalizeCORSAllowedOrigins(); err != nil {
+		return err
+	}
 
 	return cfg.normalizeClientIP()
+}
+
+func (cfg *Config) normalizeCORSAllowedOrigins() error {
+	if len(cfg.CORSAllowedOrigins) == 0 {
+		return nil
+	}
+	normalized := make([]string, 0, len(cfg.CORSAllowedOrigins))
+	seen := make(map[string]struct{}, len(cfg.CORSAllowedOrigins))
+	for _, raw := range cfg.CORSAllowedOrigins {
+		origin := strings.TrimSpace(raw)
+		if origin == "" {
+			continue
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil {
+			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: %w", origin, err)
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: scheme must be http or https", origin)
+		}
+		if parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: must be an origin", origin)
+		}
+		if parsed.Path != "" && parsed.Path != "/" {
+			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: must not include a path", origin)
+		}
+		origin = strings.TrimRight(parsed.Scheme+"://"+parsed.Host, "/")
+		if _, ok := seen[origin]; ok {
+			continue
+		}
+		seen[origin] = struct{}{}
+		normalized = append(normalized, origin)
+	}
+	cfg.CORSAllowedOrigins = normalized
+	return nil
 }
 
 func (cfg *Config) normalizeClientIP() error {

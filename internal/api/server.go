@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
@@ -15,6 +16,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/cors"
 
 	"github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
@@ -24,7 +26,6 @@ import (
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 func init() {
@@ -89,6 +90,8 @@ func routes(deps handlers.Dependencies) http.Handler {
 	r.Use(clientIPMiddleware(deps.Config))
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Timeout(120 * time.Second))
+	r.Use(compressionMiddleware(deps.Logger))
+	r.Use(corsMiddleware(deps.Config))
 
 	r.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("alive\n"))
@@ -115,7 +118,6 @@ func routes(deps handlers.Dependencies) http.Handler {
 // protocols that live beside the app API on the same HTTP server.
 func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
-	storage.RegisterBlobRoutes(r, deps.StorageBackend, deps.StorageKey, deps.Logger.With("component", "storage"))
 	orbitprotocol.RegisterOrbitRoutes(r, deps.OrbitAgent, deps.Logger.With("component", "orbit"))
 	osqueryprotocol.RegisterOsqueryRoutes(r, deps.OsqueryAgent, deps.Logger.With("component", "osquery"))
 	munkiprotocol.RegisterMunkiRoutes(
@@ -138,11 +140,15 @@ func protocolRoutes(r chi.Router, deps handlers.Dependencies) {
 
 func browserRoutes(r chi.Router, deps handlers.Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
-	r.Use(compressionMiddleware(deps.Logger))
-	r.Use(deps.SessionManager.LoadAndSave)
-	r.Use(middleware.CrossOriginProtection())
-	Mount(r, deps)
-	deps.WebHandler.RegisterRoutes(r)
+	r.Group(func(r chi.Router) {
+		handlers.RegisterBlobStorage(r, deps.StorageBackend, deps.StorageKey, deps.Logger.With("component", "storage"))
+	})
+	r.Group(func(r chi.Router) {
+		r.Use(deps.SessionManager.LoadAndSave)
+		r.Use(middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins))
+		Mount(r, deps)
+		deps.WebHandler.RegisterRoutes(r)
+	})
 }
 
 // Mount attaches public and authenticated app API routes to r.
@@ -241,5 +247,40 @@ func compressionMiddleware(logger *slog.Logger) func(http.Handler) http.Handler 
 			return next
 		}
 	}
-	return compressor
+	return func(next http.Handler) http.Handler {
+		compressed := compressor(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.Header.Get("Accept"), "text/event-stream") ||
+				strings.HasPrefix(req.URL.Path, "/storage/") ||
+				req.Header.Get("Range") != "" {
+				next.ServeHTTP(w, req)
+				return
+			}
+			compressed.ServeHTTP(w, req)
+		})
+	}
+}
+
+func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {
+	if len(cfg.CORSAllowedOrigins) == 0 {
+		return func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+	return cors.New(cors.Options{
+		AllowCredentials: true,
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodOptions,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Range", "X-API-Key", "X-Requested-With"},
+		ExposedHeaders: []string{"Accept-Ranges", "Content-Length", "Content-Range", "Content-Type"},
+		MaxAge:         300,
+	}).Handler
 }

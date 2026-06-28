@@ -146,7 +146,7 @@ func (s *fileStore) PresignGet(
 	ttl time.Duration,
 	opts GetOptions,
 ) (string, error) {
-	return s.blobURL(blobClaims{
+	return s.blobURL(BlobCapabilityClaims{
 		Op:          capability.OpGet,
 		Key:         key,
 		Exp:         time.Now().Add(s.expires(ttl)).Unix(),
@@ -160,7 +160,7 @@ func (s *fileStore) PresignPut(
 	ttl time.Duration,
 	opts PutOptions,
 ) (UploadTarget, error) {
-	url, err := s.blobURL(blobClaims{
+	url, err := s.blobURL(BlobCapabilityClaims{
 		Op:          capability.OpPut,
 		Key:         key,
 		Exp:         time.Now().Add(s.expires(ttl)).Unix(),
@@ -176,7 +176,7 @@ func (s *fileStore) PresignPut(
 	}, nil
 }
 
-func (s *fileStore) blobURL(claims blobClaims) (string, error) {
+func (s *fileStore) blobURL(claims BlobCapabilityClaims) (string, error) {
 	token, err := capability.Sign(s.capabilityKey, claims)
 	if err != nil {
 		return "", err

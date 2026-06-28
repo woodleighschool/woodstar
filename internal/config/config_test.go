@@ -95,6 +95,36 @@ func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {
 	}
 }
 
+func TestApplyEnvironmentNormalizesCORSAllowedOrigins(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
+	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv(
+		"WOODSTAR_CORS_ALLOWED_ORIGINS",
+		" https://panel.example.com/,https://panel.example.com, http://localhost:5173 ",
+	)
+
+	cfg := Config{}
+	if err := ApplyEnvironment(&cfg); err != nil {
+		t.Fatalf("ApplyEnvironment returned error: %v", err)
+	}
+
+	want := []string{"https://panel.example.com", "http://localhost:5173"}
+	if strings.Join(cfg.CORSAllowedOrigins, ",") != strings.Join(want, ",") {
+		t.Fatalf("CORSAllowedOrigins = %#v, want %#v", cfg.CORSAllowedOrigins, want)
+	}
+}
+
+func TestApplyEnvironmentRejectsCORSAllowedOriginWithPath(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
+	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_CORS_ALLOWED_ORIGINS", "https://panel.example.com/woodstar")
+
+	err := ApplyEnvironment(&Config{})
+	if err == nil {
+		t.Fatal("ApplyEnvironment returned nil error, want CORS origin path rejection")
+	}
+}
+
 func TestApplyEnvironmentReadsStorageS3Config(t *testing.T) {
 	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
