@@ -42,6 +42,11 @@ var (
 	errRequestBodyTooBig = errors.New("santa sync request body too large")
 )
 
+type machineIDProtoMessage interface {
+	proto.Message
+	GetMachineId() string
+}
+
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
 	Preflight(context.Context, string, santa.PreflightRequest) (santa.PreflightResponse, error)
@@ -129,7 +134,7 @@ func (h handler) postflight(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func handleSyncRequest[ProtoReq proto.Message, DomainReq any, DomainResp any, ProtoResp proto.Message](
+func handleSyncRequest[ProtoReq machineIDProtoMessage, DomainReq any, DomainResp any, ProtoResp proto.Message](
 	h handler,
 	w http.ResponseWriter,
 	r *http.Request,
@@ -150,13 +155,18 @@ func handleSyncRequest[ProtoReq proto.Message, DomainReq any, DomainResp any, Pr
 		h.writeError(w, r, err)
 		return
 	}
+	machineID := chi.URLParam(r, "machine_id")
+	if err := validateRequestMachineID(machineID, req); err != nil {
+		h.writeError(w, r, err)
+		return
+	}
 	domainReq, err := fromProto(req)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 
-	resp, err := handle(r.Context(), chi.URLParam(r, "machine_id"), domainReq)
+	resp, err := handle(r.Context(), machineID, domainReq)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -427,6 +437,13 @@ func decodeRequest(r *http.Request, msg proto.Message) error {
 	}
 	if err := proto.Unmarshal(payload, msg); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidSyncBody, err)
+	}
+	return nil
+}
+
+func validateRequestMachineID(pathMachineID string, req machineIDProtoMessage) error {
+	if req.GetMachineId() != pathMachineID {
+		return fmt.Errorf("%w: body machine_id %q does not match path machine_id %q", dbutil.ErrInvalidInput, req.GetMachineId(), pathMachineID)
 	}
 	return nil
 }

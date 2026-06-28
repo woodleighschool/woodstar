@@ -100,6 +100,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 
 	var preflight syncv1.PreflightResponse
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/preflight/"+machineID, &syncv1.PreflightRequest{
+		MachineId:        machineID,
 		SerialNumber:     "SANTACONTRACT",
 		SantaVersion:     "2026.2",
 		ClientMode:       syncv1.ClientMode_MONITOR,
@@ -118,7 +119,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 
 	var download syncv1.RuleDownloadResponse
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/ruledownload/"+machineID,
-		&syncv1.RuleDownloadRequest{}, &download)
+		&syncv1.RuleDownloadRequest{MachineId: machineID}, &download)
 	if len(download.GetRules()) != 1 {
 		t.Fatalf("downloaded rules = %+v, want one", download.GetRules())
 	}
@@ -131,12 +132,14 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
+		MachineId:      machineID,
 		RulesHash:      "client-hash-after",
 		RulesReceived:  uint32(len(download.GetRules())),
 		RulesProcessed: uint32(len(download.GetRules())),
 	}, &syncv1.PostflightResponse{})
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
+		MachineId: machineID,
 		Events: []*syncv1.Event{
 			{
 				FileSha256:    "sha256-contract-" + suffix,
@@ -517,8 +520,58 @@ func TestSantaHTTPCoversAllSyncStages(t *testing.T) {
 	}
 }
 
+func TestSantaHTTPRejectsMachineIDMismatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		request proto.Message
+	}{
+		{
+			name:    "preflight",
+			path:    "/santa/sync/preflight/machine-1",
+			request: &syncv1.PreflightRequest{MachineId: "machine-2"},
+		},
+		{
+			name:    "event upload",
+			path:    "/santa/sync/eventupload/machine-1",
+			request: &syncv1.EventUploadRequest{MachineId: "machine-2"},
+		},
+		{
+			name:    "rule download",
+			path:    "/santa/sync/ruledownload/machine-1",
+			request: &syncv1.RuleDownloadRequest{MachineId: "machine-2"},
+		},
+		{
+			name:    "postflight",
+			path:    "/santa/sync/postflight/machine-1",
+			request: &syncv1.PostflightRequest{MachineId: "machine-2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &recordingService{}
+			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, tt.path, bytes.NewReader(mustGzipProto(t, tt.request)))
+			req.Header.Set("Authorization", "Bearer ok")
+			req.Header.Set("Content-Type", protobufContentType)
+			req.Header.Set("Content-Encoding", "gzip")
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+			if service.stage != "" {
+				t.Fatalf("service stage = %q, want no service call", service.stage)
+			}
+		})
+	}
+}
+
 func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
-	validBody := mustGzipProto(t, &syncv1.PreflightRequest{})
+	validBody := mustGzipProto(t, &syncv1.PreflightRequest{MachineId: "machine-1"})
 	malformedProto := mustGzip(t, []byte("not a protobuf"))
 
 	tests := []struct {
@@ -754,11 +807,21 @@ func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
 func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Request {
 	t.Helper()
 
+	setter, ok := msg.(interface{ SetMachineId(string) })
+	if !ok {
+		t.Fatalf("request %T cannot set machine_id", msg)
+	}
+	setter.SetMachineId(machineIDFromSyncPath(path))
+
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(mustGzipProto(t, msg)))
 	req.Header.Set("Authorization", "Bearer ok")
 	req.Header.Set("Content-Type", protobufContentType)
 	req.Header.Set("Content-Encoding", "gzip")
 	return req
+}
+
+func machineIDFromSyncPath(path string) string {
+	return path[strings.LastIndex(path, "/")+1:]
 }
 
 func doSantaContractProto(
