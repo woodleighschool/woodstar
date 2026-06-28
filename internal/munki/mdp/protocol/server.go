@@ -1,4 +1,5 @@
-package mdp
+// Package protocol serves the Munki distribution point worker protocol.
+package protocol
 
 import (
 	"context"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/httpx"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -21,10 +23,18 @@ import (
 // stream: an in-flight download keeps going after the URL expires.
 const workerDownloadTTL = 15 * time.Minute
 
+// Server owns the worker-facing MDP protocol routes and live connection hub.
+type Server struct {
+	store     *mdp.Store
+	hub       *Hub
+	presigner storage.Presigner
+	logger    *slog.Logger
+}
+
 // workerHandler is the MDP-facing server side: the WebSocket control endpoint a
 // worker connects to, plus the per-job download-URL endpoint it pulls from.
 type workerHandler struct {
-	store     *Store
+	store     *mdp.Store
 	hub       *Hub
 	presigner storage.Presigner
 	logger    *slog.Logger
@@ -34,17 +44,36 @@ type downloadURLResponse struct {
 	DownloadURL string `json:"download_url"`
 }
 
-// RegisterProtocolRoutes mounts the MDP worker-facing endpoints.
-func RegisterProtocolRoutes(
-	r chi.Router,
-	hub *Hub,
-	store *Store,
+// NewServer returns a worker-facing protocol server.
+func NewServer(
+	store *mdp.Store,
 	presigner storage.Presigner,
 	logger *slog.Logger,
-) {
-	h := workerHandler{store: store, hub: hub, presigner: presigner, logger: logger}
+) *Server {
+	return &Server{
+		store:     store,
+		hub:       newHub(store, store.Presence(), logger),
+		presigner: presigner,
+		logger:    logger,
+	}
+}
+
+// RegisterRoutes mounts the MDP worker-facing endpoints.
+func (s *Server) RegisterRoutes(r chi.Router) {
+	h := workerHandler{store: s.store, hub: s.hub, presigner: s.presigner, logger: s.logger}
 	r.Get("/api/munki/distribution/connect", h.connect)
 	r.Get("/api/munki/distribution/packages/{id}/download-url", h.downloadURL)
+}
+
+// RefreshDesiredPackages pushes the current desired package set to connected
+// distribution points.
+func (s *Server) RefreshDesiredPackages() {
+	s.hub.refreshDesiredPackages()
+}
+
+// Close drops connected workers and stops protocol background work.
+func (s *Server) Close() {
+	s.hub.Close()
 }
 
 // connect upgrades an authenticated worker to a WebSocket and hands it to the
@@ -97,7 +126,7 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 	httpx.Write(w, http.StatusOK, downloadURLResponse{DownloadURL: url})
 }
 
-func (h workerHandler) authenticate(w http.ResponseWriter, r *http.Request) (*DistributionPoint, bool) {
+func (h workerHandler) authenticate(w http.ResponseWriter, r *http.Request) (*mdp.DistributionPoint, bool) {
 	token, ok := httpx.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)

@@ -113,11 +113,10 @@ func newOrbitContractStores(database *database.DB) orbitContractStores {
 
 func newOrbitContractRouter(stores orbitContractStores) http.Handler {
 	router := chi.NewRouter()
-	RegisterOrbitRoutes(
-		router,
+	NewServer(
 		orbit.NewEnrollmentService(stores.hosts, stores.agentSecrets, stores.primaryUsers),
 		slog.New(slog.DiscardHandler),
-	)
+	).RegisterRoutes(router)
 	return router
 }
 

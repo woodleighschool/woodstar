@@ -256,8 +256,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 	projector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
 	projector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
-	RegisterOsqueryRoutes(
-		router,
+	NewServer(
 		osquery.NewAgentService(osquery.Dependencies{
 			HostStore:          stores.hosts,
 			InventoryProjector: projector,
@@ -269,7 +268,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 			Logger:             logger.With("component", "osquery"),
 		}),
 		logger,
-	)
+	).RegisterRoutes(router)
 	return router
 }
 

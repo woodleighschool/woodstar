@@ -116,39 +116,21 @@ func registerConfirmSoftwareIconRoute(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareConfirmInput) (*munkiObjectOutput, error) {
-		obj, err := munkiupload.Confirm(
+		return confirmMunkiObjectUpload(
 			ctx,
 			objects,
-			munkiupload.IconObjectPrefix,
-			input.ObjectID,
-			func(objectID int64) error {
-				return software.SetIcon(ctx, input.SoftwareID, objectID)
+			presigner,
+			logger,
+			munkiUploadConfirm{
+				Operation: "confirm-munki-software-icon-upload",
+				Prefix:    munkiupload.IconObjectPrefix,
+				ObjectID:  input.ObjectID,
+				Attach: func(objectID int64) error {
+					return software.SetIcon(ctx, input.SoftwareID, objectID)
+				},
+				Attrs: []any{"software_id", input.SoftwareID},
 			},
 		)
-		if err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"confirm-munki-software-icon-upload",
-				munkiupload.Label,
-				err,
-				"software_id", input.SoftwareID,
-				"object_id", input.ObjectID,
-			)
-		}
-		view, err := munkiObjectViewWithContentURL(ctx, presigner, *obj)
-		if err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"confirm-munki-software-icon-upload",
-				munkiupload.Label,
-				err,
-				"software_id", input.SoftwareID,
-				"object_id", input.ObjectID,
-			)
-		}
-		return &munkiObjectOutput{Body: view}, nil
 	})
 }
 

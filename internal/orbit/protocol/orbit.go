@@ -19,15 +19,26 @@ const (
 	orbitCapabilitiesValue = "orbit_endpoints,end_user_email"
 )
 
-// RegisterOrbitRoutes mounts Orbit endpoints on r.
-func RegisterOrbitRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slog.Logger) {
+// Server owns Orbit protocol routes.
+type Server struct {
+	service *orbit.EnrollmentService
+	logger  *slog.Logger
+}
+
+// NewServer returns an Orbit protocol server.
+func NewServer(service *orbit.EnrollmentService, logger *slog.Logger) *Server {
+	return &Server{service: service, logger: logger}
+}
+
+// RegisterRoutes mounts Orbit endpoints on r.
+func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(orbitCapabilities)
-		r.Post("/api/fleet/orbit/enroll", orbitEnrollHandler(svc, logger))
-		r.Post("/api/fleet/orbit/config", orbitConfigHandler(svc, logger))
-		r.Put("/api/fleet/orbit/device_mapping", orbitDeviceMappingHandler(svc, logger))
+		r.Post("/api/fleet/orbit/enroll", orbitEnrollHandler(s.service, s.logger))
+		r.Post("/api/fleet/orbit/config", orbitConfigHandler(s.service, s.logger))
+		r.Put("/api/fleet/orbit/device_mapping", orbitDeviceMappingHandler(s.service, s.logger))
 		r.Head("/api/fleet/orbit/ping", orbitPingHandler)
-		registerOrbitCompatibilityRoutes(r, svc)
+		registerOrbitCompatibilityRoutes(r, s.service)
 	})
 }
 

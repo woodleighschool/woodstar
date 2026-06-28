@@ -22,10 +22,15 @@ type Store struct {
 	logger   *slog.Logger
 }
 
-// NewStore returns a distribution point store backed by db. The presence set is
-// shared with the hub: the hub writes it, the store reads it to gate redirects.
-func NewStore(db *database.DB, presence *Presence, logger *slog.Logger) *Store {
-	return &Store{db: db, presence: presence, logger: logger}
+// NewStore returns a distribution point store backed by db.
+func NewStore(db *database.DB, logger *slog.Logger) *Store {
+	return &Store{db: db, presence: NewPresence(), logger: logger}
+}
+
+// Presence returns the live worker presence set shared by selection and the
+// worker protocol hub.
+func (s *Store) Presence() *Presence {
+	return s.presence
 }
 
 // List returns distribution points in admin order with live presence.

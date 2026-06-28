@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/munki"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -28,21 +29,20 @@ type munkiPackageConfirmInput struct {
 
 func registerObjectRoutes(
 	api huma.API,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
-	notifier desiredNotifier,
 	logger *slog.Logger,
 ) {
 	objectPath := munkiPackagePath + "/{id}/installer"
 	registerCreatePackageInstallerRoute(api, packageStore, objects, store, objectPath, logger)
-	registerConfirmPackageInstallerRoute(api, packageStore, objects, store, notifier, objectPath, logger)
-	registerDeletePackageInstallerRoute(api, packageStore, notifier, objectPath, logger)
+	registerConfirmPackageInstallerRoute(api, packageStore, objects, store, objectPath, logger)
+	registerDeletePackageInstallerRoute(api, packageStore, objectPath, logger)
 }
 
 func registerCreatePackageInstallerRoute(
 	api huma.API,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
 	objectPath string,
@@ -97,10 +97,9 @@ func registerCreatePackageInstallerRoute(
 
 func registerConfirmPackageInstallerRoute(
 	api huma.API,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	objects *storage.ObjectStore,
 	store storage.Presigner,
-	notifier desiredNotifier,
 	objectPath string,
 	logger *slog.Logger,
 ) {
@@ -117,47 +116,27 @@ func registerConfirmPackageInstallerRoute(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiPackageConfirmInput) (*munkiObjectOutput, error) {
-		obj, err := munkiupload.Confirm(
+		return confirmMunkiObjectUpload(
 			ctx,
 			objects,
-			packages.ObjectPrefix,
-			input.ObjectID,
-			func(objectID int64) error {
-				return packageStore.SetInstallerObject(ctx, input.PackageID, objectID)
+			store,
+			logger,
+			munkiUploadConfirm{
+				Operation: "confirm-munki-package-installer-upload",
+				Prefix:    packages.ObjectPrefix,
+				ObjectID:  input.ObjectID,
+				Attach: func(objectID int64) error {
+					return packageStore.SetInstallerObject(ctx, input.PackageID, objectID)
+				},
+				Attrs: []any{"package_id", input.PackageID},
 			},
 		)
-		if err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"confirm-munki-package-installer-upload",
-				munkiupload.Label,
-				err,
-				"package_id", input.PackageID,
-				"object_id", input.ObjectID,
-			)
-		}
-		notifyDesired(notifier)
-		view, err := munkiObjectViewWithContentURL(ctx, store, *obj)
-		if err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"confirm-munki-package-installer-upload",
-				munkiupload.Label,
-				err,
-				"package_id", input.PackageID,
-				"object_id", input.ObjectID,
-			)
-		}
-		return &munkiObjectOutput{Body: view}, nil
 	})
 }
 
 func registerDeletePackageInstallerRoute(
 	api huma.API,
-	packageStore *packages.Store,
-	notifier desiredNotifier,
+	packageStore *munki.PackageService,
 	objectPath string,
 	logger *slog.Logger,
 ) {
@@ -186,7 +165,6 @@ func registerDeletePackageInstallerRoute(
 				input.PackageID,
 			)
 		}
-		notifyDesired(notifier)
 		return nil, nil
 	})
 }

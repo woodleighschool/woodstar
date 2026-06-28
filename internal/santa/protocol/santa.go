@@ -56,17 +56,24 @@ type handler struct {
 	logger         *slog.Logger
 }
 
-// RegisterSantaRoutes mounts Santa sync v1 endpoints on r.
-func RegisterSantaRoutes(
-	r chi.Router,
-	secretVerifier agentauth.SecretVerifier,
-	service SyncService,
-	logger *slog.Logger,
-) {
+// Server owns Santa sync protocol routes.
+type Server struct {
+	secretVerifier agentauth.SecretVerifier
+	service        SyncService
+	logger         *slog.Logger
+}
+
+// NewServer returns a Santa sync protocol server.
+func NewServer(secretVerifier agentauth.SecretVerifier, service SyncService, logger *slog.Logger) *Server {
+	return &Server{secretVerifier: secretVerifier, service: service, logger: logger}
+}
+
+// RegisterRoutes mounts Santa sync v1 endpoints on r.
+func (s *Server) RegisterRoutes(r chi.Router) {
 	h := handler{
-		secretVerifier: secretVerifier,
-		service:        service,
-		logger:         logger,
+		secretVerifier: s.secretVerifier,
+		service:        s.service,
+		logger:         s.logger,
 	}
 	r.Post("/santa/sync/preflight/{machine_id}", h.preflight)
 	r.Post("/santa/sync/eventupload/{machine_id}", h.eventUpload)

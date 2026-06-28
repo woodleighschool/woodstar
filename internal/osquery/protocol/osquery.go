@@ -17,14 +17,25 @@ import (
 
 var osqueryEmptyJSONPaths = []string{"/carve/begin", "/carve/block"}
 
-// RegisterOsqueryRoutes mounts osquery TLS-plugin endpoints on r.
-func RegisterOsqueryRoutes(r chi.Router, svc *osquery.AgentService, logger *slog.Logger) {
+// Server owns osquery TLS-plugin routes.
+type Server struct {
+	service *osquery.AgentService
+	logger  *slog.Logger
+}
+
+// NewServer returns an osquery protocol server.
+func NewServer(service *osquery.AgentService, logger *slog.Logger) *Server {
+	return &Server{service: service, logger: logger}
+}
+
+// RegisterRoutes mounts osquery TLS-plugin endpoints on r.
+func (s *Server) RegisterRoutes(r chi.Router) {
 	for _, prefix := range []string{"/api/osquery", "/api/v1/osquery"} {
-		r.Post(prefix+"/enroll", osqueryEnrollHandler(svc, logger))
-		r.Post(prefix+"/config", osqueryConfigHandler(svc, logger))
-		r.Post(prefix+"/distributed/read", osqueryDistributedReadHandler(svc, logger))
-		r.Post(prefix+"/distributed/write", osqueryDistributedWriteHandler(svc, logger))
-		r.Post(prefix+"/log", osqueryLogHandler(svc, logger))
+		r.Post(prefix+"/enroll", osqueryEnrollHandler(s.service, s.logger))
+		r.Post(prefix+"/config", osqueryConfigHandler(s.service, s.logger))
+		r.Post(prefix+"/distributed/read", osqueryDistributedReadHandler(s.service, s.logger))
+		r.Post(prefix+"/distributed/write", osqueryDistributedWriteHandler(s.service, s.logger))
+		r.Post(prefix+"/log", osqueryLogHandler(s.service, s.logger))
 		for _, path := range osqueryEmptyJSONPaths {
 			r.Post(prefix+path, osqueryEmptyJSONHandler)
 		}

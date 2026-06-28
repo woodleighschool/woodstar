@@ -712,7 +712,7 @@ func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 
 func newSantaContractRouter(verifier agentauth.SecretVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
-	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
+	NewServer(verifier, service, slog.New(slog.DiscardHandler)).RegisterRoutes(r)
 	return r
 }
 

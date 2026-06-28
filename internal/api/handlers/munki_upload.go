@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -51,6 +52,14 @@ type munkiObjectOutput struct {
 	Body MunkiObjectView
 }
 
+type munkiUploadConfirm struct {
+	Operation string
+	Prefix    string
+	ObjectID  int64
+	Attach    func(int64) error
+	Attrs     []any
+}
+
 func munkiUploadOutputFromTarget(obj *storage.Object, target storage.UploadTarget) *munkiUploadOutput {
 	return &munkiUploadOutput{Body: MunkiUploadTarget{
 		ObjectID:        obj.ID,
@@ -83,4 +92,42 @@ func munkiObjectViewWithContentURL(
 	}
 	view.ContentURL = contentURL
 	return view, nil
+}
+
+func confirmMunkiObjectUpload(
+	ctx context.Context,
+	objects *storage.ObjectStore,
+	presigner storage.Presigner,
+	logger *slog.Logger,
+	confirm munkiUploadConfirm,
+) (*munkiObjectOutput, error) {
+	obj, err := munkiupload.Confirm(ctx, objects, confirm.Prefix, confirm.ObjectID, confirm.Attach)
+	if err != nil {
+		return nil, resourceError(
+			ctx,
+			logger,
+			confirm.Operation,
+			munkiupload.Label,
+			err,
+			confirm.attrsWithObjectID()...,
+		)
+	}
+	view, err := munkiObjectViewWithContentURL(ctx, presigner, *obj)
+	if err != nil {
+		return nil, resourceError(
+			ctx,
+			logger,
+			confirm.Operation,
+			munkiupload.Label,
+			err,
+			confirm.attrsWithObjectID()...,
+		)
+	}
+	return &munkiObjectOutput{Body: view}, nil
+}
+
+func (c munkiUploadConfirm) attrsWithObjectID() []any {
+	attrs := make([]any, 0, len(c.Attrs)+2)
+	attrs = append(attrs, c.Attrs...)
+	return append(attrs, "object_id", c.ObjectID)
 }

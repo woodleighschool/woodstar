@@ -1,4 +1,4 @@
-package mdp_test
+package protocol_test
 
 import (
 	"context"
@@ -14,8 +14,10 @@ import (
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -45,21 +47,68 @@ func discardLogger() *slog.Logger {
 func agentRouter(
 	t *testing.T,
 	store *mdp.Store,
-	presence *mdp.Presence,
 	presigner storage.Presigner,
 ) chi.Router {
 	t.Helper()
-	hub := mdp.NewHub(store, presence, discardLogger())
-	t.Cleanup(hub.Close)
+	server := mdpprotocol.NewServer(store, presigner, discardLogger())
+	t.Cleanup(server.Close)
 	r := chi.NewRouter()
-	mdp.RegisterProtocolRoutes(r, hub, store, presigner, discardLogger())
+	server.RegisterRoutes(r)
 	return r
+}
+
+func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
+	store := mdp.NewStore(db, discardLogger())
+	return store, store.Presence()
+}
+
+func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {
+	return mdp.DistributionPointMutation{
+		Name:          name,
+		Enabled:       true,
+		ClientCIDRs:   cidrs,
+		ClientBaseURL: "https://mdp.example",
+	}
+}
+
+func seedAvailablePackage(
+	t *testing.T,
+	db *database.DB,
+	ctx context.Context,
+	name string,
+	sha256 string,
+	size int64,
+) int64 {
+	t.Helper()
+	var softwareID int64
+	if err := db.Pool().QueryRow(ctx,
+		`INSERT INTO munki_software (name) VALUES ($1) RETURNING id`, name,
+	).Scan(&softwareID); err != nil {
+		t.Fatalf("insert software: %v", err)
+	}
+	var objectID int64
+	if err := db.Pool().QueryRow(ctx,
+		`INSERT INTO storage_objects (prefix, filename, size_bytes, sha256, available_at)
+		 VALUES ('packages', $1, $2, $3, now()) RETURNING id`,
+		name+".pkg", size, sha256,
+	).Scan(&objectID); err != nil {
+		t.Fatalf("insert object: %v", err)
+	}
+	var packageID int64
+	if err := db.Pool().QueryRow(ctx,
+		`INSERT INTO munki_packages (software_id, version, installer_object_id)
+		 VALUES ($1, '1.0', $2) RETURNING id`,
+		softwareID, objectID,
+	).Scan(&packageID); err != nil {
+		t.Fatalf("insert package: %v", err)
+	}
+	return packageID
 }
 
 func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	db, _ := dbtest.Open(t)
-	store, presence := newStore(db)
-	router := agentRouter(t, store, presence, fakePresigner{})
+	store, _ := newStore(db)
+	router := agentRouter(t, store, fakePresigner{})
 
 	cases := []struct {
 		name   string
@@ -93,7 +142,7 @@ func TestConnectDeliversIdentityAndDesiredSetThenRecordsState(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	router := agentRouter(t, store, presence, fakePresigner{})
+	router := agentRouter(t, store, fakePresigner{})
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -160,7 +209,7 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	router := agentRouter(t, store, presence, fakePresigner{})
+	router := agentRouter(t, store, fakePresigner{})
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -182,14 +231,14 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 
 func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store, presence := newStore(db)
+	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
 	if _, err := store.Create(ctx, pointMutation("Melbourne", nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	const presigned = "https://storage.example/packages/1/Chrome.pkg?cap=signed"
-	router := agentRouter(t, store, presence, fakePresigner{url: presigned})
+	router := agentRouter(t, store, fakePresigner{url: presigned})
 
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
 

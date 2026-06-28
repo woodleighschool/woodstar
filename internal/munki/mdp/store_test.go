@@ -3,6 +3,7 @@ package mdp_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/netip"
 	"strings"
 	"testing"
@@ -16,8 +17,12 @@ import (
 // newStore returns a store and the presence set the hub would normally write, so
 // tests can mark a point online without standing up a live connection.
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
-	presence := mdp.NewPresence()
-	return mdp.NewStore(db, presence, discardLogger()), presence
+	store := mdp.NewStore(db, discardLogger())
+	return store, store.Presence()
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
 
 func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {

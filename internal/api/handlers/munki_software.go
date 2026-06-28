@@ -7,14 +7,9 @@ import (
 	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/api/middleware"
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -28,35 +23,6 @@ const (
 
 type munkiSoftwareListInput struct {
 	ListQueryInput
-}
-
-// RegisterMunki mounts Munki host state, package, software, and distribution
-// point endpoints.
-func RegisterMunki(
-	api huma.API,
-	router chi.Router,
-	authService *auth.Service,
-	hostState *munki.Store,
-	hostStore *hosts.Store,
-	softwareStore *munkisoftware.Store,
-	packageStore *packages.Store,
-	objects *storage.ObjectStore,
-	storageStore storage.Backend,
-	notifier desiredNotifier,
-	distributionStore *mdp.Store,
-	logger *slog.Logger,
-) {
-	registerHostMunkiState(api, hostState, hostStore, logger)
-	registerMunkiSoftware(api, softwareStore, packageStore, objects, storageStore, notifier, logger)
-	registerMunkiSoftwareIconContent(
-		router.With(middleware.RequireHTTPAuth(authService)),
-		softwareStore,
-		objects,
-		storageStore,
-		logger,
-	)
-	registerMunkiPackages(api, packageStore, objects, storageStore, notifier, logger)
-	registerMunkiDistributionPoints(api, distributionStore, logger)
 }
 
 type munkiSoftwareGetInput struct {
@@ -109,18 +75,17 @@ func (input munkiSoftwareListInput) params() dbutil.ListParams {
 func registerMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
-	notifier desiredNotifier,
 	logger *slog.Logger,
 ) {
 	registerListMunkiSoftware(api, store, logger)
 	registerCreateMunkiSoftware(api, store, packageStore, logger)
 	registerGetMunkiSoftware(api, store, packageStore, logger)
 	registerPutMunkiSoftware(api, store, packageStore, logger)
-	registerDeleteMunkiSoftware(api, store, notifier, logger)
-	registerBulkDeleteMunkiSoftware(api, store, notifier, logger)
+	registerDeleteMunkiSoftware(api, store, logger)
+	registerBulkDeleteMunkiSoftware(api, store, logger)
 	registerIconRoutes(api, store, objects, storageStore, logger)
 }
 
@@ -153,7 +118,7 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger 
 func registerCreateMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -182,7 +147,7 @@ func registerCreateMunkiSoftware(
 func registerGetMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -200,7 +165,7 @@ func registerGetMunkiSoftware(
 func registerPutMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -236,7 +201,6 @@ func registerPutMunkiSoftware(
 func registerDeleteMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	notifier desiredNotifier,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -258,7 +222,6 @@ func registerDeleteMunkiSoftware(
 				input.SoftwareID,
 			)
 		}
-		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
@@ -266,7 +229,6 @@ func registerDeleteMunkiSoftware(
 func registerBulkDeleteMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
-	notifier desiredNotifier,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -280,7 +242,6 @@ func registerBulkDeleteMunkiSoftware(
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-munki-software", munkiSoftwareLabel, err)
 		}
-		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
@@ -289,7 +250,7 @@ func loadMunkiSoftwareDetail(
 	ctx context.Context,
 	id int64,
 	store *munkisoftware.Store,
-	packageStore *packages.Store,
+	packageStore *munki.PackageService,
 	logger *slog.Logger,
 	operation string,
 ) (*munkiSoftwareDetailOutput, error) {

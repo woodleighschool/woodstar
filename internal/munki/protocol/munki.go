@@ -39,25 +39,44 @@ type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
 	selector       Selector
-	store          storage.Presigner
+	storage        storage.Presigner
 	logger         *slog.Logger
 }
 
-// RegisterMunkiRoutes mounts Munki client repository endpoints.
-func RegisterMunkiRoutes(
-	r chi.Router,
+// Server owns Munki client repository routes.
+type Server struct {
+	secretVerifier agentauth.SecretVerifier
+	repository     Repository
+	selector       Selector
+	storage        storage.Presigner
+	logger         *slog.Logger
+}
+
+// NewServer returns a Munki client repository protocol server.
+func NewServer(
 	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
 	selector Selector,
-	store storage.Presigner,
+	storage storage.Presigner,
 	logger *slog.Logger,
-) {
-	h := handler{
+) *Server {
+	return &Server{
 		secretVerifier: secretVerifier,
 		repository:     repository,
 		selector:       selector,
-		store:          store,
+		storage:        storage,
 		logger:         logger,
+	}
+}
+
+// RegisterRoutes mounts Munki client repository endpoints.
+func (s *Server) RegisterRoutes(r chi.Router) {
+	h := handler{
+		secretVerifier: s.secretVerifier,
+		repository:     s.repository,
+		selector:       s.selector,
+		storage:        s.storage,
+		logger:         s.logger,
 	}
 	r.Get("/munki/manifests/{name}", h.manifest)
 	r.Get("/munki/catalogs/{name}", h.catalog)
@@ -147,7 +166,7 @@ func (h handler) redirectToDistributionPoint(
 
 // deliver serves the blob Woodstar-direct through a short-lived transfer URL.
 func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
-	url, err := h.store.PresignGet(r.Context(), key, 0, storage.GetOptions{})
+	url, err := h.storage.PresignGet(r.Context(), key, 0, storage.GetOptions{})
 	if err != nil {
 		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)

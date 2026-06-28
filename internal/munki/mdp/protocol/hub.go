@@ -1,4 +1,4 @@
-package mdp
+package protocol
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 )
 
 const (
@@ -76,8 +78,8 @@ type packageEvent struct {
 // Hub tracks live distribution point connections. It is the writer of presence
 // and the ordered fan-out for desired-set changes.
 type Hub struct {
-	store    *Store
-	presence *Presence
+	store    *mdp.Store
+	presence *mdp.Presence
 	logger   *slog.Logger
 
 	mu     sync.Mutex
@@ -93,10 +95,10 @@ type connection struct {
 	send chan []byte
 }
 
-// NewHub returns a connection hub backed by store, writing presence as workers
+// newHub returns a connection hub backed by store, writing presence as workers
 // connect and disconnect. It runs one fan-out goroutine so desired-set pushes
 // reach every worker in a single, ordered sequence.
-func NewHub(store *Store, presence *Presence, logger *slog.Logger) *Hub {
+func newHub(store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub {
 	h := &Hub{
 		store:    store,
 		presence: presence,
@@ -132,7 +134,7 @@ func (h *Hub) Close() {
 // Serve runs one distribution point connection: it sends hello and the desired
 // set, relays later desired-set changes outbound, and records reported package
 // state inbound, until the connection closes.
-func (h *Hub) Serve(ws *websocket.Conn, dp *DistributionPoint) error {
+func (h *Hub) Serve(ws *websocket.Conn, dp *mdp.DistributionPoint) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -158,7 +160,7 @@ func (h *Hub) Serve(ws *websocket.Conn, dp *DistributionPoint) error {
 	return h.readLoop(ctx, ws, dp.ID)
 }
 
-func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *DistributionPoint) error {
+func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *mdp.DistributionPoint) error {
 	return writeJSON(ctx, ws, helloMessage{
 		Type:              messageHello,
 		DistributionPoint: pointIdentity{ID: dp.ID, Name: dp.Name},
@@ -214,10 +216,10 @@ func (h *Hub) writeLoop(ctx context.Context, cancel context.CancelFunc, conn *co
 	}
 }
 
-// DesiredChanged wakes the fan-out loop to re-push the desired set. It is
-// fire-and-forget and coalescing: a burst of mutations collapses into one
+// refreshDesiredPackages wakes the fan-out loop to re-push the desired set. It
+// is fire-and-forget and coalescing: a burst of mutations collapses into one
 // broadcast of the final state.
-func (h *Hub) DesiredChanged() {
+func (h *Hub) refreshDesiredPackages() {
 	select {
 	case h.wake <- struct{}{}:
 	default:
@@ -305,14 +307,14 @@ func (h *Hub) unregister(id int64, conn *connection) {
 	}
 }
 
-func statusForEvent(eventType string) (PackageStatus, bool) {
+func statusForEvent(eventType string) (mdp.PackageStatus, bool) {
 	switch eventType {
 	case eventPackageSyncing:
-		return PackageStatusSyncing, true
+		return mdp.PackageStatusSyncing, true
 	case eventPackageCurrent:
-		return PackageStatusCurrent, true
+		return mdp.PackageStatusCurrent, true
 	case eventPackageError:
-		return PackageStatusError, true
+		return mdp.PackageStatusError, true
 	default:
 		return "", false
 	}

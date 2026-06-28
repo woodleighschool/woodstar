@@ -544,14 +544,13 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	}
 
 	router := chi.NewRouter()
-	RegisterMunkiRoutes(
-		router,
+	NewServer(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
 		selector,
 		store,
 		testLogger(),
-	)
+	).RegisterRoutes(router)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
@@ -583,14 +582,13 @@ func TestMunkiHTTPServesDirectWhenNoDistributionPoint(t *testing.T) {
 	selector := &fakeSelector{ok: false}
 
 	router := chi.NewRouter()
-	RegisterMunkiRoutes(
-		router,
+	NewServer(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
 		selector,
 		store,
 		testLogger(),
-	)
+	).RegisterRoutes(router)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
@@ -715,7 +713,7 @@ func newMunkiContractRouter(
 		s = store[0]
 	}
 	r := chi.NewRouter()
-	RegisterMunkiRoutes(r, verifier, repository, &fakeSelector{}, s, testLogger())
+	NewServer(verifier, repository, &fakeSelector{}, s, testLogger()).RegisterRoutes(r)
 	return r
 }
 

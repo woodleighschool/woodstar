@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -45,16 +46,6 @@ type munkiPackageBulkDeleteInput struct {
 	Body BulkIDsBody
 }
 
-type desiredNotifier interface {
-	DesiredChanged()
-}
-
-func notifyDesired(notifier desiredNotifier) {
-	if notifier != nil {
-		notifier.DesiredChanged()
-	}
-}
-
 type munkiPackageListOutput struct {
 	Body Page[munkiPackage]
 }
@@ -85,22 +76,21 @@ func installerTypeFilterValues(types []packages.InstallerType) []string {
 
 func registerMunkiPackages(
 	api huma.API,
-	store *packages.Store,
+	store *munki.PackageService,
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
-	notifier desiredNotifier,
 	logger *slog.Logger,
 ) {
 	registerListMunkiPackages(api, store, logger)
 	registerCreateMunkiPackage(api, store, logger)
 	registerGetMunkiPackage(api, store, logger)
 	registerPutMunkiPackage(api, store, logger)
-	registerDeleteMunkiPackage(api, store, notifier, logger)
-	registerBulkDeleteMunkiPackages(api, store, notifier, logger)
-	registerObjectRoutes(api, store, objects, storageStore, notifier, logger)
+	registerDeleteMunkiPackage(api, store, logger)
+	registerBulkDeleteMunkiPackages(api, store, logger)
+	registerObjectRoutes(api, store, objects, storageStore, logger)
 }
 
-func registerListMunkiPackages(api huma.API, store *packages.Store, logger *slog.Logger) {
+func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-packages",
 		Method:      http.MethodGet,
@@ -122,7 +112,7 @@ func registerListMunkiPackages(api huma.API, store *packages.Store, logger *slog
 	})
 }
 
-func registerCreateMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
+func registerCreateMunkiPackage(api huma.API, store *munki.PackageService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
@@ -146,7 +136,7 @@ func registerCreateMunkiPackage(api huma.API, store *packages.Store, logger *slo
 	})
 }
 
-func registerGetMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
+func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
@@ -171,7 +161,7 @@ func registerGetMunkiPackage(api huma.API, store *packages.Store, logger *slog.L
 	})
 }
 
-func registerPutMunkiPackage(api huma.API, store *packages.Store, logger *slog.Logger) {
+func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-package",
 		Method:      http.MethodPut,
@@ -204,8 +194,7 @@ func registerPutMunkiPackage(api huma.API, store *packages.Store, logger *slog.L
 
 func registerDeleteMunkiPackage(
 	api huma.API,
-	store *packages.Store,
-	notifier desiredNotifier,
+	store *munki.PackageService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -227,15 +216,13 @@ func registerDeleteMunkiPackage(
 				input.PackageID,
 			)
 		}
-		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }
 
 func registerBulkDeleteMunkiPackages(
 	api huma.API,
-	store *packages.Store,
-	notifier desiredNotifier,
+	store *munki.PackageService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -249,7 +236,6 @@ func registerBulkDeleteMunkiPackages(
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-munki-packages", munkiPackageLabel, err)
 		}
-		notifyDesired(notifier)
 		return &struct{}{}, nil
 	})
 }

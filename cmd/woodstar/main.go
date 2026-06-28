@@ -223,13 +223,12 @@ type wiring struct {
 
 	orbitAgent *orbit.EnrollmentService
 
-	storageObjects       *storage.ObjectStore
-	munkiPackages        *packages.Store
-	munkiSoftware        *munkisoftware.Store
-	munkiHostState       *munki.Store
-	munkiRepo            *munki.RepositoryService
-	munkiDistribution    *mdp.Store
-	munkiDistributionHub *mdp.Hub
+	storageObjects    *storage.ObjectStore
+	munkiPackages     *packages.Store
+	munkiSoftware     *munkisoftware.Store
+	munkiHostState    *munki.Store
+	munkiRepo         *munki.RepositoryService
+	munkiDistribution *mdp.Store
 
 	configurations *configurations.Store
 	events         *events.Store
@@ -310,14 +309,8 @@ func buildWiring(
 		Packages: w.munkiPackages,
 		Objects:  w.storageObjects,
 	})
-	munkiPresence := mdp.NewPresence()
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
-	w.munkiDistribution = mdp.NewStore(db, munkiPresence, munkiDistributionLogger)
-	w.munkiDistributionHub = mdp.NewHub(
-		w.munkiDistribution,
-		munkiPresence,
-		munkiDistributionLogger,
-	)
+	w.munkiDistribution = mdp.NewStore(db, munkiDistributionLogger)
 
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -346,39 +339,46 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			PublicURL: w.cfg.PublicURL,
 			Logger:    w.logger.With("component", "web"),
 		}),
-		AuthService: w.auth,
-		Users:       w.users,
-		Directory:   w.directory,
-		Hosts:       w.hosts,
-		PrimaryUser: w.primaryUsers,
-		Secrets:     w.secrets,
-		Software:    w.software,
-		Labels:      w.labels,
+		App: api.AppDependencies{
+			AuthService: w.auth,
+			Users:       w.users,
+			Directory:   w.directory,
+			Hosts:       w.hosts,
+			PrimaryUser: w.primaryUsers,
+			Secrets:     w.secrets,
+			Software:    w.software,
+			Labels:      w.labels,
 
-		Reports:      w.reports,
-		Checks:       w.checks,
-		LiveQueries:  w.liveQueries,
-		OsqueryAgent: w.osqueryAgent,
+			Reports:     w.reports,
+			Checks:      w.checks,
+			LiveQueries: w.liveQueries,
 
-		OrbitAgent: w.orbitAgent,
+			StorageBackend: w.storageBackend,
+			StorageKey:     slices.Clone(w.storageKey),
+			StorageObjects: w.storageObjects,
 
-		StorageBackend: w.storageBackend,
-		StorageKey:     slices.Clone(w.storageKey),
-		StorageObjects: w.storageObjects,
+			MunkiPackages:     w.munkiPackages,
+			MunkiSoftware:     w.munkiSoftware,
+			MunkiHostState:    w.munkiHostState,
+			MunkiDistribution: w.munkiDistribution,
 
-		MunkiPackages:        w.munkiPackages,
-		MunkiSoftware:        w.munkiSoftware,
-		MunkiHostState:       w.munkiHostState,
-		MunkiRepo:            w.munkiRepo,
-		MunkiDistribution:    w.munkiDistribution,
-		MunkiDistributionHub: w.munkiDistributionHub,
-
-		SantaConfigurations: w.configurations,
-		SantaEvents:         w.events,
-		SantaRules:          w.rules,
-		SantaReferences:     w.references,
-		SantaSync:           w.santaSync,
-		SantaState:          w.santaState,
+			SantaConfigurations: w.configurations,
+			SantaEvents:         w.events,
+			SantaRules:          w.rules,
+			SantaReferences:     w.references,
+			SantaState:          w.santaState,
+		},
+		Protocols: api.ProtocolDependencies{
+			AgentAuth: w.secrets,
+			Orbit:     w.orbitAgent,
+			Osquery:   w.osqueryAgent,
+			Munki: api.MunkiProtocolDependencies{
+				Repository:   w.munkiRepo,
+				Distribution: w.munkiDistribution,
+				Storage:      w.storageBackend,
+			},
+			Santa: w.santaSync,
+		},
 	}
 }
 
@@ -387,7 +387,6 @@ func (w *wiring) starters() []starter {
 	return []starter{
 		santaCleanupStarter(w.cfg, w.events, w.logger),
 		entraSyncStarter(w.cfg, w.directory, w.labels, w.logger),
-		munkiDistributionStarter(w.munkiDistributionHub),
 	}
 }
 
@@ -499,10 +498,6 @@ func entraSyncStarter(
 	return func(ctx context.Context) func() {
 		return service.StartScheduler(ctx, cfg.EntraSyncInterval)
 	}
-}
-
-func munkiDistributionStarter(hub *mdp.Hub) starter {
-	return func(context.Context) func() { return hub.Close }
 }
 
 // A nil starter means the capability is disabled by configuration.
