@@ -18,8 +18,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 // PackageStatus is a distribution point's mirror state for one desired package.
@@ -40,7 +40,7 @@ var packageStatusValues = []PackageStatus{
 }
 
 func (PackageStatus) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(packageStatusValues...)
+	return schema.StringEnum(packageStatusValues...)
 }
 
 // DistributionPoint is the admin view of one ordered mirror node. The per-DP

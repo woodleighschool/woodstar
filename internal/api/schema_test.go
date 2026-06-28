@@ -1,11 +1,10 @@
-package humaschema_test
+package api
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -13,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
-func TestWoodstarSchemaNamerScopesCapabilityTypes(t *testing.T) {
+func TestSchemaNamerScopesCapabilityTypes(t *testing.T) {
 	tests := []struct {
 		name string
 		typ  reflect.Type
@@ -63,8 +62,8 @@ func TestWoodstarSchemaNamerScopesCapabilityTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := humaschema.WoodstarSchemaNamer(tt.typ, ""); got != tt.want {
-				t.Fatalf("WoodstarSchemaNamer() = %q, want %q", got, tt.want)
+			if got := schemaNamer(tt.typ, ""); got != tt.want {
+				t.Fatalf("schemaNamer() = %q, want %q", got, tt.want)
 			}
 		})
 	}

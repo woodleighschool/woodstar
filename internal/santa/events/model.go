@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
@@ -107,19 +107,19 @@ func decisionFilterValues() []DecisionFilter {
 }
 
 func (ExecutionDecision) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(ExecutionDecisionValues...)
+	return schema.StringEnum(ExecutionDecisionValues...)
 }
 
 func (DecisionFilter) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(DecisionFilterValues...)
+	return schema.StringEnum(DecisionFilterValues...)
 }
 
 func (FileAccessDecision) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(FileAccessDecisionValues...)
+	return schema.StringEnum(FileAccessDecisionValues...)
 }
 
 func (SigningStatus) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(SigningStatusValues...)
+	return schema.StringEnum(SigningStatusValues...)
 }
 
 // EventListParams contains filters shared by Santa event list endpoints.

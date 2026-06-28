@@ -1,18 +1,14 @@
 package main
 
 import (
-	"log/slog"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/api"
-	apihandlers "github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 )
 
-func TestBuildSchemaAPIWithZeroValueWiring(t *testing.T) {
-	payload, err := api.BuildSchemaAPI(buildinfo.Version, apihandlers.Dependencies{
-		Logger: slog.New(slog.DiscardHandler),
-	}).OpenAPI().YAML()
+func TestBuildSchemaAPIForOpenAPICommand(t *testing.T) {
+	payload, err := api.BuildSchemaAPI(buildinfo.Version, schemaDependencies()).OpenAPI().YAML()
 	if err != nil {
 		t.Fatalf("encode openapi: %v", err)
 	}

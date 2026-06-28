@@ -7,8 +7,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 type PrimaryUserSource string
@@ -24,7 +24,7 @@ var PrimaryUserSourceValues = []PrimaryUserSource{
 }
 
 func (PrimaryUserSource) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(PrimaryUserSourceValues...)
+	return schema.StringEnum(PrimaryUserSourceValues...)
 }
 
 // PrimaryUserStore persists host primary-user source observations.

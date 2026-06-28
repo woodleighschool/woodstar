@@ -1,4 +1,4 @@
-package humaschema
+package api
 
 import (
 	"reflect"
@@ -9,8 +9,7 @@ import (
 
 const woodstarInternalPrefix = "github.com/woodleighschool/woodstar/internal/"
 
-// WoodstarSchemaNamer gives capability types a OpenAPI component name.
-func WoodstarSchemaNamer(t reflect.Type, hint string) string {
+func schemaNamer(t reflect.Type, hint string) string {
 	t = derefSchemaType(t)
 	name := huma.DefaultSchemaNamer(t, hint)
 

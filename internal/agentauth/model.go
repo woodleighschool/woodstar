@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/humaschema"
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 )
 
 type Agent string
@@ -41,7 +41,7 @@ type AgentSecretMutation struct {
 }
 
 func (Agent) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(AgentValues...)
+	return schema.StringEnum(AgentValues...)
 }
 
 func (a Agent) Valid() bool {

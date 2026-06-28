@@ -17,7 +17,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
@@ -65,7 +64,7 @@ func testSessionManager() *scs.SessionManager {
 func testHumaConfig() huma.Config {
 	cfg := huma.DefaultConfig("test", "test")
 	cfg.Components = &huma.Components{
-		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
+		Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer),
 	}
 	return cfg
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 func TestHostPrimaryUserManualOverride(t *testing.T) {
@@ -95,7 +94,7 @@ func hostTestRouter(t *testing.T, register func(huma.API)) *chi.Mux {
 	router := chi.NewRouter()
 	cfg := huma.DefaultConfig("test", "test")
 	cfg.Components = &huma.Components{
-		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
+		Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer),
 	}
 	api := humachi.New(router, cfg)
 	protected := huma.NewGroup(api)

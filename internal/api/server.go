@@ -19,7 +19,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
@@ -190,7 +189,7 @@ func humaConfig(version string) huma.Config {
 	cfg.CreateHooks = nil
 
 	cfg.Components = &huma.Components{
-		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
+		Schemas: huma.NewMapRegistry("#/components/schemas/", schemaNamer),
 		SecuritySchemes: map[string]*huma.SecurityScheme{
 			"cookieAuth": {
 				Type: "apiKey",

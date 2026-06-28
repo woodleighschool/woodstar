@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 var (
@@ -62,11 +62,11 @@ var PolicyValues = []Policy{
 }
 
 func (RuleType) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(RuleTypeValues...)
+	return schema.StringEnum(RuleTypeValues...)
 }
 
 func (Policy) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(PolicyValues...)
+	return schema.StringEnum(PolicyValues...)
 }
 
 type RuleListParams struct {

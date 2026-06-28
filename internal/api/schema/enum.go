@@ -1,4 +1,5 @@
-package humaschema
+// Package schema provides Huma schema helpers for Woodstar API-facing models.
+package schema
 
 import "github.com/danielgtaylor/huma/v2"
 

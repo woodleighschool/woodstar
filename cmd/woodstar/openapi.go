@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -21,7 +22,7 @@ func openAPICommand() *cobra.Command {
 document as YAML to stdout (or to the path given by --output). Handlers are
 not invoked, so this command does not require a database.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			payload, err := api.BuildSchemaAPI(buildinfo.Version, apihandlers.Dependencies{}).OpenAPI().YAML()
+			payload, err := api.BuildSchemaAPI(buildinfo.Version, schemaDependencies()).OpenAPI().YAML()
 			if err != nil {
 				return fmt.Errorf("encode openapi: %w", err)
 			}
@@ -40,4 +41,10 @@ not invoked, so this command does not require a database.`,
 	cmd.Flags().StringVarP(&output, "output", "o", "", "write OpenAPI YAML to this path (default stdout)")
 
 	return cmd
+}
+
+func schemaDependencies() apihandlers.Dependencies {
+	return apihandlers.Dependencies{
+		Logger: slog.New(slog.DiscardHandler),
+	}
 }

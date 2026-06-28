@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/api/schema"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 // InstallerType describes the Munki installer modes Woodstar exposes for app
@@ -29,7 +29,7 @@ var installerTypeValues = []InstallerType{
 }
 
 func (InstallerType) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(installerTypeValues...)
+	return schema.StringEnum(installerTypeValues...)
 }
 
 // RestartAction describes Munki's RestartAction values.
@@ -50,7 +50,7 @@ var restartActionValues = []RestartAction{
 }
 
 func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(restartActionValues...)
+	return schema.StringEnum(restartActionValues...)
 }
 
 // UninstallMethod describes the Munki uninstall modes Woodstar exposes.
@@ -70,7 +70,7 @@ var uninstallMethodValues = []UninstallMethod{
 }
 
 func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(uninstallMethodValues...)
+	return schema.StringEnum(uninstallMethodValues...)
 }
 
 // PackageReference points to Woodstar-authored software, optionally pinned to one package version.
@@ -116,7 +116,7 @@ var installItemTypeValues = []PackageInstallItemType{
 }
 
 func (PackageInstallItemType) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(installItemTypeValues...)
+	return schema.StringEnum(installItemTypeValues...)
 }
 
 // PackageInstallItem is one Munki installs array entry.
