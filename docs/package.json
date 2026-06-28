@@ -21,9 +21,9 @@
     "@mdx-js/react": "^3.1.1",
     "clsx": "^2.1.1",
     "docusaurus-plugin-llms": "^0.4.0",
-    "docusaurus-plugin-openapi-docs": "^5.0.2",
+    "docusaurus-plugin-openapi-docs": "^5.1.0",
     "docusaurus-plugin-sass": "^0.2.6",
-    "docusaurus-theme-openapi-docs": "^5.0.2",
+    "docusaurus-theme-openapi-docs": "^5.1.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -51,5 +51,5 @@
   "engines": {
     "node": ">=20.0"
   },
-  "packageManager": "pnpm@11.6.0"
+  "packageManager": "pnpm@11.9.0"
 }
