@@ -25,7 +25,7 @@ func distributionPointListQuery(
 	args []any,
 ) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL:    distributionPointSelectSQL,
+		SelectSQL:    distributionPointSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    distributionPointOrderKeys(),
@@ -41,8 +41,8 @@ func distributionPointOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-// distributionPointSelectSQL is the canonical distributionPointRow projection.
-const distributionPointSelectSQL = `
+func distributionPointSelectSQL() string {
+	return `
 SELECT
 	c.id,
 	c.name,
@@ -54,3 +54,4 @@ SELECT
 	c.created_at,
 	c.updated_at
 FROM munki_distribution_points c`
+}

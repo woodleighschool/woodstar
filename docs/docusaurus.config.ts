@@ -10,7 +10,10 @@ const lightCodeTheme: PrismTheme = {
   styles: [
     { types: ["comment", "prolog", "doctype", "cdata"], style: { color: "#6c756e" } },
     { types: ["punctuation"], style: { color: "#59635c" } },
-    { types: ["property", "tag", "boolean", "number", "constant", "symbol"], style: { color: "#23694d" } },
+    {
+      types: ["property", "tag", "boolean", "number", "constant", "symbol"],
+      style: { color: "#23694d" },
+    },
     { types: ["selector", "attr-name", "string", "char", "builtin"], style: { color: "#526b2d" } },
     { types: ["operator", "entity", "url"], style: { color: "#59635c" } },
     { types: ["atrule", "attr-value", "keyword"], style: { color: "#715b20" } },
@@ -27,7 +30,10 @@ const darkCodeTheme: PrismTheme = {
   styles: [
     { types: ["comment", "prolog", "doctype", "cdata"], style: { color: "#8b938d" } },
     { types: ["punctuation"], style: { color: "#b7beb8" } },
-    { types: ["property", "tag", "boolean", "number", "constant", "symbol"], style: { color: "#82caa2" } },
+    {
+      types: ["property", "tag", "boolean", "number", "constant", "symbol"],
+      style: { color: "#82caa2" },
+    },
     { types: ["selector", "attr-name", "string", "char", "builtin"], style: { color: "#bfd483" } },
     { types: ["operator", "entity", "url"], style: { color: "#b7beb8" } },
     { types: ["atrule", "attr-value", "keyword"], style: { color: "#dfc66b" } },

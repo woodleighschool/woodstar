@@ -27,7 +27,7 @@ func (s *Store) List(
 ) ([]Configuration, int, error) {
 	where, args := configurationListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    configurationSelectSQL,
+		SelectSQL:    configurationSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    configurationOrderKeys(),
@@ -59,7 +59,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
 	row, err := dbutil.GetOne[configurationRow](
 		ctx,
 		s.db.Pool(),
-		configurationSelectSQL+"\nWHERE c.id = $1",
+		configurationSelectSQL()+"\nWHERE c.id = $1",
 		id,
 	)
 	if err != nil {
@@ -81,7 +81,49 @@ func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Conf
 	write := newConfigurationWrite(params)
 	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, insertConfigurationSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO santa_configurations (
+				name,
+				description,
+				position,
+				client_mode,
+				enable_bundles,
+				enable_transitive_rules,
+				enable_all_event_upload,
+				disable_unknown_event_upload,
+				override_file_access_action,
+				full_sync_interval_seconds,
+				batch_size,
+				allowed_path_regex,
+				blocked_path_regex,
+				removable_media_action,
+				removable_media_remount_flags,
+				encrypted_removable_media_action,
+				encrypted_removable_media_remount_flags,
+				event_detail_url,
+				event_detail_text
+			) VALUES (
+				@name,
+				@description,
+				(SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
+				@client_mode::santa_client_mode,
+				@enable_bundles,
+				@enable_transitive_rules,
+				@enable_all_event_upload,
+				@disable_unknown_event_upload,
+				@override_file_access_action::santa_file_access_action,
+				@full_sync_interval_seconds::integer,
+				@batch_size::integer,
+				@allowed_path_regex,
+				@blocked_path_regex,
+				@removable_media_action::santa_removable_media_action,
+				@removable_media_remount_flags::text[],
+				@encrypted_removable_media_action::santa_removable_media_action,
+				@encrypted_removable_media_remount_flags::text[],
+				@event_detail_url,
+				@event_detail_text
+			)
+			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
@@ -101,7 +143,30 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 	write.ID = id
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updateConfigurationSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+			UPDATE santa_configurations
+			SET
+				name = @name,
+				description = @description,
+				client_mode = @client_mode::santa_client_mode,
+				enable_bundles = @enable_bundles,
+				enable_transitive_rules = @enable_transitive_rules,
+				enable_all_event_upload = @enable_all_event_upload,
+				disable_unknown_event_upload = @disable_unknown_event_upload,
+				override_file_access_action = @override_file_access_action::santa_file_access_action,
+				full_sync_interval_seconds = @full_sync_interval_seconds::integer,
+				batch_size = @batch_size::integer,
+				allowed_path_regex = @allowed_path_regex,
+				blocked_path_regex = @blocked_path_regex,
+				removable_media_action = @removable_media_action::santa_removable_media_action,
+				removable_media_remount_flags = @removable_media_remount_flags::text[],
+				encrypted_removable_media_action = @encrypted_removable_media_action::santa_removable_media_action,
+				encrypted_removable_media_remount_flags = @encrypted_removable_media_remount_flags::text[],
+				event_detail_url = @event_detail_url,
+				event_detail_text = @event_detail_text,
+				updated_at = now()
+			WHERE id = @id
+			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
@@ -186,55 +251,6 @@ SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
 }
 
 func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ConfigurationMatch, error) {
-	const resolveSQL = `
-SELECT
-    c.id,
-    c.name,
-    c.description,
-    c.position,
-    c.client_mode,
-    c.enable_bundles,
-    c.enable_transitive_rules,
-    c.enable_all_event_upload,
-    c.disable_unknown_event_upload,
-    c.override_file_access_action::text AS override_file_access_action,
-    c.full_sync_interval_seconds,
-    c.batch_size,
-    c.allowed_path_regex,
-    c.blocked_path_regex,
-    c.removable_media_action,
-    c.removable_media_remount_flags,
-    c.encrypted_removable_media_action,
-    c.encrypted_removable_media_remount_flags,
-    c.event_detail_url,
-    c.event_detail_text,
-    c.created_at,
-    c.updated_at,
-    l.id AS label_id,
-    l.name AS label_name
-FROM santa_configurations c
-JOIN LATERAL (
-    SELECT
-        include_label.id,
-        include_label.name
-    FROM santa_configuration_targets t
-    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
-    JOIN labels include_label ON include_label.id = t.label_id
-    WHERE t.configuration_id = c.id
-      AND t.direction = 'include'
-    ORDER BY t.position
-    LIMIT 1
-) l ON true
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM santa_configuration_targets t
-    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
-    WHERE t.configuration_id = c.id
-      AND t.direction = 'exclude'
-)
-ORDER BY c.position, c.id
-LIMIT 1`
-
 	type resolveRow struct {
 		configurationRow
 
@@ -242,7 +258,54 @@ LIMIT 1`
 		LabelName string `db:"label_name"`
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, resolveSQL, hostID)
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT
+			c.id,
+			c.name,
+			c.description,
+			c.position,
+			c.client_mode,
+			c.enable_bundles,
+			c.enable_transitive_rules,
+			c.enable_all_event_upload,
+			c.disable_unknown_event_upload,
+			c.override_file_access_action::text AS override_file_access_action,
+			c.full_sync_interval_seconds,
+			c.batch_size,
+			c.allowed_path_regex,
+			c.blocked_path_regex,
+			c.removable_media_action,
+			c.removable_media_remount_flags,
+			c.encrypted_removable_media_action,
+			c.encrypted_removable_media_remount_flags,
+			c.event_detail_url,
+			c.event_detail_text,
+			c.created_at,
+			c.updated_at,
+			l.id AS label_id,
+			l.name AS label_name
+		FROM santa_configurations c
+		JOIN LATERAL (
+			SELECT
+				include_label.id,
+				include_label.name
+			FROM santa_configuration_targets t
+			JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+			JOIN labels include_label ON include_label.id = t.label_id
+			WHERE t.configuration_id = c.id
+				AND t.direction = 'include'
+			ORDER BY t.position
+			LIMIT 1
+		) l ON true
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM santa_configuration_targets t
+			JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+			WHERE t.configuration_id = c.id
+				AND t.direction = 'exclude'
+		)
+		ORDER BY c.position, c.id
+		LIMIT 1`, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -282,12 +345,6 @@ type configurationTargetWrite struct {
 	Position        int32  `db:"position"`
 }
 
-const deleteConfigurationTargetsSQL = `DELETE FROM santa_configuration_targets WHERE configuration_id = $1`
-
-const insertConfigurationTargetSQL = `
-INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
-VALUES (@configuration_id, @label_id, @direction::target_direction, @position)`
-
 func replaceConfigurationTargets(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -314,8 +371,10 @@ func replaceConfigurationTargets(
 	}
 	if err := dbutil.ReplaceChildren(
 		ctx, tx,
-		deleteConfigurationTargetsSQL, []any{configurationID},
-		insertConfigurationTargetSQL, rows,
+		`DELETE FROM santa_configuration_targets WHERE configuration_id = $1`, []any{configurationID},
+		`
+			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
+			VALUES (@configuration_id, @label_id, @direction::target_direction, @position)`, rows,
 	); err != nil {
 		return dbutil.MutationError(err)
 	}
@@ -524,7 +583,8 @@ func removableMediaWriteFields(policy RemovableMediaPolicy) (*string, []string) 
 	return &action, policy.RemountFlags
 }
 
-const configurationSelectSQL = `
+func configurationSelectSQL() string {
+	return `
 SELECT
 	c.id,
 	c.name,
@@ -549,72 +609,4 @@ SELECT
 	c.created_at,
 	c.updated_at
 FROM santa_configurations c`
-
-const insertConfigurationSQL = `
-INSERT INTO santa_configurations (
-	name,
-	description,
-	position,
-	client_mode,
-	enable_bundles,
-	enable_transitive_rules,
-	enable_all_event_upload,
-	disable_unknown_event_upload,
-	override_file_access_action,
-	full_sync_interval_seconds,
-	batch_size,
-	allowed_path_regex,
-	blocked_path_regex,
-	removable_media_action,
-	removable_media_remount_flags,
-	encrypted_removable_media_action,
-	encrypted_removable_media_remount_flags,
-	event_detail_url,
-	event_detail_text
-) VALUES (
-	@name,
-	@description,
-	(SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
-	@client_mode::santa_client_mode,
-	@enable_bundles,
-	@enable_transitive_rules,
-	@enable_all_event_upload,
-	@disable_unknown_event_upload,
-	@override_file_access_action::santa_file_access_action,
-	@full_sync_interval_seconds::integer,
-	@batch_size::integer,
-	@allowed_path_regex,
-	@blocked_path_regex,
-	@removable_media_action::santa_removable_media_action,
-	@removable_media_remount_flags::text[],
-	@encrypted_removable_media_action::santa_removable_media_action,
-	@encrypted_removable_media_remount_flags::text[],
-	@event_detail_url,
-	@event_detail_text
-)
-RETURNING id`
-
-const updateConfigurationSQL = `
-UPDATE santa_configurations
-SET
-	name = @name,
-	description = @description,
-	client_mode = @client_mode::santa_client_mode,
-	enable_bundles = @enable_bundles,
-	enable_transitive_rules = @enable_transitive_rules,
-	enable_all_event_upload = @enable_all_event_upload,
-	disable_unknown_event_upload = @disable_unknown_event_upload,
-	override_file_access_action = @override_file_access_action::santa_file_access_action,
-	full_sync_interval_seconds = @full_sync_interval_seconds::integer,
-	batch_size = @batch_size::integer,
-	allowed_path_regex = @allowed_path_regex,
-	blocked_path_regex = @blocked_path_regex,
-	removable_media_action = @removable_media_action::santa_removable_media_action,
-	removable_media_remount_flags = @removable_media_remount_flags::text[],
-	encrypted_removable_media_action = @encrypted_removable_media_action::santa_removable_media_action,
-	encrypted_removable_media_remount_flags = @encrypted_removable_media_remount_flags::text[],
-	event_detail_url = @event_detail_url,
-	event_detail_text = @event_detail_text,
-	updated_at = now()
-WHERE id = @id
-RETURNING id`
+}

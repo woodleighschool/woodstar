@@ -60,11 +60,6 @@ var userColumnExprs = []string{
 	"updated_at",
 }
 
-var userSelectSQL = `
-SELECT
-    ` + userColumnsSQL("") + `
-FROM users`
-
 func userColumnsSQL(alias string) string {
 	prefix := ""
 	if alias != "" {
@@ -75,6 +70,13 @@ func userColumnsSQL(alias string) string {
 		columns[i] = prefix + column
 	}
 	return strings.Join(columns, ", ")
+}
+
+func userSelectSQL() string {
+	return `
+SELECT
+    ` + userColumnsSQL("") + `
+FROM users`
 }
 
 func userFromRow(r userRow) User {
@@ -179,7 +181,7 @@ LIMIT 1`)
 }
 
 func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+whereSQL, strings.ToLower(email))
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+whereSQL, strings.ToLower(email))
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -188,7 +190,7 @@ func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL strin
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
@@ -200,7 +202,7 @@ WHERE id = $1
 
 // GetAccountByID returns the signed-in user's self-view, including API key fields.
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
@@ -314,7 +316,7 @@ RETURNING id`, id).Scan(&updatedID)
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL+`
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
 WHERE api_key = $1
   AND deleted_at IS NULL
   AND role IS NOT NULL`, key)

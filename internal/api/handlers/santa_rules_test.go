@@ -19,44 +19,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
-func TestSantaRuleReferencesEndpointReturnsCandidates(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	router := santaRulesAPI(t, func(api huma.API) {
-		registerSantaRules(api, rules.NewStore(db), discardLogger())
-	})
-
-	identifier := strings.Repeat("5", 64)
-	if _, err := db.Pool().Exec(ctx, `
-		INSERT INTO santa_executables (sha256, file_name, file_bundle_id, team_id)
-		VALUES ($1, 'Endpoint Target', 'com.example.endpoint', 'TEAMENDPT')
-	`, identifier); err != nil {
-		t.Fatalf("insert executable: %v", err)
-	}
-
-	rec := santaRulesRequest(
-		t,
-		router,
-		http.MethodGet,
-		"/api/santa/rule-references?rule_type=binary&q=Endpoint",
-		"",
-	)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	var body []rules.RuleReferenceCandidate
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode body: %v", err)
-	}
-	if len(body) != 1 || body[0].Identifier != identifier {
-		t.Fatalf("references = %+v, want endpoint executable", body)
-	}
-	if body[0].DisplayName != "" ||
-		body[0].FileName != "Endpoint Target" ||
-		body[0].BundleIdentifier != "com.example.endpoint" {
-		t.Fatalf("reference metadata = %+v, want semantic executable fields", body[0])
-	}
-}
-
 func TestSantaRuleEndpointCreatesSigningIDWithoutTargets(t *testing.T) {
 	db, _ := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {

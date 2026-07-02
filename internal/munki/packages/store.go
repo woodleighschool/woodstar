@@ -37,6 +37,7 @@ func NewStore(db *database.DB, objects objectStore) *Store {
 	}
 }
 
+//nolint:funlen // Keep the package insert contract with the store method that owns it.
 func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package, error) {
 	params, err := s.prepareCreateMutation(ctx, in)
 	if err != nil {
@@ -47,7 +48,112 @@ func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package,
 
 	var id int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, insertPackageSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+INSERT INTO munki_packages (
+	software_id,
+	version,
+	installer_type,
+	uninstall_method,
+	restart_action,
+	minimum_munki_version,
+	minimum_os_version,
+	maximum_os_version,
+	supported_architectures,
+	blocking_applications,
+	blocking_applications_none,
+	installable_condition,
+	blocking_applications_manual_quit_only,
+	blocking_applications_quit_script,
+	unattended_install,
+	unattended_uninstall,
+	on_demand,
+	precache,
+	autoremove,
+	apple_item,
+	suppress_bundle_relocation,
+	force_install_after_date,
+	installed_size,
+	package_path,
+	installer_choices_xml,
+	installer_environment,
+	installs,
+	receipts,
+	items_to_copy,
+	notes,
+	installcheck_script,
+	uninstallcheck_script,
+	preinstall_script,
+	postinstall_script,
+	preuninstall_script,
+	postuninstall_script,
+	uninstall_script,
+	version_script,
+	preinstall_alert_enabled,
+	preinstall_alert_title,
+	preinstall_alert_detail,
+	preinstall_alert_ok_label,
+	preinstall_alert_cancel_label,
+	preuninstall_alert_enabled,
+	preuninstall_alert_title,
+	preuninstall_alert_detail,
+	preuninstall_alert_ok_label,
+	preuninstall_alert_cancel_label,
+	installer_object_id,
+	eligible
+)
+VALUES (
+	@software_id,
+	@version,
+	@installer_type,
+	@uninstall_method,
+	@restart_action,
+	@minimum_munki_version,
+	@minimum_os_version,
+	@maximum_os_version,
+	@supported_architectures::text[],
+	@blocking_applications::text[],
+	@blocking_applications_none,
+	@installable_condition,
+	@blocking_applications_manual_quit_only,
+	@blocking_applications_quit_script,
+	@unattended_install,
+	@unattended_uninstall,
+	@on_demand,
+	@precache,
+	@autoremove,
+	@apple_item,
+	@suppress_bundle_relocation,
+	@force_install_after_date,
+	@installed_size,
+	@package_path,
+	@installer_choices_xml::jsonb,
+	@installer_environment::jsonb,
+	@installs::jsonb,
+	@receipts::jsonb,
+	@items_to_copy::jsonb,
+	@notes,
+	@installcheck_script,
+	@uninstallcheck_script,
+	@preinstall_script,
+	@postinstall_script,
+	@preuninstall_script,
+	@postuninstall_script,
+	@uninstall_script,
+	@version_script,
+	@preinstall_alert_enabled,
+	@preinstall_alert_title,
+	@preinstall_alert_detail,
+	@preinstall_alert_ok_label,
+	@preinstall_alert_cancel_label,
+	@preuninstall_alert_enabled,
+	@preuninstall_alert_title,
+	@preuninstall_alert_detail,
+	@preuninstall_alert_ok_label,
+	@preuninstall_alert_cancel_label,
+	@installer_object_id,
+	@eligible
+)
+RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return writePackageRelations(ctx, tx, id, params)
@@ -73,7 +179,61 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updatePackageSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+UPDATE munki_packages
+SET
+	version = @version,
+	installer_type = @installer_type,
+	uninstall_method = @uninstall_method,
+	restart_action = @restart_action,
+	minimum_munki_version = @minimum_munki_version,
+	minimum_os_version = @minimum_os_version,
+	maximum_os_version = @maximum_os_version,
+	supported_architectures = @supported_architectures::text[],
+	blocking_applications = @blocking_applications::text[],
+	blocking_applications_none = @blocking_applications_none,
+	installable_condition = @installable_condition,
+	blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
+	blocking_applications_quit_script = @blocking_applications_quit_script,
+	unattended_install = @unattended_install,
+	unattended_uninstall = @unattended_uninstall,
+	on_demand = @on_demand,
+	precache = @precache,
+	autoremove = @autoremove,
+	apple_item = @apple_item,
+	suppress_bundle_relocation = @suppress_bundle_relocation,
+	force_install_after_date = @force_install_after_date,
+	installed_size = @installed_size,
+	package_path = @package_path,
+	installer_choices_xml = @installer_choices_xml::jsonb,
+	installer_environment = @installer_environment::jsonb,
+	installs = @installs::jsonb,
+	receipts = @receipts::jsonb,
+	items_to_copy = @items_to_copy::jsonb,
+	notes = @notes,
+	installcheck_script = @installcheck_script,
+	uninstallcheck_script = @uninstallcheck_script,
+	preinstall_script = @preinstall_script,
+	postinstall_script = @postinstall_script,
+	preuninstall_script = @preuninstall_script,
+	postuninstall_script = @postuninstall_script,
+	uninstall_script = @uninstall_script,
+	version_script = @version_script,
+	preinstall_alert_enabled = @preinstall_alert_enabled,
+	preinstall_alert_title = @preinstall_alert_title,
+	preinstall_alert_detail = @preinstall_alert_detail,
+	preinstall_alert_ok_label = @preinstall_alert_ok_label,
+	preinstall_alert_cancel_label = @preinstall_alert_cancel_label,
+	preuninstall_alert_enabled = @preuninstall_alert_enabled,
+	preuninstall_alert_title = @preuninstall_alert_title,
+	preuninstall_alert_detail = @preuninstall_alert_detail,
+	preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
+	preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
+	installer_object_id = @installer_object_id,
+	eligible = @eligible,
+	updated_at = now()
+WHERE id = @id
+RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return writePackageRelations(ctx, tx, id, params)
@@ -92,7 +252,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL+"\nWHERE p.id = $1", id)
+	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL()+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +331,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 	params.InstallerTypes = installerTypes
 	where, args := packageListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL: packageSelectSQL,
+		SelectSQL: packageSelectSQL(),
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: packageOrderKeys(),
@@ -196,7 +356,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 // ListRepositoryPackages returns every package that may appear in the shared
 // Munki catalog.
 func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
-	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL+`
+	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
 WHERE p.eligible
   AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
 ORDER BY lower(s.name), s.id, p.id`)
@@ -215,7 +375,7 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	records, err := dbutil.GetAll[packageRow](
 		ctx,
 		s.db.Pool(),
-		packageSelectSQL+"\nWHERE p.id = ANY($1::bigint[])",
+		packageSelectSQL()+"\nWHERE p.id = ANY($1::bigint[])",
 		ids,
 	)
 	if err != nil {
@@ -230,7 +390,7 @@ func (s *Store) RepositoryPackagesByIconObjectID(ctx context.Context, iconObject
 	if iconObjectID <= 0 {
 		return []Package{}, nil
 	}
-	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL+`
+	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
 WHERE s.icon_object_id = $1
   AND p.eligible
   AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
@@ -713,172 +873,8 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 	}
 }
 
-const insertPackageSQL = `
-INSERT INTO munki_packages (
-	software_id,
-	version,
-	installer_type,
-	uninstall_method,
-	restart_action,
-	minimum_munki_version,
-	minimum_os_version,
-	maximum_os_version,
-	supported_architectures,
-	blocking_applications,
-	blocking_applications_none,
-	installable_condition,
-	blocking_applications_manual_quit_only,
-	blocking_applications_quit_script,
-	unattended_install,
-	unattended_uninstall,
-	on_demand,
-	precache,
-	autoremove,
-	apple_item,
-	suppress_bundle_relocation,
-	force_install_after_date,
-	installed_size,
-	package_path,
-	installer_choices_xml,
-	installer_environment,
-	installs,
-	receipts,
-	items_to_copy,
-	notes,
-	installcheck_script,
-	uninstallcheck_script,
-	preinstall_script,
-	postinstall_script,
-	preuninstall_script,
-	postuninstall_script,
-	uninstall_script,
-	version_script,
-	preinstall_alert_enabled,
-	preinstall_alert_title,
-	preinstall_alert_detail,
-	preinstall_alert_ok_label,
-	preinstall_alert_cancel_label,
-	preuninstall_alert_enabled,
-	preuninstall_alert_title,
-	preuninstall_alert_detail,
-	preuninstall_alert_ok_label,
-	preuninstall_alert_cancel_label,
-	installer_object_id,
-	eligible
-)
-VALUES (
-	@software_id,
-	@version,
-	@installer_type,
-	@uninstall_method,
-	@restart_action,
-	@minimum_munki_version,
-	@minimum_os_version,
-	@maximum_os_version,
-	@supported_architectures::text[],
-	@blocking_applications::text[],
-	@blocking_applications_none,
-	@installable_condition,
-	@blocking_applications_manual_quit_only,
-	@blocking_applications_quit_script,
-	@unattended_install,
-	@unattended_uninstall,
-	@on_demand,
-	@precache,
-	@autoremove,
-	@apple_item,
-	@suppress_bundle_relocation,
-	@force_install_after_date,
-	@installed_size,
-	@package_path,
-	@installer_choices_xml::jsonb,
-	@installer_environment::jsonb,
-	@installs::jsonb,
-	@receipts::jsonb,
-	@items_to_copy::jsonb,
-	@notes,
-	@installcheck_script,
-	@uninstallcheck_script,
-	@preinstall_script,
-	@postinstall_script,
-	@preuninstall_script,
-	@postuninstall_script,
-	@uninstall_script,
-	@version_script,
-	@preinstall_alert_enabled,
-	@preinstall_alert_title,
-	@preinstall_alert_detail,
-	@preinstall_alert_ok_label,
-	@preinstall_alert_cancel_label,
-	@preuninstall_alert_enabled,
-	@preuninstall_alert_title,
-	@preuninstall_alert_detail,
-	@preuninstall_alert_ok_label,
-	@preuninstall_alert_cancel_label,
-	@installer_object_id,
-	@eligible
-)
-RETURNING id`
-
-const updatePackageSQL = `
-UPDATE munki_packages
-SET
-	version = @version,
-	installer_type = @installer_type,
-	uninstall_method = @uninstall_method,
-	restart_action = @restart_action,
-	minimum_munki_version = @minimum_munki_version,
-	minimum_os_version = @minimum_os_version,
-	maximum_os_version = @maximum_os_version,
-	supported_architectures = @supported_architectures::text[],
-	blocking_applications = @blocking_applications::text[],
-	blocking_applications_none = @blocking_applications_none,
-	installable_condition = @installable_condition,
-	blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
-	blocking_applications_quit_script = @blocking_applications_quit_script,
-	unattended_install = @unattended_install,
-	unattended_uninstall = @unattended_uninstall,
-	on_demand = @on_demand,
-	precache = @precache,
-	autoremove = @autoremove,
-	apple_item = @apple_item,
-	suppress_bundle_relocation = @suppress_bundle_relocation,
-	force_install_after_date = @force_install_after_date,
-	installed_size = @installed_size,
-	package_path = @package_path,
-	installer_choices_xml = @installer_choices_xml::jsonb,
-	installer_environment = @installer_environment::jsonb,
-	installs = @installs::jsonb,
-	receipts = @receipts::jsonb,
-	items_to_copy = @items_to_copy::jsonb,
-	notes = @notes,
-	installcheck_script = @installcheck_script,
-	uninstallcheck_script = @uninstallcheck_script,
-	preinstall_script = @preinstall_script,
-	postinstall_script = @postinstall_script,
-	preuninstall_script = @preuninstall_script,
-	postuninstall_script = @postuninstall_script,
-	uninstall_script = @uninstall_script,
-	version_script = @version_script,
-	preinstall_alert_enabled = @preinstall_alert_enabled,
-	preinstall_alert_title = @preinstall_alert_title,
-	preinstall_alert_detail = @preinstall_alert_detail,
-	preinstall_alert_ok_label = @preinstall_alert_ok_label,
-	preinstall_alert_cancel_label = @preinstall_alert_cancel_label,
-	preuninstall_alert_enabled = @preuninstall_alert_enabled,
-	preuninstall_alert_title = @preuninstall_alert_title,
-	preuninstall_alert_detail = @preuninstall_alert_detail,
-	preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
-	preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
-	installer_object_id = @installer_object_id,
-	eligible = @eligible,
-	updated_at = now()
-WHERE id = @id
-RETURNING id`
-
-// packageColumnsSQL is the canonical packageRow projection, shared by the
-// by-id and list reads under the p/s/installer_obj aliases.
-const packageColumnsSQL = `
+func packageColumnsSQL() string {
+	return `
 	p.id,
 	p.software_id,
 	s.name AS software_name,
@@ -940,12 +936,15 @@ const packageColumnsSQL = `
 	p.eligible,
 	p.created_at,
 	p.updated_at`
+}
 
-const packageSelectSQL = `
-SELECT` + packageColumnsSQL + `
+func packageSelectSQL() string {
+	return `
+SELECT` + packageColumnsSQL() + `
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id`
+}
 
 func writePackageRelations(ctx context.Context, tx pgx.Tx, packageID int64, params PackageMutation) error {
 	if err := replacePackageRelations(ctx, tx, packageID, relationKindRequires, params.Requires); err != nil {
@@ -964,14 +963,6 @@ type packageRelationWrite struct {
 	TargetPackageID  *int64 `db:"target_package_id"`
 	Position         int32  `db:"position"`
 }
-
-const deletePackageRelationsSQL = `
-DELETE FROM munki_package_relations
-WHERE package_id = $1 AND relation_kind = $2::munki_package_relation_kind`
-
-const insertPackageRelationSQL = `
-INSERT INTO munki_package_relations (package_id, relation_kind, target_software_id, target_package_id, position)
-VALUES (@package_id, @relation_kind::munki_package_relation_kind, @target_software_id, @target_package_id, @position)`
 
 func replacePackageRelations(
 	ctx context.Context,
@@ -992,8 +983,14 @@ func replacePackageRelations(
 	}
 	return dbutil.ReplaceChildren(
 		ctx, tx,
-		deletePackageRelationsSQL, []any{packageID, kind},
-		insertPackageRelationSQL, rows,
+		`
+DELETE FROM munki_package_relations
+WHERE package_id = $1 AND relation_kind = $2::munki_package_relation_kind`,
+		[]any{packageID, kind},
+		`
+INSERT INTO munki_package_relations (package_id, relation_kind, target_software_id, target_package_id, position)
+VALUES (@package_id, @relation_kind::munki_package_relation_kind, @target_software_id, @target_package_id, @position)`,
+		rows,
 	)
 }
 

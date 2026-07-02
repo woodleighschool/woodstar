@@ -62,14 +62,39 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
 		s.db.Pool(),
-		distributionPointSelectSQL+"\nWHERE c.id = $1",
+		distributionPointSelectSQL()+"\nWHERE c.id = $1",
 		id,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, packageStatesSQL, id)
+	qrows, err := s.db.Pool().Query(ctx, `
+SELECT
+	p.id AS package_id,
+	sw.id AS software_id,
+	sw.name AS display_name,
+	p.version,
+	sw.icon_object_id AS software_icon_object_id,
+	CASE
+		WHEN s.package_id IS NULL THEN 'pending'
+		WHEN s.status = 'error' THEN 'error'
+		WHEN o.sha256 = s.reported_sha256 THEN 'current'
+		ELSE 'syncing'
+	END::text AS status,
+	COALESCE(s.error, '') AS error
+FROM munki_packages p
+JOIN munki_software sw ON sw.id = p.software_id
+JOIN storage_objects o ON o.id = p.installer_object_id
+LEFT JOIN munki_distribution_package_states s
+	ON s.package_id = p.id
+	AND s.distribution_point_id = $1
+WHERE o.available_at IS NOT NULL
+  AND o.sha256 IS NOT NULL
+  AND o.size_bytes IS NOT NULL
+ORDER BY sw.name, p.version`,
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +133,33 @@ func (s *Store) Create(
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
 		s.db.Pool(),
-		insertDistributionPointSQL,
+		`
+INSERT INTO munki_distribution_points (
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key"
+)
+VALUES (
+	@name,
+	@enabled,
+	(SELECT COALESCE(MAX(position) + 1, 0) FROM munki_distribution_points),
+	@client_cidrs::text[],
+	@client_base_url,
+	@key
+)
+RETURNING
+	id,
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key",
+	created_at,
+	updated_at`,
 		pgx.StructArgs(write),
 	)
 	if err != nil {
@@ -137,7 +188,25 @@ func (s *Store) Update(
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
 		s.db.Pool(),
-		updateDistributionPointSQL,
+		`
+UPDATE munki_distribution_points
+SET
+	name = @name,
+	enabled = @enabled,
+	client_cidrs = @client_cidrs::text[],
+	client_base_url = @client_base_url,
+	updated_at = now()
+WHERE id = @id
+RETURNING
+	id,
+	name,
+	enabled,
+	position,
+	client_cidrs,
+	client_base_url,
+	"key",
+	created_at,
+	updated_at`,
 		pgx.StructArgs(write),
 	)
 	if err != nil {
@@ -232,7 +301,7 @@ func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*Distributi
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
 		s.db.Pool(),
-		distributionPointSelectSQL+"\nWHERE c.\"key\" = $1",
+		distributionPointSelectSQL()+"\nWHERE c.\"key\" = $1",
 		key,
 	)
 	if err != nil {
@@ -251,7 +320,30 @@ func (s *Store) ResolveForClient(
 	clientIP netip.Addr,
 	packageID int64,
 ) (*ResolvedPoint, error) {
-	qrows, err := s.db.Pool().Query(ctx, eligibleDistributionPointsSQL, clientIP, packageID)
+	qrows, err := s.db.Pool().Query(ctx, `
+SELECT
+	c.id,
+	c."key",
+	c.client_base_url
+FROM munki_distribution_points c
+WHERE c.enabled
+  AND c.client_base_url <> ''
+  AND $1::inet <<= ANY (c.client_cidrs::inet[])
+  AND EXISTS (
+      SELECT 1
+      FROM munki_distribution_package_states s
+      JOIN munki_packages p ON p.id = s.package_id
+      JOIN storage_objects o ON o.id = p.installer_object_id
+      WHERE s.distribution_point_id = c.id
+        AND s.package_id = $2
+        AND s.status = 'current'
+        AND o.available_at IS NOT NULL
+        AND o.sha256 = s.reported_sha256
+  )
+ORDER BY c.position, c.id`,
+		clientIP,
+		packageID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +361,18 @@ func (s *Store) ResolveForClient(
 
 // DesiredPackages returns every package whose installer is available to mirror.
 func (s *Store) DesiredPackages(ctx context.Context) ([]DesiredPackage, error) {
-	qrows, err := s.db.Pool().Query(ctx, desiredPackagesSQL)
+	qrows, err := s.db.Pool().Query(ctx, `
+SELECT
+	p.id AS package_id,
+	o.filename,
+	o.sha256,
+	o.size_bytes
+FROM munki_packages p
+JOIN storage_objects o ON o.id = p.installer_object_id
+WHERE o.available_at IS NOT NULL
+  AND o.sha256 IS NOT NULL
+  AND o.size_bytes IS NOT NULL
+ORDER BY p.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +404,17 @@ func (s *Store) InstallerObjectKey(ctx context.Context, packageID int64) (string
 		ID       int64  `db:"object_id"`
 		Filename string `db:"filename"`
 	}
-	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), installerObjectSQL, packageID)
+	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), `
+SELECT
+	o.prefix,
+	o.id AS object_id,
+	o.filename
+FROM munki_packages p
+JOIN storage_objects o ON o.id = p.installer_object_id
+WHERE p.id = $1
+  AND o.available_at IS NOT NULL`,
+		packageID,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -320,13 +433,33 @@ func (s *Store) RecordPackageState(
 	sha256 string,
 	errMessage string,
 ) error {
-	_, err := s.db.Pool().Exec(ctx, upsertPackageStateSQL, pgx.NamedArgs{
-		"distribution_point_id": distributionPointID,
-		"package_id":            packageID,
-		"status":                string(status),
-		"reported_sha256":       reportedSHA256(sha256),
-		"error":                 errMessage,
-	})
+	_, err := s.db.Pool().Exec(ctx, `
+INSERT INTO munki_distribution_package_states (
+	distribution_point_id,
+	package_id,
+	status,
+	reported_sha256,
+	error
+)
+VALUES (
+	@distribution_point_id,
+	@package_id,
+	@status,
+	@reported_sha256,
+	@error
+)
+ON CONFLICT (distribution_point_id, package_id) DO UPDATE
+SET status = EXCLUDED.status,
+    reported_sha256 = EXCLUDED.reported_sha256,
+    error = EXCLUDED.error,
+    updated_at = now()`,
+		pgx.NamedArgs{
+			"distribution_point_id": distributionPointID,
+			"package_id":            packageID,
+			"status":                string(status),
+			"reported_sha256":       reportedSHA256(sha256),
+			"error":                 errMessage,
+		})
 	return err
 }
 
@@ -435,142 +568,3 @@ type desiredPackageRow struct {
 	Sha256    *string `db:"sha256"`
 	SizeBytes *int64  `db:"size_bytes"`
 }
-
-const insertDistributionPointSQL = `
-INSERT INTO munki_distribution_points (
-	name,
-	enabled,
-	position,
-	client_cidrs,
-	client_base_url,
-	"key"
-)
-VALUES (
-	@name,
-	@enabled,
-	(SELECT COALESCE(MAX(position) + 1, 0) FROM munki_distribution_points),
-	@client_cidrs::text[],
-	@client_base_url,
-	@key
-)
-RETURNING
-	id,
-	name,
-	enabled,
-	position,
-	client_cidrs,
-	client_base_url,
-	"key",
-	created_at,
-	updated_at`
-
-const updateDistributionPointSQL = `
-UPDATE munki_distribution_points
-SET
-	name = @name,
-	enabled = @enabled,
-	client_cidrs = @client_cidrs::text[],
-	client_base_url = @client_base_url,
-	updated_at = now()
-WHERE id = @id
-RETURNING
-	id,
-	name,
-	enabled,
-	position,
-	client_cidrs,
-	client_base_url,
-	"key",
-	created_at,
-	updated_at`
-
-const eligibleDistributionPointsSQL = `
-SELECT
-	c.id,
-	c."key",
-	c.client_base_url
-FROM munki_distribution_points c
-WHERE c.enabled
-  AND c.client_base_url <> ''
-  AND $1::inet <<= ANY (c.client_cidrs::inet[])
-  AND EXISTS (
-      SELECT 1
-      FROM munki_distribution_package_states s
-      JOIN munki_packages p ON p.id = s.package_id
-      JOIN storage_objects o ON o.id = p.installer_object_id
-      WHERE s.distribution_point_id = c.id
-        AND s.package_id = $2
-        AND s.status = 'current'
-        AND o.available_at IS NOT NULL
-        AND o.sha256 = s.reported_sha256
-  )
-ORDER BY c.position, c.id`
-
-const packageStatesSQL = `
-SELECT
-	p.id AS package_id,
-	sw.id AS software_id,
-	sw.name AS display_name,
-	p.version,
-	sw.icon_object_id AS software_icon_object_id,
-	CASE
-		WHEN s.package_id IS NULL THEN 'pending'
-		WHEN s.status = 'error' THEN 'error'
-		WHEN o.sha256 = s.reported_sha256 THEN 'current'
-		ELSE 'syncing'
-	END::text AS status,
-	COALESCE(s.error, '') AS error
-FROM munki_packages p
-JOIN munki_software sw ON sw.id = p.software_id
-JOIN storage_objects o ON o.id = p.installer_object_id
-LEFT JOIN munki_distribution_package_states s
-	ON s.package_id = p.id
-	AND s.distribution_point_id = $1
-WHERE o.available_at IS NOT NULL
-  AND o.sha256 IS NOT NULL
-  AND o.size_bytes IS NOT NULL
-ORDER BY sw.name, p.version`
-
-const desiredPackagesSQL = `
-SELECT
-	p.id AS package_id,
-	o.filename,
-	o.sha256,
-	o.size_bytes
-FROM munki_packages p
-JOIN storage_objects o ON o.id = p.installer_object_id
-WHERE o.available_at IS NOT NULL
-  AND o.sha256 IS NOT NULL
-  AND o.size_bytes IS NOT NULL
-ORDER BY p.id`
-
-const installerObjectSQL = `
-SELECT
-	o.prefix,
-	o.id AS object_id,
-	o.filename
-FROM munki_packages p
-JOIN storage_objects o ON o.id = p.installer_object_id
-WHERE p.id = $1
-  AND o.available_at IS NOT NULL`
-
-const upsertPackageStateSQL = `
-INSERT INTO munki_distribution_package_states (
-	distribution_point_id,
-	package_id,
-	status,
-	reported_sha256,
-	error
-)
-VALUES (
-	@distribution_point_id,
-	@package_id,
-	@status,
-	@reported_sha256,
-	@error
-)
-ON CONFLICT (distribution_point_id, package_id) DO UPDATE
-SET status = EXCLUDED.status,
-    reported_sha256 = EXCLUDED.reported_sha256,
-    error = EXCLUDED.error,
-    updated_at = now()`

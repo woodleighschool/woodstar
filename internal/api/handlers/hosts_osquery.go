@@ -115,7 +115,15 @@ func registerHostReportResults(
 	}, func(ctx context.Context, input *hostReportResultsInput) (*hostReportResultsOutput, error) {
 		host, err := hostStore.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "list-host-osquery-report-results", hostResource, err, "host_id", input.ID)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-host-osquery-report-results",
+				hostResource,
+				err,
+				"host_id",
+				input.ID,
+			)
 		}
 		rows, lastFetched, err := reportStore.HostResults(ctx, input.ID, input.ReportID)
 		if err != nil {

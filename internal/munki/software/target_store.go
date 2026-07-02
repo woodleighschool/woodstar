@@ -54,8 +54,18 @@ func (s *Store) replaceTargets(
 	}
 	if err := dbutil.ReplaceChildren(
 		ctx, tx,
-		deleteSoftwareTargetsSQL, []any{softwareID},
-		insertSoftwareTargetSQL, rows,
+		`DELETE FROM munki_software_targets WHERE software_id = $1`, []any{softwareID},
+		`
+INSERT INTO munki_software_targets (software_id, direction, position, label_id, actions, package_selection, pinned_package_id)
+VALUES (
+	@software_id,
+	@direction::target_direction,
+	@position,
+	@label_id,
+	NULLIF(@actions::text[]::munki_manifest_action[], ARRAY[]::munki_manifest_action[]),
+	NULLIF(@package_selection, '')::munki_package_selection,
+	@pinned_package_id
+)`, rows,
 	); err != nil {
 		return dbutil.MutationError(err)
 	}
@@ -200,7 +210,37 @@ type effectivePackageRow struct {
 
 // EffectivePackagesForHost resolves Munki package candidates for one host.
 func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
-	qrows, err := s.db.Pool().Query(ctx, effectivePackagesForHostSQL, hostID)
+	qrows, err := s.db.Pool().Query(ctx, `
+SELECT
+	p.id AS package_id,
+	(a.position + 1)::bigint AS target_id,
+	a.software_id AS target_software_id,
+	a.actions::text[] AS actions,
+	a.package_selection::text AS package_selection,
+	a.pinned_package_id
+FROM munki_software_targets a
+JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
+JOIN munki_packages p ON p.software_id = a.software_id
+	AND (
+		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
+		OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
+	)
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+WHERE a.direction = 'include'
+  AND p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM munki_software_targets excluded
+      JOIN label_membership excluded_lm
+        ON excluded_lm.label_id = excluded.label_id
+       AND excluded_lm.host_id = $1
+      WHERE excluded.software_id = a.software_id
+        AND excluded.direction = 'exclude'
+  )
+ORDER BY a.software_id, a.position, p.id`,
+		hostID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -243,36 +283,6 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	return ResolveEffectivePackages(effective), nil
 }
 
-const effectivePackagesForHostSQL = `
-SELECT
-	p.id AS package_id,
-	(a.position + 1)::bigint AS target_id,
-	a.software_id AS target_software_id,
-	a.actions::text[] AS actions,
-	a.package_selection::text AS package_selection,
-	a.pinned_package_id
-FROM munki_software_targets a
-JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
-JOIN munki_packages p ON p.software_id = a.software_id
-	AND (
-		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
-		OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
-	)
-LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
-WHERE a.direction = 'include'
-  AND p.eligible
-  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
-  AND NOT EXISTS (
-      SELECT 1
-      FROM munki_software_targets excluded
-      JOIN label_membership excluded_lm
-        ON excluded_lm.label_id = excluded.label_id
-       AND excluded_lm.host_id = $1
-      WHERE excluded.software_id = a.software_id
-        AND excluded.direction = 'exclude'
-  )
-ORDER BY a.software_id, a.position, p.id`
-
 type softwareTargetWrite struct {
 	SoftwareID       int64    `db:"software_id"`
 	Direction        string   `db:"direction"`
@@ -282,17 +292,3 @@ type softwareTargetWrite struct {
 	PackageSelection string   `db:"package_selection"`
 	PinnedPackageID  *int64   `db:"pinned_package_id"`
 }
-
-const deleteSoftwareTargetsSQL = `DELETE FROM munki_software_targets WHERE software_id = $1`
-
-const insertSoftwareTargetSQL = `
-INSERT INTO munki_software_targets (software_id, direction, position, label_id, actions, package_selection, pinned_package_id)
-VALUES (
-	@software_id,
-	@direction::target_direction,
-	@position,
-	@label_id,
-	NULLIF(@actions::text[]::munki_manifest_action[], ARRAY[]::munki_manifest_action[]),
-	NULLIF(@package_selection, '')::munki_package_selection,
-	@pinned_package_id
-)`

@@ -21,12 +21,6 @@ type santaRuleListInput struct {
 	RuleType rules.RuleType `query:"rule_type,omitempty"`
 }
 
-type santaRuleReferenceListInput struct {
-	Q        string         `query:"q,omitempty"`
-	RuleType rules.RuleType `query:"rule_type,omitempty"`
-	Limit    int32          `query:"limit,omitempty"     minimum:"1" maximum:"50"`
-}
-
 type santaRuleGetInput struct {
 	ID int64 `path:"id"`
 }
@@ -56,10 +50,6 @@ type santaRuleOutput struct {
 	Body rules.Rule
 }
 
-type santaRuleReferenceListOutput struct {
-	Body []rules.RuleReferenceCandidate
-}
-
 func (input santaRuleListInput) params() rules.RuleListParams {
 	return rules.RuleListParams{
 		ListParams: input.ListQueryInput.params(),
@@ -67,13 +57,8 @@ func (input santaRuleListInput) params() rules.RuleListParams {
 	}
 }
 
-func (input santaRuleReferenceListInput) params() rules.RuleReferenceListParams {
-	return rules.RuleReferenceListParams(input)
-}
-
 func registerSantaRules(api huma.API, store *rules.Store, logger *slog.Logger) {
 	registerListSantaRules(api, store, logger)
-	registerListSantaRuleReferences(api, store, logger)
 	registerCreateSantaRule(api, store, logger)
 	registerGetSantaRule(api, store, logger)
 	registerUpdateSantaRule(api, store, logger)
@@ -95,23 +80,6 @@ func registerListSantaRules(api huma.API, store *rules.Store, logger *slog.Logge
 			return nil, resourceError(ctx, logger, "list-santa-rules", santaRuleResource, err)
 		}
 		return &santaRuleListOutput{Body: Page[rules.Rule]{Items: rows, Count: count}}, nil
-	})
-}
-
-func registerListSantaRuleReferences(api huma.API, store *rules.Store, logger *slog.Logger) {
-	huma.Register(api, huma.Operation{
-		OperationID: "list-santa-rule-references",
-		Method:      http.MethodGet,
-		Path:        "/api/santa/rule-references",
-		Tags:        []string{santaTag},
-		Summary:     "List Santa rule references",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
-	}, func(ctx context.Context, input *santaRuleReferenceListInput) (*santaRuleReferenceListOutput, error) {
-		candidates, err := store.ListRuleReferences(ctx, input.params())
-		if err != nil {
-			return nil, resourceError(ctx, logger, "list-santa-rule-references", santaRuleResource, err)
-		}
-		return &santaRuleReferenceListOutput{Body: candidates}, nil
 	})
 }
 

@@ -28,7 +28,23 @@ func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, e
 	write.CreatedByUserID = in.CreatedByUserID
 	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, insertReportSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO reports (
+				name,
+				description,
+				query,
+				min_osquery_version,
+				schedule_interval,
+				created_by_user_id
+			) VALUES (
+				@name,
+				@description,
+				@query,
+				@min_osquery_version,
+				@schedule_interval,
+				@created_by_user_id
+			)
+			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceReportTargets(ctx, tx, id, in.Targets)
@@ -47,7 +63,17 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	write.ID = id
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updateReportSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+			UPDATE reports
+			SET
+				name = @name,
+				description = @description,
+				query = @query,
+				min_osquery_version = @min_osquery_version,
+				schedule_interval = @schedule_interval,
+				updated_at = now()
+			WHERE id = @id
+			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceReportTargets(ctx, tx, id, params.Targets)
@@ -62,7 +88,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[reportRow](ctx, s.db.Pool(), reportSelectSQL+"\nWHERE r.id = $1", id)
+	row, err := dbutil.GetOne[reportRow](ctx, s.db.Pool(), reportSelectSQL()+"\nWHERE r.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +134,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
 	where, args := reportListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    reportSelectSQL,
+		SelectSQL:    reportSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    reportOrderKeys(),
@@ -133,7 +159,23 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 
 // ScheduledForHost returns reports that are scheduled and match the host's label membership.
 func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
-	qrows, err := s.db.Pool().Query(ctx, scheduledReportsForHostSQL, host.ID)
+	qrows, err := s.db.Pool().Query(ctx, reportSelectSQL()+`
+		WHERE r.schedule_interval > 0
+			AND EXISTS (
+				SELECT 1
+				FROM osquery_report_targets rt
+				JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
+				WHERE rt.report_id = r.id
+				  AND rt.direction = 'include'
+			)
+			AND NOT EXISTS (
+				SELECT 1
+				FROM osquery_report_targets rt
+				JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
+				WHERE rt.report_id = r.id
+				  AND rt.direction = 'exclude'
+			)
+		ORDER BY r.id`, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +255,8 @@ func newReportWrite(p ReportMutation) reportWrite {
 	}
 }
 
-const reportSelectSQL = `
+func reportSelectSQL() string {
+	return `
 SELECT
 	r.id,
 	r.name,
@@ -225,51 +268,4 @@ SELECT
 	r.created_at,
 	r.updated_at
 FROM reports r`
-
-const insertReportSQL = `
-INSERT INTO reports (
-	name,
-	description,
-	query,
-	min_osquery_version,
-	schedule_interval,
-	created_by_user_id
-) VALUES (
-	@name,
-	@description,
-	@query,
-	@min_osquery_version,
-	@schedule_interval,
-	@created_by_user_id
-)
-RETURNING id`
-
-const updateReportSQL = `
-UPDATE reports
-SET
-	name = @name,
-	description = @description,
-	query = @query,
-	min_osquery_version = @min_osquery_version,
-	schedule_interval = @schedule_interval,
-	updated_at = now()
-WHERE id = @id
-RETURNING id`
-
-const scheduledReportsForHostSQL = reportSelectSQL + `
-WHERE r.schedule_interval > 0
-  AND EXISTS (
-      SELECT 1
-      FROM osquery_report_targets rt
-      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
-      WHERE rt.report_id = r.id
-        AND rt.direction = 'include'
-  )
-  AND NOT EXISTS (
-      SELECT 1
-      FROM osquery_report_targets rt
-      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
-      WHERE rt.report_id = r.id
-        AND rt.direction = 'exclude'
-  )
-ORDER BY r.id`
+}

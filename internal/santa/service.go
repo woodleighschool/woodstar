@@ -71,7 +71,10 @@ func (s *SyncService) Preflight(
 	if err != nil {
 		return PreflightResponse{}, err
 	}
-	if err := s.deps.HostStore.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
+	if err := s.deps.HostStore.UpsertHostObservation(
+		ctx,
+		hostObservationFromPreflight(hostID, machineID, req),
+	); err != nil {
 		return PreflightResponse{}, err
 	}
 	rules, err := s.deps.Rules.ResolveRulesForHost(ctx, hostID)

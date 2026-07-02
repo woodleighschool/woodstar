@@ -44,7 +44,21 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 	write := newSoftwareWrite(params)
 	var id int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, insertSoftwareSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+INSERT INTO munki_software (
+	name,
+	description,
+	category,
+	developer,
+	icon_object_id
+) VALUES (
+	@name,
+	@description,
+	@category,
+	@developer,
+	@icon_object_id
+)
+RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return s.replaceTargets(ctx, tx, id, params.Targets)
@@ -65,7 +79,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	}
 	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", id)
+		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL()+"\nWHERE st.id = $1", id)
 		if err != nil {
 			return err
 		}
@@ -73,7 +87,17 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 		write := newSoftwareWrite(params)
 		write.ID = id
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updateSoftwareSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+UPDATE munki_software
+SET
+	name = @name,
+	description = @description,
+	category = @category,
+	developer = @developer,
+	icon_object_id = @icon_object_id,
+	updated_at = now()
+WHERE id = @id
+RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return s.replaceTargets(ctx, tx, id, params.Targets)
@@ -93,7 +117,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	sw, err := dbutil.GetOne[Software](ctx, s.db.Pool(), softwareSelectSQL+"\nWHERE st.id = $1", id)
+	sw, err := dbutil.GetOne[Software](ctx, s.db.Pool(), softwareSelectSQL()+"\nWHERE st.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +180,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
 	where, args := softwareListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    softwareSelectSQL,
+		SelectSQL:    softwareSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    softwareOrderKeys(),
@@ -204,7 +228,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	}
 	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL+"\nWHERE st.id = $1", softwareID)
+		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL()+"\nWHERE st.id = $1", softwareID)
 		if err != nil {
 			return err
 		}
@@ -287,7 +311,8 @@ func newSoftwareWrite(params Mutation) softwareWrite {
 	}
 }
 
-const softwareSelectSQL = `
+func softwareSelectSQL() string {
+	return `
 SELECT
 	st.id,
 	st.name,
@@ -298,31 +323,4 @@ SELECT
 	st.created_at,
 	st.updated_at
 FROM munki_software st`
-
-const insertSoftwareSQL = `
-INSERT INTO munki_software (
-	name,
-	description,
-	category,
-	developer,
-	icon_object_id
-) VALUES (
-	@name,
-	@description,
-	@category,
-	@developer,
-	@icon_object_id
-)
-RETURNING id`
-
-const updateSoftwareSQL = `
-UPDATE munki_software
-SET
-	name = @name,
-	description = @description,
-	category = @category,
-	developer = @developer,
-	icon_object_id = @icon_object_id,
-	updated_at = now()
-WHERE id = @id
-RETURNING id`
+}

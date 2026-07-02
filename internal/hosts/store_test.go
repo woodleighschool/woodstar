@@ -226,7 +226,15 @@ func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	primaryUsers := NewPrimaryUserStore(store.db)
 
-	if err := primaryUsers.Upsert(ctx, 999999, "missing@example.test", PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {
+	if err := primaryUsers.Upsert(
+		ctx,
+		999999,
+		"missing@example.test",
+		PrimaryUserSourceManual,
+	); !errors.Is(
+		err,
+		dbutil.ErrNotFound,
+	) {
 		t.Fatalf("Upsert missing host error = %v, want ErrNotFound", err)
 	}
 	if err := primaryUsers.Delete(ctx, 999999, PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {

@@ -10,8 +10,8 @@ lefthook = "2.1.9"
 actionlint = "1.7.12"
 cosign = "3.1.1"
 zizmor = "1.26.1"
-oxfmt = "0.56.0"
-oxlint = "1.71.0"
+oxfmt = "0.57.0"
+oxlint = "1.72.0"
 
 [settings]
 experimental = true

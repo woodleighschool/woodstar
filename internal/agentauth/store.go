@@ -39,14 +39,10 @@ func agentSecretFromRow(row agentSecretRow) AgentSecret {
 	}
 }
 
-const agentSecretColumnsSQL = `id, agent, value, created_at, deleted_at`
-
-const agentSecretSelectSQL = `
-SELECT ` + agentSecretColumnsSQL + `
-FROM agent_secrets`
-
 func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
-	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.db.Pool(), agentSecretSelectSQL+`
+	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.db.Pool(), `
+SELECT id, agent, value, created_at, deleted_at
+FROM agent_secrets
 WHERE deleted_at IS NULL
 ORDER BY agent ASC, created_at DESC, id DESC`)
 	if err != nil {
@@ -66,7 +62,7 @@ func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSec
 	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
 INSERT INTO agent_secrets (agent, value)
 VALUES ($1::agent, $2)
-RETURNING `+agentSecretColumnsSQL,
+RETURNING id, agent, value, created_at, deleted_at`,
 		string(params.Agent), params.Value,
 	)
 	if err != nil {
@@ -82,7 +78,7 @@ UPDATE agent_secrets
 SET value = $1
 WHERE id = $2
   AND deleted_at IS NULL
-RETURNING `+agentSecretColumnsSQL,
+RETURNING id, agent, value, created_at, deleted_at`,
 		params.Value, id,
 	)
 	if err != nil {

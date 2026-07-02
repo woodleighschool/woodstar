@@ -189,7 +189,7 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 
 // GetExecutionEvent returns one execution event by id.
 func (s *Store) GetExecutionEvent(ctx context.Context, id int64) (*ExecutionEvent, error) {
-	row, err := dbutil.GetOne[executionEventRow](ctx, s.db.Pool(), executionEventSelectSQL+"\nWHERE ee.id = $1", id)
+	row, err := dbutil.GetOne[executionEventRow](ctx, s.db.Pool(), executionEventSelectSQL()+"\nWHERE ee.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,12 @@ func (s *Store) ListFileAccessEvents(
 
 // GetFileAccessEvent returns one file-access event by id.
 func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEvent, error) {
-	row, err := dbutil.GetOne[fileAccessEventRow](ctx, s.db.Pool(), fileAccessEventSelectSQL+"\nWHERE fae.id = $1", id)
+	row, err := dbutil.GetOne[fileAccessEventRow](
+		ctx,
+		s.db.Pool(),
+		fileAccessEventSelectSQL()+"\nWHERE fae.id = $1",
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +236,22 @@ func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEv
 // SweepEventsBefore deletes Santa events that occurred before cutoff.
 func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error) {
 	var deleted int
-	err := s.db.Pool().QueryRow(ctx, sweepEventsBeforeSQL, cutoff).Scan(&deleted)
+	err := s.db.Pool().QueryRow(ctx, `
+WITH deleted_execution AS (
+	DELETE FROM santa_execution_events
+	WHERE santa_execution_events.occurred_at < $1
+	RETURNING 1
+),
+deleted_file_access AS (
+	DELETE FROM santa_file_access_events
+	WHERE santa_file_access_events.occurred_at < $1
+	RETURNING 1
+)
+SELECT
+	(SELECT count(*) FROM deleted_execution)::integer
+	+ (SELECT count(*) FROM deleted_file_access)::integer AS deleted_count`,
+		cutoff,
+	).Scan(&deleted)
 	if err != nil {
 		return 0, err
 	}
@@ -261,7 +281,72 @@ func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput)
 		Entitlements:                executableEntitlements(event),
 	}
 	var id int64
-	if err := tx.QueryRow(ctx, upsertExecutableSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `
+INSERT INTO santa_executables (
+	sha256,
+	file_name,
+	file_bundle_id,
+	file_bundle_path,
+	file_bundle_executable_rel_path,
+	file_bundle_name,
+	file_bundle_version,
+	file_bundle_version_string,
+	file_bundle_hash,
+	file_bundle_hash_millis,
+	file_bundle_binary_count,
+	signing_id,
+	team_id,
+	cdhash,
+	codesigning_flags,
+	signing_status,
+	secure_signing_time,
+	signing_time,
+	entitlements,
+	updated_at
+)
+VALUES (
+	@sha256,
+	@file_name,
+	@file_bundle_id,
+	@file_bundle_path,
+	@file_bundle_executable_rel_path,
+	@file_bundle_name,
+	@file_bundle_version,
+	@file_bundle_version_string,
+	@file_bundle_hash,
+	@file_bundle_hash_millis,
+	@file_bundle_binary_count,
+	@signing_id,
+	@team_id,
+	@cdhash,
+	@codesigning_flags,
+	@signing_status::santa_signing_status,
+	@secure_signing_time::timestamptz,
+	@signing_time::timestamptz,
+	@entitlements,
+	now()
+)
+ON CONFLICT (sha256) DO UPDATE SET
+	file_name = EXCLUDED.file_name,
+	file_bundle_id = EXCLUDED.file_bundle_id,
+	file_bundle_path = EXCLUDED.file_bundle_path,
+	file_bundle_executable_rel_path = EXCLUDED.file_bundle_executable_rel_path,
+	file_bundle_name = EXCLUDED.file_bundle_name,
+	file_bundle_version = EXCLUDED.file_bundle_version,
+	file_bundle_version_string = EXCLUDED.file_bundle_version_string,
+	file_bundle_hash = EXCLUDED.file_bundle_hash,
+	file_bundle_hash_millis = EXCLUDED.file_bundle_hash_millis,
+	file_bundle_binary_count = EXCLUDED.file_bundle_binary_count,
+	signing_id = EXCLUDED.signing_id,
+	team_id = EXCLUDED.team_id,
+	cdhash = EXCLUDED.cdhash,
+	codesigning_flags = EXCLUDED.codesigning_flags,
+	signing_status = EXCLUDED.signing_status,
+	secure_signing_time = EXCLUDED.secure_signing_time,
+	signing_time = EXCLUDED.signing_time,
+	entitlements = EXCLUDED.entitlements,
+	updated_at = now()
+RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 		return 0, err
 	}
 	return id, nil
@@ -273,7 +358,13 @@ func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chai
 		return nil
 	}
 	var chainID int64
-	if err := tx.QueryRow(ctx, upsertSigningChainSQL, signingChainHash(entries)).Scan(&chainID); err != nil {
+	if err := tx.QueryRow(ctx, `
+INSERT INTO santa_signing_chains (sha256)
+VALUES ($1)
+ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
+RETURNING id`,
+		signingChainHash(entries),
+	).Scan(&chainID); err != nil {
 		return err
 	}
 	for position, entry := range entries {
@@ -281,31 +372,66 @@ func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chai
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, upsertSigningChainEntrySQL, pgx.NamedArgs{
-			"signing_chain_id": chainID,
-			"position":         int32(position),
-			"certificate_id":   certificateID,
-		}); err != nil {
+		if _, err := tx.Exec(ctx, `
+INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
+VALUES (@signing_chain_id, @position, @certificate_id)
+ON CONFLICT (signing_chain_id, position) DO UPDATE SET certificate_id = EXCLUDED.certificate_id`,
+			pgx.NamedArgs{
+				"signing_chain_id": chainID,
+				"position":         int32(position),
+				"certificate_id":   certificateID,
+			}); err != nil {
 			return err
 		}
 	}
-	_, err := tx.Exec(ctx, linkExecutableSigningChainSQL, pgx.NamedArgs{
-		"executable_id":    executableID,
-		"signing_chain_id": chainID,
-	})
+	_, err := tx.Exec(ctx, `
+INSERT INTO santa_executable_signing_chains (executable_id, signing_chain_id)
+VALUES (@executable_id, @signing_chain_id)
+ON CONFLICT DO NOTHING`,
+		pgx.NamedArgs{
+			"executable_id":    executableID,
+			"signing_chain_id": chainID,
+		})
 	return err
 }
 
 func upsertCertificate(ctx context.Context, tx pgx.Tx, entry signingChainEntry) (int64, error) {
 	var id int64
-	err := tx.QueryRow(ctx, upsertCertificateSQL, pgx.NamedArgs{
-		"sha256":              entry.SHA256,
-		"common_name":         entry.CommonName,
-		"organization":        entry.Org,
-		"organizational_unit": entry.OU,
-		"valid_from":          certificateTime(entry.ValidFrom),
-		"valid_until":         certificateTime(entry.ValidUntil),
-	}).Scan(&id)
+	err := tx.QueryRow(ctx, `
+INSERT INTO santa_certificates (
+	sha256,
+	common_name,
+	organization,
+	organizational_unit,
+	valid_from,
+	valid_until,
+	updated_at
+)
+VALUES (
+	@sha256,
+	@common_name,
+	@organization,
+	@organizational_unit,
+	@valid_from::timestamptz,
+	@valid_until::timestamptz,
+	now()
+)
+ON CONFLICT (sha256) DO UPDATE SET
+	common_name = EXCLUDED.common_name,
+	organization = EXCLUDED.organization,
+	organizational_unit = EXCLUDED.organizational_unit,
+	valid_from = EXCLUDED.valid_from,
+	valid_until = EXCLUDED.valid_until,
+	updated_at = now()
+RETURNING id`,
+		pgx.NamedArgs{
+			"sha256":              entry.SHA256,
+			"common_name":         entry.CommonName,
+			"organization":        entry.Org,
+			"organizational_unit": entry.OU,
+			"valid_from":          certificateTime(entry.ValidFrom),
+			"valid_until":         certificateTime(entry.ValidUntil),
+		}).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -328,22 +454,78 @@ func upsertBundle(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (in
 		HashMillis:        event.BundleHashMillis,
 	}
 	var id int64
-	if err := tx.QueryRow(ctx, upsertBundleSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `
+INSERT INTO santa_bundles (
+	sha256,
+	bundle_id,
+	name,
+	path,
+	executable_rel_path,
+	version,
+	version_string,
+	binary_count,
+	hash_millis,
+	updated_at
+)
+VALUES (
+	@sha256,
+	@bundle_id,
+	@name,
+	@path,
+	@executable_rel_path,
+	@version,
+	@version_string,
+	@binary_count,
+	@hash_millis,
+	now()
+)
+ON CONFLICT (sha256) DO UPDATE SET
+	bundle_id = COALESCE(NULLIF(EXCLUDED.bundle_id, ''), santa_bundles.bundle_id),
+	name = COALESCE(NULLIF(EXCLUDED.name, ''), santa_bundles.name),
+	path = COALESCE(NULLIF(EXCLUDED.path, ''), santa_bundles.path),
+	executable_rel_path = COALESCE(NULLIF(EXCLUDED.executable_rel_path, ''), santa_bundles.executable_rel_path),
+	version = COALESCE(NULLIF(EXCLUDED.version, ''), santa_bundles.version),
+	version_string = COALESCE(NULLIF(EXCLUDED.version_string, ''), santa_bundles.version_string),
+	binary_count = CASE
+		WHEN EXCLUDED.binary_count > 0 THEN EXCLUDED.binary_count
+		ELSE santa_bundles.binary_count
+	END,
+	hash_millis = CASE
+		WHEN EXCLUDED.hash_millis > 0 THEN EXCLUDED.hash_millis
+		ELSE santa_bundles.hash_millis
+	END,
+	updated_at = now()
+RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 		return 0, false, err
 	}
 	return id, true, nil
 }
 
 func linkBundleExecutable(ctx context.Context, tx pgx.Tx, bundleID int64, executableID int64) error {
-	_, err := tx.Exec(ctx, linkBundleExecutableSQL, pgx.NamedArgs{
-		"bundle_id":     bundleID,
-		"executable_id": executableID,
-	})
+	_, err := tx.Exec(ctx, `
+INSERT INTO santa_bundle_executables (bundle_id, executable_id)
+VALUES (@bundle_id, @executable_id)
+ON CONFLICT DO NOTHING`,
+		pgx.NamedArgs{
+			"bundle_id":     bundleID,
+			"executable_id": executableID,
+		})
 	return err
 }
 
 func refreshBundleUploadedAt(ctx context.Context, tx pgx.Tx, bundleID int64) error {
-	_, err := tx.Exec(ctx, refreshBundleUploadedAtSQL, pgx.NamedArgs{"bundle_id": bundleID})
+	_, err := tx.Exec(ctx, `
+UPDATE santa_bundles b
+SET uploaded_at = COALESCE(uploaded_at, now()), updated_at = now()
+WHERE b.id = @bundle_id
+  AND b.binary_count > 0
+  AND (
+	  SELECT count(*)
+	  FROM santa_bundle_executables be
+	  WHERE be.bundle_id = b.id
+  ) >= b.binary_count`,
+		pgx.NamedArgs{"bundle_id": bundleID},
+	)
 	return err
 }
 
@@ -352,7 +534,14 @@ func incompleteBundleHashes(ctx context.Context, tx pgx.Tx, candidates []string)
 	if len(hashes) == 0 {
 		return nil, nil
 	}
-	rows, err := tx.Query(ctx, listIncompleteBundleHashesSQL, hashes)
+	rows, err := tx.Query(ctx, `
+SELECT b.sha256
+FROM santa_bundles b
+WHERE b.sha256 = ANY($1::text[])
+  AND b.uploaded_at IS NULL
+ORDER BY b.sha256`,
+		hashes,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +568,33 @@ func insertExecutionEvent(
 		Decision:        string(event.Decision),
 		OccurredAt:      event.OccurredAt,
 	}
-	_, err := tx.Exec(ctx, insertExecutionEventSQL, pgx.StructArgs(write))
+	_, err := tx.Exec(ctx, `
+INSERT INTO santa_execution_events (
+	host_id,
+	executable_id,
+	file_path,
+	executing_user,
+	pid,
+	ppid,
+	parent_name,
+	logged_in_users,
+	current_sessions,
+	decision,
+	occurred_at
+)
+VALUES (
+	@host_id,
+	@executable_id,
+	@file_path,
+	@executing_user,
+	@pid,
+	@ppid,
+	@parent_name,
+	@logged_in_users,
+	@current_sessions,
+	@decision::santa_execution_decision,
+	@occurred_at
+)`, pgx.StructArgs(write))
 	return err
 }
 
@@ -401,7 +616,37 @@ func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event F
 		ProcessChain:            chain,
 		OccurredAt:              event.OccurredAt,
 	}
-	_, err := tx.Exec(ctx, insertFileAccessEventSQL, pgx.StructArgs(write))
+	_, err := tx.Exec(ctx, `
+INSERT INTO santa_file_access_events (
+	host_id,
+	rule_version,
+	rule_name,
+	target,
+	decision,
+	primary_process_sha256,
+	primary_process_path,
+	primary_process_signing_id,
+	primary_process_team_id,
+	primary_process_cdhash,
+	primary_process_pid,
+	process_chain,
+	occurred_at
+)
+VALUES (
+	@host_id,
+	@rule_version,
+	@rule_name,
+	@target,
+	@decision::santa_file_access_decision,
+	@primary_process_sha256,
+	@primary_process_path,
+	@primary_process_signing_id,
+	@primary_process_team_id,
+	@primary_process_cdhash,
+	@primary_process_pid,
+	@process_chain::jsonb,
+	@occurred_at
+)`, pgx.StructArgs(write))
 	return err
 }
 
@@ -625,7 +870,7 @@ func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventL
 
 func executionEventListQuery(params ExecutionEventListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL:    executionEventSelectSQL,
+		SelectSQL:    executionEventSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    eventOrderKeys("ee", "e"),
@@ -636,7 +881,7 @@ func executionEventListQuery(params ExecutionEventListParams, where string, args
 
 func fileAccessEventListQuery(params FileAccessEventListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL:    fileAccessEventSelectSQL,
+		SelectSQL:    fileAccessEventSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    fileAccessEventOrderKeys(),
@@ -873,7 +1118,8 @@ func fileAccessEventFromRow(row fileAccessEventRow) FileAccessEvent {
 	return event
 }
 
-const hostEventSelectSQL = `
+func hostEventSelectSQL() string {
+	return `
 	h.id AS host_id,
 	h.display_name,
 	h.hostname,
@@ -883,11 +1129,13 @@ const hostEventSelectSQL = `
 	COALESCE(sh.machine_id, '') AS santa_machine_id,
 	COALESCE(sh.santa_version, '') AS santa_version,
 	COALESCE(sh.client_mode_reported::text, '') AS santa_client_mode`
+}
 
-const executionEventSelectSQL = `
+func executionEventSelectSQL() string {
+	return `
 SELECT
 	ee.id,
-` + hostEventSelectSQL + `,
+` + hostEventSelectSQL() + `,
 	ee.file_path,
 	ee.executing_user,
 	ee.pid,
@@ -945,11 +1193,13 @@ FROM santa_execution_events ee
 JOIN santa_executables e ON e.id = ee.executable_id
 JOIN hosts h ON h.id = ee.host_id
 LEFT JOIN santa_hosts sh ON sh.host_id = h.id`
+}
 
-const fileAccessEventSelectSQL = `
+func fileAccessEventSelectSQL() string {
+	return `
 SELECT
 	fae.id,
-` + hostEventSelectSQL + `,
+` + hostEventSelectSQL() + `,
 	fae.rule_version,
 	fae.rule_name,
 	fae.target,
@@ -960,21 +1210,7 @@ SELECT
 FROM santa_file_access_events fae
 JOIN hosts h ON h.id = fae.host_id
 LEFT JOIN santa_hosts sh ON sh.host_id = h.id`
-
-const sweepEventsBeforeSQL = `
-WITH deleted_execution AS (
-	DELETE FROM santa_execution_events
-	WHERE santa_execution_events.occurred_at < $1
-	RETURNING 1
-),
-deleted_file_access AS (
-	DELETE FROM santa_file_access_events
-	WHERE santa_file_access_events.occurred_at < $1
-	RETURNING 1
-)
-SELECT
-	(SELECT count(*) FROM deleted_execution)::integer
-	+ (SELECT count(*) FROM deleted_file_access)::integer AS deleted_count`
+}
 
 type executableWrite struct {
 	SHA256                      string     `db:"sha256"`
@@ -998,117 +1234,6 @@ type executableWrite struct {
 	Entitlements                []byte     `db:"entitlements"`
 }
 
-const upsertExecutableSQL = `
-INSERT INTO santa_executables (
-	sha256,
-	file_name,
-	file_bundle_id,
-	file_bundle_path,
-	file_bundle_executable_rel_path,
-	file_bundle_name,
-	file_bundle_version,
-	file_bundle_version_string,
-	file_bundle_hash,
-	file_bundle_hash_millis,
-	file_bundle_binary_count,
-	signing_id,
-	team_id,
-	cdhash,
-	codesigning_flags,
-	signing_status,
-	secure_signing_time,
-	signing_time,
-	entitlements,
-	updated_at
-)
-VALUES (
-	@sha256,
-	@file_name,
-	@file_bundle_id,
-	@file_bundle_path,
-	@file_bundle_executable_rel_path,
-	@file_bundle_name,
-	@file_bundle_version,
-	@file_bundle_version_string,
-	@file_bundle_hash,
-	@file_bundle_hash_millis,
-	@file_bundle_binary_count,
-	@signing_id,
-	@team_id,
-	@cdhash,
-	@codesigning_flags,
-	@signing_status::santa_signing_status,
-	@secure_signing_time::timestamptz,
-	@signing_time::timestamptz,
-	@entitlements,
-	now()
-)
-ON CONFLICT (sha256) DO UPDATE SET
-	file_name = EXCLUDED.file_name,
-	file_bundle_id = EXCLUDED.file_bundle_id,
-	file_bundle_path = EXCLUDED.file_bundle_path,
-	file_bundle_executable_rel_path = EXCLUDED.file_bundle_executable_rel_path,
-	file_bundle_name = EXCLUDED.file_bundle_name,
-	file_bundle_version = EXCLUDED.file_bundle_version,
-	file_bundle_version_string = EXCLUDED.file_bundle_version_string,
-	file_bundle_hash = EXCLUDED.file_bundle_hash,
-	file_bundle_hash_millis = EXCLUDED.file_bundle_hash_millis,
-	file_bundle_binary_count = EXCLUDED.file_bundle_binary_count,
-	signing_id = EXCLUDED.signing_id,
-	team_id = EXCLUDED.team_id,
-	cdhash = EXCLUDED.cdhash,
-	codesigning_flags = EXCLUDED.codesigning_flags,
-	signing_status = EXCLUDED.signing_status,
-	secure_signing_time = EXCLUDED.secure_signing_time,
-	signing_time = EXCLUDED.signing_time,
-	entitlements = EXCLUDED.entitlements,
-	updated_at = now()
-RETURNING id`
-
-const upsertSigningChainSQL = `
-INSERT INTO santa_signing_chains (sha256)
-VALUES ($1)
-ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
-RETURNING id`
-
-const upsertCertificateSQL = `
-INSERT INTO santa_certificates (
-	sha256,
-	common_name,
-	organization,
-	organizational_unit,
-	valid_from,
-	valid_until,
-	updated_at
-)
-VALUES (
-	@sha256,
-	@common_name,
-	@organization,
-	@organizational_unit,
-	@valid_from::timestamptz,
-	@valid_until::timestamptz,
-	now()
-)
-ON CONFLICT (sha256) DO UPDATE SET
-	common_name = EXCLUDED.common_name,
-	organization = EXCLUDED.organization,
-	organizational_unit = EXCLUDED.organizational_unit,
-	valid_from = EXCLUDED.valid_from,
-	valid_until = EXCLUDED.valid_until,
-	updated_at = now()
-RETURNING id`
-
-const upsertSigningChainEntrySQL = `
-INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
-VALUES (@signing_chain_id, @position, @certificate_id)
-ON CONFLICT (signing_chain_id, position) DO UPDATE SET certificate_id = EXCLUDED.certificate_id`
-
-const linkExecutableSigningChainSQL = `
-INSERT INTO santa_executable_signing_chains (executable_id, signing_chain_id)
-VALUES (@executable_id, @signing_chain_id)
-ON CONFLICT DO NOTHING`
-
 type bundleWrite struct {
 	SHA256            string `db:"sha256"`
 	BundleID          string `db:"bundle_id"`
@@ -1120,72 +1245,6 @@ type bundleWrite struct {
 	BinaryCount       int32  `db:"binary_count"`
 	HashMillis        int32  `db:"hash_millis"`
 }
-
-const upsertBundleSQL = `
-INSERT INTO santa_bundles (
-	sha256,
-	bundle_id,
-	name,
-	path,
-	executable_rel_path,
-	version,
-	version_string,
-	binary_count,
-	hash_millis,
-	updated_at
-)
-VALUES (
-	@sha256,
-	@bundle_id,
-	@name,
-	@path,
-	@executable_rel_path,
-	@version,
-	@version_string,
-	@binary_count,
-	@hash_millis,
-	now()
-)
-ON CONFLICT (sha256) DO UPDATE SET
-	bundle_id = COALESCE(NULLIF(EXCLUDED.bundle_id, ''), santa_bundles.bundle_id),
-	name = COALESCE(NULLIF(EXCLUDED.name, ''), santa_bundles.name),
-	path = COALESCE(NULLIF(EXCLUDED.path, ''), santa_bundles.path),
-	executable_rel_path = COALESCE(NULLIF(EXCLUDED.executable_rel_path, ''), santa_bundles.executable_rel_path),
-	version = COALESCE(NULLIF(EXCLUDED.version, ''), santa_bundles.version),
-	version_string = COALESCE(NULLIF(EXCLUDED.version_string, ''), santa_bundles.version_string),
-	binary_count = CASE
-		WHEN EXCLUDED.binary_count > 0 THEN EXCLUDED.binary_count
-		ELSE santa_bundles.binary_count
-	END,
-	hash_millis = CASE
-		WHEN EXCLUDED.hash_millis > 0 THEN EXCLUDED.hash_millis
-		ELSE santa_bundles.hash_millis
-	END,
-	updated_at = now()
-RETURNING id`
-
-const linkBundleExecutableSQL = `
-INSERT INTO santa_bundle_executables (bundle_id, executable_id)
-VALUES (@bundle_id, @executable_id)
-ON CONFLICT DO NOTHING`
-
-const refreshBundleUploadedAtSQL = `
-UPDATE santa_bundles b
-SET uploaded_at = COALESCE(uploaded_at, now()), updated_at = now()
-WHERE b.id = @bundle_id
-  AND b.binary_count > 0
-  AND (
-	  SELECT count(*)
-	  FROM santa_bundle_executables be
-	  WHERE be.bundle_id = b.id
-  ) >= b.binary_count`
-
-const listIncompleteBundleHashesSQL = `
-SELECT b.sha256
-FROM santa_bundles b
-WHERE b.sha256 = ANY($1::text[])
-  AND b.uploaded_at IS NULL
-ORDER BY b.sha256`
 
 type executionEventWrite struct {
 	HostID          int64     `db:"host_id"`
@@ -1200,34 +1259,6 @@ type executionEventWrite struct {
 	Decision        string    `db:"decision"`
 	OccurredAt      time.Time `db:"occurred_at"`
 }
-
-const insertExecutionEventSQL = `
-INSERT INTO santa_execution_events (
-	host_id,
-	executable_id,
-	file_path,
-	executing_user,
-	pid,
-	ppid,
-	parent_name,
-	logged_in_users,
-	current_sessions,
-	decision,
-	occurred_at
-)
-VALUES (
-	@host_id,
-	@executable_id,
-	@file_path,
-	@executing_user,
-	@pid,
-	@ppid,
-	@parent_name,
-	@logged_in_users,
-	@current_sessions,
-	@decision::santa_execution_decision,
-	@occurred_at
-)`
 
 type fileAccessEventWrite struct {
 	HostID                  int64              `db:"host_id"`
@@ -1244,35 +1275,3 @@ type fileAccessEventWrite struct {
 	ProcessChain            processChainColumn `db:"process_chain"`
 	OccurredAt              time.Time          `db:"occurred_at"`
 }
-
-const insertFileAccessEventSQL = `
-INSERT INTO santa_file_access_events (
-	host_id,
-	rule_version,
-	rule_name,
-	target,
-	decision,
-	primary_process_sha256,
-	primary_process_path,
-	primary_process_signing_id,
-	primary_process_team_id,
-	primary_process_cdhash,
-	primary_process_pid,
-	process_chain,
-	occurred_at
-)
-VALUES (
-	@host_id,
-	@rule_version,
-	@rule_name,
-	@target,
-	@decision::santa_file_access_decision,
-	@primary_process_sha256,
-	@primary_process_path,
-	@primary_process_signing_id,
-	@primary_process_team_id,
-	@primary_process_cdhash,
-	@primary_process_pid,
-	@process_chain::jsonb,
-	@occurred_at
-)`

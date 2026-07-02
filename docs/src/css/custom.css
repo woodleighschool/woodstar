@@ -30,7 +30,11 @@
   --ifm-menu-color-background-hover: var(--ifm-hover-overlay);
 
   --ifm-code-background: oklch(0.925 0.009 82);
-  --docusaurus-highlighted-code-line-bg: color-mix(in oklch, var(--ifm-color-primary) 12%, transparent);
+  --docusaurus-highlighted-code-line-bg: color-mix(
+    in oklch,
+    var(--ifm-color-primary) 12%,
+    transparent
+  );
 
   --ifm-color-info: var(--woodleigh-moonah);
   --ifm-color-success: oklch(0.605 0.123 150.2);
@@ -39,10 +43,11 @@
 
   --ifm-global-radius: 0.625rem;
   --ifm-font-family-base:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   --ifm-font-family-monospace:
-    ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
 }
 
 [data-theme="dark"] {

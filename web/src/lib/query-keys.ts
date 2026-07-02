@@ -67,8 +67,6 @@ export const queryKeys = {
     ["santa", "file-access-events", "detail", id] as const,
   santaRules: (params?: QueryParams) => ["santa", "rules", "list", params ?? {}] as const,
   santaRule: (id: number | null) => ["santa", "rules", "detail", id] as const,
-  santaRuleReferences: (params?: QueryParams) =>
-    ["santa", "rule-references", "list", params ?? {}] as const,
   liveQueryTargetCount: (params?: QueryParams) =>
     ["live-query-target-count", params ?? {}] as const,
 };

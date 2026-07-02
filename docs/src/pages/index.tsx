@@ -57,7 +57,10 @@ function LinkPanel({ title, text, to }: LinkItem) {
 
 export default function Home(): ReactNode {
   return (
-    <Layout title="Woodstar documentation" description="Self-hosted macOS management: Munki, Santa, and osquery.">
+    <Layout
+      title="Woodstar documentation"
+      description="Self-hosted macOS management: Munki, Santa, and osquery."
+    >
       <main className={styles.main}>
         <section className={styles.intro}>
           <img src="/img/woodstar.svg" className={styles.logo} alt="Woodstar" />
@@ -65,8 +68,9 @@ export default function Home(): ReactNode {
             <p className={styles.kicker}>Woodstar docs</p>
             <h1>Self-hosted macOS management: Munki, Santa, and osquery.</h1>
             <p className={styles.summary}>
-              Woodstar runs Munki, Santa, and osquery for a fleet of Macs: managed software, execution policy, and
-              inventory. It covers the macOS gaps left by our move from Jamf to Intune.
+              Woodstar runs Munki, Santa, and osquery for a fleet of Macs: managed software,
+              execution policy, and inventory. It covers the macOS gaps left by our move from Jamf
+              to Intune.
             </p>
             <div className={styles.actions}>
               <Link className={styles.primaryAction} to="/docs/intro">

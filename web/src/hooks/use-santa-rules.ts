@@ -1,31 +1,22 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type {
-  ApiError,
-  PageRule,
-  SantaRule,
-  SantaRuleMutation,
-  SantaRuleReferenceCandidate,
-} from "@/lib/api";
+import type { ApiError, PageRule, SantaRule, SantaRuleMutation } from "@/lib/api";
 import {
   bulkDeleteSantaRules,
   createSantaRule,
   deleteSantaRule,
   getSantaRule,
-  listSantaRuleReferences,
   listSantaRules,
   unwrap,
   updateSantaRule,
 } from "@/lib/api";
-import type { ListSantaRuleReferencesData, ListSantaRulesData } from "@/lib/api-client/types.gen";
+import type { ListSantaRulesData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
-import { nonEmpty } from "@/lib/utils";
 
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
-export type SantaRuleReferenceListParams = NonNullable<ListSantaRuleReferencesData["query"]>;
 
 export function useSantaRules(params: SantaRuleListParams = {}) {
   const queryParams = {
@@ -51,20 +42,6 @@ export function useSantaRule(id: number | null) {
         }),
       ),
     enabled: id !== null,
-  });
-}
-
-export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}) {
-  const queryParams = {
-    q: nonEmpty(params.q),
-    rule_type: params.rule_type,
-    limit: params.limit ?? 20,
-  };
-
-  return useQuery<SantaRuleReferenceCandidate[], ApiError>({
-    queryKey: queryKeys.santaRuleReferences(queryParams),
-    queryFn: ({ signal }) => unwrap(listSantaRuleReferences({ query: queryParams, signal })),
-    placeholderData: keepPreviousData,
   });
 }
 

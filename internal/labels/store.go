@@ -23,7 +23,7 @@ func NewStore(db *database.DB) *Store {
 func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	where, args := labelListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    labelSelectSQL,
+		SelectSQL:    labelSelectSQL(),
 		WhereSQL:     where,
 		GroupBySQL:   "GROUP BY l.id",
 		Args:         args,
@@ -47,7 +47,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 }
 
 func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
-	rows, err := s.db.Pool().Query(ctx, labelSelectSQL+`
+	rows, err := s.db.Pool().Query(ctx, labelSelectSQL()+`
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
 GROUP BY l.id
 ORDER BY lower(l.name), l.id`, hostID)
@@ -76,7 +76,24 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 	var out *Label
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var id int64
-		if err := tx.QueryRow(ctx, insertLabelSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO labels (
+				name,
+				description,
+				query,
+				criteria,
+				label_type,
+				label_membership_type
+			)
+			VALUES (
+				@name,
+				@description,
+				@query,
+				@criteria::jsonb,
+				@label_type,
+				@label_membership_type
+			)
+			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		if err := replaceMembership(ctx, tx, id, params); err != nil {
@@ -102,7 +119,17 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 	var out *Label
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updateLabelSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+			UPDATE labels
+			SET
+				name = @name,
+				description = @description,
+				query = @query,
+				criteria = @criteria::jsonb,
+				label_membership_type = @label_membership_type,
+				updated_at = now()
+			WHERE id = @id AND label_type = 'regular'
+			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		if err := replaceMembership(ctx, tx, updatedID, params); err != nil {
@@ -134,7 +161,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
-	rows, err := s.db.Pool().Query(ctx, labelSelectSQL+`
+	rows, err := s.db.Pool().Query(ctx, labelSelectSQL()+`
 WHERE l.label_membership_type = 'dynamic'
 GROUP BY l.id
 ORDER BY l.id`)
@@ -310,7 +337,7 @@ func getLabelByID(ctx context.Context, q dbutil.Queryer, id int64) (*Label, erro
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[labelRow](ctx, q, labelSelectSQL+"\nWHERE l.id = $1\nGROUP BY l.id", id)
+	row, err := dbutil.GetOne[labelRow](ctx, q, labelSelectSQL()+"\nWHERE l.id = $1\nGROUP BY l.id", id)
 	if err != nil {
 		return nil, err
 	}
@@ -387,20 +414,21 @@ func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, cri
 	values := cleanCriteriaValues(criteria.Values)
 	switch criteria.Attribute {
 	case DerivedAttributeUserDepartment:
-		_, err := tx.Exec(ctx, insertUserDepartmentMembershipSQL, labelID, values)
+		_, err := tx.Exec(ctx, insertUserDepartmentMembershipSQL(), labelID, values)
 		return err
 	case DerivedAttributeDirectoryGroup:
-		_, err := tx.Exec(ctx, insertDirectoryGroupMembershipSQL, labelID, values)
+		_, err := tx.Exec(ctx, insertDirectoryGroupMembershipSQL(), labelID, values)
 		return err
 	case DerivedAttributeUser:
-		_, err := tx.Exec(ctx, insertUserMembershipSQL, labelID, values)
+		_, err := tx.Exec(ctx, insertUserMembershipSQL(), labelID, values)
 		return err
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
 }
 
-const labelSelectSQL = `
+func labelSelectSQL() string {
+	return `
 SELECT
 	l.id,
 	l.name,
@@ -415,52 +443,25 @@ SELECT
 	l.updated_at
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id`
+}
 
-const insertLabelSQL = `
-INSERT INTO labels (
-	name,
-	description,
-	query,
-	criteria,
-	label_type,
-	label_membership_type
-)
-VALUES (
-	@name,
-	@description,
-	@query,
-	@criteria::jsonb,
-	@label_type,
-	@label_membership_type
-)
-RETURNING id`
+func primaryUserSourceOrderSQL() string {
+	return `CASE source
+		WHEN 'manual' THEN 0
+		WHEN 'orbit_profile' THEN 1
+		ELSE 10
+	END`
+}
 
-const updateLabelSQL = `
-UPDATE labels
-SET
-	name = @name,
-	description = @description,
-	query = @query,
-	criteria = @criteria::jsonb,
-	label_membership_type = @label_membership_type,
-	updated_at = now()
-WHERE id = @id AND label_type = 'regular'
-RETURNING id`
-
-const primaryUserSourceOrderSQL = `CASE source
-	WHEN 'manual' THEN 0
-	WHEN 'orbit_profile' THEN 1
-	ELSE 10
-END`
-
-const resolvedPrimaryUsersSQL = `
+func resolvedPrimaryUsersSQL() string {
+	return `
 WITH preferred AS (
 	SELECT DISTINCT ON (host_id)
 		host_id,
 		email,
 		source::text AS source
 	FROM host_primary_user_sources
-	ORDER BY host_id, ` + primaryUserSourceOrderSQL + `, source
+	ORDER BY host_id, ` + primaryUserSourceOrderSQL() + `, source
 ),
 resolved AS (
 	SELECT
@@ -483,15 +484,19 @@ resolved AS (
 		LIMIT 1
 	) u ON true
 )`
+}
 
-const insertUserDepartmentMembershipSQL = resolvedPrimaryUsersSQL + `
+func insertUserDepartmentMembershipSQL() string {
+	return resolvedPrimaryUsersSQL() + `
 INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, resolved.host_id
 FROM resolved
 WHERE resolved.department = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+}
 
-const insertDirectoryGroupMembershipSQL = resolvedPrimaryUsersSQL + `
+func insertDirectoryGroupMembershipSQL() string {
+	return resolvedPrimaryUsersSQL() + `
 INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, resolved.host_id
 FROM resolved
@@ -499,10 +504,13 @@ JOIN directory_group_memberships dgm ON dgm.user_id = resolved.user_id
 JOIN directory_groups dg ON dg.id = dgm.group_id
 WHERE dg.external_id = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+}
 
-const insertUserMembershipSQL = resolvedPrimaryUsersSQL + `
+func insertUserMembershipSQL() string {
+	return resolvedPrimaryUsersSQL() + `
 INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, resolved.host_id
 FROM resolved
 WHERE resolved.user_id::text = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+}

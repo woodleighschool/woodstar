@@ -19,17 +19,16 @@ import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { SantaRuleMutation } from "@/lib/api";
-import { firstErrorMessage } from "@/lib/form-validation";
 import { RULE_TYPE_OPTIONS, type SantaRuleType } from "@/lib/santa-rules";
 
 import {
   ruleBody,
   ruleFormSchema,
   type RuleFormState,
+  ruleIdentifierHint,
   selectedIncludeLabelIDs,
 } from "./form-state";
 import { SantaIncludeTargets } from "./include-targets";
-import { RuleReferencePicker } from "./reference-picker";
 
 export function RuleForm({
   initial,
@@ -50,11 +49,6 @@ export function RuleForm({
     validators: { onDynamic: ruleFormSchema },
     onSubmit: async ({ value }) => onSubmit(ruleBody(ruleFormSchema.parse(value))),
   });
-  const setRuleReference = (next: RuleFormState) => {
-    form.setFieldValue("rule_type", next.rule_type);
-    form.setFieldValue("identifier", next.identifier);
-    form.setFieldValue("name", next.name);
-  };
 
   return (
     <PageShell asChild>
@@ -140,12 +134,24 @@ export function RuleForm({
                     />
                     <form.Field name="identifier">
                       {(field) => (
-                        <RuleReferencePicker
-                          form={values}
-                          identifierError={firstErrorMessage(field.state.meta.errors)}
-                          onBlur={field.handleBlur}
-                          onChange={setRuleReference}
-                        />
+                        <FormField
+                          field={field}
+                          label="Identifier"
+                          htmlFor="santa-rule-identifier"
+                          required
+                          description={ruleIdentifierHint(values.rule_type)}
+                        >
+                          {(control) => (
+                            <Input
+                              {...control}
+                              name={field.name}
+                              required
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                            />
+                          )}
+                        </FormField>
                       )}
                     </form.Field>
                     <form.Field

@@ -30,7 +30,6 @@ import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
 type CertificateReference = NonNullable<SantaSoftwareReference["certificates"]>[number];
 type ExecutableReference = NonNullable<SantaSoftwareReference["executables"]>[number];
-type RuleReference = NonNullable<SantaSoftwareReference["rules"]>[number];
 type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_identities"]>[number];
 type SantaRuleType = SantaRule["rule_type"];
 
@@ -146,15 +145,13 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
   const executables = ref.executables ?? [];
   const identities = ref.signing_identities ?? [];
   const certificates = ref.certificates ?? [];
-  const rules = ref.rules ?? [];
   const hasSantaData =
     ref.execution_count > 0 ||
     ref.block_count > 0 ||
     bundles.length > 0 ||
     executables.length > 0 ||
     identities.length > 0 ||
-    certificates.length > 0 ||
-    rules.length > 0;
+    certificates.length > 0;
 
   return (
     <Card>
@@ -165,7 +162,6 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
         <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
           <SantaMetric label="Executions" value={ref.execution_count} />
           <SantaMetric label="Blocks" value={ref.block_count} />
-          <SantaMetric label="Rules" value={rules.length} />
           <SantaMetric label="Bundles" value={bundles.length} />
         </div>
 
@@ -177,7 +173,6 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
             <SantaExecutablesTable executables={executables} isAdmin={isAdmin} />
             <SantaSigningTable identities={identities} isAdmin={isAdmin} />
             <SantaCertificatesTable certificates={certificates} isAdmin={isAdmin} />
-            <SantaRulesTable rules={rules} isAdmin={isAdmin} />
           </div>
         )}
       </CardContent>
@@ -341,38 +336,6 @@ function SantaCertificatesTable({
                 name={certificate.common_name}
               />
             ) : null}
-          </TableCell>
-        </TableRow>
-      ))}
-    </SantaReferenceTable>
-  );
-}
-
-function SantaRulesTable({ rules, isAdmin }: { rules: RuleReference[]; isAdmin: boolean }) {
-  return (
-    <SantaReferenceTable title="Rules" empty="No matching rules." count={rules.length}>
-      {rules.map((rule) => (
-        <TableRow key={rule.id}>
-          <TableCell className="min-w-0">
-            {isAdmin ? (
-              <Link
-                to="/santa/rules/$ruleId"
-                params={{ ruleId: String(rule.id) }}
-                className="block truncate font-medium hover:text-primary hover:underline"
-              >
-                {rule.name || rule.identifier}
-              </Link>
-            ) : (
-              <span className="block truncate font-medium">{rule.name || rule.identifier}</span>
-            )}
-            <div className="truncate font-mono text-xs text-muted-foreground">
-              {rule.identifier}
-            </div>
-          </TableCell>
-          <TableCell className="text-right">
-            <Badge variant="secondary" className="font-normal">
-              {ruleTypeLabel(rule.rule_type)}
-            </Badge>
           </TableCell>
         </TableRow>
       ))}

@@ -14,7 +14,6 @@ type SoftwareReference struct {
 	Executables       []ExecutableReference      `json:"executables"`
 	SigningIdentities []SigningIdentityReference `json:"signing_identities"`
 	Certificates      []CertificateReference     `json:"certificates"`
-	Rules             []RuleReference            `json:"rules"`
 }
 
 type BundleReference struct {
@@ -60,13 +59,4 @@ type CertificateReference struct {
 	ValidFrom          *time.Time `json:"valid_from,omitempty"  db:"valid_from"`
 	ValidUntil         *time.Time `json:"valid_until,omitempty" db:"valid_until"`
 	RuleCount          int32      `json:"rule_count"            db:"rule_count"`
-}
-
-type RuleReference struct {
-	ID            int64               `json:"id"`
-	RuleType      santarules.RuleType `json:"rule_type"`
-	Identifier    string              `json:"identifier"`
-	Name          string              `json:"name"`
-	CustomMessage string              `json:"custom_message"`
-	CustomURL     string              `json:"custom_url"`
 }

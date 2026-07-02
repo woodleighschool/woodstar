@@ -3269,84 +3269,6 @@ components:
         - name
         - targets
       type: object
-    SantaRuleReference:
-      additionalProperties: false
-      properties:
-        custom_message:
-          type: string
-        custom_url:
-          type: string
-        id:
-          format: int64
-          type: integer
-        identifier:
-          type: string
-        name:
-          type: string
-        rule_type:
-          enum:
-            - binary
-            - certificate
-            - teamid
-            - signingid
-            - cdhash
-            - bundle
-          type: string
-      required:
-        - id
-        - rule_type
-        - identifier
-        - name
-        - custom_message
-        - custom_url
-      type: object
-    SantaRuleReferenceCandidate:
-      additionalProperties: false
-      properties:
-        binary_count:
-          format: int32
-          type: integer
-        bundle_identifier:
-          type: string
-        certificate_common_name:
-          type: string
-        certificate_organization:
-          type: string
-        certificate_organizational_unit:
-          type: string
-        collected_binary_count:
-          format: int32
-          type: integer
-        complete:
-          type: boolean
-        display_name:
-          type: string
-        file_name:
-          type: string
-        identifier:
-          type: string
-        path:
-          type: string
-        rule_count:
-          format: int32
-          type: integer
-        rule_type:
-          enum:
-            - binary
-            - certificate
-            - teamid
-            - signingid
-            - cdhash
-            - bundle
-          type: string
-        version:
-          type: string
-      required:
-        - rule_type
-        - identifier
-        - rule_count
-        - complete
-      type: object
     SantaRuleStatus:
       additionalProperties: false
       properties:
@@ -3502,10 +3424,6 @@ components:
         execution_count:
           format: int32
           type: integer
-        rules:
-          items:
-            $ref: "#/components/schemas/SantaRuleReference"
-          type: array
         signing_identities:
           items:
             $ref: "#/components/schemas/SantaSigningIdentityReference"
@@ -3517,7 +3435,6 @@ components:
         - executables
         - signing_identities
         - certificates
-        - rules
       type: object
     SessionBody:
       additionalProperties: false
@@ -8157,71 +8074,6 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Get a Santa file access event
-      tags:
-        - Santa
-  /api/santa/rule-references:
-    get:
-      operationId: list-santa-rule-references
-      parameters:
-        - explode: false
-          in: query
-          name: q
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: rule_type
-          schema:
-            enum:
-              - binary
-              - certificate
-              - teamid
-              - signingid
-              - cdhash
-              - bundle
-            type: string
-        - explode: false
-          in: query
-          name: limit
-          schema:
-            format: int32
-            maximum: 50
-            minimum: 1
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/SantaRuleReferenceCandidate"
-                type: array
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List Santa rule references
       tags:
         - Santa
   /api/santa/rules:

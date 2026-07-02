@@ -12,7 +12,7 @@ func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group
 }
 
 func (s *Store) GetGroupByID(ctx context.Context, id int64) (*Group, error) {
-	group, err := dbutil.GetOne[Group](ctx, s.db.Pool(), groupSelectSQL+`WHERE g.id = $1
+	group, err := dbutil.GetOne[Group](ctx, s.db.Pool(), groupSelectSQL()+`WHERE g.id = $1
 GROUP BY g.id`, id)
 	if err != nil {
 		return nil, err
@@ -20,19 +20,21 @@ GROUP BY g.id`, id)
 	return &group, nil
 }
 
-const groupSelectSQL = `SELECT
-	g.id,
-	g.source::text AS source,
-	g.external_id,
-	g.display_name,
-	COALESCE(g.mail_nickname, '') AS mail_nickname,
-	count(u.id)::integer AS member_count,
-	g.created_at,
-	g.updated_at
-FROM directory_groups g
-LEFT JOIN directory_group_memberships gm ON gm.group_id = g.id
-LEFT JOIN users u ON u.id = gm.user_id AND u.deleted_at IS NULL
-`
+func groupSelectSQL() string {
+	return `SELECT
+		g.id,
+		g.source::text AS source,
+		g.external_id,
+		g.display_name,
+		COALESCE(g.mail_nickname, '') AS mail_nickname,
+		count(u.id)::integer AS member_count,
+		g.created_at,
+		g.updated_at
+	FROM directory_groups g
+	LEFT JOIN directory_group_memberships gm ON gm.group_id = g.id
+	LEFT JOIN users u ON u.id = gm.user_id AND u.deleted_at IS NULL
+	`
+}
 
 func groupWhere(params GroupListParams) (string, []any) {
 	var where dbutil.WhereBuilder
@@ -53,7 +55,7 @@ func groupWhere(params GroupListParams) (string, []any) {
 
 func groupListQuery(params GroupListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL:  groupSelectSQL,
+		SelectSQL:  groupSelectSQL(),
 		WhereSQL:   where,
 		GroupBySQL: "GROUP BY g.id",
 		Args:       args,

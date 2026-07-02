@@ -183,26 +183,3 @@ type RuleStatus struct {
 type RuleStatusListParams struct {
 	dbutil.ListParams
 }
-
-type RuleReferenceListParams struct {
-	Q        string
-	RuleType RuleType
-	Limit    int32
-}
-
-type RuleReferenceCandidate struct {
-	RuleType                      RuleType `json:"rule_type"`
-	Identifier                    string   `json:"identifier"`
-	DisplayName                   string   `json:"display_name,omitempty"`
-	CertificateCommonName         string   `json:"certificate_common_name,omitempty"`
-	CertificateOrganization       string   `json:"certificate_organization,omitempty"`
-	CertificateOrganizationalUnit string   `json:"certificate_organizational_unit,omitempty"`
-	FileName                      string   `json:"file_name,omitempty"`
-	BundleIdentifier              string   `json:"bundle_identifier,omitempty"`
-	Path                          string   `json:"path,omitempty"`
-	Version                       string   `json:"version,omitempty"`
-	BinaryCount                   int32    `json:"binary_count,omitempty"`
-	CollectedBinaryCount          int32    `json:"collected_binary_count,omitempty"`
-	RuleCount                     int32    `json:"rule_count"`
-	Complete                      bool     `json:"complete"`
-}

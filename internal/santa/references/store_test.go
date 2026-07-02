@@ -194,11 +194,6 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 		ref.Certificates[0].RuleCount != 1 {
 		t.Fatalf("certificates = %+v, want matching certificate and rule", ref.Certificates)
 	}
-	if !hasReferenceRule(ref.Rules, santarules.RuleTypeTeamID, "TEAMREF") ||
-		!hasReferenceRule(ref.Rules, santarules.RuleTypeBundle, bundleHash) ||
-		!hasReferenceRule(ref.Rules, santarules.RuleTypeCertificate, certificateSHA) {
-		t.Fatalf("rules = %+v, want matching Santa rules", ref.Rules)
-	}
 }
 
 func hasSigningIdentity(
@@ -209,15 +204,6 @@ func hasSigningIdentity(
 ) bool {
 	for _, identity := range identities {
 		if identity.RuleType == ruleType && identity.Identifier == identifier && identity.RuleCount == ruleCount {
-			return true
-		}
-	}
-	return false
-}
-
-func hasReferenceRule(rules []references.RuleReference, ruleType santarules.RuleType, identifier string) bool {
-	for _, rule := range rules {
-		if rule.RuleType == ruleType && rule.Identifier == identifier {
 			return true
 		}
 	}

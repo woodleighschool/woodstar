@@ -20,17 +20,53 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
-	_, err := s.db.Pool().Exec(ctx, upsertHostStatusSQL, pgx.NamedArgs{
-		"host_id":          observation.HostID,
-		"version":          observation.Version,
-		"manifest_name":    observation.ManifestName,
-		"success":          observation.Success,
-		"errors":           dbutil.NonNilSlice(observation.Errors),
-		"warnings":         dbutil.NonNilSlice(observation.Warnings),
-		"problem_installs": dbutil.NonNilSlice(observation.ProblemInstalls),
-		"run_started_at":   observation.RunStartedAt,
-		"run_ended_at":     observation.RunEndedAt,
-	})
+	_, err := s.db.Pool().Exec(ctx, `
+INSERT INTO munki_host_status (
+	host_id,
+	version,
+	manifest_name,
+	success,
+	errors,
+	warnings,
+	problem_installs,
+	run_started_at,
+	run_ended_at,
+	last_seen_at
+)
+VALUES (
+	@host_id,
+	@version,
+	@manifest_name,
+	@success,
+	@errors,
+	@warnings,
+	@problem_installs,
+	@run_started_at::timestamptz,
+	@run_ended_at::timestamptz,
+	now()
+)
+ON CONFLICT (host_id) DO UPDATE SET
+	version = EXCLUDED.version,
+	manifest_name = EXCLUDED.manifest_name,
+	success = EXCLUDED.success,
+	errors = EXCLUDED.errors,
+	warnings = EXCLUDED.warnings,
+	problem_installs = EXCLUDED.problem_installs,
+	run_started_at = EXCLUDED.run_started_at,
+	run_ended_at = EXCLUDED.run_ended_at,
+	last_seen_at = now(),
+	updated_at = now()`,
+		pgx.NamedArgs{
+			"host_id":          observation.HostID,
+			"version":          observation.Version,
+			"manifest_name":    observation.ManifestName,
+			"success":          observation.Success,
+			"errors":           dbutil.NonNilSlice(observation.Errors),
+			"warnings":         dbutil.NonNilSlice(observation.Warnings),
+			"problem_installs": dbutil.NonNilSlice(observation.ProblemInstalls),
+			"run_started_at":   observation.RunStartedAt,
+			"run_ended_at":     observation.RunEndedAt,
+		})
 	return err
 }
 
@@ -50,13 +86,36 @@ func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item
 			return err
 		}
 		for _, item := range items {
-			if _, err := tx.Exec(ctx, upsertHostItemSQL, pgx.NamedArgs{
-				"host_id":           hostID,
-				"name":              item.Name,
-				"installed":         item.Installed,
-				"installed_version": item.InstalledVersion,
-				"run_ended_at":      item.RunEndedAt,
-			}); err != nil {
+			if _, err := tx.Exec(ctx, `
+INSERT INTO munki_host_items (
+	host_id,
+	name,
+	installed,
+	installed_version,
+	run_ended_at,
+	last_seen_at
+)
+VALUES (
+	@host_id,
+	@name,
+	@installed,
+	@installed_version,
+	@run_ended_at::timestamptz,
+	now()
+)
+ON CONFLICT (host_id, name) DO UPDATE SET
+	installed = EXCLUDED.installed,
+	installed_version = EXCLUDED.installed_version,
+	run_ended_at = EXCLUDED.run_ended_at,
+	last_seen_at = now(),
+	updated_at = now()`,
+				pgx.NamedArgs{
+					"host_id":           hostID,
+					"name":              item.Name,
+					"installed":         item.Installed,
+					"installed_version": item.InstalledVersion,
+					"run_ended_at":      item.RunEndedAt,
+				}); err != nil {
 				return err
 			}
 		}
@@ -135,64 +194,3 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		Items:           items,
 	}, nil
 }
-
-const upsertHostStatusSQL = `
-INSERT INTO munki_host_status (
-	host_id,
-	version,
-	manifest_name,
-	success,
-	errors,
-	warnings,
-	problem_installs,
-	run_started_at,
-	run_ended_at,
-	last_seen_at
-)
-VALUES (
-	@host_id,
-	@version,
-	@manifest_name,
-	@success,
-	@errors,
-	@warnings,
-	@problem_installs,
-	@run_started_at::timestamptz,
-	@run_ended_at::timestamptz,
-	now()
-)
-ON CONFLICT (host_id) DO UPDATE SET
-	version = EXCLUDED.version,
-	manifest_name = EXCLUDED.manifest_name,
-	success = EXCLUDED.success,
-	errors = EXCLUDED.errors,
-	warnings = EXCLUDED.warnings,
-	problem_installs = EXCLUDED.problem_installs,
-	run_started_at = EXCLUDED.run_started_at,
-	run_ended_at = EXCLUDED.run_ended_at,
-	last_seen_at = now(),
-	updated_at = now()`
-
-const upsertHostItemSQL = `
-INSERT INTO munki_host_items (
-	host_id,
-	name,
-	installed,
-	installed_version,
-	run_ended_at,
-	last_seen_at
-)
-VALUES (
-	@host_id,
-	@name,
-	@installed,
-	@installed_version,
-	@run_ended_at::timestamptz,
-	now()
-)
-ON CONFLICT (host_id, name) DO UPDATE SET
-	installed = EXCLUDED.installed,
-	installed_version = EXCLUDED.installed_version,
-	run_ended_at = EXCLUDED.run_ended_at,
-	last_seen_at = now(),
-	updated_at = now()`

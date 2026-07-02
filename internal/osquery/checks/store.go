@@ -31,7 +31,10 @@ func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, err
 
 	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, insertCheckSQL, pgx.StructArgs(write)).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO checks (name, description, query, created_by_user_id)
+			VALUES (@name, @description, @query, @created_by_user_id)
+			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceCheckTargets(ctx, tx, id, in.Targets)
@@ -51,7 +54,15 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
-		if err := tx.QueryRow(ctx, updateCheckSQL, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+		if err := tx.QueryRow(ctx, `
+			UPDATE checks
+			SET
+				name = @name,
+				description = @description,
+				query = @query,
+				updated_at = now()
+			WHERE id = @id
+			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
 		return replaceCheckTargets(ctx, tx, id, in.Targets)
@@ -66,7 +77,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := dbutil.GetOne[checkRow](ctx, s.db.Pool(), checkSelectSQL+"\nWHERE c.id = $1", id)
+	row, err := dbutil.GetOne[checkRow](ctx, s.db.Pool(), checkSelectSQL()+"\nWHERE c.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +126,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
 	where, args := checkListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL: checkSelectSQL,
+		SelectSQL: checkSelectSQL(),
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: checkOrderKeys(),
@@ -151,7 +162,37 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 }
 
 func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
-	rows, err := s.db.Pool().Query(ctx, listApplicableChecksForHostSQL, host.ID)
+	rows, err := s.db.Pool().Query(ctx, `
+		WITH host_row AS (
+			SELECT id
+			FROM hosts h
+			WHERE h.id = $1
+		)
+		SELECT
+			c.id,
+			c.name,
+			c.description,
+			c.query,
+			c.created_by_user_id,
+			c.created_at,
+			c.updated_at
+		FROM checks c
+		JOIN host_row h ON true
+		WHERE EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'include'
+			)
+			AND NOT EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'exclude'
+			)
+		ORDER BY c.id`, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +205,12 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 
 // UpsertMembership records a check result. A nil passes value means not run.
 func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
-	_, err := s.db.Pool().Exec(ctx, upsertCheckMembershipSQL, checkID, hostID, passes)
+	_, err := s.db.Pool().Exec(ctx, `
+		INSERT INTO check_membership (check_id, host_id, passes, updated_at)
+		VALUES ($1, $2, $3, now())
+		ON CONFLICT (check_id, host_id) DO UPDATE SET
+			passes = EXCLUDED.passes,
+			updated_at = now()`, checkID, hostID, passes)
 	return err
 }
 
@@ -174,7 +220,23 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 		if err != nil {
 			return nil, err
 		}
-		rows, err := s.db.Pool().Query(ctx, listCheckHostStatusesByPassesSQL, checkID, passes)
+		rows, err := s.db.Pool().Query(ctx, `
+			WITH check_row AS (
+				SELECT id, name
+				FROM checks c
+				WHERE c.id = $1
+			)
+			SELECT
+				c.id AS check_id,
+				c.name AS check_name,
+				h.id AS host_id,
+				h.display_name AS host_name,
+				m.passes,
+				m.updated_at
+			FROM check_row c
+			JOIN check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
+			JOIN hosts h ON h.id = m.host_id
+			ORDER BY lower(h.display_name), h.id`, checkID, passes)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +246,48 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 		}
 		return checkHostStatusesFromRows(records), nil
 	}
-	rows, err := s.db.Pool().Query(ctx, listCheckHostStatusesSQL, checkID)
+	rows, err := s.db.Pool().Query(ctx, `
+		WITH check_row AS (
+			SELECT id, name
+			FROM checks c
+			WHERE c.id = $1
+		),
+		host_rows AS (
+			SELECT id, display_name
+			FROM hosts
+		)
+		SELECT
+			c.id AS check_id,
+			c.name AS check_name,
+			h.id AS host_id,
+			h.display_name AS host_name,
+			m.passes,
+			m.updated_at
+		FROM check_row c
+		JOIN host_rows h ON true
+		LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		WHERE EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'include'
+			)
+			AND NOT EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'exclude'
+			)
+		ORDER BY
+			CASE
+				WHEN m.passes IS FALSE THEN 0
+				WHEN m.passes IS NULL THEN 1
+				ELSE 2
+			END,
+			lower(h.display_name),
+			h.id`, checkID)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +299,44 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 }
 
 func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
-	rows, err := s.db.Pool().Query(ctx, listHostCheckStatusesForHostSQL, host.ID)
+	rows, err := s.db.Pool().Query(ctx, `
+		WITH host_row AS (
+			SELECT id, display_name
+			FROM hosts h
+			WHERE h.id = $1
+		)
+		SELECT
+			c.id AS check_id,
+			c.name AS check_name,
+			h.id AS host_id,
+			h.display_name AS host_name,
+			m.passes,
+			m.updated_at
+		FROM checks c
+		JOIN host_row h ON true
+		LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		WHERE EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'include'
+			)
+			AND NOT EXISTS (
+				SELECT 1
+				FROM osquery_check_targets ct
+				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+				WHERE ct.check_id = c.id
+				  AND ct.direction = 'exclude'
+			)
+		ORDER BY
+			CASE
+				WHEN m.passes IS FALSE THEN 0
+				WHEN m.passes IS NULL THEN 1
+				ELSE 2
+			END,
+			lower(c.name),
+			c.id`, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +393,14 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 	if len(checkIDs) == 0 {
 		return map[int64]checkCounts{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, listCheckCountsSQL, checkIDs)
+	rows, err := s.db.Pool().Query(ctx, `
+		SELECT
+			check_id,
+			COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
+			COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
+		FROM check_membership
+		WHERE check_id = ANY($1::bigint[])
+		GROUP BY check_id`, checkIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -348,171 +495,15 @@ func newCheckWrite(in CheckMutation) checkWrite {
 	}
 }
 
-const checkSelectSQL = `
-SELECT c.id, c.name, c.description, c.query,
-       c.created_by_user_id, c.created_at, c.updated_at
+func checkSelectSQL() string {
+	return `
+SELECT
+	c.id,
+	c.name,
+	c.description,
+	c.query,
+	c.created_by_user_id,
+	c.created_at,
+	c.updated_at
 FROM checks c`
-
-const insertCheckSQL = `
-INSERT INTO checks (name, description, query, created_by_user_id)
-VALUES (@name, @description, @query, @created_by_user_id)
-RETURNING id`
-
-const updateCheckSQL = `
-UPDATE checks
-SET
-    name = @name,
-    description = @description,
-    query = @query,
-    updated_at = now()
-WHERE id = @id
-RETURNING id`
-
-const listApplicableChecksForHostSQL = `
-WITH host_row AS (
-    SELECT id
-    FROM hosts h
-    WHERE h.id = $1
-)
-SELECT
-    c.id,
-    c.name,
-    c.description,
-    c.query,
-    c.created_by_user_id,
-    c.created_at,
-    c.updated_at
-FROM checks c
-JOIN host_row h ON true
-WHERE EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'include'
-  )
-  AND NOT EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'exclude'
-  )
-ORDER BY c.id`
-
-const upsertCheckMembershipSQL = `
-INSERT INTO check_membership (check_id, host_id, passes, updated_at)
-VALUES ($1, $2, $3, now())
-ON CONFLICT (check_id, host_id) DO UPDATE SET
-    passes = EXCLUDED.passes,
-    updated_at = now()`
-
-//nolint:gosec // G101: 'passes' is a boolean status column, not a credential
-const listCheckHostStatusesByPassesSQL = `
-WITH check_row AS (
-    SELECT id, name
-    FROM checks c
-    WHERE c.id = $1
-)
-SELECT
-    c.id AS check_id,
-    c.name AS check_name,
-    h.id AS host_id,
-    h.display_name AS host_name,
-    m.passes,
-    m.updated_at
-FROM check_row c
-JOIN check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
-JOIN hosts h ON h.id = m.host_id
-ORDER BY lower(h.display_name), h.id`
-
-const listCheckHostStatusesSQL = `
-WITH check_row AS (
-    SELECT id, name
-    FROM checks c
-    WHERE c.id = $1
-),
-host_rows AS (
-    SELECT id, display_name
-    FROM hosts
-)
-SELECT
-    c.id AS check_id,
-    c.name AS check_name,
-    h.id AS host_id,
-    h.display_name AS host_name,
-    m.passes,
-    m.updated_at
-FROM check_row c
-JOIN host_rows h ON true
-LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'include'
-  )
-  AND NOT EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'exclude'
-  )
-ORDER BY
-    CASE
-        WHEN m.passes IS FALSE THEN 0
-        WHEN m.passes IS NULL THEN 1
-        ELSE 2
-    END,
-    lower(h.display_name),
-    h.id`
-
-const listHostCheckStatusesForHostSQL = `
-WITH host_row AS (
-    SELECT id, display_name
-    FROM hosts h
-    WHERE h.id = $1
-)
-SELECT
-    c.id AS check_id,
-    c.name AS check_name,
-    h.id AS host_id,
-    h.display_name AS host_name,
-    m.passes,
-    m.updated_at
-FROM checks c
-JOIN host_row h ON true
-LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'include'
-  )
-  AND NOT EXISTS (
-      SELECT 1
-      FROM osquery_check_targets ct
-      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-      WHERE ct.check_id = c.id
-        AND ct.direction = 'exclude'
-  )
-ORDER BY
-    CASE
-        WHEN m.passes IS FALSE THEN 0
-        WHEN m.passes IS NULL THEN 1
-        ELSE 2
-    END,
-    lower(c.name),
-    c.id`
-
-const listCheckCountsSQL = `
-SELECT
-    check_id,
-    COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
-    COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
-FROM check_membership
-WHERE check_id = ANY($1::bigint[])
-GROUP BY check_id`
+}

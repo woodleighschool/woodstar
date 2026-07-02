@@ -1169,32 +1169,6 @@ export type SantaRuleMutation = {
     targets: SantaRuleTargets;
 };
 
-export type SantaRuleReference = {
-    custom_message: string;
-    custom_url: string;
-    id: number;
-    identifier: string;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-};
-
-export type SantaRuleReferenceCandidate = {
-    binary_count?: number;
-    bundle_identifier?: string;
-    certificate_common_name?: string;
-    certificate_organization?: string;
-    certificate_organizational_unit?: string;
-    collected_binary_count?: number;
-    complete: boolean;
-    display_name?: string;
-    file_name?: string;
-    identifier: string;
-    path?: string;
-    rule_count: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    version?: string;
-};
-
 export type SantaRuleStatus = {
     applied: boolean;
     cel_expression?: string;
@@ -1244,7 +1218,6 @@ export type SantaSoftwareReference = {
     certificates: Array<SantaCertificateReference>;
     executables: Array<SantaExecutableReference>;
     execution_count: number;
-    rules: Array<SantaRuleReference>;
     signing_identities: Array<SantaSigningIdentityReference>;
 };
 
@@ -4919,47 +4892,6 @@ export type GetSantaFileAccessEventResponses = {
 };
 
 export type GetSantaFileAccessEventResponse = GetSantaFileAccessEventResponses[keyof GetSantaFileAccessEventResponses];
-
-export type ListSantaRuleReferencesData = {
-    body?: never;
-    path?: never;
-    query?: {
-        q?: string;
-        rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-        limit?: number;
-    };
-    url: '/api/santa/rule-references';
-};
-
-export type ListSantaRuleReferencesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListSantaRuleReferencesError = ListSantaRuleReferencesErrors[keyof ListSantaRuleReferencesErrors];
-
-export type ListSantaRuleReferencesResponses = {
-    /**
-     * OK
-     */
-    200: Array<SantaRuleReferenceCandidate>;
-};
-
-export type ListSantaRuleReferencesResponse = ListSantaRuleReferencesResponses[keyof ListSantaRuleReferencesResponses];
 
 export type ListSantaRulesData = {
     body?: never;
