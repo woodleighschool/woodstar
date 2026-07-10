@@ -12,7 +12,7 @@ Repo rules for AI agents working on Woodstar.
 
 - Entrypoint: `cmd/woodstar/main.go`
 - Backend packages: `internal/`, organized by capability
-- Admin/browser API wiring: `internal/adminapi`
+- App/browser API wiring: `internal/api/server.go`; app handlers: `internal/api/handlers`
 - Agent protocols: `internal/{orbit,osquery,munki,santa}/protocol`
 - Database: `internal/database`, migrations, and `internal/database/dbtest`
 - Frontend: `web/`; read `web/AGENTS.md` before changing it
@@ -36,7 +36,7 @@ Use mise tasks as the repo contract.
 
 ## Backend
 
-- `cmd/woodstar/main.go` is the dependency glass: config, DB, stores, services, routes, server.
+- `cmd/woodstar/main.go` is the construction glass: config, DB, stores, services, server.
 - Domain types live in their owning package. Services are for orchestration, not plain CRUD.
 - Orbit and osquery enroll hosts. Santa and Munki enrich existing hosts and do not create canonical host identity.
 - `inventory` is observed client state. Munki desired state belongs under `munki`.
@@ -55,7 +55,7 @@ Use mise tasks as the repo contract.
 
 ## Dependency Direction
 
-- Domain packages must not import `adminapi`.
+- Domain packages must not import `api`; use focused leaf packages such as `internal/api/ctxkeys` only when handler context is required.
 - Protocol packages stay close to their capability plus leaf auth/transport helpers.
 - `labels` and `targeting` must not import Orbit, osquery, Santa, or Munki.
 - Core host packages stay independent of Orbit/osquery/Santa/Munki; cross-capability host detail enrichment is wired from the outside.
