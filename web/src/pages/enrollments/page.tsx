@@ -29,7 +29,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
         }
       />
 
-      <DeploymentInstructions integration={integration} publicURL={runtime.publicURL} />
+      <DeploymentInstructions integration={integration} serverURL={runtime.serverURL} />
       {isAdmin ? (
         <AgentSecretsDialog
           integration={integration}

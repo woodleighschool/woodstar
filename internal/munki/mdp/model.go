@@ -11,7 +11,6 @@ package mdp
 
 import (
 	"fmt"
-	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // PackageStatus is a distribution point's mirror state for one desired package.
@@ -79,10 +79,10 @@ type PackageState struct {
 // DistributionPointMutation is the admin-writable surface of a distribution
 // point. Position, the key, and worker-reported fields are not set here.
 type DistributionPointMutation struct {
-	Name          string   `json:"name"`
+	Name          string   `json:"name"            validate:"required,notblank"      minLength:"1"`
 	Enabled       bool     `json:"enabled"`
-	ClientCIDRs   []string `json:"client_cidrs"`
-	ClientBaseURL string   `json:"client_base_url"`
+	ClientCIDRs   []string `json:"client_cidrs"    validate:"dive,cidr"`
+	ClientBaseURL string   `json:"client_base_url" validate:"omitempty,https_origin"               format:"uri"`
 }
 
 // ResolvedPoint is the selection result: the identity and secret needed to mint
@@ -103,22 +103,32 @@ type DesiredPackage struct {
 	SizeBytes int64
 }
 
-// validate enforces the write rules a malformed row would otherwise push into
-// the resolver's inet cast or the redirect URL.
-func (m DistributionPointMutation) validate() error {
-	if strings.TrimSpace(m.Name) == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	for _, cidr := range m.ClientCIDRs {
-		if _, err := netip.ParsePrefix(cidr); err != nil {
-			return fmt.Errorf("%w: client_cidrs %q is not a CIDR", dbutil.ErrInvalidInput, cidr)
-		}
-	}
-	if m.ClientBaseURL != "" {
-		parsed, err := url.Parse(m.ClientBaseURL)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-			return fmt.Errorf("%w: client_base_url must be an http or https URL", dbutil.ErrInvalidInput)
-		}
+func (m *DistributionPointMutation) validate() error {
+	if err := validation.Struct(m); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return nil
+}
+
+func (m *DistributionPointMutation) normalize() {
+	m.Name = strings.TrimSpace(m.Name)
+	if m.ClientCIDRs == nil {
+		m.ClientCIDRs = []string{}
+	}
+	for i := range m.ClientCIDRs {
+		m.ClientCIDRs[i] = strings.TrimSpace(m.ClientCIDRs[i])
+	}
+	m.ClientBaseURL = normalizeClientBaseURL(m.ClientBaseURL)
+}
+
+func normalizeClientBaseURL(value string) string {
+	value = strings.TrimSpace(value)
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	if parsed.Path == "/" {
+		parsed.Path = ""
+	}
+	return parsed.String()
 }

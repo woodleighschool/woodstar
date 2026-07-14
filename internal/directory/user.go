@@ -1,12 +1,15 @@
 package directory
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // Role controls permissions.
@@ -52,24 +55,66 @@ type UserListParams struct {
 	dbutil.ListParams
 
 	Values  []string
-	Role    string
-	Source  string
-	GroupID int64
+	Role    string `validate:"omitempty,oneof=admin viewer none"`
+	Source  string `validate:"omitempty,oneof=local entra"`
+	GroupID int64  `validate:"gte=0"`
 }
 
 // UserCreate contains fields needed to create a user.
 type UserCreate struct {
-	Email    string `json:"email"          format:"email"`
+	Email    string `json:"email"          format:"email" validate:"required,email"`
 	Name     string `json:"name,omitempty"`
-	Role     Role   `json:"role"`
-	Password string `json:"password"                      minLength:"12"`
+	Role     Role   `json:"role"                          validate:"required,oneof=admin viewer"`
+	Password string `json:"password"                                                             minLength:"12"`
 }
 
 // UserMutation replaces the writable fields of a user.
 type UserMutation struct {
 	Name     string  `json:"name"`
-	Role     *Role   `json:"role,omitempty"`
+	Role     *Role   `json:"role,omitempty"     validate:"omitempty,oneof=admin viewer"`
 	Password *string `json:"password,omitempty"`
+}
+
+func (params *UserListParams) normalize() {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.Values = dbutil.NormalizeListValues(params.Values)
+	params.Role = strings.TrimSpace(params.Role)
+	params.Source = strings.TrimSpace(params.Source)
+}
+
+func (params *UserListParams) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
+}
+
+func (params *UserCreate) normalize() {
+	params.Email = strings.ToLower(strings.TrimSpace(params.Email))
+	params.Name = strings.TrimSpace(params.Name)
+	params.Role = Role(strings.TrimSpace(string(params.Role)))
+}
+
+func (params *UserCreate) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
+}
+
+func (params *UserMutation) normalize() {
+	params.Name = strings.TrimSpace(params.Name)
+	if params.Role != nil {
+		role := Role(strings.TrimSpace(string(*params.Role)))
+		params.Role = &role
+	}
+}
+
+func (params *UserMutation) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {

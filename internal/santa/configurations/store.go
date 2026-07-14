@@ -25,6 +25,7 @@ func (s *Store) List(
 	ctx context.Context,
 	params ConfigurationListParams,
 ) ([]Configuration, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	where, args := configurationListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    configurationSelectSQL(),
@@ -74,6 +75,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -135,6 +137,7 @@ func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Conf
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutation) (*Configuration, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}

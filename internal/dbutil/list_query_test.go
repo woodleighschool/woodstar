@@ -7,7 +7,7 @@ import (
 )
 
 func TestListQueryOrderByAllowlist(t *testing.T) {
-	params := CleanListParams(ListParams{
+	params := NormalizeListParams(ListParams{
 		PageIndex: 1,
 		PageSize:  25,
 		Sort:      "last_seen_at.desc",
@@ -44,7 +44,7 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{Sort: "orbit_node_key"}),
+		Params: NormalizeListParams(ListParams{Sort: "orbit_node_key"}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
@@ -60,7 +60,7 @@ func TestListQueryRejectsMalformedSort(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{Sort: ".asc"}),
+		Params: NormalizeListParams(ListParams{Sort: ".asc"}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
@@ -73,7 +73,7 @@ func TestListQueryNestedSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"hardware.serial": {SQL: "lower(hardware_serial)"},
 		},
-		Params: CleanListParams(ListParams{Sort: "hardware.serial.desc"}),
+		Params: NormalizeListParams(ListParams{Sort: "hardware.serial.desc"}),
 	}.Build()
 	if err != nil {
 		t.Fatalf("Build returned error: %v", err)
@@ -91,7 +91,7 @@ func TestListQueryRejectsMultiColumnSort(t *testing.T) {
 			"last_seen_at": {SQL: "last_seen_at", NullOrder: NullsLast},
 		},
 		DefaultOrder: []OrderExpr{{SQL: "id"}},
-		Params: CleanListParams(ListParams{
+		Params: NormalizeListParams(ListParams{
 			Sort: "last_seen_at.desc,display_name.asc",
 		}),
 	}.Build()

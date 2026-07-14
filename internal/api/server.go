@@ -56,7 +56,7 @@ func init() {
 	huma.DefaultArrayNullable = false
 }
 
-// Server owns the HTTP listener and router.
+// Server owns the listener and router.
 type Server struct {
 	httpServer        *http.Server
 	config            config.Config
@@ -179,17 +179,26 @@ func (s *Server) Addr() string {
 	return s.httpServer.Addr
 }
 
-// Serve starts the HTTP server on listener and blocks until shutdown or failure.
+// Serve starts the server on listener and blocks until shutdown or failure.
 func (s *Server) Serve(listener net.Listener) error {
 	defer s.munkiDistribution.Close()
+	transport := "http"
+	serve := func() error { return s.httpServer.Serve(listener) }
+	if s.config.TLSConfigured() {
+		transport = "https"
+		serve = func() error {
+			return s.httpServer.ServeTLS(listener, s.config.TLSCertFile, s.config.TLSKeyFile)
+		}
+	}
 	s.logger.Info(
 		"starting woodstar",
 		"operation", "start",
 		"addr", s.httpServer.Addr,
-		"public_url", s.config.PublicURL,
+		"server_url", s.config.ServerURL,
+		"transport", transport,
 		"version", s.version,
 	)
-	if err := s.httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

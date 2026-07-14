@@ -2,12 +2,17 @@ package directory
 
 import (
 	"context"
+	"strings"
 )
 
 // AccountMutation contains fields a signed-in user can mutate on their own account.
 type AccountMutation struct {
 	Name     string  `json:"name"`
 	Password *string `json:"password,omitempty"`
+}
+
+func (params *AccountMutation) normalize() {
+	params.Name = strings.TrimSpace(params.Name)
 }
 
 type accountUpdateRecord struct {
@@ -22,6 +27,7 @@ func (s *UserService) GetAccount(ctx context.Context, id int64) (*Account, error
 
 // UpdateAccount updates fields the signed-in user can manage for themselves.
 func (s *UserService) UpdateAccount(ctx context.Context, id int64, params AccountMutation) (*Account, error) {
+	params.normalize()
 	passwordHash, err := hashOptionalPassword(params.Password)
 	if err != nil {
 		return nil, err

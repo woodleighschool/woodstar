@@ -30,14 +30,26 @@ func (s *UserService) Get(ctx context.Context, id int64) (*User, error) {
 }
 
 func (s *UserService) List(ctx context.Context, params UserListParams) ([]User, int, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, 0, err
+	}
 	return s.store.ListUsers(ctx, params)
 }
 
 func (s *UserService) ListDepartments(ctx context.Context, params UserListParams) ([]Department, int, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, 0, err
+	}
 	return s.store.ListDepartments(ctx, params)
 }
 
 func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
 	hash, err := HashPassword(params.Password)
 	if err != nil {
 		return nil, err
@@ -52,6 +64,10 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 
 // Update writes the full target record.
 func (s *UserService) Update(ctx context.Context, targetID int64, params UserMutation) (*User, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
 	passwordHash, err := hashOptionalPassword(params.Password)
 	if err != nil {
 		return nil, err

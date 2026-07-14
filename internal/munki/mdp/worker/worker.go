@@ -69,13 +69,22 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 
 	httpServer := &http.Server{Handler: w.server.handler(), ReadHeaderTimeout: 10 * time.Second}
+	transport := "http"
+	serve := func() error { return httpServer.Serve(listener) }
+	if w.cfg.TLSConfigured() {
+		transport = "https"
+		serve = func() error {
+			return httpServer.ServeTLS(listener, w.cfg.TLSCertFile, w.cfg.TLSKeyFile)
+		}
+	}
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- httpServer.Serve(listener) }()
+	go func() { serveErr <- serve() }()
 
 	w.logger.InfoContext(ctx, "started",
 		"listen_addr", w.cfg.ListenAddr,
 		"server_url", w.cfg.ServerURL,
 		"data_dir", w.cfg.DataDir,
+		"transport", transport,
 	)
 
 	connCtx, cancelConn := context.WithCancel(ctx)

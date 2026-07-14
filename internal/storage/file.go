@@ -19,12 +19,12 @@ import (
 // fileStore keeps blobs under a local directory. Keys map to paths beneath root.
 type fileStore struct {
 	root          string
-	publicURL     string
+	baseURL       string
 	capabilityKey []byte
 	ttl           time.Duration
 }
 
-func newFileStore(root string, publicURL string, capabilityKey []byte, ttl time.Duration) (*fileStore, error) {
+func newFileStore(root, baseURL string, capabilityKey []byte, ttl time.Duration) (*fileStore, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
 		return nil, errors.New("storage file root is empty")
@@ -38,7 +38,7 @@ func newFileStore(root string, publicURL string, capabilityKey []byte, ttl time.
 	}
 	return &fileStore{
 		root:          abs,
-		publicURL:     publicURL,
+		baseURL:       baseURL,
 		capabilityKey: slices.Clone(capabilityKey),
 		ttl:           ttl,
 	}, nil
@@ -181,7 +181,7 @@ func (s *fileStore) blobURL(claims BlobCapabilityClaims) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	blobURL, err := url.Parse(strings.TrimRight(s.publicURL, "/") + "/storage/" + escapeKeyPath(claims.Key))
+	blobURL, err := url.Parse(strings.TrimRight(s.baseURL, "/") + "/storage/" + escapeKeyPath(claims.Key))
 	if err != nil {
 		return "", err
 	}

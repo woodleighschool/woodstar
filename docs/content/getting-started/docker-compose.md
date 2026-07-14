@@ -12,7 +12,7 @@ The root `docker-compose.yml` is a local stack, not a production chart. It build
 
 | Service    | Purpose                                  | Published Ports                |
 | ---------- | ---------------------------------------- | ------------------------------ |
-| `woodstar` | Go server plus built frontend            | `8080:8080`                    |
+| `woodstar` | Go server plus built frontend over HTTPS | `8080:8080`                    |
 | `postgres` | Woodstar database                        | `5432:5432`                    |
 | `garage`   | Local object storage for Munki artifacts | `3900`, `3901`, `3902`, `3903` |
 
@@ -20,10 +20,15 @@ The root `docker-compose.yml` is a local stack, not a production chart. It build
 
 ```bash
 cp .env.example .env
+mise run dev-tls
 docker compose up --build
 ```
 
-The compose file overrides `WOODSTAR_DATABASE_URL` so the app talks to `postgres` by service name. It also wires the Garage defaults used by `.env.example`.
+The compose file overrides the host-development ports and URLs so Woodstar serves the built SPA and API together at `https://localhost:8080`. It also points the app at Postgres by service name, mounts only the generated leaf and key, and switches the example file storage to Garage.
+
+Run `mise run dev-tls-trust` first if the Compose URL needs to be trusted by local browsers.
+
+This direct TLS setup is for local Compose. A production container normally leaves `WOODSTAR_TLS_CERT_FILE` and `WOODSTAR_TLS_KEY_FILE` empty and receives private HTTP traffic from its HTTPS reverse proxy.
 
 ## Munki Object Storage Defaults
 

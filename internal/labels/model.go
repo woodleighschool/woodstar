@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // BuiltinKey identifies a built-in label independent of display text.
@@ -88,13 +89,26 @@ type Criteria struct {
 type LabelListParams struct {
 	dbutil.ListParams
 
-	LabelType           LabelType
-	LabelMembershipType LabelMembershipType
+	LabelType           LabelType           `validate:"omitempty,oneof=builtin regular"`
+	LabelMembershipType LabelMembershipType `validate:"omitempty,oneof=dynamic manual derived"`
+}
+
+func (params *LabelListParams) normalize() {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.LabelType = LabelType(strings.TrimSpace(string(params.LabelType)))
+	params.LabelMembershipType = LabelMembershipType(strings.TrimSpace(string(params.LabelMembershipType)))
+}
+
+func (params *LabelListParams) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
 }
 
 // LabelMutation is the editable label state used by create and update.
 type LabelMutation struct {
-	Name                string              `json:"name"`
+	Name                string              `json:"name"                            validate:"required,notblank" minLength:"1"`
 	Description         string              `json:"description,omitempty"`
 	Query               *string             `json:"query,omitempty"`
 	Criteria            *Criteria           `json:"criteria,omitempty"`
@@ -103,11 +117,28 @@ type LabelMutation struct {
 }
 
 // Validate checks the label shape before the DB sees it.
-func (p LabelMutation) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+func (p *LabelMutation) Validate() error {
+	if err := validation.Struct(p); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
+}
+
+func (p *LabelMutation) normalize() {
+	if p.LabelMembershipType == "" {
+		p.LabelMembershipType = LabelMembershipTypeDynamic
+	}
+	p.Name = strings.TrimSpace(p.Name)
+	p.Description = strings.TrimSpace(p.Description)
+	p.LabelMembershipType = LabelMembershipType(strings.TrimSpace(string(p.LabelMembershipType)))
+	if p.Query != nil {
+		query := strings.TrimSpace(*p.Query)
+		p.Query = &query
+	}
+	if p.Criteria != nil {
+		p.Criteria.Attribute = DerivedAttribute(strings.TrimSpace(string(p.Criteria.Attribute)))
+		p.Criteria.Values = normalizeCriteriaValues(p.Criteria.Values)
+	}
 }
 
 func validateMembershipPairing(
@@ -170,13 +201,13 @@ func validateCriteria(criteria *Criteria) error {
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
-	if len(cleanCriteriaValues(criteria.Values)) == 0 {
+	if len(normalizeCriteriaValues(criteria.Values)) == 0 {
 		return fmt.Errorf("%w: derived label values are required", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
 
-func cleanCriteriaValues(values []string) []string {
+func normalizeCriteriaValues(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)

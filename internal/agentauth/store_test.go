@@ -1,6 +1,7 @@
 package agentauth
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -124,6 +125,24 @@ func TestCreateRejectsUnknownAgent(t *testing.T) {
 		Value: "raw-mdm-secret-value-long-enough-32",
 	}); err == nil {
 		t.Fatal("Create accepted unknown agent")
+	}
+}
+
+func TestStoreRejectsShortSecrets(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+
+	if _, err := store.Create(
+		ctx,
+		AgentSecretCreate{Agent: AgentOrbit, Value: "short"},
+	); !errors.Is(
+		err,
+		ErrInvalidSecret,
+	) {
+		t.Fatalf("Create error = %v, want ErrInvalidSecret", err)
+	}
+	if _, err := store.Update(ctx, 1, AgentSecretMutation{Value: "short"}); !errors.Is(err, ErrInvalidSecret) {
+		t.Fatalf("Update error = %v, want ErrInvalidSecret", err)
 	}
 }
 

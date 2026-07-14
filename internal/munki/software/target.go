@@ -2,7 +2,6 @@ package software
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -10,25 +9,26 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/targeting"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // Targets is the include/exclude label targeting contract for Munki software.
 type Targets struct {
-	Include []Include            `json:"include" nullable:"false"`
+	Include []Include            `json:"include" nullable:"false" validate:"dive"`
 	Exclude []targeting.LabelRef `json:"exclude" nullable:"false"`
 }
 
 // Include applies desired Munki manifest actions to hosts with a matching label.
 type Include struct {
-	LabelID int64           `json:"label_id" minimum:"1"`
+	LabelID int64           `json:"label_id" minimum:"1" validate:"gt=0"`
 	Package PackageSelector `json:"package"`
-	Actions []Action        `json:"actions"              minItems:"1" nullable:"false"`
+	Actions []Action        `json:"actions"              validate:"min=1,dive,oneof=managed_installs managed_uninstalls managed_updates optional_installs featured_items default_installs" minItems:"1" nullable:"false"`
 }
 
 // PackageSelector chooses the package candidate set for a software include.
 type PackageSelector struct {
-	Strategy  PackageStrategy `json:"strategy"`
-	PackageID *int64          `json:"package_id,omitempty" minimum:"1"`
+	Strategy  PackageStrategy `json:"strategy"             validate:"required,oneof=latest specific"`
+	PackageID *int64          `json:"package_id,omitempty" validate:"excluded_unless=Strategy specific,required_if=Strategy specific,omitempty,gt=0" minimum:"1"`
 }
 
 // PackageStrategy describes whether Munki software follows the latest
@@ -104,58 +104,13 @@ func emptyTargets() Targets {
 }
 
 func (targets Targets) validate() error {
-	for _, include := range targets.Include {
-		if err := include.validate(); err != nil {
-			return err
-		}
+	if err := validation.Struct(targets); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	if err := targeting.ValidateTargets(targets.Include, targets.Exclude, includeLabelID); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return nil
-}
-
-func (include Include) validate() error {
-	if !validPackageStrategy(include.Package.Strategy) {
-		return fmt.Errorf("%w: package.strategy is required", dbutil.ErrInvalidInput)
-	}
-	if err := include.Package.validate(); err != nil {
-		return err
-	}
-	if len(include.Actions) == 0 {
-		return fmt.Errorf("%w: actions is required", dbutil.ErrInvalidInput)
-	}
-	for _, action := range include.Actions {
-		if !validAction(action) {
-			return fmt.Errorf("%w: unsupported action %q", dbutil.ErrInvalidInput, action)
-		}
-	}
-	return nil
-}
-
-func (selector PackageSelector) validate() error {
-	switch selector.Strategy {
-	case PackageLatest:
-		if selector.PackageID != nil {
-			return fmt.Errorf("%w: package.package_id must be empty for latest strategy", dbutil.ErrInvalidInput)
-		}
-	case PackageSpecific:
-		if selector.PackageID == nil {
-			return fmt.Errorf("%w: package.package_id is required for specific strategy", dbutil.ErrInvalidInput)
-		}
-		if *selector.PackageID <= 0 {
-			return fmt.Errorf("%w: package.package_id must be positive", dbutil.ErrInvalidInput)
-		}
-	}
-	return nil
-}
-
-func validPackageStrategy(strategy PackageStrategy) bool {
-	return slices.Contains(packageStrategyValues, strategy)
-}
-
-func validAction(action Action) bool {
-	return slices.Contains(actionValues, action)
 }
 
 func includeLabelID(include Include) int64 {

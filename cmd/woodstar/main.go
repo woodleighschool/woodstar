@@ -86,9 +86,11 @@ func serveCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&cfg.Host, "host", "", "HTTP listen host")
-	cmd.Flags().IntVar(&cfg.Port, "port", 0, "HTTP listen port")
-	cmd.Flags().StringVar(&cfg.PublicURL, "public-url", "", "Public base URL")
+	cmd.Flags().StringVar(&cfg.Host, "host", "", "Listen host")
+	cmd.Flags().IntVar(&cfg.Port, "port", 0, "Listen port")
+	cmd.Flags().StringVar(&cfg.ServerURL, "url", "", "Canonical HTTPS server origin")
+	cmd.Flags().StringVar(&cfg.TLSCertFile, "tls-cert-file", "", "TLS certificate file")
+	cmd.Flags().StringVar(&cfg.TLSKeyFile, "tls-key-file", "", "TLS private key file")
 	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
 	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
 	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
@@ -114,7 +116,11 @@ func runMDP(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("load mdp config: %w", err)
 	}
-	logger := logging.New(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	logLevel, err := logging.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return fmt.Errorf("parse mdp log level: %w", err)
+	}
+	logger := logging.New(os.Stderr, logLevel)
 	mdp, err := worker.New(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("init mdp worker: %w", err)
@@ -127,10 +133,18 @@ func serve(parent context.Context, cfg config.Config) error {
 	defer stop()
 
 	if err := config.ApplyEnvironment(&cfg); err != nil {
-		return fmt.Errorf("load config: %w", err)
+		return fmt.Errorf("parse environment: %w", err)
+	}
+	cfg.Normalize()
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("validate config: %w", err)
 	}
 
-	logger := logging.New(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	logLevel, err := logging.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return fmt.Errorf("parse log level: %w", err)
+	}
+	logger := logging.New(os.Stderr, logLevel)
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -149,7 +163,10 @@ func serve(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("init storage: %w", err)
 	}
 
-	wiring := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
+	wiring, err := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
+	if err != nil {
+		return fmt.Errorf("build services: %w", err)
+	}
 	server := api.NewServer(wiring.apiDependencies())
 
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
@@ -160,10 +177,10 @@ func serve(parent context.Context, cfg config.Config) error {
 	stopJobs := start(ctx, wiring.starters()...)
 	defer stopJobs()
 
-	return runHTTPServer(ctx, server, listener)
+	return runServer(ctx, server, listener)
 }
 
-func runHTTPServer(
+func runServer(
 	ctx context.Context,
 	server *api.Server,
 	listener net.Listener,
@@ -177,7 +194,7 @@ func runHTTPServer(
 	select {
 	case err := <-errc:
 		if err != nil {
-			return fmt.Errorf("serve http: %w", err)
+			return fmt.Errorf("serve: %w", err)
 		}
 		return nil
 
@@ -186,11 +203,11 @@ func runHTTPServer(
 		defer cancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("shutdown http: %w", err)
+			return fmt.Errorf("shutdown server: %w", err)
 		}
 
 		if err := <-errc; err != nil {
-			return fmt.Errorf("serve http: %w", err)
+			return fmt.Errorf("serve: %w", err)
 		}
 
 		return nil
@@ -249,7 +266,7 @@ func buildWiring(
 	logger *slog.Logger,
 	storageBackend storage.Backend,
 	storageCapabilityKey []byte,
-) *wiring {
+) (*wiring, error) {
 	w := &wiring{
 		cfg:            cfg,
 		logger:         logger,
@@ -287,7 +304,11 @@ func buildWiring(
 	syncStore := syncstate.NewStore(db)
 
 	w.users = directory.NewUserService(w.directory)
-	w.auth = newAuth(ctx, cfg, w.users, sessions, logger)
+	authService, err := newAuth(ctx, cfg, w.users, sessions)
+	if err != nil {
+		return nil, err
+	}
+	w.auth = authService
 	w.orbitAgent = orbit.NewEnrollmentService(w.hosts, w.secrets, w.primaryUsers)
 
 	inventoryProjector := ingest.NewProjector(w.hosts, w.software, logger.With("component", "inventory"))
@@ -329,7 +350,7 @@ func buildWiring(
 	})
 	w.santaState = santa.NewHostStateService(santaHostStore, w.configurations)
 
-	return w
+	return w, nil
 }
 
 // apiDependencies projects the constructed stores and services into the HTTP
@@ -344,7 +365,7 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 		WebHandler: webui.NewHandler(webui.HandlerOptions{
 			FS:        webdist.DistDirFS,
 			Version:   buildinfo.Version,
-			PublicURL: w.cfg.PublicURL,
+			ServerURL: w.cfg.ServerURL,
 			Logger:    w.logger.With("component", "web"),
 		}),
 		App: api.AppDependencies{
@@ -404,43 +425,31 @@ func newAuth(
 	cfg config.Config,
 	users *directory.UserService,
 	sessions *scs.SessionManager,
-	logger *slog.Logger,
-) *auth.Service {
-	logger = logger.With("component", "auth")
+) (*auth.Service, error) {
 	service := auth.NewService(users, sessions)
 	if !cfg.OIDCEnabled() {
-		return service
+		return service, nil
 	}
 
 	err := service.ConfigureOIDC(ctx, auth.OIDCConfig{
 		IssuerURL:    cfg.OIDCIssuerURL,
 		ClientID:     cfg.OIDCClientID,
 		ClientSecret: cfg.OIDCClientSecret,
-		RedirectURL:  cfg.PublicURL + "/api/auth/sso/callback",
+		RedirectURL:  cfg.OIDCRedirectURL,
 		Scopes:       cfg.OIDCScopes,
 		EmailClaim:   cfg.OIDCEmailClaim,
 	})
 	if err != nil {
-		logger.WarnContext(ctx, "sso disabled",
-			"operation", "oidc_discovery",
-			"err", err,
-		)
-		return service
+		return nil, fmt.Errorf("configure OIDC: %w", err)
 	}
-
-	logger.InfoContext(ctx, "sso enabled",
-		"operation", "oidc_discovery",
-		"issuer", cfg.OIDCIssuerURL,
-	)
-
-	return service
+	return service, nil
 }
 
 func storageConfig(cfg config.Config, capabilityKey []byte) storage.Config {
 	return storage.Config{
 		Kind:          storage.Kind(cfg.StorageKind),
 		FileRoot:      cfg.StorageFileRoot,
-		PublicURL:     cfg.PublicURL,
+		BaseURL:       cfg.ServerURL,
 		CapabilityKey: slices.Clone(capabilityKey),
 		PresignTTL:    cfg.StorageS3PresignTTL,
 		S3: storage.S3Config{
@@ -542,7 +551,7 @@ func newSessions(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxs
 	sessions.Cookie.Name = "woodstar_session"
 	sessions.Cookie.Path = "/"
 	sessions.Cookie.HttpOnly = true
-	sessions.Cookie.Secure = cfg.IsHTTPS()
+	sessions.Cookie.Secure = cfg.SessionCookieSecure
 	sessions.Cookie.SameSite = http.SameSiteLaxMode
 	sessions.Cookie.Persist = true
 

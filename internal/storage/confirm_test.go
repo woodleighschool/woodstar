@@ -17,7 +17,7 @@ func TestConfirmUploadedDerivesSizeAndSHA256FromBackend(t *testing.T) {
 	backend, err := New(ctx, Config{
 		Kind:          KindFile,
 		FileRoot:      t.TempDir(),
-		PublicURL:     "https://woodstar.example",
+		BaseURL:       "https://woodstar.example",
 		CapabilityKey: testCapabilityKey,
 	})
 	if err != nil {

@@ -38,7 +38,7 @@ type groupOutput struct {
 func (i groupListInput) params() directory.GroupListParams {
 	return directory.GroupListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.SplitListValues(i.Values),
+		Values:     dbutil.NormalizeListValues(i.Values),
 	}
 }
 

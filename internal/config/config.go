@@ -9,64 +9,73 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 const minSessionSecretLength = 32
 
+const oidcCallbackPath = "/api/auth/sso/callback"
+
 // SessionLifetime is the browser session lifetime.
 const SessionLifetime = 14 * 24 * time.Hour
 
-// ErrInvalidPublicURL means the public URL is bogus.
-var ErrInvalidPublicURL = errors.New("invalid WOODSTAR_PUBLIC_URL")
+// ErrInvalidServerURL is returned when ServerURL is not a valid HTTPS origin.
+var ErrInvalidServerURL = errors.New("invalid server URL")
+
+// ErrInvalidOIDCRedirectURL is returned when OIDCRedirectURL cannot reach Woodstar's callback.
+var ErrInvalidOIDCRedirectURL = errors.New("invalid OIDC redirect URL")
 
 // Config contains runtime settings.
 type Config struct {
-	Host               string   `env:"HOST"                             envDefault:"0.0.0.0"`
-	Port               int      `env:"PORT"                             envDefault:"8080"`
-	PublicURL          string   `env:"PUBLIC_URL,required,notEmpty"`
-	SessionSecret      string   `env:"SESSION_SECRET,required,notEmpty"`
-	DatabaseURL        string   `env:"DATABASE_URL"`
-	LogLevel           string   `env:"LOG_LEVEL"                        envDefault:"info"`
-	CORSAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS"`
+	Host                string   `env:"HOST"                  envDefault:"0.0.0.0" validate:"required"`
+	Port                int      `env:"PORT"                  envDefault:"8080"    validate:"gte=1,lte=65535"`
+	ServerURL           string   `env:"URL"                                        validate:"required"`
+	TLSCertFile         string   `env:"TLS_CERT_FILE"                              validate:"required_with=TLSKeyFile"`
+	TLSKeyFile          string   `env:"TLS_KEY_FILE"                               validate:"required_with=TLSCertFile"`
+	SessionSecret       string   `env:"SESSION_SECRET"                             validate:"required,notblank,min=32"`
+	SessionCookieSecure bool     `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
+	DatabaseURL         string   `env:"DATABASE_URL"                               validate:"required"`
+	LogLevel            string   `env:"LOG_LEVEL"             envDefault:"info"    validate:"required,oneof=debug info warn error"`
+	CORSAllowedOrigins  []string `env:"CORS_ALLOWED_ORIGINS"                       validate:"dive,web_origin"`
 
-	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90"`
-	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h"`
+	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
+	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
 
 	// OIDC is capability-gated: SSO endpoints only mount when IssuerURL,
 	// ClientID, and ClientSecret are all set.
-	OIDCIssuerURL    string   `env:"OIDC_ISSUER_URL"`
-	OIDCClientID     string   `env:"OIDC_CLIENT_ID"`
-	OIDCClientSecret string   `env:"OIDC_CLIENT_SECRET"`
-	OIDCScopes       []string `env:"OIDC_SCOPES"        envDefault:"openid,email,profile"`
-	OIDCEmailClaim   string   `env:"OIDC_EMAIL_CLAIM"   envDefault:"email"`
+	OIDCIssuerURL    string   `env:"OIDC_ISSUER_URL"    validate:"required_with=OIDCClientID OIDCClientSecret,omitempty,https_url"`
+	OIDCClientID     string   `env:"OIDC_CLIENT_ID"     validate:"required_with=OIDCIssuerURL OIDCClientSecret"`
+	OIDCClientSecret string   `env:"OIDC_CLIENT_SECRET" validate:"required_with=OIDCIssuerURL OIDCClientID"`
+	OIDCRedirectURL  string   `env:"OIDC_REDIRECT_URL"`
+	OIDCScopes       []string `env:"OIDC_SCOPES"        validate:"min=1,dive,required"                                             envDefault:"openid,email,profile"`
+	OIDCEmailClaim   string   `env:"OIDC_EMAIL_CLAIM"   validate:"required"                                                        envDefault:"email"`
 
 	// Entra sync is capability-gated: TenantID, ClientID, and ClientSecret
 	// must all be set for the sync loop to start.
-	EntraTenantID         string        `env:"ENTRA_TENANT_ID"`
-	EntraClientID         string        `env:"ENTRA_CLIENT_ID"`
-	EntraClientSecret     string        `env:"ENTRA_CLIENT_SECRET"`
+	EntraTenantID         string        `env:"ENTRA_TENANT_ID"         validate:"required_with=EntraClientID EntraClientSecret"`
+	EntraClientID         string        `env:"ENTRA_CLIENT_ID"         validate:"required_with=EntraTenantID EntraClientSecret"`
+	EntraClientSecret     string        `env:"ENTRA_CLIENT_SECRET"     validate:"required_with=EntraTenantID EntraClientID"`
 	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
-	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     envDefault:"1h"`
+	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     validate:"gt=0"                                          envDefault:"1h"`
 
-	StorageKind             string        `env:"STORAGE_KIND"               envDefault:"file"`
-	StorageFileRoot         string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage"`
-	StorageS3Bucket         string        `env:"STORAGE_S3_BUCKET"`
-	StorageS3Region         string        `env:"STORAGE_S3_REGION"`
-	StorageS3Endpoint       string        `env:"STORAGE_S3_ENDPOINT"`
-	StorageS3PublicEndpoint string        `env:"STORAGE_S3_PUBLIC_ENDPOINT"`
-	StorageS3AccessKey      string        `env:"STORAGE_S3_ACCESS_KEY"`
-	StorageS3SecretKey      string        `env:"STORAGE_S3_SECRET_KEY"`
+	StorageKind             string        `env:"STORAGE_KIND"               envDefault:"file"         validate:"required,oneof=file s3"`
+	StorageFileRoot         string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage" validate:"required_if=StorageKind file"`
+	StorageS3Bucket         string        `env:"STORAGE_S3_BUCKET"                                    validate:"required_if=StorageKind s3"`
+	StorageS3Region         string        `env:"STORAGE_S3_REGION"                                    validate:"required_if=StorageKind s3"`
+	StorageS3Endpoint       string        `env:"STORAGE_S3_ENDPOINT"                                  validate:"omitempty,url"`
+	StorageS3PublicEndpoint string        `env:"STORAGE_S3_PUBLIC_ENDPOINT"                           validate:"omitempty,url"`
+	StorageS3AccessKey      string        `env:"STORAGE_S3_ACCESS_KEY"                                validate:"required_if=StorageKind s3"`
+	StorageS3SecretKey      string        `env:"STORAGE_S3_SECRET_KEY"                                validate:"required_if=StorageKind s3"`
 	StorageS3PathStyle      bool          `env:"STORAGE_S3_PATH_STYLE"`
-	StorageS3PresignTTL     time.Duration `env:"STORAGE_S3_PRESIGN_TTL"     envDefault:"15m"`
+	StorageS3PresignTTL     time.Duration `env:"STORAGE_S3_PRESIGN_TTL"     envDefault:"15m"          validate:"gt=0"`
 
 	// ClientIPSource selects how the real client IP is derived behind proxies.
 	// The companion fields are required only for the matching source.
-	ClientIPSource         ClientIPSource `env:"HTTP_CLIENT_IP_SOURCE"              envDefault:"remote_addr"`
-	ClientIPTrustedCIDRs   []string       `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"`
-	ClientIPTrustedProxies int            `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"`
-	ClientIPHeader         string         `env:"HTTP_CLIENT_IP_HEADER"`
-
-	publicURLScheme string
+	ClientIPSource         ClientIPSource `env:"HTTP_CLIENT_IP_SOURCE"              envDefault:"remote_addr" validate:"required,oneof=remote_addr xff_trusted_cidrs xff_trusted_proxies header"`
+	ClientIPTrustedCIDRs   []string       `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"                                validate:"excluded_unless=ClientIPSource xff_trusted_cidrs,required_if=ClientIPSource xff_trusted_cidrs,dive,cidr"`
+	ClientIPTrustedProxies int            `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"                          validate:"excluded_unless=ClientIPSource xff_trusted_proxies,required_if=ClientIPSource xff_trusted_proxies,omitempty,gte=1"`
+	ClientIPHeader         string         `env:"HTTP_CLIENT_IP_HEADER"                                       validate:"excluded_unless=ClientIPSource header,required_if=ClientIPSource header"`
 }
 
 // ClientIPSource is how the server derives the real client IP behind proxies.
@@ -93,62 +102,82 @@ func (cfg *Config) EntraEnabled() bool {
 	return cfg.EntraTenantID != "" && cfg.EntraClientID != "" && cfg.EntraClientSecret != ""
 }
 
-// ApplyEnvironment fills cfg from environment variables and normalizes derived values.
+// ApplyEnvironment fills unset config fields from environment variables and defaults.
 func ApplyEnvironment(cfg *Config) error {
-	if err := env.ParseWithOptions(cfg, env.Options{
+	return env.ParseWithOptions(cfg, env.Options{
 		Prefix:                       "WOODSTAR_",
 		SetDefaultsForZeroValuesOnly: true,
-	}); err != nil {
-		return err
-	}
-	return cfg.normalize()
+	})
 }
 
-func (cfg *Config) normalize() error {
-	publicURL, scheme, err := normalizePublicURL(cfg.PublicURL)
-	if err != nil {
-		return err
+// Normalize canonicalizes the resolved configuration without validating it.
+func (cfg *Config) Normalize() {
+	cfg.Host = strings.TrimSpace(cfg.Host)
+	cfg.ServerURL = normalizeOrigin(cfg.ServerURL)
+	cfg.OIDCRedirectURL = strings.TrimSpace(cfg.OIDCRedirectURL)
+	if cfg.OIDCRedirectURL == "" && cfg.ServerURL != "" {
+		cfg.OIDCRedirectURL = cfg.ServerURL + oidcCallbackPath
 	}
-	cfg.PublicURL = publicURL
-	cfg.publicURLScheme = scheme
-	if len(cfg.SessionSecret) < minSessionSecretLength {
-		return fmt.Errorf("WOODSTAR_SESSION_SECRET must be at least %d characters", minSessionSecretLength)
-	}
-	if err := cfg.normalizeStorage(); err != nil {
-		return err
-	}
-	if err := cfg.normalizeCORSAllowedOrigins(); err != nil {
-		return err
-	}
-
-	return cfg.normalizeClientIP()
+	cfg.TLSCertFile = strings.TrimSpace(cfg.TLSCertFile)
+	cfg.TLSKeyFile = strings.TrimSpace(cfg.TLSKeyFile)
+	cfg.LogLevel = strings.ToLower(strings.TrimSpace(cfg.LogLevel))
+	cfg.OIDCIssuerURL = strings.TrimSpace(cfg.OIDCIssuerURL)
+	cfg.OIDCClientID = strings.TrimSpace(cfg.OIDCClientID)
+	cfg.OIDCScopes = normalizeStrings(cfg.OIDCScopes)
+	cfg.OIDCEmailClaim = strings.TrimSpace(cfg.OIDCEmailClaim)
+	cfg.EntraTenantID = strings.TrimSpace(cfg.EntraTenantID)
+	cfg.EntraClientID = strings.TrimSpace(cfg.EntraClientID)
+	cfg.normalizeStorage()
+	cfg.normalizeCORSAllowedOrigins()
+	cfg.normalizeClientIP()
 }
 
-func (cfg *Config) normalizeCORSAllowedOrigins() error {
+// Validate checks the resolved configuration independently of its input sources.
+func (cfg *Config) Validate() error {
+	if !validation.IsHTTPSOrigin(cfg.ServerURL) {
+		return fmt.Errorf("%w: must be an HTTPS origin", ErrInvalidServerURL)
+	}
+	if !validOIDCRedirectURL(cfg.OIDCRedirectURL) {
+		return fmt.Errorf(
+			"%w: must be an HTTPS URL or loopback HTTP URL ending in %s",
+			ErrInvalidOIDCRedirectURL,
+			oidcCallbackPath,
+		)
+	}
+	return validation.Struct(cfg)
+}
+
+func validOIDCRedirectURL(value string) bool {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" ||
+		parsed.ForceQuery || parsed.Fragment != "" || parsed.Path != oidcCallbackPath {
+		return false
+	}
+	if parsed.Scheme == "https" {
+		return true
+	}
+	if parsed.Scheme != "http" {
+		return false
+	}
+	host := parsed.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	addr, err := netip.ParseAddr(host)
+	return err == nil && addr.IsLoopback()
+}
+
+func (cfg *Config) normalizeCORSAllowedOrigins() {
 	if len(cfg.CORSAllowedOrigins) == 0 {
-		return nil
+		return
 	}
 	normalized := make([]string, 0, len(cfg.CORSAllowedOrigins))
 	seen := make(map[string]struct{}, len(cfg.CORSAllowedOrigins))
 	for _, raw := range cfg.CORSAllowedOrigins {
-		origin := strings.TrimSpace(raw)
+		origin := normalizeOrigin(raw)
 		if origin == "" {
 			continue
 		}
-		parsed, err := url.Parse(origin)
-		if err != nil {
-			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: %w", origin, err)
-		}
-		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: scheme must be http or https", origin)
-		}
-		if parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: must be an origin", origin)
-		}
-		if parsed.Path != "" && parsed.Path != "/" {
-			return fmt.Errorf("invalid WOODSTAR_CORS_ALLOWED_ORIGINS entry %q: must not include a path", origin)
-		}
-		origin = strings.TrimRight(parsed.Scheme+"://"+parsed.Host, "/")
 		if _, ok := seen[origin]; ok {
 			continue
 		}
@@ -156,102 +185,46 @@ func (cfg *Config) normalizeCORSAllowedOrigins() error {
 		normalized = append(normalized, origin)
 	}
 	cfg.CORSAllowedOrigins = normalized
-	return nil
 }
 
-func (cfg *Config) normalizeClientIP() error {
+func (cfg *Config) normalizeClientIP() {
 	cfg.ClientIPSource = ClientIPSource(strings.TrimSpace(string(cfg.ClientIPSource)))
 	cfg.ClientIPHeader = strings.TrimSpace(cfg.ClientIPHeader)
-	switch cfg.ClientIPSource {
-	case ClientIPSourceRemoteAddr:
-		return nil
-	case ClientIPSourceXFFTrustedCIDRs:
-		if len(cfg.ClientIPTrustedCIDRs) == 0 {
-			return errors.New(
-				"WOODSTAR_HTTP_CLIENT_IP_TRUSTED_CIDRS is required when WOODSTAR_HTTP_CLIENT_IP_SOURCE=xff_trusted_cidrs",
-			)
-		}
-		for i, cidr := range cfg.ClientIPTrustedCIDRs {
-			cidr = strings.TrimSpace(cidr)
-			if _, err := netip.ParsePrefix(cidr); err != nil {
-				return fmt.Errorf("WOODSTAR_HTTP_CLIENT_IP_TRUSTED_CIDRS %q is not a CIDR", cidr)
-			}
-			cfg.ClientIPTrustedCIDRs[i] = cidr
-		}
-		return nil
-	case ClientIPSourceXFFTrustedProxies:
-		if cfg.ClientIPTrustedProxies < 1 {
-			return errors.New(
-				"WOODSTAR_HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT must be at least 1 when WOODSTAR_HTTP_CLIENT_IP_SOURCE=xff_trusted_proxies",
-			)
-		}
-		return nil
-	case ClientIPSourceHeader:
-		if cfg.ClientIPHeader == "" {
-			return errors.New(
-				"WOODSTAR_HTTP_CLIENT_IP_HEADER is required when WOODSTAR_HTTP_CLIENT_IP_SOURCE=header",
-			)
-		}
-		return nil
-	default:
-		return fmt.Errorf(
-			"WOODSTAR_HTTP_CLIENT_IP_SOURCE must be remote_addr, xff_trusted_cidrs, xff_trusted_proxies, or header, got %q",
-			cfg.ClientIPSource,
-		)
+	for i := range cfg.ClientIPTrustedCIDRs {
+		cfg.ClientIPTrustedCIDRs[i] = strings.TrimSpace(cfg.ClientIPTrustedCIDRs[i])
 	}
 }
 
-func normalizePublicURL(value string) (string, string, error) {
+func normalizeOrigin(value string) string {
 	value = strings.TrimSpace(value)
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return "", "", fmt.Errorf("%w: parse URL", ErrInvalidPublicURL)
+		return value
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", "", fmt.Errorf("%w: scheme must be http or https", ErrInvalidPublicURL)
+	if parsed.Path == "/" {
+		parsed.Path = ""
 	}
-	if parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", "", fmt.Errorf("%w: must include host and omit query or fragment", ErrInvalidPublicURL)
-	}
-	if path := strings.Trim(parsed.Path, "/"); path != "" {
-		return "", "", fmt.Errorf(
-			"%w: must not include a path; use a reverse proxy if you need a sub-path",
-			ErrInvalidPublicURL,
-		)
-	}
-	parsed.Path = ""
-	return strings.TrimRight(parsed.String(), "/"), parsed.Scheme, nil
+	return parsed.String()
 }
 
-// IsHTTPS reports whether PublicURL uses the https scheme.
-func (cfg *Config) IsHTTPS() bool {
-	return cfg.publicURLScheme == "https"
+// TLSConfigured reports whether Woodstar should terminate TLS itself.
+func (cfg *Config) TLSConfigured() bool {
+	return cfg.TLSCertFile != ""
 }
 
-func (cfg *Config) normalizeStorage() error {
-	cfg.StorageKind = strings.TrimSpace(cfg.StorageKind)
+func (cfg *Config) normalizeStorage() {
+	cfg.StorageKind = strings.ToLower(strings.TrimSpace(cfg.StorageKind))
 	cfg.StorageFileRoot = strings.TrimSpace(cfg.StorageFileRoot)
 	cfg.StorageS3Bucket = strings.TrimSpace(cfg.StorageS3Bucket)
 	cfg.StorageS3Region = strings.TrimSpace(cfg.StorageS3Region)
 	cfg.StorageS3Endpoint = strings.TrimSpace(cfg.StorageS3Endpoint)
 	cfg.StorageS3PublicEndpoint = strings.TrimSpace(cfg.StorageS3PublicEndpoint)
 	cfg.StorageS3AccessKey = strings.TrimSpace(cfg.StorageS3AccessKey)
-	cfg.StorageS3SecretKey = strings.TrimSpace(cfg.StorageS3SecretKey)
-	if cfg.StorageS3PresignTTL <= 0 {
-		return errors.New("WOODSTAR_STORAGE_S3_PRESIGN_TTL must be positive")
+}
+
+func normalizeStrings(values []string) []string {
+	for i := range values {
+		values[i] = strings.TrimSpace(values[i])
 	}
-	switch cfg.StorageKind {
-	case "file":
-		if cfg.StorageFileRoot == "" {
-			return errors.New("WOODSTAR_STORAGE_FILE_ROOT is required when WOODSTAR_STORAGE_KIND=file")
-		}
-	case "s3":
-		if cfg.StorageS3Bucket == "" || cfg.StorageS3Region == "" ||
-			cfg.StorageS3AccessKey == "" || cfg.StorageS3SecretKey == "" {
-			return errors.New("incomplete WOODSTAR_STORAGE_S3 configuration")
-		}
-	default:
-		return fmt.Errorf("WOODSTAR_STORAGE_KIND must be file or s3, got %q", cfg.StorageKind)
-	}
-	return nil
+	return values
 }

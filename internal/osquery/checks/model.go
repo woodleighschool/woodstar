@@ -2,12 +2,14 @@ package checks
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // Check is a query-backed pass/fail rule.
@@ -26,9 +28,9 @@ type Check struct {
 
 // CheckMutation is the editable check state used by create and update.
 type CheckMutation struct {
-	Name        string       `json:"name"`
+	Name        string       `json:"name"                  validate:"required,notblank" minLength:"1"`
 	Description string       `json:"description,omitempty"`
-	Query       string       `json:"query"`
+	Query       string       `json:"query"                 validate:"required,notblank" minLength:"1"`
 	Targets     CheckTargets `json:"targets"`
 }
 
@@ -39,17 +41,21 @@ type CheckCreateMutation struct {
 	CreatedByUserID *int64
 }
 
-func (p CheckMutation) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	if p.Query == "" {
-		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+func (p *CheckMutation) Validate() error {
+	if err := validation.Struct(p); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (p *CheckMutation) normalize() {
+	p.Name = strings.TrimSpace(p.Name)
+	p.Description = strings.TrimSpace(p.Description)
+	p.Query = strings.TrimSpace(p.Query)
+	p.Targets = normalizeCheckTargets(p.Targets)
 }
 
 // CheckListParams filters checks.

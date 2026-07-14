@@ -243,7 +243,7 @@ func newTestFileStore(t *testing.T) storage.Backend {
 	store, err := storage.New(t.Context(), storage.Config{
 		Kind:          storage.KindFile,
 		FileRoot:      t.TempDir(),
-		PublicURL:     "https://woodstar.example",
+		BaseURL:       "https://woodstar.example",
 		CapabilityKey: testCapabilityKey,
 		PresignTTL:    time.Minute,
 	})

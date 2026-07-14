@@ -34,16 +34,16 @@ func NewStore(db *database.DB, objects objectStore, packages packageStore) *Stor
 }
 
 func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) {
+	params.normalize()
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	params, err := s.normalizeIcon(ctx, params)
-	if err != nil {
+	if err := s.validateIcon(ctx, params.IconObjectID); err != nil {
 		return nil, err
 	}
 	write := newSoftwareWrite(params)
 	var id int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_software (
 	name,
@@ -70,15 +70,15 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Software, error) {
+	params.normalize()
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	params, err := s.normalizeIcon(ctx, params)
-	if err != nil {
+	if err := s.validateIcon(ctx, params.IconObjectID); err != nil {
 		return nil, err
 	}
 	var oldIconObjectID *int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL()+"\nWHERE st.id = $1", id)
 		if err != nil {
 			return err
@@ -178,6 +178,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
+	params = dbutil.NormalizeListParams(params)
 	where, args := softwareListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    softwareSelectSQL(),
@@ -194,24 +195,24 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 	return software, count, nil
 }
 
-func (s *Store) normalizeIcon(ctx context.Context, params Mutation) (Mutation, error) {
-	if params.IconObjectID == nil {
-		return params, nil
+func (s *Store) validateIcon(ctx context.Context, objectID *int64) error {
+	if objectID == nil {
+		return nil
 	}
-	obj, err := s.objects.GetByID(ctx, *params.IconObjectID)
+	obj, err := s.objects.GetByID(ctx, *objectID)
 	if err != nil {
-		return params, err
+		return err
 	}
 	if obj.Prefix != munkiupload.IconObjectPrefix {
-		return params, fmt.Errorf(
+		return fmt.Errorf(
 			"%w: icon_object_id must reference an icon",
 			dbutil.ErrInvalidInput,
 		)
 	}
 	if !obj.Available() {
-		return params, fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
 	}
-	return params, nil
+	return nil
 }
 
 // SetIcon points software at an icon storage object.

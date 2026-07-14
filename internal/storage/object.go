@@ -100,8 +100,8 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, conte
 	if !prefixPattern.MatchString(prefix) {
 		return nil, fmt.Errorf("%w: invalid storage prefix %q", dbutil.ErrInvalidInput, prefix)
 	}
-	filename, err := cleanUploadFilename(filename)
-	if err != nil {
+	filename = normalizeUploadFilename(filename)
+	if err := validateUploadFilename(filename); err != nil {
 		return nil, err
 	}
 	const sql = `INSERT INTO storage_objects (prefix, filename, content_type)
@@ -203,7 +203,7 @@ func (s *ObjectStore) ListByPrefix(
 	prefix string,
 	params dbutil.ListParams,
 ) ([]Object, int, error) {
-	params = dbutil.CleanListParams(params)
+	params = dbutil.NormalizeListParams(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    objectSelectSQL,
 		WhereSQL:     "WHERE prefix = $1 AND available_at IS NOT NULL",
@@ -277,21 +277,20 @@ func ReplacedObjectIDs(oldID, newID *int64) []int64 {
 // segments that make up a key namespace.
 var prefixPattern = regexp.MustCompile(`^[a-z0-9]+(/[a-z0-9]+)*$`)
 
-// cleanUploadFilename reduces a client filename to a safe key segment. It takes
-// the base name (tolerating directory components and Windows separators) and
-// trims surrounding space, then rejects what cannot be a usable single segment.
-func cleanUploadFilename(name string) (string, error) {
+func normalizeUploadFilename(name string) string {
 	name = strings.ReplaceAll(name, `\`, `/`)
 	name = path.Base(name)
-	name = strings.TrimSpace(name)
+	return strings.TrimSpace(name)
+}
 
+func validateUploadFilename(name string) error {
 	if name == "" || name == "." || name == ".." || name == "/" {
-		return "", fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
 	}
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
-			return "", fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
 		}
 	}
-	return name, nil
+	return nil
 }

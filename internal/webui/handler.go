@@ -18,14 +18,14 @@ import (
 
 type runtimeConfig struct {
 	Version   string `json:"version"`
-	PublicURL string `json:"public_url"`
+	ServerURL string `json:"server_url"`
 }
 
 // HandlerOptions configures the embedded web UI handler.
 type HandlerOptions struct {
 	FS        fs.FS
 	Version   string
-	PublicURL string
+	ServerURL string
 	Logger    *slog.Logger
 }
 
@@ -50,7 +50,7 @@ func NewHandler(opts HandlerOptions) *Handler {
 		logger: opts.Logger,
 	}
 	if opts.FS != nil {
-		h.index, h.indexErr = renderIndex(opts.FS, opts.Version, opts.PublicURL)
+		h.index, h.indexErr = renderIndex(opts.FS, opts.Version, opts.ServerURL)
 	}
 	return h
 }
@@ -173,7 +173,7 @@ func isAssetPath(path string) bool {
 	return strings.HasPrefix(path, "/assets/") || filepath.Ext(path) != ""
 }
 
-func renderIndex(fsys fs.FS, version string, publicURL string) ([]byte, error) {
+func renderIndex(fsys fs.FS, version, serverURL string) ([]byte, error) {
 	content, err := fs.ReadFile(fsys, "index.html")
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func renderIndex(fsys fs.FS, version string, publicURL string) ([]byte, error) {
 
 	data, err := json.Marshal(runtimeConfig{
 		Version:   version,
-		PublicURL: publicURL,
+		ServerURL: serverURL,
 	})
 	if err != nil {
 		return nil, err

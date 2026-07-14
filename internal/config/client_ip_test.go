@@ -1,55 +1,114 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
-func TestNormalizeClientIPValidatesEachSource(t *testing.T) {
-	cases := []struct {
+func TestConfigValidatesEachClientIPSource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
 		name    string
-		cfg     Config
+		update  func(*Config)
 		wantErr bool
 	}{
-		{name: "remote_addr", cfg: Config{ClientIPSource: "remote_addr"}},
-		{name: "unknown source", cfg: Config{ClientIPSource: "bogus"}, wantErr: true},
+		{name: "remote address", update: func(*Config) {}},
+		{name: "unknown source", update: func(cfg *Config) { cfg.ClientIPSource = "bogus" }, wantErr: true},
 		{
-			name: "xff cidrs present",
-			cfg:  Config{ClientIPSource: "xff_trusted_cidrs", ClientIPTrustedCIDRs: []string{" 10.0.0.0/8 "}},
+			name: "trusted CIDRs",
+			update: func(cfg *Config) {
+				cfg.ClientIPSource = ClientIPSourceXFFTrustedCIDRs
+				cfg.ClientIPTrustedCIDRs = []string{" 10.0.0.0/8 "}
+			},
 		},
-		{name: "xff cidrs missing", cfg: Config{ClientIPSource: "xff_trusted_cidrs"}, wantErr: true},
 		{
-			name:    "xff cidrs invalid",
-			cfg:     Config{ClientIPSource: "xff_trusted_cidrs", ClientIPTrustedCIDRs: []string{"10.0.0.0"}},
+			name:    "missing trusted CIDRs",
+			update:  func(cfg *Config) { cfg.ClientIPSource = ClientIPSourceXFFTrustedCIDRs },
 			wantErr: true,
 		},
 		{
-			name: "proxy count",
-			cfg:  Config{ClientIPSource: "xff_trusted_proxies", ClientIPTrustedProxies: 2},
+			name: "invalid trusted CIDR",
+			update: func(cfg *Config) {
+				cfg.ClientIPSource = ClientIPSourceXFFTrustedCIDRs
+				cfg.ClientIPTrustedCIDRs = []string{"10.0.0.0"}
+			},
+			wantErr: true,
 		},
-		{name: "proxy count zero", cfg: Config{ClientIPSource: "xff_trusted_proxies"}, wantErr: true},
-		{name: "header present", cfg: Config{ClientIPSource: "header", ClientIPHeader: "CF-Connecting-IP"}},
-		{name: "header missing", cfg: Config{ClientIPSource: "header"}, wantErr: true},
+		{
+			name: "trusted proxy count",
+			update: func(cfg *Config) {
+				cfg.ClientIPSource = ClientIPSourceXFFTrustedProxies
+				cfg.ClientIPTrustedProxies = 2
+			},
+		},
+		{
+			name:    "missing trusted proxy count",
+			update:  func(cfg *Config) { cfg.ClientIPSource = ClientIPSourceXFFTrustedProxies },
+			wantErr: true,
+		},
+		{
+			name: "trusted header",
+			update: func(cfg *Config) {
+				cfg.ClientIPSource = ClientIPSourceHeader
+				cfg.ClientIPHeader = "CF-Connecting-IP"
+			},
+		},
+		{
+			name:    "missing trusted header",
+			update:  func(cfg *Config) { cfg.ClientIPSource = ClientIPSourceHeader },
+			wantErr: true,
+		},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			cfg := tc.cfg
-			err := cfg.normalizeClientIP()
-			if tc.wantErr && err == nil {
-				t.Fatal("normalizeClientIP returned nil error, want error")
+			cfg := validConfig()
+			test.update(&cfg)
+			cfg.Normalize()
+			err := cfg.Validate()
+			if test.wantErr && err == nil {
+				t.Fatal("validate returned nil error, want error")
 			}
-			if !tc.wantErr && err != nil {
-				t.Fatalf("normalizeClientIP returned error: %v", err)
+			if !test.wantErr && err != nil {
+				t.Fatalf("validate: %v", err)
 			}
 		})
 	}
 }
 
-func TestNormalizeClientIPTrimsTrustedCIDRs(t *testing.T) {
+func TestConfigNormalizesTrustedCIDRs(t *testing.T) {
 	t.Parallel()
-	cfg := Config{ClientIPSource: "xff_trusted_cidrs", ClientIPTrustedCIDRs: []string{" 10.0.0.0/8 "}}
-	if err := cfg.normalizeClientIP(); err != nil {
-		t.Fatalf("normalizeClientIP: %v", err)
-	}
+	cfg := validConfig()
+	cfg.ClientIPSource = ClientIPSourceXFFTrustedCIDRs
+	cfg.ClientIPTrustedCIDRs = []string{" 10.0.0.0/8 "}
+
+	cfg.Normalize()
+
 	if cfg.ClientIPTrustedCIDRs[0] != "10.0.0.0/8" {
 		t.Fatalf("trusted CIDR = %q, want trimmed", cfg.ClientIPTrustedCIDRs[0])
+	}
+}
+
+func validConfig() Config {
+	return Config{
+		Host:                    "0.0.0.0",
+		Port:                    8080,
+		ServerURL:               "https://localhost:8080",
+		SessionSecret:           strings.Repeat("s", minSessionSecretLength),
+		SessionCookieSecure:     true,
+		DatabaseURL:             "postgres://woodstar:woodstar@localhost:5432/woodstar",
+		LogLevel:                "info",
+		SantaEventRetentionDays: 90,
+		SantaEventSweepInterval: time.Hour,
+		OIDCScopes:              []string{"openid", "email", "profile"},
+		OIDCEmailClaim:          "email",
+		OIDCRedirectURL:         "https://localhost:8080/api/auth/sso/callback",
+		EntraSyncInterval:       time.Hour,
+		StorageKind:             "file",
+		StorageFileRoot:         "data/storage",
+		StorageS3PresignTTL:     15 * time.Minute,
+		ClientIPSource:          ClientIPSourceRemoteAddr,
 	}
 }

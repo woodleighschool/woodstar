@@ -2,22 +2,24 @@
 package logging
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 )
 
-// ParseLevel turns config text into a slog level, defaulting to info.
-func ParseLevel(value string) slog.Level {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+// ParseLevel parses a normalized log level.
+func ParseLevel(value string) (slog.Level, error) {
+	switch value {
 	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn":
+		return slog.LevelWarn, nil
 	case "error":
-		return slog.LevelError
+		return slog.LevelError, nil
 	default:
-		return slog.LevelInfo
+		return 0, fmt.Errorf("invalid log level %q", value)
 	}
 }
 

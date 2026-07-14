@@ -29,7 +29,7 @@ import { formatBytes, formatRelative } from "@/lib/utils";
 const STATUS_OPTIONS = [
   { value: "online", label: "Online" },
   { value: "offline", label: "Offline" },
-];
+] satisfies { value: Host["status"]; label: string }[];
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 
@@ -55,7 +55,7 @@ export function HostListPage() {
     softwareTitleID: deepLink.software_title_id ?? undefined,
   });
 
-  const status = tableSearch.filters.status?.[0];
+  const status = parseHostStatus(tableSearch.filters.status?.[0]);
 
   const query = useHosts({
     q: tableSearch.q,
@@ -154,6 +154,10 @@ export function HostListPage() {
       )}
     </PageShell>
   );
+}
+
+function parseHostStatus(value: string | undefined): Host["status"] | undefined {
+  return value === "online" || value === "offline" ? value : undefined;
 }
 
 const hostColumns: ColumnDef<Host>[] = [

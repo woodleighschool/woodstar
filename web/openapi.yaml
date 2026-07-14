@@ -238,6 +238,9 @@ components:
             $ref: "#/components/schemas/HostPrimaryUserSource"
           type: array
         status:
+          enum:
+            - online
+            - offline
           type: string
         storage:
           $ref: "#/components/schemas/HostStorage"
@@ -425,6 +428,9 @@ components:
             $ref: "#/components/schemas/HostPrimaryUserSource"
           type: array
         status:
+          enum:
+            - online
+            - offline
           type: string
         storage:
           $ref: "#/components/schemas/HostStorage"
@@ -794,6 +800,7 @@ components:
             - derived
           type: string
         name:
+          minLength: 1
           type: string
         query:
           type: string
@@ -916,6 +923,7 @@ components:
       additionalProperties: false
       properties:
         client_base_url:
+          format: uri
           type: string
         client_cidrs:
           items:
@@ -924,6 +932,7 @@ components:
         enabled:
           type: boolean
         name:
+          minLength: 1
           type: string
       required:
         - name
@@ -1062,6 +1071,7 @@ components:
           type: string
         icon_object_id:
           format: int64
+          minimum: 1
           type: integer
         name:
           minLength: 1
@@ -1332,6 +1342,7 @@ components:
           type: string
         installed_size:
           format: int64
+          minimum: 0
           type: integer
         installer_choices_xml:
           items:
@@ -1343,6 +1354,7 @@ components:
           type: array
         installer_object_id:
           format: int64
+          minimum: 1
           type: integer
         installer_type:
           enum:
@@ -1457,6 +1469,7 @@ components:
         minimum_update_version:
           type: string
         path:
+          minLength: 1
           type: string
         type:
           enum:
@@ -1480,6 +1493,7 @@ components:
         choice_attribute:
           type: string
         choice_identifier:
+          minLength: 1
           type: string
       required:
         - attribute_setting
@@ -1488,6 +1502,7 @@ components:
       additionalProperties: false
       properties:
         name:
+          minLength: 1
           type: string
         value:
           type: string
@@ -1501,12 +1516,14 @@ components:
         destination_item:
           type: string
         destination_path:
+          minLength: 1
           type: string
         group:
           type: string
         mode:
           type: string
         source_item:
+          minLength: 1
           type: string
         user:
           type: string
@@ -1542,6 +1559,7 @@ components:
           type: string
         installed_size:
           format: int64
+          minimum: 0
           type: integer
         installer_choices_xml:
           items:
@@ -1553,6 +1571,7 @@ components:
           type: array
         installer_object_id:
           format: int64
+          minimum: 1
           type: integer
         installer_type:
           enum:
@@ -1647,12 +1666,14 @@ components:
       properties:
         installed_size:
           format: int64
+          minimum: 0
           type: integer
         name:
           type: string
         optional:
           type: boolean
         package_id:
+          minLength: 1
           type: string
         version:
           type: string
@@ -1664,11 +1685,13 @@ components:
       properties:
         package_id:
           format: int64
+          minimum: 0
           type: integer
         package_version:
           type: string
         software_id:
           format: int64
+          minimum: 1
           type: integer
         software_name:
           type: string
@@ -1962,8 +1985,10 @@ components:
         description:
           type: string
         name:
+          minLength: 1
           type: string
         query:
+          minLength: 1
           type: string
         targets:
           $ref: "#/components/schemas/OsqueryCheckTargets"
@@ -2172,8 +2197,10 @@ components:
         min_osquery_version:
           type: string
         name:
+          minLength: 1
           type: string
         query:
+          minLength: 1
           type: string
         schedule_interval:
           format: int32
@@ -2754,12 +2781,14 @@ components:
         event_detail_text:
           type: string
         event_detail_url:
+          format: uri
           type: string
         full_sync_interval_seconds:
           format: int32
           minimum: 60
           type: integer
         name:
+          minLength: 1
           type: string
         override_file_access_action:
           enum:
@@ -3245,12 +3274,15 @@ components:
         custom_message:
           type: string
         custom_url:
+          format: uri
           type: string
         description:
           type: string
         identifier:
+          minLength: 1
           type: string
         name:
+          minLength: 1
           type: string
         rule_type:
           enum:
@@ -4175,6 +4207,9 @@ paths:
           in: query
           name: status
           schema:
+            enum:
+              - online
+              - offline
             type: string
         - explode: false
           in: query

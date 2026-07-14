@@ -33,6 +33,16 @@ func TestDistributionPointMutationValidate(t *testing.T) {
 			mutate:  func(m *DistributionPointMutation) { m.ClientBaseURL = "mdp.example" },
 			wantErr: true,
 		},
+		{
+			name:    "http base url",
+			mutate:  func(m *DistributionPointMutation) { m.ClientBaseURL = "http://mdp.example" },
+			wantErr: true,
+		},
+		{
+			name:    "base url with path",
+			mutate:  func(m *DistributionPointMutation) { m.ClientBaseURL = "https://mdp.example/packages" },
+			wantErr: true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

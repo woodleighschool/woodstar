@@ -19,7 +19,7 @@ const (
 type Config struct {
 	Kind          Kind
 	FileRoot      string
-	PublicURL     string
+	BaseURL       string
 	CapabilityKey []byte
 	PresignTTL    time.Duration
 	S3            S3Config
@@ -41,7 +41,7 @@ type S3Config struct {
 func New(ctx context.Context, cfg Config) (Backend, error) {
 	switch cfg.Kind {
 	case KindFile:
-		return newFileStore(cfg.FileRoot, cfg.PublicURL, cfg.CapabilityKey, cfg.PresignTTL)
+		return newFileStore(cfg.FileRoot, cfg.BaseURL, cfg.CapabilityKey, cfg.PresignTTL)
 	case KindS3:
 		return newS3Store(ctx, cfg.S3)
 	default:

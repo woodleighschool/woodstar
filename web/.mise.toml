@@ -4,7 +4,9 @@ run = "pnpm install"
 
 [tasks.dev]
 description = "Run web development server"
-run = "pnpm run dev"
+run = """
+NODE_EXTRA_CA_CERTS="../tmp/tls/ca/rootCA.pem" pnpm run dev
+"""
 
 [tasks.build]
 description = "Build web bundle"

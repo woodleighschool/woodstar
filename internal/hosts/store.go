@@ -219,10 +219,11 @@ ON CONFLICT (label_id, host_id) DO NOTHING`,
 }
 
 func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
-	where, args, err := hostListWhere(params)
-	if err != nil {
+	params.normalize()
+	if err := params.validate(); err != nil {
 		return nil, 0, err
 	}
+	where, args := hostListWhere(params)
 	listQuery := hostListQuery(params, where, args)
 	rows, count, err := dbutil.ListWithCount[hostRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
@@ -696,7 +697,7 @@ func hostListQuery(params HostListParams, where string, args []any) dbutil.ListQ
 	}
 }
 
-func hostListWhere(params HostListParams) (string, []any, error) {
+func hostListWhere(params HostListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -719,12 +720,10 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 	}
 	switch params.Status {
 	case "":
-	case "online":
+	case HostStatusOnline:
 		where.Add("last_seen_at >= now() - interval '5 minutes'")
-	case "offline":
+	case HostStatusOffline:
 		where.Add("(last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')")
-	default:
-		return "", nil, fmt.Errorf("%w: unknown status %q", dbutil.ErrInvalidInput, params.Status)
 	}
 	if params.LabelID != 0 {
 		labelID := where.Arg(params.LabelID)
@@ -749,8 +748,7 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 			WHERE hs.host_id = hosts.id AND s.title_id = ` + softwareTitleID + `::bigint
 		)`)
 	}
-	whereSQL, args := where.Build()
-	return whereSQL, args, nil
+	return where.Build()
 }
 
 // inventoryDisplayName persists the canonical host label exposed by the API.

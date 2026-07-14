@@ -15,7 +15,7 @@ func TestObjectKey(t *testing.T) {
 	}
 }
 
-func TestCleanUploadFilename(t *testing.T) {
+func TestNormalizeUploadFilename(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"Firefox-120.0.dmg":   "Firefox-120.0.dmg",
@@ -27,18 +27,14 @@ func TestCleanUploadFilename(t *testing.T) {
 		"../../etc/passwd":    "passwd",
 	}
 	for in, want := range cases {
-		got, err := cleanUploadFilename(in)
-		if err != nil {
-			t.Errorf("cleanUploadFilename(%q) error = %v, want nil", in, err)
-			continue
-		}
+		got := normalizeUploadFilename(in)
 		if got != want {
-			t.Errorf("cleanUploadFilename(%q) = %q, want %q", in, got, want)
+			t.Errorf("normalizeUploadFilename(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
 
-func TestCleanUploadFilenameRejects(t *testing.T) {
+func TestValidateUploadFilenameRejects(t *testing.T) {
 	t.Parallel()
 	for _, in := range []string{
 		"",
@@ -49,8 +45,9 @@ func TestCleanUploadFilenameRejects(t *testing.T) {
 		"a/b/..",
 		"with\x00null.pkg",
 	} {
-		if _, err := cleanUploadFilename(in); !errors.Is(err, dbutil.ErrInvalidInput) {
-			t.Errorf("cleanUploadFilename(%q) error = %v, want ErrInvalidInput", in, err)
+		name := normalizeUploadFilename(in)
+		if err := validateUploadFilename(name); !errors.Is(err, dbutil.ErrInvalidInput) {
+			t.Errorf("validateUploadFilename(%q) error = %v, want ErrInvalidInput", name, err)
 		}
 	}
 }

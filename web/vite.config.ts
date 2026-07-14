@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const __dirname = import.meta.dirname;
+const workspaceRoot = path.resolve(__dirname, "..");
 
 export default defineConfig({
   build: {
@@ -59,13 +60,14 @@ export default defineConfig({
   server: {
     fs: {
       // Allow Vite to serve the vendored osquery schema from the repo root.
-      allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
+      allow: [workspaceRoot, path.resolve(__dirname)],
     },
     port: 5173,
+    strictPort: true,
     proxy: {
       "/api": {
         changeOrigin: true,
-        target: "http://localhost:8080",
+        target: "https://localhost:8443",
       },
     },
   },

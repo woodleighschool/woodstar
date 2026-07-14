@@ -83,7 +83,7 @@ func TestHandlerServesSPAIndex(t *testing.T) {
 	body := recorder.Body.String()
 	if !strings.Contains(
 		body,
-		"window.__WOODSTAR__={\"version\":\"test\",\"public_url\":\"https://woodstar.example\"};",
+		"window.__WOODSTAR__={\"version\":\"test\",\"server_url\":\"https://woodstar.example\"};",
 	) {
 		t.Fatalf("body did not include runtime config: %q", body)
 	}
@@ -119,7 +119,7 @@ func requestWeb(t *testing.T, path string) *httptest.ResponseRecorder {
 			"site.webmanifest": {Data: []byte(`{"name":"Woodstar"}`)},
 		},
 		Version:   "test",
-		PublicURL: "https://woodstar.example",
+		ServerURL: "https://woodstar.example",
 		Logger:    slog.New(slog.DiscardHandler),
 	}).RegisterRoutes(router)
 

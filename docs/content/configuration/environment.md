@@ -6,24 +6,29 @@ description: The WOODSTAR_ environment variables, their defaults, and what they 
 
 # Environment
 
-Woodstar reads its settings from environment variables with a `WOODSTAR_` prefix. CLI flags fill the same config, then environment parsing applies defaults and validation on top.
+Woodstar reads its settings from environment variables with a `WOODSTAR_` prefix. CLI flags populate the same config first; environment parsing fills unset fields and applies defaults. Woodstar then normalizes and validates the resolved config independently of either input source.
 
-Two settings are required and the server won't start without them: `WOODSTAR_PUBLIC_URL` and `WOODSTAR_SESSION_SECRET`.
+Three settings are required and the server won't start without them: `WOODSTAR_URL`, `WOODSTAR_DATABASE_URL`, and `WOODSTAR_SESSION_SECRET`.
 
 Several features stay off until you configure them. OIDC and Entra directory sync each switch on only once their settings are complete, so an unset block means that feature is simply not running. Storage is the exception: it always runs, defaulting to local files until you point it at an S3 bucket.
 
 ## Server
 
-| Variable                  | Default   | Notes                                                                                                 |
-| ------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| `WOODSTAR_HOST`           | `0.0.0.0` | Listen host.                                                                                          |
-| `WOODSTAR_PORT`           | `8080`    | Listen port.                                                                                          |
-| `WOODSTAR_PUBLIC_URL`     | required  | Must be `http` or `https`, include a host, and carry no path, query, or fragment.                     |
-| `WOODSTAR_SESSION_SECRET` | required  | At least 32 characters.                                                                               |
-| `WOODSTAR_DATABASE_URL`   | empty     | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
-| `WOODSTAR_LOG_LEVEL`      | `info`    | Log level.                                                                                            |
+| Variable                         | Default   | Notes                                                                                                 |
+| -------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| `WOODSTAR_HOST`                  | `0.0.0.0` | Listen host.                                                                                          |
+| `WOODSTAR_PORT`                  | `8080`    | Listen port.                                                                                          |
+| `WOODSTAR_URL`                   | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
+| `WOODSTAR_TLS_CERT_FILE`         | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
+| `WOODSTAR_TLS_KEY_FILE`          | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
+| `WOODSTAR_SESSION_SECRET`        | required  | At least 32 characters.                                                                               |
+| `WOODSTAR_SESSION_COOKIE_SECURE` | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
+| `WOODSTAR_DATABASE_URL`          | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
+| `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
 
-`WOODSTAR_PUBLIC_URL` has its trailing slash trimmed and rejects a sub-path. If you need to serve Woodstar under a path, put a reverse proxy in front; the app expects to own the root of its host.
+`WOODSTAR_URL` has its trailing slash trimmed and rejects HTTP, sub-paths, credentials, query strings, and fragments. If you need to serve Woodstar under a path, put a reverse proxy in front; the app expects to own the root of its host.
+
+Certificate files are optional because the normal container deployment terminates TLS at a reverse proxy. Set neither file for that private HTTP hop. Set both files when the Woodstar process listens directly on HTTPS. A partial pair is a startup error, and Woodstar does not fall back to HTTP when a configured certificate cannot be loaded.
 
 ## Client IP
 
@@ -47,21 +52,22 @@ The default trusts the connection's own address, which is right when nothing ter
 
 ## OIDC
 
-OIDC turns on only when the issuer URL, client ID, and client secret are all set.
+OIDC turns on only when the issuer URL, client ID, and client secret are all set. A partial block is a startup error.
 
 | Variable                      | Default                | Notes                                |
 | ----------------------------- | ---------------------- | ------------------------------------ |
 | `WOODSTAR_OIDC_ISSUER_URL`    | empty                  | Provider issuer URL.                 |
 | `WOODSTAR_OIDC_CLIENT_ID`     | empty                  | Client ID.                           |
 | `WOODSTAR_OIDC_CLIENT_SECRET` | empty                  | Client secret.                       |
+| `WOODSTAR_OIDC_REDIRECT_URL`  | server callback        | Exact browser callback URL.          |
 | `WOODSTAR_OIDC_SCOPES`        | `openid,email,profile` | Scopes to request.                   |
 | `WOODSTAR_OIDC_EMAIL_CLAIM`   | `email`                | Claim used as the Woodstar identity. |
 
-The redirect URL is `<WOODSTAR_PUBLIC_URL>/api/auth/sso/callback`. If discovery fails when the server starts, it logs a warning and runs with SSO off for that boot; local sign-in keeps working.
+The redirect defaults to `<WOODSTAR_URL>/api/auth/sso/callback`. Set it explicitly when the browser reaches the callback through another origin, such as `http://localhost:5173/api/auth/sso/callback` through Vite. HTTPS is required except for loopback HTTP development, and the path must remain `/api/auth/sso/callback`. Configured OIDC discovery must succeed during startup; Woodstar does not silently disable a requested login path.
 
 ## Entra directory sync
 
-Sync starts only when the tenant ID, client ID, and client secret are all set.
+Sync starts only when the tenant ID, client ID, and client secret are all set. A partial block is a startup error.
 
 | Variable                           | Default | Notes                           |
 | ---------------------------------- | ------- | ------------------------------- |
@@ -96,23 +102,27 @@ With `s3`, the bucket, region, access key, and secret key have to be present tog
 
 These configure the `woodstar mdp` worker, not the server. The worker is a separate process with its own `WOODSTAR_MDP_` prefix and none of the server's database, session, or storage settings; it talks to Woodstar over the network and authenticates with one distribution point's key. What it does is covered in [Munki Distribution Points](../agent-protocols/munki-distribution).
 
-| Variable                            | Default  | Notes                                                                 |
-| ----------------------------------- | -------- | --------------------------------------------------------------------- |
-| `WOODSTAR_MDP_SERVER_URL`           | required | The Woodstar base URL the worker connects to.                         |
-| `WOODSTAR_MDP_KEY`                  | required | The distribution point's key, from its create or rotate response.     |
-| `WOODSTAR_MDP_DATA_DIR`             | required | Directory the mirrored installers and the state snapshot live in.     |
-| `WOODSTAR_MDP_LISTEN_ADDR`          | `:8080`  | Address the worker serves Macs on. Front it with a TLS reverse proxy. |
-| `WOODSTAR_MDP_LOG_LEVEL`            | `info`   | Log level.                                                            |
-| `WOODSTAR_MDP_DOWNLOAD_CONCURRENCY` | `4`      | How many installers the worker downloads at once while catching up.   |
+| Variable                            | Default  | Notes                                                                |
+| ----------------------------------- | -------- | -------------------------------------------------------------------- |
+| `WOODSTAR_MDP_SERVER_URL`           | required | HTTPS Woodstar origin the worker connects to.                        |
+| `WOODSTAR_MDP_KEY`                  | required | The distribution point's key, from its create or rotate response.    |
+| `WOODSTAR_MDP_DATA_DIR`             | required | Directory the mirrored installers and state snapshot live in.        |
+| `WOODSTAR_MDP_LISTEN_ADDR`          | `:8080`  | Address the worker serves Macs on.                                   |
+| `WOODSTAR_MDP_TLS_CERT_FILE`        | empty    | PEM certificate chain for direct TLS. Must be set with the key file. |
+| `WOODSTAR_MDP_TLS_KEY_FILE`         | empty    | PEM private key for direct TLS. Must be set with the certificate.    |
+| `WOODSTAR_MDP_LOG_LEVEL`            | `info`   | `debug`, `info`, `warn`, or `error`.                                 |
+| `WOODSTAR_MDP_DOWNLOAD_CONCURRENCY` | `4`      | Concurrent installer downloads. Must be at least one.                |
 
-The worker serves plain HTTP and doesn't terminate TLS. Set the distribution point's client base URL to the public HTTPS address of the proxy in front of it.
+Set both TLS files when the worker terminates HTTPS itself. Leave both empty behind a reverse proxy. The distribution point's client base URL must always be the public HTTPS origin that Macs use.
 
 ## A local example
 
 ```bash
 WOODSTAR_HOST=0.0.0.0
-WOODSTAR_PORT=8080
-WOODSTAR_PUBLIC_URL=http://localhost:8080
+WOODSTAR_PORT=8443
+WOODSTAR_URL=https://localhost:8443
+WOODSTAR_TLS_CERT_FILE=./tmp/tls/woodstar.pem
+WOODSTAR_TLS_KEY_FILE=./tmp/tls/woodstar-key.pem
 WOODSTAR_DATABASE_URL=postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable
 WOODSTAR_SESSION_SECRET=replace-with-at-least-32-characters
 WOODSTAR_LOG_LEVEL=debug

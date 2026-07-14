@@ -23,7 +23,7 @@ mise run deps
 ```bash
 mise run build
 mise run backend
-mise run frontend
+mise //web:build
 ```
 
 `build` runs the frontend build first, then builds the Go binary at `./woodstar`.
@@ -33,10 +33,12 @@ mise run frontend
 ```bash
 mise run dev
 mise run dev-backend
-mise run dev-frontend
+mise run dev-tls
+mise run dev-tls-trust
+mise //web:dev
 ```
 
-`dev-backend` loads `.env` if present and starts Air. `dev-frontend` runs Vite from `web/`.
+`dev` builds the embedded frontend and depends on `dev-tls`, which creates repo-local certificate files. `dev-tls-trust` trusts that CA locally. `dev-backend` loads `.env` if present and starts Air; the web task runs Vite from `web/`.
 
 ## Tests
 
@@ -53,11 +55,11 @@ mise run test-openapi
 
 ```bash
 mise run lint
-mise run backend-lint
-mise run frontend-lint
+mise run go-lint
+mise //web:lint
 mise run format
-mise run backend-format
-mise run frontend-format
+mise run go-format
+mise //web:format
 ```
 
 The split matters. Backend and frontend checks have different tools and should stay runnable independently.
@@ -65,13 +67,12 @@ The split matters. Backend and frontend checks have different tools and should s
 ## Generated Artifacts
 
 ```bash
-mise run sqlc
 mise run openapi
 mise run openapi-types
 mise run generate
 ```
 
-`generate` runs sqlc and OpenAPI/frontend client generation.
+`generate` runs OpenAPI and frontend client generation.
 
 ## Local Gate
 

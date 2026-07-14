@@ -171,11 +171,13 @@ func validateEventsHaveOccurrenceTimes(
 
 // ListEvents returns execution events and the total count matching params.
 func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams) ([]ExecutionEvent, int, error) {
-	params.Decisions = cleanListValues(params.Decisions)
-	where, args, err := executionEventWhere(params)
-	if err != nil {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.Decisions = normalizeListValues(params.Decisions)
+	params.User = strings.TrimSpace(params.User)
+	if err := validateExecutionEventListParams(params); err != nil {
 		return nil, 0, err
 	}
+	where, args := executionEventWhere(params)
 	rows, count, err := dbutil.ListWithCount[executionEventRow](
 		ctx,
 		s.db.Pool(),
@@ -202,11 +204,12 @@ func (s *Store) ListFileAccessEvents(
 	ctx context.Context,
 	params FileAccessEventListParams,
 ) ([]FileAccessEvent, int, error) {
-	params.Decisions = cleanListValues(params.Decisions)
-	where, args, err := fileAccessEventWhere(params)
-	if err != nil {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.Decisions = normalizeListValues(params.Decisions)
+	if err := validateFileAccessEventListParams(params); err != nil {
 		return nil, 0, err
 	}
+	where, args := fileAccessEventWhere(params)
 	rows, count, err := dbutil.ListWithCount[fileAccessEventRow](
 		ctx,
 		s.db.Pool(),
@@ -530,7 +533,7 @@ WHERE b.id = @bundle_id
 }
 
 func incompleteBundleHashes(ctx context.Context, tx pgx.Tx, candidates []string) ([]string, error) {
-	hashes := cleanStringSlice(candidates)
+	hashes := normalizeStringSlice(candidates)
 	if len(hashes) == 0 {
 		return nil, nil
 	}
@@ -563,8 +566,8 @@ func insertExecutionEvent(
 		PID:             event.PID,
 		PPID:            event.PPID,
 		ParentName:      event.ParentName,
-		LoggedInUsers:   cleanStringSlice(event.LoggedInUsers),
-		CurrentSessions: cleanStringSlice(event.CurrentSessions),
+		LoggedInUsers:   normalizeStringSlice(event.LoggedInUsers),
+		CurrentSessions: normalizeStringSlice(event.CurrentSessions),
 		Decision:        string(event.Decision),
 		OccurredAt:      event.OccurredAt,
 	}
@@ -664,7 +667,7 @@ func primaryProcess(chain []ProcessInput) ProcessInput {
 	return chain[0]
 }
 
-func cleanStringSlice(values []string) []string {
+func normalizeStringSlice(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(strings.ReplaceAll(value, "\x00", ""))
@@ -764,7 +767,7 @@ func normalizeSigningStatus(status SigningStatus) SigningStatus {
 	return SigningStatusUnspecified
 }
 
-func executionEventWhere(params ExecutionEventListParams) (string, []any, error) {
+func executionEventWhere(params ExecutionEventListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.HostID != 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
@@ -797,14 +800,11 @@ func executionEventWhere(params ExecutionEventListParams) (string, []any, error)
 			OR e.cdhash ILIKE ` + search + `
 		)`)
 	}
-	if err := addExecutionEventFilters(&where, params); err != nil {
-		return "", nil, err
-	}
-	whereSQL, args := where.Build()
-	return whereSQL, args, nil
+	addExecutionEventFilters(&where, params)
+	return where.Build()
 }
 
-func fileAccessEventWhere(params FileAccessEventListParams) (string, []any, error) {
+func fileAccessEventWhere(params FileAccessEventListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.HostID != 0 {
 		where.Add("fae.host_id = " + where.Arg(params.HostID))
@@ -831,23 +831,19 @@ func fileAccessEventWhere(params FileAccessEventListParams) (string, []any, erro
 	if len(params.Decisions) > 0 {
 		clauses := make([]string, 0, len(params.Decisions))
 		for _, decision := range params.Decisions {
-			if _, ok := validFileAccessDecisions[decision]; !ok {
-				return "", nil, fmt.Errorf("%w: unknown file access decision", dbutil.ErrInvalidInput)
-			}
 			clauses = append(clauses, "fae.decision = "+where.Arg(decision))
 		}
 		where.Add("(" + strings.Join(clauses, " OR ") + ")")
 	}
-	whereSQL, args := where.Build()
-	return whereSQL, args, nil
+	return where.Build()
 }
 
-func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventListParams) error {
+func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventListParams) {
 	if !params.Since.IsZero() {
 		where.Add("ee.occurred_at >= " + where.Arg(params.Since))
 	}
 	if len(params.Decisions) == 0 {
-		return nil
+		return
 	}
 	clauses := make([]string, 0, len(params.Decisions))
 	for _, filter := range params.Decisions {
@@ -858,14 +854,10 @@ func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventL
 			clauses = append(clauses, "ee.decision::text LIKE 'block_%'")
 		default:
 			decision := ExecutionDecision(filter)
-			if _, ok := validExecutionDecisions[decision]; !ok {
-				return fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
-			}
 			clauses = append(clauses, "ee.decision = "+where.Arg(decision))
 		}
 	}
 	where.Add("(" + strings.Join(clauses, " OR ") + ")")
-	return nil
 }
 
 func executionEventListQuery(params ExecutionEventListParams, where string, args []any) dbutil.ListQuery {
@@ -906,17 +898,50 @@ func fileAccessEventsFromRows(rows []fileAccessEventRow) []FileAccessEvent {
 	return events
 }
 
-func cleanListValues[T ~string](items []T) []T {
+func normalizeListValues[T ~string](items []T) []T {
 	raw := make([]string, len(items))
 	for i, item := range items {
 		raw[i] = string(item)
 	}
-	values := dbutil.SplitListValues(raw)
+	values := dbutil.NormalizeListValues(raw)
 	out := make([]T, len(values))
 	for i, value := range values {
 		out[i] = T(value)
 	}
 	return out
+}
+
+func validateExecutionEventListParams(params ExecutionEventListParams) error {
+	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+		return err
+	}
+	if params.HostID < 0 {
+		return fmt.Errorf("%w: host_id must be non-negative", dbutil.ErrInvalidInput)
+	}
+	for _, filter := range params.Decisions {
+		if filter == DecisionFilterAllowed || filter == DecisionFilterBlocked {
+			continue
+		}
+		if _, ok := validExecutionDecisions[ExecutionDecision(filter)]; !ok {
+			return fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
+		}
+	}
+	return nil
+}
+
+func validateFileAccessEventListParams(params FileAccessEventListParams) error {
+	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+		return err
+	}
+	if params.HostID < 0 {
+		return fmt.Errorf("%w: host_id must be non-negative", dbutil.ErrInvalidInput)
+	}
+	for _, decision := range params.Decisions {
+		if _, ok := validFileAccessDecisions[decision]; !ok {
+			return fmt.Errorf("%w: unknown file access decision", dbutil.ErrInvalidInput)
+		}
+	}
+	return nil
 }
 
 func eventOrderKeys(eventAlias string, executableAlias string) map[string]dbutil.OrderExpr {

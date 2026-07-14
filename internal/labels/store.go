@@ -21,6 +21,10 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, 0, err
+	}
 	where, args := labelListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    labelSelectSQL(),
@@ -66,7 +70,7 @@ ORDER BY lower(l.name), l.id`, hostID)
 }
 
 func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error) {
-	params = params.withDefaults()
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -110,6 +114,7 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*Label, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -240,13 +245,6 @@ ORDER BY id`)
 		}
 		return nil
 	})
-}
-
-func (p LabelMutation) withDefaults() LabelMutation {
-	if p.LabelMembershipType == "" {
-		p.LabelMembershipType = LabelMembershipTypeDynamic
-	}
-	return p
 }
 
 func labelListWhere(params LabelListParams) (string, []any) {
@@ -411,7 +409,7 @@ func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, cri
 		return err
 	}
 
-	values := cleanCriteriaValues(criteria.Values)
+	values := normalizeCriteriaValues(criteria.Values)
 	switch criteria.Attribute {
 	case DerivedAttributeUserDepartment:
 		_, err := tx.Exec(ctx, insertUserDepartmentMembershipSQL(), labelID, values)

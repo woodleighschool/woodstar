@@ -7,7 +7,11 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      WOODSTAR_PORT: 8080
+      WOODSTAR_URL: https://localhost:8080
       WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
+      WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
+      WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem
       WOODSTAR_STORAGE_KIND: s3
       WOODSTAR_STORAGE_S3_BUCKET: woodstar-munki
       WOODSTAR_STORAGE_S3_REGION: garage
@@ -18,6 +22,9 @@ services:
       WOODSTAR_STORAGE_S3_PATH_STYLE: "true"
     ports:
       - "8080:8080"
+    volumes:
+      - ./tmp/tls/woodstar.pem:/tls/woodstar.pem:ro
+      - ./tmp/tls/woodstar-key.pem:/tls/woodstar-key.pem:ro
     depends_on:
       postgres:
         condition: service_healthy

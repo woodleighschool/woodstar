@@ -90,10 +90,10 @@ func (input ListQueryInput) params() dbutil.ListParams {
 	if input.Page > 1 {
 		pageIndex = input.Page - 1
 	}
-	return dbutil.ListParams{
+	return dbutil.NormalizeListParams(dbutil.ListParams{
 		Q:         input.Q,
 		PageIndex: pageIndex,
 		PageSize:  input.PerPage,
 		Sort:      input.Sort,
-	}
+	})
 }

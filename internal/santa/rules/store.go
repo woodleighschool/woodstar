@@ -25,6 +25,10 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, 0, err
+	}
 	where, args := ruleListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    ruleSelectSQL(),
@@ -67,6 +71,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params RuleMutation) (*Rule, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -107,6 +112,7 @@ func (s *Store) Create(ctx context.Context, params RuleMutation) (*Rule, error) 
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rule, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -203,11 +209,9 @@ func (s *Store) ListRuleStatusesForHost(
 	hostID int64,
 	params RuleStatusListParams,
 ) ([]RuleStatus, int, error) {
-	if params.PageSize <= 0 {
-		params.PageSize = 100
-	}
-	if params.PageIndex < 0 {
-		params.PageIndex = 0
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+		return nil, 0, err
 	}
 
 	var hostExists bool

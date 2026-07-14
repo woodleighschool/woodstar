@@ -9,7 +9,8 @@ import (
 )
 
 func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
-	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.SoftwareSources = dbutil.NormalizeListValues(params.SoftwareSources)
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 

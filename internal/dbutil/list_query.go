@@ -62,7 +62,10 @@ func (b *WhereBuilder) Build() (string, []any) {
 }
 
 func (q ListQuery) Build() (string, []any, error) {
-	params := CleanListParams(q.Params)
+	params := NormalizeListParams(q.Params)
+	if err := ValidateListParams(params); err != nil {
+		return "", nil, err
+	}
 	orderSQL, err := OrderBy(params, q.OrderKeys, q.DefaultOrder)
 	if err != nil {
 		return "", nil, err

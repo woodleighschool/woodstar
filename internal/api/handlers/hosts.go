@@ -27,11 +27,11 @@ type hostGetInput struct {
 type hostListInput struct {
 	ListQueryInput
 
-	Status          string  `query:"status,omitempty"`
-	LabelID         int64   `query:"label_id,omitempty"`
-	SoftwareTitleID int64   `query:"software_title_id,omitempty"`
-	SoftwareID      int64   `query:"software_id,omitempty"`
-	IDs             []int64 `query:"ids,omitempty"`
+	Status          hosts.HostStatus `query:"status,omitempty"`
+	LabelID         int64            `query:"label_id,omitempty"`
+	SoftwareTitleID int64            `query:"software_title_id,omitempty"`
+	SoftwareID      int64            `query:"software_id,omitempty"`
+	IDs             []int64          `query:"ids,omitempty"`
 }
 
 func (i hostListInput) params() hosts.HostListParams {

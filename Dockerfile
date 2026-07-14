@@ -1,10 +1,10 @@
-ARG NODE_VERSION=26.3.0
+ARG NODE_VERSION=26.4.0
 ARG GO_VERSION=1.26.4
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 
 WORKDIR /workspace/web
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN corepack enable && corepack prepare "$(node -p 'require("./package.json").packageManager')" --activate
+RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
 COPY schema/ ../schema/

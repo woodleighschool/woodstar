@@ -2,13 +2,14 @@ package configurations
 
 import (
 	"fmt"
-	"slices"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 type (
@@ -79,8 +80,8 @@ type ConfigurationListParams struct {
 // RemovableMediaPolicy is the optional USB policy. The zero value (Action == "")
 // means "no policy"; the wire shape omits zero values via json:"omitzero".
 type RemovableMediaPolicy struct {
-	Action       RemovableMediaAction `json:"action,omitempty"`
-	RemountFlags []string             `json:"remount_flags,omitempty" doc:"Mount flags required when action is remount."`
+	Action       RemovableMediaAction `json:"action,omitempty"        validate:"omitempty,oneof=allow block remount"`
+	RemountFlags []string             `json:"remount_flags,omitempty" validate:"excluded_unless=Action remount,required_if=Action remount,dive,required" doc:"Mount flags required when action is remount."`
 }
 
 func (ClientMode) Schema(_ huma.Registry) *huma.Schema {
@@ -108,66 +109,53 @@ func (p RemovableMediaPolicy) IsZero() bool {
 // The admin SPA defaults every knob to Santa's own default and sends an
 // explicit value; the backend validates but does not substitute defaults.
 type ConfigurationMutation struct {
-	Name                          string               `json:"name"`
+	Name                          string               `json:"name"                                      validate:"required,notblank"                          minLength:"1"`
 	Description                   string               `json:"description,omitempty"`
-	ClientMode                    ClientMode           `json:"client_mode"`
+	ClientMode                    ClientMode           `json:"client_mode"                               validate:"required,oneof=monitor lockdown standalone"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
 	DisableUnknownEventUpload     bool                 `json:"disable_unknown_event_upload"`
-	OverrideFileAccessAction      FileAccessAction     `json:"override_file_access_action"`
-	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"                minimum:"60"`
-	BatchSize                     int32                `json:"batch_size"                                minimum:"5"  maximum:"100"`
+	OverrideFileAccessAction      FileAccessAction     `json:"override_file_access_action"               validate:"required,oneof=none audit_only disable"`
+	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"                validate:"gte=60"                                                   minimum:"60"`
+	BatchSize                     int32                `json:"batch_size"                                validate:"gte=5,lte=100"                                            minimum:"5"  maximum:"100"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`
 	BlockedPathRegex              string               `json:"blocked_path_regex,omitempty"`
 	RemovableMediaPolicy          RemovableMediaPolicy `json:"removable_media_policy,omitzero"`
 	EncryptedRemovableMediaPolicy RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitzero"`
-	EventDetailURL                string               `json:"event_detail_url,omitempty"`
+	EventDetailURL                string               `json:"event_detail_url,omitempty"                validate:"omitempty,https_url"                                                                 format:"uri"`
 	EventDetailText               string               `json:"event_detail_text,omitempty"`
 	Targets                       ConfigurationTargets `json:"targets"`
 }
 
 // Validate enforces caller-facing rules before storage.
-func (p ConfigurationMutation) Validate() error {
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	if !slices.Contains(ClientModeValues, p.ClientMode) {
-		return fmt.Errorf("%w: client_mode is required", dbutil.ErrInvalidInput)
-	}
-	if p.FullSyncIntervalSeconds < 60 {
-		return fmt.Errorf("%w: full_sync_interval_seconds must be at least 60", dbutil.ErrInvalidInput)
-	}
-	if p.BatchSize < 5 || p.BatchSize > 100 {
-		return fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
-	}
-	if !slices.Contains(FileAccessActionValues, p.OverrideFileAccessAction) {
-		return fmt.Errorf("%w: override_file_access_action is required", dbutil.ErrInvalidInput)
-	}
-	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
-		return err
+func (p *ConfigurationMutation) Validate() error {
+	if err := validation.Struct(p); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err
 	}
-	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
+	return nil
 }
 
-func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) error {
-	if policy.Action == "" {
-		return nil
+func (p *ConfigurationMutation) normalize() {
+	p.Name = strings.TrimSpace(p.Name)
+	p.Description = strings.TrimSpace(p.Description)
+	p.AllowedPathRegex = strings.TrimSpace(p.AllowedPathRegex)
+	p.BlockedPathRegex = strings.TrimSpace(p.BlockedPathRegex)
+	p.EventDetailURL = strings.TrimSpace(p.EventDetailURL)
+	p.EventDetailText = strings.TrimSpace(p.EventDetailText)
+	normalizeRemovableMediaPolicy(&p.RemovableMediaPolicy)
+	normalizeRemovableMediaPolicy(&p.EncryptedRemovableMediaPolicy)
+	p.Targets = normalizeConfigurationTargets(p.Targets)
+}
+
+func normalizeRemovableMediaPolicy(policy *RemovableMediaPolicy) {
+	policy.Action = RemovableMediaAction(strings.TrimSpace(string(policy.Action)))
+	for i := range policy.RemountFlags {
+		policy.RemountFlags[i] = strings.TrimSpace(policy.RemountFlags[i])
 	}
-	if !slices.Contains(RemovableMediaActionValues, policy.Action) {
-		return fmt.Errorf("%w: %s.action is invalid", dbutil.ErrInvalidInput, name)
-	}
-	if policy.Action == RemovableMediaActionRemount && len(policy.RemountFlags) == 0 {
-		return fmt.Errorf(
-			"%w: %s.remount_flags are required when action is remount",
-			dbutil.ErrInvalidInput,
-			name,
-		)
-	}
-	return nil
 }
 
 type Configuration struct {

@@ -116,7 +116,7 @@ export type Host = {
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
-    status: string;
+    status: 'online' | 'offline';
     storage: HostStorage;
     timestamps: HostTimestamps;
 };
@@ -184,7 +184,7 @@ export type HostDetail = {
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
-    status: string;
+    status: 'online' | 'offline';
     storage: HostStorage;
     timestamps: HostTimestamps;
     users: Array<HostUser>;
@@ -1300,7 +1300,7 @@ export type HostDetailWritable = {
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
-    status: string;
+    status: 'online' | 'offline';
     storage: HostStorage;
     timestamps: HostTimestamps;
     users: Array<HostUser>;
@@ -1802,7 +1802,7 @@ export type ListHostsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: string;
+        status?: 'online' | 'offline';
         label_id?: number;
         software_title_id?: number;
         software_id?: number;

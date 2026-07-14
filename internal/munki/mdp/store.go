@@ -38,6 +38,7 @@ func (s *Store) List(
 	ctx context.Context,
 	params DistributionPointListParams,
 ) ([]DistributionPoint, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	where, args := distributionPointListWhere(params)
 	listQuery := distributionPointListQuery(params, where, args)
 
@@ -120,6 +121,7 @@ func (s *Store) Create(
 	mutation DistributionPointMutation,
 	key string,
 ) (*DistributionPoint, error) {
+	mutation.normalize()
 	if err := mutation.validate(); err != nil {
 		return nil, err
 	}
@@ -175,6 +177,7 @@ func (s *Store) Update(
 	id int64,
 	mutation DistributionPointMutation,
 ) (*DistributionPoint, error) {
+	mutation.normalize()
 	if err := mutation.validate(); err != nil {
 		return nil, err
 	}

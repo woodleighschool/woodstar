@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
@@ -49,6 +50,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*directory.Use
 
 // Login checks local credentials and starts a session.
 func (s *Service) Login(ctx context.Context, email string, password string) (*directory.User, error) {
+	email = strings.TrimSpace(email)
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)

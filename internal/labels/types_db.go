@@ -46,6 +46,6 @@ func (c labelCriteria) Value() (driver.Value, error) {
 	if c.value == nil {
 		return nil, nil
 	}
-	normalized := Criteria{Attribute: c.value.Attribute, Values: cleanCriteriaValues(c.value.Values)}
+	normalized := Criteria{Attribute: c.value.Attribute, Values: normalizeCriteriaValues(c.value.Values)}
 	return json.Marshal(normalized)
 }

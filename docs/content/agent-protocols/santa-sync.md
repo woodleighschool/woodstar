@@ -6,7 +6,7 @@ description: The Santa sync transport, its four stages, and how rules page out t
 
 # Santa Sync
 
-Santa syncs over HTTP using protobuf payloads. The routes live under `/santa/sync` and authenticate with the `santa` agent secret. Each request is for one machine, named by its `machine_id` in the path.
+Santa syncs over HTTPS using protobuf payloads. The routes live under `/santa/sync` and authenticate with the `santa` agent secret. Each request is for one machine, named by its `machine_id` in the path.
 
 ## The four stages
 

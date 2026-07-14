@@ -21,6 +21,7 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, error) {
+	in.ReportMutation.normalize()
 	if err := in.ReportMutation.Validate(); err != nil {
 		return nil, err
 	}
@@ -56,6 +57,7 @@ func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, e
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*Report, error) {
+	params.normalize()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -132,6 +134,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	where, args := reportListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    reportSelectSQL(),

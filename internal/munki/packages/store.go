@@ -324,11 +324,10 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
-	installerTypes, err := normalizeInstallerTypeFilters(params.InstallerTypes)
-	if err != nil {
+	params.normalize()
+	if err := params.validate(); err != nil {
 		return nil, 0, err
 	}
-	params.InstallerTypes = installerTypes
 	where, args := packageListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: packageSelectSQL(),
@@ -403,27 +402,33 @@ ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
 
 func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	params = applyDefaults(params)
+	params.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
-	return s.validatePackageObjects(ctx, params)
+	if err := s.validatePackageObject(ctx, params.InstallerObjectID); err != nil {
+		return PackageMutation{}, err
+	}
+	return params, nil
 }
 
 func (s *Store) prepareCreateMutation(ctx context.Context, params PackageCreateMutation) (PackageMutation, error) {
 	params.PackageMutation = applyDefaults(params.PackageMutation)
+	params.PackageMutation.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
-	return s.validatePackageObjects(ctx, params.PackageMutation)
+	if err := s.validatePackageObject(ctx, params.InstallerObjectID); err != nil {
+		return PackageMutation{}, err
+	}
+	return params.PackageMutation, nil
 }
 
-func (s *Store) validatePackageObjects(ctx context.Context, params PackageMutation) (PackageMutation, error) {
-	if params.InstallerObjectID != nil {
-		if err := s.requirePackageObject(ctx, *params.InstallerObjectID, "installer_object_id"); err != nil {
-			return params, err
-		}
+func (s *Store) validatePackageObject(ctx context.Context, objectID *int64) error {
+	if objectID == nil {
+		return nil
 	}
-	return params, nil
+	return s.requirePackageObject(ctx, *objectID, "installer_object_id")
 }
 
 func carryExistingObjects(params PackageMutation, existing Package) PackageMutation {
@@ -628,16 +633,6 @@ func packageListWhere(params PackageListParams) (string, []any) {
 		)`)
 	}
 	return where.Build()
-}
-
-func normalizeInstallerTypeFilters(raw []string) ([]string, error) {
-	values := dbutil.SplitListValues(raw)
-	for _, value := range values {
-		if !validInstallerType(InstallerType(value)) {
-			return nil, fmt.Errorf("%w: unsupported type %q", dbutil.ErrInvalidInput, value)
-		}
-	}
-	return values, nil
 }
 
 func packageOrderKeys() map[string]dbutil.OrderExpr {

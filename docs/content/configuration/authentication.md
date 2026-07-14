@@ -16,7 +16,7 @@ Admin users are local Woodstar accounts in Postgres. Sign-in creates a server-si
 woodstar_session
 ```
 
-The cookie is marked secure when `WOODSTAR_PUBLIC_URL` is `https`.
+The cookie is secure by default. Set `WOODSTAR_SESSION_COOKIE_SECURE=false` only when the browser uses an HTTP development origin such as Vite on localhost.
 
 ## First setup
 
@@ -26,7 +26,7 @@ OIDC doesn't replace this first local account. You always have a local admin to 
 
 ## OIDC
 
-OIDC is optional and switches on only when the issuer URL, client ID, and client secret are all configured. Woodstar discovers the provider at startup; if that fails, SSO stays off for the boot and local sign-in carries on.
+OIDC is optional and switches on only when the issuer URL, client ID, and client secret are all configured. A partial block or failed provider discovery stops startup instead of silently disabling SSO.
 
 The configured email claim becomes the user's identity in Woodstar. The settings are in [Environment](./environment#oidc).
 

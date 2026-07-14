@@ -3,13 +3,14 @@ package rules
 import (
 	"fmt"
 	"regexp"
-	"slices"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 var (
@@ -72,28 +73,34 @@ func (Policy) Schema(_ huma.Registry) *huma.Schema {
 type RuleListParams struct {
 	dbutil.ListParams
 
-	RuleType RuleType
+	RuleType RuleType `validate:"omitempty,oneof=binary certificate teamid signingid cdhash bundle"`
+}
+
+func (params *RuleListParams) normalize() {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
+}
+
+func (params *RuleListParams) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
 }
 
 type RuleMutation struct {
-	RuleType      RuleType    `json:"rule_type"`
-	Identifier    string      `json:"identifier"`
-	Name          string      `json:"name"`
+	RuleType      RuleType    `json:"rule_type"                validate:"required,oneof=binary certificate teamid signingid cdhash bundle"`
+	Identifier    string      `json:"identifier"               validate:"required,notblank"                                                minLength:"1"`
+	Name          string      `json:"name"                     validate:"required,notblank"                                                minLength:"1"`
 	Description   string      `json:"description,omitempty"`
 	CustomMessage string      `json:"custom_message,omitempty"`
-	CustomURL     string      `json:"custom_url,omitempty"`
+	CustomURL     string      `json:"custom_url,omitempty"     validate:"omitempty,https_url"                                                            format:"uri"`
 	Targets       RuleTargets `json:"targets"`
 }
 
-func (p RuleMutation) Validate() error {
-	if !validRuleType(p.RuleType) {
-		return fmt.Errorf("%w: rule_type is required", dbutil.ErrInvalidInput)
-	}
-	if p.Identifier == "" {
-		return fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
-	}
-	if p.Name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+func (p *RuleMutation) Validate() error {
+	if err := validation.Struct(p); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	if err := validateRuleIdentifier(p.RuleType, p.Identifier); err != nil {
 		return err
@@ -104,12 +111,14 @@ func (p RuleMutation) Validate() error {
 	return nil
 }
 
-func validRuleType(ruleType RuleType) bool {
-	return slices.Contains(RuleTypeValues, ruleType)
-}
-
-func validPolicy(policy Policy) bool {
-	return slices.Contains(PolicyValues, policy)
+func (p *RuleMutation) normalize() {
+	p.RuleType = RuleType(strings.TrimSpace(string(p.RuleType)))
+	p.Identifier = strings.TrimSpace(p.Identifier)
+	p.Name = strings.TrimSpace(p.Name)
+	p.Description = strings.TrimSpace(p.Description)
+	p.CustomMessage = strings.TrimSpace(p.CustomMessage)
+	p.CustomURL = strings.TrimSpace(p.CustomURL)
+	p.Targets = normalizeRuleTargets(p.Targets)
 }
 
 func validateRuleIdentifier(ruleType RuleType, identifier string) error {

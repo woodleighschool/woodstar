@@ -15,7 +15,8 @@ func (s *Store) ListForHost(
 	hostID int64,
 	params HostSoftwareListParams,
 ) ([]HostSoftware, int, error) {
-	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.SoftwareSources = dbutil.NormalizeListValues(params.SoftwareSources)
 	whereSQL, args := hostSoftwareWhere(hostID, params)
 	listQuery := hostSoftwareTitleListQuery(whereSQL, args, params)
 

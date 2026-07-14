@@ -82,7 +82,7 @@ func RegisterDirectory(
 func (i userListInput) params() directory.UserListParams {
 	return directory.UserListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.SplitListValues(i.Values),
+		Values:     dbutil.NormalizeListValues(i.Values),
 		Role:       i.Role,
 		Source:     i.Source,
 		GroupID:    i.GroupID,
@@ -92,7 +92,7 @@ func (i userListInput) params() directory.UserListParams {
 func (i departmentListInput) params() directory.UserListParams {
 	return directory.UserListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.SplitListValues(i.Values),
+		Values:     dbutil.NormalizeListValues(i.Values),
 	}
 }
 

@@ -12,7 +12,7 @@ import type { Integration } from "@/lib/enrollments";
 import { cn } from "@/lib/utils";
 
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
-const PUBLIC_URL_PLACEHOLDER = "REPLACE_WITH_PUBLIC_URL";
+const SERVER_URL_PLACEHOLDER = "REPLACE_WITH_WOODSTAR_URL";
 const SECRET_PLACEHOLDER = "REPLACE_WITH_SECRET";
 const EMAIL_PLACEHOLDER = "$EMAIL";
 const SERIAL_PLACEHOLDER = "$SERIALNUMBER";
@@ -24,22 +24,22 @@ type PlistDict = { [key: string]: PlistValue };
 
 export function DeploymentInstructions({
   integration,
-  publicURL,
+  serverURL,
 }: {
   integration: Integration;
-  publicURL?: string;
+  serverURL?: string;
 }) {
   if (integration === "orbit") {
-    return <OrbitDeploymentInstructions publicURL={publicURL} />;
+    return <OrbitDeploymentInstructions serverURL={serverURL} />;
   }
   if (integration === "munki") {
-    return <MunkiDeploymentInstructions publicURL={publicURL} />;
+    return <MunkiDeploymentInstructions serverURL={serverURL} />;
   }
 
-  return <SantaDeploymentInstructions publicURL={publicURL} />;
+  return <SantaDeploymentInstructions serverURL={serverURL} />;
 }
 
-function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
+function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
       <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
@@ -66,7 +66,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
       <DeploymentArtifact
         title="Orbit Profile"
         description={`Sets the Woodstar URL, enroll secret, and assigned user. ${EMAIL_PLACEHOLDER} should be your MDM user-email variable.`}
-        value={orbitProfileTemplate(publicURL)}
+        value={orbitProfileTemplate(serverURL)}
         extensions={xmlExtensions}
         multiline
       />
@@ -74,7 +74,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   );
 }
 
-function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
+function SantaDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
       <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
@@ -85,7 +85,7 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
       <DeploymentArtifact
         title="Santa Profile"
         description="Replace the bearer secret before deployment."
-        value={santaProfileTemplate(publicURL)}
+        value={santaProfileTemplate(serverURL)}
         extensions={xmlExtensions}
         multiline
       />
@@ -93,7 +93,7 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   );
 }
 
-function MunkiDeploymentInstructions({ publicURL }: { publicURL?: string }) {
+function MunkiDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
       <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
@@ -103,7 +103,7 @@ function MunkiDeploymentInstructions({ publicURL }: { publicURL?: string }) {
       <DeploymentArtifact
         title="Munki Profile"
         description="Replace the bearer secret before deployment. The profile uses the MDM-expanded serial as Munki's client identifier."
-        value={munkiProfileTemplate(publicURL)}
+        value={munkiProfileTemplate(serverURL)}
         extensions={xmlExtensions}
         multiline
       />
@@ -214,15 +214,15 @@ function payloadMeta(opts: {
   };
 }
 
-function publicURL(publicURL: string | undefined) {
-  return (publicURL ?? PUBLIC_URL_PLACEHOLDER).replace(/\/+$/, "");
+function serverURL(value: string | undefined) {
+  return (value ?? SERVER_URL_PLACEHOLDER).replace(/\/+$/, "");
 }
 
-function woodstarURL(publicURLValue: string | undefined, path: string) {
-  return `${publicURL(publicURLValue)}${path}`;
+function woodstarURL(serverURLValue: string | undefined, path: string) {
+  return `${serverURL(serverURLValue)}${path}`;
 }
 
-function orbitProfileTemplate(publicURLValue: string | undefined) {
+function orbitProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.orbit`,
     uuid: "0C6AFB45-01B6-4E19-944A-123CD16381C7",
@@ -231,7 +231,7 @@ function orbitProfileTemplate(publicURLValue: string | undefined) {
     payloads: [
       {
         EnrollSecret: SECRET_PLACEHOLDER,
-        FleetURL: publicURL(publicURLValue),
+        FleetURL: serverURL(serverURLValue),
         ...payloadMeta({
           id: "com.fleetdm.fleetd.config",
           type: "com.fleetdm.fleetd.config",
@@ -252,7 +252,7 @@ function orbitProfileTemplate(publicURLValue: string | undefined) {
   });
 }
 
-function santaProfileTemplate(publicURLValue: string | undefined) {
+function santaProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.santa`,
     uuid: "7CE340DE-AAB6-448B-A558-EB3C49A3A687",
@@ -261,7 +261,7 @@ function santaProfileTemplate(publicURLValue: string | undefined) {
     payloads: [
       {
         ClientMode: 1,
-        SyncBaseURL: woodstarURL(publicURLValue, "/santa/sync"),
+        SyncBaseURL: woodstarURL(serverURLValue, "/santa/sync"),
         SyncClientContentEncoding: "gzip",
         SyncEnableProtoTransfer: true,
         SyncExtraHeaders: {
@@ -278,7 +278,7 @@ function santaProfileTemplate(publicURLValue: string | undefined) {
   });
 }
 
-function munkiProfileTemplate(publicURLValue: string | undefined) {
+function munkiProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.munki`,
     uuid: "56E74DA2-6F02-4E85-8C95-BA51C34F88F0",
@@ -286,7 +286,7 @@ function munkiProfileTemplate(publicURLValue: string | undefined) {
     description: "Configures Munki for Woodstar.",
     payloads: [
       {
-        SoftwareRepoURL: woodstarURL(publicURLValue, "/munki"),
+        SoftwareRepoURL: woodstarURL(serverURLValue, "/munki"),
         ClientIdentifier: SERIAL_PLACEHOLDER,
         FollowHTTPRedirects: "https",
         AdditionalHttpHeaders: [`Authorization: Bearer ${SECRET_PLACEHOLDER}`],

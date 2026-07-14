@@ -1,22 +1,40 @@
 package hosts
 
 import (
+	"fmt"
 	"net/netip"
+	"strings"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // HostListParams filters host list results.
 type HostListParams struct {
 	dbutil.ListParams
 
-	Status          string
-	LabelID         int64
-	SoftwareTitleID int64
-	SoftwareID      int64
-	IDs             []int64
+	Status          HostStatus `validate:"omitempty,oneof=online offline"`
+	LabelID         int64      `validate:"gte=0"`
+	SoftwareTitleID int64      `validate:"gte=0"`
+	SoftwareID      int64      `validate:"gte=0"`
+	IDs             []int64    `validate:"unique,dive,gt=0"`
+}
+
+func (params *HostListParams) normalize() {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.Status = HostStatus(strings.TrimSpace(string(params.Status)))
+}
+
+func (params *HostListParams) validate() error {
+	if err := validation.Struct(params); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
 }
 
 // InventoryUpdate is inventory reported by enrolling agents and osquery detail queries.
@@ -46,12 +64,20 @@ type InventoryTimestamps struct {
 	LastRestartedAt *time.Time
 }
 
+// HostStatus is whether a host has checked in during the online window.
 type HostStatus string
 
 const (
 	HostStatusOnline  HostStatus = "online"
 	HostStatusOffline HostStatus = "offline"
 )
+
+var hostStatusValues = []HostStatus{HostStatusOnline, HostStatusOffline}
+
+// Schema returns the OpenAPI schema for HostStatus.
+func (HostStatus) Schema(_ huma.Registry) *huma.Schema {
+	return openapischema.StringEnum(hostStatusValues...)
+}
 
 // Host is an enrolled Mac. Used for list rows and as the base of HostDetail.
 type Host struct {

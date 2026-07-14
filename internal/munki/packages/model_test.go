@@ -31,6 +31,8 @@ func TestPackageMutationValidateAccepts(t *testing.T) {
 func TestPackageMutationValidateRejects(t *testing.T) {
 	t.Parallel()
 	cases := map[string]func(*PackageMutation){
+		"missing version":          func(m *PackageMutation) { m.Version = "" },
+		"negative installed size":  func(m *PackageMutation) { m.InstalledSize = -1 },
 		"unsupported architecture": func(m *PackageMutation) { m.SupportedArchitectures = []string{"ppc"} },
 		"install without path":     func(m *PackageMutation) { m.Installs = []PackageInstallItem{{Type: PackageInstallItemFile}} },
 		"install blank path": func(m *PackageMutation) {

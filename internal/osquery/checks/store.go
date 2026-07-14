@@ -23,6 +23,7 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, error) {
+	in.CheckMutation.normalize()
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}
@@ -46,6 +47,7 @@ func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, err
 }
 
 func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check, error) {
+	in.normalize()
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}
@@ -124,6 +126,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	where, args := checkListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: checkSelectSQL(),

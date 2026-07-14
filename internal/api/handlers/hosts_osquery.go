@@ -56,13 +56,16 @@ func registerHostOsqueryChecks(
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*checkResultsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
+		rows, err := listHostOsqueryRows(
+			ctx,
+			input.ID,
+			"list-host-osquery-checks",
+			hostStore,
+			logger,
+			checkStore.HostChecks,
+		)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "list-host-osquery-checks", hostResource, err, "host_id", input.ID)
-		}
-		rows, err := checkStore.HostChecks(ctx, host)
-		if err != nil {
-			return nil, handlerError(ctx, logger, "list-host-osquery-checks", err, "host_id", input.ID)
+			return nil, err
 		}
 		return &checkResultsOutput{Body: rows}, nil
 	})
@@ -87,16 +90,38 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostReportsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
+		rows, err := listHostOsqueryRows(
+			ctx,
+			input.ID,
+			"list-host-osquery-reports",
+			hostStore,
+			logger,
+			reportStore.HostReports,
+		)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "list-host-osquery-reports", hostResource, err, "host_id", input.ID)
-		}
-		rows, err := reportStore.HostReports(ctx, host)
-		if err != nil {
-			return nil, handlerError(ctx, logger, "list-host-osquery-reports", err, "host_id", input.ID)
+			return nil, err
 		}
 		return &hostReportsOutput{Body: rows}, nil
 	})
+}
+
+func listHostOsqueryRows[T any](
+	ctx context.Context,
+	hostID int64,
+	operation string,
+	hostStore *hosts.Store,
+	logger *slog.Logger,
+	list func(context.Context, *hosts.Host) ([]T, error),
+) ([]T, error) {
+	host, err := hostStore.GetByID(ctx, hostID)
+	if err != nil {
+		return nil, resourceError(ctx, logger, operation, hostResource, err, "host_id", hostID)
+	}
+	rows, err := list(ctx, host)
+	if err != nil {
+		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
+	}
+	return rows, nil
 }
 
 func registerHostReportResults(

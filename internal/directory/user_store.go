@@ -390,7 +390,7 @@ func userWhere(params UserListParams) (string, []any) {
 		)`)
 	}
 	if len(params.Values) > 0 {
-		where.Addf("u.id::text = ANY(%s::text[])", dbutil.SplitListValues(params.Values))
+		where.Addf("u.id::text = ANY(%s::text[])", dbutil.NormalizeListValues(params.Values))
 	}
 	switch params.Role {
 	case string(RoleAdmin), string(RoleViewer):
@@ -417,7 +417,7 @@ func departmentWhere(params UserListParams) (string, []any) {
 		where.Add("department ILIKE " + search)
 	}
 	if len(params.Values) > 0 {
-		where.Addf("department = ANY(%s::text[])", dbutil.SplitListValues(params.Values))
+		where.Addf("department = ANY(%s::text[])", dbutil.NormalizeListValues(params.Values))
 	}
 	return where.Build()
 }

@@ -56,8 +56,9 @@ ORDER BY agent ASC, created_at DESC, id DESC`)
 }
 
 func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSecret, error) {
-	if !params.Agent.Valid() {
-		return nil, ErrInvalidAgent
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, err
 	}
 	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
 INSERT INTO agent_secrets (agent, value)
@@ -73,6 +74,9 @@ RETURNING id, agent, value, created_at, deleted_at`,
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation) (*AgentSecret, error) {
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
 	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
 UPDATE agent_secrets
 SET value = $1

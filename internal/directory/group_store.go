@@ -7,6 +7,8 @@ import (
 )
 
 func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.Values = dbutil.NormalizeListValues(params.Values)
 	where, args := groupWhere(params)
 	return dbutil.ListWithCount[Group](ctx, s.db.Pool(), groupListQuery(params, where, args))
 }
@@ -47,7 +49,7 @@ func groupWhere(params GroupListParams) (string, []any) {
 		)`)
 	}
 	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.SplitListValues(params.Values))
+		values := where.Arg(dbutil.NormalizeListValues(params.Values))
 		where.Add("g.external_id = ANY(" + values + "::text[])")
 	}
 	return where.Build()

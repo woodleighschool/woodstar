@@ -36,7 +36,6 @@ import type {
 import { baseListParams } from "@/lib/pagination";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
-import { nonEmpty } from "@/lib/utils";
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
@@ -50,7 +49,7 @@ type HostListParams = NonNullable<ListHostsData["query"]>;
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
     ...baseListParams(params),
-    status: nonEmpty(params.status),
+    status: params.status,
     label_id: params.label_id,
     software_title_id: params.software_title_id,
     software_id: params.software_id,

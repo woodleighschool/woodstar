@@ -2,7 +2,6 @@ package packages
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // InstallerType describes the Munki installer modes Woodstar exposes for app
@@ -75,21 +75,21 @@ func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 
 // PackageReference points to Woodstar-authored software, optionally pinned to one package version.
 type PackageReference struct {
-	SoftwareID     int64  `json:"software_id"`
-	PackageID      int64  `json:"package_id,omitempty"`
+	SoftwareID     int64  `json:"software_id"               validate:"gt=0"  minimum:"1"`
+	PackageID      int64  `json:"package_id,omitempty"      validate:"gte=0" minimum:"0"`
 	SoftwareName   string `json:"software_name,omitempty"`
 	PackageVersion string `json:"package_version,omitempty"`
 }
 
 // PackageInstallerEnvironmentVariable is one environment variable passed to a Munki installer process.
 type PackageInstallerEnvironmentVariable struct {
-	Name  string `json:"name"`
+	Name  string `json:"name"  validate:"required,notblank" minLength:"1"`
 	Value string `json:"value"`
 }
 
 // PackageInstallerChoice is one Munki installer choice change entry.
 type PackageInstallerChoice struct {
-	ChoiceIdentifier string `json:"choice_identifier,omitempty"`
+	ChoiceIdentifier string `json:"choice_identifier,omitempty" validate:"required,notblank" minLength:"1"`
 	ChoiceAttribute  string `json:"choice_attribute,omitempty"`
 	AttributeSetting int32  `json:"attribute_setting"`
 }
@@ -121,8 +121,8 @@ func (PackageInstallItemType) Schema(_ huma.Registry) *huma.Schema {
 
 // PackageInstallItem is one Munki installs array entry.
 type PackageInstallItem struct {
-	Type                  PackageInstallItemType `json:"type"`
-	Path                  string                 `json:"path"`
+	Type                  PackageInstallItemType `json:"type"                              validate:"required,oneof=application bundle plist file"`
+	Path                  string                 `json:"path"                              validate:"required,notblank"                            minLength:"1"`
 	BundleIdentifier      string                 `json:"bundle_identifier,omitempty"`
 	BundleName            string                 `json:"bundle_name,omitempty"`
 	BundleShortVersion    string                 `json:"bundle_short_version,omitempty"`
@@ -136,17 +136,17 @@ type PackageInstallItem struct {
 
 // PackageReceipt is one Munki receipt entry.
 type PackageReceipt struct {
-	PackageID     string `json:"package_id"`
+	PackageID     string `json:"package_id"               validate:"required,notblank" minLength:"1"`
 	Version       string `json:"version,omitempty"`
 	Name          string `json:"name,omitempty"`
-	InstalledSize int64  `json:"installed_size,omitempty"`
+	InstalledSize int64  `json:"installed_size,omitempty" validate:"gte=0"                           minimum:"0"`
 	Optional      bool   `json:"optional,omitempty"`
 }
 
 // PackageItemToCopy is one Munki items_to_copy entry.
 type PackageItemToCopy struct {
-	SourceItem      string `json:"source_item"`
-	DestinationPath string `json:"destination_path"`
+	SourceItem      string `json:"source_item"                validate:"required,notblank" minLength:"1"`
+	DestinationPath string `json:"destination_path"           validate:"required,notblank" minLength:"1"`
 	DestinationItem string `json:"destination_item,omitempty"`
 	User            string `json:"user,omitempty"`
 	Group           string `json:"group,omitempty"`
@@ -164,36 +164,36 @@ type PackageAlert struct {
 
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
-	Version                  string                                `json:"version"                                          minLength:"1"`
-	InstallerType            InstallerType                         `json:"installer_type,omitempty"`
+	Version                  string                                `json:"version"                                          minLength:"1" validate:"required,notblank"`
+	InstallerType            InstallerType                         `json:"installer_type,omitempty"                                       validate:"omitempty,oneof=pkg nopkg copy_from_dmg"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
-	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"`
-	RestartAction            RestartAction                         `json:"restart_action,omitempty"`
+	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script"`
+	RestartAction            RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown"`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version,omitempty"`
 	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty"`
 	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty"`
-	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"`
-	BlockingApplications     []string                              `json:"blocking_applications,omitempty"`
+	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64"`
+	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank"`
 	BlockingApplicationsNone bool                                  `json:"blocking_applications_none,omitempty"`
 	InstallableCondition     string                                `json:"installable_condition,omitempty"`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
 	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
-	Requires                 []PackageReference                    `json:"requires,omitempty"`
-	UpdateFor                []PackageReference                    `json:"update_for,omitempty"`
+	Requires                 []PackageReference                    `json:"requires,omitempty"                                             validate:"dive"`
+	UpdateFor                []PackageReference                    `json:"update_for,omitempty"                                           validate:"dive"`
 	OnDemand                 bool                                  `json:"on_demand,omitempty"`
 	Precache                 bool                                  `json:"precache,omitempty"`
 	Autoremove               bool                                  `json:"autoremove,omitempty"`
 	AppleItem                bool                                  `json:"apple_item,omitempty"`
 	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation,omitempty"`
 	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
-	InstalledSize            int64                                 `json:"installed_size,omitempty"`
+	InstalledSize            int64                                 `json:"installed_size,omitempty"                                       validate:"gte=0"                                                                         minimum:"0"`
 	PackagePath              string                                `json:"package_path,omitempty"`
-	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"`
-	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"`
-	Installs                 []PackageInstallItem                  `json:"installs,omitempty"`
-	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"`
-	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy,omitempty"`
+	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"                                validate:"dive"`
+	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"                                validate:"dive"`
+	Installs                 []PackageInstallItem                  `json:"installs,omitempty"                                             validate:"dive"`
+	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"                                             validate:"dive"`
+	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy,omitempty"                                        validate:"dive"`
 	Notes                    string                                `json:"notes,omitempty"`
 	InstallcheckScript       string                                `json:"installcheck_script,omitempty"`
 	UninstallcheckScript     string                                `json:"uninstallcheck_script,omitempty"`
@@ -205,7 +205,7 @@ type PackageMutation struct {
 	VersionScript            string                                `json:"version_script,omitempty"`
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
-	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
+	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"                                  validate:"omitempty,gt=0"                                                                minimum:"1"`
 	Eligible                 bool                                  `json:"eligible"`
 }
 
@@ -213,7 +213,7 @@ type PackageMutation struct {
 type PackageCreateMutation struct {
 	PackageMutation
 
-	SoftwareID int64 `json:"software_id" minimum:"1"`
+	SoftwareID int64 `json:"software_id" minimum:"1" validate:"gt=0"`
 }
 
 // InstallerFile is the Munki-facing view of a package-owned installer object.
@@ -284,91 +284,39 @@ type Package struct {
 type PackageListParams struct {
 	dbutil.ListParams
 
-	InstallerTypes []string
-	SoftwareID     int64
+	InstallerTypes []string `validate:"dive,oneof=pkg nopkg copy_from_dmg"`
+	SoftwareID     int64    `validate:"gte=0"`
 }
 
-func (m PackageMutation) validate() error {
-	if err := m.validateEnums(); err != nil {
-		return err
-	}
-	if err := validateArchitectures(m.SupportedArchitectures); err != nil {
-		return err
-	}
-	if err := validateReferences("requires", m.Requires); err != nil {
-		return err
-	}
-	if err := validateReferences("update_for", m.UpdateFor); err != nil {
-		return err
-	}
-	return m.validateCollections()
+func (p *PackageListParams) normalize() {
+	p.ListParams = dbutil.NormalizeListParams(p.ListParams)
+	p.InstallerTypes = dbutil.NormalizeListValues(p.InstallerTypes)
 }
 
-func (m PackageMutation) validateEnums() error {
-	if !validInstallerType(m.InstallerType) {
-		return fmt.Errorf("%w: unsupported installer_type %q", dbutil.ErrInvalidInput, m.InstallerType)
-	}
-	if !validUninstallMethod(m.UninstallMethod) {
-		return fmt.Errorf("%w: unsupported uninstall_method %q", dbutil.ErrInvalidInput, m.UninstallMethod)
-	}
-	if !validRestartAction(m.RestartAction) {
-		return fmt.Errorf("%w: unsupported restart_action %q", dbutil.ErrInvalidInput, m.RestartAction)
+func (p *PackageListParams) validate() error {
+	if err := validation.Struct(p); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return nil
 }
 
-func validateArchitectures(architectures []string) error {
-	for _, arch := range architectures {
-		switch arch {
-		case "arm64", "x86_64":
-		default:
-			return fmt.Errorf(
-				"%w: supported_architectures contains unsupported architecture %q",
-				dbutil.ErrInvalidInput,
-				arch,
-			)
-		}
+func (m *PackageMutation) validate() error {
+	if err := validation.Struct(m); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
-	return nil
+	return m.validateRelations()
 }
 
-func (m PackageMutation) validateCollections() error {
-	for _, item := range m.Installs {
-		if !validInstallItemType(item.Type) {
-			return fmt.Errorf("%w: unsupported installs type %q", dbutil.ErrInvalidInput, item.Type)
-		}
-		if strings.TrimSpace(item.Path) == "" {
-			return fmt.Errorf("%w: installs entries require path", dbutil.ErrInvalidInput)
-		}
+func (m PackageCreateMutation) validate() error {
+	if err := validation.Struct(m); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
-	for _, receipt := range m.Receipts {
-		if strings.TrimSpace(receipt.PackageID) == "" {
-			return fmt.Errorf("%w: receipts entries require package_id", dbutil.ErrInvalidInput)
-		}
-		if receipt.InstalledSize < 0 {
-			return fmt.Errorf("%w: receipts entries require non-negative installed_size", dbutil.ErrInvalidInput)
-		}
-	}
-	for _, item := range m.ItemsToCopy {
-		if strings.TrimSpace(item.SourceItem) == "" || strings.TrimSpace(item.DestinationPath) == "" {
-			return fmt.Errorf(
-				"%w: items_to_copy entries require source_item and destination_path",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	}
+	return m.PackageMutation.validateRelations()
+}
+
+func (m *PackageMutation) validateRelations() error {
 	if m.UninstallMethod == UninstallMethodRemoveCopiedItems && len(m.ItemsToCopy) == 0 {
 		return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
-	}
-	for _, variable := range m.InstallerEnvironment {
-		if strings.TrimSpace(variable.Name) == "" {
-			return fmt.Errorf("%w: installer_environment entries require name", dbutil.ErrInvalidInput)
-		}
-	}
-	for _, app := range m.BlockingApplications {
-		if strings.TrimSpace(app) == "" {
-			return fmt.Errorf("%w: blocking_applications entries must not be blank", dbutil.ErrInvalidInput)
-		}
 	}
 	if m.BlockingApplicationsNone && len(m.BlockingApplications) > 0 {
 		return fmt.Errorf(
@@ -376,45 +324,39 @@ func (m PackageMutation) validateCollections() error {
 			dbutil.ErrInvalidInput,
 		)
 	}
-	for _, choice := range m.InstallerChoicesXML {
-		if strings.TrimSpace(choice.ChoiceIdentifier) == "" {
-			return fmt.Errorf("%w: installer_choices_xml entries require choice_identifier", dbutil.ErrInvalidInput)
-		}
-	}
 	return nil
 }
 
-func (m PackageCreateMutation) validate() error {
-	if m.SoftwareID <= 0 {
-		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
+func (m *PackageMutation) normalize() {
+	m.Version = strings.TrimSpace(m.Version)
+	m.InstallerType = InstallerType(strings.TrimSpace(string(m.InstallerType)))
+	m.UninstallMethod = UninstallMethod(strings.TrimSpace(string(m.UninstallMethod)))
+	m.RestartAction = RestartAction(strings.TrimSpace(string(m.RestartAction)))
+	m.MinimumMunkiVersion = strings.TrimSpace(m.MinimumMunkiVersion)
+	m.MinimumOSVersion = strings.TrimSpace(m.MinimumOSVersion)
+	m.MaximumOSVersion = strings.TrimSpace(m.MaximumOSVersion)
+	m.PackagePath = strings.TrimSpace(m.PackagePath)
+	for i := range m.SupportedArchitectures {
+		m.SupportedArchitectures[i] = strings.TrimSpace(m.SupportedArchitectures[i])
 	}
-	return m.PackageMutation.validate()
-}
-
-func validInstallerType(installerType InstallerType) bool {
-	return installerType == "" || slices.Contains(installerTypeValues, installerType)
-}
-
-func validUninstallMethod(uninstallMethod UninstallMethod) bool {
-	return uninstallMethod == "" || slices.Contains(uninstallMethodValues, uninstallMethod)
-}
-
-func validRestartAction(restartAction RestartAction) bool {
-	return restartAction == "" || slices.Contains(restartActionValues, restartAction)
-}
-
-func validInstallItemType(itemType PackageInstallItemType) bool {
-	return slices.Contains(installItemTypeValues, itemType)
-}
-
-func validateReferences(field string, references []PackageReference) error {
-	for _, ref := range references {
-		if ref.SoftwareID <= 0 {
-			return fmt.Errorf("%w: %s entries require software_id", dbutil.ErrInvalidInput, field)
-		}
-		if ref.PackageID < 0 {
-			return fmt.Errorf("%w: %s entries have invalid package_id", dbutil.ErrInvalidInput, field)
-		}
+	for i := range m.BlockingApplications {
+		m.BlockingApplications[i] = strings.TrimSpace(m.BlockingApplications[i])
 	}
-	return nil
+	for i := range m.InstallerChoicesXML {
+		m.InstallerChoicesXML[i].ChoiceIdentifier = strings.TrimSpace(m.InstallerChoicesXML[i].ChoiceIdentifier)
+	}
+	for i := range m.InstallerEnvironment {
+		m.InstallerEnvironment[i].Name = strings.TrimSpace(m.InstallerEnvironment[i].Name)
+	}
+	for i := range m.Installs {
+		m.Installs[i].Type = PackageInstallItemType(strings.TrimSpace(string(m.Installs[i].Type)))
+		m.Installs[i].Path = strings.TrimSpace(m.Installs[i].Path)
+	}
+	for i := range m.Receipts {
+		m.Receipts[i].PackageID = strings.TrimSpace(m.Receipts[i].PackageID)
+	}
+	for i := range m.ItemsToCopy {
+		m.ItemsToCopy[i].SourceItem = strings.TrimSpace(m.ItemsToCopy[i].SourceItem)
+		m.ItemsToCopy[i].DestinationPath = strings.TrimSpace(m.ItemsToCopy[i].DestinationPath)
+	}
 }
