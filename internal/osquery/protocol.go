@@ -41,7 +41,6 @@ type DistributedReadResponse struct {
 	NodeInvalid bool              `json:"node_invalid"`
 	Queries     map[string]string `json:"queries"`
 	Discovery   map[string]string `json:"discovery"`
-	Accelerate  uint              `json:"accelerate"`
 }
 
 // DistributedWriteRequest contains query results from osquery.

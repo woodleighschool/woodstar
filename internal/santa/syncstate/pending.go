@@ -571,12 +571,12 @@ func validatePostflight(
 	if state.PendingPreflightAt == nil {
 		return fmt.Errorf("%w: no pending Santa sync", dbutil.ErrInvalidInput)
 	}
-	expectedSyncType := SyncTypeNormal
+	validSyncType := syncType == SyncTypeNormal
 	if state.PendingFullSync {
-		expectedSyncType = SyncTypeClean
+		validSyncType = syncType == SyncTypeClean || syncType == SyncTypeCleanAll
 	}
-	if syncType != expectedSyncType {
-		return fmt.Errorf("%w: sync_type is %q, want %q", dbutil.ErrInvalidInput, syncType, expectedSyncType)
+	if !validSyncType {
+		return fmt.Errorf("%w: sync_type %q does not match pending sync", dbutil.ErrInvalidInput, syncType)
 	}
 	if rulesReceived != state.PendingPayloadRuleCount || rulesProcessed != state.PendingPayloadRuleCount {
 		return fmt.Errorf(

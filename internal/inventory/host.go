@@ -93,7 +93,7 @@ func (s *Store) hostSoftwareRows(
 	if err != nil {
 		return nil, err
 	}
-	return buildHostSoftwares(rows)
+	return buildHostSoftwares(rows), nil
 }
 
 type hostSoftwareAccumulator struct {
@@ -101,7 +101,7 @@ type hostSoftwareAccumulator struct {
 	versionByKey map[string]int
 }
 
-func buildHostSoftwares(rows []hostSoftwareScanRow) ([]HostSoftware, error) {
+func buildHostSoftwares(rows []hostSoftwareScanRow) []HostSoftware {
 	acc := hostSoftwareAccumulator{
 		titles:       newOrderedGroup[int64, HostSoftware](),
 		versionByKey: make(map[string]int),
@@ -109,7 +109,7 @@ func buildHostSoftwares(rows []hostSoftwareScanRow) ([]HostSoftware, error) {
 	for _, row := range rows {
 		acc.add(row)
 	}
-	return acc.rows(), nil
+	return acc.rows()
 }
 
 func (acc *hostSoftwareAccumulator) rows() []HostSoftware {
@@ -151,9 +151,11 @@ func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftware, row hostSo
 		return versionIndex
 	}
 	title.InstalledVersions = append(title.InstalledVersions, HostSoftwareInstalledVersion{
-		Version:          row.Version,
-		BundleIdentifier: row.BundleIdentifier,
-		LastOpenedAt:     row.LastOpenedAt,
+		Version:              row.Version,
+		BundleIdentifier:     row.BundleIdentifier,
+		InstalledPaths:       []string{},
+		SignatureInformation: []PathSignatureInformation{},
+		LastOpenedAt:         row.LastOpenedAt,
 	})
 	versionIndex = len(title.InstalledVersions) - 1
 	acc.versionByKey[key] = versionIndex

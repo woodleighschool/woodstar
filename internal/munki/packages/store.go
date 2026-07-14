@@ -365,6 +365,25 @@ ORDER BY lower(s.name), s.id, p.id`)
 	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
+// ListRepositoryIconObjectIDs returns the distinct available icons referenced
+// by packages that may appear in the shared Munki catalog.
+func (s *Store) ListRepositoryIconObjectIDs(ctx context.Context) ([]int64, error) {
+	rows, err := s.db.Pool().Query(ctx, `
+SELECT DISTINCT s.icon_object_id
+FROM munki_packages p
+JOIN munki_software s ON s.id = p.software_id
+LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
+JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
+WHERE p.eligible
+  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
+  AND icon_obj.available_at IS NOT NULL
+ORDER BY s.icon_object_id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
 // PackagesByID assembles the given packages with relations attached. The result
 // order is unspecified; callers index it by Package.ID.
 func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error) {

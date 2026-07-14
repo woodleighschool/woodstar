@@ -26,6 +26,7 @@ const plistContentType = "application/x-plist"
 type Repository interface {
 	Manifest(context.Context, string) ([]byte, error)
 	Catalog(context.Context, string) ([]byte, error)
+	IconHashes(context.Context) ([]byte, error)
 	ResolvePackageFile(context.Context, string) (munki.PackageInstaller, error)
 	ResolveIconFile(context.Context, string) (string, error)
 }
@@ -81,19 +82,24 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Get("/munki/manifests/{name}", h.manifest)
 	r.Get("/munki/catalogs/{name}", h.catalog)
 	r.Get("/munki/pkgs/*", h.packageFile)
+	r.Get("/munki/icons/_icon_hashes.plist", h.iconHashes)
 	r.Get("/munki/icons/*", h.iconFile)
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "manifest", func(ctx context.Context, name string) ([]byte, error) {
-		return h.repository.Manifest(ctx, name)
+	h.writePlist(w, r, "manifest", func(ctx context.Context) ([]byte, error) {
+		return h.repository.Manifest(ctx, chi.URLParam(r, "name"))
 	})
 }
 
 func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "catalog", func(ctx context.Context, name string) ([]byte, error) {
-		return h.repository.Catalog(ctx, name)
+	h.writePlist(w, r, "catalog", func(ctx context.Context) ([]byte, error) {
+		return h.repository.Catalog(ctx, chi.URLParam(r, "name"))
 	})
+}
+
+func (h handler) iconHashes(w http.ResponseWriter, r *http.Request) {
+	h.writePlist(w, r, "icon hashes", h.repository.IconHashes)
 }
 
 func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
@@ -180,12 +186,12 @@ func (h handler) writePlist(
 	w http.ResponseWriter,
 	r *http.Request,
 	operation string,
-	load func(context.Context, string) ([]byte, error),
+	load func(context.Context) ([]byte, error),
 ) {
 	if ok := h.authorizedRequest(w, r, operation); !ok {
 		return
 	}
-	body, err := load(r.Context(), chi.URLParam(r, "name"))
+	body, err := load(r.Context())
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return

@@ -29,6 +29,7 @@ type effectivePackageResolver interface {
 
 type packageResolver interface {
 	ListRepositoryPackages(context.Context) ([]packages.Package, error)
+	ListRepositoryIconObjectIDs(context.Context) ([]int64, error)
 	PackagesByID(context.Context, []int64) ([]packages.Package, error)
 	RepositoryPackagesByIconObjectID(context.Context, int64) ([]packages.Package, error)
 }
@@ -105,6 +106,31 @@ func (s *RepositoryService) Catalog(ctx context.Context, name string) ([]byte, e
 		return nil, err
 	}
 	return encodePlist(items)
+}
+
+// IconHashes returns the available catalog icon hashes keyed by repository filename.
+func (s *RepositoryService) IconHashes(ctx context.Context) ([]byte, error) {
+	iconIDs, err := s.deps.Packages.ListRepositoryIconObjectIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(iconIDs) == 0 {
+		return encodePlist(map[string]string{})
+	}
+	objects, err := s.deps.Objects.ListByIDs(ctx, iconIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	hashes := make(map[string]string)
+	for _, id := range iconIDs {
+		obj, ok := objects[id]
+		if !ok || !obj.Available() {
+			continue
+		}
+		hashes[packages.IconName(obj)] = obj.SHA256Value()
+	}
+	return encodePlist(hashes)
 }
 
 // PackageInstaller is a resolved package installer: the stable package id, the
@@ -185,7 +211,7 @@ func (s *RepositoryService) ResolveIconFile(
 		return "", err
 	}
 	obj, ok := objects[iconObjectID]
-	if !ok || packages.IconName(obj) != key {
+	if !ok || !obj.Available() || packages.IconName(obj) != key {
 		return "", ErrNotFound
 	}
 	return obj.Key(), nil

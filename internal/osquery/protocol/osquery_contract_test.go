@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,16 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
+
+func TestDistributedReadOmitsDisabledAcceleration(t *testing.T) {
+	body, err := json.Marshal(osquery.DistributedReadResponse{})
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	if strings.Contains(string(body), "accelerate") {
+		t.Fatalf("response = %s, want accelerate omitted", body)
+	}
+}
 
 func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	database, ctx := dbtest.Open(t)

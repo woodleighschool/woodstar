@@ -3,8 +3,9 @@ package syncstate
 type SyncType string
 
 const (
-	SyncTypeNormal SyncType = "normal"
-	SyncTypeClean  SyncType = "clean"
+	SyncTypeNormal   SyncType = "normal"
+	SyncTypeClean    SyncType = "clean"
+	SyncTypeCleanAll SyncType = "clean_all"
 )
 
 type RuleCounts struct {

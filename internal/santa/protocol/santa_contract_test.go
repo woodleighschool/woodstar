@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -466,7 +467,6 @@ func TestSantaHTTPRejectsUnsupportedAuditEvents(t *testing.T) {
 func TestSantaHTTPPostflightRequiresCurrentSyncType(t *testing.T) {
 	for _, syncType := range []syncv1.SyncType{
 		syncv1.SyncType_SYNC_TYPE_UNSPECIFIED,
-		syncv1.SyncType_CLEAN_ALL,
 		syncv1.SyncType_CLEAN_STANDALONE,
 	} {
 		t.Run(syncType.String(), func(t *testing.T) {
@@ -491,29 +491,59 @@ func TestSantaHTTPPostflightRequiresCurrentSyncType(t *testing.T) {
 }
 
 func TestSantaHTTPPostflightMapsSyncContract(t *testing.T) {
-	service := &recordingService{}
-	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
-	rec := httptest.NewRecorder()
-	req := santaContractRequest(t, "/santa/sync/postflight/machine-1", &syncv1.PostflightRequest{
-		RulesReceived:  3,
-		RulesProcessed: 3,
-		SyncType:       syncv1.SyncType_CLEAN,
-		RulesHash:      strings.Repeat("a", 32),
-	})
+	for _, tc := range []struct {
+		proto syncv1.SyncType
+		want  syncstate.SyncType
+	}{
+		{proto: syncv1.SyncType_CLEAN, want: syncstate.SyncTypeClean},
+		{proto: syncv1.SyncType_CLEAN_ALL, want: syncstate.SyncTypeCleanAll},
+	} {
+		t.Run(tc.proto.String(), func(t *testing.T) {
+			service := &recordingService{}
+			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+			rec := httptest.NewRecorder()
+			req := santaContractRequest(t, "/santa/sync/postflight/machine-1", &syncv1.PostflightRequest{
+				RulesReceived:  3,
+				RulesProcessed: 3,
+				SyncType:       tc.proto,
+				RulesHash:      strings.Repeat("a", 32),
+			})
 
-	router.ServeHTTP(rec, req)
+			router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+			}
+			want := santa.PostflightRequest{
+				RulesReceived:  3,
+				RulesProcessed: 3,
+				SyncType:       tc.want,
+				RulesHash:      strings.Repeat("a", 32),
+			}
+			if service.postflightRequest != want {
+				t.Fatalf("postflight request = %+v, want %+v", service.postflightRequest, want)
+			}
+		})
 	}
-	want := santa.PostflightRequest{
-		RulesReceived:  3,
-		RulesProcessed: 3,
-		SyncType:       syncstate.SyncTypeClean,
-		RulesHash:      strings.Repeat("a", 32),
+}
+
+func TestProtoSyncTypeMapsExactValues(t *testing.T) {
+	tests := map[syncstate.SyncType]syncv1.SyncType{
+		syncstate.SyncTypeNormal:   syncv1.SyncType_NORMAL,
+		syncstate.SyncTypeClean:    syncv1.SyncType_CLEAN,
+		syncstate.SyncTypeCleanAll: syncv1.SyncType_CLEAN_ALL,
 	}
-	if service.postflightRequest != want {
-		t.Fatalf("postflight request = %+v, want %+v", service.postflightRequest, want)
+	for input, want := range tests {
+		got, err := protoSyncType(input)
+		if err != nil {
+			t.Fatalf("protoSyncType(%q): %v", input, err)
+		}
+		if got != want {
+			t.Fatalf("protoSyncType(%q) = %q, want %q", input, got, want)
+		}
+	}
+	if _, err := protoSyncType("unknown"); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("unknown sync type error = %v, want invalid input", err)
 	}
 }
 
@@ -1077,7 +1107,7 @@ func (s *recordingService) Preflight(
 	s.stage = "preflight"
 	s.machineID = machineID
 	s.preflightCounts = req.RuleCounts
-	return santa.PreflightResponse{}, s.err
+	return santa.PreflightResponse{SyncType: syncstate.SyncTypeNormal}, s.err
 }
 
 func (s *recordingService) EventUpload(

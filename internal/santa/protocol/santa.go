@@ -206,7 +206,10 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 }
 
 func preflightResponseToProto(resp santa.PreflightResponse) (*syncv1.PreflightResponse, error) {
-	syncType := protoSyncType(resp.SyncType)
+	syncType, err := protoSyncType(resp.SyncType)
+	if err != nil {
+		return nil, err
+	}
 	out := &syncv1.PreflightResponse{SyncType: &syncType}
 	if resp.Configuration != nil {
 		if err := applyConfigurationToPreflightResponse(out, resp.Configuration); err != nil {
@@ -413,6 +416,8 @@ func syncTypeFromProto(value syncv1.SyncType) (syncstate.SyncType, error) {
 		return syncstate.SyncTypeNormal, nil
 	case syncv1.SyncType_CLEAN:
 		return syncstate.SyncTypeClean, nil
+	case syncv1.SyncType_CLEAN_ALL:
+		return syncstate.SyncTypeCleanAll, nil
 	default:
 		return "", fmt.Errorf("%w: unsupported sync_type %q", dbutil.ErrInvalidInput, value)
 	}
@@ -684,12 +689,20 @@ func protoClientMode(mode configurations.ClientMode) (syncv1.ClientMode, error) 
 	}
 }
 
-func protoSyncType(syncType syncstate.SyncType) syncv1.SyncType {
+func protoSyncType(syncType syncstate.SyncType) (syncv1.SyncType, error) {
 	switch syncType {
+	case syncstate.SyncTypeNormal:
+		return syncv1.SyncType_NORMAL, nil
 	case syncstate.SyncTypeClean:
-		return syncv1.SyncType_CLEAN
+		return syncv1.SyncType_CLEAN, nil
+	case syncstate.SyncTypeCleanAll:
+		return syncv1.SyncType_CLEAN_ALL, nil
 	default:
-		return syncv1.SyncType_NORMAL
+		return syncv1.SyncType_SYNC_TYPE_UNSPECIFIED, fmt.Errorf(
+			"%w: unsupported sync_type %q",
+			dbutil.ErrInvalidInput,
+			syncType,
+		)
 	}
 }
 

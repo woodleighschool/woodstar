@@ -3,6 +3,7 @@ package munki_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,6 +59,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 
 func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	iconID := int64(42)
+	availableAt := time.Now()
 	store := servicePackageStore{
 		packagesByIconObjectID: map[int64][]packages.Package{iconID: {{
 			ID:                   10,
@@ -69,7 +71,12 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 		listRepositoryErr: errors.New("full repository scan should not be used"),
 	}
 	objects := serviceObjectStore{objects: map[int64]storage.Object{
-		iconID: {ID: iconID, Prefix: "munki/icons", Filename: "GoogleChrome.png"},
+		iconID: {
+			ID:          iconID,
+			Prefix:      "munki/icons",
+			Filename:    "GoogleChrome.png",
+			AvailableAt: &availableAt,
+		},
 	}}
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 
@@ -155,11 +162,54 @@ func TestCatalogRequiresWoodstarName(t *testing.T) {
 	}
 }
 
+func TestIconHashesIncludesAvailableRepositoryIcons(t *testing.T) {
+	iconID := int64(42)
+	availableAt := time.Now()
+	hash := strings.Repeat("a", 64)
+	var requestedObjectIDs []int64
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Packages: servicePackageStore{
+			repositoryIconObjectIDs: []int64{iconID},
+			listRepositoryErr:       errors.New("full repository scan should not be used"),
+		},
+		Objects: serviceObjectStore{
+			objects: map[int64]storage.Object{
+				iconID: {
+					ID:          iconID,
+					Filename:    "GoogleChrome.png",
+					SHA256:      &hash,
+					AvailableAt: &availableAt,
+				},
+			},
+			requestedIDs: &requestedObjectIDs,
+		},
+	})
+
+	body, err := service.IconHashes(context.Background())
+	if err != nil {
+		t.Fatalf("IconHashes: %v", err)
+	}
+	var hashes map[string]string
+	if _, err := plist.Unmarshal(body, &hashes); err != nil {
+		t.Fatalf("icon hashes plist: %v", err)
+	}
+	if got := hashes["42-GoogleChrome.png"]; got != hash {
+		t.Fatalf("icon hash = %q, want %q", got, hash)
+	}
+	if len(requestedObjectIDs) != 1 || requestedObjectIDs[0] != iconID {
+		t.Fatalf("requested object IDs = %v, want [%d]", requestedObjectIDs, iconID)
+	}
+}
+
 type serviceObjectStore struct {
-	objects map[int64]storage.Object
+	objects      map[int64]storage.Object
+	requestedIDs *[]int64
 }
 
 func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64]storage.Object, error) {
+	if s.requestedIDs != nil {
+		*s.requestedIDs = append(*s.requestedIDs, ids...)
+	}
 	out := make(map[int64]storage.Object, len(ids))
 	for _, id := range ids {
 		if obj, ok := s.objects[id]; ok {
@@ -170,11 +220,12 @@ func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64
 }
 
 type servicePackageStore struct {
-	packages               []munkisoftware.EffectivePackage
-	repositoryPackages     []packages.Package
-	packagesByID           map[int64]packages.Package
-	packagesByIconObjectID map[int64][]packages.Package
-	listRepositoryErr      error
+	packages                []munkisoftware.EffectivePackage
+	repositoryPackages      []packages.Package
+	repositoryIconObjectIDs []int64
+	packagesByID            map[int64]packages.Package
+	packagesByIconObjectID  map[int64][]packages.Package
+	listRepositoryErr       error
 }
 
 type serviceHostStore struct {
@@ -205,6 +256,10 @@ func (s servicePackageStore) ListRepositoryPackages(
 		return nil, s.listRepositoryErr
 	}
 	return s.repositoryPackages, nil
+}
+
+func (s servicePackageStore) ListRepositoryIconObjectIDs(context.Context) ([]int64, error) {
+	return s.repositoryIconObjectIDs, nil
 }
 
 func (s servicePackageStore) PackagesByID(

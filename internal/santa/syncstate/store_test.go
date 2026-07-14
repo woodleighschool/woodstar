@@ -121,7 +121,7 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 		host.ID,
 		1,
 		1,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("promote initial: %v", err)

@@ -133,6 +133,32 @@ func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		newStaticRepository(),
+	)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/icons/_icon_hashes.plist", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != plistContentType {
+		t.Fatalf("Content-Type = %q, want %q", got, plistContentType)
+	}
+	var hashes map[string]string
+	if _, err := plist.Unmarshal(rec.Body.Bytes(), &hashes); err != nil {
+		t.Fatalf("icon hashes plist: %v", err)
+	}
+	if len(hashes) != 0 {
+		t.Fatalf("icon hashes = %v, want empty", hashes)
+	}
+}
+
 func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 	displayName := "Google Chrome"
 	objectID := int64(42)
@@ -823,6 +849,10 @@ func (r *staticRepository) Catalog(ctx context.Context, name string) ([]byte, er
 	return r.service.Catalog(ctx, name)
 }
 
+func (r *staticRepository) IconHashes(ctx context.Context) ([]byte, error) {
+	return r.service.IconHashes(ctx)
+}
+
 func (r *staticRepository) ResolvePackageFile(
 	_ context.Context,
 	key string,
@@ -883,6 +913,23 @@ func (r staticPackageResolver) ListRepositoryPackages(
 		pkgs = append(pkgs, pkg.Package)
 	}
 	return pkgs, nil
+}
+
+func (r staticPackageResolver) ListRepositoryIconObjectIDs(context.Context) ([]int64, error) {
+	ids := make([]int64, 0, len(r.packages))
+	seen := make(map[int64]struct{}, len(r.packages))
+	for _, pkg := range r.packages {
+		if pkg.Package.SoftwareIconObjectID == nil {
+			continue
+		}
+		id := *pkg.Package.SoftwareIconObjectID
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func (r staticPackageResolver) PackagesByID(

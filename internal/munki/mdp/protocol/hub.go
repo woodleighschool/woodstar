@@ -86,8 +86,10 @@ type Hub struct {
 	conns  map[int64]*connection
 	closed bool
 
-	wake chan struct{}
-	done chan struct{}
+	wake   chan struct{}
+	done   chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type presenceWriter interface {
@@ -104,6 +106,7 @@ type connection struct {
 // connect and disconnect. It runs one fan-out goroutine so desired-set pushes
 // reach every worker in a single, ordered sequence.
 func newHub(store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub {
+	ctx, cancel := context.WithCancel(context.Background())
 	h := &Hub{
 		store:    store,
 		presence: presence,
@@ -111,6 +114,8 @@ func newHub(store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub 
 		conns:    map[int64]*connection{},
 		wake:     make(chan struct{}, 1),
 		done:     make(chan struct{}),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 	go h.fanoutLoop()
 	return h
@@ -122,6 +127,7 @@ func (h *Hub) Close() {
 	h.mu.Lock()
 	if h.closed {
 		h.mu.Unlock()
+		<-h.done
 		return
 	}
 	h.closed = true
@@ -130,10 +136,11 @@ func (h *Hub) Close() {
 		conns = append(conns, c)
 	}
 	h.mu.Unlock()
-	close(h.done)
+	h.cancel()
 	for _, c := range conns {
 		_ = c.ws.Close(websocket.StatusGoingAway, "server shutting down")
 	}
+	<-h.done
 }
 
 // Serve runs one distribution point connection: it sends hello and the desired
@@ -232,9 +239,10 @@ func (h *Hub) refreshDesiredPackages() {
 }
 
 func (h *Hub) fanoutLoop() {
+	defer close(h.done)
 	for {
 		select {
-		case <-h.done:
+		case <-h.ctx.Done():
 			return
 		case <-h.wake:
 			h.broadcastDesired()
@@ -243,8 +251,11 @@ func (h *Hub) fanoutLoop() {
 }
 
 func (h *Hub) broadcastDesired() {
-	msg, err := h.desiredSetBytes(context.Background())
+	msg, err := h.desiredSetBytes(h.ctx)
 	if err != nil {
+		if h.ctx.Err() != nil {
+			return
+		}
 		h.logger.Warn("munki distribution desired broadcast failed",
 			"operation", "desired_set", "err", err)
 		return

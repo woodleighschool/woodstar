@@ -425,6 +425,13 @@ func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *tes
 	if pkgs[0].SoftwareIconObjectID == nil || *pkgs[0].SoftwareIconObjectID != icon.ID {
 		t.Fatalf("software icon object id = %v, want %d", pkgs[0].SoftwareIconObjectID, icon.ID)
 	}
+	iconIDs, err := stores.packages.ListRepositoryIconObjectIDs(ctx)
+	if err != nil {
+		t.Fatalf("ListRepositoryIconObjectIDs: %v", err)
+	}
+	if len(iconIDs) != 1 || iconIDs[0] != icon.ID {
+		t.Fatalf("repository icon object IDs = %v, want [%d]", iconIDs, icon.ID)
+	}
 }
 
 func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {

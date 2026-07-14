@@ -48,7 +48,7 @@ type inventoryProjector interface {
 }
 
 type labelEvaluator interface {
-	ApplicableLabels(context.Context) ([]labels.Label, error)
+	ApplicableLabels(context.Context) ([]labels.DynamicLabel, error)
 	Finalize(context.Context, *hosts.Host, []ingest.LabelResult) error
 }
 
@@ -175,7 +175,6 @@ func (s *AgentService) DistributedRead(
 		NodeInvalid: false,
 		Queries:     detailQueries,
 		Discovery:   detailDiscovery,
-		Accelerate:  0,
 	}, nil
 }
 
@@ -189,10 +188,7 @@ func (s *AgentService) queueLabelQueries(
 	}
 	count := 0
 	for _, label := range labelRows {
-		if label.Query == nil {
-			continue
-		}
-		queryMap[queryNameID(kindLabel, label.ID)] = *label.Query
+		queryMap[queryNameID(kindLabel, label.ID)] = label.Query
 		count++
 	}
 	return count, nil
