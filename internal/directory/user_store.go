@@ -127,9 +127,18 @@ func derefString(value *string) string {
 	return *value
 }
 
-func (s *Store) UserExists(ctx context.Context) (bool, error) {
+const activeAdministratorExistsSQL = `
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE role = 'admin'
+      AND deleted_at IS NULL
+)`
+
+// ActiveAdministratorExists reports whether a non-deleted administrator exists.
+func (s *Store) ActiveAdministratorExists(ctx context.Context) (bool, error) {
 	var exists bool
-	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users)`).Scan(&exists)
+	err := s.db.Pool().QueryRow(ctx, activeAdministratorExistsSQL).Scan(&exists)
 	return exists, err
 }
 
@@ -138,6 +147,12 @@ type userCreateRecord struct {
 	Name         string
 	PasswordHash string
 	Role         Role
+}
+
+type initialAdministratorRecord struct {
+	Email        string
+	Name         string
+	PasswordHash string
 }
 
 func (s *Store) createUser(ctx context.Context, params userCreateRecord) (*User, error) {
@@ -152,6 +167,45 @@ RETURNING id`,
 		return nil, dbutil.MutationError(err)
 	}
 	return s.GetUserByID(ctx, id)
+}
+
+func (s *Store) createInitialAdministrator(ctx context.Context, params initialAdministratorRecord) (*User, error) {
+	var user User
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		// Setup is rare and must serialize with both other setup attempts and
+		// directory imports before deciding whether an administrator exists.
+		if _, err := tx.Exec(ctx, `LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+			return err
+		}
+
+		var exists bool
+		if err := tx.QueryRow(ctx, activeAdministratorExistsSQL).Scan(&exists); err != nil {
+			return err
+		}
+		if exists {
+			return ErrInitialAdministratorExists
+		}
+
+		qrows, err := tx.Query(ctx, `
+INSERT INTO users (email, name, password_hash, role, source)
+VALUES ($1, $2, $3, 'admin', 'local')
+RETURNING `+userColumnsSQL(""),
+			strings.ToLower(params.Email), params.Name, params.PasswordHash,
+		)
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+		if err != nil {
+			return dbutil.MutationError(err)
+		}
+		user = userFromRow(row)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {

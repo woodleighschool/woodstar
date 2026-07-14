@@ -17,27 +17,21 @@ type SetupParams struct {
 	Password string
 }
 
-// SetupComplete reports whether the initial administrator account exists.
+// SetupComplete reports whether an active administrator account exists.
 func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
-	return s.users.Exists(ctx)
+	return s.users.ActiveAdministratorExists(ctx)
 }
 
 // Setup creates the first administrator account and starts a session.
 func (s *Service) Setup(ctx context.Context, params SetupParams) (*directory.User, error) {
-	exists, err := s.users.Exists(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("check setup state: %w", err)
-	}
-	if exists {
-		return nil, ErrAlreadySetup
-	}
-
-	user, err := s.users.Create(ctx, directory.UserCreate{
+	user, err := s.users.CreateInitialAdministrator(ctx, directory.UserCreate{
 		Email:    params.Email,
 		Name:     params.Name,
 		Password: params.Password,
-		Role:     directory.RoleAdmin,
 	})
+	if errors.Is(err, directory.ErrInitialAdministratorExists) {
+		return nil, ErrAlreadySetup
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create setup user: %w", err)
 	}
@@ -51,7 +45,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*directory.Use
 // Login checks local credentials and starts a session.
 func (s *Service) Login(ctx context.Context, email string, password string) (*directory.User, error) {
 	email = strings.TrimSpace(email)
-	exists, err := s.users.Exists(ctx)
+	exists, err := s.users.ActiveAdministratorExists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
 	}

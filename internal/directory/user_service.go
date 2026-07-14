@@ -2,7 +2,11 @@ package directory
 
 import (
 	"context"
+	"errors"
 )
+
+// ErrInitialAdministratorExists is returned when an active administrator already exists.
+var ErrInitialAdministratorExists = errors.New("an active administrator already exists")
 
 // UserService owns user management and app-access policy.
 type UserService struct {
@@ -13,8 +17,9 @@ func NewUserService(store *Store) *UserService {
 	return &UserService{store: store}
 }
 
-func (s *UserService) Exists(ctx context.Context) (bool, error) {
-	return s.store.UserExists(ctx)
+// ActiveAdministratorExists reports whether a current user has the administrator role.
+func (s *UserService) ActiveAdministratorExists(ctx context.Context) (bool, error) {
+	return s.store.ActiveAdministratorExists(ctx)
 }
 
 func (s *UserService) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
@@ -59,6 +64,24 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         params.Role,
+	})
+}
+
+// CreateInitialAdministrator creates the first active administrator atomically.
+func (s *UserService) CreateInitialAdministrator(ctx context.Context, params UserCreate) (*User, error) {
+	params.Role = RoleAdmin
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, err
+	}
+	hash, err := HashPassword(params.Password)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.createInitialAdministrator(ctx, initialAdministratorRecord{
+		Email:        params.Email,
+		Name:         params.Name,
+		PasswordHash: hash,
 	})
 }
 
