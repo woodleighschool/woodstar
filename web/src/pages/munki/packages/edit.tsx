@@ -60,7 +60,6 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const softwareInfo: SoftwareInfo = {
     id: pkg.software_id,
     name: pkg.software_name,
-    displayName: pkg.software_display_name,
     description: pkg.software_description,
     category: pkg.software_category,
     developer: pkg.software_developer,
@@ -77,7 +76,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   return (
     <PackageForm
       form={form}
-      title={`${pkg.software_display_name || pkg.software_name} ${pkg.version}`}
+      title={`${pkg.software_name} ${pkg.version}`}
       submitLabel="Save"
       softwareInfo={softwareInfo}
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}

@@ -164,7 +164,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
       },
       {
         id: "file_name",
-        accessorFn: (row) => row.executable.file_name || row.executable.sha256,
+        accessorFn: (row) => row.executable.file_name,
         header: ({ column }) => <DataTableColumnHeader column={column} label="Executable" />,
         cell: ({ row }) => (
           <Link
@@ -172,7 +172,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
             params={{ eventId: String(row.original.id) }}
             className="font-medium hover:underline"
           >
-            {row.original.executable.file_name || row.original.executable.sha256}
+            {row.original.executable.file_name || "-"}
           </Link>
         ),
         enableHiding: false,
@@ -317,18 +317,23 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
         id: "process",
         enableSorting: false,
         header: ({ column }) => <DataTableColumnHeader column={column} label="Process" />,
-        cell: ({ row }) =>
-          row.original.primary_process.file_name ||
-          fileName(row.original.primary_process.file_path) ||
-          "-",
+        cell: ({ row }) => row.original.primary_process.file_name || "-",
         meta: { label: "Process" },
       },
       {
         id: "rule_name",
         accessorKey: "rule_name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Rule" />,
-        cell: ({ row }) => row.original.rule_name || row.original.rule_version || "-",
+        cell: ({ row }) => row.original.rule_name || "-",
         meta: { label: "Rule" },
+      },
+      {
+        id: "rule_version",
+        accessorKey: "rule_version",
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Rule Version" />,
+        cell: ({ row }) => row.original.rule_version || "-",
+        enableSorting: false,
+        meta: { label: "Rule Version" },
       },
     ],
     [],

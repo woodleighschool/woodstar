@@ -45,7 +45,6 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
 			st.name ILIKE ` + search + `
-			OR st.display_name ILIKE ` + search + `
 			OR st.bundle_identifier ILIKE ` + search + `
 			OR st.extension_for ILIKE ` + search + `
 			OR EXISTS (
@@ -82,7 +81,6 @@ const softwareTitleSelectSQL = `
 SELECT
 	st.id,
 	st.name,
-	st.display_name,
 	st.source,
 	st.extension_for,
 	st.bundle_identifier,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"slices"
-	"strconv"
 
 	"howett.net/plist"
 
@@ -221,9 +220,9 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 
 func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	if pkg.Selector.Strategy == munkisoftware.PackageSpecific {
-		return packages.MunkiVersionedSoftwareName(pkg.Package.SoftwareID, pkg.Package.Version)
+		return packages.MunkiVersionedSoftwareName(pkg.Package.SoftwareName, pkg.Package.Version)
 	}
-	return strconv.FormatInt(pkg.Package.SoftwareID, 10)
+	return pkg.Package.SoftwareName
 }
 
 func (s *RepositoryService) catalogItems(

@@ -370,18 +370,16 @@ class WoodstarMunkiPackageUploader(Processor):
 
     @staticmethod
     def installer_type(pkginfo):
-        value = pkginfo.get("installer_type") or "pkg"
+        value = pkginfo.get("installer_type", "pkg")
         if not isinstance(value, str):
             raise ProcessorError("pkginfo installer_type must be a string")
         return value
 
     @staticmethod
     def uninstall_method(pkginfo):
-        value = pkginfo.get("uninstall_method") or ""
+        value = pkginfo.get("uninstall_method", "")
         if not isinstance(value, str):
             raise ProcessorError("pkginfo uninstall_method must be a string")
-        if value == "uninstall_package":
-            raise ProcessorError("pkginfo uninstall_method uninstall_package is not supported")
         return value
 
     @staticmethod
@@ -398,17 +396,28 @@ class WoodstarMunkiPackageUploader(Processor):
         for value in values:
             if not isinstance(value, dict):
                 raise ProcessorError("pkginfo installer_choices_xml entries must be dictionaries")
-            attribute_setting = value.get("attribute_setting")
-            if attribute_setting is None:
-                attribute_setting = value.get("attributeSetting", 0)
+            choice_identifier = value.get("choiceIdentifier")
+            if not isinstance(choice_identifier, str) or not choice_identifier.strip():
+                raise ProcessorError(
+                    "pkginfo installer_choices_xml choiceIdentifier must be a non-empty string"
+                )
+            choice_attribute = value.get("choiceAttribute", "")
+            if not isinstance(choice_attribute, str):
+                raise ProcessorError(
+                    "pkginfo installer_choices_xml choiceAttribute must be a string"
+                )
+            if "attributeSetting" not in value:
+                raise ProcessorError(
+                    "pkginfo installer_choices_xml attributeSetting is required"
+                )
             try:
-                attribute_setting = int(attribute_setting)
+                attribute_setting = int(value["attributeSetting"])
             except (TypeError, ValueError) as err:
                 raise ProcessorError("pkginfo installer_choices_xml attributeSetting must be an integer") from err
             choices.append(
                 {
-                    "choice_identifier": value.get("choice_identifier") or value.get("choiceIdentifier") or "",
-                    "choice_attribute": value.get("choice_attribute") or value.get("choiceAttribute") or "",
+                    "choice_identifier": choice_identifier,
+                    "choice_attribute": choice_attribute,
                     "attribute_setting": attribute_setting,
                 }
             )
@@ -423,7 +432,7 @@ class WoodstarMunkiPackageUploader(Processor):
             if not isinstance(value, dict):
                 raise ProcessorError("pkginfo installs entries must be dictionaries")
             item = {
-                "type": value.get("type") or "file",
+                "type": value.get("type", "file"),
                 "path": value.get("path"),
             }
             for munki_key, woodstar_key in (

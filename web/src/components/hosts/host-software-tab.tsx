@@ -45,7 +45,7 @@ const HOST_SOFTWARE_PAGE_SIZE = 50;
 const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "name",
-    accessorFn: (row) => row.display_name || row.name,
+    accessorKey: "name",
     header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
     cell: ({ row }) => (
       <Link
@@ -54,7 +54,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
         className="inline-flex items-center gap-2 truncate font-medium hover:underline"
       >
         <SoftwareIcon source={row.original.source} />
-        <span className="truncate">{row.original.display_name || row.original.name}</span>
+        <span className="truncate">{row.original.name}</span>
       </Link>
     ),
     meta: { label: "Name" },
@@ -243,7 +243,7 @@ function InstalledPathCell({
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{row.display_name || row.name}</DialogTitle>
+          <DialogTitle>{row.name}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 text-sm">
           <div>

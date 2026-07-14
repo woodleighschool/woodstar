@@ -298,7 +298,6 @@ ORDER BY lower(COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''),
 type signingIdentityReferenceRow struct {
 	RuleType        string `db:"rule_type"`
 	Identifier      string `db:"identifier"`
-	Name            string `db:"name"`
 	ExecutableCount int32  `db:"executable_count"`
 	RuleCount       int32  `db:"rule_count"`
 }
@@ -307,7 +306,6 @@ func signingIdentityFromRow(row signingIdentityReferenceRow) SigningIdentityRefe
 	return SigningIdentityReference{
 		RuleType:        santarules.RuleType(row.RuleType),
 		Identifier:      row.Identifier,
-		Name:            row.Name,
 		ExecutableCount: row.ExecutableCount,
 		RuleCount:       row.RuleCount,
 	}
@@ -319,7 +317,6 @@ identities AS (
     SELECT
         'teamid'::text AS rule_type,
         e.team_id AS identifier,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.team_id) AS name,
         e.id AS executable_id
     FROM matched_executables me
     JOIN santa_executables e ON e.id = me.id
@@ -328,7 +325,6 @@ identities AS (
     SELECT
         'signingid'::text,
         e.signing_id,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.signing_id),
         e.id
     FROM matched_executables me
     JOIN santa_executables e ON e.id = me.id
@@ -337,7 +333,6 @@ identities AS (
     SELECT
         'cdhash'::text,
         e.cdhash,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.cdhash),
         e.id
     FROM matched_executables me
     JOIN santa_executables e ON e.id = me.id
@@ -346,13 +341,12 @@ identities AS (
 SELECT
     i.rule_type,
     i.identifier,
-    COALESCE(NULLIF(MAX(i.name), ''), i.identifier) AS name,
     COUNT(DISTINCT i.executable_id)::integer AS executable_count,
     COUNT(DISTINCT r.id)::integer AS rule_count
 FROM identities i
 LEFT JOIN santa_rules r ON r.rule_type::text = i.rule_type AND r.identifier = i.identifier
 GROUP BY i.rule_type, i.identifier
-ORDER BY i.rule_type, lower(COALESCE(NULLIF(MAX(i.name), ''), i.identifier)), i.identifier`, factsArgs(facts))
+ORDER BY i.rule_type, i.identifier`, factsArgs(facts))
 	if err != nil {
 		return nil, err
 	}

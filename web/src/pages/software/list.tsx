@@ -103,7 +103,7 @@ export function SoftwareListPage() {
 const softwareColumns: ColumnDef<SoftwareTitle>[] = [
   {
     id: "name",
-    accessorFn: (row) => row.display_name || row.name,
+    accessorKey: "name",
     header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
     cell: ({ row }) => (
       <Link
@@ -112,7 +112,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
         className="inline-flex items-center gap-2 truncate font-medium hover:underline"
       >
         <SoftwareIcon source={row.original.source} />
-        <span className="truncate">{row.original.display_name || row.original.name}</span>
+        <span className="truncate">{row.original.name}</span>
       </Link>
     ),
     enableHiding: false,

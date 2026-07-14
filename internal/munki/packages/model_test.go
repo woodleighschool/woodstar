@@ -72,9 +72,11 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 		"choice without identifier": func(m *PackageMutation) {
 			m.InstallerChoicesXML = []PackageInstallerChoice{{ChoiceAttribute: "selected"}}
 		},
-		"reference without software": func(m *PackageMutation) { m.Requires = []PackageReference{{SoftwareID: 0}} },
-		"none uninstall sentinel":    func(m *PackageMutation) { m.UninstallMethod = "none" },
-		"none restart sentinel":      func(m *PackageMutation) { m.RestartAction = "None" },
+		"reference without software": func(m *PackageMutation) {
+			m.Requires = []PackageReferenceMutation{{SoftwareID: 0}}
+		},
+		"none uninstall sentinel": func(m *PackageMutation) { m.UninstallMethod = "none" },
+		"none restart sentinel":   func(m *PackageMutation) { m.RestartAction = "None" },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -93,8 +93,7 @@ const EXTENSION_FOR_LABELS: Record<string, string> = {
 };
 
 export function softwareSourceLabel(source: string, extensionFor?: string): string {
-  if (!source) return "Unknown";
-  const base = SOURCE_LABELS.get(source) ?? "Unknown";
+  const base = SOURCE_LABELS.get(source) ?? source;
   const variant = extensionFor ? EXTENSION_FOR_LABELS[extensionFor] : undefined;
   return variant ? `${base} (${variant})` : base;
 }

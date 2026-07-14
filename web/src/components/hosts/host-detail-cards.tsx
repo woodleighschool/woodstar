@@ -31,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-hosts";
 import type { Host, HostDetail } from "@/lib/api";
@@ -48,28 +47,14 @@ const certificateSourceLabels: Record<string, string> = {
 export function HostInfoCard({ host }: { host: HostDetail }) {
   const osqueryVersion = host.agents.osquery.version;
   const orbitVersion = host.agents.orbit.version;
-  const agentVersion = orbitVersion || osqueryVersion;
   const battery = host.batteries?.[0];
 
   return (
     <Card>
       <CardContent>
         <KeyValueGrid>
-          <KeyValueItem
-            label="Agent"
-            value={
-              agentVersion ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>{agentVersion}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="whitespace-pre-line">{`osquery: ${osqueryVersion || "-"}\nOrbit: ${orbitVersion || "-"}`}</div>
-                  </TooltipContent>
-                </Tooltip>
-              ) : null
-            }
-          />
+          {orbitVersion ? <KeyValueItem label="Orbit Version" value={orbitVersion} /> : null}
+          {osqueryVersion ? <KeyValueItem label="osquery Version" value={osqueryVersion} /> : null}
           {battery?.health ? (
             <KeyValueItem label="Battery Condition" value={battery.health} />
           ) : null}
@@ -106,11 +91,11 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
           ) : null}
           <KeyValueItem label="Operating System" value={osDisplayName(host)} />
           <KeyValueItem label="Private IP Address" value={host.network.primary_ip} />
-          {host.hardware.cpu.brand || host.hardware.cpu.architecture ? (
-            <KeyValueItem
-              label="Processor Type"
-              value={host.hardware.cpu.brand || host.hardware.cpu.architecture}
-            />
+          {host.hardware.cpu.brand ? (
+            <KeyValueItem label="Processor" value={host.hardware.cpu.brand} />
+          ) : null}
+          {host.hardware.cpu.architecture ? (
+            <KeyValueItem label="Architecture" value={host.hardware.cpu.architecture} />
           ) : null}
           <KeyValueItem label="Public IP Address" value={host.network.last_remote_ip} />
           <KeyValueItem label="Serial Number" value={host.hardware.serial} />

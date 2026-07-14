@@ -22,7 +22,7 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
         params={{ hostId: String(row.original.host_id) }}
         className="font-medium hover:underline"
       >
-        {row.original.host_name || String(row.original.host_id)}
+        {row.original.host_name}
       </Link>
     ),
   },

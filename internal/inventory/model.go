@@ -62,7 +62,6 @@ type HostSoftwareInstalledVersion struct {
 type HostSoftware struct {
 	ID                int64                          `json:"id"`
 	Name              string                         `json:"name"`
-	DisplayName       string                         `json:"display_name"`
 	Source            string                         `json:"source"`
 	ExtensionFor      string                         `json:"extension_for"`
 	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions"`
@@ -72,7 +71,6 @@ type HostSoftware struct {
 type SoftwareTitle struct {
 	ID               int64             `db:"id"                json:"id"`
 	Name             string            `db:"name"              json:"name"`
-	DisplayName      string            `db:"display_name"      json:"display_name"`
 	Source           string            `db:"source"            json:"source"`
 	ExtensionFor     string            `db:"extension_for"     json:"extension_for"`
 	Browser          string            `db:"-"                 json:"browser"`

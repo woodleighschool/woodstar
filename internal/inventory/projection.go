@@ -109,15 +109,15 @@ func softwareTitleIDFor(ctx context.Context, tx pgx.Tx, entry HostSoftwareEntry)
 func upsertSoftwareTitleByBundle(ctx context.Context, tx pgx.Tx, entry HostSoftwareEntry) (int64, error) {
 	var id int64
 	err := tx.QueryRow(ctx, `
-INSERT INTO software_titles (name, display_name, source, extension_for, bundle_identifier, vendor)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO software_titles (name, source, extension_for, bundle_identifier, vendor)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (bundle_identifier, source, extension_for)
 WHERE bundle_identifier <> ''
 DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
 RETURNING id`,
-		entry.Name, entry.Name, entry.Source, entry.ExtensionFor, entry.BundleIdentifier, entry.Vendor,
+		entry.Name, entry.Source, entry.ExtensionFor, entry.BundleIdentifier, entry.Vendor,
 	).Scan(&id)
 	return id, err
 }
@@ -125,13 +125,13 @@ RETURNING id`,
 func upsertSoftwareTitleByName(ctx context.Context, tx pgx.Tx, entry HostSoftwareEntry) (int64, error) {
 	var id int64
 	err := tx.QueryRow(ctx, `
-INSERT INTO software_titles (name, display_name, source, extension_for, bundle_identifier, vendor)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO software_titles (name, source, extension_for, bundle_identifier, vendor)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (name, source, extension_for, bundle_identifier) DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
 RETURNING id`,
-		entry.Name, entry.Name, entry.Source, entry.ExtensionFor, entry.BundleIdentifier, entry.Vendor,
+		entry.Name, entry.Source, entry.ExtensionFor, entry.BundleIdentifier, entry.Vendor,
 	).Scan(&id)
 	return id, err
 }

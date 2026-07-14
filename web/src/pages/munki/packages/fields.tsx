@@ -108,7 +108,6 @@ type BooleanPackageFieldName = PackageFieldNameByValue<boolean>;
 export type SoftwareInfo = {
   id: number;
   name: string;
-  displayName: string;
   description: string;
   category: string;
   developer: string;
@@ -386,10 +385,10 @@ function ParentSoftwarePanel({
               params={{ softwareId: String(software.id) }}
               className="block truncate text-sm font-medium hover:underline"
             >
-              {software.displayName || software.name}
+              {software.name}
             </Link>
           ) : software ? (
-            <p className="truncate text-sm font-medium">{software.displayName || software.name}</p>
+            <p className="truncate text-sm font-medium">{software.name}</p>
           ) : (
             <p className="text-sm text-muted-foreground">Select software</p>
           )}
@@ -1478,7 +1477,7 @@ function packageReferenceGroups(packages: MunkiPackage[]) {
   for (const pkg of packages) {
     const group = groups.get(pkg.software_id) ?? {
       softwareID: pkg.software_id,
-      softwareTitle: pkg.software_display_name || pkg.software_name,
+      softwareTitle: pkg.software_name,
       packages: [],
     };
     group.packages.push(pkg);

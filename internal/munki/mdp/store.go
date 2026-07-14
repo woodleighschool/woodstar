@@ -74,7 +74,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail
 SELECT
 	p.id AS package_id,
 	sw.id AS software_id,
-	sw.display_name,
+	sw.name,
 	p.version,
 	sw.icon_object_id AS software_icon_object_id,
 	CASE
@@ -493,7 +493,7 @@ func packageStateFromRow(row packageStateRow) PackageState {
 	return PackageState{
 		PackageID:       row.PackageID,
 		SoftwareID:      row.SoftwareID,
-		DisplayName:     row.DisplayName,
+		Name:            row.Name,
 		Version:         row.Version,
 		SoftwareIconURL: softwareIconURL(row.SoftwareID, row.SoftwareIconObjectID),
 		Status:          PackageStatus(row.Status),
@@ -550,7 +550,7 @@ type distributionPointUpdateWrite struct {
 type packageStateRow struct {
 	PackageID            int64  `db:"package_id"`
 	SoftwareID           int64  `db:"software_id"`
-	DisplayName          string `db:"display_name"`
+	Name                 string `db:"name"`
 	Version              string `db:"version"`
 	SoftwareIconObjectID *int64 `db:"software_icon_object_id"`
 	Status               string `db:"status"`

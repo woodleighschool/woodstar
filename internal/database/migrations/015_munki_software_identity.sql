@@ -11,9 +11,3 @@ ALTER TABLE munki_software
 
 ALTER TABLE munki_software
     ALTER COLUMN display_name DROP DEFAULT;
-
--- +goose Down
-
-ALTER TABLE munki_software
-    DROP CONSTRAINT munki_software_name_unique,
-    DROP COLUMN display_name;

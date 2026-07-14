@@ -8,6 +8,7 @@ from autopkglib import Processor, ProcessorError
 sys.path.insert(0, os.path.dirname(__file__))
 
 from WoodstarLib.Client import client_from_env, find_exact, needs_object, truthy  # noqa: E402
+from WoodstarMunkiPackageUploader import WoodstarMunkiPackageUploader  # noqa: E402
 
 __all__ = ["WoodstarMunkiAppUploader"]
 
@@ -37,9 +38,21 @@ class WoodstarMunkiAppUploader(Processor):
             "required": False,
             "description": "PEM CA file for a private Woodstar certificate chain.",
         },
+        "MUNKI_REPO": {
+            "required": False,
+            "description": "Munki repo path containing MunkiImporter output.",
+        },
+        "pkginfo_repo_path": {
+            "required": False,
+            "description": "MunkiImporter pkginfo output path.",
+        },
+        "pkg_repo_path": {
+            "required": False,
+            "description": "MunkiImporter package artifact path used to locate an existing pkginfo.",
+        },
         "name": {
             "required": False,
-            "description": "Woodstar Munki item name. Defaults to pkginfo name or NAME.",
+            "description": "Woodstar Munki item name. Defaults to the pkginfo name.",
         },
         "display_name": {
             "required": False,
@@ -74,10 +87,8 @@ class WoodstarMunkiAppUploader(Processor):
     def main(self):
         self.env.pop("woodstarmunkiappuploader_summary_result", None)
         client = client_from_env(self.env)
-        pkginfo = self.env.get("munki_info") or self.env.get("pkginfo") or {}
+        pkginfo = self.pkginfo()
         name = self.software_name(pkginfo)
-        if not name:
-            raise ProcessorError("name is required")
 
         software, changed, action = self.upsert_software(client, pkginfo, name)
 
@@ -94,7 +105,7 @@ class WoodstarMunkiAppUploader(Processor):
             icon_uploaded = True
             if action == "Skipped":
                 action = "Updated"
-        targets = software.get("targets") or empty_targets()
+        targets = software["targets"]
 
         self.env["woodstar_software"] = software
         self.env["woodstar_software_id"] = software["id"]
@@ -112,20 +123,14 @@ class WoodstarMunkiAppUploader(Processor):
         self.output(f"{action} Woodstar Munki software {software['id']}: {software['name']}")
 
     def upsert_software(self, client, pkginfo, name):
-        body = {
-            "name": name,
-            "display_name": self.env.get("display_name") or pkginfo.get("display_name") or name,
-            "description": self.env.get("description") or pkginfo.get("description") or "",
-            "category": self.env.get("category") or pkginfo.get("category") or "",
-            "developer": self.env.get("developer") or pkginfo.get("developer") or "",
-        }
+        body = self.software_metadata(pkginfo, name)
         existing = find_exact(client, "/api/munki/software", "name", name)
         existing_detail = None
         if existing:
             existing_detail = client.get(f"/api/munki/software/{existing['id']}")
         # Preserve the current icon through a metadata update; a new icon is
         # attached separately after the upsert.
-        if existing_detail and existing_detail.get("icon_object_id"):
+        if existing_detail and existing_detail.get("icon_object_id") is not None:
             body["icon_object_id"] = existing_detail["icon_object_id"]
         body["targets"] = self.target_body(client, existing_detail)
         if existing:
@@ -134,7 +139,7 @@ class WoodstarMunkiAppUploader(Processor):
             self.output(f"Updating Woodstar Munki software: {name}")
             return client.put(f"/api/munki/software/{existing['id']}", body), True, "Updated"
         self.output(f"Creating Woodstar Munki software: {name}")
-        return client.post("/api/munki/software", body), True, "Created"
+        return client.post("/api/munki/software", {"name": name, **body}), True, "Created"
 
     @staticmethod
     def software_matches(existing, body):
@@ -144,22 +149,42 @@ class WoodstarMunkiAppUploader(Processor):
         return True
 
     def software_name(self, pkginfo):
-        return (
-            self.env.get("name")
-            or pkginfo.get("name")
-            or self.env.get("NAME")
-        )
+        value = self.env["name"] if "name" in self.env else pkginfo.get("name")
+        if not isinstance(value, str) or not value.strip():
+            raise ProcessorError("name is required")
+        return value.strip()
+
+    def pkginfo(self):
+        if "pkginfo" in self.env:
+            pkginfo = self.env["pkginfo"]
+            if not isinstance(pkginfo, dict):
+                raise ProcessorError("pkginfo must be a dictionary")
+            return pkginfo
+        package = WoodstarMunkiPackageUploader()
+        package.env = self.env
+        return package.pkginfo()
+
+    def software_metadata(self, pkginfo, name):
+        body = {}
+        for key in ("display_name", "description", "category", "developer"):
+            value = self.env[key] if key in self.env else pkginfo.get(key, "")
+            if not isinstance(value, str):
+                raise ProcessorError(f"{key} must be a string")
+            body[key] = value
+        if body["display_name"].strip() == name:
+            body["display_name"] = ""
+        return body
 
     def target_body(self, client, existing):
-        target_config = self.env.get("targets")
-        if not target_config:
-            return (existing or {}).get("targets") or empty_targets()
+        if "targets" not in self.env:
+            return existing["targets"] if existing else empty_targets()
+        target_config = self.env["targets"]
         if not isinstance(target_config, dict):
             raise ProcessorError("targets must be a dictionary")
-        include_inputs = target_config.get("include") or []
+        include_inputs = target_config["include"] if "include" in target_config else []
         if not isinstance(include_inputs, list):
             raise ProcessorError("targets.include must be a list")
-        exclude_inputs = target_config.get("exclude") or []
+        exclude_inputs = target_config["exclude"] if "exclude" in target_config else []
         if not isinstance(exclude_inputs, list):
             raise ProcessorError("targets.exclude must be a list")
 
@@ -191,7 +216,7 @@ class WoodstarMunkiAppUploader(Processor):
         return actions
 
     def package_selector(self, target):
-        package = target.get("package") or {"strategy": "latest"}
+        package = target["package"] if "package" in target else {"strategy": "latest"}
         if not isinstance(package, dict):
             raise ProcessorError("targets.include package must be a dictionary")
         strategy = package.get("strategy", "latest")
@@ -241,6 +266,8 @@ def empty_targets():
 
 
 def normalized(value):
+    if value is None:
+        return ""
     if isinstance(value, dict):
         return {key: normalized(item) for key, item in sorted(value.items()) if item is not None}
     if isinstance(value, list):

@@ -14,6 +14,7 @@ from WoodstarMunkiAppUploader import WoodstarMunkiAppUploader  # noqa: E402
 from WoodstarLib.Client import local_file_metadata  # noqa: E402
 from WoodstarMunkiPackageUploader import (  # noqa: E402
     PackageReferenceResolver,
+    WoodstarMunkiPackageUploader,
     default_package_mutation,
     mutation_request_body,
     reference_ids,
@@ -145,6 +146,45 @@ class RepoIdentityTests(unittest.TestCase):
 
 
 class AppUploaderTests(unittest.TestCase):
+    def test_display_name_is_optional_and_not_derived_from_name(self):
+        uploader = WoodstarMunkiAppUploader()
+        uploader.env = {}
+
+        metadata = uploader.software_metadata({"name": "InternalName"}, "InternalName")
+
+        self.assertEqual(metadata["display_name"], "")
+
+    def test_name_does_not_use_generic_recipe_name(self):
+        uploader = WoodstarMunkiAppUploader()
+        uploader.env = {"NAME": "Recipe Name"}
+
+        with self.assertRaises(ProcessorError):
+            uploader.software_name({})
+
+    def test_targets_default_only_when_fields_are_absent(self):
+        uploader = WoodstarMunkiAppUploader()
+        uploader.env = {"targets": {}}
+
+        self.assertEqual(
+            uploader.target_body(None, None),
+            {"include": [], "exclude": []},
+        )
+
+        for targets in ({"include": {}}, {"exclude": {}}):
+            uploader.env = {"targets": targets}
+            with self.subTest(targets=targets), self.assertRaises(ProcessorError):
+                uploader.target_body(None, None)
+
+    def test_package_selector_rejects_falsey_non_dictionary(self):
+        uploader = WoodstarMunkiAppUploader()
+
+        self.assertEqual(
+            uploader.package_selector({}),
+            {"strategy": "latest"},
+        )
+        with self.assertRaises(ProcessorError):
+            uploader.package_selector({"package": []})
+
     def test_icon_only_upload_reports_updated_action(self):
         client = FakeWoodstarClient()
         software = client.post(
@@ -186,7 +226,66 @@ class AppUploaderTests(unittest.TestCase):
         self.assertEqual(summary["data"]["action"], "Updated")
 
 
+class PackageUploaderTests(unittest.TestCase):
+    def test_pkginfo_defaults_apply_only_when_fields_are_absent(self):
+        self.assertEqual(WoodstarMunkiPackageUploader.installer_type({}), "pkg")
+        self.assertEqual(WoodstarMunkiPackageUploader.installer_type({"installer_type": ""}), "")
+        self.assertEqual(
+            WoodstarMunkiPackageUploader.install_items([{"path": "/tmp/item"}])[0]["type"],
+            "file",
+        )
+        self.assertEqual(
+            WoodstarMunkiPackageUploader.install_items(
+                [{"type": "", "path": "/tmp/item"}]
+            )[0]["type"],
+            "",
+        )
+        with self.assertRaises(ProcessorError):
+            WoodstarMunkiPackageUploader.uninstall_method({"uninstall_method": 0})
+
+    def test_installer_choices_accept_only_canonical_munki_keys(self):
+        self.assertEqual(
+            WoodstarMunkiPackageUploader.installer_choices_xml(
+                [
+                    {
+                        "choiceIdentifier": "com.example.choice",
+                        "choiceAttribute": "selected",
+                        "attributeSetting": 1,
+                    }
+                ]
+            ),
+            [
+                {
+                    "choice_identifier": "com.example.choice",
+                    "choice_attribute": "selected",
+                    "attribute_setting": 1,
+                }
+            ],
+        )
+
+        with self.assertRaises(ProcessorError):
+            WoodstarMunkiPackageUploader.installer_choices_xml(
+                [
+                    {
+                        "choice_identifier": "com.example.choice",
+                        "choice_attribute": "selected",
+                        "attribute_setting": 1,
+                    }
+                ]
+            )
+
+
 class RepoImporterTests(unittest.TestCase):
+    def test_preflight_rejects_divergent_software_metadata(self):
+        importer = WoodstarMunkiRepoImporter()
+        entries = [
+            ("first.plist", {"name": "Example", "display_name": "Example App", "version": "1.0"}),
+            ("second.plist", {"name": "Example", "display_name": "Renamed App", "version": "2.0"}),
+        ]
+
+        with self.assertRaises(ProcessorError):
+            importer.validate_software_metadata(entries)
+
     def test_preflight_rejects_missing_relation_before_writes(self):
         client = FakeWoodstarClient()
         importer = WoodstarMunkiRepoImporter()

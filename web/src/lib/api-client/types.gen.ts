@@ -255,7 +255,6 @@ export type HostReportResultsBody = {
 };
 
 export type HostSoftware = {
-    display_name: string;
     extension_for: string;
     id: number;
     installed_versions: Array<HostSoftwareInstalledVersion>;
@@ -323,6 +322,16 @@ export type LabelRef = {
 export type LoginInputBody = {
     email: string;
     password: string;
+};
+
+export type MunkiCreateMutation = {
+    category?: string;
+    description?: string;
+    developer?: string;
+    display_name?: string;
+    icon_object_id?: number;
+    name: string;
+    targets: MunkiTargets;
 };
 
 export type MunkiDistributionPoint = {
@@ -405,16 +414,6 @@ export type MunkiItem = {
     run_ended_at?: string;
 };
 
-export type MunkiMutation = {
-    category?: string;
-    description?: string;
-    developer?: string;
-    display_name?: string;
-    icon_object_id?: number;
-    name: string;
-    targets: MunkiTargets;
-};
-
 export type MunkiObjectView = {
     content_type: string;
     content_url?: string;
@@ -464,7 +463,7 @@ export type MunkiPackage = {
     software_category: string;
     software_description: string;
     software_developer: string;
-    software_display_name: string;
+    software_display_name?: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string>;
@@ -520,7 +519,7 @@ export type MunkiPackageCreateMutation = {
     preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
     receipts?: Array<MunkiPackageReceipt>;
-    requires?: Array<MunkiPackageReference>;
+    requires?: Array<MunkiPackageReferenceMutation>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string>;
@@ -530,7 +529,7 @@ export type MunkiPackageCreateMutation = {
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
-    update_for?: Array<MunkiPackageReference>;
+    update_for?: Array<MunkiPackageReferenceMutation>;
     version: string;
     version_script?: string;
 };
@@ -601,7 +600,7 @@ export type MunkiPackageMutation = {
     preuninstall_alert?: MunkiPackageAlert;
     preuninstall_script?: string;
     receipts?: Array<MunkiPackageReceipt>;
-    requires?: Array<MunkiPackageReference>;
+    requires?: Array<MunkiPackageReferenceMutation>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     supported_architectures?: Array<string>;
     suppress_bundle_relocation?: boolean;
@@ -610,7 +609,7 @@ export type MunkiPackageMutation = {
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
     uninstallcheck_script?: string;
-    update_for?: Array<MunkiPackageReference>;
+    update_for?: Array<MunkiPackageReferenceMutation>;
     version: string;
     version_script?: string;
 };
@@ -627,7 +626,12 @@ export type MunkiPackageReference = {
     package_id?: number;
     package_version?: string;
     software_id: number;
-    software_name?: string;
+    software_name: string;
+};
+
+export type MunkiPackageReferenceMutation = {
+    package_id?: number;
+    software_id: number;
 };
 
 export type MunkiPackageSelector = {
@@ -636,8 +640,8 @@ export type MunkiPackageSelector = {
 };
 
 export type MunkiPackageState = {
-    display_name: string;
     error?: string;
+    name: string;
     package_id: number;
     software_icon_url?: string;
     software_id: number;
@@ -663,7 +667,7 @@ export type MunkiSoftware = {
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
+    display_name?: string;
     icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
@@ -677,7 +681,7 @@ export type MunkiSoftwareDetail = {
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
+    display_name?: string;
     icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
@@ -691,6 +695,15 @@ export type MunkiSoftwareDetail = {
 export type MunkiTargets = {
     exclude: Array<LabelRef>;
     include: Array<MunkiInclude>;
+};
+
+export type MunkiUpdateMutation = {
+    category?: string;
+    description?: string;
+    developer?: string;
+    display_name?: string;
+    icon_object_id?: number;
+    targets: MunkiTargets;
 };
 
 export type MunkiUploadRequest = {
@@ -1220,7 +1233,6 @@ export type SantaSigningChainEntry = {
 export type SantaSigningIdentityReference = {
     executable_count: number;
     identifier: string;
-    name: string;
     rule_count: number;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
@@ -1250,7 +1262,6 @@ export type SoftwareTitle = {
     browser: string;
     bundle_identifier?: string;
     counts_updated_at: string | null;
-    display_name: string;
     extension_for: string;
     hosts_count: number;
     id: number;
@@ -3552,7 +3563,7 @@ export type ListMunkiSoftwareResponses = {
 export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];
 
 export type CreateMunkiSoftwareData = {
-    body: MunkiMutation;
+    body: MunkiCreateMutation;
     path?: never;
     query?: never;
     url: '/api/munki/software';
@@ -3724,7 +3735,7 @@ export type GetMunkiSoftwareResponses = {
 export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiSoftwareResponses];
 
 export type UpdateMunkiSoftwareData = {
-    body: MunkiMutation;
+    body: MunkiUpdateMutation;
     path: {
         id: number;
     };

@@ -629,8 +629,6 @@ components:
     HostSoftware:
       additionalProperties: false
       properties:
-        display_name:
-          type: string
         extension_for:
           type: string
         id:
@@ -647,7 +645,6 @@ components:
       required:
         - id
         - name
-        - display_name
         - source
         - extension_for
         - installed_versions
@@ -829,6 +826,30 @@ components:
       required:
         - email
         - password
+      type: object
+    MunkiCreateMutation:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        developer:
+          type: string
+        display_name:
+          type: string
+        icon_object_id:
+          format: int64
+          minimum: 1
+          type: integer
+        name:
+          minLength: 1
+          type: string
+        targets:
+          $ref: "#/components/schemas/MunkiTargets"
+      required:
+        - name
+        - targets
       type: object
     MunkiDistributionPoint:
       additionalProperties: false
@@ -1075,30 +1096,6 @@ components:
         - installed_version
         - last_seen_at
       type: object
-    MunkiMutation:
-      additionalProperties: false
-      properties:
-        category:
-          type: string
-        description:
-          type: string
-        developer:
-          type: string
-        display_name:
-          type: string
-        icon_object_id:
-          format: int64
-          minimum: 1
-          type: integer
-        name:
-          minLength: 1
-          type: string
-        targets:
-          $ref: "#/components/schemas/MunkiTargets"
-      required:
-        - name
-        - targets
-      type: object
     MunkiObjectView:
       additionalProperties: false
       properties:
@@ -1272,7 +1269,6 @@ components:
         - id
         - software_id
         - software_name
-        - software_display_name
         - software_description
         - software_category
         - software_developer
@@ -1422,7 +1418,7 @@ components:
           type: array
         requires:
           items:
-            $ref: "#/components/schemas/MunkiPackageReference"
+            $ref: "#/components/schemas/MunkiPackageReferenceMutation"
           type: array
         restart_action:
           enum:
@@ -1457,7 +1453,7 @@ components:
           type: string
         update_for:
           items:
-            $ref: "#/components/schemas/MunkiPackageReference"
+            $ref: "#/components/schemas/MunkiPackageReferenceMutation"
           type: array
         version:
           minLength: 1
@@ -1639,7 +1635,7 @@ components:
           type: array
         requires:
           items:
-            $ref: "#/components/schemas/MunkiPackageReference"
+            $ref: "#/components/schemas/MunkiPackageReferenceMutation"
           type: array
         restart_action:
           enum:
@@ -1670,7 +1666,7 @@ components:
           type: string
         update_for:
           items:
-            $ref: "#/components/schemas/MunkiPackageReference"
+            $ref: "#/components/schemas/MunkiPackageReferenceMutation"
           type: array
         version:
           minLength: 1
@@ -1717,6 +1713,21 @@ components:
           type: string
       required:
         - software_id
+        - software_name
+      type: object
+    MunkiPackageReferenceMutation:
+      additionalProperties: false
+      properties:
+        package_id:
+          format: int64
+          minimum: 0
+          type: integer
+        software_id:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - software_id
       type: object
     MunkiPackageSelector:
       additionalProperties: false
@@ -1736,9 +1747,9 @@ components:
     MunkiPackageState:
       additionalProperties: false
       properties:
-        display_name:
-          type: string
         error:
+          type: string
+        name:
           type: string
         package_id:
           format: int64
@@ -1760,7 +1771,7 @@ components:
       required:
         - package_id
         - software_id
-        - display_name
+        - name
         - version
         - status
       type: object
@@ -1837,7 +1848,6 @@ components:
       required:
         - id
         - name
-        - display_name
         - description
         - category
         - developer
@@ -1884,7 +1894,6 @@ components:
         - targets
         - id
         - name
-        - display_name
         - description
         - category
         - developer
@@ -1905,6 +1914,26 @@ components:
       required:
         - include
         - exclude
+      type: object
+    MunkiUpdateMutation:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        developer:
+          type: string
+        display_name:
+          type: string
+        icon_object_id:
+          format: int64
+          minimum: 1
+          type: integer
+        targets:
+          $ref: "#/components/schemas/MunkiTargets"
+      required:
+        - targets
       type: object
     MunkiUploadRequest:
       additionalProperties: false
@@ -3448,8 +3477,6 @@ components:
           type: integer
         identifier:
           type: string
-        name:
-          type: string
         rule_count:
           format: int32
           type: integer
@@ -3465,7 +3492,6 @@ components:
       required:
         - rule_type
         - identifier
-        - name
         - executable_count
         - rule_count
       type: object
@@ -3542,8 +3568,6 @@ components:
           type:
             - string
             - "null"
-        display_name:
-          type: string
         extension_for:
           type: string
         hosts_count:
@@ -3566,7 +3590,6 @@ components:
       required:
         - id
         - name
-        - display_name
         - source
         - extension_for
         - browser
@@ -6595,7 +6618,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiMutation"
+              $ref: "#/components/schemas/MunkiCreateMutation"
         required: true
       responses:
         "201":
@@ -6808,7 +6831,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiMutation"
+              $ref: "#/components/schemas/MunkiUpdateMutation"
         required: true
       responses:
         "200":

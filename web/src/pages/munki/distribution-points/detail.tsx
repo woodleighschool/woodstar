@@ -192,7 +192,7 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
                           params={{ packageId: String(pkg.package_id) }}
                           className="min-w-0 truncate font-medium hover:underline"
                         >
-                          {pkg.display_name} {pkg.version}
+                          {pkg.name} {pkg.version}
                         </Link>
                       </div>
                     </TableCell>

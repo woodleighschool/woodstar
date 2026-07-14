@@ -12,8 +12,12 @@ import { requiredString } from "@/lib/form-validation";
 
 import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";
 
+const munkiName = requiredString("Munki name")
+  .refine((value) => !value.includes("/"), "Munki name cannot contain a slash")
+  .refine((value) => !/-\d[^-]*$/.test(value), "Munki name cannot end with a version suffix");
+
 export const munkiSoftwareSchema = z.object({
-  name: requiredString("Munki name"),
+  name: munkiName,
   display_name: z.string().trim(),
   description: z.string().trim(),
   category: z.string().trim(),
@@ -35,7 +39,7 @@ export function emptyMunkiSoftwareForm(): MunkiSoftwareFormState {
 export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): MunkiSoftwareFormState {
   return {
     name: title.name,
-    display_name: title.display_name,
+    display_name: title.display_name ?? "",
     description: title.description,
     category: title.category,
     developer: title.developer,
@@ -67,11 +71,13 @@ export type MunkiSoftwareIconProps = {
 
 export function MunkiSoftwareOptionsFields({
   form,
+  nameReadOnly = false,
   categoryOptions,
   developerOptions,
   icon,
 }: {
   form: MunkiSoftwareForm;
+  nameReadOnly?: boolean;
   categoryOptions: string[];
   developerOptions: string[];
   icon: MunkiSoftwareIconProps;
@@ -107,6 +113,7 @@ export function MunkiSoftwareOptionsFields({
                     {...control}
                     name={field.name}
                     value={field.state.value}
+                    readOnly={nameReadOnly}
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                   />
@@ -120,7 +127,7 @@ export function MunkiSoftwareOptionsFields({
                 field={field}
                 label="Display name"
                 htmlFor="munki-software-display-name"
-                description="Falls back to the Munki name when empty."
+                description="Optional label shown in Managed Software Center."
               >
                 {(control) => (
                   <Input

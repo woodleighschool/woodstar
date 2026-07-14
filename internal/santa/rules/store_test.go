@@ -513,6 +513,19 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 		targets[0].AppName != "Bundle Rule App" {
 		t.Fatalf("sync targets = %+v, want binary payloads carrying bundle notification data", targets)
 	}
+
+	if _, err := db.Pool().Exec(ctx, `UPDATE santa_bundles SET name = '' WHERE id = $1`, bundleID); err != nil {
+		t.Fatalf("clear bundle name: %v", err)
+	}
+	got, err = store.ResolveRulesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve unnamed bundle rule: %v", err)
+	}
+	for _, hostRule := range got {
+		if hostRule.AppName != "" {
+			t.Fatalf("unnamed bundle notification app name = %q, want empty", hostRule.AppName)
+		}
+	}
 }
 
 func TestSyncTargetsFromRulesKeepsFirstRuleForAnIdentity(t *testing.T) {

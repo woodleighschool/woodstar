@@ -134,6 +134,7 @@ func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
 }
 
 func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
+	displayName := "Google Chrome"
 	objectID := int64(42)
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
@@ -146,7 +147,7 @@ func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 					ID:                  20,
 					SoftwareID:          1,
 					SoftwareName:        "GoogleChrome",
-					SoftwareDisplayName: "Google Chrome",
+					SoftwareDisplayName: &displayName,
 					Version:             "148.0.0.1",
 					InstallerType:       packages.InstallerTypePkg,
 					InstallerObjectID:   &objectID,
@@ -238,23 +239,23 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if got := decoded.Catalogs; len(got) != 1 || got[0] != "woodstar" {
 		t.Fatalf("catalogs = %v, want [woodstar]", got)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
-		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"GoogleChrome"}) {
+		t.Fatalf("managed_installs = %v, want [GoogleChrome]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"2", "4"}) {
-		t.Fatalf("optional_installs = %v, want [2 4]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "FeaturedApp"}) {
+		t.Fatalf("optional_installs = %v, want [Slack FeaturedApp]", decoded.OptionalInstalls)
 	}
-	if !sameStrings(decoded.ManagedUninstalls, []string{"3"}) {
-		t.Fatalf("managed_uninstalls = %v, want [3]", decoded.ManagedUninstalls)
+	if !sameStrings(decoded.ManagedUninstalls, []string{"LegacyVPN"}) {
+		t.Fatalf("managed_uninstalls = %v, want [LegacyVPN]", decoded.ManagedUninstalls)
 	}
-	if !sameStrings(decoded.ManagedUpdates, []string{"1"}) {
-		t.Fatalf("managed_updates = %v, want [1]", decoded.ManagedUpdates)
+	if !sameStrings(decoded.ManagedUpdates, []string{"GoogleChrome"}) {
+		t.Fatalf("managed_updates = %v, want [GoogleChrome]", decoded.ManagedUpdates)
 	}
-	if !sameStrings(decoded.DefaultInstalls, []string{"1"}) {
-		t.Fatalf("default_installs = %v, want [1]", decoded.DefaultInstalls)
+	if !sameStrings(decoded.DefaultInstalls, []string{"GoogleChrome"}) {
+		t.Fatalf("default_installs = %v, want [GoogleChrome]", decoded.DefaultInstalls)
 	}
-	if !sameStrings(decoded.FeaturedItems, []string{"4"}) {
-		t.Fatalf("featured_items = %v, want [4]", decoded.FeaturedItems)
+	if !sameStrings(decoded.FeaturedItems, []string{"FeaturedApp"}) {
+		t.Fatalf("featured_items = %v, want [FeaturedApp]", decoded.FeaturedItems)
 	}
 }
 
@@ -267,8 +268,8 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 	if len(decoded) != 4 {
 		t.Fatalf("catalog items = %d, want 4", len(decoded))
 	}
-	if decoded[0]["name"] != "1" ||
-		decoded[0]["display_name"] != "GoogleChrome" ||
+	if decoded[0]["name"] != "GoogleChrome" ||
+		decoded[0]["display_name"] != nil ||
 		decoded[0]["version"] != "148.0.0.1" {
 		t.Fatalf("first catalog item = %+v, want package 20 / GoogleChrome 148.0.0.1", decoded[0])
 	}
@@ -309,8 +310,8 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	if _, err := plist.Unmarshal(manifest.Body.Bytes(), &manifestBody); err != nil {
 		t.Fatalf("manifest plist: %v", err)
 	}
-	if !sameStrings(manifestBody.OptionalInstalls, []string{"1"}) {
-		t.Fatalf("optional_installs = %v, want [1]", manifestBody.OptionalInstalls)
+	if !sameStrings(manifestBody.OptionalInstalls, []string{"GoogleChrome"}) {
+		t.Fatalf("optional_installs = %v, want [GoogleChrome]", manifestBody.OptionalInstalls)
 	}
 
 	catalog := httptest.NewRecorder()
@@ -329,8 +330,8 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 		t.Fatalf("catalog items = %d, want 2", len(catalogBody))
 	}
 	for _, item := range catalogBody {
-		if item["name"] != "1" {
-			t.Fatalf("catalog item name = %v, want 1: %+v", item["name"], item)
+		if item["name"] != "GoogleChrome" {
+			t.Fatalf("catalog item name = %v, want GoogleChrome: %+v", item["name"], item)
 		}
 	}
 }
@@ -379,8 +380,8 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
-		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"OverlapApp"}) {
+		t.Fatalf("managed_installs = %v, want [OverlapApp]", decoded.ManagedInstalls)
 	}
 	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
 		t.Fatalf("manifest still has later conflicting rows: %+v", decoded)
@@ -415,8 +416,8 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"1--1.0"}) {
-		t.Fatalf("managed_installs = %v, want [1--1.0]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"PinnedApp--1.0"}) {
+		t.Fatalf("managed_installs = %v, want [PinnedApp--1.0]", decoded.ManagedInstalls)
 	}
 }
 
@@ -608,6 +609,7 @@ func TestMunkiHTTPServesDirectWhenNoDistributionPoint(t *testing.T) {
 }
 
 func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
+	displayName := "Google Chrome"
 	objectID := int64(42)
 	sha := strings.Repeat("a", 64)
 	size := int64(4096)
@@ -622,7 +624,7 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 					ID:                  20,
 					SoftwareID:          1,
 					SoftwareName:        "GoogleChrome",
-					SoftwareDisplayName: "Google Chrome",
+					SoftwareDisplayName: &displayName,
 					Version:             "148.0.0.1",
 					InstallerType:       packages.InstallerTypePkg,
 					InstallerObjectID:   &objectID,
@@ -946,13 +948,12 @@ func (r staticObjectResolver) ListByIDs(
 
 func staticMunkiPackage(id int64, softwareID int64, name string, version string) packages.Package {
 	return packages.Package{
-		ID:                  id,
-		SoftwareID:          softwareID,
-		SoftwareName:        name,
-		SoftwareDisplayName: name,
-		Version:             version,
-		InstallerType:       packages.InstallerTypeNoPkg,
-		OnDemand:            true,
+		ID:            id,
+		SoftwareID:    softwareID,
+		SoftwareName:  name,
+		Version:       version,
+		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
 	}
 }
 

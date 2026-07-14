@@ -102,7 +102,10 @@ function MunkiSoftwareDetailForm({
       await updateSoftware.mutateAsync({
         id: software.id,
         body: {
-          ...data,
+          display_name: data.display_name,
+          description: data.description,
+          category: data.category,
+          developer: data.developer,
           icon_object_id: pickedIcon
             ? pickedIcon.id
             : iconCleared
@@ -132,7 +135,7 @@ function MunkiSoftwareDetailForm({
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
-  const title = software.display_name || software.name || "Software";
+  const title = software.name;
 
   function changeTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();
@@ -199,6 +202,7 @@ function MunkiSoftwareDetailForm({
       content: (
         <MunkiSoftwareOptionsFields
           form={softwareOptionsForm}
+          nameReadOnly
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
           icon={{

@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaFileAccessEvent } from "@/hooks/use-santa-events";
 import { formatDateTime } from "@/lib/utils";
 
-import { fileAccessEventLabel, fileName } from "../events/decisions";
 import { FileAccessDecisionBadge, HostLink, Timestamp } from "../events/event-ui";
 
 export function SantaFileAccessEventDetailPage() {
@@ -39,7 +38,7 @@ export function SantaFileAccessEventDetailPage() {
 
   return (
     <PageShell className="gap-6">
-      <PageHeader title={fileAccessEventLabel(event)} description={event.target} />
+      <PageHeader title="File Access" description={event.target} />
 
       <DetailSettings>
         <SettingItem label="Decision">
@@ -48,7 +47,8 @@ export function SantaFileAccessEventDetailPage() {
         <SettingItem label="Host">
           <HostLink host={event.host} />
         </SettingItem>
-        <SettingItem label="Rule">{event.rule_name || event.rule_version || "-"}</SettingItem>
+        <SettingItem label="Rule Name">{event.rule_name || "-"}</SettingItem>
+        <SettingItem label="Rule Version">{event.rule_version || "-"}</SettingItem>
         <SettingItem label="Occurred">
           <Timestamp value={event.occurred_at} />
         </SettingItem>
@@ -68,12 +68,7 @@ export function SantaFileAccessEventDetailPage() {
                 <DetailRow label="Target" value={event.target} />
                 <DetailRow label="Rule Name" value={event.rule_name} />
                 <DetailRow label="Rule Version" value={event.rule_version} />
-                <DetailRow
-                  label="Primary Process"
-                  value={
-                    event.primary_process.file_name || fileName(event.primary_process.file_path)
-                  }
-                />
+                <DetailRow label="Primary Process" value={event.primary_process.file_name} />
               </TableBody>
             </Table>
           </div>
@@ -98,10 +93,8 @@ export function SantaFileAccessEventDetailPage() {
                 <TableBody>
                   {processChain.map((process) => (
                     <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
-                      <TableCell>
-                        {process.file_name || fileName(process.file_path) || "-"}
-                      </TableCell>
-                      <TableCell>{process.pid || "-"}</TableCell>
+                      <TableCell>{process.file_name || "-"}</TableCell>
+                      <TableCell>{process.pid}</TableCell>
                       <TableCell className="break-all">{process.file_sha256 || "-"}</TableCell>
                       <TableCell>{process.signing_id || "-"}</TableCell>
                       <TableCell>{process.team_id || "-"}</TableCell>

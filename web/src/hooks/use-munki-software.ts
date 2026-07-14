@@ -1,7 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type { ApiError, MunkiMutation, MunkiSoftwareDetail, PageMunkiSoftware } from "@/lib/api";
+import type {
+  ApiError,
+  MunkiCreateMutation,
+  MunkiSoftwareDetail,
+  MunkiUpdateMutation,
+  PageMunkiSoftware,
+} from "@/lib/api";
 import {
   bulkDeleteMunkiSoftware,
   createMunkiSoftware,
@@ -37,7 +43,7 @@ export function useMunkiSoftwareDetail(id: number | null) {
 
 export function useCreateMunkiSoftware() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiSoftwareDetail, ApiError, MunkiMutation>({
+  return useMutation<MunkiSoftwareDetail, ApiError, MunkiCreateMutation>({
     mutationFn: (body) => unwrap(createMunkiSoftware({ body })),
     onSuccess: async () => {
       toast.success("Software created");
@@ -48,7 +54,7 @@ export function useCreateMunkiSoftware() {
 
 export function useUpdateMunkiSoftware() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiMutation }>({
+  return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiUpdateMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
     onSuccess: async (title) => {
       toast.success("Software saved");

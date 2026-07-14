@@ -62,16 +62,16 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	software, err := stores.software.Create(ctx, munkisoftware.Mutation{
+	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:        "com.vendor.app",
 		DisplayName: "Vendor App",
 	})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	if software.Name != "com.vendor.app" || software.DisplayName != "Vendor App" {
+	if software.Name != "com.vendor.app" || software.DisplayName == nil || *software.DisplayName != "Vendor App" {
 		t.Fatalf(
-			"software identity = %q/%q, want canonical and presentation names",
+			"software identity = %q/%v, want canonical and presentation names",
 			software.Name,
 			software.DisplayName,
 		)
@@ -89,9 +89,10 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.SoftwareName != "com.vendor.app" || pkg.SoftwareDisplayName != "Vendor App" {
+	if pkg.SoftwareName != "com.vendor.app" || pkg.SoftwareDisplayName == nil ||
+		*pkg.SoftwareDisplayName != "Vendor App" {
 		t.Fatalf(
-			"package software identity = %q/%q, want canonical and presentation names",
+			"package software identity = %q/%v, want canonical and presentation names",
 			pkg.SoftwareName,
 			pkg.SoftwareDisplayName,
 		)
@@ -106,7 +107,7 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 		t.Fatalf("visible-name package search = %+v count %d, want package %d", packageRows, count, pkg.ID)
 	}
 
-	_, err = stores.software.Create(ctx, munkisoftware.Mutation{
+	_, err = stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:        "com.vendor.app",
 		DisplayName: "Duplicate Vendor App",
 	})
@@ -115,16 +116,16 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	}
 }
 
-func TestMunkiSoftwareDefaultsDisplayNameToCanonicalName(t *testing.T) {
+func TestMunkiSoftwareOmitsDisplayNameWhenUnset(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	software, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "NoDisplayName"})
+	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "NoDisplayName"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	if software.DisplayName != software.Name {
-		t.Fatalf("display name = %q, want canonical name %q", software.DisplayName, software.Name)
+	if software.DisplayName != nil {
+		t.Fatalf("display name = %q, want nil", *software.DisplayName)
 	}
 }
 
@@ -157,7 +158,7 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("create label: %v", err)
 	}
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:      "GoogleChrome",
 		Category:  "Browsers",
 		Developer: "Google",
@@ -177,8 +178,7 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
-	_, err = stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
-		Name:      title.Name,
+	_, err = stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Category:  title.Category,
 		Developer: title.Developer,
 		Targets: munkisoftware.Targets{
@@ -247,7 +247,7 @@ func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "ObjectApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "ObjectApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "LatestApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "LatestApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "IconApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "IconApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	stores := newMunkiStores(db)
 
 	icon := createMunkiIconObject(t, ctx, stores, "SharedApp.png", "d")
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:         "SharedIconApp",
 		IconObjectID: &icon.ID,
 	})
@@ -384,7 +384,7 @@ func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *tes
 	stores := newMunkiStores(db)
 
 	icon := createMunkiIconObject(t, ctx, stores, "CatalogIconApp.png", "e")
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:         "CatalogIconApp",
 		IconObjectID: &icon.ID,
 	})
@@ -456,7 +456,7 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create SAC label: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "SchoolApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "SchoolApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create remove label: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "RowOrderApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "RowOrderApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -544,7 +544,7 @@ func TestCreatePackageRejectsUnsupportedArchitecture(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "Broken"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Broken"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "Blocking App"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Blocking App"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -618,8 +618,7 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create populated package: %v", err)
 	}
-	_, err = stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
-		Name: title.Name,
+	_, err = stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Targets: munkisoftware.Targets{
 			Include: []munkisoftware.Include{
 				includeTarget(allHostsID, munkisoftware.ActionManagedInstalls),
@@ -659,7 +658,7 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "MissingRelationApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "MissingRelationApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -671,7 +670,7 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Requires: []packages.PackageReference{
+			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: missingPackageID},
 			},
 			Eligible: true,
@@ -686,7 +685,7 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "InvalidRelationApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "InvalidRelationApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -697,7 +696,7 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Requires:      []packages.PackageReference{{SoftwareID: title.ID, PackageID: -1}},
+			Requires:      []packages.PackageReferenceMutation{{SoftwareID: title.ID, PackageID: -1}},
 			Eligible:      true,
 		}},
 	)
@@ -710,7 +709,7 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "DeletePackageApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "DeletePackageApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -721,7 +720,7 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 			Version:       "2.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Requires: []packages.PackageReference{
+			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
 			Eligible: true,
@@ -749,7 +748,7 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkDeletePackageApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkDeletePackageApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -760,7 +759,7 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 			Version:       "2.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Requires: []packages.PackageReference{
+			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
 			Eligible: true,
@@ -792,7 +791,7 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkDeleteConflictApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkDeleteConflictApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -803,7 +802,7 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 			Version:       "2.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Requires: []packages.PackageReference{
+			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
 			Eligible: true,
@@ -822,7 +821,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "DeleteObjectApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "DeleteObjectApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -882,7 +881,7 @@ func TestCreatePackageBadInstalledSizeFallsThroughToInvalidInput(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BadInstalledSizeApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BadInstalledSizeApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -904,13 +903,13 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "ExtraApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "ExtraApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
 	dependencyTitle, err := stores.software.Create(
 		ctx,
-		munkisoftware.Mutation{Name: "DependencyApp"},
+		munkisoftware.CreateMutation{Name: "DependencyApp"},
 	)
 	if err != nil {
 		t.Fatalf("create dependency title: %v", err)
@@ -922,7 +921,7 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 			Version:            "1.0",
 			InstallerType:      packages.InstallerTypeNoPkg,
 			InstallcheckScript: "#!/bin/zsh\nexit 0\n",
-			Requires: []packages.PackageReference{
+			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: dependencyTitle.ID},
 				{SoftwareID: dependencyTitle.ID, PackageID: dependency.ID},
 			},
@@ -956,7 +955,7 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "Switchable App"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Switchable App"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -1013,7 +1012,7 @@ func TestCreateTargetTargetsAllHostsLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	title, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "AllDevicesApp"})
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "AllDevicesApp"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
@@ -1035,11 +1034,11 @@ func TestSoftwareTargetsRejectPinnedPackageFromAnotherSoftware(t *testing.T) {
 	labelStore := labels.NewStore(db)
 	stores := newMunkiStores(db)
 
-	first, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "FirstAssignedApp"})
+	first, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "FirstAssignedApp"})
 	if err != nil {
 		t.Fatalf("create first software: %v", err)
 	}
-	second, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "SecondAssignedApp"})
+	second, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "SecondAssignedApp"})
 	if err != nil {
 		t.Fatalf("create second software: %v", err)
 	}
@@ -1067,7 +1066,7 @@ func TestSoftwareTargetsRejectBuiltinAndIncludeOverlap(t *testing.T) {
 
 	title, err := stores.software.Create(
 		ctx,
-		munkisoftware.Mutation{Name: "ExcludeOverlapApp"},
+		munkisoftware.CreateMutation{Name: "ExcludeOverlapApp"},
 	)
 	if err != nil {
 		t.Fatalf("create software: %v", err)
@@ -1086,16 +1085,14 @@ func TestSoftwareTargetsRejectBuiltinAndIncludeOverlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create exclude label: %v", err)
 	}
-	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
-		Name: title.Name,
+	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Targets: munkisoftware.Targets{
 			Exclude: labelRefs([]int64{allHostsLabelID(t, ctx, labelStore)}),
 		},
 	}); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Update software builtin exclude error = %v, want ErrInvalidInput", err)
 	}
-	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
-		Name: title.Name,
+	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Targets: munkisoftware.Targets{
 			Include: []munkisoftware.Include{
 				includeTarget(includeLabel.ID, munkisoftware.ActionManagedInstalls),
@@ -1105,8 +1102,7 @@ func TestSoftwareTargetsRejectBuiltinAndIncludeOverlap(t *testing.T) {
 	}); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Update software overlap error = %v, want ErrInvalidInput", err)
 	}
-	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.Mutation{
-		Name: title.Name,
+	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Targets: munkisoftware.Targets{
 			Exclude: labelRefs([]int64{excludeLabel.ID}),
 		},
@@ -1121,7 +1117,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	stores := newMunkiStores(db)
 	labelID := allHostsLabelID(t, ctx, labelStore)
 
-	first, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "DeletePinnedApp"})
+	first, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "DeletePinnedApp"})
 	if err != nil {
 		t.Fatalf("create first software: %v", err)
 	}
@@ -1141,7 +1137,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 		t.Fatalf("repeat delete error = %v, want ErrNotFound", err)
 	}
 
-	second, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkPinnedApp"})
+	second, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkPinnedApp"})
 	if err != nil {
 		t.Fatalf("create second software: %v", err)
 	}
@@ -1149,7 +1145,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	replaceTargets(t, ctx, stores, second, []munkisoftware.Include{
 		includeSpecificTarget(labelID, munkisoftware.ActionManagedInstalls, secondPkg.ID),
 	})
-	third, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "BulkPlainApp"})
+	third, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkPlainApp"})
 	if err != nil {
 		t.Fatalf("create third software: %v", err)
 	}
@@ -1172,7 +1168,7 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 	stores := newMunkiStores(db)
 	title, err := stores.software.Create(
 		ctx,
-		munkisoftware.Mutation{Name: "MissingLabelTarget"},
+		munkisoftware.CreateMutation{Name: "MissingLabelTarget"},
 	)
 	if err != nil {
 		t.Fatalf("create software: %v", err)
@@ -1324,9 +1320,13 @@ func softwareTargetMutation(
 	title *munkisoftware.Software,
 	includes []munkisoftware.Include,
 	excludeLabelIDs []int64,
-) munkisoftware.Mutation {
-	return munkisoftware.Mutation{
-		Name:         title.Name,
+) munkisoftware.UpdateMutation {
+	displayName := ""
+	if title.DisplayName != nil {
+		displayName = *title.DisplayName
+	}
+	return munkisoftware.UpdateMutation{
+		DisplayName:  displayName,
 		Description:  title.Description,
 		Category:     title.Category,
 		Developer:    title.Developer,

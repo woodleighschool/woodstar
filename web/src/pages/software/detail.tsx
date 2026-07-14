@@ -61,7 +61,6 @@ export function SoftwareDetailPage() {
 }
 
 function SoftwareHeader({ title }: { title: SoftwareTitle }) {
-  const displayName = title.display_name || title.name;
   const typeLabel = softwareSourceLabel(title.source, title.extension_for);
 
   return (
@@ -70,8 +69,8 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
         <SoftwareIcon source={title.source} size="lg" />
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-semibold text-foreground" title={displayName}>
-              {displayName}
+            <h1 className="truncate text-xl font-semibold text-foreground" title={title.name}>
+              {title.name}
             </h1>
             <Badge variant="secondary" className="font-normal">
               {typeLabel}
@@ -195,12 +194,8 @@ function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; i
       {bundles.map((bundle) => (
         <TableRow key={bundle.sha256}>
           <TableCell className="min-w-0">
-            <div className="truncate font-medium">
-              {bundle.name || bundle.bundle_id || bundle.sha256}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {bundle.bundle_id || bundle.path}
-            </div>
+            <div className="truncate font-medium">{bundle.name || "-"}</div>
+            <div className="truncate text-xs text-muted-foreground">{bundle.bundle_id || "-"}</div>
           </TableCell>
           <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
             {bundle.collected_binary_count}/{bundle.binary_count}
@@ -210,7 +205,7 @@ function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; i
               <QuickAddRuleButton
                 ruleType="bundle"
                 identifier={bundle.sha256}
-                name={bundle.name || bundle.bundle_id}
+                name={bundle.name || undefined}
               />
             ) : null}
           </TableCell>
@@ -236,7 +231,7 @@ function SantaExecutablesTable({
       {executables.map((executable) => (
         <TableRow key={executable.sha256}>
           <TableCell className="min-w-0">
-            <div className="truncate font-medium">{executableDisplayName(executable)}</div>
+            <div className="truncate font-medium">{executable.file_name || "-"}</div>
             <div className="truncate font-mono text-xs text-muted-foreground">
               {executable.sha256}
             </div>
@@ -251,7 +246,7 @@ function SantaExecutablesTable({
               <QuickAddRuleButton
                 ruleType="binary"
                 identifier={executable.sha256}
-                name={executable.file_bundle_name}
+                name={executable.file_name || undefined}
               />
             ) : null}
           </TableCell>
@@ -279,29 +274,17 @@ function SantaSigningTable({
               </Badge>
               <span className="truncate font-medium">{identity.identifier}</span>
             </div>
-            <div className="truncate text-xs text-muted-foreground">{identity.name}</div>
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">{identity.rule_count}</TableCell>
           <TableCell className="w-10 text-right">
             {isAdmin ? (
-              <QuickAddRuleButton
-                ruleType={identity.rule_type}
-                identifier={identity.identifier}
-                name={identity.name || identity.identifier}
-              />
+              <QuickAddRuleButton ruleType={identity.rule_type} identifier={identity.identifier} />
             ) : null}
           </TableCell>
         </TableRow>
       ))}
     </SantaReferenceTable>
   );
-}
-
-function executableDisplayName(executable: ExecutableReference) {
-  const bundleName = executable.file_bundle_name ?? "";
-  if (bundleName.trim() !== "") return bundleName;
-  if (executable.file_name.trim() !== "") return executable.file_name;
-  return "Executable";
 }
 
 function SantaCertificatesTable({
@@ -321,9 +304,16 @@ function SantaCertificatesTable({
         <TableRow key={certificate.sha256}>
           <TableCell className="min-w-0">
             <div className="truncate font-medium">{certificate.common_name || "-"}</div>
-            <div className="truncate text-xs text-muted-foreground">
-              {certificate.organizational_unit || certificate.organization || "-"}
-            </div>
+            {certificate.organization ? (
+              <div className="truncate text-xs text-muted-foreground">
+                Organization: {certificate.organization}
+              </div>
+            ) : null}
+            {certificate.organizational_unit ? (
+              <div className="truncate text-xs text-muted-foreground">
+                Organizational Unit: {certificate.organizational_unit}
+              </div>
+            ) : null}
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">
             {certificate.rule_count}

@@ -94,12 +94,12 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 			{
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionDefaultInstalls},
-				Package:    packages.Package{SoftwareID: 1, Version: "1.0"},
+				Package:    packages.Package{SoftwareID: 1, SoftwareName: "DefaultApp", Version: "1.0"},
 			},
 			{
 				SoftwareID: 2,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionFeaturedItems},
-				Package:    packages.Package{SoftwareID: 2, Version: "1.0"},
+				Package:    packages.Package{SoftwareID: 2, SoftwareName: "FeaturedApp", Version: "1.0"},
 			},
 		}},
 	})
@@ -119,11 +119,11 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	if len(manifest.OptionalInstalls) != 0 {
 		t.Fatalf("optional_installs = %v, want empty", manifest.OptionalInstalls)
 	}
-	if !sameStrings(manifest.DefaultInstalls, []string{"1"}) {
-		t.Fatalf("default_installs = %v, want [1]", manifest.DefaultInstalls)
+	if !sameStrings(manifest.DefaultInstalls, []string{"DefaultApp"}) {
+		t.Fatalf("default_installs = %v, want [DefaultApp]", manifest.DefaultInstalls)
 	}
-	if !sameStrings(manifest.FeaturedItems, []string{"2"}) {
-		t.Fatalf("featured_items = %v, want [2]", manifest.FeaturedItems)
+	if !sameStrings(manifest.FeaturedItems, []string{"FeaturedApp"}) {
+		t.Fatalf("featured_items = %v, want [FeaturedApp]", manifest.FeaturedItems)
 	}
 }
 

@@ -398,9 +398,9 @@ function emptyDraft(): TargetDraft {
 
 function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
   if (pkg.strategy === "specific") {
-    return (
-      packages.find((item) => item.id === pkg.package_id)?.version ?? `Package ${pkg.package_id}`
-    );
+    const selected = packages.find((item) => item.id === pkg.package_id);
+    if (!selected) throw new Error(`Munki package ${pkg.package_id} is missing from its software`);
+    return selected.version;
   }
   return "Latest";
 }

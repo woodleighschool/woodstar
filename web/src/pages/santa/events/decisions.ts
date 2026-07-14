@@ -170,11 +170,3 @@ export function fileName(path: string) {
   const parts = path.split("/").filter(Boolean);
   return parts.at(-1) ?? "";
 }
-
-export function executableLabel(event: SantaEvent) {
-  return event.executable.file_name || fileName(event.file_path) || event.executable.sha256;
-}
-
-export function fileAccessEventLabel(event: SantaFileAccessEvent) {
-  return fileName(event.target) || event.target;
-}

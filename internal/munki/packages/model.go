@@ -73,11 +73,17 @@ func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(uninstallMethodValues...)
 }
 
-// PackageReference points to Woodstar-authored software, optionally pinned to one package version.
+// PackageReferenceMutation selects Woodstar-authored software and optionally one package version.
+type PackageReferenceMutation struct {
+	SoftwareID int64 `json:"software_id"          validate:"gt=0"  minimum:"1"`
+	PackageID  int64 `json:"package_id,omitempty" validate:"gte=0" minimum:"0"`
+}
+
+// PackageReference describes a hydrated Munki package relation.
 type PackageReference struct {
 	SoftwareID     int64  `json:"software_id"               validate:"gt=0"  minimum:"1"`
 	PackageID      int64  `json:"package_id,omitempty"      validate:"gte=0" minimum:"0"`
-	SoftwareName   string `json:"software_name,omitempty"`
+	SoftwareName   string `json:"software_name"`
 	PackageVersion string `json:"package_version,omitempty"`
 }
 
@@ -179,8 +185,8 @@ type PackageMutation struct {
 	InstallableCondition     string                                `json:"installable_condition,omitempty"`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
 	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
-	Requires                 []PackageReference                    `json:"requires,omitempty"                                             validate:"dive"`
-	UpdateFor                []PackageReference                    `json:"update_for,omitempty"                                           validate:"dive"`
+	Requires                 []PackageReferenceMutation            `json:"requires,omitempty"                                             validate:"dive"`
+	UpdateFor                []PackageReferenceMutation            `json:"update_for,omitempty"                                           validate:"dive"`
 	OnDemand                 bool                                  `json:"on_demand,omitempty"`
 	Precache                 bool                                  `json:"precache,omitempty"`
 	Autoremove               bool                                  `json:"autoremove,omitempty"`
@@ -229,7 +235,7 @@ type Package struct {
 	ID                       int64                                 `json:"id"`
 	SoftwareID               int64                                 `json:"software_id"`
 	SoftwareName             string                                `json:"software_name"`
-	SoftwareDisplayName      string                                `json:"software_display_name"`
+	SoftwareDisplayName      *string                               `json:"software_display_name,omitempty"`
 	SoftwareDescription      string                                `json:"software_description"`
 	SoftwareCategory         string                                `json:"software_category"`
 	SoftwareDeveloper        string                                `json:"software_developer"`

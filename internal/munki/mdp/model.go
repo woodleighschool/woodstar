@@ -69,7 +69,7 @@ type DistributionPointDetail struct {
 type PackageState struct {
 	PackageID       int64         `json:"package_id"`
 	SoftwareID      int64         `json:"software_id"`
-	DisplayName     string        `json:"display_name"`
+	Name            string        `json:"name"`
 	Version         string        `json:"version"`
 	SoftwareIconURL string        `json:"software_icon_url,omitempty"`
 	Status          PackageStatus `json:"status"`

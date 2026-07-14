@@ -1,5 +1,5 @@
 SELECT
-  COALESCE(NULLIF(module_path, ''), name) AS name,
+  name,
   version,
   '' AS bundle_identifier,
   '' AS extension_id,

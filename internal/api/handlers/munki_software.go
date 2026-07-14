@@ -30,12 +30,12 @@ type munkiSoftwareGetInput struct {
 }
 
 type munkiSoftwareCreateInput struct {
-	Body munkisoftware.Mutation
+	Body munkisoftware.CreateMutation
 }
 
 type munkiSoftwarePutInput struct {
 	ID   int64 `path:"id"`
-	Body munkisoftware.Mutation
+	Body munkisoftware.UpdateMutation
 }
 
 type munkiSoftwareDeleteInput struct {

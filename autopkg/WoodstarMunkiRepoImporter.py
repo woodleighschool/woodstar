@@ -98,6 +98,7 @@ class WoodstarMunkiRepoImporter(Processor):
         self.output(f"Processed {counts['pkginfos']} Munki pkginfo item(s)")
 
     def preflight_entries(self, client, munki_repo, entries):
+        self.validate_software_metadata(entries)
         software = list_items(client, "/api/munki/software")
         packages = list_items(client, "/api/munki/packages")
         software_by_name = {item["name"]: item for item in software}
@@ -153,6 +154,29 @@ class WoodstarMunkiRepoImporter(Processor):
         for pkginfo_path, pkginfo in validated:
             resolver.resolve(pkginfo.get("requires", []), f"requires in {pkginfo_path}")
             resolver.resolve(pkginfo.get("update_for", []), f"update_for in {pkginfo_path}")
+
+    @staticmethod
+    def validate_software_metadata(entries):
+        by_name = {}
+        for pkginfo_path, pkginfo in entries:
+            name = pkginfo.get("name")
+            if not isinstance(name, str) or not name.strip():
+                raise ProcessorError(f"name is required for pkginfo {pkginfo_path}")
+            name = name.strip()
+            metadata = {}
+            for key in ("display_name", "description", "category", "developer"):
+                value = pkginfo.get(key, "")
+                if not isinstance(value, str):
+                    raise ProcessorError(f"{key} must be a string in pkginfo {pkginfo_path}")
+                metadata[key] = value
+            if metadata["display_name"].strip() == name:
+                metadata["display_name"] = ""
+            existing = by_name.get(name)
+            if existing is not None and existing != metadata:
+                raise ProcessorError(
+                    f"pkginfo metadata differs across versions of {name}: {pkginfo_path}"
+                )
+            by_name[name] = metadata
 
     def munki_repo(self):
         munki_repo = self.env.get("MUNKI_REPO")
@@ -240,12 +264,14 @@ class WoodstarMunkiRepoImporter(Processor):
 
         body = {
             "name": name,
-            "display_name": pkginfo.get("display_name") or name,
-            "description": pkginfo.get("description") or "",
-            "category": pkginfo.get("category") or "",
-            "developer": pkginfo.get("developer") or "",
+            "display_name": pkginfo.get("display_name", ""),
+            "description": pkginfo.get("description", ""),
+            "category": pkginfo.get("category", ""),
+            "developer": pkginfo.get("developer", ""),
             "targets": {"include": [], "exclude": []},
         }
+        if body["display_name"].strip() == name:
+            body["display_name"] = ""
         self.output(f"Creating Woodstar Munki software: {name}")
         software = client.post("/api/munki/software", body)
 

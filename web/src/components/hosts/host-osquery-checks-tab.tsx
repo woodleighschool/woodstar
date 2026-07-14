@@ -20,7 +20,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
         params={{ checkId: String(row.original.check_id) }}
         className="hover:underline"
       >
-        {row.original.check_name || String(row.original.check_id)}
+        {row.original.check_name}
       </Link>
     ),
   },
@@ -39,10 +39,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
 export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
   const query = useHostOsqueryChecks(hostId);
   const rows = useMemo(
-    () =>
-      [...(query.data ?? [])].toSorted((a, b) =>
-        (a.check_name || "").localeCompare(b.check_name || ""),
-      ),
+    () => [...(query.data ?? [])].toSorted((a, b) => a.check_name.localeCompare(b.check_name)),
     [query.data],
   );
 

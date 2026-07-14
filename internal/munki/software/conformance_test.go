@@ -22,19 +22,16 @@ func TestSoftwareStoreConformance(t *testing.T) {
 	crudtest.RunConformance(
 		t,
 		ctx,
-		crudtest.Fixtures[Software, Mutation, Mutation, dbutil.ListParams]{
+		crudtest.Fixtures[Software, CreateMutation, UpdateMutation, dbutil.ListParams]{
 			Store: store,
-			NewValid: func(_ *testing.T, _ context.Context) Mutation {
-				return Mutation{
+			NewValid: func(_ *testing.T, _ context.Context) CreateMutation {
+				return CreateMutation{
 					Name:     "Conformance App",
 					Category: "Utilities",
 				}
 			},
-			Mutate: func(_ Software) Mutation {
-				return Mutation{
-					Name:     "Conformance App Updated",
-					Category: "Productivity",
-				}
+			Mutate: func(_ Software) UpdateMutation {
+				return UpdateMutation{Category: "Productivity"}
 			},
 			ID:         func(sw Software) int64 { return sw.ID },
 			ListParams: softwareListParams,
@@ -42,8 +39,8 @@ func TestSoftwareStoreConformance(t *testing.T) {
 			SearchMatch: func(sw Software) string {
 				return sw.Name
 			},
-			NewInvalid: func() (Mutation, bool) {
-				return Mutation{Name: ""}, true
+			NewInvalid: func() (CreateMutation, bool) {
+				return CreateMutation{Name: ""}, true
 			},
 		},
 	)

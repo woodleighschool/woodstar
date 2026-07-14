@@ -60,7 +60,6 @@ const hostSoftwareRowsSQL = `
 SELECT
     st.id AS title_id,
     st.name AS title_name,
-    st.display_name,
     st.source,
     st.extension_for,
     s.id AS software_id,
@@ -139,7 +138,6 @@ func (acc *hostSoftwareAccumulator) title(row hostSoftwareScanRow) *HostSoftware
 		return HostSoftware{
 			ID:           row.TitleID,
 			Name:         row.TitleName,
-			DisplayName:  row.DisplayName,
 			Source:       row.Source,
 			ExtensionFor: row.ExtensionFor,
 		}
@@ -222,7 +220,6 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
 			st.name ILIKE ` + search + `
-			OR st.display_name ILIKE ` + search + `
 			OR st.source ILIKE ` + search + `
 			OR st.extension_for ILIKE ` + search + `
 			OR st.bundle_identifier ILIKE ` + search + `
@@ -246,7 +243,6 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 type hostSoftwareScanRow struct {
 	TitleID          int64      `db:"title_id"`
 	TitleName        string     `db:"title_name"`
-	DisplayName      string     `db:"display_name"`
 	Source           string     `db:"source"`
 	ExtensionFor     string     `db:"extension_for"`
 	SoftwareID       int64      `db:"software_id"`

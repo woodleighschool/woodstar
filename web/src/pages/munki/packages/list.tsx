@@ -51,8 +51,8 @@ export function MunkiPackageListPage() {
     const baseColumns: ColumnDef<MunkiPackage>[] = [
       selectColumn<MunkiPackage>(),
       {
-        id: "software_display_name",
-        accessorFn: (row) => row.software_display_name || row.software_name,
+        id: "software_name",
+        accessorKey: "software_name",
         header: ({ column }) => <DataTableColumnHeader column={column} label="Package" />,
         cell: ({ row }) =>
           isAdmin ? (
@@ -62,16 +62,12 @@ export function MunkiPackageListPage() {
               className="flex min-w-0 items-center gap-2 font-medium hover:underline"
             >
               <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
-              <span className="truncate">
-                {row.original.software_display_name || row.original.software_name}
-              </span>
+              <span className="truncate">{row.original.software_name}</span>
             </Link>
           ) : (
             <span className="flex min-w-0 items-center gap-2 font-medium">
               <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
-              <span className="truncate">
-                {row.original.software_display_name || row.original.software_name}
-              </span>
+              <span className="truncate">{row.original.software_name}</span>
             </span>
           ),
         enableHiding: false,

@@ -266,20 +266,14 @@ function HostCrumb({ id }: { id: string }) {
   return <span title={data.hardware.uuid}>{data.display_name}</span>;
 }
 
-const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d, id) => d.display_name || d.name || id);
-const MunkiSoftwareCrumb = resourceCrumb(
-  useMunkiSoftwareDetail,
-  (d, id) => d.display_name || d.name || id,
-);
-const MunkiDistributionPointCrumb = resourceCrumb(
-  useMunkiDistributionPoint,
-  (d, id) => d.name || id,
-);
-const CheckCrumb = resourceCrumb(useCheck, (d, id) => d.name || id);
-const ReportCrumb = resourceCrumb(useReport, (d, id) => d.name || id);
-const SantaConfigurationCrumb = resourceCrumb(useSantaConfiguration, (d, id) => d.name || id);
-const SantaRuleCrumb = resourceCrumb(useSantaRule, (d, id) => d.name || d.identifier || id);
-const LabelCrumb = resourceCrumb(useLabel, (d, id) => d.name || id);
+const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d) => d.name);
+const MunkiSoftwareCrumb = resourceCrumb(useMunkiSoftwareDetail, (d) => d.name);
+const MunkiDistributionPointCrumb = resourceCrumb(useMunkiDistributionPoint, (d) => d.name);
+const CheckCrumb = resourceCrumb(useCheck, (d) => d.name);
+const ReportCrumb = resourceCrumb(useReport, (d) => d.name);
+const SantaConfigurationCrumb = resourceCrumb(useSantaConfiguration, (d) => d.name);
+const SantaRuleCrumb = resourceCrumb(useSantaRule, (d) => d.name);
+const LabelCrumb = resourceCrumb(useLabel, (d) => d.name);
 const UserCrumb = resourceCrumb(useUser, (d, id) => d.name || d.email || id);
 
 function MunkiPackageCrumb({ id }: { id: string }) {
@@ -289,7 +283,7 @@ function MunkiPackageCrumb({ id }: { id: string }) {
     if (isError) return <span>{id}</span>;
     return <CrumbSkeleton />;
   }
-  return <span>{`${data.software_display_name || data.software_name} ${data.version}`}</span>;
+  return <span>{`${data.software_name} ${data.version}`}</span>;
 }
 
 function CrumbSkeleton() {

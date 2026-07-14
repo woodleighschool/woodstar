@@ -10,8 +10,8 @@ import (
 )
 
 // MunkiVersionedSoftwareName returns Munki's name--version syntax for a specific package version.
-func MunkiVersionedSoftwareName(softwareID int64, packageVersion string) string {
-	name := strconv.FormatInt(softwareID, 10)
+func MunkiVersionedSoftwareName(softwareName, packageVersion string) string {
+	name := strings.TrimSpace(softwareName)
 	version := strings.TrimSpace(packageVersion)
 	if version == "" {
 		return name
@@ -33,7 +33,7 @@ type PkginfoObjects struct {
 type munkiPkginfo struct {
 	Name                     string                     `plist:"name"`
 	Version                  string                     `plist:"version"`
-	DisplayName              string                     `plist:"display_name,omitempty"`
+	DisplayName              *string                    `plist:"display_name,omitempty"`
 	Description              string                     `plist:"description,omitempty"`
 	Category                 string                     `plist:"category,omitempty"`
 	Developer                string                     `plist:"developer,omitempty"`
@@ -137,7 +137,7 @@ type munkiPkginfoAlert struct {
 
 func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
-		Name:                     strconv.FormatInt(pkg.SoftwareID, 10),
+		Name:                     pkg.SoftwareName,
 		Version:                  pkg.Version,
 		DisplayName:              pkg.SoftwareDisplayName,
 		Description:              pkg.SoftwareDescription,
@@ -257,12 +257,7 @@ func munkiReferenceNames(references []PackageReference) []string {
 	}
 	out := make([]string, 0, len(references))
 	for _, ref := range references {
-		if name := MunkiVersionedSoftwareName(ref.SoftwareID, ref.PackageVersion); name != "" {
-			out = append(out, name)
-		}
-	}
-	if len(out) == 0 {
-		return nil
+		out = append(out, MunkiVersionedSoftwareName(ref.SoftwareName, ref.PackageVersion))
 	}
 	return out
 }

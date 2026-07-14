@@ -34,7 +34,7 @@ func NewStore(db *database.DB, objects objectStore, packages packageStore) *Stor
 	return &Store{db: db, objects: objects, packages: packages}
 }
 
-func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) {
+func (s *Store) Create(ctx context.Context, params CreateMutation) (*Software, error) {
 	params.normalize()
 	if err := params.validate(); err != nil {
 		return nil, err
@@ -72,8 +72,7 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 	return s.GetByID(ctx, id)
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Software, error) {
-	params.normalize()
+func (s *Store) Update(ctx context.Context, id int64, params UpdateMutation) (*Software, error) {
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
@@ -86,14 +85,14 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 		if err != nil {
 			return err
 		}
+		params.normalize(existing.Name)
 		oldIconObjectID = existing.IconObjectID
-		write := newSoftwareWrite(params)
+		write := newSoftwareUpdateWrite(params)
 		write.ID = id
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
 UPDATE munki_software
 SET
-	name = @name,
 	display_name = @display_name,
 	description = @description,
 	category = @category,
@@ -300,19 +299,29 @@ func softwareObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]in
 }
 
 type softwareWrite struct {
-	ID           int64  `db:"id"`
-	Name         string `db:"name"`
-	DisplayName  string `db:"display_name"`
-	Description  string `db:"description"`
-	Category     string `db:"category"`
-	Developer    string `db:"developer"`
-	IconObjectID *int64 `db:"icon_object_id"`
+	ID           int64   `db:"id"`
+	Name         string  `db:"name"`
+	DisplayName  *string `db:"display_name"`
+	Description  string  `db:"description"`
+	Category     string  `db:"category"`
+	Developer    string  `db:"developer"`
+	IconObjectID *int64  `db:"icon_object_id"`
 }
 
-func newSoftwareWrite(params Mutation) softwareWrite {
+func newSoftwareWrite(params CreateMutation) softwareWrite {
 	return softwareWrite{
 		Name:         params.Name,
-		DisplayName:  params.DisplayName,
+		DisplayName:  dbutil.NullString(params.DisplayName),
+		Description:  params.Description,
+		Category:     params.Category,
+		Developer:    params.Developer,
+		IconObjectID: params.IconObjectID,
+	}
+}
+
+func newSoftwareUpdateWrite(params UpdateMutation) softwareWrite {
+	return softwareWrite{
+		DisplayName:  dbutil.NullString(params.DisplayName),
 		Description:  params.Description,
 		Category:     params.Category,
 		Developer:    params.Developer,
@@ -342,7 +351,7 @@ LEFT JOIN storage_objects icon_obj ON icon_obj.id = st.icon_object_id`
 type softwareRow struct {
 	ID            int64     `db:"id"`
 	Name          string    `db:"name"`
-	DisplayName   string    `db:"display_name"`
+	DisplayName   *string   `db:"display_name"`
 	Description   string    `db:"description"`
 	Category      string    `db:"category"`
 	Developer     string    `db:"developer"`

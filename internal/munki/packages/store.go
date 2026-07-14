@@ -335,7 +335,6 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		Args:      args,
 		OrderKeys: packageOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{
-			{SQL: "lower(s.display_name)"},
 			{SQL: "lower(s.name)"},
 			{SQL: "lower(p.version)"},
 			{SQL: "p.id"},
@@ -654,7 +653,7 @@ type packageRow struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
-	SoftwareDisplayName          string
+	SoftwareDisplayName          *string
 	SoftwareDescription          string
 	SoftwareCategory             string
 	SoftwareDeveloper            string
@@ -968,7 +967,7 @@ func replacePackageRelations(
 	tx pgx.Tx,
 	packageID int64,
 	kind string,
-	references []PackageReference,
+	references []PackageReferenceMutation,
 ) error {
 	rows := make([]packageRelationWrite, len(references))
 	for i, ref := range references {

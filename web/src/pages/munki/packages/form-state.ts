@@ -10,6 +10,7 @@ import type {
   MunkiPackageMutation,
   MunkiPackageReceipt,
   MunkiPackageReference,
+  MunkiPackageReferenceMutation,
 } from "@/lib/api";
 import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { nonEmpty } from "@/lib/utils";
@@ -30,12 +31,11 @@ export type ScriptKey =
   | "uninstall_script"
   | "version_script";
 
-export interface PackageReferenceRow extends Omit<
-  MunkiPackageReference,
-  "package_id" | "software_id"
-> {
+export interface PackageReferenceRow {
   software_id?: number;
   package_id?: number;
+  software_name?: string;
+  package_version?: string;
   rowID: string;
 }
 
@@ -403,8 +403,8 @@ function itemToCopyRows(values: MunkiPackageItemToCopy[]): ItemToCopyRow[] {
   return values.map((value) => ({ ...value, rowID: rowID() }));
 }
 
-function cleanPackageReferences(rows: PackageReferenceRow[]): MunkiPackageReference[] {
-  const out: MunkiPackageReference[] = [];
+function cleanPackageReferences(rows: PackageReferenceRow[]): MunkiPackageReferenceMutation[] {
+  const out: MunkiPackageReferenceMutation[] = [];
   for (const row of rows) {
     if (row.software_id) {
       out.push({
@@ -559,7 +559,7 @@ export function toggleArray<T>(values: T[], value: T, enabled: boolean) {
 }
 
 export function packageLabel(pkg: MunkiPackage) {
-  return `${pkg.software_display_name || pkg.software_name} ${pkg.version}`;
+  return `${pkg.software_name} ${pkg.version}`;
 }
 
 function isArchitecture(value: string): value is Architecture {

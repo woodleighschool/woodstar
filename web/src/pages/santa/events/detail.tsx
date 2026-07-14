@@ -19,7 +19,6 @@ import { useSantaEvent } from "@/hooks/use-santa-events";
 import type { SantaExecutionEvent as SantaEvent } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
-import { executableLabel, fileName } from "./decisions";
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
 export function SantaEventDetailPage() {
@@ -71,8 +70,8 @@ export function SantaEventDetailPage() {
             <FileCode2 className="size-6 text-muted-foreground" />
           </div>
         }
-        title={executableLabel(event)}
-        description={event.file_path || event.executable.sha256}
+        title="Execution"
+        description={event.file_path}
         context={<ExecutionDecisionBadge decision={event.decision} />}
       />
 
@@ -138,10 +137,7 @@ function BinaryCard({ event }: { event: SantaEvent }) {
       </CardHeader>
       <CardContent>
         <KeyValueGrid>
-          <KeyValueItem
-            label="File Name"
-            value={executable.file_name || fileName(event.file_path)}
-          />
+          <KeyValueItem label="File Name" value={executable.file_name} />
           <KeyValueItem label="Path" value={event.file_path} />
           <KeyValueItem label="SHA-256" value={executable.sha256} />
           <KeyValueItem label="CDHash" value={executable.cdhash} />
@@ -223,6 +219,7 @@ function SigningChainTable({
           <TableRow>
             <TableHead>Certificate</TableHead>
             <TableHead>Organization</TableHead>
+            <TableHead>Organizational Unit</TableHead>
             <TableHead>SHA-256</TableHead>
             <TableHead>Valid From</TableHead>
             <TableHead>Valid Until</TableHead>
@@ -235,7 +232,10 @@ function SigningChainTable({
                 {cert.common_name ?? "-"}
               </TableCell>
               <TableCell className="min-w-40 whitespace-normal">
-                {cert.organization ?? cert.organizational_unit ?? "-"}
+                {cert.organization ?? "-"}
+              </TableCell>
+              <TableCell className="min-w-40 whitespace-normal">
+                {cert.organizational_unit ?? "-"}
               </TableCell>
               <TableCell className="min-w-64 whitespace-normal">
                 <ValueText value={cert.sha256} />

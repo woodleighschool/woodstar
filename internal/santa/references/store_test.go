@@ -26,8 +26,8 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 
 	var titleID int64
 	if err := db.Pool().QueryRow(ctx, `
-		INSERT INTO software_titles (name, display_name, source, bundle_identifier)
-		VALUES ('Reference App', 'Reference App', 'apps', 'com.example.reference')
+		INSERT INTO software_titles (name, source, bundle_identifier)
+		VALUES ('Reference App', 'apps', 'com.example.reference')
 		RETURNING id
 	`).Scan(&titleID); err != nil {
 		t.Fatalf("insert software title: %v", err)

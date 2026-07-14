@@ -12,6 +12,7 @@ import (
 const munkiReceiptPackageIDKey = "package" + "id"
 
 func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
+	displayName := "Example App"
 	forceInstallAfter := time.Date(2026, 6, 9, 10, 30, 0, 0, time.UTC)
 	installerHash := "installer-sha"
 	iconHash := "abc123"
@@ -21,7 +22,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		ID:                     12,
 		SoftwareID:             7,
 		SoftwareName:           "com.example.app",
-		SoftwareDisplayName:    "Example App",
+		SoftwareDisplayName:    &displayName,
 		SoftwareDescription:    "Managed by Woodstar",
 		SoftwareCategory:       "Utilities",
 		SoftwareDeveloper:      "Example Co",
@@ -74,7 +75,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		},
 	}))
 
-	if got["name"] != "7" || got["display_name"] != "Example App" || got["OnDemand"] != true {
+	if got["name"] != "com.example.app" || got["display_name"] != "Example App" || got["OnDemand"] != true {
 		t.Fatalf("pkginfo identity = %+v, want Munki keys and casing", got)
 	}
 	if _, ok := got["installer_type"]; ok {
@@ -111,14 +112,14 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	}
 	if requires, ok := stringSlice(got["requires"]); !ok ||
 		len(requires) != 2 ||
-		requires[0] != "8" ||
-		requires[1] != "8--2.0" {
-		t.Fatalf("requires = %#v, want stable unversioned and versioned Munki software IDs", got["requires"])
+		requires[0] != "Dependency" ||
+		requires[1] != "Dependency--2.0" {
+		t.Fatalf("requires = %#v, want unversioned and versioned Munki software names", got["requires"])
 	}
 	if updateFor, ok := stringSlice(got["update_for"]); !ok ||
 		len(updateFor) != 1 ||
-		updateFor[0] != "9" {
-		t.Fatalf("update_for = %#v, want stable unversioned Munki software ID", got["update_for"])
+		updateFor[0] != "Updater Target" {
+		t.Fatalf("update_for = %#v, want Munki software name", got["update_for"])
 	}
 	installs := mapSlice(t, got["installs"])
 	if installs[0]["CFBundleIdentifier"] != "com.example.app" {

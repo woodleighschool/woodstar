@@ -44,7 +44,7 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
       {
         accessorKey: "name",
         header: () => "Name",
-        cell: ({ row }) => row.original.name || "-",
+        cell: ({ row }) => row.original.name,
       },
       {
         accessorKey: "identifier",

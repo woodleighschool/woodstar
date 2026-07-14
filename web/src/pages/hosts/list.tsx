@@ -292,7 +292,7 @@ function softwareFilterLabel({
   softwareTitleID: number | undefined;
 }) {
   if (softwareID === undefined && softwareTitleID === undefined) return undefined;
-  const titleName = title?.display_name ?? title?.name;
+  const titleName = title?.name;
   if (softwareID !== undefined && titleName) return `${titleName} version`;
   if (titleName) return titleName;
   if (softwareID !== undefined) return `Version #${softwareID}`;

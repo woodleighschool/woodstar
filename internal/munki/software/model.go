@@ -1,16 +1,20 @@
 package software
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
-// Mutation is the input shape for creating or updating Munki software.
-type Mutation struct {
+// CreateMutation is the input shape for creating Munki software.
+type CreateMutation struct {
 	Name         string  `json:"name"                     minLength:"1" validate:"required,notblank"`
 	DisplayName  string  `json:"display_name,omitempty"`
 	Description  string  `json:"description,omitempty"`
@@ -20,18 +24,21 @@ type Mutation struct {
 	Targets      Targets `json:"targets"                                                                         nullable:"false"`
 }
 
-func (m *Mutation) validate() error {
+func (m *CreateMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	if err := validateName(m.Name); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return nil
 }
 
-func (m *Mutation) normalize() {
-	m.Name = strings.TrimSpace(m.Name)
+func (m *CreateMutation) normalize() {
+	m.Name = norm.NFC.String(strings.TrimSpace(m.Name))
 	m.DisplayName = strings.TrimSpace(m.DisplayName)
-	if m.DisplayName == "" {
-		m.DisplayName = m.Name
+	if m.DisplayName == m.Name {
+		m.DisplayName = ""
 	}
 	m.Description = strings.TrimSpace(m.Description)
 	m.Category = strings.TrimSpace(m.Category)
@@ -39,11 +46,54 @@ func (m *Mutation) normalize() {
 	m.Targets = normalizeTargets(m.Targets)
 }
 
+// UpdateMutation is the input shape for updating mutable Munki software metadata.
+type UpdateMutation struct {
+	DisplayName  string  `json:"display_name,omitempty"`
+	Description  string  `json:"description,omitempty"`
+	Category     string  `json:"category,omitempty"`
+	Developer    string  `json:"developer,omitempty"`
+	IconObjectID *int64  `json:"icon_object_id,omitempty" validate:"omitempty,gt=0" minimum:"1"`
+	Targets      Targets `json:"targets"                                                        nullable:"false"`
+}
+
+func (m *UpdateMutation) validate() error {
+	if err := validation.Struct(m); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
+}
+
+func (m *UpdateMutation) normalize(name string) {
+	m.DisplayName = strings.TrimSpace(m.DisplayName)
+	if m.DisplayName == name {
+		m.DisplayName = ""
+	}
+	m.Description = strings.TrimSpace(m.Description)
+	m.Category = strings.TrimSpace(m.Category)
+	m.Developer = strings.TrimSpace(m.Developer)
+	m.Targets = normalizeTargets(m.Targets)
+}
+
+func validateName(name string) error {
+	if strings.Contains(name, "/") {
+		return errors.New("name must not contain a slash")
+	}
+	for _, delimiter := range []string{"--", "-"} {
+		parts := strings.Split(name, delimiter)
+		last := parts[len(parts)-1]
+		first, _ := utf8.DecodeRuneInString(last)
+		if len(parts) > 1 && first >= '0' && first <= '9' {
+			return errors.New("name must not end with a Munki version suffix")
+		}
+	}
+	return nil
+}
+
 // Software is Woodstar-managed metadata for a Munki software item.
 type Software struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
-	DisplayName  string    `json:"display_name"`
+	DisplayName  *string   `json:"display_name,omitempty"`
 	Description  string    `json:"description"`
 	Category     string    `json:"category"`
 	Developer    string    `json:"developer"`
