@@ -8,43 +8,6 @@ const __dirname = import.meta.dirname;
 const workspaceRoot = path.resolve(__dirname, "..");
 
 export default defineConfig({
-  build: {
-    chunkSizeWarningLimit: 750,
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          groups: [
-            {
-              name: "react-vendor",
-              priority: 30,
-              test: /node_modules[\\/](react|react-dom|react-hook-form)([\\/]|$)/,
-            },
-            {
-              name: "tanstack",
-              priority: 20,
-              test: /node_modules[\\/]@tanstack[\\/]/,
-            },
-            {
-              name: "editor",
-              priority: 15,
-              test: /node_modules[\\/](@codemirror|@uiw|@lezer)[\\/]/,
-            },
-            {
-              name: "ui-vendor",
-              priority: 10,
-              test: /node_modules[\\/](@base-ui|radix-ui|lucide-react|cmdk|motion)([\\/]|$)/,
-            },
-            {
-              name: "content-vendor",
-              priority: 5,
-              test: /node_modules[\\/](react-markdown|zod|date-fns)([\\/]|$)/,
-            },
-          ],
-        },
-      },
-    },
-    sourcemap: false,
-  },
   plugins: [
     react({
       jsxRuntime: "automatic",
