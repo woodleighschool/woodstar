@@ -122,16 +122,9 @@ const packageIdentitySchema = z.object({
   version: requiredString("Version"),
 });
 
-export function packageFormSchema(hasInstallerFile: boolean) {
+export function packageFormSchema() {
   return packageIdentitySchema.passthrough().superRefine((value, ctx) => {
     const form = value as unknown as PackageFormState;
-    if (form.installer_type !== "nopkg" && !hasInstallerFile) {
-      ctx.addIssue({
-        code: "custom",
-        message: `${installerTypeLabel(form.installer_type)} packages require an installer file.`,
-        path: ["installer_type"],
-      });
-    }
     if (
       form.installer_type === "copy_from_dmg" &&
       cleanItemsToCopy(form.items_to_copy).length === 0
@@ -151,14 +144,6 @@ export function packageFormSchema(hasInstallerFile: boolean) {
           path: ["installer_choices_xml"],
         });
       }
-    }
-    if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "No package items require an install check script, installs, receipts, or On Demand.",
-        path: ["installcheck_script"],
-      });
     }
     if (
       form.uninstallable &&
@@ -196,14 +181,8 @@ export function packageFormSchema(hasInstallerFile: boolean) {
   });
 }
 
-export function validatePackageForm({
-  value,
-  hasInstallerFile,
-}: {
-  value: PackageFormState;
-  hasInstallerFile: boolean;
-}) {
-  const result = packageFormSchema(hasInstallerFile).safeParse(value);
+export function validatePackageForm(value: PackageFormState) {
+  const result = packageFormSchema().safeParse(value);
   if (result.success) return undefined;
   return { fields: fieldErrors(result) };
 }
@@ -290,8 +269,8 @@ export function emptyPackageForm(): PackageFormState {
     requires: [],
     update_for: [],
     eligible: true,
-    unattended_install: true,
-    unattended_uninstall: true,
+    unattended_install: false,
+    unattended_uninstall: false,
     on_demand: false,
     precache: false,
     autoremove: false,
@@ -547,26 +526,6 @@ function numberValue(value: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-function hasNoPkgEvidence(form: PackageFormState) {
-  return (
-    nonEmpty(form.installcheck_script) !== undefined ||
-    cleanInstallItems(form.installs).length > 0 ||
-    cleanReceipts(form.receipts).length > 0 ||
-    form.on_demand
-  );
-}
-
-function installerTypeLabel(installerType: MunkiInstallerType) {
-  switch (installerType) {
-    case "pkg":
-      return "Package";
-    case "copy_from_dmg":
-      return "Copy from DMG";
-    case "nopkg":
-      return "No package";
-  }
 }
 
 export function numberOrUndefined(value: string) {

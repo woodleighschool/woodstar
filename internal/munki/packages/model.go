@@ -315,8 +315,35 @@ func (m PackageCreateMutation) validate() error {
 }
 
 func (m *PackageMutation) validateRelations() error {
-	if m.UninstallMethod == UninstallMethodRemoveCopiedItems && len(m.ItemsToCopy) == 0 {
-		return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
+	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
+		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", dbutil.ErrInvalidInput)
+	}
+	switch m.UninstallMethod {
+	case UninstallMethodRemovePackages:
+		if len(m.Receipts) == 0 {
+			return fmt.Errorf("%w: removepackages requires receipts", dbutil.ErrInvalidInput)
+		}
+	case UninstallMethodRemoveCopiedItems:
+		if len(m.ItemsToCopy) == 0 {
+			return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
+		}
+	case UninstallMethodUninstallScript:
+		if strings.TrimSpace(m.UninstallScript) == "" {
+			return fmt.Errorf("%w: uninstall_script requires uninstall_script", dbutil.ErrInvalidInput)
+		}
+	}
+
+	environmentNames := make(map[string]struct{}, len(m.InstallerEnvironment))
+	for _, variable := range m.InstallerEnvironment {
+		name := strings.TrimSpace(variable.Name)
+		if _, exists := environmentNames[name]; exists {
+			return fmt.Errorf(
+				"%w: installer_environment contains duplicate name %q",
+				dbutil.ErrInvalidInput,
+				name,
+			)
+		}
+		environmentNames[name] = struct{}{}
 	}
 	if m.BlockingApplicationsNone && len(m.BlockingApplications) > 0 {
 		return fmt.Errorf(

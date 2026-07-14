@@ -34,24 +34,20 @@ export function MunkiPackageCreatePage() {
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
-  const form = usePackageEditorForm(
-    emptyPackageForm(),
-    async (value) => {
-      if (softwareID === null) {
-        toast.error("Pick software.");
-        return;
-      }
-      const pkg = await create.mutateAsync({
-        software_id: softwareID,
-        ...packageMutationFromForm(value),
-      });
-      if (value.installer_type !== "nopkg" && installerFile) {
-        await installerUpload.upload({ packageId: pkg.id, file: installerFile });
-      }
-      void navigate({ to: "/munki/packages" });
-    },
-    { hasInstallerFile: !!installerFile },
-  );
+  const form = usePackageEditorForm(emptyPackageForm(), async (value) => {
+    if (softwareID === null) {
+      toast.error("Pick software.");
+      return;
+    }
+    const pkg = await create.mutateAsync({
+      software_id: softwareID,
+      ...packageMutationFromForm(value),
+    });
+    if (value.installer_type !== "nopkg" && installerFile) {
+      await installerUpload.upload({ packageId: pkg.id, file: installerFile });
+    }
+    void navigate({ to: "/munki/packages" });
+  });
   const softwareRows = software.data?.items ?? [];
   const selectedSoftware = softwareRows.find((item) => item.id === softwareID) ?? null;
   const softwareInfo: SoftwareInfo | null = selectedSoftware

@@ -46,7 +46,24 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 		"remove copied items without items": func(m *PackageMutation) {
 			m.UninstallMethod = UninstallMethodRemoveCopiedItems
 		},
-		"env without name":   func(m *PackageMutation) { m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}} },
+		"copy from dmg without items": func(m *PackageMutation) {
+			m.InstallerType = InstallerTypeCopyFromDMG
+		},
+		"remove packages without receipts": func(m *PackageMutation) {
+			m.UninstallMethod = UninstallMethodRemovePackages
+		},
+		"uninstall script without script": func(m *PackageMutation) {
+			m.UninstallMethod = UninstallMethodUninstallScript
+		},
+		"env without name": func(m *PackageMutation) {
+			m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}}
+		},
+		"duplicate env name": func(m *PackageMutation) {
+			m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{
+				{Name: "PATH", Value: "/usr/bin"},
+				{Name: " PATH ", Value: "/usr/local/bin"},
+			}
+		},
 		"blank blocking app": func(m *PackageMutation) { m.BlockingApplications = []string{"  "} },
 		"blocking apps with none switch": func(m *PackageMutation) {
 			m.BlockingApplicationsNone = true

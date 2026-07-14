@@ -65,17 +65,13 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
     developer: pkg.software_developer,
     iconUrl: munkiSoftwareIconURL(pkg.software_id),
   };
-  const form = usePackageEditorForm(
-    initial,
-    async (value) => {
-      await update.mutateAsync({ id: packageID, body: packageMutationFromForm(value) });
-      if (value.installer_type !== "nopkg" && installerFile) {
-        await installerUpload.upload({ packageId: packageID, file: installerFile });
-      }
-      void navigate({ to: "/munki/packages" });
-    },
-    { hasInstallerFile: !!installerFile || !!pkg.installer_object_id },
-  );
+  const form = usePackageEditorForm(initial, async (value) => {
+    await update.mutateAsync({ id: packageID, body: packageMutationFromForm(value) });
+    if (value.installer_type !== "nopkg" && installerFile) {
+      await installerUpload.upload({ packageId: packageID, file: installerFile });
+    }
+    void navigate({ to: "/munki/packages" });
+  });
 
   return (
     <PackageForm
