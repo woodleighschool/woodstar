@@ -40,16 +40,11 @@ run = "mise run dev-backend ::: //web:dev"
 [tasks.dev-tls]
 description = "Generate repo-local development TLS files"
 run = """
-set -a
-[ ! -f .env ] || . ./.env
-set +a
-
 mkdir -p tmp/tls/ca
 CAROOT="$PWD/tmp/tls/ca" mkcert \
   -cert-file tmp/tls/woodstar.pem \
   -key-file tmp/tls/woodstar-key.pem \
-  localhost woodstar host.docker.internal 127.0.0.1 ::1 \
-  ${WOODSTAR_DEV_TLS_HOSTS:-} "$@"
+  woodstar
 """
 
 [tasks.dev-tls-trust]

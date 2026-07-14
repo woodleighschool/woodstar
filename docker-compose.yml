@@ -8,7 +8,7 @@ services:
     env_file: .env
     environment:
       WOODSTAR_PORT: 8080
-      WOODSTAR_URL: https://localhost:8080
+      WOODSTAR_URL: https://woodstar:8080
       WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
       WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
       WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem

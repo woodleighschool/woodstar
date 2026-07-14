@@ -19,13 +19,17 @@ mise run deps
 
 `mise run deps` pulls the Go modules and installs the frontend dependencies under `web/`.
 
-`mise run dev` runs `dev-tls` first. It creates a repo-local CA and regenerates the server certificate under `tmp/tls/`. Set every address used by external test clients in `.env`:
+`mise run dev` runs `dev-tls` first. It creates a repo-local CA and regenerates the server certificate for `woodstar` under `tmp/tls/`. Add that development hostname once on each machine that needs to reach the server:
 
 ```bash
-WOODSTAR_DEV_TLS_HOSTS='192.168.64.1 woodstar.test'
+# Development host
+127.0.0.1 woodstar
+
+# UTM client VM
+192.168.64.1 woodstar
 ```
 
-`WOODSTAR_DEV_TLS_HOSTS` is a space-separated list of IP addresses and DNS names. The address in `WOODSTAR_URL` must appear in the certificate. One-off names can also be passed to `mise run dev-tls -- <name>`.
+Use the first entry in the development host's `/etc/hosts` and the second in the VM's `/etc/hosts`. `WOODSTAR_URL` stays `https://woodstar:8443` on the host; the two machines resolve that same service identity to the address they can reach.
 
 The CA certificate is `tmp/tls/ca/rootCA.pem`. Its private key stays under the ignored `tmp/` directory. Regenerating the leaf certificate keeps the same repo-local CA, so clients only need that CA installed once.
 
@@ -53,7 +57,7 @@ mise //web:build
 
 WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable' \
 WOODSTAR_PORT=8443 \
-WOODSTAR_URL='https://localhost:8443' \
+WOODSTAR_URL='https://woodstar:8443' \
 WOODSTAR_TLS_CERT_FILE='./tmp/tls/woodstar.pem' \
 WOODSTAR_TLS_KEY_FILE='./tmp/tls/woodstar-key.pem' \
 WOODSTAR_SESSION_SECRET='replace-with-at-least-32-characters' \
@@ -68,14 +72,14 @@ This development command listens on `0.0.0.0:8443` and serves HTTPS. Leave both 
 mise run dev
 ```
 
-That ensures the development certificate and embedded frontend exist, then runs Vite on plain HTTP and the Go backend on HTTPS. `dev-backend` loads `.env` if it's there and runs Go through Air. Vite serves only the SPA and proxies `/api` to `https://localhost:8443`; Node receives the repo-local CA through `NODE_EXTRA_CA_CERTS`. You can run either side on its own after generating the certificate and frontend build:
+That ensures the development certificate and embedded frontend exist, then runs Vite on plain HTTP and the Go backend on HTTPS. `dev-backend` loads `.env` if it's there and runs Go through Air. Vite serves only the SPA and proxies `/api` to `https://woodstar:8443`; Node receives the repo-local CA through `NODE_EXTRA_CA_CERTS`. You can run either side on its own after generating the certificate and frontend build:
 
 ```bash
 mise run dev-backend
 mise //web:dev
 ```
 
-Open `https://localhost:8443` for the normal app and authentication flow. Use `http://localhost:5173` when working through Vite. A browser session through Vite needs `WOODSTAR_SESSION_COOKIE_SECURE=false`; OIDC through Vite also needs `WOODSTAR_OIDC_REDIRECT_URL=http://localhost:5173/api/auth/sso/callback`. Neither override is part of the example environment.
+Open `https://woodstar:8443` for the normal app and authentication flow. Use `http://localhost:5173` when working through Vite. A browser session through Vite needs `WOODSTAR_SESSION_COOKIE_SECURE=false`; OIDC through Vite also needs `WOODSTAR_OIDC_REDIRECT_URL=http://localhost:5173/api/auth/sso/callback`. Neither override is part of the example environment.
 
 ## Development certificate trust
 

@@ -35,7 +35,7 @@ export default defineConfig({
     proxy: {
       "/api": {
         changeOrigin: true,
-        target: "https://localhost:8443",
+        target: "https://woodstar:8443",
       },
     },
   },
