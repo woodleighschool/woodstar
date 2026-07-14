@@ -2,17 +2,8 @@
 
 CREATE TYPE santa_client_mode AS ENUM ('unknown', 'monitor', 'lockdown', 'standalone');
 CREATE TYPE santa_removable_media_action AS ENUM ('allow', 'block', 'remount');
-CREATE TYPE santa_file_access_action AS ENUM ('none', 'audit_only', 'disable');
 CREATE TYPE santa_rule_type AS ENUM ('binary', 'certificate', 'teamid', 'signingid', 'cdhash', 'bundle');
-CREATE TYPE santa_policy AS ENUM (
-    'allowlist',
-    'allowlist_compiler',
-    'blocklist',
-    'silent_blocklist',
-    'silent_gui_blocklist',
-    'silent_tty_blocklist',
-    'cel'
-);
+CREATE TYPE santa_policy AS ENUM ('allowlist', 'allowlist_compiler', 'blocklist', 'silent_blocklist', 'cel');
 CREATE TYPE santa_execution_decision AS ENUM (
     'unknown',
     'allow_unknown',
@@ -29,9 +20,7 @@ CREATE TYPE santa_execution_decision AS ENUM (
     'block_teamid',
     'block_signingid',
     'block_cdhash',
-    'bundle_binary',
-    'block_binary_mismatch',
-    'allow_platform'
+    'bundle_binary'
 );
 
 -- Santa host observation
@@ -44,6 +33,8 @@ CREATE TABLE santa_hosts (
     primary_user TEXT NOT NULL DEFAULT '',
     primary_user_groups TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     sip_status SMALLINT,
+    os_build TEXT NOT NULL DEFAULT '',
+    model_identifier TEXT NOT NULL DEFAULT '',
     last_seen_at TIMESTAMPTZ,
     enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -54,6 +45,7 @@ CREATE INDEX santa_hosts_serial_number_idx ON santa_hosts (serial_number);
 
 CREATE TABLE santa_sync_state (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
+    client_rules_hash TEXT NOT NULL DEFAULT '',
     pending_full_sync BOOLEAN NOT NULL DEFAULT FALSE,
     pending_payload_rule_count INT NOT NULL DEFAULT 0 CHECK (pending_payload_rule_count >= 0),
     pending_preflight_at TIMESTAMPTZ,
@@ -62,14 +54,11 @@ CREATE TABLE santa_sync_state (
     desired_teamid_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_teamid_rule_count >= 0),
     desired_signingid_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_signingid_rule_count >= 0),
     desired_cdhash_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_cdhash_rule_count >= 0),
-    desired_compiler_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_compiler_rule_count >= 0),
     binary_rule_count INT NOT NULL DEFAULT 0 CHECK (binary_rule_count >= 0),
     certificate_rule_count INT NOT NULL DEFAULT 0 CHECK (certificate_rule_count >= 0),
     teamid_rule_count INT NOT NULL DEFAULT 0 CHECK (teamid_rule_count >= 0),
     signingid_rule_count INT NOT NULL DEFAULT 0 CHECK (signingid_rule_count >= 0),
     cdhash_rule_count INT NOT NULL DEFAULT 0 CHECK (cdhash_rule_count >= 0),
-    compiler_rule_count INT NOT NULL DEFAULT 0 CHECK (compiler_rule_count >= 0),
-    transitive_rule_count INT NOT NULL DEFAULT 0 CHECK (transitive_rule_count >= 0),
     rules_received INT NOT NULL DEFAULT 0 CHECK (rules_received >= 0),
     rules_processed INT NOT NULL DEFAULT 0 CHECK (rules_processed >= 0),
     last_rule_sync_attempt_at TIMESTAMPTZ,
@@ -102,6 +91,29 @@ CREATE TABLE santa_sync_targets (
 CREATE INDEX santa_sync_targets_host_phase_idx
     ON santa_sync_targets (host_id, phase);
 
+CREATE TABLE santa_sync_pending_rules (
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    position INT NOT NULL CHECK (position >= 0),
+    rule_type santa_rule_type NOT NULL,
+    identifier TEXT NOT NULL,
+    policy santa_policy,
+    cel_expression TEXT NOT NULL DEFAULT '',
+    custom_message TEXT NOT NULL DEFAULT '',
+    custom_url TEXT NOT NULL DEFAULT '',
+    payload_hash TEXT NOT NULL DEFAULT '',
+    removed BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (host_id, position),
+    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL),
+    CHECK (
+        (removed AND policy IS NULL AND payload_hash = '')
+        OR (NOT removed AND policy IS NOT NULL AND NULLIF(btrim(payload_hash), '') IS NOT NULL)
+    )
+);
+
+CREATE UNIQUE INDEX santa_sync_pending_rules_host_identity_idx
+    ON santa_sync_pending_rules (host_id, rule_type, identifier);
+
 -- Santa configurations
 CREATE TABLE santa_configurations (
     id BIGSERIAL PRIMARY KEY,
@@ -112,8 +124,6 @@ CREATE TABLE santa_configurations (
     enable_bundles BOOLEAN NOT NULL,
     enable_transitive_rules BOOLEAN NOT NULL,
     enable_all_event_upload BOOLEAN NOT NULL,
-    disable_unknown_event_upload BOOLEAN NOT NULL,
-    override_file_access_action santa_file_access_action NOT NULL,
     full_sync_interval_seconds INT NOT NULL CHECK (full_sync_interval_seconds >= 60),
     batch_size INT NOT NULL CHECK (batch_size BETWEEN 5 AND 100),
     allowed_path_regex TEXT NOT NULL,

@@ -14,7 +14,3 @@ CREATE TABLE storage_objects (
 
 CREATE INDEX storage_objects_prefix_idx
     ON storage_objects (prefix);
-
--- +goose Down
-
-DROP TABLE storage_objects;
