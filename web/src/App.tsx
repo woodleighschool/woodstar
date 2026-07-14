@@ -6,6 +6,8 @@ import { ThemeProvider } from "next-themes";
 import { toast, Toaster } from "sonner";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { setUnauthorizedHandler } from "@/lib/api";
+import { expireSession } from "@/lib/session-expiry";
 import { router } from "@/router";
 
 declare module "@tanstack/react-query" {
@@ -39,6 +41,12 @@ const queryClient = new QueryClient({
     },
   }),
 });
+
+setUnauthorizedHandler(() =>
+  expireSession(queryClient, router.state.location.pathname, () =>
+    router.navigate({ to: "/login", replace: true }),
+  ),
+);
 
 export default function App() {
   return (

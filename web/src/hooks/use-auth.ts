@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
+import * as React from "react";
 
 import type { ApiError, LoginInputBody, SessionBody, SetupInputBody, User } from "@/lib/api";
 import { completeSetup, createSession, deleteSession, getSession, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { expireSession } from "@/lib/session-expiry";
 
 export type CurrentUser = NonNullable<SessionBody["user"]>;
 
@@ -21,13 +23,27 @@ export function useAuth(): { user: CurrentUser | null } {
   return { user: session?.user ?? null };
 }
 
+export function useSessionGuard(): void {
+  const { session } = useSession();
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (session && !session.user) {
+      expireSession(queryClient, router.state.location.pathname, () =>
+        router.navigate({ to: "/login", replace: true }),
+      );
+    }
+  }, [queryClient, router, session]);
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
   return useMutation({
     mutationFn: () => unwrap(deleteSession()),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+      queryClient.clear();
       await router.navigate({ to: "/login" });
     },
   });

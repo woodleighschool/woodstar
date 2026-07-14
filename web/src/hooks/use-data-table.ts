@@ -53,12 +53,27 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
     initialState?.columnVisibility ?? {},
   );
+  const { pagination, onPaginationChange } = tableState;
+
+  const normalizedPageCount = pageCount < 0 ? -1 : Math.max(1, pageCount);
+
+  React.useEffect(() => {
+    if (normalizedPageCount < 0) return;
+
+    const lastPageIndex = normalizedPageCount - 1;
+    if (pagination.pageIndex <= lastPageIndex) return;
+
+    onPaginationChange({
+      ...pagination,
+      pageIndex: lastPageIndex,
+    });
+  }, [normalizedPageCount, onPaginationChange, pagination]);
 
   return useReactTable({
     ...tableProps,
     columns,
     initialState,
-    pageCount,
+    pageCount: normalizedPageCount,
     state: {
       pagination: tableState.pagination,
       sorting: tableState.sorting,

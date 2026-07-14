@@ -4,10 +4,15 @@ import type {
   SortingState,
   Updater,
 } from "@tanstack/react-table";
-import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
+import { createParser, parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 import * as React from "react";
 
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  normalizePage,
+  normalizePageSize,
+} from "@/lib/pagination";
 import { getSortingStateParser, serializeSortingState } from "@/lib/parsers";
 
 // Encodes a single-column sort in the backend wire format.
@@ -42,8 +47,8 @@ export interface DataTableQuery {
 
 const baseParsers = {
   q: parseAsString,
-  page: parseAsInteger.withDefault(1),
-  per_page: parseAsInteger.withDefault(DEFAULT_PAGE_SIZE),
+  page: createBoundedIntegerParser(1).withDefault(1),
+  per_page: createBoundedIntegerParser(1, MAX_PAGE_SIZE).withDefault(DEFAULT_PAGE_SIZE),
   sort: getSortingStateParser().withDefault([]),
 };
 
@@ -88,7 +93,10 @@ export function useDataTableSearch(
     (updaterOrValue: Updater<PaginationState>) => {
       const next =
         typeof updaterOrValue === "function" ? updaterOrValue(pagination) : updaterOrValue;
-      void setBase({ page: next.pageIndex + 1, per_page: next.pageSize });
+      void setBase({
+        page: normalizePage(next.pageIndex + 1),
+        per_page: normalizePageSize(next.pageSize),
+      });
     },
     [pagination, setBase],
   );
@@ -136,4 +144,14 @@ export function useDataTableSearch(
 
 function singleSort(sorting: SortingState): SortingState {
   return sorting.length > 0 ? [sorting[0]] : [];
+}
+
+function createBoundedIntegerParser(min: number, max = Number.MAX_SAFE_INTEGER) {
+  return createParser({
+    parse: (value) => {
+      const parsed = Number(value);
+      return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+    },
+    serialize: String,
+  });
 }

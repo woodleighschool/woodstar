@@ -13,6 +13,17 @@ client.interceptors.request.use((request) => {
   return request;
 });
 
+let unauthorizedHandler: (() => void) | undefined;
+
+client.interceptors.response.use((response) => {
+  if (response.status === 401) unauthorizedHandler?.();
+  return response;
+});
+
+export function setUnauthorizedHandler(handler: () => void): void {
+  unauthorizedHandler = handler;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly body?: unknown;
@@ -41,14 +52,15 @@ type ResponseData<T extends ApiResult> =
 function describeError(body: unknown, status: number): string {
   if (body && typeof body === "object") {
     const huma = body as ErrorModel;
-    if (huma.detail) return huma.detail;
-    if (huma.title) return huma.title;
     if (huma.errors?.length) {
-      return huma.errors
+      const details = huma.errors
         .map((e) => (e.location ? `${e.location}: ${e.message ?? ""}` : (e.message ?? "")))
         .filter(Boolean)
         .join("; ");
+      if (details) return details;
     }
+    if (huma.detail) return huma.detail;
+    if (huma.title) return huma.title;
   }
   return `request failed (${status})`;
 }
