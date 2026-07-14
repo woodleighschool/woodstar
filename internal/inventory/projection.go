@@ -38,10 +38,9 @@ func replaceHostSoftwareEntry(ctx context.Context, tx pgx.Tx, hostID int64, entr
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-INSERT INTO host_software (host_id, software_id, last_seen_at, last_opened_at)
-VALUES ($1, $2, now(), $3)
+INSERT INTO host_software (host_id, software_id, last_opened_at)
+VALUES ($1, $2, $3)
 ON CONFLICT (host_id, software_id) DO UPDATE SET
-    last_seen_at = now(),
     last_opened_at = EXCLUDED.last_opened_at`,
 		hostID, softwareID, entry.LastOpenedAt,
 	); err != nil {
@@ -53,18 +52,17 @@ ON CONFLICT (host_id, software_id) DO UPDATE SET
 	_, err = tx.Exec(ctx, `
 INSERT INTO host_software_installed_paths (
     host_id, software_id, installed_path, team_identifier,
-    cdhash_sha256, executable_sha256, executable_path, last_seen_at
+    cdhash_sha256, executable_sha256, executable_path
 )
 VALUES (
     $1, $2, $3, $4,
-    NULLIF($5::text, ''), NULLIF($6::text, ''), NULLIF($7::text, ''), now()
+    NULLIF($5::text, ''), NULLIF($6::text, ''), NULLIF($7::text, '')
 )
 ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
     team_identifier = EXCLUDED.team_identifier,
     cdhash_sha256 = EXCLUDED.cdhash_sha256,
     executable_sha256 = EXCLUDED.executable_sha256,
-    executable_path = EXCLUDED.executable_path,
-    last_seen_at = now()`,
+    executable_path = EXCLUDED.executable_path`,
 		hostID, softwareID,
 		entry.InstalledPath, entry.TeamIdentifier,
 		entry.CDHashSHA256, entry.ExecutableSHA256, entry.ExecutablePath,

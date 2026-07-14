@@ -52,7 +52,6 @@ func TestItemsFromInstallRows(t *testing.T) {
 			"name":              "GoogleChrome",
 			"installed":         "true",
 			"installed_version": "148.0",
-			"end_time":          "2026-05-31 19:24:14 +1000",
 		},
 		{
 			"name":      "Optional App",
@@ -66,14 +65,8 @@ func TestItemsFromInstallRows(t *testing.T) {
 		got[0].InstalledVersion != "148.0" {
 		t.Fatalf("first item = %+v", got[0])
 	}
-	if !sameTime(got[0].RunEndedAt, "2026-05-31T09:24:14Z") {
-		t.Fatalf("first item run ended = %v, want parsed time", got[0].RunEndedAt)
-	}
 	if got[1].Installed {
 		t.Fatalf("second installed = true, want false")
-	}
-	if got[1].RunEndedAt != nil {
-		t.Fatalf("second run ended = %v, want nil", got[1].RunEndedAt)
 	}
 }
 

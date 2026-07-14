@@ -190,34 +190,30 @@ type HostPrimaryUser struct {
 
 // HostUser is one local account reported by osquery.
 type HostUser struct {
-	ID          int64     `json:"-"           db:"id"`
-	HostID      int64     `json:"-"           db:"host_id"`
-	UID         string    `json:"uid"         db:"uid"`
-	Username    string    `json:"username"    db:"username"`
-	Type        string    `json:"type"        db:"type"`
-	Description string    `json:"description" db:"description"`
-	Directory   string    `json:"directory"   db:"directory"`
-	Shell       string    `json:"shell"       db:"shell"`
-	CreatedAt   time.Time `json:"-"           db:"created_at"`
-	UpdatedAt   time.Time `json:"-"           db:"updated_at"`
+	ID          int64  `json:"-"           db:"id"`
+	HostID      int64  `json:"-"           db:"host_id"`
+	UID         string `json:"uid"         db:"uid"`
+	Username    string `json:"username"    db:"username"`
+	Type        string `json:"type"        db:"type"`
+	Description string `json:"description" db:"description"`
+	Directory   string `json:"directory"   db:"directory"`
+	Shell       string `json:"shell"       db:"shell"`
 }
 
 // HostBattery is one battery reported by osquery.
 type HostBattery struct {
-	ID               int64     `json:"-"                           db:"id"`
-	HostID           int64     `json:"-"                           db:"host_id"`
-	SerialNumber     string    `json:"serial_number"               db:"serial_number"`
-	Manufacturer     string    `json:"manufacturer"                db:"manufacturer"`
-	Model            string    `json:"model"                       db:"model"`
-	Chemistry        string    `json:"chemistry"                   db:"chemistry"`
-	CycleCount       *int32    `json:"cycle_count,omitempty"       db:"cycle_count"`
-	Health           string    `json:"health"                      db:"health"`
-	DesignedCapacity *int32    `json:"designed_capacity,omitempty" db:"designed_capacity"`
-	MaxCapacity      *int32    `json:"max_capacity,omitempty"      db:"max_capacity"`
-	CurrentCapacity  *int32    `json:"current_capacity,omitempty"  db:"current_capacity"`
-	PercentRemaining *float64  `json:"percent_remaining,omitempty" db:"percent_remaining"`
-	CreatedAt        time.Time `json:"-"                           db:"created_at"`
-	UpdatedAt        time.Time `json:"-"                           db:"updated_at"`
+	ID               int64    `json:"-"                           db:"id"`
+	HostID           int64    `json:"-"                           db:"host_id"`
+	SerialNumber     string   `json:"serial_number"               db:"serial_number"`
+	Manufacturer     string   `json:"manufacturer"                db:"manufacturer"`
+	Model            string   `json:"model"                       db:"model"`
+	Chemistry        string   `json:"chemistry"                   db:"chemistry"`
+	CycleCount       *int32   `json:"cycle_count,omitempty"       db:"cycle_count"`
+	Health           string   `json:"health"                      db:"health"`
+	DesignedCapacity *int32   `json:"designed_capacity,omitempty" db:"designed_capacity"`
+	MaxCapacity      *int32   `json:"max_capacity,omitempty"      db:"max_capacity"`
+	CurrentCapacity  *int32   `json:"current_capacity,omitempty"  db:"current_capacity"`
+	PercentRemaining *float64 `json:"percent_remaining,omitempty" db:"percent_remaining"`
 }
 
 // HostCertificate is one system or user certificate reported by osquery.
@@ -239,8 +235,6 @@ type HostCertificate struct {
 	Source               string          `json:"source"`
 	Username             string          `json:"username"`
 	Path                 string          `json:"-"`
-	CreatedAt            time.Time       `json:"-"`
-	UpdatedAt            time.Time       `json:"-"`
 }
 
 // CertificateName is the structured subject or issuer name for a certificate.

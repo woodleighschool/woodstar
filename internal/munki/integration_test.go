@@ -1228,7 +1228,7 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		t.Fatalf("upsert munki host status: %v", err)
 	}
 	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.Item{
-		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0", RunEndedAt: &runEndedAt},
+		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0"},
 		{Name: "Optional App", Installed: false},
 	}); err != nil {
 		t.Fatalf("replace munki host items: %v", err)
@@ -1254,13 +1254,6 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		detail.RunEndedAt == nil || !detail.RunEndedAt.Equal(runEndedAt) {
 		t.Fatalf("detail run times = %v/%v, want stored timestamps", detail.RunStartedAt, detail.RunEndedAt)
 	}
-	if detail.Items[0].RunEndedAt == nil || !detail.Items[0].RunEndedAt.Equal(runEndedAt) {
-		t.Fatalf("item run ended = %v, want stored timestamp", detail.Items[0].RunEndedAt)
-	}
-	if detail.Items[1].RunEndedAt != nil {
-		t.Fatalf("optional item run ended = %v, want nil", detail.Items[1].RunEndedAt)
-	}
-
 	if err := stores.hoststate.ReplaceHostItems(
 		ctx,
 		host.ID,

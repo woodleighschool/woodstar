@@ -105,6 +105,50 @@ func TestDetailQueriesDueWhenHashChanges(t *testing.T) {
 	}
 }
 
+func TestDetailQueryHashIncludesEveryQueryContract(t *testing.T) {
+	base := DetailQuery{
+		SQL:       "SELECT value FROM example",
+		Discovery: "SELECT 1 FROM osquery_registry",
+		Optional:  true,
+		Ingest:    IngestMunkiInstalls,
+	}
+	baseHash := hashDetailQueries(map[string]DetailQuery{"example": base})
+
+	tests := map[string]DetailQuery{
+		"SQL": {
+			SQL:       "SELECT other FROM example",
+			Discovery: base.Discovery,
+			Optional:  base.Optional,
+			Ingest:    base.Ingest,
+		},
+		"discovery": {
+			SQL:       base.SQL,
+			Discovery: "SELECT 1",
+			Optional:  base.Optional,
+			Ingest:    base.Ingest,
+		},
+		"optional": {
+			SQL:       base.SQL,
+			Discovery: base.Discovery,
+			Optional:  false,
+			Ingest:    base.Ingest,
+		},
+		"ingest": {
+			SQL:       base.SQL,
+			Discovery: base.Discovery,
+			Optional:  base.Optional,
+			Ingest:    IngestMunkiInfo,
+		},
+	}
+	for name, changed := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := hashDetailQueries(map[string]DetailQuery{"example": changed}); got == baseHash {
+				t.Fatalf("hash unchanged after %s contract changed", name)
+			}
+		})
+	}
+}
+
 func TestDetailQueriesUseExplicitColumns(t *testing.T) {
 	for name, query := range DetailQueries() {
 		upperSQL := strings.ToUpper(query.SQL)
@@ -194,10 +238,13 @@ func TestMunkiQueriesProjectStatusShape(t *testing.T) {
 	}
 
 	installsSQL := DetailQueries()[QueryMunkiInstalls].SQL
-	for _, want := range []string{"name", "installed", "installed_version", "end_time"} {
+	for _, want := range []string{"name", "installed", "installed_version"} {
 		if !strings.Contains(installsSQL, want) {
 			t.Fatalf("munki_installs SQL missing %q: %s", want, installsSQL)
 		}
+	}
+	if strings.Contains(installsSQL, "end_time") {
+		t.Fatalf("munki_installs SQL includes report-level end_time: %s", installsSQL)
 	}
 }
 

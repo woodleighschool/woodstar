@@ -24,7 +24,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSoftwareSantaReference, useSoftwareTitle } from "@/hooks/use-software";
 import type { SantaRule, SantaSoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
 import { ruleTypeLabel } from "@/lib/santa-rules";
-import { formatDateTime, formatRelative } from "@/lib/utils";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 
 type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
@@ -34,10 +33,14 @@ type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_iden
 type SantaRuleType = SantaRule["rule_type"];
 
 export function SoftwareDetailPage() {
-  const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
+  const { softwareId } = useParams({
+    from: "/_authenticated/software/titles/$softwareId",
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const query = useSoftwareTitle(Number(softwareId), { refetchInterval: 30_000 });
+  const query = useSoftwareTitle(Number(softwareId), {
+    refetchInterval: 30_000,
+  });
   const title = query.data;
 
   if (query.error || !title) {
@@ -67,7 +70,7 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-center gap-4">
         <SoftwareIcon source={title.source} size="lg" />
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-xl font-semibold text-foreground" title={title.name}>
               {title.name}
@@ -76,15 +79,6 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
               {typeLabel}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {title.counts_updated_at ? (
-              <span title={formatDateTime(title.counts_updated_at)}>
-                Counts updated {formatRelative(title.counts_updated_at)}
-              </span>
-            ) : (
-              "Counts not yet computed"
-            )}
-          </p>
         </div>
       </div>
       <Button asChild variant="outline" size="sm">

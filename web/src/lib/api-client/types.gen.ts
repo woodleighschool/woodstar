@@ -377,7 +377,6 @@ export type MunkiDistributionPointReorderBody = {
 export type MunkiHostState = {
     errors: Array<string>;
     items: Array<MunkiItem>;
-    last_seen_at: string;
     manifest_name: string;
     problem_installs: Array<string>;
     run_ended_at?: string;
@@ -409,9 +408,7 @@ export type MunkiInstallerFile = {
 export type MunkiItem = {
     installed: boolean;
     installed_version: string;
-    last_seen_at: string;
     name: string;
-    run_ended_at?: string;
 };
 
 export type MunkiObjectView = {
@@ -1261,7 +1258,6 @@ export type SetupInputBody = {
 export type SoftwareTitle = {
     browser: string;
     bundle_identifier?: string;
-    counts_updated_at: string | null;
     extension_for: string;
     hosts_count: number;
     id: number;

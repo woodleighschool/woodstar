@@ -481,8 +481,7 @@ ON CONFLICT (host_id, uid, username) DO UPDATE SET
 	type = EXCLUDED.type,
 	description = EXCLUDED.description,
 	directory = EXCLUDED.directory,
-	shell = EXCLUDED.shell,
-	updated_at = now()`, pgx.StructArgs(newHostUserWrite(hostID, user))); err != nil {
+	shell = EXCLUDED.shell`, pgx.StructArgs(newHostUserWrite(hostID, user))); err != nil {
 				return err
 			}
 		}
@@ -537,8 +536,7 @@ ON CONFLICT (host_id, serial_number) DO UPDATE SET
 	designed_capacity = EXCLUDED.designed_capacity,
 	max_capacity = EXCLUDED.max_capacity,
 	current_capacity = EXCLUDED.current_capacity,
-	percent_remaining = EXCLUDED.percent_remaining,
-	updated_at = now()`,
+	percent_remaining = EXCLUDED.percent_remaining`,
 				pgx.StructArgs(newHostBatteryWrite(hostID, battery)),
 			); err != nil {
 				return err
@@ -626,8 +624,7 @@ ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
 	not_valid_before = EXCLUDED.not_valid_before,
 	serial = EXCLUDED.serial,
 	certificate_authority = EXCLUDED.certificate_authority,
-	path = EXCLUDED.path,
-	updated_at = now()`,
+	path = EXCLUDED.path`,
 				pgx.StructArgs(newHostCertificateWrite(hostID, certificate)),
 			); err != nil {
 				return err
@@ -639,7 +636,7 @@ ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
 
 func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
 	rows, err := s.db.Pool().Query(ctx, `
-SELECT id, host_id, uid, username, type, description, directory, shell, created_at, updated_at
+SELECT id, host_id, uid, username, type, description, directory, shell
 FROM host_users
 WHERE host_id = $1
 ORDER BY username, uid, id`,
@@ -655,8 +652,7 @@ func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery,
 	rows, err := s.db.Pool().Query(ctx, `
 SELECT
 	id, host_id, serial_number, manufacturer, model, chemistry, cycle_count,
-	health, designed_capacity, max_capacity, current_capacity, percent_remaining,
-	created_at, updated_at
+	health, designed_capacity, max_capacity, current_capacity, percent_remaining
 FROM host_batteries
 WHERE host_id = $1
 ORDER BY serial_number, id`,
@@ -676,7 +672,7 @@ SELECT
 	issuer_country, issuer_organization, issuer_organizational_unit, issuer_common_name,
 	key_algorithm, key_strength, key_usage, signing_algorithm,
 	not_valid_after, not_valid_before, serial, certificate_authority,
-	source, username, path, created_at, updated_at
+	source, username, path
 FROM host_certificates
 WHERE host_id = $1
 ORDER BY common_name, sha1, id`,
@@ -1217,8 +1213,6 @@ type hostCertificateRow struct {
 	Source                    string     `db:"source"`
 	Username                  string     `db:"username"`
 	Path                      string     `db:"path"`
-	CreatedAt                 time.Time  `db:"created_at"`
-	UpdatedAt                 time.Time  `db:"updated_at"`
 }
 
 func hostCertificateFromRow(row hostCertificateRow) HostCertificate {
@@ -1250,7 +1244,5 @@ func hostCertificateFromRow(row hostCertificateRow) HostCertificate {
 		Source:               row.Source,
 		Username:             row.Username,
 		Path:                 row.Path,
-		CreatedAt:            row.CreatedAt,
-		UpdatedAt:            row.UpdatedAt,
 	}
 }

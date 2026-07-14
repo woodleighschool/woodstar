@@ -30,8 +30,7 @@ INSERT INTO munki_host_status (
 	warnings,
 	problem_installs,
 	run_started_at,
-	run_ended_at,
-	last_seen_at
+	run_ended_at
 )
 VALUES (
 	@host_id,
@@ -42,8 +41,7 @@ VALUES (
 	@warnings,
 	@problem_installs,
 	@run_started_at::timestamptz,
-	@run_ended_at::timestamptz,
-	now()
+	@run_ended_at::timestamptz
 )
 ON CONFLICT (host_id) DO UPDATE SET
 	version = EXCLUDED.version,
@@ -53,9 +51,7 @@ ON CONFLICT (host_id) DO UPDATE SET
 	warnings = EXCLUDED.warnings,
 	problem_installs = EXCLUDED.problem_installs,
 	run_started_at = EXCLUDED.run_started_at,
-	run_ended_at = EXCLUDED.run_ended_at,
-	last_seen_at = now(),
-	updated_at = now()`,
+	run_ended_at = EXCLUDED.run_ended_at`,
 		pgx.NamedArgs{
 			"host_id":          observation.HostID,
 			"version":          observation.Version,
@@ -91,30 +87,22 @@ INSERT INTO munki_host_items (
 	host_id,
 	name,
 	installed,
-	installed_version,
-	run_ended_at,
-	last_seen_at
+	installed_version
 )
 VALUES (
 	@host_id,
 	@name,
 	@installed,
-	@installed_version,
-	@run_ended_at::timestamptz,
-	now()
+	@installed_version
 )
 ON CONFLICT (host_id, name) DO UPDATE SET
 	installed = EXCLUDED.installed,
-	installed_version = EXCLUDED.installed_version,
-	run_ended_at = EXCLUDED.run_ended_at,
-	last_seen_at = now(),
-	updated_at = now()`,
+	installed_version = EXCLUDED.installed_version`,
 				pgx.NamedArgs{
 					"host_id":           hostID,
 					"name":              item.Name,
 					"installed":         item.Installed,
 					"installed_version": item.InstalledVersion,
-					"run_ended_at":      item.RunEndedAt,
 				}); err != nil {
 				return err
 			}
@@ -133,12 +121,11 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		ProblemInstalls []string   `db:"problem_installs"`
 		RunStartedAt    *time.Time `db:"run_started_at"`
 		RunEndedAt      *time.Time `db:"run_ended_at"`
-		LastSeenAt      time.Time  `db:"last_seen_at"`
 	}
 
 	statusRows, err := s.db.Pool().Query(ctx, `
 		SELECT version, manifest_name, success, errors, warnings, problem_installs,
-		       run_started_at, run_ended_at, last_seen_at
+		       run_started_at, run_ended_at
 		FROM munki_host_status
 		WHERE host_id = $1`,
 		hostID,
@@ -155,7 +142,7 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	}
 
 	itemRows, err := s.db.Pool().Query(ctx, `
-		SELECT host_id, name, installed, installed_version, run_ended_at, last_seen_at
+		SELECT host_id, name, installed, installed_version
 		FROM munki_host_items
 		WHERE host_id = $1
 		ORDER BY lower(name), name`,
@@ -165,12 +152,10 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		return nil, err
 	}
 	type itemRow struct {
-		HostID           int64      `db:"host_id"`
-		Name             string     `db:"name"`
-		Installed        bool       `db:"installed"`
-		InstalledVersion string     `db:"installed_version"`
-		RunEndedAt       *time.Time `db:"run_ended_at"`
-		LastSeenAt       time.Time  `db:"last_seen_at"`
+		HostID           int64  `db:"host_id"`
+		Name             string `db:"name"`
+		Installed        bool   `db:"installed"`
+		InstalledVersion string `db:"installed_version"`
 	}
 	scannedItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[itemRow])
 	if err != nil {
@@ -190,7 +175,6 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		ProblemInstalls: dbutil.NonNilSlice(status.ProblemInstalls),
 		RunStartedAt:    status.RunStartedAt,
 		RunEndedAt:      status.RunEndedAt,
-		LastSeenAt:      status.LastSeenAt,
 		Items:           items,
 	}, nil
 }

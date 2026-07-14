@@ -78,7 +78,6 @@ type SoftwareTitle struct {
 	Vendor           string            `db:"vendor"            json:"-"`
 	HostsCount       int32             `db:"hosts_count"       json:"hosts_count"`
 	VersionsCount    int32             `db:"versions_count"    json:"versions_count"`
-	CountsUpdatedAt  *time.Time        `db:"counts_updated_at" json:"counts_updated_at"`
 	Versions         []SoftwareVersion `db:"-"                 json:"versions"`
 }
 

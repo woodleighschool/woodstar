@@ -17,12 +17,10 @@ type HostObservation struct {
 
 // Item is one Munki-managed item observed on a host.
 type Item struct {
-	HostID           int64      `json:"-"`
-	Name             string     `json:"name"`
-	Installed        bool       `json:"installed"`
-	InstalledVersion string     `json:"installed_version"`
-	RunEndedAt       *time.Time `json:"run_ended_at,omitempty"`
-	LastSeenAt       time.Time  `json:"last_seen_at"`
+	HostID           int64  `json:"-"`
+	Name             string `json:"name"`
+	Installed        bool   `json:"installed"`
+	InstalledVersion string `json:"installed_version"`
 }
 
 // HostState is the Munki sub-object attached to host detail responses.
@@ -35,6 +33,5 @@ type HostState struct {
 	ProblemInstalls []string   `json:"problem_installs"`
 	RunStartedAt    *time.Time `json:"run_started_at,omitempty"`
 	RunEndedAt      *time.Time `json:"run_ended_at,omitempty"`
-	LastSeenAt      time.Time  `json:"last_seen_at"`
 	Items           []Item     `json:"items"`
 }

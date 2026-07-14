@@ -14,7 +14,6 @@ import type { MunkiHostState } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
-  const items = munki.items ?? [];
   const problems = [
     ...problemRows("Errors", munki.errors),
     ...problemRows("Warnings", munki.warnings),
@@ -29,7 +28,6 @@ export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
             <KeyValueItem label="Version" value={munki.version} />
             <KeyValueItem label="Manifest" value={munki.manifest_name} />
             <KeyValueItem label="Status" value={<MunkiStatusBadge munki={munki} />} />
-            <KeyValueItem label="Last Seen" value={formatRelative(munki.last_seen_at)} />
             <KeyValueItem label="Last Run Started" value={formatRelative(munki.run_started_at)} />
             <KeyValueItem label="Last Run Ended" value={formatRelative(munki.run_ended_at)} />
           </KeyValueGrid>
@@ -64,23 +62,21 @@ export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
           <CardTitle>Managed Items</CardTitle>
         </CardHeader>
         <CardContent>
-          {items.length > 0 ? (
+          {munki.items.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Version</TableHead>
-                  <TableHead>Last Seen</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {munki.items.map((item) => (
                   <TableRow key={item.name}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.installed ? "Installed" : "Pending"}</TableCell>
-                    <TableCell>{item.installed_version || "-"}</TableCell>
-                    <TableCell>{formatRelative(item.last_seen_at)}</TableCell>
+                    <TableCell>{item.installed_version}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -107,6 +103,6 @@ function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
   return <Badge variant="outline">OK</Badge>;
 }
 
-function problemRows(kind: string, values: string[] | null | undefined) {
-  return (values ?? []).map((value) => ({ kind, value }));
+function problemRows(kind: string, values: string[]) {
+  return values.map((value) => ({ kind, value }));
 }

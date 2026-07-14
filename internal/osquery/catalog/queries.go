@@ -233,14 +233,19 @@ func DetailQueryHash() string {
 }
 
 func hashDetailQueries(registry map[string]DetailQuery) string {
-	names := make([]string, 0, len(registry))
+	contracts := make([]string, 0, len(registry))
 	for name, query := range registry {
-		if !query.Optional {
-			names = append(names, name+"\x00"+query.SQL)
-		}
+		contracts = append(contracts, fmt.Sprintf(
+			"%s\x00%s\x00%s\x00%t\x00%s",
+			name,
+			query.SQL,
+			query.Discovery,
+			query.Optional,
+			query.Ingest,
+		))
 	}
-	sort.Strings(names)
-	sum := sha256.Sum256([]byte(strings.Join(names, "\x00")))
+	sort.Strings(contracts)
+	sum := sha256.Sum256([]byte(strings.Join(contracts, "\x00")))
 	return hex.EncodeToString(sum[:])
 }
 

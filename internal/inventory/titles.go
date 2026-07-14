@@ -66,11 +66,10 @@ func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []an
 		GroupBySQL: "GROUP BY st.id",
 		Args:       args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":              {SQL: "lower(st.name)"},
-			"source":            {SQL: "lower(st.source)"},
-			"hosts_count":       {SQL: "hosts_count"},
-			"versions_count":    {SQL: "versions_count"},
-			"counts_updated_at": {SQL: "counts_updated_at", NullOrder: dbutil.NullsLast},
+			"name":           {SQL: "lower(st.name)"},
+			"source":         {SQL: "lower(st.source)"},
+			"hosts_count":    {SQL: "hosts_count"},
+			"versions_count": {SQL: "versions_count"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
@@ -86,8 +85,7 @@ SELECT
 	st.bundle_identifier,
 	st.vendor,
 	COUNT(DISTINCT hs.host_id)::integer AS hosts_count,
-	COUNT(DISTINCT s.id)::integer AS versions_count,
-	(CASE WHEN COUNT(hs.last_seen_at) = 0 THEN NULL ELSE MAX(hs.last_seen_at) END)::timestamptz AS counts_updated_at
+	COUNT(DISTINCT s.id)::integer AS versions_count
 FROM software_titles st
 LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id

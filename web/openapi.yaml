@@ -983,9 +983,6 @@ components:
           items:
             $ref: "#/components/schemas/MunkiItem"
           type: array
-        last_seen_at:
-          format: date-time
-          type: string
         manifest_name:
           type: string
         problem_installs:
@@ -1013,7 +1010,6 @@ components:
         - errors
         - warnings
         - problem_installs
-        - last_seen_at
         - items
       type: object
     MunkiIconFile:
@@ -1082,19 +1078,12 @@ components:
           type: boolean
         installed_version:
           type: string
-        last_seen_at:
-          format: date-time
-          type: string
         name:
-          type: string
-        run_ended_at:
-          format: date-time
           type: string
       required:
         - name
         - installed
         - installed_version
-        - last_seen_at
       type: object
     MunkiObjectView:
       additionalProperties: false
@@ -3563,11 +3552,6 @@ components:
           type: string
         bundle_identifier:
           type: string
-        counts_updated_at:
-          format: date-time
-          type:
-            - string
-            - "null"
         extension_for:
           type: string
         hosts_count:
@@ -3595,7 +3579,6 @@ components:
         - browser
         - hosts_count
         - versions_count
-        - counts_updated_at
         - versions
       type: object
     SoftwareVersion:

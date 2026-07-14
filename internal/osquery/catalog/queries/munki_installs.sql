@@ -1,7 +1,6 @@
 SELECT
     name,
     installed,
-    installed_version,
-    end_time
+    installed_version
 FROM munki_installs
 WHERE name <> '';

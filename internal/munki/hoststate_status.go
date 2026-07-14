@@ -31,7 +31,6 @@ func ItemsFromInstallRows(hostID int64, rows []map[string]string) []Item {
 			Name:             row["name"],
 			Installed:        row["installed"] == "true",
 			InstalledVersion: row["installed_version"],
-			RunEndedAt:       parseMunkiTime(row["end_time"]),
 		})
 	}
 	return items
