@@ -79,6 +79,18 @@ type Label struct {
 	UpdatedAt           time.Time           `json:"updated_at,omitzero"`
 }
 
+// DynamicLabel is the query-bearing projection sent to osquery clients.
+type DynamicLabel struct {
+	ID    int64  `db:"id"`
+	Query string `db:"query"`
+}
+
+// DynamicMembership is one host's evaluated state for a dynamic label.
+type DynamicMembership struct {
+	LabelID int64
+	Matched bool
+}
+
 // Criteria describes the non-osquery host attribute that derives membership.
 type Criteria struct {
 	Attribute DerivedAttribute `json:"attribute"`

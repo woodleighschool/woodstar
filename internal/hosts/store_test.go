@@ -337,6 +337,122 @@ func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	}
 }
 
+func TestNodeKeyLookupThrottlesLivenessWrites(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: "test-throttled-node-key-touch"},
+		OsqueryNodeKey: "test-throttled-node-key-touch",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if host.Timestamps.LastSeenAt == nil {
+		t.Fatal("enrolled host last_seen_at is nil")
+	}
+
+	first, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
+	if err != nil {
+		t.Fatalf("first node key lookup: %v", err)
+	}
+	second, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
+	if err != nil {
+		t.Fatalf("second node key lookup: %v", err)
+	}
+	if !first.Timestamps.LastSeenAt.Equal(*second.Timestamps.LastSeenAt) {
+		t.Fatalf(
+			"second lookup changed last_seen_at from %v to %v",
+			first.Timestamps.LastSeenAt,
+			second.Timestamps.LastSeenAt,
+		)
+	}
+	if !first.Timestamps.UpdatedAt.Equal(second.Timestamps.UpdatedAt) {
+		t.Fatalf(
+			"liveness lookup changed updated_at from %v to %v",
+			first.Timestamps.UpdatedAt,
+			second.Timestamps.UpdatedAt,
+		)
+	}
+
+	oldLastSeen := time.Now().Add(-2 * time.Minute)
+	if _, err := store.db.Pool().
+		Exec(ctx, `UPDATE hosts SET last_seen_at = $2 WHERE id = $1`, host.ID, oldLastSeen); err != nil {
+		t.Fatalf("age last_seen_at: %v", err)
+	}
+	touched, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
+	if err != nil {
+		t.Fatalf("aged node key lookup: %v", err)
+	}
+	if touched.Timestamps.LastSeenAt == nil || !touched.Timestamps.LastSeenAt.After(oldLastSeen) {
+		t.Fatalf("last_seen_at = %v, want after %v", touched.Timestamps.LastSeenAt, oldLastSeen)
+	}
+	if !touched.Timestamps.UpdatedAt.Equal(second.Timestamps.UpdatedAt) {
+		t.Fatalf(
+			"liveness touch changed updated_at from %v to %v",
+			second.Timestamps.UpdatedAt,
+			touched.Timestamps.UpdatedAt,
+		)
+	}
+}
+
+func TestOrbitDeviceTokenValidationThrottlesLivenessWrites(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-throttled-orbit-token-touch"},
+		OrbitNodeKey: "test-throttled-orbit-token-touch",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	const token = "00000000-0000-4000-8000-000000000001"
+	if err := store.SetOrbitDeviceAuthToken(ctx, host.OrbitNodeKey, token); err != nil {
+		t.Fatalf("set device token: %v", err)
+	}
+	before, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host before validation: %v", err)
+	}
+	if err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
+		t.Fatalf("validate device token: %v", err)
+	}
+	after, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host after validation: %v", err)
+	}
+	if !before.Timestamps.LastSeenAt.Equal(*after.Timestamps.LastSeenAt) {
+		t.Fatalf(
+			"validation changed last_seen_at from %v to %v",
+			before.Timestamps.LastSeenAt,
+			after.Timestamps.LastSeenAt,
+		)
+	}
+	if !before.Timestamps.UpdatedAt.Equal(after.Timestamps.UpdatedAt) {
+		t.Fatalf("validation changed updated_at from %v to %v", before.Timestamps.UpdatedAt, after.Timestamps.UpdatedAt)
+	}
+
+	oldLastSeen := time.Now().Add(-2 * time.Minute)
+	if _, err := store.db.Pool().
+		Exec(ctx, `UPDATE hosts SET last_seen_at = $2 WHERE id = $1`, host.ID, oldLastSeen); err != nil {
+		t.Fatalf("age last_seen_at: %v", err)
+	}
+	if err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
+		t.Fatalf("validate aged device token: %v", err)
+	}
+	touched, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get touched host: %v", err)
+	}
+	if touched.Timestamps.LastSeenAt == nil || !touched.Timestamps.LastSeenAt.After(oldLastSeen) {
+		t.Fatalf("last_seen_at = %v, want after %v", touched.Timestamps.LastSeenAt, oldLastSeen)
+	}
+	if !touched.Timestamps.UpdatedAt.Equal(after.Timestamps.UpdatedAt) {
+		t.Fatalf(
+			"validation touch changed updated_at from %v to %v",
+			after.Timestamps.UpdatedAt,
+			touched.Timestamps.UpdatedAt,
+		)
+	}
+}
+
 func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)

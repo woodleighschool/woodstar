@@ -49,7 +49,7 @@ func TestClientTokenFetchUsesRequestContext(t *testing.T) {
 	select {
 	case <-tokenCalled:
 		t.Fatal("token endpoint was called after request context cancellation")
-	case <-time.After(50 * time.Millisecond):
+	default:
 	}
 }
 

@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 )
@@ -20,7 +22,7 @@ const testDatabaseURL = "WOODSTAR_TEST_DATABASE_URL"
 func Open(t testing.TB) (*database.DB, context.Context) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	baseURL := os.Getenv(testDatabaseURL)
 	if baseURL == "" {
 		t.Skipf("%s is required for database tests", testDatabaseURL)
@@ -44,22 +46,38 @@ func createDatabase(t testing.TB, ctx context.Context, baseURL string) string {
 	if err != nil {
 		t.Fatalf("parse %s: %v", testDatabaseURL, err)
 	}
-	admin, err := pgx.Connect(ctx, adminURL)
+	admin, err := connectAdmin(ctx, adminURL)
 	if err != nil {
 		t.Fatalf("connect to test database server: %v", err)
 	}
+	defer func() { _ = admin.Close(ctx) }()
 	identifier := pgx.Identifier{databaseName}.Sanitize()
 	t.Cleanup(func() {
-		_, err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+identifier+" WITH (FORCE)")
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cleanupAdmin, err := connectAdmin(cleanupCtx, adminURL)
+		if err != nil {
+			t.Logf("connect to drop test database %s: %v", databaseName, err)
+			return
+		}
+		defer func() { _ = cleanupAdmin.Close(cleanupCtx) }()
+		_, err = cleanupAdmin.Exec(cleanupCtx, "DROP DATABASE IF EXISTS "+identifier+" WITH (FORCE)")
 		if err != nil {
 			t.Logf("drop test database %s: %v", databaseName, err)
 		}
-		_ = admin.Close(context.Background())
 	})
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+identifier); err != nil {
 		t.Fatalf("create test database %s: %v", databaseName, err)
 	}
 	return databaseURL
+}
+
+func connectAdmin(ctx context.Context, databaseURL string) (*pgx.Conn, error) {
+	config, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.ConnectConfig(ctx, config.ConnConfig)
 }
 
 func databaseURLs(baseURL string, databaseName string) (string, string, error) {

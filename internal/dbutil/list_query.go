@@ -7,8 +7,9 @@ import (
 )
 
 type OrderExpr struct {
-	SQL       string
-	NullOrder NullOrder
+	SQL        string
+	Descending bool
+	NullOrder  NullOrder
 }
 
 type NullOrder string
@@ -99,7 +100,7 @@ func (q ListQuery) baseParts() []string {
 }
 
 // OrderBy builds an ORDER BY from the requested sort column, appending
-// DefaultOrder columns (ascending) that the request did not already pin. Sort is
+// DefaultOrder columns that the request did not already pin. Sort is
 // a column token with an optional .asc/.desc suffix.
 func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
 	col, hasSort, err := parseSortColumn(params.Sort)
@@ -124,7 +125,7 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 			continue
 		}
 		used = append(used, expr.SQL)
-		parts = append(parts, orderPart(expr, false))
+		parts = append(parts, orderPart(expr, expr.Descending))
 	}
 
 	if len(parts) == 0 {

@@ -165,46 +165,59 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
-	rows, err := s.db.Pool().Query(ctx, labelSelectSQL()+`
+func (s *Store) ListApplicableDynamic(ctx context.Context) ([]DynamicLabel, error) {
+	return dbutil.GetAll[DynamicLabel](ctx, s.db.Pool(), `
+SELECT l.id, l.query
+FROM labels l
 WHERE l.label_membership_type = 'dynamic'
-GROUP BY l.id
 ORDER BY l.id`)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[labelRow])
-	if err != nil {
-		return nil, err
-	}
-	labels := make([]Label, len(records))
-	for i, record := range records {
-		labels[i] = labelFromRow(record)
-	}
-	return labels, nil
 }
 
-func (s *Store) ApplicableDynamicIDs(
+// SetDynamicMemberships reconciles one host's returned dynamic-label results
+// and returns how many inputs still belong to dynamic labels.
+func (s *Store) SetDynamicMemberships(
 	ctx context.Context,
-	ids []int64,
-) (map[int64]struct{}, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-SELECT id
-FROM labels
-WHERE id = ANY($1::bigint[]) AND label_membership_type = 'dynamic'
-ORDER BY id`, ids)
-	if err != nil {
-		return nil, err
+	hostID int64,
+	memberships []DynamicMembership,
+) (int, error) {
+	if len(memberships) == 0 {
+		return 0, nil
 	}
-	matched, err := pgx.CollectRows(rows, pgx.RowTo[int64])
-	if err != nil {
-		return nil, err
+	labelIDs := make([]int64, len(memberships))
+	matches := make([]bool, len(memberships))
+	seen := make(map[int64]struct{}, len(memberships))
+	for i, membership := range memberships {
+		if _, ok := seen[membership.LabelID]; ok {
+			return 0, fmt.Errorf("%w: duplicate dynamic label result %d", dbutil.ErrInvalidInput, membership.LabelID)
+		}
+		seen[membership.LabelID] = struct{}{}
+		labelIDs[i] = membership.LabelID
+		matches[i] = membership.Matched
 	}
-	out := make(map[int64]struct{}, len(matched))
-	for _, id := range matched {
-		out[id] = struct{}{}
-	}
-	return out, nil
+	var handled int
+	err := s.db.Pool().QueryRow(ctx, `
+WITH applicable AS (
+    SELECT result.label_id, result.matched
+    FROM unnest($2::bigint[], $3::boolean[]) AS result(label_id, matched)
+    JOIN labels l ON l.id = result.label_id
+    WHERE l.label_membership_type = 'dynamic'
+),
+inserted AS (
+    INSERT INTO label_membership (label_id, host_id)
+    SELECT label_id, $1
+    FROM applicable
+    WHERE matched
+    ON CONFLICT (label_id, host_id) DO NOTHING
+),
+deleted AS (
+    DELETE FROM label_membership membership
+    USING applicable
+    WHERE NOT applicable.matched
+      AND membership.label_id = applicable.label_id
+      AND membership.host_id = $1
+)
+SELECT count(*)::integer FROM applicable`, hostID, labelIDs, matches).Scan(&handled)
+	return handled, err
 }
 
 func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
@@ -212,7 +225,7 @@ func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, 
 		_, err := s.db.Pool().Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)
 VALUES ($1, $2)
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`, labelID, hostID)
+ON CONFLICT (label_id, host_id) DO NOTHING`, labelID, hostID)
 		return err
 	}
 	_, err := s.db.Pool().Exec(

@@ -54,6 +54,23 @@ func TestListQueryCalculatesOffsetWithoutInt32Overflow(t *testing.T) {
 	}
 }
 
+func TestListQueryUsesDefaultDescendingOrder(t *testing.T) {
+	query, _, err := ListQuery{
+		SelectSQL: "SELECT * FROM events",
+		DefaultOrder: []OrderExpr{
+			{SQL: "occurred_at", Descending: true},
+			{SQL: "id", Descending: true},
+		},
+		Params: NormalizeListParams(ListParams{}),
+	}.Build()
+	if err != nil {
+		t.Fatalf("Build returned error: %v", err)
+	}
+	if !strings.Contains(query, "ORDER BY occurred_at DESC, id DESC") {
+		t.Fatalf("query = %s", query)
+	}
+}
+
 func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 	_, _, err := ListQuery{
 		SelectSQL: "SELECT * FROM hosts",

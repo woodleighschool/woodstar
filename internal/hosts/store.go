@@ -306,19 +306,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	return s.touchByNodeKey(ctx, `
-UPDATE hosts
-SET last_seen_at = now(), updated_at = now()
-WHERE orbit_node_key = $1 AND orbit_node_key <> ''
-RETURNING`+hostColumnsSQL(), nodeKey)
+	return s.touchByNodeKey(ctx, hostTouchSQL("orbit_node_key"), nodeKey)
 }
 
 func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	return s.touchByNodeKey(ctx, `
-UPDATE hosts
-SET last_seen_at = now(), updated_at = now()
-WHERE osquery_node_key = $1 AND osquery_node_key <> ''
-RETURNING`+hostColumnsSQL(), nodeKey)
+	return s.touchByNodeKey(ctx, hostTouchSQL("osquery_node_key"), nodeKey)
 }
 
 // SetOrbitDeviceAuthToken replaces the machine token for an Orbit node key.
@@ -343,11 +335,44 @@ WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey, token)
 func (s *Store) ValidateOrbitDeviceAuthToken(ctx context.Context, token string) error {
 	var hostID int64
 	err := s.db.Pool().QueryRow(ctx, `
-UPDATE hosts
-SET last_seen_at = now(), updated_at = now()
-WHERE orbit_device_auth_token = $1 AND orbit_device_auth_token <> ''
-RETURNING id`, token).Scan(&hostID)
+WITH touched AS (
+    UPDATE hosts
+    SET last_seen_at = now()
+    WHERE orbit_device_auth_token = $1
+      AND orbit_device_auth_token <> ''
+      AND (last_seen_at IS NULL OR last_seen_at < now() - interval '1 minute')
+    RETURNING id
+)
+SELECT id FROM touched
+UNION ALL
+SELECT id
+FROM hosts
+WHERE orbit_device_auth_token = $1
+  AND orbit_device_auth_token <> ''
+  AND NOT EXISTS (SELECT 1 FROM touched)
+LIMIT 1`, token).Scan(&hostID)
 	return dbutil.GetError(err)
+}
+
+func hostTouchSQL(nodeKeyColumn string) string {
+	return `
+WITH touched AS (
+    UPDATE hosts
+    SET last_seen_at = now()
+    WHERE ` + nodeKeyColumn + ` = $1
+      AND ` + nodeKeyColumn + ` <> ''
+      AND (last_seen_at IS NULL OR last_seen_at < now() - interval '1 minute')
+    RETURNING` + hostColumnsSQL() + `
+)
+SELECT` + hostColumnsSQL() + `
+FROM touched
+UNION ALL
+SELECT` + hostColumnsSQL() + `
+FROM hosts
+WHERE ` + nodeKeyColumn + ` = $1
+  AND ` + nodeKeyColumn + ` <> ''
+  AND NOT EXISTS (SELECT 1 FROM touched)
+LIMIT 1`
 }
 
 func (s *Store) touchByNodeKey(ctx context.Context, sql, nodeKey string) (*Host, error) {

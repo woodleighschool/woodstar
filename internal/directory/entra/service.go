@@ -64,11 +64,10 @@ func (s *Service) Sync(ctx context.Context) error {
 // StartScheduler runs Sync once immediately, then again every interval. The
 // returned function stops the scheduler before the parent context is cancelled.
 func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) func() {
-	if interval <= 0 {
-		interval = time.Hour
-	}
 	ctx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		s.runOnce(ctx)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -81,7 +80,10 @@ func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) fu
 			}
 		}
 	}()
-	return stop
+	return func() {
+		stop()
+		<-done
+	}
 }
 
 func (s *Service) runOnce(ctx context.Context) {

@@ -205,11 +205,14 @@ func (s *ObjectStore) ListByPrefix(
 ) ([]Object, int, error) {
 	params = dbutil.NormalizeListParams(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    objectSelectSQL,
-		WhereSQL:     "WHERE prefix = $1 AND available_at IS NOT NULL",
-		Args:         []any{prefix},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "created_at DESC"}, {SQL: "id DESC"}},
-		Params:       params,
+		SelectSQL: objectSelectSQL,
+		WhereSQL:  "WHERE prefix = $1 AND available_at IS NOT NULL",
+		Args:      []any{prefix},
+		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: "created_at", Descending: true},
+			{SQL: "id", Descending: true},
+		},
+		Params: params,
 	}
 	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
 }

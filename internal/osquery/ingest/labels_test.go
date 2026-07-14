@@ -9,8 +9,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
-	store := &fakelabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
+func TestLabelEvaluatorFinalizeReconcilesReturnedResults(t *testing.T) {
+	store := &fakelabelStore{handled: 2}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
 	host := &hosts.Host{ID: 9}
 
@@ -24,53 +24,53 @@ func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.
 		t.Fatalf("Finalize returned error: %v", err)
 	}
 
-	if len(store.setCalls) != 2 {
-		t.Fatalf("set calls = %#v, want 2 applicable labels", store.setCalls)
+	if store.hostID != 9 {
+		t.Fatalf("host ID = %d, want 9", store.hostID)
 	}
-	if store.setCalls[0] != (fakeSetCall{labelID: 1, hostID: 9, matched: true}) {
-		t.Fatalf("first set call = %#v", store.setCalls[0])
+	want := []labels.DynamicMembership{
+		{LabelID: 1, Matched: true},
+		{LabelID: 2, Matched: false},
+		{LabelID: 3, Matched: true},
 	}
-	if store.setCalls[1] != (fakeSetCall{labelID: 2, hostID: 9, matched: false}) {
-		t.Fatalf("second set call = %#v", store.setCalls[1])
+	if len(store.memberships) != len(want) {
+		t.Fatalf("memberships = %#v, want %#v", store.memberships, want)
+	}
+	for i := range want {
+		if store.memberships[i] != want[i] {
+			t.Fatalf("membership %d = %#v, want %#v", i, store.memberships[i], want[i])
+		}
 	}
 }
 
 func TestLabelEvaluatorFinalizeNoOpOnEmpty(t *testing.T) {
-	store := &fakelabelStore{applicable: map[int64]struct{}{1: {}}}
+	store := &fakelabelStore{}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
 	host := &hosts.Host{ID: 5}
 
 	if err := evaluator.Finalize(context.Background(), host, nil); err != nil {
 		t.Fatalf("Finalize returned error: %v", err)
 	}
-	if len(store.setCalls) != 0 {
-		t.Fatalf("expected no set calls on empty results, got %d", len(store.setCalls))
+	if store.memberships != nil {
+		t.Fatalf("memberships = %#v, want no store call", store.memberships)
 	}
 }
 
 type fakelabelStore struct {
-	applicable map[int64]struct{}
-	setCalls   []fakeSetCall
+	handled     int
+	hostID      int64
+	memberships []labels.DynamicMembership
 }
 
-type fakeSetCall struct {
-	labelID int64
-	hostID  int64
-	matched bool
-}
-
-func (s *fakelabelStore) ListApplicableDynamic(context.Context) ([]labels.Label, error) {
+func (s *fakelabelStore) ListApplicableDynamic(context.Context) ([]labels.DynamicLabel, error) {
 	return nil, nil
 }
 
-func (s *fakelabelStore) ApplicableDynamicIDs(
+func (s *fakelabelStore) SetDynamicMemberships(
 	_ context.Context,
-	_ []int64,
-) (map[int64]struct{}, error) {
-	return s.applicable, nil
-}
-
-func (s *fakelabelStore) SetMembership(_ context.Context, labelID int64, hostID int64, matched bool) error {
-	s.setCalls = append(s.setCalls, fakeSetCall{labelID: labelID, hostID: hostID, matched: matched})
-	return nil
+	hostID int64,
+	memberships []labels.DynamicMembership,
+) (int, error) {
+	s.hostID = hostID
+	s.memberships = memberships
+	return s.handled, nil
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -137,6 +138,91 @@ func TestCreateManualLabelStoresHostIDs(t *testing.T) {
 	}
 	if label.BuiltinKey != nil {
 		t.Fatalf("BuiltinKey = %q, want nil", *label.BuiltinKey)
+	}
+}
+
+func TestSetDynamicMembershipsReconcilesApplicableLabels(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewStore(db)
+	hostID := insertHost(t, db, "dynamic-membership")
+	query := "SELECT 1"
+	dynamicLabel, err := store.Create(ctx, LabelMutation{
+		Name:                "Dynamic",
+		Query:               &query,
+		LabelMembershipType: LabelMembershipTypeDynamic,
+	})
+	if err != nil {
+		t.Fatalf("create dynamic label: %v", err)
+	}
+	manualLabel, err := store.Create(ctx, LabelMutation{
+		Name:                "Manual",
+		LabelMembershipType: LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create manual label: %v", err)
+	}
+
+	handled, err := store.SetDynamicMemberships(ctx, hostID, []DynamicMembership{
+		{LabelID: dynamicLabel.ID, Matched: true},
+		{LabelID: manualLabel.ID, Matched: true},
+	})
+	if err != nil {
+		t.Fatalf("set dynamic memberships: %v", err)
+	}
+	if handled != 1 {
+		t.Fatalf("handled memberships = %d, want 1", handled)
+	}
+	var firstUpdatedAt time.Time
+	if err := db.Pool().QueryRow(ctx, `
+SELECT updated_at
+FROM label_membership
+WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&firstUpdatedAt); err != nil {
+		t.Fatalf("get inserted membership: %v", err)
+	}
+	_, err = store.SetDynamicMemberships(ctx, hostID, []DynamicMembership{
+		{LabelID: dynamicLabel.ID, Matched: true},
+	})
+	if err != nil {
+		t.Fatalf("repeat matching membership: %v", err)
+	}
+	var secondUpdatedAt time.Time
+	if err := db.Pool().QueryRow(ctx, `
+SELECT updated_at
+FROM label_membership
+WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&secondUpdatedAt); err != nil {
+		t.Fatalf("get repeated membership: %v", err)
+	}
+	if !secondUpdatedAt.Equal(firstUpdatedAt) {
+		t.Fatalf("unchanged membership updated_at changed from %v to %v", firstUpdatedAt, secondUpdatedAt)
+	}
+
+	handled, err = store.SetDynamicMemberships(ctx, hostID, []DynamicMembership{
+		{LabelID: dynamicLabel.ID, Matched: false},
+	})
+	if err != nil {
+		t.Fatalf("clear dynamic membership: %v", err)
+	}
+	if handled != 1 {
+		t.Fatalf("handled memberships = %d, want 1", handled)
+	}
+	var count int
+	if err := db.Pool().QueryRow(ctx, `
+SELECT count(*)::integer
+FROM label_membership
+WHERE host_id = $1 AND label_id = ANY($2::bigint[])`,
+		hostID, []int64{dynamicLabel.ID, manualLabel.ID}).Scan(&count); err != nil {
+		t.Fatalf("count memberships: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("persisted memberships = %d, want 0", count)
+	}
+
+	_, err = store.SetDynamicMemberships(ctx, hostID, []DynamicMembership{
+		{LabelID: dynamicLabel.ID, Matched: true},
+		{LabelID: dynamicLabel.ID, Matched: false},
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("duplicate result error = %v, want invalid input", err)
 	}
 }
 

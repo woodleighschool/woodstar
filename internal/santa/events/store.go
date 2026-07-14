@@ -1033,8 +1033,8 @@ func fileAccessEventOrderKeys() map[string]dbutil.OrderExpr {
 
 func defaultEventOrder(alias string) []dbutil.OrderExpr {
 	return []dbutil.OrderExpr{
-		{SQL: "-extract(epoch from " + alias + ".occurred_at)"},
-		{SQL: "-" + alias + ".id"},
+		{SQL: alias + ".occurred_at", Descending: true},
+		{SQL: alias + ".id", Descending: true},
 	}
 }
 

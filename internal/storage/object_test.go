@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 
@@ -54,6 +55,55 @@ func TestValidateUploadFilenameRejects(t *testing.T) {
 			t.Errorf("validateUploadFilename(%q) error = %v, want ErrInvalidInput", name, err)
 		}
 	}
+}
+
+func TestListByPrefixReturnsAvailableObjectsNewestFirst(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewObjectStore(db, nil)
+
+	first, err := store.CreatePending(ctx, "munki/icons", "first.png", "image/png")
+	if err != nil {
+		t.Fatalf("create first object: %v", err)
+	}
+	if _, err := store.Confirm(ctx, first.ID, 1, "image/png", strings.Repeat("a", 64)); err != nil {
+		t.Fatalf("confirm first object: %v", err)
+	}
+	second, err := store.CreatePending(ctx, "munki/icons", "second.png", "image/png")
+	if err != nil {
+		t.Fatalf("create second object: %v", err)
+	}
+	if _, err := store.Confirm(ctx, second.ID, 1, "image/png", strings.Repeat("b", 64)); err != nil {
+		t.Fatalf("confirm second object: %v", err)
+	}
+	if _, err := store.CreatePending(ctx, "munki/icons", "pending.png", "image/png"); err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+	other, err := store.CreatePending(ctx, "munki/packages", "other.pkg", "application/octet-stream")
+	if err != nil {
+		t.Fatalf("create other-prefix object: %v", err)
+	}
+	if _, err := store.Confirm(ctx, other.ID, 1, "application/octet-stream", strings.Repeat("c", 64)); err != nil {
+		t.Fatalf("confirm other-prefix object: %v", err)
+	}
+
+	objects, count, err := store.ListByPrefix(ctx, "munki/icons", dbutil.ListParams{})
+	if err != nil {
+		t.Fatalf("list objects: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("count = %d, want 2", count)
+	}
+	if len(objects) != 2 || objects[0].ID != second.ID || objects[1].ID != first.ID {
+		t.Fatalf("object IDs = %v, want [%d %d]", objectIDs(objects), second.ID, first.ID)
+	}
+}
+
+func objectIDs(objects []Object) []int64 {
+	ids := make([]int64, len(objects))
+	for i, object := range objects {
+		ids[i] = object.ID
+	}
+	return ids
 }
 
 func TestDeleteUnreferencedPreventsNewReferencesBeforeDeletingBytes(t *testing.T) {

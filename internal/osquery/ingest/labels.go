@@ -1,10 +1,8 @@
 package ingest
 
 import (
-	"cmp"
 	"context"
 	"log/slog"
-	"slices"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -12,9 +10,8 @@ import (
 
 // labelStore is what label evaluation needs.
 type labelStore interface {
-	ListApplicableDynamic(context.Context) ([]labels.Label, error)
-	ApplicableDynamicIDs(context.Context, []int64) (map[int64]struct{}, error)
-	SetMembership(context.Context, int64, int64, bool) error
+	ListApplicableDynamic(context.Context) ([]labels.DynamicLabel, error)
+	SetDynamicMemberships(context.Context, int64, []labels.DynamicMembership) (int, error)
 }
 
 // LabelResult is one label match.
@@ -35,7 +32,7 @@ func NewLabelEvaluator(store labelStore, logger *slog.Logger) *LabelEvaluator {
 
 // ApplicableLabels returns labels with dynamic membership. Every host evaluates
 // the same dynamic label set; per-host membership is decided by the query results.
-func (e *LabelEvaluator) ApplicableLabels(ctx context.Context) ([]labels.Label, error) {
+func (e *LabelEvaluator) ApplicableLabels(ctx context.Context) ([]labels.DynamicLabel, error) {
 	return e.store.ListApplicableDynamic(ctx)
 }
 
@@ -44,26 +41,13 @@ func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results
 	if len(results) == 0 {
 		return nil
 	}
-	slices.SortFunc(results, func(a, b LabelResult) int {
-		return cmp.Compare(a.LabelID, b.LabelID)
-	})
-	ids := make([]int64, 0, len(results))
-	for _, r := range results {
-		ids = append(ids, r.LabelID)
+	memberships := make([]labels.DynamicMembership, len(results))
+	for i, result := range results {
+		memberships[i] = labels.DynamicMembership{LabelID: result.LabelID, Matched: result.Matched}
 	}
-	applicable, err := e.store.ApplicableDynamicIDs(ctx, ids)
+	handled, err := e.store.SetDynamicMemberships(ctx, host.ID, memberships)
 	if err != nil {
 		return err
-	}
-	handled := 0
-	for _, r := range results {
-		if _, ok := applicable[r.LabelID]; !ok {
-			continue
-		}
-		if err := e.store.SetMembership(ctx, r.LabelID, host.ID, r.Matched); err != nil {
-			return err
-		}
-		handled++
 	}
 	if handled == 0 {
 		return nil
