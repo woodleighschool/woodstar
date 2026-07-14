@@ -12,6 +12,8 @@ import type {
 import { countLiveQueryTargets, createLiveQuery, stopLiveQuery, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
+const LIVE_QUERY_TARGET_REFRESH_MS = 30_000;
+
 export type LiveQueryHandle = OsqueryHandle;
 export type LiveQueryResult = OsqueryLiveQueryResultEvent;
 export type {
@@ -75,8 +77,9 @@ export function useStopLiveQuery() {
 export function useLiveQueryTargetCount(body: OsqueryLiveQueryTargetCountBody, enabled: boolean) {
   return useQuery<OsqueryLiveQueryTargetCountOutputBody, ApiError>({
     queryKey: queryKeys.liveQueryTargetCount(body),
-    queryFn: () => unwrap(countLiveQueryTargets({ body })),
+    queryFn: ({ signal }) => unwrap(countLiveQueryTargets({ body, signal })),
     enabled,
+    refetchInterval: LIVE_QUERY_TARGET_REFRESH_MS,
   });
 }
 

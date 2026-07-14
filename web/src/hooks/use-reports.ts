@@ -25,6 +25,8 @@ import { detailPath } from "@/lib/route-params";
 
 export type ReportListParams = NonNullable<ListOsqueryReportsData["query"]>;
 
+const REPORT_RESULT_REFRESH_MS = 30_000;
+
 export function useReports(params: ReportListParams = {}) {
   const queryParams = baseListParams(params);
 
@@ -61,6 +63,7 @@ export function useReportResults(id: number | null) {
       ),
     enabled: id !== null,
     placeholderData: keepPreviousData,
+    refetchInterval: REPORT_RESULT_REFRESH_MS,
   });
 }
 

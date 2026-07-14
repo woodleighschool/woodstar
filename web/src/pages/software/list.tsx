@@ -31,13 +31,16 @@ export function SoftwareListPage() {
 
   const sources = tableSearch.filters.source ?? [];
 
-  const query = useSoftware({
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    source: expandSoftwareSourceFilters(sources),
-  });
+  const query = useSoftware(
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      source: expandSoftwareSourceFilters(sources),
+    },
+    { refetchInterval: 30_000 },
+  );
 
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;

@@ -35,6 +35,7 @@ type MunkiDistributionPointDetailRefreshOptions = {
 };
 
 const MUNKI_DISTRIBUTION_DETAIL_REFRESH_MS = 5_000;
+const MUNKI_DISTRIBUTION_LIST_REFRESH_MS = 30_000;
 
 export function useMunkiDistributionPoints(params: MunkiDistributionPointListParams = {}) {
   const queryParams = baseListParams(params);
@@ -43,6 +44,7 @@ export function useMunkiDistributionPoints(params: MunkiDistributionPointListPar
     queryKey: queryKeys.munkiDistributionPoints(queryParams),
     queryFn: ({ signal }) => unwrap(listMunkiDistributionPoints({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
+    refetchInterval: MUNKI_DISTRIBUTION_LIST_REFRESH_MS,
   });
 }
 

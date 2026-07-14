@@ -57,16 +57,19 @@ export function HostListPage() {
 
   const status = parseHostStatus(tableSearch.filters.status?.[0]);
 
-  const query = useHosts({
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    status,
-    label_id: deepLink.label_id ?? undefined,
-    software_title_id: deepLink.software_title_id ?? undefined,
-    software_id: deepLink.software_id ?? undefined,
-  });
+  const query = useHosts(
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      status,
+      label_id: deepLink.label_id ?? undefined,
+      software_title_id: deepLink.software_title_id ?? undefined,
+      software_id: deepLink.software_id ?? undefined,
+    },
+    { refetchInterval: 30_000 },
+  );
 
   const hosts = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;

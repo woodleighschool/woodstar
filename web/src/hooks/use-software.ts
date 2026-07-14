@@ -9,7 +9,10 @@ import { detailPath } from "@/lib/route-params";
 
 export type SoftwareListParams = NonNullable<ListSoftwareData["query"]>;
 
-export function useSoftware(params: SoftwareListParams = {}) {
+const SOFTWARE_REFRESH_MS = 30_000;
+type RefetchOptions = { refetchInterval?: number | false };
+
+export function useSoftware(params: SoftwareListParams = {}, options: RefetchOptions = {}) {
   const queryParams = {
     ...baseListParams(params),
     source: params.source && params.source.length > 0 ? params.source : undefined,
@@ -25,10 +28,11 @@ export function useSoftware(params: SoftwareListParams = {}) {
         }),
       ),
     placeholderData: keepPreviousData,
+    refetchInterval: options.refetchInterval,
   });
 }
 
-export function useSoftwareTitle(id: number | null) {
+export function useSoftwareTitle(id: number | null, options: RefetchOptions = {}) {
   return useQuery<SoftwareTitle, ApiError>({
     queryKey: queryKeys.softwareTitle(id),
     queryFn: ({ signal }) =>
@@ -39,6 +43,7 @@ export function useSoftwareTitle(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    refetchInterval: options.refetchInterval,
   });
 }
 
@@ -53,5 +58,6 @@ export function useSoftwareSantaReference(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    refetchInterval: SOFTWARE_REFRESH_MS,
   });
 }

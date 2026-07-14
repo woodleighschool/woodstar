@@ -7,7 +7,7 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { encodeSort } from "@/hooks/use-data-table-search";
+import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { useHostSoftware } from "@/hooks/use-hosts";
 import type {
   HostSoftware,
@@ -61,9 +62,9 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
   },
   {
     id: "version",
-    accessorFn: (row) => row.installed_versions?.[0]?.version ?? "",
+    accessorFn: (row) => row.installed_versions[0].version,
     header: ({ column }) => <DataTableColumnHeader column={column} label="Version" />,
-    cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions ?? []),
+    cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions),
     meta: { label: "Version" },
   },
   {
@@ -76,10 +77,10 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
   },
   {
     id: "last_opened_at",
-    accessorFn: (row) => pickLatestLastOpened(row.installed_versions ?? []) ?? "",
+    accessorFn: (row) => pickLatestLastOpened(row.installed_versions) ?? "",
     header: ({ column }) => <DataTableColumnHeader column={column} label="Last Opened" />,
     cell: ({ row }) => {
-      const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
+      const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions);
       return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
     },
     meta: { label: "Last Opened" },
@@ -89,7 +90,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
     header: () => "File path",
     enableSorting: false,
     cell: ({ row }) => {
-      const versions = row.original.installed_versions ?? [];
+      const versions = row.original.installed_versions;
       const versionLabel = versionsSummaryLabel(versions);
       const paths = installedPathsFor(versions);
       const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
@@ -108,7 +109,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
     id: "hash",
     header: () => "Hash",
     enableSorting: false,
-    cell: ({ row }) => singleHash(installedPathsFor(row.original.installed_versions ?? [])),
+    cell: ({ row }) => singleHash(installedPathsFor(row.original.installed_versions)),
     meta: { label: "Hash" },
   },
 ];
@@ -122,7 +123,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   });
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const debounceRef = useRef<number | null>(null);
+  const updateQuery = useDebouncedCallback((value: string) => setActiveQuery(value.trim()), 200);
 
   const sources =
     (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
@@ -130,12 +131,12 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const setSearch = (next: string) => {
     setDraft(next);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-    if (next === "") {
+    if (next.trim() === "") {
+      updateQuery.cancel();
       setActiveQuery("");
-      return;
+    } else {
+      updateQuery(next);
     }
-    debounceRef.current = window.setTimeout(() => setActiveQuery(next.trim()), 200);
   };
 
   const query = useHostSoftware(hostId, {
@@ -274,9 +275,9 @@ function InstalledPathCell({
 function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledPath[] {
   return versions.flatMap((version) => {
     const signatures = buildSignatureIndex(version.signature_information);
-    return (version.installed_paths ?? []).map((path) => ({
+    return version.installed_paths.map((path) => ({
       path,
-      version: version.version || "",
+      version: version.version,
       signature: signatures.get(path),
     }));
   });
@@ -300,12 +301,11 @@ function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string 
 }
 
 function buildSignatureIndex(
-  rows: PathSignatureInformation[] | null | undefined,
+  rows: PathSignatureInformation[],
 ): Map<string, PathSignatureInformation> {
   const map = new Map<string, PathSignatureInformation>();
-  if (!rows) return map;
   for (const row of rows) {
-    if (row.installed_path) map.set(row.installed_path, row);
+    map.set(row.installed_path, row);
   }
   return map;
 }

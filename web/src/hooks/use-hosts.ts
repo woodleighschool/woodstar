@@ -38,6 +38,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
+const HOST_REFRESH_MS = 30_000;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 interface HostPrimaryUserMutation {
@@ -45,8 +46,9 @@ interface HostPrimaryUserMutation {
 }
 
 type HostListParams = NonNullable<ListHostsData["query"]>;
+type RefetchOptions = { refetchInterval?: number | false };
 
-export function useHosts(params: HostListParams = {}) {
+export function useHosts(params: HostListParams = {}, options: RefetchOptions = {}) {
   const queryParams = {
     ...baseListParams(params),
     status: params.status,
@@ -66,10 +68,11 @@ export function useHosts(params: HostListParams = {}) {
         }),
       ),
     placeholderData: keepPreviousData,
+    refetchInterval: options.refetchInterval,
   });
 }
 
-export function useHost(id: number | null) {
+export function useHost(id: number | null, options: RefetchOptions = {}) {
   return useQuery<HostDetail, ApiError>({
     queryKey: queryKeys.host(id),
     queryFn: ({ signal }) =>
@@ -80,6 +83,7 @@ export function useHost(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    refetchInterval: options.refetchInterval,
   });
 }
 
@@ -88,6 +92,7 @@ export function useHostMunkiState(id: number | null) {
     queryKey: queryKeys.hostMunkiState(id),
     queryFn: ({ signal }) => nullOn404(getHostMunkiState({ path: detailPath(id), signal })),
     enabled: id !== null,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }
 
@@ -96,6 +101,7 @@ export function useHostSantaState(id: number | null) {
     queryKey: queryKeys.hostSantaState(id),
     queryFn: ({ signal }) => nullOn404(getHostSantaState({ path: detailPath(id), signal })),
     enabled: id !== null,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }
 
@@ -163,6 +169,7 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
       ),
     enabled: id !== null,
     placeholderData: keepPreviousData,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }
 
@@ -177,6 +184,7 @@ export function useHostOsqueryReports(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }
 
@@ -191,6 +199,7 @@ export function useHostOsqueryChecks(id: number | null) {
         }),
       ),
     enabled: id !== null,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }
 
@@ -211,5 +220,6 @@ export function useHostSantaRules(id: number | null, params: HostSantaRulesParam
       ),
     enabled: id !== null,
     placeholderData: keepPreviousData,
+    refetchInterval: HOST_REFRESH_MS,
   });
 }

@@ -29,6 +29,8 @@ import { detailPath } from "@/lib/route-params";
 export type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
 export type CheckResultsParams = NonNullable<ListOsqueryCheckResultsData["query"]>;
 
+const CHECK_REFRESH_MS = 30_000;
+
 export function useChecks(params: CheckListParams = {}) {
   const queryParams = baseListParams(params);
 
@@ -36,6 +38,7 @@ export function useChecks(params: CheckListParams = {}) {
     queryKey: queryKeys.checks(queryParams),
     queryFn: ({ signal }) => unwrap(listOsqueryChecks({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
+    refetchInterval: CHECK_REFRESH_MS,
   });
 }
 
@@ -70,6 +73,7 @@ export function useCheckResults(id: number | null, params: CheckResultsParams = 
       ),
     enabled: id !== null,
     placeholderData: keepPreviousData,
+    refetchInterval: CHECK_REFRESH_MS,
   });
 }
 

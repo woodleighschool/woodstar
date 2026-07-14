@@ -7,8 +7,7 @@ interface ManifestEntry {
 }
 
 interface DeviceFile {
-  key?: string;
-  imageKey?: string;
+  imageKey: string;
 }
 
 const MANIFEST_URL = "https://img.appledb.dev/main.json";
@@ -40,7 +39,6 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
     enabled: Boolean(hardwareModel),
     staleTime: DAY_MS,
     gcTime: 7 * DAY_MS,
-    refetchInterval: false,
     retry: false,
   });
 
@@ -53,13 +51,11 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
     },
     staleTime: DAY_MS,
     gcTime: 7 * DAY_MS,
-    refetchInterval: false,
     retry: false,
   });
 
   if (!hardwareModel || !device || !manifest) return null;
-  const imageKey = device.imageKey ?? device.key ?? hardwareModel;
-  const entry = manifest.find((e) => e.key === imageKey);
+  const entry = manifest.find((e) => e.key === device.imageKey);
   const first = entry?.index[0];
   if (!entry || !first) return null;
   return `${IMAGE_BASE}/${encodeURIComponent(entry.key)}/${encodeURIComponent(first.id)}.png`;

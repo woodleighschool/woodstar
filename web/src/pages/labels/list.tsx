@@ -40,14 +40,17 @@ export function LabelListPage() {
 
   const membership = tableSearch.filters.label_membership_type?.[0];
 
-  const query = useLabels({
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    label_type: "regular",
-    label_membership_type: membership as LabelListParams["label_membership_type"],
-  });
+  const query = useLabels(
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      label_type: "regular",
+      label_membership_type: membership as LabelListParams["label_membership_type"],
+    },
+    { refetchInterval: 30_000 },
+  );
 
   const labels = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;

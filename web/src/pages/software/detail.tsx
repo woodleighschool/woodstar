@@ -37,7 +37,7 @@ export function SoftwareDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const query = useSoftwareTitle(Number(softwareId));
+  const query = useSoftwareTitle(Number(softwareId), { refetchInterval: 30_000 });
   const title = query.data;
 
   if (query.error || !title) {

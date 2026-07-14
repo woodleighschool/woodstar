@@ -10,7 +10,9 @@ import { detailPath } from "@/lib/route-params";
 
 export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
-export function useLabels(params: LabelListParams = {}) {
+type RefetchOptions = { refetchInterval?: number | false };
+
+export function useLabels(params: LabelListParams = {}, options: RefetchOptions = {}) {
   const queryParams = {
     ...baseListParams(params),
     label_type: params.label_type,
@@ -27,6 +29,7 @@ export function useLabels(params: LabelListParams = {}) {
         }),
       ),
     placeholderData: keepPreviousData,
+    refetchInterval: options.refetchInterval,
   });
 }
 

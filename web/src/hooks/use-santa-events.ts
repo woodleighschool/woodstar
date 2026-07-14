@@ -32,6 +32,8 @@ export type SantaEventDecisionFilter = NonNullable<
   NonNullable<SantaEventListParams["decisions"]>[number]
 >;
 
+const SANTA_EVENT_REFRESH_MS = 30_000;
+
 export function useSantaEvents(params: SantaEventListParams = {}) {
   const queryParams = {
     ...baseListParams(params),
@@ -44,6 +46,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     queryKey: queryKeys.santaEvents(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
+    refetchInterval: SANTA_EVENT_REFRESH_MS,
   });
 }
 
@@ -72,6 +75,7 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
     queryKey: queryKeys.santaFileAccessEvents(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaFileAccessEvents({ query: queryParams, signal })),
     placeholderData: keepPreviousData,
+    refetchInterval: SANTA_EVENT_REFRESH_MS,
   });
 }
 
