@@ -74,12 +74,6 @@ func (s *EnrollmentService) Config(ctx context.Context, nodeKey string) (ConfigR
 	return ConfigResponse{CommandLineStartupFlags: json.RawMessage(orbitCommandLineStartupFlags)}, nil
 }
 
-// ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
-func (s *EnrollmentService) ValidateNodeKey(ctx context.Context, nodeKey string) error {
-	_, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
-	return err
-}
-
 // SetPrimaryUser records a profile-provided email for the host.
 func (s *EnrollmentService) SetPrimaryUser(ctx context.Context, nodeKey, email string) error {
 	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
