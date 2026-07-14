@@ -56,7 +56,7 @@ func (s *fileStore) resolve(key string) (string, error) {
 	return path, nil
 }
 
-func (s *fileStore) Open(_ context.Context, key string) (io.ReadCloser, ObjectInfo, error) {
+func (s *fileStore) Open(_ context.Context, key string) (ObjectReader, ObjectInfo, error) {
 	path, err := s.resolve(key)
 	if err != nil {
 		return nil, ObjectInfo{}, err

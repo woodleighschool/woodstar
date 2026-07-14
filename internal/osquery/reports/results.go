@@ -3,20 +3,12 @@ package reports
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
-
-const maxSnapshotResultRows = 1000
-
-// ErrSnapshotTooLarge is returned by OverwriteResults when the incoming
-// snapshot exceeds maxSnapshotResultRows.
-var ErrSnapshotTooLarge = errors.New("snapshot exceeds max result rows")
 
 type snapshotResultRow struct {
 	data        *json.RawMessage
@@ -38,10 +30,6 @@ func (s *Store) OverwriteResults(
 	if err != nil {
 		return err
 	}
-	if len(resultRows) > maxSnapshotResultRows {
-		return fmt.Errorf("%w: got %d rows (max %d)", ErrSnapshotTooLarge, len(resultRows), maxSnapshotResultRows)
-	}
-
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx,
 			`DELETE FROM report_results WHERE report_id = $1 AND host_id = $2`,

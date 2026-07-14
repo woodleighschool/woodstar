@@ -181,6 +181,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 			{
 				"name": "woodstar_report_query_` + strconv.FormatInt(report.ID, 10) + `",
 				"calendarTime": "Fri May 15 12:34:56 2026 UTC",
+				"unixTime": 1778848496,
 				"action": "snapshot",
 				"snapshot": [
 					{"name": "Alpha", "version": "1.0"},

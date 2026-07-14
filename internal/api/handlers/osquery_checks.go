@@ -82,7 +82,6 @@ func registerListChecks(api huma.API, checkStore *checks.Store, logger *slog.Log
 		Path:        "/api/osquery/checks",
 		Tags:        []string{checksTag},
 		Summary:     "List checks",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
 		items, count, err := checkStore.List(ctx, input.params())
 		if err != nil {
@@ -100,7 +99,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 		Tags:          []string{checksTag},
 		Summary:       "Create a check",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
 		check, err := checkStore.Create(ctx, checks.CheckCreateMutation{
 			CheckMutation:   input.Body,
@@ -120,7 +119,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store, logger *slog.Logge
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
 		Summary:     "Get a check",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
 		check, err := checkStore.GetByID(ctx, input.ID)
 		if err != nil {
@@ -137,7 +136,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
 		Summary:     "Replace a check",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
 		check, err := checkStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
@@ -162,7 +161,7 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
 		Summary:     "Delete a check",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
 		if err := checkStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
@@ -186,7 +185,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store, logger *sl
 		Path:        "/api/osquery/checks/bulk-delete",
 		Tags:        []string{checksTag},
 		Summary:     "Delete checks",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *checkBulkDeleteInput) (*struct{}, error) {
 		if _, err := checkStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-osquery-checks", err)
@@ -202,7 +201,7 @@ func registerCheckResults(api huma.API, checkStore *checks.Store, logger *slog.L
 		Path:        "/api/osquery/checks/{id}/results",
 		Tags:        []string{checksTag},
 		Summary:     "List latest results for a check",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *checkResultsInput) (*checkResultsOutput, error) {
 		var response *checks.CheckStatus
 		if input.Response != "" {

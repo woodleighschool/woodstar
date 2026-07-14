@@ -3,6 +3,8 @@ package httpx
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -42,8 +44,26 @@ func WriteError(w http.ResponseWriter, status int, message string) {
 	Write(w, status, ErrorBody{Error: message})
 }
 
-func Decode[T any](r *http.Request) (T, error) {
+func Decode[T any](w http.ResponseWriter, r *http.Request, maxBytes int64) (T, error) {
 	var req T
-	err := json.NewDecoder(r.Body).Decode(&req)
-	return req, err
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBytes))
+	if err := decoder.Decode(&req); err != nil {
+		return req, err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("request body contains multiple JSON values")
+		}
+		return req, err
+	}
+	return req, nil
+}
+
+func WriteDecodeError(w http.ResponseWriter, err error) {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		WriteError(w, http.StatusRequestEntityTooLarge, "request body too large")
+		return
+	}
+	WriteError(w, http.StatusBadRequest, "invalid request body")
 }

@@ -80,6 +80,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	preflight, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
 		Version:          "2026.2",
+		RulesHash:        "00000000000000000000000000000000",
 		ClientMode:       configurations.ReportedClientModeMonitor,
 		RequestCleanSync: true,
 		PrimaryUser:      "test1@woodleigh.vic.edu.au",
@@ -137,6 +138,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if _, err := service.Postflight(ctx, "santa-sync-host", santa.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,
+		SyncType:       syncstate.SyncTypeClean,
+		RulesHash:      "11111111111111111111111111111111",
 	}); err != nil {
 		t.Fatalf("postflight: %v", err)
 	}

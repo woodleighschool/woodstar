@@ -77,7 +77,7 @@ func insertSoftware(t *testing.T, ctx context.Context, db *database.DB, name str
 	t.Helper()
 	var id int64
 	err := db.Pool().
-		QueryRow(ctx, `INSERT INTO munki_software (name) VALUES ($1) RETURNING id`, name).
+		QueryRow(ctx, `INSERT INTO munki_software (name, display_name) VALUES ($1, $1) RETURNING id`, name).
 		Scan(&id)
 	if err != nil {
 		t.Fatalf("insert munki_software: %v", err)

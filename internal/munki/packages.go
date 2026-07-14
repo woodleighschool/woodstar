@@ -31,9 +31,6 @@ type PackageServiceDependencies struct {
 
 // NewPackageService returns an app-side Munki package service.
 func NewPackageService(deps PackageServiceDependencies) *PackageService {
-	if deps.DesiredPackagesChanged == nil {
-		deps.DesiredPackagesChanged = func() {}
-	}
 	return &PackageService{deps: deps}
 }
 

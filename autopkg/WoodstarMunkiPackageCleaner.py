@@ -18,11 +18,15 @@ class WoodstarMunkiPackageCleaner(Processor):
     input_variables = {
         "WOODSTAR_URL": {
             "required": True,
-            "description": "Woodstar base URL, for example http://localhost:8080.",
+            "description": "Woodstar HTTPS origin, for example https://woodstar.example.",
         },
         "WOODSTAR_API_KEY": {
             "required": True,
             "description": "Woodstar admin API key.",
+        },
+        "WOODSTAR_CA_FILE": {
+            "required": False,
+            "description": "PEM CA file for a private Woodstar certificate chain.",
         },
         "software_id": {
             "required": False,

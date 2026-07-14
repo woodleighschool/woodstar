@@ -378,6 +378,12 @@ export type MunkiHostState = {
     warnings: Array<string>;
 };
 
+export type MunkiIconFile = {
+    filename: string;
+    sha256: string;
+    size_bytes: number;
+};
+
 export type MunkiInclude = {
     actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
     label_id: number;
@@ -403,6 +409,7 @@ export type MunkiMutation = {
     category?: string;
     description?: string;
     developer?: string;
+    display_name?: string;
     icon_object_id?: number;
     name: string;
     targets: MunkiTargets;
@@ -457,6 +464,7 @@ export type MunkiPackage = {
     software_category: string;
     software_description: string;
     software_developer: string;
+    software_display_name: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string>;
@@ -655,6 +663,8 @@ export type MunkiSoftware = {
     created_at: string;
     description: string;
     developer: string;
+    display_name: string;
+    icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
@@ -667,6 +677,8 @@ export type MunkiSoftwareDetail = {
     created_at: string;
     description: string;
     developer: string;
+    display_name: string;
+    icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
@@ -767,7 +779,7 @@ export type OsqueryLiveQueryResultEvent = {
     error?: string;
     host_id?: number;
     host_name?: string;
-    status: 'success' | 'error' | 'stopped';
+    status: 'success' | 'error' | 'stopped' | 'overflow';
 };
 
 export type OsqueryLiveQuerySelectedBody = {
@@ -1076,6 +1088,7 @@ export type SantaExecutionEvent = {
     parent_name: string;
     pid: number;
     ppid: number;
+    static_rule: boolean;
 };
 
 export type SantaFileAccessEvent = {
@@ -1338,9 +1351,9 @@ export type GetAccountErrors = {
      */
     401: ErrorModel;
     /**
-     * Internal Server Error
+     * Error
      */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type GetAccountError = GetAccountErrors[keyof GetAccountErrors];
@@ -1408,9 +1421,9 @@ export type RevokeAccountApiKeyErrors = {
      */
     401: ErrorModel;
     /**
-     * Internal Server Error
+     * Error
      */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type RevokeAccountApiKeyError = RevokeAccountApiKeyErrors[keyof RevokeAccountApiKeyErrors];
@@ -1437,9 +1450,9 @@ export type RotateAccountApiKeyErrors = {
      */
     401: ErrorModel;
     /**
-     * Internal Server Error
+     * Error
      */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type RotateAccountApiKeyError = RotateAccountApiKeyErrors[keyof RotateAccountApiKeyErrors];
@@ -1470,9 +1483,9 @@ export type ListAgentSecretsErrors = {
      */
     403: ErrorModel;
     /**
-     * Internal Server Error
+     * Error
      */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListAgentSecretsError = ListAgentSecretsErrors[keyof ListAgentSecretsErrors];
@@ -1675,9 +1688,9 @@ export type DeleteSessionErrors = {
      */
     401: ErrorModel;
     /**
-     * Internal Server Error
+     * Error
      */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type DeleteSessionError = DeleteSessionErrors[keyof DeleteSessionErrors];
@@ -1735,13 +1748,9 @@ export type ListGroupsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListGroupsError = ListGroupsErrors[keyof ListGroupsErrors];
@@ -1817,13 +1826,9 @@ export type ListHostsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListHostsError = ListHostsErrors[keyof ListHostsErrors];
@@ -2359,13 +2364,9 @@ export type ListLabelsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListLabelsError = ListLabelsErrors[keyof ListLabelsErrors];
@@ -2395,6 +2396,10 @@ export type CreateLabelErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2438,6 +2443,10 @@ export type DeleteLabelErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2521,6 +2530,10 @@ export type UpdateLabelErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2566,6 +2579,10 @@ export type CreateLiveQueryErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -2603,6 +2620,10 @@ export type CountLiveQueryTargetsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -2637,6 +2658,10 @@ export type StopLiveQueryErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2676,6 +2701,10 @@ export type StreamLiveQueryErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2763,13 +2792,9 @@ export type ListMunkiDistributionPointsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListMunkiDistributionPointsError = ListMunkiDistributionPointsErrors[keyof ListMunkiDistributionPointsErrors];
@@ -3063,13 +3088,9 @@ export type ListMunkiIconsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListMunkiIconsError = ListMunkiIconsErrors[keyof ListMunkiIconsErrors];
@@ -3103,13 +3124,9 @@ export type ListMunkiPackagesErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListMunkiPackagesError = ListMunkiPackagesErrors[keyof ListMunkiPackagesErrors];
@@ -3373,6 +3390,10 @@ export type DeleteMunkiPackageInstallerErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3420,6 +3441,10 @@ export type CreateMunkiPackageInstallerUploadErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3464,6 +3489,10 @@ export type ConfirmMunkiPackageInstallerUploadErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3506,13 +3535,9 @@ export type ListMunkiSoftwareErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListMunkiSoftwareError = ListMunkiSoftwareErrors[keyof ListMunkiSoftwareErrors];
@@ -3768,6 +3793,10 @@ export type CreateMunkiSoftwareIconUploadErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3812,6 +3841,10 @@ export type ConfirmMunkiSoftwareIconUploadErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3854,13 +3887,9 @@ export type ListOsqueryChecksErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListOsqueryChecksError = ListOsqueryChecksErrors[keyof ListOsqueryChecksErrors];
@@ -3890,6 +3919,10 @@ export type CreateOsqueryCheckErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -3975,6 +4008,10 @@ export type DeleteOsqueryCheckErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -4056,6 +4093,10 @@ export type UpdateOsqueryCheckErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4144,13 +4185,9 @@ export type ListOsqueryReportsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListOsqueryReportsError = ListOsqueryReportsErrors[keyof ListOsqueryReportsErrors];
@@ -4180,6 +4217,10 @@ export type CreateOsqueryReportErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4265,6 +4306,10 @@ export type DeleteOsqueryReportErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -4346,6 +4391,10 @@ export type UpdateOsqueryReportErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4432,13 +4481,9 @@ export type ListSantaConfigurationsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListSantaConfigurationsError = ListSantaConfigurationsErrors[keyof ListSantaConfigurationsErrors];
@@ -5215,13 +5260,9 @@ export type ListSoftwareErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListSoftwareError = ListSoftwareErrors[keyof ListSoftwareErrors];
@@ -5335,13 +5376,9 @@ export type ListUsersErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListUsersError = ListUsersErrors[keyof ListUsersErrors];
@@ -5419,13 +5456,9 @@ export type ListUserDepartmentsErrors = {
      */
     401: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Error
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
 export type ListUserDepartmentsError = ListUserDepartmentsErrors[keyof ListUserDepartmentsErrors];

@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -16,7 +17,8 @@ import (
 
 const (
 	capabilitiesHeader     = "X-Fleet-Capabilities"
-	orbitCapabilitiesValue = "orbit_endpoints,end_user_email"
+	orbitCapabilitiesValue = "orbit_endpoints,token_rotation,end_user_email"
+	orbitRequestMaxBytes   = 1 << 20
 )
 
 // Server owns Orbit protocol routes.
@@ -37,16 +39,17 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 		r.Post("/api/fleet/orbit/enroll", orbitEnrollHandler(s.service, s.logger))
 		r.Post("/api/fleet/orbit/config", orbitConfigHandler(s.service, s.logger))
 		r.Put("/api/fleet/orbit/device_mapping", orbitDeviceMappingHandler(s.service, s.logger))
+		r.Post("/api/fleet/orbit/device_token", orbitDeviceTokenHandler(s.service, s.logger))
 		r.Head("/api/fleet/orbit/ping", orbitPingHandler)
-		registerOrbitCompatibilityRoutes(r, s.service)
+		r.Head("/api/latest/fleet/device/{token}/ping", orbitDevicePingHandler(s.service, s.logger))
 	})
 }
 
 func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpx.Decode[orbit.EnrollRequest](r)
+		req, err := httpx.Decode[orbit.EnrollRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteDecodeError(w, err)
 			return
 		}
 
@@ -88,9 +91,9 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 
 func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpx.Decode[orbit.ConfigRequest](r)
+		req, err := httpx.Decode[orbit.ConfigRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteDecodeError(w, err)
 			return
 		}
 		resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
@@ -109,18 +112,30 @@ func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 
 func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpx.Decode[orbit.DeviceMappingRequest](r)
+		req, err := httpx.Decode[orbit.DeviceMappingRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid request body")
+			httpx.WriteDecodeError(w, err)
 			return
 		}
-		if err := svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
+		err = svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email)
+		switch {
+		case errors.Is(err, dbutil.ErrInvalidInput):
+			httpx.WriteError(w, http.StatusBadRequest, "invalid primary user email")
+			return
+		case errors.Is(err, dbutil.ErrNotFound):
 			logger.WarnContext(
 				r.Context(),
 				"orbit device mapping rejected", "operation", "device_mapping",
 				"reason", "invalid_node_key",
 			)
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			return
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "orbit device mapping failed",
+				"operation", "device_mapping", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "device mapping failed")
 			return
 		}
 		httpx.Write(w, http.StatusOK, struct{}{})
@@ -129,6 +144,51 @@ func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger
 
 func orbitPingHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func orbitDeviceTokenHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpx.Decode[orbit.DeviceTokenRequest](w, r, orbitRequestMaxBytes)
+		if err != nil {
+			httpx.WriteDecodeError(w, err)
+			return
+		}
+		err = svc.SetDeviceAuthToken(r.Context(), req.OrbitNodeKey, req.DeviceAuthToken)
+		switch {
+		case errors.Is(err, orbit.ErrInvalidDeviceAuthToken):
+			httpx.WriteError(w, http.StatusBadRequest, "invalid device auth token")
+		case errors.Is(err, dbutil.ErrNotFound):
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+		case errors.Is(err, dbutil.ErrAlreadyExists):
+			httpx.WriteError(w, http.StatusConflict, "device auth token already exists")
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "rotate Orbit device token failed",
+				"operation", "device_token", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "device token rotation failed")
+		default:
+			httpx.Write(w, http.StatusOK, struct{}{})
+		}
+	}
+}
+
+func orbitDevicePingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := svc.ValidateDeviceAuthToken(r.Context(), chi.URLParam(r, "token"))
+		switch {
+		case errors.Is(err, dbutil.ErrNotFound):
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid device auth token")
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "validate Orbit device token failed",
+				"operation", "device_ping", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "device token validation failed")
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}
 }
 
 func orbitCapabilities(next http.Handler) http.Handler {

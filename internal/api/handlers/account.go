@@ -48,7 +48,6 @@ func registerGetAccount(api huma.API, authService *auth.Service, logger *slog.Lo
 		Path:        "/api/account",
 		Tags:        []string{accountTag},
 		Summary:     "Get the signed-in user's account, including any API key",
-		Errors:      []int{http.StatusUnauthorized},
 	}, authService.Account, logger)
 }
 
@@ -61,7 +60,6 @@ func registerPutAccount(api huma.API, userService *directory.UserService, logger
 		Summary:     "Update the signed-in user's account",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *accountPutInput) (*accountOutput, error) {
@@ -85,7 +83,6 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service, logger *slog.
 		Tags:          []string{accountTag},
 		Summary:       "Generate a new API key for the signed-in user, replacing any prior key",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusUnauthorized},
 	}, authService.RotateAPIKey, logger)
 }
 
@@ -96,7 +93,6 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service, logger *slog.
 		Path:        "/api/account/api-key",
 		Tags:        []string{accountTag},
 		Summary:     "Clear the API key on the signed-in user's account",
-		Errors:      []int{http.StatusUnauthorized},
 	}, authService.RevokeAPIKey, logger)
 }
 

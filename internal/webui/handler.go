@@ -123,6 +123,10 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
+	if isServerPath(r.URL.Path) {
+		http.NotFound(w, r)
+		return
+	}
 	if isAssetPath(r.URL.Path) {
 		h.serveAsset(w, r)
 		return
@@ -171,6 +175,16 @@ func setAssetHeaders(w http.ResponseWriter, name string) {
 
 func isAssetPath(path string) bool {
 	return strings.HasPrefix(path, "/assets/") || filepath.Ext(path) != ""
+}
+
+func isServerPath(path string) bool {
+	return path == "/api" || strings.HasPrefix(path, "/api/") ||
+		path == "/storage" || strings.HasPrefix(path, "/storage/") ||
+		path == "/santa/sync" || strings.HasPrefix(path, "/santa/sync/") ||
+		strings.HasPrefix(path, "/munki/manifests/") ||
+		strings.HasPrefix(path, "/munki/catalogs/") ||
+		strings.HasPrefix(path, "/munki/pkgs/") ||
+		strings.HasPrefix(path, "/munki/icons/")
 }
 
 func renderIndex(fsys fs.FS, version, serverURL string) ([]byte, error) {

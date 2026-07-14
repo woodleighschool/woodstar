@@ -261,7 +261,7 @@ function santaProfileTemplate(serverURLValue: string | undefined) {
     payloads: [
       {
         ClientMode: 1,
-        SyncBaseURL: woodstarURL(serverURLValue, "/santa/sync"),
+        SyncBaseURL: woodstarURL(serverURLValue, "/santa/sync/"),
         SyncClientContentEncoding: "gzip",
         SyncEnableProtoTransfer: true,
         SyncExtraHeaders: {

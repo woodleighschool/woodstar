@@ -72,7 +72,7 @@ func (q ListQuery) Build() (string, []any, error) {
 	}
 	args := slices.Clone(q.Args)
 	limitIndex := len(args) + 1
-	args = append(args, params.PageSize, params.PageIndex*params.PageSize)
+	args = append(args, params.PageSize, int64(params.PageIndex)*int64(params.PageSize))
 
 	parts := q.baseParts()
 	if orderSQL != "" {

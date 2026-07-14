@@ -8,15 +8,18 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestSetupIgnoresUsersWithoutAdministratorAccess(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := directory.NewStore(database)
-	if err := store.ApplyProviderSnapshot(ctx, directory.SourceEntra, directory.ProviderSnapshot{
+	provider := directory.NewProviderService(store, labels.NewStore(database))
+	if err := provider.ApplyProviderSnapshot(ctx, directory.SourceEntra, directory.ProviderSnapshot{
 		Users: []directory.ProviderUser{{
 			ExternalID:        "entra-user",
 			UserPrincipalName: "entra@example.test",
@@ -120,10 +123,54 @@ WHERE role = 'admin'
 	}
 }
 
+func TestSetupStaysCompleteWithoutAnActiveAdministrator(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := directory.NewStore(database)
+	service, sessions := testAuthService(store)
+	requestCtx := loadTestSession(t, sessions, ctx)
+
+	user, err := service.Setup(requestCtx, SetupParams{
+		Email:    "admin@example.test",
+		Name:     "Initial Admin",
+		Password: "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("complete setup: %v", err)
+	}
+	if _, err := database.Pool().Exec(ctx, `
+UPDATE users
+SET role = NULL
+WHERE id = $1`, user.ID); err != nil {
+		t.Fatalf("revoke administrator access: %v", err)
+	}
+
+	complete, err := service.SetupComplete(ctx)
+	if err != nil {
+		t.Fatalf("check setup state: %v", err)
+	}
+	if !complete {
+		t.Fatal("setup reopened after the final administrator was revoked")
+	}
+	_, err = service.Setup(requestCtx, SetupParams{
+		Email:    "takeover@example.test",
+		Name:     "Takeover",
+		Password: "correct-password",
+	})
+	if !errors.Is(err, ErrAlreadySetup) {
+		t.Fatalf("second Setup error = %v, want %v", err, ErrAlreadySetup)
+	}
+}
+
 func testAuthService(store *directory.Store) (*Service, *scs.SessionManager) {
 	sessions := scs.New()
 	sessions.Store = memstore.New()
-	return NewService(directory.NewUserService(store), sessions), sessions
+	return NewService(directory.NewUserService(store, testDerivedLabelRefresher{}), sessions), sessions
+}
+
+type testDerivedLabelRefresher struct{}
+
+func (testDerivedLabelRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
+	return nil
 }
 
 func loadTestSession(t *testing.T, sessions *scs.SessionManager, ctx context.Context) context.Context {

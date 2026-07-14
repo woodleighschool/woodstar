@@ -55,7 +55,6 @@ func registerListInventorySoftware(api huma.API, softwareStore *inventory.Store,
 		Path:        "/api/software",
 		Tags:        []string{softwareTag},
 		Summary:     "List software titles",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *inventorySoftwareListInput) (*inventorySoftwareListOutput, error) {
 		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
@@ -74,7 +73,7 @@ func registerGetInventorySoftware(api huma.API, softwareStore *inventory.Store, 
 		Path:        "/api/software/{id}",
 		Tags:        []string{softwareTag},
 		Summary:     "Get a software title",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *inventorySoftwareGetInput) (*inventorySoftwareGetOutput, error) {
 		title, err := softwareStore.GetTitle(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {

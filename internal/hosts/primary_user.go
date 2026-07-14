@@ -2,6 +2,8 @@ package hosts
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -10,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 type PrimaryUserSource string
@@ -38,10 +41,23 @@ func NewPrimaryUserStore(db *database.DB) *PrimaryUserStore {
 }
 
 func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email string, source PrimaryUserSource) error {
-	if email == "" || source == "" {
-		return nil
+	email, err := validatePrimaryUser(email, source)
+	if err != nil {
+		return err
 	}
-	_, err := s.db.Pool().Exec(ctx, upsertHostPrimaryUserSourceSQL, pgx.NamedArgs{
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		return upsertPrimaryUser(ctx, tx, hostID, email, source)
+	})
+}
+
+func upsertPrimaryUser(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	email string,
+	source PrimaryUserSource,
+) error {
+	_, err := tx.Exec(ctx, upsertHostPrimaryUserSourceSQL, pgx.NamedArgs{
 		"host_id": hostID,
 		"email":   email,
 		"source":  string(source),
@@ -50,10 +66,16 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 }
 
 func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source PrimaryUserSource) error {
-	if source == "" {
-		return nil
+	if err := validatePrimaryUserSource(source); err != nil {
+		return err
 	}
-	tag, err := s.db.Pool().Exec(ctx, deleteHostPrimaryUserSourceSQL, pgx.NamedArgs{
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		return deletePrimaryUser(ctx, tx, hostID, source)
+	})
+}
+
+func deletePrimaryUser(ctx context.Context, tx pgx.Tx, hostID int64, source PrimaryUserSource) error {
+	tag, err := tx.Exec(ctx, deleteHostPrimaryUserSourceSQL, pgx.NamedArgs{
 		"host_id": hostID,
 		"source":  string(source),
 	})
@@ -63,7 +85,7 @@ func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source Prim
 	if tag.RowsAffected() > 0 {
 		return nil
 	}
-	exists, err := s.hostExists(ctx, hostID)
+	exists, err := hostExists(ctx, tx, hostID)
 	if err != nil {
 		return err
 	}
@@ -73,9 +95,79 @@ func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source Prim
 	return nil
 }
 
-func (s *PrimaryUserStore) hostExists(ctx context.Context, hostID int64) (bool, error) {
+type primaryUserMutation struct {
+	Email  string            `validate:"required,email"`
+	Source PrimaryUserSource `validate:"required,oneof=manual orbit_profile"`
+}
+
+// DerivedLabelRefresher recomputes materialized label membership after a
+// primary-user source changes.
+type DerivedLabelRefresher interface {
+	RefreshDerivedTx(context.Context, pgx.Tx) error
+}
+
+// PrimaryUserService updates host primary-user sources and their derived label memberships.
+type PrimaryUserService struct {
+	store     *PrimaryUserStore
+	refresher DerivedLabelRefresher
+}
+
+// NewPrimaryUserService returns the primary-user orchestration service.
+func NewPrimaryUserService(store *PrimaryUserStore, refresher DerivedLabelRefresher) *PrimaryUserService {
+	return &PrimaryUserService{store: store, refresher: refresher}
+}
+
+func (s *PrimaryUserService) Upsert(
+	ctx context.Context,
+	hostID int64,
+	email string,
+	source PrimaryUserSource,
+) error {
+	email, err := validatePrimaryUser(email, source)
+	if err != nil {
+		return err
+	}
+	return s.store.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
+			return err
+		}
+		return s.refresher.RefreshDerivedTx(ctx, tx)
+	})
+}
+
+func (s *PrimaryUserService) Delete(ctx context.Context, hostID int64, source PrimaryUserSource) error {
+	if err := validatePrimaryUserSource(source); err != nil {
+		return err
+	}
+	return s.store.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := deletePrimaryUser(ctx, tx, hostID, source); err != nil {
+			return err
+		}
+		return s.refresher.RefreshDerivedTx(ctx, tx)
+	})
+}
+
+func validatePrimaryUser(email string, source PrimaryUserSource) (string, error) {
+	email = strings.TrimSpace(email)
+	mutation := primaryUserMutation{Email: email, Source: source}
+	if err := validation.Struct(mutation); err != nil {
+		return "", fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return email, nil
+}
+
+func validatePrimaryUserSource(source PrimaryUserSource) error {
+	if err := validation.Struct(struct {
+		Source PrimaryUserSource `validate:"required,oneof=manual orbit_profile"`
+	}{Source: source}); err != nil {
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return nil
+}
+
+func hostExists(ctx context.Context, tx pgx.Tx, hostID int64) (bool, error) {
 	var exists bool
-	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
+	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
 	return exists, err
 }
 

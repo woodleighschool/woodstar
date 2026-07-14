@@ -37,9 +37,9 @@ func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*directory.Ac
 	return account, nil
 }
 
-// userByAPIKey returns the user owning the given API key and best-effort
-// updates api_key_last_used_at. Token lookup is plain equality on the
-// indexed column; the user is not retrieved when token is empty.
+// userByAPIKey returns the user owning the given API key. Token lookup is
+// plain equality on the indexed column; the user is not retrieved when token
+// is empty.
 func (s *Service) userByAPIKey(ctx context.Context, token string) (*directory.User, error) {
 	if token == "" {
 		return nil, ErrNotAuthenticated

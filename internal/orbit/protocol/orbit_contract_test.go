@@ -18,6 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
@@ -54,7 +55,7 @@ func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 		t.Fatal("enroll returned empty orbit node key")
 	}
 
-	var configBody map[string]any
+	var configBody orbit.ConfigResponse
 	doOrbitJSON(
 		t,
 		router,
@@ -64,14 +65,28 @@ func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 		http.StatusOK,
 		&configBody,
 	)
-	if len(configBody) != 0 {
-		t.Fatalf("config body = %#v, want empty object", configBody)
+	var flags map[string]any
+	if err := json.Unmarshal(configBody.CommandLineStartupFlags, &flags); err != nil {
+		t.Fatalf("decode command-line flags: %v", err)
+	}
+	if flags["disable_carver"] != true ||
+		flags["carver_disable_function"] != true ||
+		flags["logger_min_status"] != float64(4) {
+		t.Fatalf("command-line flags = %#v", flags)
 	}
 
 	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
 		OrbitNodeKey: enrollBody.OrbitNodeKey,
 		Email:        userEmail,
 	}, http.StatusOK, nil)
+	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
+		OrbitNodeKey: enrollBody.OrbitNodeKey,
+		Email:        "not-an-email",
+	}, http.StatusBadRequest, nil)
+	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
+		OrbitNodeKey: "not-a-node-key",
+		Email:        "valid@example.test",
+	}, http.StatusUnauthorized, nil)
 
 	host, err := stores.hosts.GetByOrbitNodeKey(ctx, enrollBody.OrbitNodeKey)
 	if err != nil {
@@ -84,6 +99,22 @@ func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 	if !hasPrimaryUserSource(detail.PrimaryUserSources, userEmail) {
 		t.Fatalf("primary user source %q not found: %#v", userEmail, detail.PrimaryUserSources)
 	}
+
+	deviceToken := "731dbefd-d87c-4ccf-b4d1-7f45b804edfe"
+	doOrbitJSON(t, router, http.MethodPost, "/api/fleet/orbit/device_token", orbit.DeviceTokenRequest{
+		OrbitNodeKey:    enrollBody.OrbitNodeKey,
+		DeviceAuthToken: deviceToken,
+	}, http.StatusOK, nil)
+	doOrbitJSON(t, router, http.MethodHead, "/api/latest/fleet/device/"+deviceToken+"/ping", nil, http.StatusOK, nil)
+	doOrbitJSON(
+		t,
+		router,
+		http.MethodHead,
+		"/api/latest/fleet/device/471f74c8-4192-444b-8c77-da229df57f29/ping",
+		nil,
+		http.StatusUnauthorized,
+		nil,
+	)
 }
 
 func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
@@ -99,14 +130,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 
 type orbitContractStores struct {
 	hosts        *hosts.Store
-	primaryUsers *hosts.PrimaryUserStore
+	primaryUsers *hosts.PrimaryUserService
 	agentSecrets *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:        hosts.NewStore(database),
-		primaryUsers: hosts.NewPrimaryUserStore(database),
+		primaryUsers: hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(database), labels.NewStore(database)),
 		agentSecrets: agentauth.NewStore(database),
 	}
 }
@@ -179,6 +210,9 @@ func doOrbitJSON(
 	}
 	if got := rec.Header().Get(capabilitiesHeader); !strings.Contains(got, "end_user_email") {
 		t.Fatalf("capabilities header = %q, want end_user_email", got)
+	}
+	if got := rec.Header().Get(capabilitiesHeader); !strings.Contains(got, "token_rotation") {
+		t.Fatalf("capabilities header = %q, want token_rotation", got)
 	}
 	if out != nil {
 		if err := json.NewDecoder(rec.Body).Decode(out); err != nil {

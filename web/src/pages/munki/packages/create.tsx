@@ -54,6 +54,7 @@ export function MunkiPackageCreatePage() {
     ? {
         id: selectedSoftware.id,
         name: selectedSoftware.name,
+        displayName: selectedSoftware.display_name,
         description: selectedSoftware.description,
         category: selectedSoftware.category,
         developer: selectedSoftware.developer,
@@ -100,7 +101,9 @@ function SoftwareSelector({
   loading: boolean;
   onChange: (id: number | null) => void;
 }) {
-  const [inputValue, setInputValue] = useState(selected?.name ?? "");
+  const [inputValue, setInputValue] = useState(
+    selected ? selected.display_name || selected.name : "",
+  );
 
   return (
     <Field>
@@ -114,7 +117,7 @@ function SoftwareSelector({
         onValueChange={(next) => {
           const item = rows.find((candidate) => String(candidate.id) === next);
           onChange(item?.id ?? null);
-          setInputValue(item?.name ?? "");
+          setInputValue(item ? item.display_name || item.name : "");
         }}
       >
         <ComboboxAnchor className="w-full">
@@ -130,8 +133,12 @@ function SoftwareSelector({
             {rows.length === 0 ? "No Software Available." : "No Software Found."}
           </ComboboxEmpty>
           {rows.map((item) => (
-            <ComboboxItem key={item.id} value={String(item.id)} label={item.name}>
-              {item.name}
+            <ComboboxItem
+              key={item.id}
+              value={String(item.id)}
+              label={item.display_name || item.name}
+            >
+              {item.display_name || item.name}
             </ComboboxItem>
           ))}
         </ComboboxContent>

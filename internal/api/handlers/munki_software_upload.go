@@ -58,7 +58,6 @@ func registerCreateSoftwareIconRoute(
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
@@ -112,7 +111,6 @@ func registerConfirmSoftwareIconRoute(
 		DefaultStatus: http.StatusOK,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareConfirmInput) (*munkiObjectOutput, error) {
@@ -146,7 +144,6 @@ func registerListMunkiIconsRoute(
 		Path:        "/api/munki/icons",
 		Tags:        []string{munkiTag},
 		Summary:     "List uploaded Munki icons",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
 		rows, count, err := objects.ListByPrefix(ctx, munkiupload.IconObjectPrefix, input.ListQueryInput.params())
 		if err != nil {

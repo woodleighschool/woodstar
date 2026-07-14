@@ -1,11 +1,11 @@
 package api
 
 import (
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/config"
 )
@@ -57,9 +57,11 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 
 func TestCompressionMiddlewareBypassesStorage(t *testing.T) {
 	t.Parallel()
-	handler := compressionMiddleware(
-		slog.New(slog.DiscardHandler),
-	)(
+	compression, err := compressionMiddleware()
+	if err != nil {
+		t.Fatalf("compressionMiddleware returned error: %v", err)
+	}
+	handler := compression(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(strings.Repeat("storage-bytes", 200)))
 		}),
@@ -77,9 +79,11 @@ func TestCompressionMiddlewareBypassesStorage(t *testing.T) {
 
 func TestCompressionMiddlewareCompressesAPIResponses(t *testing.T) {
 	t.Parallel()
-	handler := compressionMiddleware(
-		slog.New(slog.DiscardHandler),
-	)(
+	compression, err := compressionMiddleware()
+	if err != nil {
+		t.Fatalf("compressionMiddleware returned error: %v", err)
+	}
+	handler := compression(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(strings.Repeat("api-bytes", 200)))
 		}),
@@ -92,5 +96,106 @@ func TestCompressionMiddlewareCompressesAPIResponses(t *testing.T) {
 
 	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
 		t.Fatalf("Content-Encoding = %q, want gzip", got)
+	}
+}
+
+func TestCompressionMiddlewareBypassesDistributionWebSocket(t *testing.T) {
+	t.Parallel()
+	compression, err := compressionMiddleware()
+	if err != nil {
+		t.Fatalf("compressionMiddleware returned error: %v", err)
+	}
+	handler := compression(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(strings.Repeat("websocket-bytes", 200)))
+		}),
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/munki/distribution/connect", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Upgrade", "WebSocket")
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Content-Encoding"); got != "" {
+		t.Fatalf("Content-Encoding = %q, want empty for WebSocket upgrade", got)
+	}
+}
+
+func TestCompressionMiddlewareDoesNotTrustStreamingHeadersOnOrdinaryRoutes(t *testing.T) {
+	t.Parallel()
+	compression, err := compressionMiddleware()
+	if err != nil {
+		t.Fatalf("compressionMiddleware returned error: %v", err)
+	}
+	handler := compression(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("api-bytes", 200)))
+	}))
+
+	for _, header := range []struct{ name, value string }{
+		{name: "Accept", value: "text/event-stream"},
+		{name: "Upgrade", value: "websocket"},
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/hosts", nil)
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set(header.name, header.value)
+		handler.ServeHTTP(rec, req)
+		if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
+			t.Fatalf("%s spoof Content-Encoding = %q, want gzip", header.name, got)
+		}
+	}
+}
+
+func TestRequestTimeoutMiddlewareExemptsLongLivedResponses(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		method      string
+		path        string
+		headers     map[string]string
+		wantExpiry  bool
+		wantTimeout time.Duration
+	}{
+		{name: "ordinary API", method: http.MethodGet, path: "/api/hosts", wantExpiry: true, wantTimeout: time.Minute},
+		{name: "spoofed SSE", method: http.MethodPost, path: "/api/hosts", headers: map[string]string{"Accept": "text/event-stream"}, wantExpiry: true, wantTimeout: time.Minute},
+		{name: "spoofed WebSocket", method: http.MethodPost, path: "/api/hosts", headers: map[string]string{"Upgrade": "websocket"}, wantExpiry: true, wantTimeout: time.Minute},
+		{name: "storage", path: "/storage/munki/packages/1/Installer.pkg"},
+		{name: "SSE", method: http.MethodGet, path: "/api/live-queries/1/stream"},
+		{name: "WebSocket", method: http.MethodGet, path: "/api/munki/distribution/connect", headers: map[string]string{"Upgrade": "websocket"}},
+		{name: "package confirmation", method: http.MethodPost, path: "/api/munki/packages/1/installer/2/confirm", wantExpiry: true, wantTimeout: packageConfirmTimeout},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var gotExpiry bool
+			var gotTimeout time.Duration
+			handler := requestTimeoutMiddleware(
+				time.Minute,
+			)(
+				http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+					deadline, ok := req.Context().Deadline()
+					gotExpiry = ok
+					if ok {
+						gotTimeout = time.Until(deadline)
+					}
+				}),
+			)
+			method := tc.method
+			if method == "" {
+				method = http.MethodGet
+			}
+			req := httptest.NewRequest(method, tc.path, nil)
+			for name, value := range tc.headers {
+				req.Header.Set(name, value)
+			}
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+			if gotExpiry != tc.wantExpiry {
+				t.Fatalf("context has deadline = %t, want %t", gotExpiry, tc.wantExpiry)
+			}
+			if tc.wantTimeout > 0 && (gotTimeout < tc.wantTimeout-time.Second || gotTimeout > tc.wantTimeout) {
+				t.Fatalf("context timeout = %s, want about %s", gotTimeout, tc.wantTimeout)
+			}
+		})
 	}
 }

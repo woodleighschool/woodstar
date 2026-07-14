@@ -580,7 +580,13 @@ type ruleTargetWrite struct {
 // SyncTargetsFromRules returns Santa sync payload targets for host rules.
 func SyncTargetsFromRules(rules []HostRule) []syncstate.Target {
 	targets := make([]syncstate.Target, 0, len(rules))
+	seen := make(map[string]struct{}, len(rules))
 	for _, rule := range rules {
+		identity := string(rule.RuleType) + "\x00" + rule.Identifier
+		if _, ok := seen[identity]; ok {
+			continue
+		}
+		seen[identity] = struct{}{}
 		target := syncstate.Target{
 			RuleType:      string(rule.RuleType),
 			Identifier:    rule.Identifier,

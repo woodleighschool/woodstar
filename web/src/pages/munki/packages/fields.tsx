@@ -108,6 +108,7 @@ type BooleanPackageFieldName = PackageFieldNameByValue<boolean>;
 export type SoftwareInfo = {
   id: number;
   name: string;
+  displayName: string;
   description: string;
   category: string;
   developer: string;
@@ -385,10 +386,10 @@ function ParentSoftwarePanel({
               params={{ softwareId: String(software.id) }}
               className="block truncate text-sm font-medium hover:underline"
             >
-              {software.name}
+              {software.displayName || software.name}
             </Link>
           ) : software ? (
-            <p className="truncate text-sm font-medium">{software.name}</p>
+            <p className="truncate text-sm font-medium">{software.displayName || software.name}</p>
           ) : (
             <p className="text-sm text-muted-foreground">Select software</p>
           )}
@@ -401,6 +402,7 @@ function ParentSoftwarePanel({
 
           {software ? (
             <KeyValueGrid>
+              <KeyValueItem label="Munki name" value={software.name} />
               <KeyValueItem label="Category" value={software.category} />
               <KeyValueItem label="Developer" value={software.developer} />
               <KeyValueItem
@@ -1376,7 +1378,7 @@ function PackageReferenceCombobox({
   onChange: (row: PackageReferenceRow) => void;
   onRemove: () => void;
 }) {
-  const [inputValue, setInputValue] = useState(packageReferenceInputValue(row));
+  const [inputValue, setInputValue] = useState(packageReferenceInputValue(row, packageGroups));
   const selectedValue = row.package_id ? packageReferencePackageValue(row.package_id) : "";
 
   return (
@@ -1387,8 +1389,8 @@ function PackageReferenceCombobox({
       onValueChange={(value) => {
         const selection = packageReferenceSelection(value, packageGroups);
         if (!selection) return;
-        onChange({ rowID: row.rowID, ...selection });
-        setInputValue(packageReferenceInputValue(selection));
+        onChange({ rowID: row.rowID, ...selection.reference });
+        setInputValue(selection.label);
       }}
     >
       <ComboboxAnchor className="w-full">
@@ -1413,7 +1415,7 @@ function PackageReferenceCombobox({
         </ComboboxEmpty>
         {packageGroups.map((group) => (
           <ComboboxGroup key={group.softwareID}>
-            <ComboboxGroupLabel>{group.softwareName}</ComboboxGroupLabel>
+            <ComboboxGroupLabel>{group.softwareTitle}</ComboboxGroupLabel>
             {group.packages.map((option) => (
               <ComboboxItem
                 key={option.id}
@@ -1435,8 +1437,13 @@ function packageReferencePackageValue(packageID: number) {
 }
 
 function packageReferenceInputValue(
-  row: Pick<PackageReferenceRow, "software_name" | "package_version">,
+  row: Pick<PackageReferenceRow, "software_name" | "package_version" | "package_id">,
+  packageGroups: ReturnType<typeof packageReferenceGroups>,
 ) {
+  const selectedPackage = packageGroups
+    .flatMap((group) => group.packages)
+    .find((pkg) => pkg.id === row.package_id);
+  if (selectedPackage) return packageLabel(selectedPackage);
   if (!row.software_name) return "";
   if (!row.package_version) return row.software_name;
   return `${row.software_name} ${row.package_version}`;
@@ -1453,22 +1460,25 @@ function packageReferenceSelection(
     .find((option) => option.id === packageID);
   if (!pkg) return null;
   return {
-    software_id: pkg.software_id,
-    software_name: pkg.software_name,
-    package_id: pkg.id,
-    package_version: pkg.version,
+    label: packageLabel(pkg),
+    reference: {
+      software_id: pkg.software_id,
+      software_name: pkg.software_name,
+      package_id: pkg.id,
+      package_version: pkg.version,
+    },
   };
 }
 
 function packageReferenceGroups(packages: MunkiPackage[]) {
   const groups = new Map<
     number,
-    { softwareID: number; softwareName: string; packages: MunkiPackage[] }
+    { softwareID: number; softwareTitle: string; packages: MunkiPackage[] }
   >();
   for (const pkg of packages) {
     const group = groups.get(pkg.software_id) ?? {
       softwareID: pkg.software_id,
-      softwareName: pkg.software_name,
+      softwareTitle: pkg.software_display_name || pkg.software_name,
       packages: [],
     };
     group.packages.push(pkg);

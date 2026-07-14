@@ -57,7 +57,6 @@ func registerCreatePackageInstallerRoute(
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiPackageUploadInput) (*munkiUploadOutput, error) {
@@ -112,7 +111,6 @@ func registerConfirmPackageInstallerRoute(
 		DefaultStatus: http.StatusOK,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiPackageConfirmInput) (*munkiObjectOutput, error) {
@@ -149,7 +147,6 @@ func registerDeletePackageInstallerRoute(
 		DefaultStatus: http.StatusNoContent,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},

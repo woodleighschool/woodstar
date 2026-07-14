@@ -27,7 +27,6 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 		"software_jetbrains_plugins",
 		"software_go_binaries",
 		"software_python_packages",
-		"software_python_packages_legacy",
 		"software_macos_codesign",
 		"software_macos_executable_sha256",
 	}
@@ -68,7 +67,6 @@ func TestDetailQueriesDue(t *testing.T) {
 		got.Discovery["software_jetbrains_plugins"] == "" ||
 		got.Discovery["software_go_binaries"] == "" ||
 		got.Discovery["software_python_packages"] == "" ||
-		got.Discovery["software_python_packages_legacy"] == "" ||
 		got.Discovery["software_macos_codesign"] == "" ||
 		got.Discovery["software_macos_executable_sha256"] == "" ||
 		got.Discovery["munki_info"] == "" ||
@@ -140,7 +138,6 @@ func TestSoftwareQueriesProjectIngestShape(t *testing.T) {
 		QuerySoftwareJetBrainsPlugins,
 		QuerySoftwareGoBinaries,
 		QuerySoftwarePythonPackages,
-		QuerySoftwarePythonPackagesLegacy,
 	} {
 		sql := DetailQueries()[name].SQL
 		for _, want := range []string{

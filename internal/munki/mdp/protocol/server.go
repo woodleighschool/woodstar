@@ -4,6 +4,7 @@ package protocol
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -69,6 +70,11 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 // distribution points.
 func (s *Server) RefreshDesiredPackages() {
 	s.hub.refreshDesiredPackages()
+}
+
+// Disconnect drops the current worker connection for a distribution point.
+func (s *Server) Disconnect(id int64) {
+	s.hub.Disconnect(id)
 }
 
 // Close drops connected workers and stops protocol background work.
@@ -156,11 +162,12 @@ func (h workerHandler) log(r *http.Request, operation string, err error) {
 // isExpectedClose reports whether err is a normal end of a connection rather
 // than a server-side failure worth logging.
 func isExpectedClose(err error) bool {
-	if err == nil || errors.Is(err, errHubClosed) || errors.Is(err, context.Canceled) {
+	if err == nil || errors.Is(err, errHubClosed) || errors.Is(err, context.Canceled) ||
+		errors.Is(err, io.EOF) {
 		return true
 	}
 	switch websocket.CloseStatus(err) {
-	case websocket.StatusNormalClosure, websocket.StatusGoingAway:
+	case websocket.StatusNormalClosure, websocket.StatusGoingAway, websocket.StatusPolicyViolation:
 		return true
 	default:
 		return false

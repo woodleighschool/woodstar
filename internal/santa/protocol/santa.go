@@ -183,25 +183,22 @@ func handleSyncRequest[ProtoReq machineIDProtoMessage, DomainReq any, DomainResp
 }
 
 func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightRequest, error) {
+	ruleCounts, err := ruleCountsFromProto(req)
+	if err != nil {
+		return santa.PreflightRequest{}, err
+	}
 	var sipStatus *int16
 	if req.GetSipStatus() != 0 {
 		value := int16(req.GetSipStatus())
 		sipStatus = &value
 	}
 	return santa.PreflightRequest{
-		SerialNumber:     req.GetSerialNumber(),
-		Version:          req.GetSantaVersion(),
-		ClientMode:       clientModeFromProto(req.GetClientMode()),
-		RequestCleanSync: req.GetRequestCleanSync(),
-		RuleCounts: syncstate.RuleCounts{
-			Binary:      int32(req.GetBinaryRuleCount()),
-			Certificate: int32(req.GetCertificateRuleCount()),
-			TeamID:      int32(req.GetTeamidRuleCount()),
-			SigningID:   int32(req.GetSigningidRuleCount()),
-			CDHash:      int32(req.GetCdhashRuleCount()),
-			Compiler:    int32(req.GetCompilerRuleCount()),
-			Transitive:  int32(req.GetTransitiveRuleCount()),
-		},
+		SerialNumber:      req.GetSerialNumber(),
+		Version:           req.GetSantaVersion(),
+		RulesHash:         req.GetRulesHash(),
+		ClientMode:        clientModeFromProto(req.GetClientMode()),
+		RequestCleanSync:  req.GetRequestCleanSync(),
+		RuleCounts:        ruleCounts,
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),
 		SIPStatus:         sipStatus,
@@ -242,7 +239,19 @@ func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santa.EventUpl
 		}
 		fileAccessEvents = append(fileAccessEvents, converted)
 	}
-	return santa.EventUploadRequest{Events: events, FileAccessEvents: fileAccessEvents}, nil
+	standaloneEvents := make([]santaevents.StandaloneRuleCreationEventInput, 0, len(req.GetAuditEvents()))
+	for _, event := range req.GetAuditEvents() {
+		converted, err := standaloneRuleCreationEventFromProto(event)
+		if err != nil {
+			return santa.EventUploadRequest{}, err
+		}
+		standaloneEvents = append(standaloneEvents, converted)
+	}
+	return santa.EventUploadRequest{
+		Events:                       events,
+		FileAccessEvents:             fileAccessEvents,
+		StandaloneRuleCreationEvents: standaloneEvents,
+	}, nil
 }
 
 func eventUploadResponseToProto(resp santa.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
@@ -261,9 +270,23 @@ func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleD
 }
 
 func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.PostflightRequest, error) {
+	rulesReceived, err := int32FromUint32(req.GetRulesReceived(), "rules_received")
+	if err != nil {
+		return santa.PostflightRequest{}, err
+	}
+	rulesProcessed, err := int32FromUint32(req.GetRulesProcessed(), "rules_processed")
+	if err != nil {
+		return santa.PostflightRequest{}, err
+	}
+	syncType, err := syncTypeFromProto(req.GetSyncType())
+	if err != nil {
+		return santa.PostflightRequest{}, err
+	}
 	return santa.PostflightRequest{
-		RulesReceived:  int32(req.GetRulesReceived()),
-		RulesProcessed: int32(req.GetRulesProcessed()),
+		RulesReceived:  rulesReceived,
+		RulesProcessed: rulesProcessed,
+		SyncType:       syncType,
+		RulesHash:      req.GetRulesHash(),
 	}, nil
 }
 
@@ -293,6 +316,7 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 		LoggedInUsers:           event.GetLoggedInUsers(),
 		CurrentSessions:         event.GetCurrentSessions(),
 		Decision:                decision,
+		StaticRule:              event.GetStaticRule(),
 		BundleID:                event.GetFileBundleId(),
 		BundlePath:              event.GetFileBundlePath(),
 		BundleExecutableRelPath: event.GetFileBundleExecutableRelPath(),
@@ -315,6 +339,83 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 		Entitlements:            entitlements,
 		SigningChain:            signingChainFromProto(event.GetSigningChain()),
 	}, nil
+}
+
+func standaloneRuleCreationEventFromProto(
+	event *syncv1.AuditEvent,
+) (santaevents.StandaloneRuleCreationEventInput, error) {
+	if event == nil {
+		return santaevents.StandaloneRuleCreationEventInput{}, fmt.Errorf(
+			"%w: audit event is required",
+			dbutil.ErrInvalidInput,
+		)
+	}
+	creation := event.GetStandaloneModeRuleCreation()
+	if creation == nil {
+		return santaevents.StandaloneRuleCreationEventInput{}, fmt.Errorf(
+			"%w: unsupported audit event",
+			dbutil.ErrInvalidInput,
+		)
+	}
+	occurredAt, err := requiredUnixSecondsToTime(float64(creation.GetTimestamp()), "audit_event.timestamp")
+	if err != nil {
+		return santaevents.StandaloneRuleCreationEventInput{}, err
+	}
+	return santaevents.StandaloneRuleCreationEventInput{
+		Identifier: creation.GetIdentifier(),
+		Decision:   decisionFromProto(creation.GetDecision()),
+		OccurredAt: occurredAt,
+	}, nil
+}
+
+func ruleCountsFromProto(req *syncv1.PreflightRequest) (syncstate.RuleCounts, error) {
+	values := []struct {
+		name  string
+		value uint32
+	}{
+		{name: "binary_rule_count", value: req.GetBinaryRuleCount()},
+		{name: "certificate_rule_count", value: req.GetCertificateRuleCount()},
+		{name: "teamid_rule_count", value: req.GetTeamidRuleCount()},
+		{name: "signingid_rule_count", value: req.GetSigningidRuleCount()},
+		{name: "cdhash_rule_count", value: req.GetCdhashRuleCount()},
+		{name: "compiler_rule_count", value: req.GetCompilerRuleCount()},
+		{name: "transitive_rule_count", value: req.GetTransitiveRuleCount()},
+	}
+	counts := make([]int32, len(values))
+	for i, value := range values {
+		converted, err := int32FromUint32(value.value, value.name)
+		if err != nil {
+			return syncstate.RuleCounts{}, err
+		}
+		counts[i] = converted
+	}
+	return syncstate.RuleCounts{
+		Binary:      counts[0],
+		Certificate: counts[1],
+		TeamID:      counts[2],
+		SigningID:   counts[3],
+		CDHash:      counts[4],
+		Compiler:    counts[5],
+		Transitive:  counts[6],
+	}, nil
+}
+
+func int32FromUint32(value uint32, field string) (int32, error) {
+	if value > math.MaxInt32 {
+		return 0, fmt.Errorf("%w: %s exceeds supported range", dbutil.ErrInvalidInput, field)
+	}
+	return int32(value), nil
+}
+
+func syncTypeFromProto(value syncv1.SyncType) (syncstate.SyncType, error) {
+	switch value {
+	case syncv1.SyncType_NORMAL:
+		return syncstate.SyncTypeNormal, nil
+	case syncv1.SyncType_CLEAN:
+		return syncstate.SyncTypeClean, nil
+	default:
+		return "", fmt.Errorf("%w: unsupported sync_type %q", dbutil.ErrInvalidInput, value)
+	}
 }
 
 func entitlementJSON(event *syncv1.Event) ([]byte, error) {

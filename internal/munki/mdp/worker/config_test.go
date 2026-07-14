@@ -11,6 +11,7 @@ import (
 func setRequiredConfigEnvironment(t *testing.T) {
 	t.Helper()
 	t.Setenv("WOODSTAR_MDP_SERVER_URL", "https://woodstar.example/")
+	t.Setenv("WOODSTAR_MDP_SERVER_CA_FILE", "")
 	t.Setenv("WOODSTAR_MDP_KEY", "distribution-point-key")
 	t.Setenv("WOODSTAR_MDP_DATA_DIR", t.TempDir())
 	t.Setenv("WOODSTAR_MDP_LISTEN_ADDR", "")
@@ -18,6 +19,19 @@ func setRequiredConfigEnvironment(t *testing.T) {
 	t.Setenv("WOODSTAR_MDP_DOWNLOAD_CONCURRENCY", "")
 	t.Setenv("WOODSTAR_MDP_TLS_CERT_FILE", "")
 	t.Setenv("WOODSTAR_MDP_TLS_KEY_FILE", "")
+}
+
+func TestLoadConfigReadsServerCAFile(t *testing.T) {
+	setRequiredConfigEnvironment(t)
+	t.Setenv("WOODSTAR_MDP_SERVER_CA_FILE", " /etc/woodstar/server-ca.pem ")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+	if cfg.ServerCAFile != "/etc/woodstar/server-ca.pem" {
+		t.Fatalf("ServerCAFile = %q", cfg.ServerCAFile)
+	}
 }
 
 func TestLoadConfigDefaultsAndNormalizes(t *testing.T) {

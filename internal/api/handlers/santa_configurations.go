@@ -79,7 +79,6 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store, 
 		Path:        "/api/santa/configurations",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa configurations",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *santaConfigurationListInput) (*santaConfigurationListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -106,8 +105,6 @@ func registerCreateSantaConfiguration(api huma.API, store *configurations.Store,
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -132,7 +129,7 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store, lo
 		Path:        santaConfigurationIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa configuration",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.GetByID(ctx, input.ID)
 		if err != nil {
@@ -157,8 +154,6 @@ func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store,
 		Summary:     "Update a Santa configuration",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -184,7 +179,7 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store,
 		Path:        santaConfigurationIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Delete a Santa configuration",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
 			return nil, handlerError(
@@ -206,7 +201,7 @@ func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.S
 		Path:        "/api/santa/configurations/bulk-delete",
 		Tags:        []string{santaTag},
 		Summary:     "Delete Santa configurations",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaConfigurationBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, handlerError(
@@ -227,7 +222,7 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 		Path:        "/api/santa/configurations/order",
 		Tags:        []string{santaTag},
 		Summary:     "Reorder Santa configurations",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaConfigurationReorderInput) (*struct{}, error) {
 		if err := store.ReorderConfigurations(ctx, input.Body.OrderedIDs); err != nil {
 			return nil, handlerError(

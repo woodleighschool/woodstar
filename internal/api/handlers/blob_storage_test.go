@@ -172,30 +172,12 @@ func TestBlobRejectsMismatchedPathAndSignedKey(t *testing.T) {
 	}
 }
 
-func TestBlobGetFailsWhenStoreCannotSeek(t *testing.T) {
-	t.Parallel()
-	router := newBlobTestRouter(nonSeekStore{})
-	token := signBlobCapability(t, storage.BlobCapabilityClaims{
-		Op:  capability.OpGet,
-		Key: "munki/packages/1/Installer.pkg",
-		Exp: time.Now().Add(time.Minute).Unix(),
-	})
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestBlobGetLogsInternalServeFailures(t *testing.T) {
+func TestBlobGetLogsOpenFailures(t *testing.T) {
 	t.Parallel()
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	router := chi.NewRouter()
-	RegisterBlobStorage(router, nonSeekStore{}, testCapabilityKey, logger)
+	RegisterBlobStorage(router, failingOpenStore{}, testCapabilityKey, logger)
 	token := signBlobCapability(t, storage.BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/packages/1/Installer.pkg",
@@ -215,7 +197,7 @@ func TestBlobGetLogsInternalServeFailures(t *testing.T) {
 		`"operation":"get-storage-object"`,
 		`"status":500`,
 		`"key":"munki/packages/1/Installer.pkg"`,
-		`"err":"storage object reader is not seekable"`,
+		`"err":"open object: backend unavailable"`,
 	} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("log line %q does not contain %s", line, want)
@@ -253,21 +235,21 @@ func newTestFileStore(t *testing.T) storage.Backend {
 	return store
 }
 
-type nonSeekStore struct{}
+type failingOpenStore struct{}
 
-func (nonSeekStore) Open(_ context.Context, _ string) (io.ReadCloser, storage.ObjectInfo, error) {
-	return io.NopCloser(strings.NewReader("bytes")), storage.ObjectInfo{}, nil
+func (failingOpenStore) Open(_ context.Context, _ string) (storage.ObjectReader, storage.ObjectInfo, error) {
+	return nil, storage.ObjectInfo{}, errors.New("backend unavailable")
 }
 
-func (nonSeekStore) Put(context.Context, string, io.Reader, storage.PutOptions) error {
+func (failingOpenStore) Put(context.Context, string, io.Reader, storage.PutOptions) error {
 	return errors.New("unexpected put")
 }
 
-func (nonSeekStore) Delete(context.Context, string) error {
+func (failingOpenStore) Delete(context.Context, string) error {
 	return nil
 }
 
-func (nonSeekStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
+func (failingOpenStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
 	return storage.ObjectInfo{}, nil
 }
 

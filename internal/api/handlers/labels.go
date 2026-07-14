@@ -72,7 +72,6 @@ func registerListLabels(api huma.API, labelStore *labels.Store, logger *slog.Log
 		Path:        "/api/labels",
 		Tags:        []string{labelsTag},
 		Summary:     "List labels",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
 		rows, count, err := labelStore.List(ctx, input.params())
 		if err != nil {
@@ -90,7 +89,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store, logger *slog.Lo
 		Tags:          []string{labelsTag},
 		Summary:       "Create a label",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
 		label, err := labelStore.Create(ctx, input.Body)
 		if err != nil {
@@ -107,7 +106,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store, logger *slog.Logge
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
 		Summary:     "Get a label",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *labelGetInput) (*labelOutput, error) {
 		label, err := labelStore.GetByID(ctx, input.ID)
 		if err != nil {
@@ -124,7 +123,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store, logger *slog.Lo
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
 		Summary:     "Replace a label",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
 		label, err := labelStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
@@ -141,7 +140,7 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store, logger *slog.Lo
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
 		Summary:     "Delete a regular label",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *labelDeleteInput) (*struct{}, error) {
 		if err := labelStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(ctx, logger, "delete-label", labelResource, err, "label_id", input.ID)

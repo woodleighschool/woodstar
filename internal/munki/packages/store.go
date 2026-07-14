@@ -335,6 +335,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		Args:      args,
 		OrderKeys: packageOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: "lower(s.display_name)"},
 			{SQL: "lower(s.name)"},
 			{SQL: "lower(p.version)"},
 			{SQL: "p.id"},
@@ -560,6 +561,7 @@ func packageFromRow(row packageRow) Package {
 		ID:                       row.ID,
 		SoftwareID:               row.SoftwareID,
 		SoftwareName:             row.SoftwareName,
+		SoftwareDisplayName:      row.SoftwareDisplayName,
 		SoftwareDescription:      row.SoftwareDescription,
 		SoftwareCategory:         row.SoftwareCategory,
 		SoftwareDeveloper:        row.SoftwareDeveloper,
@@ -627,6 +629,7 @@ func packageListWhere(params PackageListParams) (string, []any) {
 			p.version ILIKE ` + search + `
 			OR p.installer_type ILIKE ` + search + `
 			OR s.name ILIKE ` + search + `
+			OR s.display_name ILIKE ` + search + `
 			OR s.description ILIKE ` + search + `
 			OR s.category ILIKE ` + search + `
 			OR s.developer ILIKE ` + search + `
@@ -637,13 +640,12 @@ func packageListWhere(params PackageListParams) (string, []any) {
 
 func packageOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"name":       {SQL: "lower(s.name)"},
-		"package":    {SQL: "lower(s.name)"},
-		"version":    {SQL: "lower(p.version)"},
-		"type":       {SQL: "lower(p.installer_type)"},
-		"size":       {SQL: "COALESCE(installer_obj.size_bytes, 0)"},
-		"software":   {SQL: "lower(s.name)"},
-		"updated_at": {SQL: "p.updated_at"},
+		"software_name":         {SQL: "lower(s.name)"},
+		"software_display_name": {SQL: "lower(s.display_name)"},
+		"version":               {SQL: "lower(p.version)"},
+		"type":                  {SQL: "lower(p.installer_type)"},
+		"size":                  {SQL: "COALESCE(installer_obj.size_bytes, 0)"},
+		"updated_at":            {SQL: "p.updated_at"},
 	}
 }
 
@@ -652,6 +654,7 @@ type packageRow struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
+	SoftwareDisplayName          string
 	SoftwareDescription          string
 	SoftwareCategory             string
 	SoftwareDeveloper            string
@@ -873,6 +876,7 @@ func packageColumnsSQL() string {
 	p.id,
 	p.software_id,
 	s.name AS software_name,
+	s.display_name AS software_display_name,
 	s.description AS software_description,
 	s.category AS software_category,
 	s.developer AS software_developer,

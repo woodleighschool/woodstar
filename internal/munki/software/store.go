@@ -3,6 +3,7 @@ package software
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -47,12 +48,14 @@ func (s *Store) Create(ctx context.Context, params Mutation) (*Software, error) 
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_software (
 	name,
+	display_name,
 	description,
 	category,
 	developer,
 	icon_object_id
 ) VALUES (
 	@name,
+	@display_name,
 	@description,
 	@category,
 	@developer,
@@ -79,7 +82,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 	}
 	var oldIconObjectID *int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL()+"\nWHERE st.id = $1", id)
+		existing, err := getSoftwareByID(ctx, tx, id)
 		if err != nil {
 			return err
 		}
@@ -91,6 +94,7 @@ func (s *Store) Update(ctx context.Context, id int64, params Mutation) (*Softwar
 UPDATE munki_software
 SET
 	name = @name,
+	display_name = @display_name,
 	description = @description,
 	category = @category,
 	developer = @developer,
@@ -117,11 +121,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	sw, err := dbutil.GetOne[Software](ctx, s.db.Pool(), softwareSelectSQL()+"\nWHERE st.id = $1", id)
-	if err != nil {
-		return nil, err
-	}
-	return &sw, nil
+	return getSoftwareByID(ctx, s.db.Pool(), id)
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
@@ -188,9 +188,13 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software,
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
 	}
-	software, count, err := dbutil.ListWithCount[Software](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[softwareRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
 		return nil, 0, err
+	}
+	software := make([]Software, len(rows))
+	for i, row := range rows {
+		software[i] = softwareFromRow(row)
 	}
 	return software, count, nil
 }
@@ -229,7 +233,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	}
 	var oldIconObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		existing, err := dbutil.GetOne[Software](ctx, tx, softwareSelectSQL()+"\nWHERE st.id = $1", softwareID)
+		existing, err := getSoftwareByID(ctx, tx, softwareID)
 		if err != nil {
 			return err
 		}
@@ -256,10 +260,11 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 
 func softwareOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"name":       {SQL: "lower(st.name)"},
-		"category":   {SQL: "lower(st.category)"},
-		"developer":  {SQL: "lower(st.developer)"},
-		"updated_at": {SQL: "st.updated_at"},
+		"name":         {SQL: "lower(st.name)"},
+		"display_name": {SQL: "lower(st.display_name)"},
+		"category":     {SQL: "lower(st.category)"},
+		"developer":    {SQL: "lower(st.developer)"},
+		"updated_at":   {SQL: "st.updated_at"},
 	}
 }
 
@@ -269,6 +274,7 @@ func softwareListWhere(params dbutil.ListParams) (string, []any) {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
 			st.name ILIKE ` + search + `
+			OR st.display_name ILIKE ` + search + `
 			OR st.description ILIKE ` + search + `
 			OR st.category ILIKE ` + search + `
 			OR st.developer ILIKE ` + search + `
@@ -296,6 +302,7 @@ func softwareObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]in
 type softwareWrite struct {
 	ID           int64  `db:"id"`
 	Name         string `db:"name"`
+	DisplayName  string `db:"display_name"`
 	Description  string `db:"description"`
 	Category     string `db:"category"`
 	Developer    string `db:"developer"`
@@ -305,6 +312,7 @@ type softwareWrite struct {
 func newSoftwareWrite(params Mutation) softwareWrite {
 	return softwareWrite{
 		Name:         params.Name,
+		DisplayName:  params.DisplayName,
 		Description:  params.Description,
 		Category:     params.Category,
 		Developer:    params.Developer,
@@ -317,11 +325,76 @@ func softwareSelectSQL() string {
 SELECT
 	st.id,
 	st.name,
+	st.display_name,
 	st.description,
 	st.category,
 	st.developer,
 	st.icon_object_id,
+	icon_obj.filename AS icon_filename,
+	icon_obj.size_bytes AS icon_size_bytes,
+	icon_obj.sha256 AS icon_sha256,
 	st.created_at,
 	st.updated_at
-FROM munki_software st`
+FROM munki_software st
+LEFT JOIN storage_objects icon_obj ON icon_obj.id = st.icon_object_id`
+}
+
+type softwareRow struct {
+	ID            int64     `db:"id"`
+	Name          string    `db:"name"`
+	DisplayName   string    `db:"display_name"`
+	Description   string    `db:"description"`
+	Category      string    `db:"category"`
+	Developer     string    `db:"developer"`
+	IconObjectID  *int64    `db:"icon_object_id"`
+	IconFilename  *string   `db:"icon_filename"`
+	IconSizeBytes *int64    `db:"icon_size_bytes"`
+	IconSHA256    *string   `db:"icon_sha256"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+}
+
+func getSoftwareByID(ctx context.Context, q dbutil.Queryer, id int64) (*Software, error) {
+	row, err := dbutil.GetOne[softwareRow](ctx, q, softwareSelectSQL()+"\nWHERE st.id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	software := softwareFromRow(row)
+	return &software, nil
+}
+
+func softwareFromRow(row softwareRow) Software {
+	software := Software{
+		ID:           row.ID,
+		Name:         row.Name,
+		DisplayName:  row.DisplayName,
+		Description:  row.Description,
+		Category:     row.Category,
+		Developer:    row.Developer,
+		IconObjectID: row.IconObjectID,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}
+	if row.IconObjectID != nil && row.IconFilename != nil {
+		software.IconFile = &IconFile{
+			Filename:  *row.IconFilename,
+			SizeBytes: valueOrZero(row.IconSizeBytes),
+			SHA256:    stringOrEmpty(row.IconSHA256),
+		}
+	}
+	return software
+}
+
+func valueOrZero(value *int64) int64 {
+	if value == nil {
+		return 0
+	}
+	return *value
+}
+
+func stringOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

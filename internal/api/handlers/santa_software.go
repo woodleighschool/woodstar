@@ -27,7 +27,7 @@ func registerSoftwareSantaReference(api huma.API, store *references.Store, logge
 		Path:        "/api/software/{id}/santa",
 		Tags:        []string{softwareTag},
 		Summary:     "Get Santa reference data for a software title",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareSantaGetInput) (*softwareSantaGetOutput, error) {
 		ref, err := store.GetSoftwareReference(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {

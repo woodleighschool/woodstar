@@ -212,10 +212,8 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 		case munkisoftware.ActionOptionalInstalls:
 			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 		case munkisoftware.ActionDefaultInstalls:
-			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 			manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
 		case munkisoftware.ActionFeaturedItems:
-			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 			manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 		}
 	}

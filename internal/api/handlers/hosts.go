@@ -62,7 +62,7 @@ type hostPrimaryUserPutInput struct {
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserStore,
+	primaryUsers *hosts.PrimaryUserService,
 	logger *slog.Logger,
 ) {
 	registerListHosts(api, hostStore, logger)
@@ -80,7 +80,6 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger
 		Path:        "/api/hosts",
 		Tags:        []string{hostsTag},
 		Summary:     "List enrolled hosts",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *hostListInput) (*hostListOutput, error) {
 		params := input.params()
 		rows, count, err := hostStore.List(ctx, params)
@@ -98,7 +97,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) 
 		Path:        "/api/hosts/{id}",
 		Tags:        []string{hostsTag},
 		Summary:     "Get an enrolled host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "get-host")
 		if err != nil {
@@ -111,7 +110,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) 
 func registerSetHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserStore,
+	primaryUsers *hosts.PrimaryUserService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -122,8 +121,6 @@ func registerSetHostPrimaryUser(
 		Summary:     "Set the host primary user",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *hostPrimaryUserPutInput) (*hostDetailOutput, error) {
@@ -141,7 +138,7 @@ func registerSetHostPrimaryUser(
 func registerClearHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserStore,
+	primaryUsers *hosts.PrimaryUserService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -150,7 +147,7 @@ func registerClearHostPrimaryUser(
 		Path:        "/api/hosts/{id}/primary-user",
 		Tags:        []string{hostsTag},
 		Summary:     "Clear the host primary user",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		if err := primaryUsers.Delete(ctx, input.ID, hosts.PrimaryUserSourceManual); err != nil {
 			return nil, resourceError(ctx, logger, "clear-host-primary-user", hostResource, err, "host_id", input.ID)
@@ -188,7 +185,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store, logger *slog.Logge
 		Path:        "/api/hosts/{id}",
 		Tags:        []string{hostsTag},
 		Summary:     "Delete an enrolled host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(ctx, logger, "delete-host", hostResource, err, "host_id", input.ID)
@@ -204,7 +201,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store, logger *slog.
 		Path:        "/api/hosts/bulk-delete",
 		Tags:        []string{hostsTag},
 		Summary:     "Delete enrolled hosts",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
 		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-hosts", err)

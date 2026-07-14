@@ -8,14 +8,14 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/coder/websocket"
 )
 
 const (
-	shutdownTimeout = 15 * time.Second
+	shutdownTimeout           = 15 * time.Second
+	websocketHandshakeTimeout = 30 * time.Second
 
 	initialReconnectDelay = 1 * time.Second
 	maxReconnectDelay     = 30 * time.Second
@@ -50,11 +50,15 @@ func New(cfg Config, logger *slog.Logger) (*Worker, error) {
 	if err != nil {
 		return nil, err
 	}
+	client, err := newWoodstarClient(cfg.ServerURL, cfg.Key, cfg.ServerCAFile)
+	if err != nil {
+		return nil, fmt.Errorf("configure Woodstar client: %w", err)
+	}
 	return &Worker{
 		cfg:    cfg,
 		logger: logger,
 		mirror: m,
-		client: newWoodstarClient(cfg.ServerURL, cfg.Key),
+		client: client,
 		server: &server{mirror: m, key: []byte(cfg.Key), logger: logger},
 	}, nil
 }
@@ -151,12 +155,13 @@ func (w *Worker) connectLoop(ctx context.Context) {
 // large download never blocks the control channel or its ping responses.
 func (w *Worker) connectOnce(ctx context.Context) error {
 	w.logger.DebugContext(ctx, "connecting", "url", w.connectURL())
-	// coder/websocket owns resp.Body (nil on success, a NopCloser on error), so we
-	// neither read nor close it; doing so dereferences nil on the success path.
-	//nolint:bodyclose // resp.Body lifecycle is managed by coder/websocket's Dial
-	ws, _, err := websocket.Dial(ctx, w.connectURL(), &websocket.DialOptions{
+	dialCtx, cancelDial := context.WithTimeout(ctx, websocketHandshakeTimeout)
+	//nolint:bodyclose // websocket.Dial owns the handshake response body.
+	ws, _, err := websocket.Dial(dialCtx, w.connectURL(), &websocket.DialOptions{
+		HTTPClient: w.client.websocketHTTP,
 		HTTPHeader: http.Header{"Authorization": {"Bearer " + w.cfg.Key}},
 	})
+	cancelDial()
 	if err != nil {
 		return err
 	}
@@ -196,12 +201,5 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 }
 
 func (w *Worker) connectURL() string {
-	base := w.cfg.ServerURL
-	switch {
-	case strings.HasPrefix(base, "https://"):
-		base = "wss://" + strings.TrimPrefix(base, "https://")
-	case strings.HasPrefix(base, "http://"):
-		base = "ws://" + strings.TrimPrefix(base, "http://")
-	}
-	return base + "/api/munki/distribution/connect"
+	return w.cfg.ServerURL + "/api/munki/distribution/connect"
 }

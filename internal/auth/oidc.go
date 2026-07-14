@@ -21,6 +21,7 @@ const (
 // SSO errors describe expected callback failures.
 var (
 	ErrSSOStateMismatch   = errors.New("sso state mismatch")
+	ErrSSONonceMismatch   = errors.New("sso nonce mismatch")
 	ErrSSONotConfigured   = errors.New("sso is not configured")
 	ErrSSOUnknownUser     = errors.New("no woodstar account for this identity")
 	ErrSSOEmailClaimEmpty = errors.New("identity provider returned no email claim")
@@ -106,6 +107,9 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*directo
 	if expectedState == "" || state == "" || state != expectedState {
 		return nil, ErrSSOStateMismatch
 	}
+	if expectedNonce == "" {
+		return nil, ErrSSONonceMismatch
+	}
 
 	token, err := s.oidc.oauth2.Exchange(ctx, code)
 	if err != nil {
@@ -119,8 +123,8 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*directo
 	if err != nil {
 		return nil, fmt.Errorf("verify id token: %w", err)
 	}
-	if expectedNonce != "" && idToken.Nonce != expectedNonce {
-		return nil, errors.New("id token nonce mismatch")
+	if idToken.Nonce != expectedNonce {
+		return nil, ErrSSONonceMismatch
 	}
 
 	claims := map[string]any{}

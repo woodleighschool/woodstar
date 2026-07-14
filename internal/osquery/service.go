@@ -118,7 +118,10 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP stri
 		NodeInvalid: false,
 		Schedule:    schedule,
 		Options: map[string]string{
-			"disable_distributed": "false",
+			"disable_distributed":     "false",
+			"disable_carver":          "true",
+			"carver_disable_function": "true",
+			"logger_min_status":       "4",
 		},
 		Decorators: map[string][]string{},
 	}, nil
@@ -250,7 +253,7 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string,
 	}
 	if req.LogType == "result" {
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
-			s.deps.Logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
+			return LogResponse{}, fmt.Errorf("ingest report logs: %w", err)
 		}
 	}
 	return LogResponse{NodeInvalid: false}, nil

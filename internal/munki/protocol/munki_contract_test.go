@@ -143,12 +143,13 @@ func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
-					ID:                20,
-					SoftwareID:        1,
-					SoftwareName:      "GoogleChrome",
-					Version:           "148.0.0.1",
-					InstallerType:     packages.InstallerTypePkg,
-					InstallerObjectID: &objectID,
+					ID:                  20,
+					SoftwareID:          1,
+					SoftwareName:        "GoogleChrome",
+					SoftwareDisplayName: "Google Chrome",
+					Version:             "148.0.0.1",
+					InstallerType:       packages.InstallerTypePkg,
+					InstallerObjectID:   &objectID,
 				},
 			},
 		}},
@@ -240,8 +241,8 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if !sameStrings(decoded.ManagedInstalls, []string{"1"}) {
 		t.Fatalf("managed_installs = %v, want [1]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"1", "2", "4"}) {
-		t.Fatalf("optional_installs = %v, want [1 2 4]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"2", "4"}) {
+		t.Fatalf("optional_installs = %v, want [2 4]", decoded.OptionalInstalls)
 	}
 	if !sameStrings(decoded.ManagedUninstalls, []string{"3"}) {
 		t.Fatalf("managed_uninstalls = %v, want [3]", decoded.ManagedUninstalls)
@@ -618,12 +619,13 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
 				Package: packages.Package{
-					ID:                20,
-					SoftwareID:        1,
-					SoftwareName:      "GoogleChrome",
-					Version:           "148.0.0.1",
-					InstallerType:     packages.InstallerTypePkg,
-					InstallerObjectID: &objectID,
+					ID:                  20,
+					SoftwareID:          1,
+					SoftwareName:        "GoogleChrome",
+					SoftwareDisplayName: "Google Chrome",
+					Version:             "148.0.0.1",
+					InstallerType:       packages.InstallerTypePkg,
+					InstallerObjectID:   &objectID,
 				},
 			},
 		}},
@@ -944,12 +946,13 @@ func (r staticObjectResolver) ListByIDs(
 
 func staticMunkiPackage(id int64, softwareID int64, name string, version string) packages.Package {
 	return packages.Package{
-		ID:            id,
-		SoftwareID:    softwareID,
-		SoftwareName:  name,
-		Version:       version,
-		InstallerType: packages.InstallerTypeNoPkg,
-		OnDemand:      true,
+		ID:                  id,
+		SoftwareID:          softwareID,
+		SoftwareName:        name,
+		SoftwareDisplayName: name,
+		Version:             version,
+		InstallerType:       packages.InstallerTypeNoPkg,
+		OnDemand:            true,
 	}
 }
 

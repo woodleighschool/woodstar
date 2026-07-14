@@ -9,19 +9,47 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// ApplyProviderSnapshot reconciles a source-owned snapshot in one transaction.
-func (s *Store) ApplyProviderSnapshot(ctx context.Context, source Source, snapshot ProviderSnapshot) error {
+// ProviderService reconciles source-owned directory snapshots and derived labels.
+type ProviderService struct {
+	store     *Store
+	refresher DerivedLabelRefresher
+}
+
+// NewProviderService returns the directory provider orchestration service.
+func NewProviderService(store *Store, refresher DerivedLabelRefresher) *ProviderService {
+	return &ProviderService{store: store, refresher: refresher}
+}
+
+// ApplyProviderSnapshot reconciles a source-owned snapshot and derived label
+// memberships in one transaction.
+func (s *ProviderService) ApplyProviderSnapshot(
+	ctx context.Context,
+	source Source,
+	snapshot ProviderSnapshot,
+) error {
+	return s.store.applyProviderSnapshot(ctx, source, snapshot, s.refresher.RefreshDerivedTx)
+}
+
+func (s *Store) applyProviderSnapshot(
+	ctx context.Context,
+	source Source,
+	snapshot ProviderSnapshot,
+	refreshDerived func(context.Context, pgx.Tx) error,
+) error {
 	if source == SourceLocal {
 		return errors.New("directory: local source cannot apply provider snapshot")
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := lockUserAdministration(ctx, tx); err != nil {
+			return err
+		}
 		if err := applyGroupSnapshot(ctx, tx, source, snapshot.Groups); err != nil {
 			return err
 		}
 		if err := applyUserSnapshot(ctx, tx, source, snapshot.Users); err != nil {
 			return err
 		}
-		return nil
+		return refreshDerived(ctx, tx)
 	})
 }
 
@@ -62,6 +90,9 @@ func applyUserSnapshot(ctx context.Context, tx pgx.Tx, source Source, users []Pr
 		}
 		userExternalIDs = append(userExternalIDs, u.ExternalID)
 	}
+	if err := removeMissingLocalUserLinks(ctx, tx, source, userExternalIDs); err != nil {
+		return err
+	}
 	_, err := tx.Exec(ctx, `
 UPDATE users
 SET
@@ -75,8 +106,9 @@ WHERE source = $1::directory_source
 	return err
 }
 
-// upsertSnapshotUser attaches an existing enabled user by email, upserts the
-// user row, then replaces its group memberships.
+// upsertSnapshotUser reuses a deleted identity from the same provider, upserts
+// the user row, then replaces its group memberships. Local identities remain
+// local even when a provider reports the same email address.
 func upsertSnapshotUser(ctx context.Context, tx pgx.Tx, source Source, u ProviderUser) error {
 	if u.Enabled {
 		if _, err := tx.Exec(ctx, `
@@ -87,9 +119,8 @@ SET
     deleted_at = NULL,
     updated_at = now()
 WHERE (
-      (source = 'local' AND deleted_at IS NULL)
-      OR (source = $1::directory_source AND deleted_at IS NOT NULL)
-  )
+	      source = $1::directory_source AND deleted_at IS NOT NULL
+	  )
   AND (
       lower(email) = lower(COALESCE($3::text, $4::text))
       OR lower(COALESCE(user_principal_name, '')) = lower($4::text)
@@ -99,8 +130,12 @@ WHERE (
 			return err
 		}
 	}
+	linked, err := upsertLocalSnapshotUser(ctx, tx, source, u)
+	if err != nil || linked {
+		return err
+	}
 	var userID int64
-	err := tx.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 INSERT INTO users (
     email, name, source, external_id, user_principal_name,
     mail_nickname, given_name, family_name, department, deleted_at
@@ -143,6 +178,132 @@ RETURNING id`,
 	return replaceUserGroupMemberships(ctx, tx, source, userID, u.GroupExternalIDs)
 }
 
+func upsertLocalSnapshotUser(
+	ctx context.Context,
+	tx pgx.Tx,
+	source Source,
+	u ProviderUser,
+) (bool, error) {
+	var userID int64
+	err := tx.QueryRow(ctx, `
+SELECT u.id
+FROM users u
+LEFT JOIN directory_user_links l
+  ON l.user_id = u.id
+ AND l.source = $1::directory_source
+WHERE u.source = 'local'
+  AND u.deleted_at IS NULL
+  AND (
+      l.external_id = $2
+      OR lower(u.email) = lower(COALESCE($3::text, $4::text))
+      OR lower(u.email) = lower($4::text)
+  )
+ORDER BY CASE WHEN l.external_id = $2 THEN 0 ELSE 1 END, u.id
+LIMIT 1`,
+		string(source), u.ExternalID, dbutil.NullString(u.Mail), u.UserPrincipalName,
+	).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !u.Enabled {
+		return true, removeLocalUserLink(ctx, tx, source, userID)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO directory_user_links (user_id, source, external_id)
+VALUES ($1, $2::directory_source, $3)
+ON CONFLICT (user_id, source) DO UPDATE SET
+    external_id = EXCLUDED.external_id,
+    updated_at = now()`,
+		userID, string(source), u.ExternalID,
+	); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(ctx, `
+UPDATE users
+SET
+    user_principal_name = $2,
+    mail_nickname = $3,
+    given_name = $4,
+    family_name = $5,
+    department = $6,
+    updated_at = now()
+WHERE id = $1`,
+		userID,
+		u.UserPrincipalName,
+		dbutil.NullString(u.MailNickname),
+		dbutil.NullString(u.GivenName),
+		dbutil.NullString(u.FamilyName),
+		dbutil.NullString(u.Department),
+	); err != nil {
+		return false, err
+	}
+	return true, replaceUserGroupMemberships(ctx, tx, source, userID, u.GroupExternalIDs)
+}
+
+func removeMissingLocalUserLinks(
+	ctx context.Context,
+	tx pgx.Tx,
+	source Source,
+	externalIDs []string,
+) error {
+	_, err := tx.Exec(ctx, `
+WITH removed AS (
+    DELETE FROM directory_user_links
+    WHERE source = $1::directory_source
+      AND external_id <> ALL($2::text[])
+    RETURNING user_id
+), removed_memberships AS (
+    DELETE FROM directory_group_memberships gm
+    USING directory_groups g
+    WHERE gm.group_id = g.id
+      AND g.source = $1::directory_source
+      AND gm.user_id IN (SELECT user_id FROM removed)
+)
+UPDATE users
+SET
+    user_principal_name = NULL,
+    mail_nickname = NULL,
+    given_name = NULL,
+    family_name = NULL,
+    department = NULL,
+    updated_at = now()
+WHERE id IN (SELECT user_id FROM removed)`,
+		string(source), externalIDs,
+	)
+	return err
+}
+
+func removeLocalUserLink(ctx context.Context, tx pgx.Tx, source Source, userID int64) error {
+	if _, err := tx.Exec(ctx, `
+DELETE FROM directory_user_links
+WHERE user_id = $1
+  AND source = $2::directory_source`, userID, string(source)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+DELETE FROM directory_group_memberships gm
+USING directory_groups g
+WHERE gm.group_id = g.id
+  AND gm.user_id = $1
+  AND g.source = $2::directory_source`, userID, string(source)); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+UPDATE users
+SET
+    user_principal_name = NULL,
+    mail_nickname = NULL,
+    given_name = NULL,
+    family_name = NULL,
+    department = NULL,
+    updated_at = now()
+WHERE id = $1`, userID)
+	return err
+}
+
 // replaceUserGroupMemberships clears a user's group memberships and inserts the
 // snapshot set.
 func replaceUserGroupMemberships(
@@ -152,10 +313,12 @@ func replaceUserGroupMemberships(
 	userID int64,
 	groupExternalIDs []string,
 ) error {
-	if _, err := tx.Exec(ctx,
-		`DELETE FROM directory_group_memberships WHERE user_id = $1`,
-		userID,
-	); err != nil {
+	if _, err := tx.Exec(ctx, `
+DELETE FROM directory_group_memberships gm
+USING directory_groups g
+WHERE gm.group_id = g.id
+  AND gm.user_id = $1
+  AND g.source = $2::directory_source`, userID, string(source)); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `

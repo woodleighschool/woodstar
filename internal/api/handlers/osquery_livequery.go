@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -88,16 +89,20 @@ type OsqueryLiveQueryCompletedEvent struct {
 type liveQueryResultStatus string
 
 const (
-	liveQueryResultStatusSuccess liveQueryResultStatus = "success"
-	liveQueryResultStatusError   liveQueryResultStatus = "error"
-	liveQueryResultStatusStopped liveQueryResultStatus = "stopped"
+	liveQueryResultStatusSuccess  liveQueryResultStatus = "success"
+	liveQueryResultStatusError    liveQueryResultStatus = "error"
+	liveQueryResultStatusStopped  liveQueryResultStatus = "stopped"
+	liveQueryResultStatusOverflow liveQueryResultStatus = "overflow"
 )
 
 var liveQueryResultStatusValues = []liveQueryResultStatus{
 	liveQueryResultStatusSuccess,
 	liveQueryResultStatusError,
 	liveQueryResultStatusStopped,
+	liveQueryResultStatusOverflow,
 }
+
+type liveQuerySubscriptionKey struct{}
 
 type OsqueryLiveQueryResultEvent struct {
 	HostID   int64                 `json:"host_id,omitempty"`
@@ -132,7 +137,7 @@ func registerLiveQueries(
 		Tags:          []string{liveQueriesTag},
 		Summary:       "Start a live run against online hosts",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized},
+		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
 		hostIDs, err := input.Body.resolveTargets(ctx, hostStore)
 		if err != nil {
@@ -147,7 +152,7 @@ func registerLiveQueries(
 		Path:        "/api/live-queries/targets/count",
 		Tags:        []string{liveQueriesTag},
 		Summary:     "Count live query targets",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *liveQueryTargetCountInput) (*liveQueryTargetCountOutput, error) {
 		metrics, err := hostStore.CountSelectedTargets(ctx, input.Body.Selected.targetSelection(), time.Now().UTC())
 		if err != nil {
@@ -167,7 +172,7 @@ func registerLiveQueries(
 		Tags:          []string{liveQueriesTag},
 		Summary:       "Stop a running live query",
 		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:        []int{http.StatusNotFound},
 	}, func(_ context.Context, input *liveQueryStopInput) (*liveQueryStopOutput, error) {
 		if err := manager.Stop(input.ID); err != nil {
 			return nil, huma.Error404NotFound("live query not found")
@@ -181,14 +186,36 @@ func registerLiveQueries(
 		Path:        "/api/live-queries/{id}/stream",
 		Tags:        []string{liveQueriesTag},
 		Summary:     "Stream live query results",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
+		Middlewares: huma.Middlewares{subscribeLiveQuery(api, manager)},
 	}, map[string]any{
 		"ping":      OsqueryLiveQueryPingEvent{},
 		"result":    OsqueryLiveQueryResultEvent{},
 		"completed": OsqueryLiveQueryCompletedEvent{},
-	}, func(ctx context.Context, input *liveQueryStreamInput, send sse.Sender) {
-		streamLiveQuery(ctx, manager, input.ID, send)
+	}, func(ctx context.Context, _ *liveQueryStreamInput, send sse.Sender) {
+		events, ok := ctx.Value(liveQuerySubscriptionKey{}).(<-chan livequery.Event)
+		if !ok {
+			return
+		}
+		streamLiveQuery(ctx, events, send)
 	})
+}
+
+func subscribeLiveQuery(api huma.API, manager *livequery.Manager) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
+		if err != nil {
+			next(ctx)
+			return
+		}
+		events, release, err := manager.Subscribe(id)
+		if err != nil {
+			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "live query not found")
+			return
+		}
+		defer release()
+		next(huma.WithValue(ctx, liveQuerySubscriptionKey{}, events))
+	}
 }
 
 func (body OsqueryLiveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *hosts.Store) ([]int64, error) {
@@ -211,17 +238,9 @@ func (body OsqueryLiveQuerySelectedBody) targetSelection() hosts.TargetSelection
 
 func streamLiveQuery(
 	ctx context.Context,
-	manager *livequery.Manager,
-	id int64,
+	events <-chan livequery.Event,
 	send sse.Sender,
 ) {
-	events, release, err := manager.Subscribe(id)
-	if err != nil {
-		_ = send.Data(OsqueryLiveQueryCompletedEvent{Status: liveQueryCompletedStatusCompleted})
-		return
-	}
-	defer release()
-
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 

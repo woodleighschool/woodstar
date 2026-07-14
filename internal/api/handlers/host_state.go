@@ -31,7 +31,7 @@ func registerHostState[T any](
 		Path:        path,
 		Tags:        []string{hostsTag},
 		Summary:     summary,
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostStateLookupInput) (*hostStateOutput[T], error) {
 		state, err := load(ctx, input.ID)
 		if err != nil {

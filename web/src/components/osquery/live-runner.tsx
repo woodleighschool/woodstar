@@ -78,7 +78,9 @@ export function LiveRunner({
   const isRunning = stream.status === "running";
   const isStarting = create.isPending;
   const isStopping = stop.isPending;
-  const respondedCount = stream.results.filter((row) => row.status !== "stopped").length;
+  const respondedCount = stream.results.filter(
+    (row) => row.host_id !== undefined && row.status !== "stopped",
+  ).length;
   const canRun =
     hasTargets &&
     !targetMetrics.isFetching &&
@@ -706,7 +708,7 @@ function checkResultRows(rows: LiveQueryRow[]): CheckLiveRow[] {
 }
 
 function liveErrorRows(rows: LiveQueryRow[]) {
-  return rows.filter((row) => row.status === "error");
+  return rows.filter((row) => row.status !== "success" && row.status !== "stopped");
 }
 
 function liveDataRows(row: LiveQueryResult): Array<Record<string, string>> {

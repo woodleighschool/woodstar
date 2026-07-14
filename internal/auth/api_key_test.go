@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
@@ -33,7 +34,7 @@ func TestGenerateAPIKey(t *testing.T) {
 
 func TestRotateAndRevokeAPIKey(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database), labels.NewStore(database))
 	user, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "api@example.test",
 		Name:     "API User",

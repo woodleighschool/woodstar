@@ -9,6 +9,7 @@ import (
 type PreflightRequest struct {
 	SerialNumber      string
 	Version           string
+	RulesHash         string
 	ClientMode        configurations.ReportedClientMode
 	RequestCleanSync  bool
 	RuleCounts        syncstate.RuleCounts
@@ -23,8 +24,9 @@ type PreflightResponse struct {
 }
 
 type EventUploadRequest struct {
-	Events           []events.ExecutionEventInput
-	FileAccessEvents []events.FileAccessEventInput
+	Events                       []events.ExecutionEventInput
+	FileAccessEvents             []events.FileAccessEventInput
+	StandaloneRuleCreationEvents []events.StandaloneRuleCreationEventInput
 }
 
 type EventUploadResponse struct {
@@ -40,6 +42,8 @@ type RuleDownloadResponse = syncstate.PayloadRulePage
 type PostflightRequest struct {
 	RulesReceived  int32
 	RulesProcessed int32
+	SyncType       syncstate.SyncType
+	RulesHash      string
 }
 
 type PostflightResponse struct{}

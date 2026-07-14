@@ -3,23 +3,41 @@ package directory
 import (
 	"context"
 	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
 
-// ErrInitialAdministratorExists is returned when an active administrator already exists.
-var ErrInitialAdministratorExists = errors.New("an active administrator already exists")
+var (
+	// ErrSetupComplete is returned when initial setup has already completed.
+	ErrSetupComplete = errors.New("initial setup is complete")
+	// ErrLastAdministrator is returned when a mutation would remove the final active administrator.
+	ErrLastAdministrator = errors.New("at least one active administrator is required")
+)
 
 // UserService owns user management and app-access policy.
 type UserService struct {
-	store *Store
+	store     *Store
+	refresher DerivedLabelRefresher
 }
 
-func NewUserService(store *Store) *UserService {
-	return &UserService{store: store}
+// DerivedLabelRefresher recomputes materialized label membership after user resolution changes.
+type DerivedLabelRefresher interface {
+	RefreshDerivedTx(context.Context, pgx.Tx) error
+}
+
+// NewUserService returns the user-management service.
+func NewUserService(store *Store, refresher DerivedLabelRefresher) *UserService {
+	return &UserService{store: store, refresher: refresher}
 }
 
 // ActiveAdministratorExists reports whether a current user has the administrator role.
 func (s *UserService) ActiveAdministratorExists(ctx context.Context) (bool, error) {
 	return s.store.ActiveAdministratorExists(ctx)
+}
+
+// SetupComplete reports whether initial setup has completed.
+func (s *UserService) SetupComplete(ctx context.Context) (bool, error) {
+	return s.store.SetupComplete(ctx)
 }
 
 func (s *UserService) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
@@ -64,15 +82,22 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         params.Role,
-	})
+	}, s.refresher.RefreshDerivedTx)
 }
 
-// CreateInitialAdministrator creates the first active administrator atomically.
+// CreateInitialAdministrator completes setup with a local administrator.
 func (s *UserService) CreateInitialAdministrator(ctx context.Context, params UserCreate) (*User, error) {
 	params.Role = RoleAdmin
 	params.normalize()
 	if err := params.validate(); err != nil {
 		return nil, err
+	}
+	complete, err := s.store.SetupComplete(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if complete {
+		return nil, ErrSetupComplete
 	}
 	hash, err := HashPassword(params.Password)
 	if err != nil {
@@ -82,7 +107,7 @@ func (s *UserService) CreateInitialAdministrator(ctx context.Context, params Use
 		Email:        params.Email,
 		Name:         params.Name,
 		PasswordHash: hash,
-	})
+	}, s.refresher.RefreshDerivedTx)
 }
 
 // Update writes the full target record.
@@ -104,14 +129,7 @@ func (s *UserService) Update(ctx context.Context, targetID int64, params UserMut
 
 // Delete hard-deletes local users and soft-deletes source-owned identities.
 func (s *UserService) Delete(ctx context.Context, targetID int64) error {
-	user, err := s.store.GetUserByID(ctx, targetID)
-	if err != nil {
-		return err
-	}
-	if user.Source != SourceLocal {
-		return s.store.SoftDeleteUser(ctx, targetID)
-	}
-	return s.store.DeleteUser(ctx, targetID)
+	return s.store.deleteUser(ctx, targetID, s.refresher.RefreshDerivedTx)
 }
 
 func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {

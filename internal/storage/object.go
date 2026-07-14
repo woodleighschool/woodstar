@@ -227,35 +227,60 @@ func (s *ObjectStore) DeleteByID(ctx context.Context, id int64) error {
 	return nil
 }
 
-// DeleteUnreferenced deletes backend bytes and rows for objects that no Munki
-// resource references anymore. Failed backend deletes leave rows in place so the
-// database does not claim cleanup happened when bytes still exist.
+// DeleteUnreferenced removes objects that no Munki resource references anymore.
+// Registry rows are deleted before backend bytes so a concurrent reference can
+// never point at bytes cleanup has already removed.
 func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) error {
-	const sql = `SELECT o.prefix, o.id, o.filename
-FROM storage_objects o
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var unreferenced []objectUnrefRow
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+SELECT id
+FROM storage_objects
+WHERE id = ANY($1::bigint[])
+ORDER BY id
+FOR UPDATE`, ids)
+		if err != nil {
+			return err
+		}
+		lockedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
+			return err
+		}
+		if len(lockedIDs) == 0 {
+			return nil
+		}
+
+		rows, err = tx.Query(ctx, `
+DELETE FROM storage_objects o
 WHERE o.id = ANY($1::bigint[])
   AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
   AND NOT EXISTS (
       SELECT 1 FROM munki_packages p
       WHERE p.installer_object_id = o.id
-  )`
-	rows, err := s.db.Pool().Query(ctx, sql, ids)
+  )
+RETURNING o.prefix, o.id, o.filename`, lockedIDs)
+		if err != nil {
+			return err
+		}
+		unreferenced, err = pgx.CollectRows(rows, pgx.RowToStructByName[objectUnrefRow])
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	unref, err := pgx.CollectRows(rows, pgx.RowToStructByName[objectUnrefRow])
-	if err != nil {
-		return err
-	}
-	for _, row := range unref {
+
+	// Backend deletion follows the registry commit. A backend failure can leave
+	// orphaned bytes, but it cannot leave a database reference to missing bytes.
+	for _, row := range unreferenced {
 		key := Key(row.Prefix, row.ID, row.Filename)
 		if s.backend != nil {
 			if err := s.backend.Delete(ctx, key); err != nil {
-				return err
+				return fmt.Errorf("delete %q: %w", key, err)
 			}
-		}
-		if err := s.DeleteByID(ctx, row.ID); err != nil && !errors.Is(err, dbutil.ErrNotFound) {
-			return err
 		}
 	}
 	return nil

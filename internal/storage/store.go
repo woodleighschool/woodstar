@@ -14,10 +14,17 @@ var ErrObjectNotFound = errors.New("storage object not found")
 
 // Store reads and writes blobs by key. Backends: file, s3.
 type Store interface {
-	Open(ctx context.Context, key string) (io.ReadCloser, ObjectInfo, error)
+	Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error)
 	Put(ctx context.Context, key string, r io.Reader, opts PutOptions) error
 	Delete(ctx context.Context, key string) error
 	Stat(ctx context.Context, key string) (ObjectInfo, error)
+}
+
+// ObjectReader is a backend object stream that supports HTTP range reads.
+type ObjectReader interface {
+	io.Reader
+	io.Seeker
+	io.Closer
 }
 
 // Backend is a configured storage backend. All runtime backends can read/write

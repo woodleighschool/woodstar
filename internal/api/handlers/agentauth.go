@@ -54,7 +54,6 @@ func registerListAgentSecrets(api huma.API, store *agentauth.Store, logger *slog
 		Path:        agentSecretPath,
 		Tags:        []string{agentSecretsTag},
 		Summary:     "List agent secrets",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, _ *struct{}) (*agentSecretListOutput, error) {
 		secrets, err := store.List(ctx)
 		if err != nil {
@@ -72,7 +71,7 @@ func registerCreateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Tags:          []string{agentSecretsTag},
 		Summary:       "Create agent secret",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *agentSecretCreateInput) (*agentSecretCreateOutput, error) {
 		secret, err := store.Create(ctx, input.Body)
 		if errors.Is(err, agentauth.ErrInvalidAgent) {
@@ -97,8 +96,6 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Summary:     "Update agent secret",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
@@ -129,7 +126,7 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Path:        agentSecretIDPath,
 		Tags:        []string{agentSecretsTag},
 		Summary:     "Delete agent secret",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")

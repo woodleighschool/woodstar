@@ -4,9 +4,13 @@ import (
 	"cmp"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -72,7 +76,14 @@ func (s *Store) PreparePending(
 	desired []Target,
 	reported RuleCounts,
 	requestCleanSync bool,
+	clientRulesHash string,
 ) (SyncType, error) {
+	if err := validateRuleCounts(reported); err != nil {
+		return "", err
+	}
+	if err := validateRulesHash(clientRulesHash); err != nil {
+		return "", err
+	}
 	desired = sortedTargets(desired)
 
 	var pendingFullSync bool
@@ -81,7 +92,7 @@ func (s *Store) PreparePending(
 		if err != nil {
 			return err
 		}
-		pendingFullSync = applied.requiresFullSync(desired, reported, requestCleanSync)
+		pendingFullSync = applied.requiresFullSync(desired, reported, requestCleanSync, clientRulesHash)
 
 		payload := normalSyncPayload(desired, applied.targets)
 		if pendingFullSync {
@@ -94,6 +105,7 @@ func (s *Store) PreparePending(
 			payload:         payload,
 			desired:         desired,
 			reported:        reported,
+			clientRulesHash: clientRulesHash,
 		}); err != nil {
 			return err
 		}
@@ -110,25 +122,40 @@ func (s *Store) PreparePending(
 
 // priorState is the applied sync state loaded at the start of a preflight.
 type priorState struct {
-	exists  bool
-	targets []Target
+	exists             bool
+	targets            []Target
+	confirmedRulesHash string
 }
 
 func loadPriorState(ctx context.Context, tx pgx.Tx, hostID int64) (priorState, error) {
-	exists, err := syncStateExists(ctx, tx, hostID)
-	if err != nil {
+	var confirmedRulesHash string
+	err := tx.QueryRow(
+		ctx,
+		`SELECT confirmed_rules_hash FROM santa_sync_state WHERE host_id = $1`,
+		hostID,
+	).Scan(&confirmedRulesHash)
+	exists := true
+	if errors.Is(err, pgx.ErrNoRows) {
+		exists = false
+	} else if err != nil {
 		return priorState{}, err
 	}
 	targets, err := loadTargets(ctx, tx, hostID, phaseApplied)
 	if err != nil {
 		return priorState{}, err
 	}
-	return priorState{exists: exists, targets: targets}, nil
+	return priorState{exists: exists, targets: targets, confirmedRulesHash: confirmedRulesHash}, nil
 }
 
-func (p priorState) requiresFullSync(desired []Target, reported RuleCounts, requestCleanSync bool) bool {
+func (p priorState) requiresFullSync(
+	desired []Target,
+	reported RuleCounts,
+	requestCleanSync bool,
+	clientRulesHash string,
+) bool {
 	return requestCleanSync ||
 		!p.exists ||
+		(p.confirmedRulesHash != "" && p.confirmedRulesHash != clientRulesHash) ||
 		(targetsEqual(desired, p.targets) && !countTargets(desired).MatchesReported(reported))
 }
 
@@ -138,6 +165,7 @@ type preflightParams struct {
 	payload         []PayloadRule
 	desired         []Target
 	reported        RuleCounts
+	clientRulesHash string
 }
 
 const upsertPreflightSQL = `
@@ -146,6 +174,7 @@ INSERT INTO santa_sync_state (
     pending_full_sync,
     pending_payload_rule_count,
     pending_preflight_at,
+    preflight_rules_hash,
     desired_binary_rule_count,
     desired_certificate_rule_count,
     desired_teamid_rule_count,
@@ -164,17 +193,18 @@ INSERT INTO santa_sync_state (
     updated_at
 )
 VALUES (
-    $1, $2, $3, now(),
-    $4, $5, $6, $7, $8, $9,
-    $10, $11, $12, $13, $14, $15, $16,
+    $1, $2, $3, now(), $4,
+    $5, $6, $7, $8, $9, $10,
+    $11, $12, $13, $14, $15, $16, $17,
     now(),
-    CASE WHEN $17::boolean THEN now() ELSE NULL END,
+    CASE WHEN $18::boolean THEN now() ELSE NULL END,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
     pending_full_sync = EXCLUDED.pending_full_sync,
     pending_payload_rule_count = EXCLUDED.pending_payload_rule_count,
     pending_preflight_at = EXCLUDED.pending_preflight_at,
+    preflight_rules_hash = EXCLUDED.preflight_rules_hash,
     desired_binary_rule_count = EXCLUDED.desired_binary_rule_count,
     desired_certificate_rule_count = EXCLUDED.desired_certificate_rule_count,
     desired_teamid_rule_count = EXCLUDED.desired_teamid_rule_count,
@@ -190,7 +220,7 @@ ON CONFLICT (host_id) DO UPDATE SET
     transitive_rule_count = EXCLUDED.transitive_rule_count,
     last_rule_sync_attempt_at = EXCLUDED.last_rule_sync_attempt_at,
     last_reported_counts_match_at = CASE
-        WHEN $17::boolean THEN EXCLUDED.last_reported_counts_match_at
+        WHEN $18::boolean THEN EXCLUDED.last_reported_counts_match_at
         ELSE santa_sync_state.last_reported_counts_match_at
     END,
     updated_at = now()`
@@ -202,6 +232,7 @@ func upsertPreflight(ctx context.Context, tx pgx.Tx, p preflightParams) error {
 		p.hostID,
 		p.pendingFullSync,
 		int32(len(p.payload)),
+		p.clientRulesHash,
 		desiredCounts.Binary,
 		desiredCounts.Certificate,
 		desiredCounts.TeamID,
@@ -238,6 +269,8 @@ func rewritePendingState(
 type santaPendingStateRow struct {
 	PendingPayloadRuleCount int32
 	PendingFullSync         bool
+	PendingPreflightAt      *time.Time
+	PreflightRulesHash      string
 }
 
 func (s *Store) LoadPendingPayloadPage(
@@ -304,32 +337,40 @@ func (s *Store) PromotePending(
 	hostID int64,
 	rulesReceived int32,
 	rulesProcessed int32,
+	syncType SyncType,
+	rulesHash string,
 ) error {
-	var state santaPendingStateRow
-	err := s.db.Pool().QueryRow(ctx,
-		`SELECT pending_payload_rule_count, pending_full_sync FROM santa_sync_state WHERE host_id = $1`,
-		hostID,
-	).Scan(&state.PendingPayloadRuleCount, &state.PendingFullSync)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if rulesProcessed != state.PendingPayloadRuleCount {
-		_, err = s.db.Pool().Exec(ctx, `
-UPDATE santa_sync_state
-SET
-    rules_received = $2,
-    rules_processed = $3,
-    last_rule_sync_attempt_at = now(),
-    updated_at = now()
-WHERE host_id = $1`,
-			hostID, rulesReceived, rulesProcessed,
+	var validationErr error
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var state santaPendingStateRow
+		err := tx.QueryRow(ctx, `
+SELECT
+    pending_payload_rule_count,
+    pending_full_sync,
+    pending_preflight_at,
+    preflight_rules_hash
+FROM santa_sync_state
+WHERE host_id = $1
+FOR UPDATE`, hostID).Scan(
+			&state.PendingPayloadRuleCount,
+			&state.PendingFullSync,
+			&state.PendingPreflightAt,
+			&state.PreflightRulesHash,
 		)
-		return err
-	}
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if errors.Is(err, pgx.ErrNoRows) {
+			validationErr = fmt.Errorf("%w: no pending Santa sync", dbutil.ErrInvalidInput)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := validatePostflight(state, rulesReceived, rulesProcessed, syncType, rulesHash); err != nil {
+			if updateErr := recordPostflightAttempt(ctx, tx, hostID, rulesReceived, rulesProcessed); updateErr != nil {
+				return updateErr
+			}
+			validationErr = err
+			return nil
+		}
 		if _, err := tx.Exec(ctx,
 			`DELETE FROM santa_sync_targets WHERE host_id = $1 AND phase = $2::santa_sync_target_phase`,
 			hostID, phaseApplied,
@@ -362,7 +403,7 @@ ORDER BY position`,
 		); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `
+		_, err = tx.Exec(ctx, `
 UPDATE santa_sync_state
 SET
     rules_received = $2,
@@ -370,21 +411,38 @@ SET
     pending_full_sync = false,
     pending_payload_rule_count = 0,
     pending_preflight_at = NULL,
+    confirmed_rules_hash = $5,
     last_rule_sync_attempt_at = now(),
     last_rule_sync_success_at = now(),
     last_clean_sync_at = CASE WHEN $4::boolean THEN now() ELSE last_clean_sync_at END,
     updated_at = now()
 WHERE host_id = $1`,
-			hostID, rulesReceived, rulesProcessed, state.PendingFullSync,
+			hostID, rulesReceived, rulesProcessed, state.PendingFullSync, rulesHash,
 		)
 		return err
 	})
+	if err != nil {
+		return err
+	}
+	return validationErr
 }
 
-func syncStateExists(ctx context.Context, tx pgx.Tx, hostID int64) (bool, error) {
-	var exists bool
-	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM santa_sync_state WHERE host_id = $1)`, hostID).Scan(&exists)
-	return exists, err
+func recordPostflightAttempt(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	rulesReceived int32,
+	rulesProcessed int32,
+) error {
+	_, err := tx.Exec(ctx, `
+UPDATE santa_sync_state
+SET
+    rules_received = $2,
+    rules_processed = $3,
+    last_rule_sync_attempt_at = now(),
+    updated_at = now()
+WHERE host_id = $1`, hostID, rulesReceived, rulesProcessed)
+	return err
 }
 
 type targetRow struct {
@@ -451,11 +509,18 @@ VALUES (
 }
 
 func normalSyncPayload(desired []Target, applied []Target) []PayloadRule {
+	appliedByIdentity := make(map[string]Target, len(applied))
+	for _, target := range applied {
+		appliedByIdentity[target.identityKey()] = target
+	}
 	currentIdentities := make(map[string]struct{}, len(desired))
 	payload := make([]PayloadRule, 0, len(desired)+len(applied))
 	for _, target := range desired {
 		currentIdentities[target.identityKey()] = struct{}{}
-		payload = append(payload, payloadRuleFromTarget(target))
+		current, ok := appliedByIdentity[target.identityKey()]
+		if !ok || current.PayloadHash != target.PayloadHash {
+			payload = append(payload, payloadRuleFromTarget(target))
+		}
 	}
 
 	for _, target := range applied {
@@ -470,6 +535,63 @@ func normalSyncPayload(desired []Target, applied []Target) []PayloadRule {
 	}
 
 	return sortedPayloadRules(payload)
+}
+
+func validateRuleCounts(counts RuleCounts) error {
+	if counts.Binary < 0 ||
+		counts.Certificate < 0 ||
+		counts.TeamID < 0 ||
+		counts.SigningID < 0 ||
+		counts.CDHash < 0 ||
+		counts.Compiler < 0 ||
+		counts.Transitive < 0 ||
+		counts.Transitive > counts.Binary {
+		return fmt.Errorf("%w: invalid Santa rule counts", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
+func validateRulesHash(rulesHash string) error {
+	if len(rulesHash) != 32 || strings.ToLower(rulesHash) != rulesHash {
+		return fmt.Errorf("%w: rules_hash must be 32 lowercase hexadecimal characters", dbutil.ErrInvalidInput)
+	}
+	if _, err := hex.DecodeString(rulesHash); err != nil {
+		return fmt.Errorf("%w: rules_hash must be 32 lowercase hexadecimal characters", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
+func validatePostflight(
+	state santaPendingStateRow,
+	rulesReceived int32,
+	rulesProcessed int32,
+	syncType SyncType,
+	rulesHash string,
+) error {
+	if state.PendingPreflightAt == nil {
+		return fmt.Errorf("%w: no pending Santa sync", dbutil.ErrInvalidInput)
+	}
+	expectedSyncType := SyncTypeNormal
+	if state.PendingFullSync {
+		expectedSyncType = SyncTypeClean
+	}
+	if syncType != expectedSyncType {
+		return fmt.Errorf("%w: sync_type is %q, want %q", dbutil.ErrInvalidInput, syncType, expectedSyncType)
+	}
+	if rulesReceived != state.PendingPayloadRuleCount || rulesProcessed != state.PendingPayloadRuleCount {
+		return fmt.Errorf(
+			"%w: rules_received and rules_processed must equal pending rule count %d",
+			dbutil.ErrInvalidInput,
+			state.PendingPayloadRuleCount,
+		)
+	}
+	if err := validateRulesHash(rulesHash); err != nil {
+		return err
+	}
+	if state.PendingPayloadRuleCount == 0 && rulesHash != state.PreflightRulesHash {
+		return fmt.Errorf("%w: rules_hash changed during an empty sync", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 func fullSyncPayload(targets []Target) []PayloadRule {

@@ -79,7 +79,7 @@ type packageEvent struct {
 // and the ordered fan-out for desired-set changes.
 type Hub struct {
 	store    *mdp.Store
-	presence *mdp.Presence
+	presence presenceWriter
 	logger   *slog.Logger
 
 	mu     sync.Mutex
@@ -88,6 +88,11 @@ type Hub struct {
 
 	wake chan struct{}
 	done chan struct{}
+}
+
+type presenceWriter interface {
+	Connect(int64)
+	Disconnect(int64)
 }
 
 type connection struct {
@@ -285,11 +290,11 @@ func (h *Hub) register(id int64, conn *connection) bool {
 	}
 	old := h.conns[id]
 	h.conns[id] = conn
+	h.presence.Connect(id)
 	h.mu.Unlock()
 	if old != nil {
 		_ = old.ws.Close(websocket.StatusPolicyViolation, "replaced by a new connection")
 	}
-	h.presence.Connect(id)
 	return true
 }
 
@@ -298,13 +303,27 @@ func (h *Hub) unregister(id int64, conn *connection) {
 	removed := h.conns[id] == conn
 	if removed {
 		delete(h.conns, id)
+		h.presence.Disconnect(id)
 	}
 	h.mu.Unlock()
 	// Only a replaced or genuinely-closed current connection clears presence; a
 	// superseded old connection's late unregister must not knock the new one out.
-	if removed {
-		h.presence.Disconnect(id)
+}
+
+// Disconnect drops the current connection for one distribution point. Key
+// rotation, disabling, and deletion must invalidate the live worker as well as
+// subsequent HTTP authentication.
+func (h *Hub) Disconnect(id int64) {
+	h.mu.Lock()
+	conn := h.conns[id]
+	if conn == nil {
+		h.mu.Unlock()
+		return
 	}
+	delete(h.conns, id)
+	h.presence.Disconnect(id)
+	h.mu.Unlock()
+	_ = conn.ws.Close(websocket.StatusPolicyViolation, "distribution point credentials changed")
 }
 
 func statusForEvent(eventType string) (mdp.PackageStatus, bool) {

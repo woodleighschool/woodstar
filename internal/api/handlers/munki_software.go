@@ -75,6 +75,7 @@ func (input munkiSoftwareListInput) params() dbutil.ListParams {
 func registerMunkiSoftware(
 	api huma.API,
 	store *munkisoftware.Store,
+	deletions *munki.SoftwareDeletionService,
 	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
 	storageStore storage.Presigner,
@@ -84,8 +85,8 @@ func registerMunkiSoftware(
 	registerCreateMunkiSoftware(api, store, packageService, logger)
 	registerGetMunkiSoftware(api, store, packageService, logger)
 	registerPutMunkiSoftware(api, store, packageService, logger)
-	registerDeleteMunkiSoftware(api, store, logger)
-	registerBulkDeleteMunkiSoftware(api, store, logger)
+	registerDeleteMunkiSoftware(api, deletions, logger)
+	registerBulkDeleteMunkiSoftware(api, deletions, logger)
 	registerIconRoutes(api, store, objects, storageStore, logger)
 }
 
@@ -96,7 +97,6 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger 
 		Path:        munkiSoftwarePath,
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki software",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -130,8 +130,6 @@ func registerCreateMunkiSoftware(
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -156,7 +154,7 @@ func registerGetMunkiSoftware(
 		Path:        munkiSoftwareIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Get Munki software",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareGetInput) (*munkiSoftwareDetailOutput, error) {
 		return loadMunkiSoftwareDetail(ctx, input.ID, store, packageService, logger, "get-munki-software")
 	})
@@ -176,8 +174,6 @@ func registerPutMunkiSoftware(
 		Summary:     "Update Munki software",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -200,7 +196,7 @@ func registerPutMunkiSoftware(
 
 func registerDeleteMunkiSoftware(
 	api huma.API,
-	store *munkisoftware.Store,
+	deletions *munki.SoftwareDeletionService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -209,9 +205,9 @@ func registerDeleteMunkiSoftware(
 		Path:        munkiSoftwareIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Delete Munki software",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.ID); err != nil {
+		if err := deletions.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -228,7 +224,7 @@ func registerDeleteMunkiSoftware(
 
 func registerBulkDeleteMunkiSoftware(
 	api huma.API,
-	store *munkisoftware.Store,
+	deletions *munki.SoftwareDeletionService,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -237,9 +233,9 @@ func registerBulkDeleteMunkiSoftware(
 		Path:        munkiSoftwarePath + "/bulk-delete",
 		Tags:        []string{munkiTag},
 		Summary:     "Delete Munki software",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *munkiSoftwareBulkDeleteInput) (*struct{}, error) {
-		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
+		if _, err := deletions.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-munki-software", munkiSoftwareLabel, err)
 		}
 		return &struct{}{}, nil

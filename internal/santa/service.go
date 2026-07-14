@@ -39,6 +39,7 @@ type eventStore interface {
 		int64,
 		[]santaevents.ExecutionEventInput,
 		[]santaevents.FileAccessEventInput,
+		[]santaevents.StandaloneRuleCreationEventInput,
 	) ([]string, error)
 }
 
@@ -53,9 +54,10 @@ type syncStore interface {
 		[]syncstate.Target,
 		syncstate.RuleCounts,
 		bool,
+		string,
 	) (syncstate.SyncType, error)
 	LoadPendingPayloadPage(context.Context, int64, string, int32) (syncstate.PayloadRulePage, error)
-	PromotePending(context.Context, int64, int32, int32) error
+	PromotePending(context.Context, int64, int32, int32, syncstate.SyncType, string) error
 }
 
 func NewSyncService(deps Dependencies) *SyncService {
@@ -88,6 +90,7 @@ func (s *SyncService) Preflight(
 		targets,
 		req.RuleCounts,
 		req.RequestCleanSync,
+		req.RulesHash,
 	)
 	if err != nil {
 		return PreflightResponse{}, err
@@ -113,7 +116,13 @@ func (s *SyncService) EventUpload(
 	if err != nil {
 		return EventUploadResponse{}, err
 	}
-	bundleRequests, err := s.deps.Events.IngestEvents(ctx, hostID, req.Events, req.FileAccessEvents)
+	bundleRequests, err := s.deps.Events.IngestEvents(
+		ctx,
+		hostID,
+		req.Events,
+		req.FileAccessEvents,
+		req.StandaloneRuleCreationEvents,
+	)
 	if err != nil {
 		return EventUploadResponse{}, err
 	}
@@ -146,6 +155,8 @@ func (s *SyncService) Postflight(
 		hostID,
 		req.RulesReceived,
 		req.RulesProcessed,
+		req.SyncType,
+		req.RulesHash,
 	); err != nil {
 		return PostflightResponse{}, err
 	}

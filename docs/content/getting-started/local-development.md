@@ -19,13 +19,15 @@ mise run deps
 
 `mise run deps` pulls the Go modules and installs the frontend dependencies under `web/`.
 
-`mise run dev` runs `dev-tls` first. It creates a repo-local CA and server certificate under `tmp/tls/`. Run it directly to add an address used by an external test client:
+`mise run dev` runs `dev-tls` first. It creates a repo-local CA and regenerates the server certificate under `tmp/tls/`. Set every address used by external test clients in `.env`:
 
 ```bash
-mise run dev-tls -- 192.168.64.1
+WOODSTAR_DEV_TLS_HOSTS='192.168.64.1 woodstar.test'
 ```
 
-The CA certificate is `tmp/tls/ca/rootCA.pem`. Its private key stays under the ignored `tmp/` directory.
+`WOODSTAR_DEV_TLS_HOSTS` is a space-separated list of IP addresses and DNS names. The address in `WOODSTAR_URL` must appear in the certificate. One-off names can also be passed to `mise run dev-tls -- <name>`.
+
+The CA certificate is `tmp/tls/ca/rootCA.pem`. Its private key stays under the ignored `tmp/` directory. Regenerating the leaf certificate keeps the same repo-local CA, so clients only need that CA installed once.
 
 ## Start Postgres
 
@@ -89,10 +91,14 @@ For local agents, bundle `tmp/tls/ca/rootCA.pem` into the Orbit package or copy 
 | ------------- | ---------------------------------------------------------------- |
 | Orbit package | `fleetctl package ... --fleet-certificate=tmp/tls/ca/rootCA.pem` |
 | osquery       | `--tls_server_certs=/path/to/woodstar-ca.pem`                    |
-| Munki         | `SoftwareRepoCACertificate=/path/to/woodstar-ca.pem`             |
-| Santa         | `ServerAuthRootsFile=/path/to/woodstar-ca.pem`                   |
+| Munki         | Trust the CA with a certificate profile                          |
+| Santa         | Trust the CA with a certificate profile                          |
+| MDP worker    | `WOODSTAR_MDP_SERVER_CA_FILE=/path/to/woodstar-ca.pem`           |
+| AutoPkg       | `WOODSTAR_CA_FILE=/path/to/woodstar-ca.pem`                      |
 
-For short-lived local testing, a client's explicit insecure mode, such as Fleet's `--insecure`, is another option.
+Munki and Santa use macOS trust evaluation. Deliver the CA as a trusted certificate payload in the same development profile as their settings, or install it interactively on a throwaway client. `SoftwareRepoCACertificate` and Santa's `ServerAuthRootsFile` can identify or pin the CA, but they do not replace the system trust required by current clients. Modern macOS also requires System Settings for manual profile installation, so SSH bootstrap should not try to bypass that approval.
+
+System trust remains opt-in. `mise run dev-tls-trust` trusts the CA only on the development machine where the command runs; it does not change a test VM.
 
 ## First admin account
 

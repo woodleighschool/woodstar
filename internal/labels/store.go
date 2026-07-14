@@ -226,25 +226,30 @@ ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`, labelID, host
 
 func (s *Store) RefreshDerived(ctx context.Context) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
+		return s.RefreshDerivedTx(ctx, tx)
+	})
+}
+
+// RefreshDerivedTx recomputes derived membership inside the caller's transaction.
+func (s *Store) RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error {
+	rows, err := tx.Query(ctx, `
 SELECT id, criteria
 FROM labels
 WHERE label_membership_type = 'derived'
 ORDER BY id`)
-		if err != nil {
+	if err != nil {
+		return err
+	}
+	derived, err := pgx.CollectRows(rows, pgx.RowToStructByName[derivedLabelRow])
+	if err != nil {
+		return err
+	}
+	for _, label := range derived {
+		if err := refreshDerivedMembership(ctx, tx, label.ID, label.Criteria.value); err != nil {
 			return err
 		}
-		derived, err := pgx.CollectRows(rows, pgx.RowToStructByName[derivedLabelRow])
-		if err != nil {
-			return err
-		}
-		for _, label := range derived {
-			if err := refreshDerivedMembership(ctx, tx, label.ID, label.Criteria.value); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func labelListWhere(params LabelListParams) (string, []any) {

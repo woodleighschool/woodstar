@@ -72,6 +72,31 @@ func TestHandlerReturnsNotFoundForAssetLikeMiss(t *testing.T) {
 	}
 }
 
+func TestHandlerDoesNotTreatServerPathsAsSPARoutes(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/api/not-a-route",
+		"/storage/not-an-object",
+		"/santa/sync/not-a-stage",
+		"/munki/manifests/serial/extra",
+		"/munki/catalogs/woodstar/extra",
+		"/munki/pkgs/not-a-package/extra",
+		"/munki/icons/not-an-icon/extra",
+	} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			recorder := requestWeb(t, path)
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+			}
+			if strings.Contains(recorder.Body.String(), "__WOODSTAR__") {
+				t.Fatal("server path returned SPA index")
+			}
+		})
+	}
+}
+
 func TestHandlerServesSPAIndex(t *testing.T) {
 	t.Parallel()
 

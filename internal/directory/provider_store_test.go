@@ -7,6 +7,79 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 )
 
+func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	service := newTestUserService(store)
+
+	provider := newTestProviderService(store)
+	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		Users: []ProviderUser{{
+			ExternalID:        "admin-object-id",
+			UserPrincipalName: "admin@example.test",
+			DisplayName:       "Directory Admin",
+			Enabled:           true,
+		}},
+	}); err != nil {
+		t.Fatalf("seed provider user: %v", err)
+	}
+	var adminID int64
+	if err := database.Pool().QueryRow(ctx, `
+UPDATE users
+SET role = 'admin'
+WHERE external_id = 'admin-object-id'
+RETURNING id`).Scan(&adminID); err != nil {
+		t.Fatalf("grant administrator role: %v", err)
+	}
+
+	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{}); err != nil {
+		t.Fatalf("remove last provider administrator: %v", err)
+	}
+	if _, err := service.Get(ctx, adminID); err == nil {
+		t.Fatal("revoked provider administrator remains active")
+	}
+	var deletedAt *time.Time
+	if err := database.Pool().QueryRow(
+		ctx,
+		`SELECT deleted_at FROM users WHERE id = $1`,
+		adminID,
+	).Scan(&deletedAt); err != nil {
+		t.Fatalf("load revoked provider administrator: %v", err)
+	}
+	if deletedAt == nil {
+		t.Fatal("revoked provider administrator deleted_at is nil")
+	}
+}
+
+func TestApplyProviderSnapshotRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	provider := NewProviderService(store, failingDerivedLabelRefresher{})
+
+	err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		Users: []ProviderUser{{
+			ExternalID:        "rollback-user",
+			UserPrincipalName: "rollback@example.test",
+			DisplayName:       "Rollback User",
+			Enabled:           true,
+		}},
+	})
+	if err == nil {
+		t.Fatal("provider snapshot succeeded despite derived label refresh failure")
+	}
+
+	var count int
+	if err := database.Pool().QueryRow(
+		ctx,
+		`SELECT count(*) FROM users WHERE external_id = 'rollback-user'`,
+	).Scan(&count); err != nil {
+		t.Fatalf("count rolled-back users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("persisted users = %d, want 0", count)
+	}
+}
+
 func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
@@ -36,7 +109,8 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 			},
 		},
 	}
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, first); err != nil {
+	provider := newTestProviderService(store)
+	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, first); err != nil {
 		t.Fatalf("apply first snapshot: %v", err)
 	}
 
@@ -67,7 +141,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 			},
 		},
 	}
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, second); err != nil {
+	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, second); err != nil {
 		t.Fatalf("apply second snapshot: %v", err)
 	}
 
@@ -123,7 +197,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 			},
 		},
 	}
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, third); err != nil {
+	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, third); err != nil {
 		t.Fatalf("apply third snapshot: %v", err)
 	}
 	bobDeletedAt = &time.Time{}
@@ -168,7 +242,7 @@ func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternal
 		t.Fatalf("insert deleted entra user: %v", err)
 	}
 
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{
@@ -204,20 +278,20 @@ func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternal
 	}
 }
 
-func TestApplyProviderSnapshotAttachesExistingLocalUser(t *testing.T) {
+func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 
 	var localID int64
 	if err := store.db.Pool().QueryRow(ctx, `
-		INSERT INTO users (email, name, role)
-		VALUES ('admin@example.edu', 'Local Admin', 'admin')
+		INSERT INTO users (email, name, password_hash, role)
+		VALUES ('admin@example.edu', 'Local Admin', 'password-hash', 'admin')
 		RETURNING id
 	`).Scan(&localID); err != nil {
 		t.Fatalf("insert local user: %v", err)
 	}
 
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{
@@ -232,26 +306,62 @@ func TestApplyProviderSnapshotAttachesExistingLocalUser(t *testing.T) {
 		t.Fatalf("apply snapshot: %v", err)
 	}
 
-	var id int64
-	var role string
-	var source, externalID string
+	var role, source string
+	var externalID *string
 	if err := store.db.Pool().QueryRow(ctx, `
-		SELECT id, role::text, source::text, external_id
-		FROM users
-		WHERE email = 'admin@example.edu'
-	`).Scan(&id, &role, &source, &externalID); err != nil {
-		t.Fatalf("load attached user: %v", err)
-	}
-	if id != localID {
-		t.Fatalf("attached id = %d, want existing local id %d", id, localID)
+		SELECT role::text, source::text, external_id
+		FROM users WHERE id = $1
+	`, localID).Scan(&role, &source, &externalID); err != nil {
+		t.Fatalf("load local user: %v", err)
 	}
 	if role != "admin" {
 		t.Fatalf("role = %q, want preserved admin", role)
 	}
-	if source != "entra" {
-		t.Fatalf("source = %q, want entra", source)
+	if source != "local" {
+		t.Fatalf("local source = %q, want local", source)
 	}
-	if externalID != "entra-admin" {
-		t.Fatalf("external_id = %q, want entra-admin", externalID)
+	if externalID != nil {
+		t.Fatalf("local external_id = %q, want nil", *externalID)
+	}
+	login, err := store.GetLoginUserByEmail(ctx, "admin@example.edu")
+	if err != nil {
+		t.Fatalf("load local password login: %v", err)
+	}
+	if login.ID != localID {
+		t.Fatalf("password login user = %d, want local user %d", login.ID, localID)
+	}
+
+	var providerID int64
+	if err := store.db.Pool().QueryRow(ctx, `
+		SELECT user_id FROM directory_user_links
+		WHERE source = 'entra' AND external_id = 'entra-admin'
+	`).Scan(&providerID); err != nil {
+		t.Fatalf("load provider identity link: %v", err)
+	}
+	if providerID != localID {
+		t.Fatalf("provider identity user = %d, want local user %d", providerID, localID)
+	}
+
+	if err := newTestProviderService(store).ApplyProviderSnapshot(
+		ctx,
+		SourceEntra,
+		ProviderSnapshot{},
+	); err != nil {
+		t.Fatalf("remove linked provider identity: %v", err)
+	}
+	login, err = store.GetLoginUserByEmail(ctx, "admin@example.edu")
+	if err != nil || login.ID != localID {
+		t.Fatalf("password login after provider removal = %+v, %v", login, err)
+	}
+	var linkCount int
+	if err := store.db.Pool().QueryRow(
+		ctx,
+		`SELECT count(*) FROM directory_user_links WHERE user_id = $1`,
+		localID,
+	).Scan(&linkCount); err != nil {
+		t.Fatalf("count removed provider identity links: %v", err)
+	}
+	if linkCount != 0 {
+		t.Fatalf("provider identity links = %d, want 0 after removal", linkCount)
 	}
 }

@@ -65,22 +65,6 @@ func parsePositiveSuffix(suffix string) (int64, bool) {
 	return id, true
 }
 
-// statusOK reports whether an osquery status payload represents success.
-func statusOK(raw json.RawMessage) bool {
-	if len(raw) == 0 {
-		return true
-	}
-	var number int
-	if err := json.Unmarshal(raw, &number); err == nil {
-		return number == 0
-	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err == nil {
-		return text == "" || text == "0"
-	}
-	return false
-}
-
 // detailDispatchPass accumulates detail-query state during one DistributedWrite call.
 type detailDispatchPass struct {
 	registry     map[string]catalog.DetailQuery
@@ -89,8 +73,9 @@ type detailDispatchPass struct {
 }
 
 type detailResult struct {
-	rows   []map[string]string
-	status json.RawMessage
+	rows      []map[string]string
+	status    json.RawMessage
+	hasStatus bool
 }
 
 func newDetailDispatchPass() *detailDispatchPass {
@@ -126,13 +111,13 @@ func (s *AgentService) dispatchWriteResults(
 		var err error
 		switch kind { //nolint:exhaustive // parseQueryName already narrowed to the four dispatched kinds
 		case kindDetail:
-			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, message, details)
+			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, hasStatus, message, details)
 		case kindLabel:
 			s.handleLabelResult(ctx, host.ID, suffix, rows, status, hasStatus, message, labels)
 		case kindCheck:
 			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
 		case kindLive:
-			err = s.handleLiveResult(host, suffix, rows, status, message)
+			err = s.handleLiveResult(host, suffix, rows, status, hasStatus, message)
 		}
 		if err != nil {
 			return fmt.Errorf("ingest %s: %w", name, err)
@@ -188,16 +173,17 @@ func (s *AgentService) handleDetailResult(
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,
+	hasStatus bool,
 	message string,
 	pass *detailDispatchPass,
 ) error {
-	pass.results[suffix] = detailResult{rows: rows, status: status}
+	pass.results[suffix] = detailResult{rows: rows, status: status, hasStatus: hasStatus}
 
 	query, ok := pass.registry[suffix]
 	if !ok {
 		return nil
 	}
-	if !statusOK(status) {
+	if !distributedStatusOK(status, hasStatus) {
 		if !query.Optional {
 			pass.allSucceeded = false
 		}
@@ -259,7 +245,7 @@ func (s *AgentService) clearMissingOrFailedMunkiDetails(
 			continue
 		}
 		result, ok := pass.results[name]
-		if ok && statusOK(result.status) {
+		if ok && distributedStatusOK(result.status, result.hasStatus) {
 			continue
 		}
 		if err := s.deps.InventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
@@ -279,7 +265,7 @@ func successfulSoftwareRows(
 			continue
 		}
 		result, ok := pass.results[suffix]
-		if !ok || !statusOK(result.status) {
+		if !ok || !distributedStatusOK(result.status, result.hasStatus) {
 			continue
 		}
 		rowsBySuffix[suffix] = result.rows
@@ -308,7 +294,7 @@ func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {
 			continue
 		}
 		result, ok := pass.results[name]
-		if !ok || !statusOK(result.status) {
+		if !ok || !distributedStatusOK(result.status, result.hasStatus) {
 			return false
 		}
 	}
@@ -345,13 +331,16 @@ func (s *AgentService) handleCheckResult(
 }
 
 func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {
-	if !hasStatus || !distributedStatusOK(status) {
+	if !distributedStatusOK(status, hasStatus) {
 		return false, false
 	}
 	return len(rows) > 0, true
 }
 
-func distributedStatusOK(raw json.RawMessage) bool {
+func distributedStatusOK(raw json.RawMessage, hasStatus bool) bool {
+	if !hasStatus {
+		return false
+	}
 	var number int
 	if err := json.Unmarshal(raw, &number); err != nil {
 		return false
@@ -364,6 +353,7 @@ func (s *AgentService) handleLiveResult(
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,
+	hasStatus bool,
 	message string,
 ) error {
 	queryID, ok := parsePositiveSuffix(suffix)
@@ -372,7 +362,7 @@ func (s *AgentService) handleLiveResult(
 	}
 	resultStatus := livequery.StatusSuccess
 	var data json.RawMessage
-	if statusOK(status) {
+	if distributedStatusOK(status, hasStatus) {
 		encoded, err := json.Marshal(rows)
 		if err != nil {
 			return fmt.Errorf("marshal live query rows: %w", err)

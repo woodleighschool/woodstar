@@ -21,12 +21,25 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Get the signed-in user's account, including any API key
  */
-export const getAccount = <ThrowOnError extends boolean = false>(options?: Options<GetAccountData, ThrowOnError>): RequestResult<GetAccountResponses, GetAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetAccountResponses, GetAccountErrors, ThrowOnError>({ url: '/api/account', ...options });
+export const getAccount = <ThrowOnError extends boolean = false>(options?: Options<GetAccountData, ThrowOnError>): RequestResult<GetAccountResponses, GetAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetAccountResponses, GetAccountErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/account',
+    ...options
+});
 
 /**
  * Update the signed-in user's account
  */
 export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).put<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/account',
     ...options,
     headers: {
@@ -38,22 +51,51 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Clear the API key on the signed-in user's account
  */
-export const revokeAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RevokeAccountApiKeyData, ThrowOnError>): RequestResult<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).delete<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError>({ url: '/api/account/api-key', ...options });
+export const revokeAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RevokeAccountApiKeyData, ThrowOnError>): RequestResult<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).delete<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/account/api-key',
+    ...options
+});
 
 /**
  * Generate a new API key for the signed-in user, replacing any prior key
  */
-export const rotateAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RotateAccountApiKeyData, ThrowOnError>): RequestResult<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).post<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError>({ url: '/api/account/api-key', ...options });
+export const rotateAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RotateAccountApiKeyData, ThrowOnError>): RequestResult<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).post<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/account/api-key',
+    ...options
+});
 
 /**
  * List agent secrets
  */
-export const listAgentSecrets = <ThrowOnError extends boolean = false>(options?: Options<ListAgentSecretsData, ThrowOnError>): RequestResult<ListAgentSecretsResponses, ListAgentSecretsErrors, ThrowOnError> => (options?.client ?? client).get<ListAgentSecretsResponses, ListAgentSecretsErrors, ThrowOnError>({ url: '/api/agent-secrets', ...options });
+export const listAgentSecrets = <ThrowOnError extends boolean = false>(options?: Options<ListAgentSecretsData, ThrowOnError>): RequestResult<ListAgentSecretsResponses, ListAgentSecretsErrors, ThrowOnError> => (options?.client ?? client).get<ListAgentSecretsResponses, ListAgentSecretsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/agent-secrets',
+    ...options
+});
 
 /**
  * Create agent secret
  */
 export const createAgentSecret = <ThrowOnError extends boolean = false>(options: Options<CreateAgentSecretData, ThrowOnError>): RequestResult<CreateAgentSecretResponses, CreateAgentSecretErrors, ThrowOnError> => (options.client ?? client).post<CreateAgentSecretResponses, CreateAgentSecretErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/agent-secrets',
     ...options,
     headers: {
@@ -65,12 +107,25 @@ export const createAgentSecret = <ThrowOnError extends boolean = false>(options:
 /**
  * Delete agent secret
  */
-export const deleteAgentSecret = <ThrowOnError extends boolean = false>(options: Options<DeleteAgentSecretData, ThrowOnError>): RequestResult<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError>({ url: '/api/agent-secrets/{id}', ...options });
+export const deleteAgentSecret = <ThrowOnError extends boolean = false>(options: Options<DeleteAgentSecretData, ThrowOnError>): RequestResult<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/agent-secrets/{id}',
+    ...options
+});
 
 /**
  * Update agent secret
  */
 export const updateAgentSecret = <ThrowOnError extends boolean = false>(options: Options<UpdateAgentSecretData, ThrowOnError>): RequestResult<UpdateAgentSecretResponses, UpdateAgentSecretErrors, ThrowOnError> => (options.client ?? client).put<UpdateAgentSecretResponses, UpdateAgentSecretErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/agent-secrets/{id}',
     ...options,
     headers: {
@@ -94,7 +149,15 @@ export const createSession = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Revoke the current session
  */
-export const deleteSession = <ThrowOnError extends boolean = false>(options?: Options<DeleteSessionData, ThrowOnError>): RequestResult<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError> => (options?.client ?? client).post<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
+export const deleteSession = <ThrowOnError extends boolean = false>(options?: Options<DeleteSessionData, ThrowOnError>): RequestResult<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError> => (options?.client ?? client).post<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/auth/logout',
+    ...options
+});
 
 /**
  * Get setup state and the current signed-in user, if any
@@ -106,6 +169,11 @@ export const getSession = <ThrowOnError extends boolean = false>(options?: Optio
  */
 export const listGroups = <ThrowOnError extends boolean = false>(options?: Options<ListGroupsData, ThrowOnError>): RequestResult<ListGroupsResponses, ListGroupsErrors, ThrowOnError> => (options?.client ?? client).get<ListGroupsResponses, ListGroupsErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/groups',
     ...options
 });
@@ -113,13 +181,26 @@ export const listGroups = <ThrowOnError extends boolean = false>(options?: Optio
 /**
  * Get a directory group
  */
-export const getGroup = <ThrowOnError extends boolean = false>(options: Options<GetGroupData, ThrowOnError>): RequestResult<GetGroupResponses, GetGroupErrors, ThrowOnError> => (options.client ?? client).get<GetGroupResponses, GetGroupErrors, ThrowOnError>({ url: '/api/groups/{id}', ...options });
+export const getGroup = <ThrowOnError extends boolean = false>(options: Options<GetGroupData, ThrowOnError>): RequestResult<GetGroupResponses, GetGroupErrors, ThrowOnError> => (options.client ?? client).get<GetGroupResponses, GetGroupErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/groups/{id}',
+    ...options
+});
 
 /**
  * List enrolled hosts
  */
 export const listHosts = <ThrowOnError extends boolean = false>(options?: Options<ListHostsData, ThrowOnError>): RequestResult<ListHostsResponses, ListHostsErrors, ThrowOnError> => (options?.client ?? client).get<ListHostsResponses, ListHostsErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/hosts',
     ...options
 });
@@ -128,6 +209,11 @@ export const listHosts = <ThrowOnError extends boolean = false>(options?: Option
  * Delete enrolled hosts
  */
 export const bulkDeleteHosts = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteHostsData, ThrowOnError>): RequestResult<BulkDeleteHostsResponses, BulkDeleteHostsErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteHostsResponses, BulkDeleteHostsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/hosts/bulk-delete',
     ...options,
     headers: {
@@ -139,42 +225,103 @@ export const bulkDeleteHosts = <ThrowOnError extends boolean = false>(options: O
 /**
  * Delete an enrolled host
  */
-export const deleteHost = <ThrowOnError extends boolean = false>(options: Options<DeleteHostData, ThrowOnError>): RequestResult<DeleteHostResponses, DeleteHostErrors, ThrowOnError> => (options.client ?? client).delete<DeleteHostResponses, DeleteHostErrors, ThrowOnError>({ url: '/api/hosts/{id}', ...options });
+export const deleteHost = <ThrowOnError extends boolean = false>(options: Options<DeleteHostData, ThrowOnError>): RequestResult<DeleteHostResponses, DeleteHostErrors, ThrowOnError> => (options.client ?? client).delete<DeleteHostResponses, DeleteHostErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}',
+    ...options
+});
 
 /**
  * Get an enrolled host
  */
-export const getHost = <ThrowOnError extends boolean = false>(options: Options<GetHostData, ThrowOnError>): RequestResult<GetHostResponses, GetHostErrors, ThrowOnError> => (options.client ?? client).get<GetHostResponses, GetHostErrors, ThrowOnError>({ url: '/api/hosts/{id}', ...options });
+export const getHost = <ThrowOnError extends boolean = false>(options: Options<GetHostData, ThrowOnError>): RequestResult<GetHostResponses, GetHostErrors, ThrowOnError> => (options.client ?? client).get<GetHostResponses, GetHostErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}',
+    ...options
+});
 
 /**
  * Get Munki state for a host
  */
-export const getHostMunkiState = <ThrowOnError extends boolean = false>(options: Options<GetHostMunkiStateData, ThrowOnError>): RequestResult<GetHostMunkiStateResponses, GetHostMunkiStateErrors, ThrowOnError> => (options.client ?? client).get<GetHostMunkiStateResponses, GetHostMunkiStateErrors, ThrowOnError>({ url: '/api/hosts/{id}/munki', ...options });
+export const getHostMunkiState = <ThrowOnError extends boolean = false>(options: Options<GetHostMunkiStateData, ThrowOnError>): RequestResult<GetHostMunkiStateResponses, GetHostMunkiStateErrors, ThrowOnError> => (options.client ?? client).get<GetHostMunkiStateResponses, GetHostMunkiStateErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/munki',
+    ...options
+});
 
 /**
  * List checks for a host
  */
-export const listHostOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryChecksData, ThrowOnError>): RequestResult<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError>({ url: '/api/hosts/{id}/osquery/checks', ...options });
+export const listHostOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryChecksData, ThrowOnError>): RequestResult<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/osquery/checks',
+    ...options
+});
 
 /**
  * List reports for a host
  */
-export const listHostOsqueryReports = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryReportsData, ThrowOnError>): RequestResult<ListHostOsqueryReportsResponses, ListHostOsqueryReportsErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryReportsResponses, ListHostOsqueryReportsErrors, ThrowOnError>({ url: '/api/hosts/{id}/osquery/reports', ...options });
+export const listHostOsqueryReports = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryReportsData, ThrowOnError>): RequestResult<ListHostOsqueryReportsResponses, ListHostOsqueryReportsErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryReportsResponses, ListHostOsqueryReportsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/osquery/reports',
+    ...options
+});
 
 /**
  * List report rows for one host
  */
-export const listHostOsqueryReportResults = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryReportResultsData, ThrowOnError>): RequestResult<ListHostOsqueryReportResultsResponses, ListHostOsqueryReportResultsErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryReportResultsResponses, ListHostOsqueryReportResultsErrors, ThrowOnError>({ url: '/api/hosts/{id}/osquery/reports/{report_id}', ...options });
+export const listHostOsqueryReportResults = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryReportResultsData, ThrowOnError>): RequestResult<ListHostOsqueryReportResultsResponses, ListHostOsqueryReportResultsErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryReportResultsResponses, ListHostOsqueryReportResultsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/osquery/reports/{report_id}',
+    ...options
+});
 
 /**
  * Clear the host primary user
  */
-export const clearHostPrimaryUser = <ThrowOnError extends boolean = false>(options: Options<ClearHostPrimaryUserData, ThrowOnError>): RequestResult<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError> => (options.client ?? client).delete<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError>({ url: '/api/hosts/{id}/primary-user', ...options });
+export const clearHostPrimaryUser = <ThrowOnError extends boolean = false>(options: Options<ClearHostPrimaryUserData, ThrowOnError>): RequestResult<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError> => (options.client ?? client).delete<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/primary-user',
+    ...options
+});
 
 /**
  * Set the host primary user
  */
 export const setHostPrimaryUser = <ThrowOnError extends boolean = false>(options: Options<SetHostPrimaryUserData, ThrowOnError>): RequestResult<SetHostPrimaryUserResponses, SetHostPrimaryUserErrors, ThrowOnError> => (options.client ?? client).put<SetHostPrimaryUserResponses, SetHostPrimaryUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/hosts/{id}/primary-user',
     ...options,
     headers: {
@@ -186,18 +333,39 @@ export const setHostPrimaryUser = <ThrowOnError extends boolean = false>(options
 /**
  * Get Santa state for a host
  */
-export const getHostSantaState = <ThrowOnError extends boolean = false>(options: Options<GetHostSantaStateData, ThrowOnError>): RequestResult<GetHostSantaStateResponses, GetHostSantaStateErrors, ThrowOnError> => (options.client ?? client).get<GetHostSantaStateResponses, GetHostSantaStateErrors, ThrowOnError>({ url: '/api/hosts/{id}/santa', ...options });
+export const getHostSantaState = <ThrowOnError extends boolean = false>(options: Options<GetHostSantaStateData, ThrowOnError>): RequestResult<GetHostSantaStateResponses, GetHostSantaStateErrors, ThrowOnError> => (options.client ?? client).get<GetHostSantaStateResponses, GetHostSantaStateErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/santa',
+    ...options
+});
 
 /**
  * List Santa rules for a host
  */
-export const listHostSantaRules = <ThrowOnError extends boolean = false>(options: Options<ListHostSantaRulesData, ThrowOnError>): RequestResult<ListHostSantaRulesResponses, ListHostSantaRulesErrors, ThrowOnError> => (options.client ?? client).get<ListHostSantaRulesResponses, ListHostSantaRulesErrors, ThrowOnError>({ url: '/api/hosts/{id}/santa/rules', ...options });
+export const listHostSantaRules = <ThrowOnError extends boolean = false>(options: Options<ListHostSantaRulesData, ThrowOnError>): RequestResult<ListHostSantaRulesResponses, ListHostSantaRulesErrors, ThrowOnError> => (options.client ?? client).get<ListHostSantaRulesResponses, ListHostSantaRulesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/hosts/{id}/santa/rules',
+    ...options
+});
 
 /**
  * List software installed on a host
  */
 export const listHostSoftware = <ThrowOnError extends boolean = false>(options: Options<ListHostSoftwareData, ThrowOnError>): RequestResult<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError> => (options.client ?? client).get<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError>({
     querySerializer: { parameters: { source: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/hosts/{id}/software',
     ...options
 });
@@ -205,12 +373,25 @@ export const listHostSoftware = <ThrowOnError extends boolean = false>(options: 
 /**
  * List labels
  */
-export const listLabels = <ThrowOnError extends boolean = false>(options?: Options<ListLabelsData, ThrowOnError>): RequestResult<ListLabelsResponses, ListLabelsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabelsResponses, ListLabelsErrors, ThrowOnError>({ url: '/api/labels', ...options });
+export const listLabels = <ThrowOnError extends boolean = false>(options?: Options<ListLabelsData, ThrowOnError>): RequestResult<ListLabelsResponses, ListLabelsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabelsResponses, ListLabelsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/labels',
+    ...options
+});
 
 /**
  * Create a label
  */
 export const createLabel = <ThrowOnError extends boolean = false>(options: Options<CreateLabelData, ThrowOnError>): RequestResult<CreateLabelResponses, CreateLabelErrors, ThrowOnError> => (options.client ?? client).post<CreateLabelResponses, CreateLabelErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/labels',
     ...options,
     headers: {
@@ -222,17 +403,38 @@ export const createLabel = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Delete a regular label
  */
-export const deleteLabel = <ThrowOnError extends boolean = false>(options: Options<DeleteLabelData, ThrowOnError>): RequestResult<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError> => (options.client ?? client).delete<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError>({ url: '/api/labels/{id}', ...options });
+export const deleteLabel = <ThrowOnError extends boolean = false>(options: Options<DeleteLabelData, ThrowOnError>): RequestResult<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError> => (options.client ?? client).delete<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/labels/{id}',
+    ...options
+});
 
 /**
  * Get a label
  */
-export const getLabel = <ThrowOnError extends boolean = false>(options: Options<GetLabelData, ThrowOnError>): RequestResult<GetLabelResponses, GetLabelErrors, ThrowOnError> => (options.client ?? client).get<GetLabelResponses, GetLabelErrors, ThrowOnError>({ url: '/api/labels/{id}', ...options });
+export const getLabel = <ThrowOnError extends boolean = false>(options: Options<GetLabelData, ThrowOnError>): RequestResult<GetLabelResponses, GetLabelErrors, ThrowOnError> => (options.client ?? client).get<GetLabelResponses, GetLabelErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/labels/{id}',
+    ...options
+});
 
 /**
  * Replace a label
  */
 export const updateLabel = <ThrowOnError extends boolean = false>(options: Options<UpdateLabelData, ThrowOnError>): RequestResult<UpdateLabelResponses, UpdateLabelErrors, ThrowOnError> => (options.client ?? client).put<UpdateLabelResponses, UpdateLabelErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/labels/{id}',
     ...options,
     headers: {
@@ -245,6 +447,11 @@ export const updateLabel = <ThrowOnError extends boolean = false>(options: Optio
  * Start a live run against online hosts
  */
 export const createLiveQuery = <ThrowOnError extends boolean = false>(options: Options<CreateLiveQueryData, ThrowOnError>): RequestResult<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/live-queries',
     ...options,
     headers: {
@@ -257,6 +464,11 @@ export const createLiveQuery = <ThrowOnError extends boolean = false>(options: O
  * Count live query targets
  */
 export const countLiveQueryTargets = <ThrowOnError extends boolean = false>(options: Options<CountLiveQueryTargetsData, ThrowOnError>): RequestResult<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError> => (options.client ?? client).post<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/live-queries/targets/count',
     ...options,
     headers: {
@@ -268,22 +480,51 @@ export const countLiveQueryTargets = <ThrowOnError extends boolean = false>(opti
 /**
  * Stop a running live query
  */
-export const stopLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StopLiveQueryData, ThrowOnError>): RequestResult<StopLiveQueryResponses, StopLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<StopLiveQueryResponses, StopLiveQueryErrors, ThrowOnError>({ url: '/api/live-queries/{id}/stop', ...options });
+export const stopLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StopLiveQueryData, ThrowOnError>): RequestResult<StopLiveQueryResponses, StopLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<StopLiveQueryResponses, StopLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/live-queries/{id}/stop',
+    ...options
+});
 
 /**
  * Stream live query results
  */
-export const streamLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StreamLiveQueryData, ThrowOnError, StreamLiveQueryResponse>): Promise<ServerSentEventsResult<StreamLiveQueryResponses>> => (options.client ?? client).sse.get<StreamLiveQueryResponses, StreamLiveQueryErrors, ThrowOnError>({ url: '/api/live-queries/{id}/stream', ...options });
+export const streamLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StreamLiveQueryData, ThrowOnError, StreamLiveQueryResponse>): Promise<ServerSentEventsResult<StreamLiveQueryResponses>> => (options.client ?? client).sse.get<StreamLiveQueryResponses, StreamLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/live-queries/{id}/stream',
+    ...options
+});
 
 /**
  * List Munki distribution points
  */
-export const listMunkiDistributionPoints = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiDistributionPointsData, ThrowOnError>): RequestResult<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError>({ url: '/api/munki/distribution-points', ...options });
+export const listMunkiDistributionPoints = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiDistributionPointsData, ThrowOnError>): RequestResult<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/distribution-points',
+    ...options
+});
 
 /**
  * Create a Munki distribution point
  */
 export const createMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiDistributionPointData, ThrowOnError>): RequestResult<CreateMunkiDistributionPointResponses, CreateMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiDistributionPointResponses, CreateMunkiDistributionPointErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/distribution-points',
     ...options,
     headers: {
@@ -296,6 +537,11 @@ export const createMunkiDistributionPoint = <ThrowOnError extends boolean = fals
  * Reorder Munki distribution points
  */
 export const reorderMunkiDistributionPoints = <ThrowOnError extends boolean = false>(options: Options<ReorderMunkiDistributionPointsData, ThrowOnError>): RequestResult<ReorderMunkiDistributionPointsResponses, ReorderMunkiDistributionPointsErrors, ThrowOnError> => (options.client ?? client).put<ReorderMunkiDistributionPointsResponses, ReorderMunkiDistributionPointsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/distribution-points/order',
     ...options,
     headers: {
@@ -307,17 +553,38 @@ export const reorderMunkiDistributionPoints = <ThrowOnError extends boolean = fa
 /**
  * Delete a Munki distribution point
  */
-export const deleteMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiDistributionPointData, ThrowOnError>): RequestResult<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError>({ url: '/api/munki/distribution-points/{id}', ...options });
+export const deleteMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiDistributionPointData, ThrowOnError>): RequestResult<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/distribution-points/{id}',
+    ...options
+});
 
 /**
  * Get a Munki distribution point
  */
-export const getMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<GetMunkiDistributionPointData, ThrowOnError>): RequestResult<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError>({ url: '/api/munki/distribution-points/{id}', ...options });
+export const getMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<GetMunkiDistributionPointData, ThrowOnError>): RequestResult<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/distribution-points/{id}',
+    ...options
+});
 
 /**
  * Update a Munki distribution point
  */
 export const updateMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiDistributionPointData, ThrowOnError>): RequestResult<UpdateMunkiDistributionPointResponses, UpdateMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiDistributionPointResponses, UpdateMunkiDistributionPointErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/distribution-points/{id}',
     ...options,
     headers: {
@@ -329,18 +596,39 @@ export const updateMunkiDistributionPoint = <ThrowOnError extends boolean = fals
 /**
  * Rotate a Munki distribution point key
  */
-export const rotateMunkiDistributionPointKey = <ThrowOnError extends boolean = false>(options: Options<RotateMunkiDistributionPointKeyData, ThrowOnError>): RequestResult<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError> => (options.client ?? client).post<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError>({ url: '/api/munki/distribution-points/{id}/key', ...options });
+export const rotateMunkiDistributionPointKey = <ThrowOnError extends boolean = false>(options: Options<RotateMunkiDistributionPointKeyData, ThrowOnError>): RequestResult<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError> => (options.client ?? client).post<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/distribution-points/{id}/key',
+    ...options
+});
 
 /**
  * List uploaded Munki icons
  */
-export const listMunkiIcons = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiIconsData, ThrowOnError>): RequestResult<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError>({ url: '/api/munki/icons', ...options });
+export const listMunkiIcons = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiIconsData, ThrowOnError>): RequestResult<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/icons',
+    ...options
+});
 
 /**
  * List Munki packages
  */
 export const listMunkiPackages = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiPackagesData, ThrowOnError>): RequestResult<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError>({
     querySerializer: { parameters: { type: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages',
     ...options
 });
@@ -349,6 +637,11 @@ export const listMunkiPackages = <ThrowOnError extends boolean = false>(options?
  * Create a Munki package
  */
 export const createMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageData, ThrowOnError>): RequestResult<CreateMunkiPackageResponses, CreateMunkiPackageErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageResponses, CreateMunkiPackageErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages',
     ...options,
     headers: {
@@ -361,6 +654,11 @@ export const createMunkiPackage = <ThrowOnError extends boolean = false>(options
  * Delete Munki packages
  */
 export const bulkDeleteMunkiPackages = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteMunkiPackagesData, ThrowOnError>): RequestResult<BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiPackagesErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiPackagesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages/bulk-delete',
     ...options,
     headers: {
@@ -372,17 +670,38 @@ export const bulkDeleteMunkiPackages = <ThrowOnError extends boolean = false>(op
 /**
  * Delete a Munki package
  */
-export const deleteMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageData, ThrowOnError>): RequestResult<DeleteMunkiPackageResponses, DeleteMunkiPackageErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageResponses, DeleteMunkiPackageErrors, ThrowOnError>({ url: '/api/munki/packages/{id}', ...options });
+export const deleteMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageData, ThrowOnError>): RequestResult<DeleteMunkiPackageResponses, DeleteMunkiPackageErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageResponses, DeleteMunkiPackageErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/packages/{id}',
+    ...options
+});
 
 /**
  * Get a Munki package
  */
-export const getMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<GetMunkiPackageData, ThrowOnError>): RequestResult<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError>({ url: '/api/munki/packages/{id}', ...options });
+export const getMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<GetMunkiPackageData, ThrowOnError>): RequestResult<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/packages/{id}',
+    ...options
+});
 
 /**
  * Update a Munki package
  */
 export const updateMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiPackageData, ThrowOnError>): RequestResult<UpdateMunkiPackageResponses, UpdateMunkiPackageErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiPackageResponses, UpdateMunkiPackageErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages/{id}',
     ...options,
     headers: {
@@ -394,12 +713,25 @@ export const updateMunkiPackage = <ThrowOnError extends boolean = false>(options
 /**
  * Delete the installer file from a Munki package
  */
-export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError>({ url: '/api/munki/packages/{id}/installer', ...options });
+export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/packages/{id}/installer',
+    ...options
+});
 
 /**
  * Create an installer upload for a Munki package
  */
 export const createMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages/{id}/installer',
     ...options,
     headers: {
@@ -411,17 +743,38 @@ export const createMunkiPackageInstallerUpload = <ThrowOnError extends boolean =
 /**
  * Confirm and attach an installer upload to a Munki package
  */
-export const confirmMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<ConfirmMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<ConfirmMunkiPackageInstallerUploadResponses, ConfirmMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).post<ConfirmMunkiPackageInstallerUploadResponses, ConfirmMunkiPackageInstallerUploadErrors, ThrowOnError>({ url: '/api/munki/packages/{id}/installer/{object_id}/confirm', ...options });
+export const confirmMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<ConfirmMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<ConfirmMunkiPackageInstallerUploadResponses, ConfirmMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).post<ConfirmMunkiPackageInstallerUploadResponses, ConfirmMunkiPackageInstallerUploadErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/packages/{id}/installer/{object_id}/confirm',
+    ...options
+});
 
 /**
  * List Munki software
  */
-export const listMunkiSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiSoftwareData, ThrowOnError>): RequestResult<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError>({ url: '/api/munki/software', ...options });
+export const listMunkiSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiSoftwareData, ThrowOnError>): RequestResult<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/software',
+    ...options
+});
 
 /**
  * Create Munki software
  */
 export const createMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiSoftwareData, ThrowOnError>): RequestResult<CreateMunkiSoftwareResponses, CreateMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiSoftwareResponses, CreateMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/software',
     ...options,
     headers: {
@@ -434,6 +787,11 @@ export const createMunkiSoftware = <ThrowOnError extends boolean = false>(option
  * Delete Munki software
  */
 export const bulkDeleteMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteMunkiSoftwareData, ThrowOnError>): RequestResult<BulkDeleteMunkiSoftwareResponses, BulkDeleteMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteMunkiSoftwareResponses, BulkDeleteMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/software/bulk-delete',
     ...options,
     headers: {
@@ -445,17 +803,38 @@ export const bulkDeleteMunkiSoftware = <ThrowOnError extends boolean = false>(op
 /**
  * Delete Munki software
  */
-export const deleteMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiSoftwareData, ThrowOnError>): RequestResult<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError>({ url: '/api/munki/software/{id}', ...options });
+export const deleteMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiSoftwareData, ThrowOnError>): RequestResult<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/software/{id}',
+    ...options
+});
 
 /**
  * Get Munki software
  */
-export const getMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<GetMunkiSoftwareData, ThrowOnError>): RequestResult<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError>({ url: '/api/munki/software/{id}', ...options });
+export const getMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<GetMunkiSoftwareData, ThrowOnError>): RequestResult<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/software/{id}',
+    ...options
+});
 
 /**
  * Update Munki software
  */
 export const updateMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiSoftwareData, ThrowOnError>): RequestResult<UpdateMunkiSoftwareResponses, UpdateMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiSoftwareResponses, UpdateMunkiSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/software/{id}',
     ...options,
     headers: {
@@ -468,6 +847,11 @@ export const updateMunkiSoftware = <ThrowOnError extends boolean = false>(option
  * Create an icon upload for Munki software
  */
 export const createMunkiSoftwareIconUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiSoftwareIconUploadData, ThrowOnError>): RequestResult<CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareIconUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareIconUploadErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/software/{id}/icon',
     ...options,
     headers: {
@@ -479,17 +863,38 @@ export const createMunkiSoftwareIconUpload = <ThrowOnError extends boolean = fal
 /**
  * Confirm and attach an icon upload to Munki software
  */
-export const confirmMunkiSoftwareIconUpload = <ThrowOnError extends boolean = false>(options: Options<ConfirmMunkiSoftwareIconUploadData, ThrowOnError>): RequestResult<ConfirmMunkiSoftwareIconUploadResponses, ConfirmMunkiSoftwareIconUploadErrors, ThrowOnError> => (options.client ?? client).post<ConfirmMunkiSoftwareIconUploadResponses, ConfirmMunkiSoftwareIconUploadErrors, ThrowOnError>({ url: '/api/munki/software/{id}/icon/{object_id}/confirm', ...options });
+export const confirmMunkiSoftwareIconUpload = <ThrowOnError extends boolean = false>(options: Options<ConfirmMunkiSoftwareIconUploadData, ThrowOnError>): RequestResult<ConfirmMunkiSoftwareIconUploadResponses, ConfirmMunkiSoftwareIconUploadErrors, ThrowOnError> => (options.client ?? client).post<ConfirmMunkiSoftwareIconUploadResponses, ConfirmMunkiSoftwareIconUploadErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/software/{id}/icon/{object_id}/confirm',
+    ...options
+});
 
 /**
  * List checks
  */
-export const listOsqueryChecks = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryChecksData, ThrowOnError>): RequestResult<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError>({ url: '/api/osquery/checks', ...options });
+export const listOsqueryChecks = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryChecksData, ThrowOnError>): RequestResult<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/checks',
+    ...options
+});
 
 /**
  * Create a check
  */
 export const createOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<CreateOsqueryCheckData, ThrowOnError>): RequestResult<CreateOsqueryCheckResponses, CreateOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).post<CreateOsqueryCheckResponses, CreateOsqueryCheckErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/checks',
     ...options,
     headers: {
@@ -502,6 +907,11 @@ export const createOsqueryCheck = <ThrowOnError extends boolean = false>(options
  * Delete checks
  */
 export const bulkDeleteOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteOsqueryChecksData, ThrowOnError>): RequestResult<BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryChecksErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/checks/bulk-delete',
     ...options,
     headers: {
@@ -513,17 +923,38 @@ export const bulkDeleteOsqueryChecks = <ThrowOnError extends boolean = false>(op
 /**
  * Delete a check
  */
-export const deleteOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryCheckData, ThrowOnError>): RequestResult<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError>({ url: '/api/osquery/checks/{id}', ...options });
+export const deleteOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryCheckData, ThrowOnError>): RequestResult<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/checks/{id}',
+    ...options
+});
 
 /**
  * Get a check
  */
-export const getOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryCheckData, ThrowOnError>): RequestResult<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError>({ url: '/api/osquery/checks/{id}', ...options });
+export const getOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryCheckData, ThrowOnError>): RequestResult<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/checks/{id}',
+    ...options
+});
 
 /**
  * Replace a check
  */
 export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryCheckData, ThrowOnError>): RequestResult<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/checks/{id}',
     ...options,
     headers: {
@@ -535,17 +966,38 @@ export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options
 /**
  * List latest results for a check
  */
-export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryCheckResultsData, ThrowOnError>): RequestResult<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError>({ url: '/api/osquery/checks/{id}/results', ...options });
+export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryCheckResultsData, ThrowOnError>): RequestResult<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/checks/{id}/results',
+    ...options
+});
 
 /**
  * List reports
  */
-export const listOsqueryReports = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryReportsData, ThrowOnError>): RequestResult<ListOsqueryReportsResponses, ListOsqueryReportsErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryReportsResponses, ListOsqueryReportsErrors, ThrowOnError>({ url: '/api/osquery/reports', ...options });
+export const listOsqueryReports = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryReportsData, ThrowOnError>): RequestResult<ListOsqueryReportsResponses, ListOsqueryReportsErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryReportsResponses, ListOsqueryReportsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/reports',
+    ...options
+});
 
 /**
  * Create a report
  */
 export const createOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<CreateOsqueryReportData, ThrowOnError>): RequestResult<CreateOsqueryReportResponses, CreateOsqueryReportErrors, ThrowOnError> => (options.client ?? client).post<CreateOsqueryReportResponses, CreateOsqueryReportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/reports',
     ...options,
     headers: {
@@ -558,6 +1010,11 @@ export const createOsqueryReport = <ThrowOnError extends boolean = false>(option
  * Delete reports
  */
 export const bulkDeleteOsqueryReports = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteOsqueryReportsData, ThrowOnError>): RequestResult<BulkDeleteOsqueryReportsResponses, BulkDeleteOsqueryReportsErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteOsqueryReportsResponses, BulkDeleteOsqueryReportsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/reports/bulk-delete',
     ...options,
     headers: {
@@ -569,17 +1026,38 @@ export const bulkDeleteOsqueryReports = <ThrowOnError extends boolean = false>(o
 /**
  * Delete a report
  */
-export const deleteOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryReportData, ThrowOnError>): RequestResult<DeleteOsqueryReportResponses, DeleteOsqueryReportErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryReportResponses, DeleteOsqueryReportErrors, ThrowOnError>({ url: '/api/osquery/reports/{id}', ...options });
+export const deleteOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryReportData, ThrowOnError>): RequestResult<DeleteOsqueryReportResponses, DeleteOsqueryReportErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryReportResponses, DeleteOsqueryReportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/reports/{id}',
+    ...options
+});
 
 /**
  * Get a report
  */
-export const getOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryReportData, ThrowOnError>): RequestResult<GetOsqueryReportResponses, GetOsqueryReportErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryReportResponses, GetOsqueryReportErrors, ThrowOnError>({ url: '/api/osquery/reports/{id}', ...options });
+export const getOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryReportData, ThrowOnError>): RequestResult<GetOsqueryReportResponses, GetOsqueryReportErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryReportResponses, GetOsqueryReportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/reports/{id}',
+    ...options
+});
 
 /**
  * Replace a report
  */
 export const updateOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryReportData, ThrowOnError>): RequestResult<UpdateOsqueryReportResponses, UpdateOsqueryReportErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryReportResponses, UpdateOsqueryReportErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/reports/{id}',
     ...options,
     headers: {
@@ -591,17 +1069,38 @@ export const updateOsqueryReport = <ThrowOnError extends boolean = false>(option
 /**
  * List latest snapshots for a report
  */
-export const listOsqueryReportResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryReportResultsData, ThrowOnError>): RequestResult<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError>({ url: '/api/osquery/reports/{id}/results', ...options });
+export const listOsqueryReportResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryReportResultsData, ThrowOnError>): RequestResult<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/reports/{id}/results',
+    ...options
+});
 
 /**
  * List Santa configurations
  */
-export const listSantaConfigurations = <ThrowOnError extends boolean = false>(options?: Options<ListSantaConfigurationsData, ThrowOnError>): RequestResult<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError>({ url: '/api/santa/configurations', ...options });
+export const listSantaConfigurations = <ThrowOnError extends boolean = false>(options?: Options<ListSantaConfigurationsData, ThrowOnError>): RequestResult<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/configurations',
+    ...options
+});
 
 /**
  * Create a Santa configuration
  */
 export const createSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<CreateSantaConfigurationData, ThrowOnError>): RequestResult<CreateSantaConfigurationResponses, CreateSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).post<CreateSantaConfigurationResponses, CreateSantaConfigurationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/configurations',
     ...options,
     headers: {
@@ -614,6 +1113,11 @@ export const createSantaConfiguration = <ThrowOnError extends boolean = false>(o
  * Delete Santa configurations
  */
 export const bulkDeleteSantaConfigurations = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteSantaConfigurationsData, ThrowOnError>): RequestResult<BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaConfigurationsErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaConfigurationsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/configurations/bulk-delete',
     ...options,
     headers: {
@@ -626,6 +1130,11 @@ export const bulkDeleteSantaConfigurations = <ThrowOnError extends boolean = fal
  * Reorder Santa configurations
  */
 export const reorderSantaConfigurations = <ThrowOnError extends boolean = false>(options: Options<ReorderSantaConfigurationsData, ThrowOnError>): RequestResult<ReorderSantaConfigurationsResponses, ReorderSantaConfigurationsErrors, ThrowOnError> => (options.client ?? client).put<ReorderSantaConfigurationsResponses, ReorderSantaConfigurationsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/configurations/order',
     ...options,
     headers: {
@@ -637,17 +1146,38 @@ export const reorderSantaConfigurations = <ThrowOnError extends boolean = false>
 /**
  * Delete a Santa configuration
  */
-export const deleteSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaConfigurationData, ThrowOnError>): RequestResult<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError>({ url: '/api/santa/configurations/{id}', ...options });
+export const deleteSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaConfigurationData, ThrowOnError>): RequestResult<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/configurations/{id}',
+    ...options
+});
 
 /**
  * Get a Santa configuration
  */
-export const getSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<GetSantaConfigurationData, ThrowOnError>): RequestResult<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).get<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError>({ url: '/api/santa/configurations/{id}', ...options });
+export const getSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<GetSantaConfigurationData, ThrowOnError>): RequestResult<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).get<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/configurations/{id}',
+    ...options
+});
 
 /**
  * Update a Santa configuration
  */
 export const updateSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<UpdateSantaConfigurationData, ThrowOnError>): RequestResult<UpdateSantaConfigurationResponses, UpdateSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).put<UpdateSantaConfigurationResponses, UpdateSantaConfigurationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/configurations/{id}',
     ...options,
     headers: {
@@ -661,6 +1191,11 @@ export const updateSantaConfiguration = <ThrowOnError extends boolean = false>(o
  */
 export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaEventsData, ThrowOnError>): RequestResult<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError>({
     querySerializer: { parameters: { decisions: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/events',
     ...options
 });
@@ -668,13 +1203,26 @@ export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: 
 /**
  * Get a Santa execution event
  */
-export const getSantaEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaEventData, ThrowOnError>): RequestResult<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError>({ url: '/api/santa/events/{id}', ...options });
+export const getSantaEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaEventData, ThrowOnError>): RequestResult<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/events/{id}',
+    ...options
+});
 
 /**
  * List Santa file access events
  */
 export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaFileAccessEventsData, ThrowOnError>): RequestResult<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError>({
     querySerializer: { parameters: { decisions: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/file-access-events',
     ...options
 });
@@ -682,17 +1230,38 @@ export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(
 /**
  * Get a Santa file access event
  */
-export const getSantaFileAccessEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaFileAccessEventData, ThrowOnError>): RequestResult<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError>({ url: '/api/santa/file-access-events/{id}', ...options });
+export const getSantaFileAccessEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaFileAccessEventData, ThrowOnError>): RequestResult<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/file-access-events/{id}',
+    ...options
+});
 
 /**
  * List Santa rules
  */
-export const listSantaRules = <ThrowOnError extends boolean = false>(options?: Options<ListSantaRulesData, ThrowOnError>): RequestResult<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError>({ url: '/api/santa/rules', ...options });
+export const listSantaRules = <ThrowOnError extends boolean = false>(options?: Options<ListSantaRulesData, ThrowOnError>): RequestResult<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/rules',
+    ...options
+});
 
 /**
  * Create a Santa rule
  */
 export const createSantaRule = <ThrowOnError extends boolean = false>(options: Options<CreateSantaRuleData, ThrowOnError>): RequestResult<CreateSantaRuleResponses, CreateSantaRuleErrors, ThrowOnError> => (options.client ?? client).post<CreateSantaRuleResponses, CreateSantaRuleErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/rules',
     ...options,
     headers: {
@@ -705,6 +1274,11 @@ export const createSantaRule = <ThrowOnError extends boolean = false>(options: O
  * Delete Santa rules
  */
 export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteSantaRulesData, ThrowOnError>): RequestResult<BulkDeleteSantaRulesResponses, BulkDeleteSantaRulesErrors, ThrowOnError> => (options.client ?? client).post<BulkDeleteSantaRulesResponses, BulkDeleteSantaRulesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/rules/bulk-delete',
     ...options,
     headers: {
@@ -716,17 +1290,38 @@ export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(optio
 /**
  * Delete a Santa rule
  */
-export const deleteSantaRule = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaRuleData, ThrowOnError>): RequestResult<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError>({ url: '/api/santa/rules/{id}', ...options });
+export const deleteSantaRule = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaRuleData, ThrowOnError>): RequestResult<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/rules/{id}',
+    ...options
+});
 
 /**
  * Get a Santa rule
  */
-export const getSantaRule = <ThrowOnError extends boolean = false>(options: Options<GetSantaRuleData, ThrowOnError>): RequestResult<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError> => (options.client ?? client).get<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError>({ url: '/api/santa/rules/{id}', ...options });
+export const getSantaRule = <ThrowOnError extends boolean = false>(options: Options<GetSantaRuleData, ThrowOnError>): RequestResult<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError> => (options.client ?? client).get<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/santa/rules/{id}',
+    ...options
+});
 
 /**
  * Update a Santa rule
  */
 export const updateSantaRule = <ThrowOnError extends boolean = false>(options: Options<UpdateSantaRuleData, ThrowOnError>): RequestResult<UpdateSantaRuleResponses, UpdateSantaRuleErrors, ThrowOnError> => (options.client ?? client).put<UpdateSantaRuleResponses, UpdateSantaRuleErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/santa/rules/{id}',
     ...options,
     headers: {
@@ -752,6 +1347,11 @@ export const completeSetup = <ThrowOnError extends boolean = false>(options: Opt
  */
 export const listSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListSoftwareData, ThrowOnError>): RequestResult<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListSoftwareResponses, ListSoftwareErrors, ThrowOnError>({
     querySerializer: { parameters: { source: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/software',
     ...options
 });
@@ -759,18 +1359,39 @@ export const listSoftware = <ThrowOnError extends boolean = false>(options?: Opt
 /**
  * Get a software title
  */
-export const getSoftware = <ThrowOnError extends boolean = false>(options: Options<GetSoftwareData, ThrowOnError>): RequestResult<GetSoftwareResponses, GetSoftwareErrors, ThrowOnError> => (options.client ?? client).get<GetSoftwareResponses, GetSoftwareErrors, ThrowOnError>({ url: '/api/software/{id}', ...options });
+export const getSoftware = <ThrowOnError extends boolean = false>(options: Options<GetSoftwareData, ThrowOnError>): RequestResult<GetSoftwareResponses, GetSoftwareErrors, ThrowOnError> => (options.client ?? client).get<GetSoftwareResponses, GetSoftwareErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/software/{id}',
+    ...options
+});
 
 /**
  * Get Santa reference data for a software title
  */
-export const getSoftwareSantaReference = <ThrowOnError extends boolean = false>(options: Options<GetSoftwareSantaReferenceData, ThrowOnError>): RequestResult<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError> => (options.client ?? client).get<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError>({ url: '/api/software/{id}/santa', ...options });
+export const getSoftwareSantaReference = <ThrowOnError extends boolean = false>(options: Options<GetSoftwareSantaReferenceData, ThrowOnError>): RequestResult<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError> => (options.client ?? client).get<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/software/{id}/santa',
+    ...options
+});
 
 /**
  * List Woodstar users
  */
 export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/users',
     ...options
 });
@@ -779,6 +1400,11 @@ export const listUsers = <ThrowOnError extends boolean = false>(options?: Option
  * Create a Woodstar user
  */
 export const createUser = <ThrowOnError extends boolean = false>(options: Options<CreateUserData, ThrowOnError>): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> => (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/users',
     ...options,
     headers: {
@@ -792,6 +1418,11 @@ export const createUser = <ThrowOnError extends boolean = false>(options: Option
  */
 export const listUserDepartments = <ThrowOnError extends boolean = false>(options?: Options<ListUserDepartmentsData, ThrowOnError>): RequestResult<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/users/departments',
     ...options
 });
@@ -799,17 +1430,38 @@ export const listUserDepartments = <ThrowOnError extends boolean = false>(option
 /**
  * Delete a Woodstar user
  */
-export const deleteUser = <ThrowOnError extends boolean = false>(options: Options<DeleteUserData, ThrowOnError>): RequestResult<DeleteUserResponses, DeleteUserErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUserResponses, DeleteUserErrors, ThrowOnError>({ url: '/api/users/{id}', ...options });
+export const deleteUser = <ThrowOnError extends boolean = false>(options: Options<DeleteUserData, ThrowOnError>): RequestResult<DeleteUserResponses, DeleteUserErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUserResponses, DeleteUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/users/{id}',
+    ...options
+});
 
 /**
  * Get a Woodstar user
  */
-export const getUser = <ThrowOnError extends boolean = false>(options: Options<GetUserData, ThrowOnError>): RequestResult<GetUserResponses, GetUserErrors, ThrowOnError> => (options.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({ url: '/api/users/{id}', ...options });
+export const getUser = <ThrowOnError extends boolean = false>(options: Options<GetUserData, ThrowOnError>): RequestResult<GetUserResponses, GetUserErrors, ThrowOnError> => (options.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/users/{id}',
+    ...options
+});
 
 /**
  * Replace a Woodstar user
  */
 export const updateUser = <ThrowOnError extends boolean = false>(options: Options<UpdateUserData, ThrowOnError>): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
     url: '/api/users/{id}',
     ...options,
     headers: {

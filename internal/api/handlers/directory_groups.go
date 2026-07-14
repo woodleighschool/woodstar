@@ -49,7 +49,6 @@ func registerListGroups(api huma.API, groupStore *directory.Store, logger *slog.
 		Path:        "/api/groups",
 		Tags:        []string{groupsTag},
 		Summary:     "List directory groups",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *groupListInput) (*groupListOutput, error) {
 		list, count, err := groupStore.ListGroups(ctx, input.params())
 		if err != nil {
@@ -66,7 +65,7 @@ func registerGetGroup(api huma.API, groupStore *directory.Store, logger *slog.Lo
 		Path:        groupIDPath,
 		Tags:        []string{groupsTag},
 		Summary:     "Get a directory group",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *groupGetInput) (*groupOutput, error) {
 		group, err := groupStore.GetGroupByID(ctx, input.ID)
 		if err != nil {

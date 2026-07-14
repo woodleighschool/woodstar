@@ -159,6 +159,7 @@ type ExecutionEvent struct {
 	LoggedInUsers   []string          `json:"logged_in_users"`
 	CurrentSessions []string          `json:"current_sessions"`
 	Decision        ExecutionDecision `json:"decision"`
+	StaticRule      bool              `json:"static_rule"`
 	OccurredAt      time.Time         `json:"occurred_at"`
 	IngestedAt      time.Time         `json:"ingested_at"`
 }
@@ -190,6 +191,7 @@ type ExecutionEventInput struct {
 	LoggedInUsers           []string
 	CurrentSessions         []string
 	Decision                ExecutionDecision
+	StaticRule              bool
 	BundleID                string
 	BundlePath              string
 	BundleExecutableRelPath string
@@ -277,6 +279,13 @@ type FileAccessEventInput struct {
 	Decision     FileAccessDecision
 	OccurredAt   time.Time
 	ProcessChain []ProcessInput
+}
+
+// StandaloneRuleCreationEventInput is a rule Santa created in standalone mode.
+type StandaloneRuleCreationEventInput struct {
+	Identifier string
+	Decision   ExecutionDecision
+	OccurredAt time.Time
 }
 
 type Bundle struct {

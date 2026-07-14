@@ -13,7 +13,8 @@ import { requiredString } from "@/lib/form-validation";
 import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";
 
 export const munkiSoftwareSchema = z.object({
-  name: requiredString("Name"),
+  name: requiredString("Munki name"),
+  display_name: z.string().trim(),
   description: z.string().trim(),
   category: z.string().trim(),
   developer: z.string().trim(),
@@ -21,18 +22,20 @@ export const munkiSoftwareSchema = z.object({
 
 export interface MunkiSoftwareFormState {
   name: string;
+  display_name: string;
   description: string;
   category: string;
   developer: string;
 }
 
 export function emptyMunkiSoftwareForm(): MunkiSoftwareFormState {
-  return { name: "", description: "", category: "", developer: "" };
+  return { name: "", display_name: "", description: "", category: "", developer: "" };
 }
 
 export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): MunkiSoftwareFormState {
   return {
     name: title.name,
+    display_name: title.display_name,
     description: title.description,
     category: title.category,
     developer: title.developer,
@@ -76,7 +79,8 @@ export function MunkiSoftwareOptionsFields({
   return (
     <FieldGroup className="max-w-3xl">
       <FieldDescription>
-        These fields are visible to users in Managed Software Center.
+        The Munki name identifies the software in manifests and package relationships. The display
+        name is shown in Managed Software Center.
       </FieldDescription>
       <div className="flex items-start gap-4">
         <EditableMunkiIcon
@@ -88,10 +92,36 @@ export function MunkiSoftwareOptionsFields({
           onPickExisting={icon.onPickExisting}
           onClear={icon.onClear}
         />
-        <div className="min-w-0 flex-1">
+        <div className="grid min-w-0 flex-1 gap-4 md:grid-cols-2">
           <form.Field name="name">
             {(field) => (
-              <FormField field={field} label="Name" htmlFor="munki-software-name" required>
+              <FormField
+                field={field}
+                label="Munki name"
+                htmlFor="munki-software-name"
+                description="Canonical name used by Munki."
+                required
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
+          <form.Field name="display_name">
+            {(field) => (
+              <FormField
+                field={field}
+                label="Display name"
+                htmlFor="munki-software-display-name"
+                description="Falls back to the Munki name when empty."
+              >
                 {(control) => (
                   <Input
                     {...control}

@@ -1,5 +1,7 @@
 package orbit
 
+import "encoding/json"
+
 // EnrollRequest is the JSON body Orbit POSTs to /api/fleet/orbit/enroll.
 type EnrollRequest struct {
 	EnrollSecret   string `json:"enroll_secret"`
@@ -22,10 +24,19 @@ type ConfigRequest struct {
 }
 
 // ConfigResponse is the Orbit config response.
-type ConfigResponse struct{}
+type ConfigResponse struct {
+	CommandLineStartupFlags json.RawMessage `json:"command_line_startup_flags"`
+}
 
 // DeviceMappingRequest carries a profile-provided email.
 type DeviceMappingRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	Email        string `json:"email"`
+}
+
+// DeviceTokenRequest rotates the machine token used by current Orbit clients
+// to check their server registration.
+type DeviceTokenRequest struct {
+	OrbitNodeKey    string `json:"orbit_node_key"`
+	DeviceAuthToken string `json:"device_auth_token"`
 }

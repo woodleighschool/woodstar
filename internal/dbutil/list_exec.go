@@ -8,13 +8,13 @@ import (
 )
 
 func queryListWithCount(ctx context.Context, pool *pgxpool.Pool, q ListQuery) (pgx.Rows, int, error) {
+	query, args, err := q.Build()
+	if err != nil {
+		return nil, 0, err
+	}
 	countSQL, countArgs := q.BuildCount()
 	var count int
 	if err := pool.QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := q.Build()
-	if err != nil {
 		return nil, 0, err
 	}
 	rows, err := pool.Query(ctx, query, args...)

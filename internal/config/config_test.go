@@ -251,6 +251,36 @@ func TestConfigRejectsPartialStorageS3Config(t *testing.T) {
 	}
 }
 
+func TestConfigRequiresHTTPSForEffectivePublicS3Endpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		endpoint       string
+		publicEndpoint string
+		wantError      bool
+	}{
+		{name: "HTTP effective endpoint", endpoint: "http://garage:3900", wantError: true},
+		{name: "HTTP explicit public endpoint", endpoint: "https://garage:3900", publicEndpoint: "http://downloads.example", wantError: true},
+		{name: "HTTPS public endpoint", endpoint: "http://garage:3900", publicEndpoint: "https://downloads.example"},
+		{name: "AWS default endpoint"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			cfg.StorageKind = "s3"
+			cfg.StorageFileRoot = ""
+			cfg.StorageS3Bucket = "woodstar"
+			cfg.StorageS3Region = "ap-southeast-2"
+			cfg.StorageS3AccessKey = "access"
+			cfg.StorageS3SecretKey = "secret"
+			cfg.StorageS3Endpoint = tc.endpoint
+			cfg.StorageS3PublicEndpoint = tc.publicEndpoint
+			err := cfg.Validate()
+			if (err != nil) != tc.wantError {
+				t.Fatalf("Validate error = %v, wantError %t", err, tc.wantError)
+			}
+		})
+	}
+}
+
 func TestConfigRejectsNonPositivePresignTTL(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")

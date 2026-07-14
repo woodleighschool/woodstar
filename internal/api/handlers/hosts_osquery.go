@@ -54,7 +54,7 @@ func registerHostOsqueryChecks(
 		Path:        "/api/hosts/{id}/osquery/checks",
 		Tags:        []string{checksTag, hostsTag},
 		Summary:     "List checks for a host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*checkResultsOutput, error) {
 		rows, err := listHostOsqueryRows(
 			ctx,
@@ -88,7 +88,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		Path:        "/api/hosts/{id}/osquery/reports",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List reports for a host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostReportsOutput, error) {
 		rows, err := listHostOsqueryRows(
 			ctx,
@@ -136,7 +136,7 @@ func registerHostReportResults(
 		Path:        "/api/hosts/{id}/osquery/reports/{report_id}",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List report rows for one host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostReportResultsInput) (*hostReportResultsOutput, error) {
 		host, err := hostStore.GetByID(ctx, input.ID)
 		if err != nil {

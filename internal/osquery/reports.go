@@ -3,19 +3,16 @@ package osquery
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"strconv"
+	"fmt"
 	"strings"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
 type resultLogRow struct {
-	Name         string              `json:"name"`
-	CalendarTime string              `json:"calendarTime"`
-	Snapshot     []map[string]string `json:"snapshot"`
-	Action       string              `json:"action"`
+	Name     string              `json:"name"`
+	UnixTime int64               `json:"unixTime"`
+	Snapshot []map[string]string `json:"snapshot"`
+	Action   string              `json:"action"`
 }
 
 // ingestReportLogs writes per-host snapshot results emitted by osquery's
@@ -35,12 +32,14 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 		if !ok {
 			continue
 		}
-		fetchedAt := parseCalendarTime(item.CalendarTime)
+		if item.Action != "snapshot" {
+			return fmt.Errorf("report %d: action must be snapshot", reportID)
+		}
+		if item.UnixTime <= 0 {
+			return fmt.Errorf("report %d: unixTime must be positive", reportID)
+		}
+		fetchedAt := time.Unix(item.UnixTime, 0).UTC()
 		if err := s.deps.ReportStore.OverwriteResults(ctx, reportID, hostID, item.Snapshot, fetchedAt); err != nil {
-			if errors.Is(err, reports.ErrSnapshotTooLarge) {
-				s.deps.Logger.WarnContext(ctx, "snapshot dropped", "report_id", reportID, "host_id", hostID, "err", err)
-				continue
-			}
 			return err
 		}
 	}
@@ -53,19 +52,4 @@ func parseReportQueryName(name string) (int64, bool) {
 		return 0, false
 	}
 	return parsePositiveSuffix(suffix)
-}
-
-func parseCalendarTime(value string) time.Time {
-	if value == "" {
-		return time.Now().UTC()
-	}
-	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "Mon Jan 2 15:04:05 2006 UTC"} {
-		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed.UTC()
-		}
-	}
-	if unix, err := strconv.ParseInt(value, 10, 64); err == nil {
-		return time.Unix(unix, 0).UTC()
-	}
-	return time.Now().UTC()
 }

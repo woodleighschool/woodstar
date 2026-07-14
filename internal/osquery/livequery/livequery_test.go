@@ -75,6 +75,71 @@ func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
 	assertClosed(t, events)
 }
 
+func TestSubscribeReplaysResultsRecordedBeforeSubscription(t *testing.T) {
+	m := NewManager()
+	handle := m.Start("select 1", []int64{4, 5})
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusSuccess})
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+
+	if event := receiveEvent(t, events); event.HostID != 4 {
+		t.Fatalf("replayed host ID = %d, want 4", event.HostID)
+	}
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 5, Status: StatusSuccess})
+	if event := receiveEvent(t, events); event.HostID != 5 {
+		t.Fatalf("live host ID = %d, want 5", event.HostID)
+	}
+	assertClosed(t, events)
+}
+
+func TestSubscribeReplaysCompletedResults(t *testing.T) {
+	m := NewManager()
+	handle := m.Start("select 1", []int64{4})
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusSuccess})
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+
+	if event := receiveEvent(t, events); event.HostID != 4 {
+		t.Fatalf("replayed host ID = %d, want 4", event.HostID)
+	}
+	assertClosed(t, events)
+}
+
+func TestEventLogSurfacesOverflow(t *testing.T) {
+	m := NewManager()
+	m.eventLogLimit = 2
+	handle := m.Start("select 1", []int64{1, 2, 3, 4})
+	for hostID := int64(1); hostID <= 4; hostID++ {
+		m.RecordResult(Result{QueryID: handle.ID, HostID: hostID, Status: StatusSuccess})
+	}
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+
+	if event := receiveEvent(t, events); event.HostID != 1 {
+		t.Fatalf("first replayed host ID = %d, want 1", event.HostID)
+	}
+	if event := receiveEvent(t, events); event.HostID != 2 {
+		t.Fatalf("second replayed host ID = %d, want 2", event.HostID)
+	}
+	overflow := receiveEvent(t, events)
+	if overflow.Status != StatusOverflow || overflow.Error != overflowEventError {
+		t.Fatalf("overflow event = %#v", overflow)
+	}
+	assertClosed(t, events)
+}
+
 func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 	m := NewManager()
 	handle := m.Start("select 1", []int64{4, 5})

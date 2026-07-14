@@ -167,7 +167,10 @@ func serve(parent context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
 	}
-	server := api.NewServer(wiring.apiDependencies())
+	server, err := api.NewServer(wiring.apiDependencies())
+	if err != nil {
+		return fmt.Errorf("build HTTP server: %w", err)
+	}
 
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
 	if err != nil {
@@ -229,7 +232,7 @@ type wiring struct {
 	users        *directory.UserService
 	directory    *directory.Store
 	hosts        *hosts.Store
-	primaryUsers *hosts.PrimaryUserStore
+	primaryUsers *hosts.PrimaryUserService
 	secrets      *agentauth.Store
 	software     *inventory.Store
 	labels       *labels.Store
@@ -241,14 +244,15 @@ type wiring struct {
 
 	orbitAgent *orbit.EnrollmentService
 
-	storageObjects    *storage.ObjectStore
-	munkiPackages     *packages.Store
-	munkiPackageSvc   *munki.PackageService
-	munkiSoftware     *munkisoftware.Store
-	munkiHostState    *munki.Store
-	munkiRepo         *munki.RepositoryService
-	munkiDistribution *mdp.Store
-	munkiMDPProtocol  *mdpprotocol.Server
+	storageObjects         *storage.ObjectStore
+	munkiPackages          *packages.Store
+	munkiPackageSvc        *munki.PackageService
+	munkiSoftware          *munkisoftware.Store
+	munkiSoftwareDeletions *munki.SoftwareDeletionService
+	munkiHostState         *munki.Store
+	munkiRepo              *munki.RepositoryService
+	munkiDistribution      *mdp.Store
+	munkiMDPProtocol       *mdpprotocol.Server
 
 	configurations *configurations.Store
 	events         *events.Store
@@ -279,10 +283,10 @@ func buildWiring(
 	// Core stores.
 	w.directory = directory.NewStore(db)
 	w.hosts = hosts.NewStore(db)
-	w.primaryUsers = hosts.NewPrimaryUserStore(db)
 	w.secrets = agentauth.NewStore(db)
 	w.software = inventory.NewStore(db)
 	w.labels = labels.NewStore(db)
+	w.primaryUsers = hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(db), w.labels)
 
 	// Osquery stores.
 	w.reports = reports.NewStore(db)
@@ -303,7 +307,7 @@ func buildWiring(
 	w.references = references.NewStore(db)
 	syncStore := syncstate.NewStore(db)
 
-	w.users = directory.NewUserService(w.directory)
+	w.users = directory.NewUserService(w.directory, w.labels)
 	authService, err := newAuth(ctx, cfg, w.users, sessions)
 	if err != nil {
 		return nil, err
@@ -340,6 +344,10 @@ func buildWiring(
 		Packages:               w.munkiPackages,
 		DesiredPackagesChanged: w.munkiMDPProtocol.RefreshDesiredPackages,
 	})
+	w.munkiSoftwareDeletions = munki.NewSoftwareDeletionService(
+		w.munkiSoftware,
+		w.munkiMDPProtocol.RefreshDesiredPackages,
+	)
 
 	w.santaSync = santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -386,10 +394,11 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			StorageKey:     slices.Clone(w.storageKey),
 			StorageObjects: w.storageObjects,
 
-			MunkiPackages:     w.munkiPackageSvc,
-			MunkiSoftware:     w.munkiSoftware,
-			MunkiHostState:    w.munkiHostState,
-			MunkiDistribution: w.munkiDistribution,
+			MunkiPackages:          w.munkiPackageSvc,
+			MunkiSoftware:          w.munkiSoftware,
+			MunkiSoftwareDeletions: w.munkiSoftwareDeletions,
+			MunkiHostState:         w.munkiHostState,
+			MunkiDistribution:      w.munkiDistribution,
 
 			SantaConfigurations: w.configurations,
 			SantaEvents:         w.events,
@@ -507,10 +516,9 @@ func entraSyncStarter(
 	})
 
 	service := entra.NewService(
-		directoryStore,
+		directory.NewProviderService(directoryStore, labelStore),
 		client,
 		logger.With("component", "entra"),
-		labelStore,
 	)
 
 	return func(ctx context.Context) func() {

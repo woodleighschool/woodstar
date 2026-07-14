@@ -48,7 +48,7 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, logger *slog.L
 		Path:        "/api/hosts/{id}/santa/rules",
 		Tags:        []string{hostsTag},
 		Summary:     "List Santa rules for a host",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSantaRulesInput) (*hostSantaRulesOutput, error) {
 		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.ID, rules.RuleStatusListParams{
 			ListParams: input.ListQueryInput.params(),

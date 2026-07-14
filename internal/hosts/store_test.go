@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -240,6 +242,40 @@ func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 	if err := primaryUsers.Delete(ctx, 999999, PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Delete missing host error = %v, want ErrNotFound", err)
 	}
+}
+
+func TestPrimaryUserServiceRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-primary-user-refresh-rollback"},
+		OrbitNodeKey: "test-primary-user-refresh-rollback-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	service := NewPrimaryUserService(NewPrimaryUserStore(store.db), failingPrimaryUserRefresher{})
+
+	err = service.Upsert(ctx, host.ID, "rollback@example.test", PrimaryUserSourceManual)
+	if err == nil {
+		t.Fatal("upsert succeeded despite derived label refresh failure")
+	}
+
+	var count int
+	if err := store.db.Pool().QueryRow(ctx, `
+SELECT count(*)
+FROM host_primary_user_sources
+WHERE host_id = $1 AND source = 'manual'`, host.ID).Scan(&count); err != nil {
+		t.Fatalf("count rolled-back primary users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("persisted primary users = %d, want 0", count)
+	}
+}
+
+type failingPrimaryUserRefresher struct{}
+
+func (failingPrimaryUserRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
+	return errors.New("refresh failed")
 }
 
 // New hosts land in All Hosts.

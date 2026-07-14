@@ -14,27 +14,26 @@ import (
 const detailQueryCadence = time.Hour
 
 const (
-	QueryOSVersion                    = "os_version"
-	QuerySystemInfo                   = "system_info"
-	QueryOsqueryInfo                  = "osquery_info"
-	QueryOsqueryFlags                 = "osquery_flags"
-	QueryOrbitInfo                    = "orbit_info"
-	QueryUptime                       = "uptime"
-	QueryRootDiskDarwin               = "root_disk_darwin"
-	QueryPrimaryInterfaceUnix         = "primary_interface_unix"
-	QueryUsers                        = "users"
-	QueryBatteries                    = "batteries"
-	QueryCertificatesDarwin           = "certificates_darwin"
-	QueryMunkiInfo                    = "munki_info"
-	QueryMunkiInstalls                = "munki_installs"
-	QuerySoftwareMacOS                = "software_macos"
-	QuerySoftwareVSCodeExtensions     = "software_vscode_extensions"
-	QuerySoftwareJetBrainsPlugins     = "software_jetbrains_plugins"
-	QuerySoftwareGoBinaries           = "software_go_binaries"
-	QuerySoftwarePythonPackages       = "software_python_packages"
-	QuerySoftwarePythonPackagesLegacy = "software_python_packages_legacy"
-	QuerySoftwareMacOSCodesign        = "software_macos_codesign"
-	QuerySoftwareMacOSExecutableHash  = "software_macos_executable_sha256"
+	QueryOSVersion                   = "os_version"
+	QuerySystemInfo                  = "system_info"
+	QueryOsqueryInfo                 = "osquery_info"
+	QueryOsqueryFlags                = "osquery_flags"
+	QueryOrbitInfo                   = "orbit_info"
+	QueryUptime                      = "uptime"
+	QueryRootDiskDarwin              = "root_disk_darwin"
+	QueryPrimaryInterfaceUnix        = "primary_interface_unix"
+	QueryUsers                       = "users"
+	QueryBatteries                   = "batteries"
+	QueryCertificatesDarwin          = "certificates_darwin"
+	QueryMunkiInfo                   = "munki_info"
+	QueryMunkiInstalls               = "munki_installs"
+	QuerySoftwareMacOS               = "software_macos"
+	QuerySoftwareVSCodeExtensions    = "software_vscode_extensions"
+	QuerySoftwareJetBrainsPlugins    = "software_jetbrains_plugins"
+	QuerySoftwareGoBinaries          = "software_go_binaries"
+	QuerySoftwarePythonPackages      = "software_python_packages"
+	QuerySoftwareMacOSCodesign       = "software_macos_codesign"
+	QuerySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
 )
 
 //go:embed queries/*.sql
@@ -198,12 +197,6 @@ func softwareDetailQueries() map[string]DetailQuery {
 			Optional:  true,
 			Ingest:    IngestSoftwareEnrichment,
 		},
-		QuerySoftwarePythonPackagesLegacy: {
-			SQL:       mustQuery("queries/software_python_packages_legacy.sql"),
-			Discovery: osqueryVersionBeforeSQL(5, 16),
-			Optional:  true,
-			Ingest:    IngestSoftwareEnrichment,
-		},
 		QuerySoftwareMacOSCodesign: {
 			SQL:       mustQuery("queries/software_macos_codesign.sql"),
 			Discovery: tableExistsSQL("codesign"),
@@ -268,10 +261,6 @@ func tableDiscovery(name string) string {
 
 func osqueryVersionAtLeastSQL(major int, minor int) string {
 	return osqueryVersionCompareSQL(fmt.Sprintf("> %d OR (major = %d AND minor >= %d)", major, major, minor))
-}
-
-func osqueryVersionBeforeSQL(major int, minor int) string {
-	return osqueryVersionCompareSQL(fmt.Sprintf("< %d OR (major = %d AND minor < %d)", major, major, minor))
 }
 
 func osqueryVersionCompareSQL(condition string) string {

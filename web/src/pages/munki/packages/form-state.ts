@@ -559,7 +559,7 @@ export function toggleArray<T>(values: T[], value: T, enabled: boolean) {
 }
 
 export function packageLabel(pkg: MunkiPackage) {
-  return `${pkg.software_name} ${pkg.version}`;
+  return `${pkg.software_display_name || pkg.software_name} ${pkg.version}`;
 }
 
 function isArchitecture(value: string): value is Architecture {
@@ -567,5 +567,5 @@ function isArchitecture(value: string): value is Architecture {
 }
 
 function rowID() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return crypto.randomUUID();
 }

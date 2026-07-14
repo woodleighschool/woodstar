@@ -53,16 +53,24 @@ func (s *Store) IngestEvents(
 	hostID int64,
 	executionEvents []ExecutionEventInput,
 	fileAccessEvents []FileAccessEventInput,
+	standaloneRuleCreationEvents []StandaloneRuleCreationEventInput,
 ) ([]string, error) {
-	if len(executionEvents) == 0 && len(fileAccessEvents) == 0 {
+	if len(executionEvents) == 0 && len(fileAccessEvents) == 0 && len(standaloneRuleCreationEvents) == 0 {
 		return nil, nil
 	}
-	if err := validateEventsHaveOccurrenceTimes(executionEvents, fileAccessEvents); err != nil {
+	if err := validateEventInputs(executionEvents, fileAccessEvents, standaloneRuleCreationEvents); err != nil {
 		return nil, err
 	}
 	var bundleBinaryRequests []string
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		requests, err := ingestEventsTx(ctx, tx, hostID, executionEvents, fileAccessEvents)
+		requests, err := ingestEventsTx(
+			ctx,
+			tx,
+			hostID,
+			executionEvents,
+			fileAccessEvents,
+			standaloneRuleCreationEvents,
+		)
 		if err != nil {
 			return err
 		}
@@ -78,6 +86,7 @@ func ingestEventsTx(
 	hostID int64,
 	executionEvents []ExecutionEventInput,
 	fileAccessEvents []FileAccessEventInput,
+	standaloneRuleCreationEvents []StandaloneRuleCreationEventInput,
 ) ([]string, error) {
 	bundleRequestCandidates := []string{}
 	for _, event := range executionEvents {
@@ -91,6 +100,11 @@ func ingestEventsTx(
 	}
 	for _, event := range fileAccessEvents {
 		if err := insertFileAccessEvent(ctx, tx, hostID, event); err != nil {
+			return nil, err
+		}
+	}
+	for _, event := range standaloneRuleCreationEvents {
+		if err := insertStandaloneRuleCreationEvent(ctx, tx, hostID, event); err != nil {
 			return nil, err
 		}
 	}
@@ -152,9 +166,10 @@ func processEventBundle(
 	return event.BundleHash, nil
 }
 
-func validateEventsHaveOccurrenceTimes(
+func validateEventInputs(
 	executionEvents []ExecutionEventInput,
 	fileAccessEvents []FileAccessEventInput,
+	standaloneRuleCreationEvents []StandaloneRuleCreationEventInput,
 ) error {
 	for _, event := range executionEvents {
 		if event.Decision != ExecutionDecisionBundleBinary && event.OccurredAt.IsZero() {
@@ -164,6 +179,20 @@ func validateEventsHaveOccurrenceTimes(
 	for _, event := range fileAccessEvents {
 		if event.OccurredAt.IsZero() {
 			return fmt.Errorf("%w: file access event occurred_at is required", dbutil.ErrInvalidInput)
+		}
+	}
+	for _, event := range standaloneRuleCreationEvents {
+		if strings.TrimSpace(event.Identifier) == "" {
+			return fmt.Errorf("%w: standalone rule identifier is required", dbutil.ErrInvalidInput)
+		}
+		if event.Decision == ExecutionDecisionUnknown {
+			return fmt.Errorf("%w: standalone rule decision is required", dbutil.ErrInvalidInput)
+		}
+		if _, ok := validExecutionDecisions[event.Decision]; !ok {
+			return fmt.Errorf("%w: unknown standalone rule decision", dbutil.ErrInvalidInput)
+		}
+		if event.OccurredAt.IsZero() {
+			return fmt.Errorf("%w: standalone rule occurred_at is required", dbutil.ErrInvalidInput)
 		}
 	}
 	return nil
@@ -249,10 +278,16 @@ deleted_file_access AS (
 	DELETE FROM santa_file_access_events
 	WHERE santa_file_access_events.occurred_at < $1
 	RETURNING 1
+),
+deleted_standalone_rules AS (
+	DELETE FROM santa_standalone_rule_creation_events
+	WHERE santa_standalone_rule_creation_events.occurred_at < $1
+	RETURNING 1
 )
 SELECT
 	(SELECT count(*) FROM deleted_execution)::integer
-	+ (SELECT count(*) FROM deleted_file_access)::integer AS deleted_count`,
+	+ (SELECT count(*) FROM deleted_file_access)::integer
+	+ (SELECT count(*) FROM deleted_standalone_rules)::integer AS deleted_count`,
 		cutoff,
 	).Scan(&deleted)
 	if err != nil {
@@ -569,6 +604,7 @@ func insertExecutionEvent(
 		LoggedInUsers:   normalizeStringSlice(event.LoggedInUsers),
 		CurrentSessions: normalizeStringSlice(event.CurrentSessions),
 		Decision:        string(event.Decision),
+		StaticRule:      event.StaticRule,
 		OccurredAt:      event.OccurredAt,
 	}
 	_, err := tx.Exec(ctx, `
@@ -583,6 +619,7 @@ INSERT INTO santa_execution_events (
 	logged_in_users,
 	current_sessions,
 	decision,
+	static_rule,
 	occurred_at
 )
 VALUES (
@@ -596,8 +633,31 @@ VALUES (
 	@logged_in_users,
 	@current_sessions,
 	@decision::santa_execution_decision,
+	@static_rule,
 	@occurred_at
 )`, pgx.StructArgs(write))
+	return err
+}
+
+func insertStandaloneRuleCreationEvent(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	event StandaloneRuleCreationEventInput,
+) error {
+	_, err := tx.Exec(ctx, `
+INSERT INTO santa_standalone_rule_creation_events (
+	host_id,
+	identifier,
+	decision,
+	occurred_at
+)
+VALUES ($1, $2, $3::santa_execution_decision, $4)`,
+		hostID,
+		event.Identifier,
+		event.Decision,
+		event.OccurredAt,
+	)
 	return err
 }
 
@@ -998,6 +1058,7 @@ type executionEventRow struct {
 	LoggedInUsers               []string           `db:"logged_in_users"`
 	CurrentSessions             []string           `db:"current_sessions"`
 	Decision                    string             `db:"decision"`
+	StaticRule                  bool               `db:"static_rule"`
 	OccurredAt                  time.Time          `db:"occurred_at"`
 	IngestedAt                  time.Time          `db:"ingested_at"`
 	ExecutableID                int64              `db:"executable_id"`
@@ -1090,6 +1151,7 @@ func executionEventFromRow(row executionEventRow) ExecutionEvent {
 		LoggedInUsers:   row.LoggedInUsers,
 		CurrentSessions: row.CurrentSessions,
 		Decision:        ExecutionDecision(row.Decision),
+		StaticRule:      row.StaticRule,
 		OccurredAt:      row.OccurredAt,
 		IngestedAt:      row.IngestedAt,
 		Executable: Executable{
@@ -1169,6 +1231,7 @@ SELECT
 	ee.logged_in_users,
 	ee.current_sessions,
 	ee.decision::text AS decision,
+	ee.static_rule,
 	ee.occurred_at,
 	ee.ingested_at,
 	e.id AS executable_id,
@@ -1282,6 +1345,7 @@ type executionEventWrite struct {
 	LoggedInUsers   []string  `db:"logged_in_users"`
 	CurrentSessions []string  `db:"current_sessions"`
 	Decision        string    `db:"decision"`
+	StaticRule      bool      `db:"static_rule"`
 	OccurredAt      time.Time `db:"occurred_at"`
 }
 

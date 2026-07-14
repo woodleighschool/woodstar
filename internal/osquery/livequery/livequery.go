@@ -12,15 +12,20 @@ import (
 // ErrLiveQueryNotFound is returned when the manager has no live query for an id.
 var ErrLiveQueryNotFound = errors.New("live query not found")
 
-const orphanCleanupAfter = time.Minute
+const (
+	orphanCleanupAfter   = time.Minute
+	defaultEventLogLimit = 1024
+	overflowEventError   = "live query result limit exceeded"
+)
 
 // Status is the per-host outcome reported back to the SSE stream.
 type Status string
 
 const (
-	StatusSuccess Status = "success"
-	StatusError   Status = "error"
-	StatusStopped Status = "stopped"
+	StatusSuccess  Status = "success"
+	StatusError    Status = "error"
+	StatusStopped  Status = "stopped"
+	StatusOverflow Status = "overflow"
 )
 
 // Work is one queued live query for a host (read by /distributed/read).
@@ -58,14 +63,15 @@ type Result struct {
 
 // Manager runs ephemeral live queries entirely in-process.
 type Manager struct {
-	cleanupAfter time.Duration
+	cleanupAfter  time.Duration
+	eventLogLimit int
 
 	next    atomic.Int64
 	subNext atomic.Int64
 
 	mu        sync.Mutex
 	active    map[int64]*liveQuery
-	completed map[int64]struct{}
+	completed map[int64]*liveQuery
 	subs      map[int64]map[int64]chan Event
 }
 
@@ -74,16 +80,19 @@ type liveQuery struct {
 	sql          string
 	startedAt    time.Time
 	pending      map[int64]struct{}
+	events       []Event
+	overflowed   bool
 	cleanupTimer *time.Timer
 }
 
 // NewManager returns a manager for ephemeral browser-session live runs.
 func NewManager() *Manager {
 	return &Manager{
-		cleanupAfter: orphanCleanupAfter,
-		active:       make(map[int64]*liveQuery),
-		completed:    make(map[int64]struct{}),
-		subs:         make(map[int64]map[int64]chan Event),
+		cleanupAfter:  orphanCleanupAfter,
+		eventLogLimit: defaultEventLogLimit,
+		active:        make(map[int64]*liveQuery),
+		completed:     make(map[int64]*liveQuery),
+		subs:          make(map[int64]map[int64]chan Event),
 	}
 }
 
@@ -104,7 +113,7 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 
 	m.mu.Lock()
 	if len(pending) == 0 {
-		m.completed[id] = struct{}{}
+		m.completed[id] = q
 		m.mu.Unlock()
 		m.forgetCompletedLater(id)
 		return Handle{ID: id, SQL: sql, StartedAt: q.startedAt}
@@ -169,11 +178,7 @@ func (m *Manager) RecordResult(result Result) {
 	}
 	delete(q.pending, result.HostID)
 	finished := len(q.pending) == 0
-	if finished {
-		m.completeLocked(q)
-	}
-
-	m.publishLocked(result.QueryID, Event{
+	m.recordEventLocked(q, Event{
 		HostID:   result.HostID,
 		HostName: result.HostName,
 		Status:   result.Status,
@@ -181,6 +186,7 @@ func (m *Manager) RecordResult(result Result) {
 		Error:    result.Error,
 	})
 	if finished {
+		m.completeLocked(q)
 		m.closeSubscribersLocked(result.QueryID)
 	}
 	m.mu.Unlock()
@@ -189,18 +195,18 @@ func (m *Manager) RecordResult(result Result) {
 	}
 }
 
-// Subscribe returns the live event channel for queryID and a release function.
-// Already-completed queries return a closed channel for late subscribers.
+// Subscribe returns a replaying live event channel and a release function.
 func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, ok := m.active[queryID]; ok {
-		ch, release := m.subscribeLocked(queryID)
+	if q, ok := m.active[queryID]; ok {
+		ch, release := m.subscribeLocked(q)
 		return ch, release, nil
 	}
-	if _, ok := m.completed[queryID]; ok {
-		ch := make(chan Event)
+	if q, ok := m.completed[queryID]; ok {
+		ch := make(chan Event, m.eventLogLimit+1)
+		m.replayLocked(q, ch)
 		close(ch)
 		return ch, func() {}, nil
 	}
@@ -229,7 +235,7 @@ func (m *Manager) completeLocked(q *liveQuery) {
 		q.cleanupTimer.Stop()
 	}
 	delete(m.active, q.id)
-	m.completed[q.id] = struct{}{}
+	m.completed[q.id] = q
 }
 
 func (m *Manager) stopLocked(q *liveQuery, status Status) {
@@ -238,14 +244,14 @@ func (m *Manager) stopLocked(q *liveQuery, status Status) {
 		stopped = append(stopped, hostID)
 	}
 	q.pending = nil
-	m.completeLocked(q)
 
 	for _, hostID := range stopped {
-		m.publishLocked(q.id, Event{
+		m.recordEventLocked(q, Event{
 			HostID: hostID,
 			Status: status,
 		})
 	}
+	m.completeLocked(q)
 	m.closeSubscribersLocked(q.id)
 }
 
@@ -277,20 +283,22 @@ func (m *Manager) forgetCompletedLater(queryID int64) {
 	})
 }
 
-func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
+func (m *Manager) subscribeLocked(q *liveQuery) (<-chan Event, func()) {
 	id := m.subNext.Add(1)
-	ch := make(chan Event, 32)
-	m.cancelCleanupLocked(queryID)
+	// The extra slot carries the single overflow marker after a full event log.
+	ch := make(chan Event, m.eventLogLimit+1)
+	m.replayLocked(q, ch)
+	m.cancelCleanupLocked(q.id)
 
-	if m.subs[queryID] == nil {
-		m.subs[queryID] = make(map[int64]chan Event)
+	if m.subs[q.id] == nil {
+		m.subs[q.id] = make(map[int64]chan Event)
 	}
-	m.subs[queryID][id] = ch
+	m.subs[q.id][id] = ch
 
 	return ch, func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		subs := m.subs[queryID]
+		subs := m.subs[q.id]
 		if subs == nil {
 			return
 		}
@@ -299,19 +307,42 @@ func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
 		}
 		delete(subs, id)
 		if len(subs) == 0 {
-			delete(m.subs, queryID)
-			m.scheduleCleanupLocked(queryID)
+			delete(m.subs, q.id)
+			m.scheduleCleanupLocked(q.id)
 		}
 		close(ch)
 	}
 }
 
+func (m *Manager) recordEventLocked(q *liveQuery, event Event) {
+	if len(q.events) < m.eventLogLimit {
+		q.events = append(q.events, event)
+		m.publishLocked(q.id, event)
+		return
+	}
+	if q.overflowed {
+		return
+	}
+	q.overflowed = true
+	m.publishLocked(q.id, overflowEvent())
+}
+
+func (m *Manager) replayLocked(q *liveQuery, ch chan<- Event) {
+	for _, event := range q.events {
+		ch <- event
+	}
+	if q.overflowed {
+		ch <- overflowEvent()
+	}
+}
+
+func overflowEvent() Event {
+	return Event{Status: StatusOverflow, Error: overflowEventError}
+}
+
 func (m *Manager) publishLocked(queryID int64, event Event) {
 	for _, ch := range m.subs[queryID] {
-		select {
-		case ch <- event:
-		default:
-		}
+		ch <- event
 	}
 }
 

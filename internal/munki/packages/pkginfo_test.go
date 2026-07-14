@@ -20,7 +20,8 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	got := plistMap(t, Pkginfo(Package{
 		ID:                     12,
 		SoftwareID:             7,
-		SoftwareName:           "Example App",
+		SoftwareName:           "com.example.app",
+		SoftwareDisplayName:    "Example App",
 		SoftwareDescription:    "Managed by Woodstar",
 		SoftwareCategory:       "Utilities",
 		SoftwareDeveloper:      "Example Co",

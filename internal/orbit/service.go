@@ -2,26 +2,39 @@ package orbit
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
+const orbitCommandLineStartupFlags = `{
+	"disable_carver": true,
+	"carver_disable_function": true,
+	"logger_min_status": 4
+}`
+
+// ErrInvalidDeviceAuthToken reports a token outside Orbit's canonical UUID form.
+var ErrInvalidDeviceAuthToken = errors.New("invalid Orbit device auth token")
+
 // EnrollmentService performs Orbit enrollment and config operations.
 type EnrollmentService struct {
-	hostStore        *hosts.Store
-	secretStore      *agentauth.Store
-	primaryUserStore *hosts.PrimaryUserStore
+	hostStore    *hosts.Store
+	secretStore  *agentauth.Store
+	primaryUsers *hosts.PrimaryUserService
 }
 
 func NewEnrollmentService(
 	hostStore *hosts.Store,
 	secretStore *agentauth.Store,
-	primaryUserStore *hosts.PrimaryUserStore,
+	primaryUsers *hosts.PrimaryUserService,
 ) *EnrollmentService {
-	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, primaryUserStore: primaryUserStore}
+	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers}
 }
 
 // Enroll validates the request, upserts the host, and returns a fresh node key.
@@ -58,7 +71,7 @@ func (s *EnrollmentService) Config(ctx context.Context, nodeKey string) (ConfigR
 	if _, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
 		return ConfigResponse{}, err
 	}
-	return ConfigResponse{}, nil
+	return ConfigResponse{CommandLineStartupFlags: json.RawMessage(orbitCommandLineStartupFlags)}, nil
 }
 
 // ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
@@ -73,5 +86,22 @@ func (s *EnrollmentService) SetPrimaryUser(ctx context.Context, nodeKey, email s
 	if err != nil {
 		return err
 	}
-	return s.primaryUserStore.Upsert(ctx, host.ID, email, hosts.PrimaryUserSourceOrbitProfile)
+	return s.primaryUsers.Upsert(ctx, host.ID, email, hosts.PrimaryUserSourceOrbitProfile)
+}
+
+// SetDeviceAuthToken rotates the per-host token issued and retained by Orbit.
+func (s *EnrollmentService) SetDeviceAuthToken(ctx context.Context, nodeKey, token string) error {
+	compact := strings.ReplaceAll(token, "-", "")
+	_, err := hex.DecodeString(compact)
+	if err != nil || len(token) != 36 || len(compact) != 32 ||
+		token[8] != '-' || token[13] != '-' || token[18] != '-' || token[23] != '-' ||
+		token != strings.ToLower(token) {
+		return ErrInvalidDeviceAuthToken
+	}
+	return s.hostStore.SetOrbitDeviceAuthToken(ctx, nodeKey, token)
+}
+
+// ValidateDeviceAuthToken checks whether an Orbit machine token is active.
+func (s *EnrollmentService) ValidateDeviceAuthToken(ctx context.Context, token string) error {
+	return s.hostStore.ValidateOrbitDeviceAuthToken(ctx, token)
 }

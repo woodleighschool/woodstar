@@ -97,7 +97,6 @@ func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger
 		Path:        munkiPackagePath,
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki packages",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -122,8 +121,6 @@ func registerCreateMunkiPackage(api huma.API, store *munki.PackageService, logge
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -143,7 +140,7 @@ func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *
 		Path:        munkiPackageIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Get a Munki package",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.ID)
 		if err != nil {
@@ -170,8 +167,6 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 		Summary:     "Update a Munki package",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -203,7 +198,7 @@ func registerDeleteMunkiPackage(
 		Path:        munkiPackageIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Delete a Munki package",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+		Errors:      []int{http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
@@ -231,7 +226,7 @@ func registerBulkDeleteMunkiPackages(
 		Path:        munkiPackagePath + "/bulk-delete",
 		Tags:        []string{munkiTag},
 		Summary:     "Delete Munki packages",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
+		Errors:      []int{http.StatusBadRequest, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-munki-packages", munkiPackageLabel, err)

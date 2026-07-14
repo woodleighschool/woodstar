@@ -19,6 +19,7 @@ import (
 // none of those concerns.
 type Config struct {
 	ServerURL           string `env:"SERVER_URL,required,notEmpty" validate:"https_origin"`
+	ServerCAFile        string `env:"SERVER_CA_FILE"`
 	Key                 string `env:"KEY,required,notEmpty"        validate:"notblank"`
 	DataDir             string `env:"DATA_DIR,required,notEmpty"   validate:"required"`
 	ListenAddr          string `env:"LISTEN_ADDR"                  validate:"required"                             envDefault:":8080"`
@@ -47,6 +48,7 @@ func (cfg *Config) validate() error {
 
 func (cfg *Config) normalize() {
 	cfg.ServerURL = normalizeServerURL(cfg.ServerURL)
+	cfg.ServerCAFile = strings.TrimSpace(cfg.ServerCAFile)
 	cfg.DataDir = strings.TrimSpace(cfg.DataDir)
 	cfg.ListenAddr = strings.TrimSpace(cfg.ListenAddr)
 	cfg.TLSCertFile = strings.TrimSpace(cfg.TLSCertFile)

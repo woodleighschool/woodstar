@@ -229,6 +229,7 @@ type Package struct {
 	ID                       int64                                 `json:"id"`
 	SoftwareID               int64                                 `json:"software_id"`
 	SoftwareName             string                                `json:"software_name"`
+	SoftwareDisplayName      string                                `json:"software_display_name"`
 	SoftwareDescription      string                                `json:"software_description"`
 	SoftwareCategory         string                                `json:"software_category"`
 	SoftwareDeveloper        string                                `json:"software_developer"`

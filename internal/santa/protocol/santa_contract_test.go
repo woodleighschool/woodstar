@@ -107,7 +107,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		SantaVersion:     "2026.2",
 		ClientMode:       syncv1.ClientMode_MONITOR,
 		RequestCleanSync: true,
-		RulesHash:        "client-hash-before",
+		RulesHash:        strings.Repeat("0", 32),
 	}, &preflight)
 	if preflight.GetSyncType() != syncv1.SyncType_CLEAN {
 		t.Fatalf("sync type = %v, want CLEAN", preflight.GetSyncType())
@@ -142,9 +142,10 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
 		MachineId:      machineID,
-		RulesHash:      "client-hash-after",
+		RulesHash:      strings.Repeat("1", 32),
 		RulesReceived:  uint32(len(download.GetRules())),
 		RulesProcessed: uint32(len(download.GetRules())),
+		SyncType:       syncv1.SyncType_CLEAN,
 	}, &syncv1.PostflightResponse{})
 
 	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
@@ -156,6 +157,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 				FileName:      "Contract",
 				ExecutingUser: "alice",
 				Decision:      syncv1.Decision_BLOCK_BINARY,
+				StaticRule:    true,
 				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC).Unix()),
 			},
 			{
@@ -175,6 +177,15 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 2, 0, 0, time.UTC).Unix()),
 			},
 		},
+		AuditEvents: []*syncv1.AuditEvent{{
+			Event: &syncv1.AuditEvent_StandaloneModeRuleCreation{
+				StandaloneModeRuleCreation: &syncv1.StandaloneModeRuleCreation{
+					Decision:   syncv1.Decision_ALLOW_BINARY,
+					Identifier: strings.Repeat("d", 64),
+					Timestamp:  uint32(time.Date(2026, 5, 24, 10, 3, 0, 0, time.UTC).Unix()),
+				},
+			},
+		}},
 		FileAccessEvents: []*syncv1.FileAccessEvent{{
 			RuleVersion: "policy-v1",
 			RuleName:    "Protect Payroll",
@@ -211,6 +222,9 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 			t.Fatalf("stored decision = %q, want one of %+v", event.Decision, wantDecisions)
 		}
 		delete(wantDecisions, event.Decision)
+		if event.Decision == santaevents.ExecutionDecisionBlockBinary && !event.StaticRule {
+			t.Fatalf("block binary event static_rule = false, want true")
+		}
 	}
 	if len(wantDecisions) != 0 {
 		t.Fatalf("missing decisions = %+v", wantDecisions)
@@ -227,6 +241,19 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		fileAccessEvents[0].Target != "/Users/alice/Payroll.csv" ||
 		fileAccessEvents[0].PrimaryProcess.FileSHA256 != "process-sha-contract-"+suffix {
 		t.Fatalf("stored file access events = %+v, want one denied payroll event", fileAccessEvents)
+	}
+	var auditIdentifier string
+	var auditDecision string
+	if err := db.Pool().QueryRow(ctx, `
+		SELECT identifier, decision::text
+		FROM santa_standalone_rule_creation_events
+		WHERE host_id = $1
+	`, host.ID).Scan(&auditIdentifier, &auditDecision); err != nil {
+		t.Fatalf("get standalone rule creation event: %v", err)
+	}
+	if auditIdentifier != strings.Repeat("d", 64) ||
+		auditDecision != string(santaevents.ExecutionDecisionAllowBinary) {
+		t.Fatalf("standalone rule creation event = %q/%q", auditIdentifier, auditDecision)
 	}
 }
 
@@ -375,6 +402,121 @@ func TestSantaHTTPEventUploadMapsBundleFieldsAndEncodesBundleRequests(t *testing
 	}
 }
 
+func TestSantaHTTPEventUploadMapsStaticAndAuditEvents(t *testing.T) {
+	service := &recordingService{}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	createdAt := time.Date(2026, 7, 14, 9, 30, 0, 0, time.UTC)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/eventupload/machine-1", &syncv1.EventUploadRequest{
+		Events: []*syncv1.Event{{
+			FileSha256:    strings.Repeat("1", 64),
+			Decision:      syncv1.Decision_BLOCK_BINARY,
+			ExecutionTime: float64(createdAt.Unix()),
+			StaticRule:    true,
+		}},
+		AuditEvents: []*syncv1.AuditEvent{{
+			Event: &syncv1.AuditEvent_StandaloneModeRuleCreation{
+				StandaloneModeRuleCreation: &syncv1.StandaloneModeRuleCreation{
+					Decision:   syncv1.Decision_ALLOW_BINARY,
+					Identifier: strings.Repeat("2", 64),
+					Timestamp:  uint32(createdAt.Unix()),
+				},
+			},
+		}},
+	})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	got := service.eventUploadRequest
+	if len(got.Events) != 1 || !got.Events[0].StaticRule {
+		t.Fatalf("execution events = %+v, want static rule", got.Events)
+	}
+	if len(got.StandaloneRuleCreationEvents) != 1 {
+		t.Fatalf("audit events = %+v, want one", got.StandaloneRuleCreationEvents)
+	}
+	audit := got.StandaloneRuleCreationEvents[0]
+	if audit.Identifier != strings.Repeat("2", 64) ||
+		audit.Decision != santaevents.ExecutionDecisionAllowBinary ||
+		!audit.OccurredAt.Equal(createdAt) {
+		t.Fatalf("audit event = %+v", audit)
+	}
+}
+
+func TestSantaHTTPRejectsUnsupportedAuditEvents(t *testing.T) {
+	service := &recordingService{}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/eventupload/machine-1", &syncv1.EventUploadRequest{
+		AuditEvents: []*syncv1.AuditEvent{{}},
+	})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+	if service.stage != "" {
+		t.Fatalf("service stage = %q, want no call", service.stage)
+	}
+}
+
+func TestSantaHTTPPostflightRequiresCurrentSyncType(t *testing.T) {
+	for _, syncType := range []syncv1.SyncType{
+		syncv1.SyncType_SYNC_TYPE_UNSPECIFIED,
+		syncv1.SyncType_CLEAN_ALL,
+		syncv1.SyncType_CLEAN_STANDALONE,
+	} {
+		t.Run(syncType.String(), func(t *testing.T) {
+			service := &recordingService{}
+			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+			rec := httptest.NewRecorder()
+			req := santaContractRequest(t, "/santa/sync/postflight/machine-1", &syncv1.PostflightRequest{
+				SyncType:  syncType,
+				RulesHash: strings.Repeat("0", 32),
+			})
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if service.stage != "" {
+				t.Fatalf("service stage = %q, want no call", service.stage)
+			}
+		})
+	}
+}
+
+func TestSantaHTTPPostflightMapsSyncContract(t *testing.T) {
+	service := &recordingService{}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/postflight/machine-1", &syncv1.PostflightRequest{
+		RulesReceived:  3,
+		RulesProcessed: 3,
+		SyncType:       syncv1.SyncType_CLEAN,
+		RulesHash:      strings.Repeat("a", 32),
+	})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	want := santa.PostflightRequest{
+		RulesReceived:  3,
+		RulesProcessed: 3,
+		SyncType:       syncstate.SyncTypeClean,
+		RulesHash:      strings.Repeat("a", 32),
+	}
+	if service.postflightRequest != want {
+		t.Fatalf("postflight request = %+v, want %+v", service.postflightRequest, want)
+	}
+}
+
 func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	service := &recordingService{
 		ruleDownloadResponse: santa.RuleDownloadResponse{
@@ -500,9 +642,12 @@ func TestSantaHTTPCoversAllSyncStages(t *testing.T) {
 			wantStage: "ruledownload",
 		},
 		{
-			name:      "postflight",
-			path:      "/santa/sync/postflight/machine-1",
-			request:   &syncv1.PostflightRequest{},
+			name: "postflight",
+			path: "/santa/sync/postflight/machine-1",
+			request: &syncv1.PostflightRequest{
+				SyncType:  syncv1.SyncType_NORMAL,
+				RulesHash: strings.Repeat("0", 32),
+			},
 			wantStage: "postflight",
 		},
 	}
@@ -920,6 +1065,7 @@ type recordingService struct {
 	eventUploadResponse  santa.EventUploadResponse
 	ruleDownloadCursor   string
 	ruleDownloadResponse santa.RuleDownloadResponse
+	postflightRequest    santa.PostflightRequest
 	err                  error
 }
 
@@ -959,9 +1105,10 @@ func (s *recordingService) RuleDownload(
 func (s *recordingService) Postflight(
 	_ context.Context,
 	machineID string,
-	_ santa.PostflightRequest,
+	req santa.PostflightRequest,
 ) (santa.PostflightResponse, error) {
 	s.stage = "postflight"
 	s.machineID = machineID
+	s.postflightRequest = req
 	return santa.PostflightResponse{}, s.err
 }

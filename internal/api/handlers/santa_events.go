@@ -98,7 +98,7 @@ func registerListSantaEvents(api huma.API, store *events.Store, logger *slog.Log
 		Path:        "/api/santa/events",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa execution events",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		rows, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
@@ -115,7 +115,7 @@ func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logge
 		Path:        santaEventIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa execution event",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
 		event, err := store.GetExecutionEvent(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
@@ -143,7 +143,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store, logger
 		Path:        santaFileAccessEventPath,
 		Tags:        []string{santaTag},
 		Summary:     "List Santa file access events",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		rows, count, err := store.ListFileAccessEvents(ctx, input.params())
 		if err != nil {
@@ -162,7 +162,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *
 		Path:        santaFileAccessIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa file access event",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
 		event, err := store.GetFileAccessEvent(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {

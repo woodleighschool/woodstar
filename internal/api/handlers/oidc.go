@@ -66,6 +66,7 @@ func oidcCallback(authService *auth.Service, logger *slog.Logger) http.HandlerFu
 
 func expectedOIDCError(err error) bool {
 	return errors.Is(err, auth.ErrSSOStateMismatch) ||
+		errors.Is(err, auth.ErrSSONonceMismatch) ||
 		errors.Is(err, auth.ErrSSOUnknownUser) ||
 		errors.Is(err, auth.ErrSSOEmailClaimEmpty)
 }
@@ -77,6 +78,8 @@ func oidcUserMessage(err error) string {
 	switch {
 	case errors.Is(err, auth.ErrSSOStateMismatch):
 		return "sso state mismatch; try again"
+	case errors.Is(err, auth.ErrSSONonceMismatch):
+		return "sso nonce mismatch; try again"
 	case errors.Is(err, auth.ErrSSOUnknownUser):
 		return "no woodstar account for this identity"
 	case errors.Is(err, auth.ErrSSOEmailClaimEmpty):

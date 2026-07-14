@@ -90,7 +90,7 @@ Munki package and icon bytes go to the backend chosen by `WOODSTAR_STORAGE_KIND`
 | `WOODSTAR_STORAGE_S3_BUCKET`          | empty          | Bucket name.                                                                           |
 | `WOODSTAR_STORAGE_S3_REGION`          | empty          | Region passed to the S3 client.                                                        |
 | `WOODSTAR_STORAGE_S3_ENDPOINT`        | empty          | Internal S3 endpoint. Leave empty for AWS; set it for Garage, R2, MinIO, and the like. |
-| `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` | empty          | Public endpoint used in presigned URLs.                                                |
+| `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` | empty          | HTTPS endpoint used in presigned URLs. Required when the internal endpoint uses HTTP.  |
 | `WOODSTAR_STORAGE_S3_ACCESS_KEY`      | empty          | Access key.                                                                            |
 | `WOODSTAR_STORAGE_S3_SECRET_KEY`      | empty          | Secret key.                                                                            |
 | `WOODSTAR_STORAGE_S3_PATH_STYLE`      | `false`        | Use path-style addressing.                                                             |
@@ -105,6 +105,7 @@ These configure the `woodstar mdp` worker, not the server. The worker is a separ
 | Variable                            | Default  | Notes                                                                |
 | ----------------------------------- | -------- | -------------------------------------------------------------------- |
 | `WOODSTAR_MDP_SERVER_URL`           | required | HTTPS Woodstar origin the worker connects to.                        |
+| `WOODSTAR_MDP_SERVER_CA_FILE`       | empty    | PEM CA file for a private Woodstar certificate chain.                |
 | `WOODSTAR_MDP_KEY`                  | required | The distribution point's key, from its create or rotate response.    |
 | `WOODSTAR_MDP_DATA_DIR`             | required | Directory the mirrored installers and state snapshot live in.        |
 | `WOODSTAR_MDP_LISTEN_ADDR`          | `:8080`  | Address the worker serves Macs on.                                   |
@@ -113,7 +114,7 @@ These configure the `woodstar mdp` worker, not the server. The worker is a separ
 | `WOODSTAR_MDP_LOG_LEVEL`            | `info`   | `debug`, `info`, `warn`, or `error`.                                 |
 | `WOODSTAR_MDP_DOWNLOAD_CONCURRENCY` | `4`      | Concurrent installer downloads. Must be at least one.                |
 
-Set both TLS files when the worker terminates HTTPS itself. Leave both empty behind a reverse proxy. The distribution point's client base URL must always be the public HTTPS origin that Macs use.
+`WOODSTAR_MDP_SERVER_CA_FILE` controls trust for both the HTTPS download client and the WebSocket connection. Set both worker TLS files when the worker terminates HTTPS itself. Leave both empty behind a reverse proxy. The distribution point's client base URL must always be the public HTTPS origin that Macs use.
 
 ## A local example
 

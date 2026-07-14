@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	pathpkg "path"
 	"strings"
 	"time"
 
@@ -90,7 +91,7 @@ type AppDependencies struct {
 	Users       *directory.UserService
 	Directory   *directory.Store
 	Hosts       *hosts.Store
-	PrimaryUser *hosts.PrimaryUserStore
+	PrimaryUser *hosts.PrimaryUserService
 	Secrets     *agentauth.Store
 	Software    *inventory.Store
 	Labels      *labels.Store
@@ -103,10 +104,11 @@ type AppDependencies struct {
 	StorageKey     []byte
 	StorageObjects *storage.ObjectStore
 
-	MunkiPackages     *munki.PackageService
-	MunkiSoftware     *munkisoftware.Store
-	MunkiHostState    *munki.Store
-	MunkiDistribution *mdp.Store
+	MunkiPackages          *munki.PackageService
+	MunkiSoftware          *munkisoftware.Store
+	MunkiSoftwareDeletions *munki.SoftwareDeletionService
+	MunkiHostState         *munki.Store
+	MunkiDistribution      *mdp.Store
 
 	SantaConfigurations *configurations.Store
 	SantaEvents         *events.Store
@@ -135,7 +137,7 @@ type MunkiProtocolDependencies struct {
 }
 
 // NewServer returns an HTTP server.
-func NewServer(deps *Dependencies) *Server {
+func NewServer(deps *Dependencies) (*Server, error) {
 	server := &Server{
 		config:  deps.Config,
 		logger:  deps.Logger.With("component", "server"),
@@ -163,15 +165,17 @@ func NewServer(deps *Dependencies) *Server {
 			deps.Logger.With("component", "santa"),
 		),
 	}
+	handler, err := server.routes(deps)
+	if err != nil {
+		return nil, err
+	}
 	server.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
-		Handler:           server.routes(deps),
+		Handler:           handler,
 		ReadHeaderTimeout: 15 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      120 * time.Second,
 		IdleTimeout:       180 * time.Second,
 	}
-	return server
+	return server, nil
 }
 
 // Addr returns the configured HTTP listen address.
@@ -211,12 +215,17 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-func (s *Server) routes(deps *Dependencies) http.Handler {
+func (s *Server) routes(deps *Dependencies) (http.Handler, error) {
+	compression, err := compressionMiddleware()
+	if err != nil {
+		return nil, fmt.Errorf("create HTTP compression adapter: %w", err)
+	}
+
 	r := chi.NewRouter()
 	r.Use(clientIPMiddleware(deps.Config))
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.Timeout(120 * time.Second))
-	r.Use(compressionMiddleware(deps.Logger))
+	r.Use(requestTimeoutMiddleware(120 * time.Second))
+	r.Use(compression)
 	r.Use(corsMiddleware(deps.Config))
 
 	r.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -237,7 +246,7 @@ func (s *Server) routes(deps *Dependencies) http.Handler {
 		s.browserRoutes(r, deps)
 	})
 
-	return r
+	return r, nil
 }
 
 // protocolRoutes mounts every agent-facing protocol endpoint. They are wire
@@ -285,6 +294,7 @@ func registerAppRoutes(
 
 	protected := huma.NewGroup(humaAPI)
 	protected.UseMiddleware(middleware.RequireHumaAuth(humaAPI, deps.App.AuthService))
+	protected.UseModifier(middleware.ProtectedOperation(humaAPI))
 
 	// Authn is request-time middleware; admin posture is an operation modifier
 	// so generated schemas advertise 403 on the routes that can return it.
@@ -320,16 +330,18 @@ func registerAppRoutes(
 		apiLogger,
 	)
 	handlers.RegisterMunki(handlers.MunkiHandlerDeps{
-		API:          ordinary,
-		Router:       r,
-		AuthService:  deps.App.AuthService,
-		HostState:    deps.App.MunkiHostState,
-		Software:     deps.App.MunkiSoftware,
-		Packages:     munkiPackages,
-		Objects:      deps.App.StorageObjects,
-		Storage:      deps.App.StorageBackend,
-		Distribution: deps.App.MunkiDistribution,
-		Logger:       apiLogger,
+		API:            ordinary,
+		Router:         r,
+		AuthService:    deps.App.AuthService,
+		HostState:      deps.App.MunkiHostState,
+		Software:       deps.App.MunkiSoftware,
+		DeleteSoftware: deps.App.MunkiSoftwareDeletions,
+		Packages:       munkiPackages,
+		Objects:        deps.App.StorageObjects,
+		Storage:        deps.App.StorageBackend,
+		Distribution:   deps.App.MunkiDistribution,
+		Connections:    deps.Protocols.Munki.DistributionProtocol,
+		Logger:         apiLogger,
 	})
 	handlers.RegisterSanta(
 		ordinary,
@@ -361,6 +373,11 @@ func humaConfig(version string) huma.Config {
 				Type: "apiKey",
 				In:   "cookie",
 				Name: "woodstar_session",
+			},
+			"bearerAuth": {
+				Type:         "http",
+				Scheme:       "bearer",
+				BearerFormat: "API key",
 			},
 		},
 	}
@@ -394,30 +411,73 @@ func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	}
 }
 
-func compressionMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+func compressionMiddleware() (func(http.Handler) http.Handler, error) {
 	compressor, err := httpcompression.DefaultAdapter(
 		httpcompression.MinSize(1024),
 		httpcompression.GzipCompressionLevel(2),
 		httpcompression.Prefer(httpcompression.PreferServer),
 	)
 	if err != nil {
-		logger.Error("failed to create HTTP compression adapter", "operation", "compression_middleware", "err", err)
-		return func(next http.Handler) http.Handler {
-			return next
-		}
+		return nil, err
 	}
 	return func(next http.Handler) http.Handler {
 		compressed := compressor(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if strings.Contains(req.Header.Get("Accept"), "text/event-stream") ||
-				strings.HasPrefix(req.URL.Path, "/storage/") ||
-				req.Header.Get("Range") != "" {
+			if isStorageTransfer(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
 				next.ServeHTTP(w, req)
 				return
 			}
 			compressed.ServeHTTP(w, req)
 		})
+	}, nil
+}
+
+func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {
+	withTimeout := chimiddleware.Timeout(timeout)
+	withPackageConfirmTimeout := chimiddleware.Timeout(packageConfirmTimeout)
+	return func(next http.Handler) http.Handler {
+		timed := withTimeout(next)
+		packageConfirmTimed := withPackageConfirmTimeout(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if isStorageTransfer(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
+				next.ServeHTTP(w, req)
+				return
+			}
+			requestTimeout := timeout
+			requestHandler := timed
+			if isPackageConfirm(req) {
+				requestTimeout = packageConfirmTimeout
+				requestHandler = packageConfirmTimed
+			}
+			deadline := time.Now().Add(requestTimeout)
+			controller := http.NewResponseController(w)
+			_ = controller.SetReadDeadline(deadline)
+			_ = controller.SetWriteDeadline(deadline)
+			requestHandler.ServeHTTP(w, req)
+		})
 	}
+}
+
+const packageConfirmTimeout = time.Hour
+
+func isStorageTransfer(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/storage/")
+}
+
+func isLiveQueryStream(req *http.Request) bool {
+	matched, _ := pathpkg.Match("/api/live-queries/*/stream", req.URL.Path)
+	return req.Method == http.MethodGet && matched
+}
+
+func isDistributionWebSocket(req *http.Request) bool {
+	return req.Method == http.MethodGet &&
+		req.URL.Path == "/api/munki/distribution/connect" &&
+		strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
+}
+
+func isPackageConfirm(req *http.Request) bool {
+	matched, _ := pathpkg.Match("/api/munki/packages/*/installer/*/confirm", req.URL.Path)
+	return req.Method == http.MethodPost && matched
 }
 
 func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {
@@ -438,7 +498,7 @@ func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 			http.MethodPatch,
 			http.MethodDelete,
 		},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Range", "X-API-Key", "X-Requested-With"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "Range", "X-Requested-With"},
 		ExposedHeaders: []string{"Accept-Ranges", "Content-Length", "Content-Range", "Content-Type"},
 		MaxAge:         300,
 	}).Handler

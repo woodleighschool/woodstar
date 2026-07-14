@@ -139,7 +139,7 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
 		Name:                     strconv.FormatInt(pkg.SoftwareID, 10),
 		Version:                  pkg.Version,
-		DisplayName:              pkg.SoftwareName,
+		DisplayName:              pkg.SoftwareDisplayName,
 		Description:              pkg.SoftwareDescription,
 		Category:                 pkg.SoftwareCategory,
 		Developer:                pkg.SoftwareDeveloper,

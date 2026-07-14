@@ -87,7 +87,7 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	}
 }
 
-func TestManifestAddsFeaturedAndDefaultItemsToOptionalInstalls(t *testing.T) {
+func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Hosts: serviceHostStore{host: &hosts.Host{ID: 1, Hardware: hosts.HostHardware{Serial: "C02MUNKI"}}},
 		Software: servicePackageStore{packages: []munkisoftware.EffectivePackage{
@@ -116,8 +116,8 @@ func TestManifestAddsFeaturedAndDefaultItemsToOptionalInstalls(t *testing.T) {
 	if _, err := plist.Unmarshal(body, &manifest); err != nil {
 		t.Fatalf("manifest plist: %v", err)
 	}
-	if !sameStrings(manifest.OptionalInstalls, []string{"1", "2"}) {
-		t.Fatalf("optional_installs = %v, want [1 2]", manifest.OptionalInstalls)
+	if len(manifest.OptionalInstalls) != 0 {
+		t.Fatalf("optional_installs = %v, want empty", manifest.OptionalInstalls)
 	}
 	if !sameStrings(manifest.DefaultInstalls, []string{"1"}) {
 		t.Fatalf("default_installs = %v, want [1]", manifest.DefaultInstalls)

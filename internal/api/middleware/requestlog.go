@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
@@ -25,7 +27,7 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 						r.Context(),
 						"panic recovered",
 						"method", r.Method,
-						"path", r.URL.Path,
+						"path", requestLogPath(r),
 						"recover", recovered,
 						"stack", string(debug.Stack()),
 					)
@@ -54,10 +56,10 @@ func logRequest(
 	attrs := []any{
 		"request_id", chimiddleware.GetReqID(ctx),
 		"method", r.Method,
-		"path", r.URL.Path,
+		"path", requestLogPath(r),
 		"status", status,
 		"duration_ms", float64(elapsed.Microseconds()) / 1000,
-		"remote_addr", r.RemoteAddr,
+		"client_ip", chimiddleware.GetClientIP(ctx),
 	}
 	if userAgent := r.UserAgent(); userAgent != "" {
 		attrs = append(attrs, "user_agent", userAgent)
@@ -71,4 +73,21 @@ func logRequest(
 	default:
 		logger.DebugContext(ctx, "request completed", attrs...)
 	}
+}
+
+func requestLogPath(r *http.Request) string {
+	if pattern := chi.RouteContext(r.Context()).RoutePattern(); pattern != "" {
+		return pattern
+	}
+
+	const devicePrefix = "/api/latest/fleet/device/"
+	if suffix, ok := strings.CutPrefix(r.URL.Path, devicePrefix); ok {
+		if _, remainder, found := strings.Cut(suffix, "/"); found {
+			return devicePrefix + "{token}/" + remainder
+		}
+		if suffix != "" {
+			return devicePrefix + "{token}"
+		}
+	}
+	return r.URL.Path
 }

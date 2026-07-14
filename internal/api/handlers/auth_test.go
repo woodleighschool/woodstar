@@ -17,18 +17,18 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
-	if _, err := userService.Create(ctx, directory.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database), labels.NewStore(database))
+	if _, err := userService.CreateInitialAdministrator(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: "correct-password",
-		Role:     directory.RoleAdmin,
 	}); err != nil {
-		t.Fatalf("create test user: %v", err)
+		t.Fatalf("complete test setup: %v", err)
 	}
 
 	router := chi.NewRouter()

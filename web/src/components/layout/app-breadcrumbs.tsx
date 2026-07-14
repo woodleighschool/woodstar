@@ -267,7 +267,10 @@ function HostCrumb({ id }: { id: string }) {
 }
 
 const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d, id) => d.display_name || d.name || id);
-const MunkiSoftwareCrumb = resourceCrumb(useMunkiSoftwareDetail, (d, id) => d.name || id);
+const MunkiSoftwareCrumb = resourceCrumb(
+  useMunkiSoftwareDetail,
+  (d, id) => d.display_name || d.name || id,
+);
 const MunkiDistributionPointCrumb = resourceCrumb(
   useMunkiDistributionPoint,
   (d, id) => d.name || id,
@@ -286,7 +289,7 @@ function MunkiPackageCrumb({ id }: { id: string }) {
     if (isError) return <span>{id}</span>;
     return <CrumbSkeleton />;
   }
-  return <span>{`${data.software_name} ${data.version}`}</span>;
+  return <span>{`${data.software_display_name || data.software_name} ${data.version}`}</span>;
 }
 
 function CrumbSkeleton() {

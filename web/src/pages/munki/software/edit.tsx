@@ -132,7 +132,7 @@ function MunkiSoftwareDetailForm({
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
-  const title = software.name || "Software";
+  const title = software.display_name || software.name || "Software";
 
   function changeTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();

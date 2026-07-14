@@ -143,7 +143,6 @@ func registerLogout(api huma.API, authService *auth.Service, logger *slog.Logger
 		Path:        "/api/auth/logout",
 		Tags:        []string{authTag},
 		Summary:     "Revoke the current session",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 		if err := authService.Logout(ctx); err != nil {
 			return nil, handlerError(ctx, logger, "delete-session", err)

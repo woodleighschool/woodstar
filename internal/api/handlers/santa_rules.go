@@ -73,7 +73,7 @@ func registerListSantaRules(api huma.API, store *rules.Store, logger *slog.Logge
 		Path:        "/api/santa/rules",
 		Tags:        []string{santaTag},
 		Summary:     "List Santa rules",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaRuleListInput) (*santaRuleListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -93,8 +93,6 @@ func registerCreateSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -114,7 +112,7 @@ func registerGetSantaRule(api huma.API, store *rules.Store, logger *slog.Logger)
 		Path:        santaRuleIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Get a Santa rule",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
 		rule, err := store.GetByID(ctx, input.ID)
 		if err != nil {
@@ -133,8 +131,6 @@ func registerUpdateSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		Summary:     "Update a Santa rule",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -154,7 +150,7 @@ func registerDeleteSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		Path:        santaRuleIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Delete a Santa rule",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(ctx, logger, "delete-santa-rule", santaRuleResource, err, "id", input.ID)
@@ -170,7 +166,7 @@ func registerBulkDeleteSantaRules(api huma.API, store *rules.Store, logger *slog
 		Path:        "/api/santa/rules/bulk-delete",
 		Tags:        []string{santaTag},
 		Summary:     "Delete Santa rules",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-santa-rules", santaRuleResource, err)

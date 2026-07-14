@@ -77,7 +77,6 @@ func registerListReports(api huma.API, reportStore *reports.Store, logger *slog.
 		Path:        "/api/osquery/reports",
 		Tags:        []string{reportsTag},
 		Summary:     "List reports",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *reportListInput) (*reportListOutput, error) {
 		items, count, err := reportStore.List(ctx, input.params())
 		if err != nil {
@@ -95,7 +94,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store, logger *slog
 		Tags:          []string{reportsTag},
 		Summary:       "Create a report",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
 		report, err := reportStore.Create(ctx, reports.ReportCreateMutation{
 			ReportMutation:  input.Body,
@@ -115,7 +114,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store, logger *slog.Lo
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
 		Summary:     "Get a report",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
 		report, err := reportStore.GetByID(ctx, input.ID)
 		if err != nil {
@@ -140,7 +139,7 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store, logger *slog
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
 		Summary:     "Replace a report",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
 		report, err := reportStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
@@ -165,7 +164,7 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store, logger *slog
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
 		Summary:     "Delete a report",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
 		if err := reportStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceError(
@@ -189,7 +188,7 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store, logger 
 		Path:        "/api/osquery/reports/bulk-delete",
 		Tags:        []string{reportsTag},
 		Summary:     "Delete reports",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *reportBulkDeleteInput) (*struct{}, error) {
 		if _, err := reportStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-osquery-reports", err)
@@ -205,7 +204,7 @@ func registerReportResults(api huma.API, reportStore *reports.Store, logger *slo
 		Path:        "/api/osquery/reports/{id}/results",
 		Tags:        []string{reportsTag},
 		Summary:     "List latest snapshots for a report",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
 		rows, err := reportStore.Results(ctx, input.ID)
 		if err != nil {

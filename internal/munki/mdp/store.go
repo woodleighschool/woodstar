@@ -74,7 +74,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail
 SELECT
 	p.id AS package_id,
 	sw.id AS software_id,
-	sw.name AS display_name,
+	sw.display_name,
 	p.version,
 	sw.icon_object_id AS software_icon_object_id,
 	CASE

@@ -58,6 +58,76 @@ func createMunkiStorageObject(
 	return confirmed
 }
 
+func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	software, err := stores.software.Create(ctx, munkisoftware.Mutation{
+		Name:        "com.vendor.app",
+		DisplayName: "Vendor App",
+	})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	if software.Name != "com.vendor.app" || software.DisplayName != "Vendor App" {
+		t.Fatalf(
+			"software identity = %q/%q, want canonical and presentation names",
+			software.Name,
+			software.DisplayName,
+		)
+	}
+
+	pkg, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:       "1.0",
+			InstallerType: packages.InstallerTypeNoPkg,
+			OnDemand:      true,
+			Eligible:      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if pkg.SoftwareName != "com.vendor.app" || pkg.SoftwareDisplayName != "Vendor App" {
+		t.Fatalf(
+			"package software identity = %q/%q, want canonical and presentation names",
+			pkg.SoftwareName,
+			pkg.SoftwareDisplayName,
+		)
+	}
+	packageRows, count, err := stores.packages.List(ctx, packages.PackageListParams{
+		ListParams: dbutil.ListParams{Q: "Vendor App"},
+	})
+	if err != nil {
+		t.Fatalf("search packages by visible software name: %v", err)
+	}
+	if count != 1 || len(packageRows) != 1 || packageRows[0].ID != pkg.ID {
+		t.Fatalf("visible-name package search = %+v count %d, want package %d", packageRows, count, pkg.ID)
+	}
+
+	_, err = stores.software.Create(ctx, munkisoftware.Mutation{
+		Name:        "com.vendor.app",
+		DisplayName: "Duplicate Vendor App",
+	})
+	if !errors.Is(err, dbutil.ErrAlreadyExists) {
+		t.Fatalf("duplicate canonical name error = %v, want already exists", err)
+	}
+}
+
+func TestMunkiSoftwareDefaultsDisplayNameToCanonicalName(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	software, err := stores.software.Create(ctx, munkisoftware.Mutation{Name: "NoDisplayName"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	if software.DisplayName != software.Name {
+		t.Fatalf("display name = %q, want canonical name %q", software.DisplayName, software.Name)
+	}
+}
+
 func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
@@ -284,6 +354,12 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	}
 	if title.IconObjectID == nil || *title.IconObjectID != icon.ID {
 		t.Fatalf("title icon object id = %v, want %d", title.IconObjectID, icon.ID)
+	}
+	if title.IconFile == nil ||
+		title.IconFile.Filename != icon.Filename ||
+		title.IconFile.SizeBytes != 512 ||
+		title.IconFile.SHA256 != strings.Repeat("d", 64) {
+		t.Fatalf("title icon file = %+v, want confirmed icon metadata", title.IconFile)
 	}
 
 	pkg, err := stores.packages.Create(

@@ -120,7 +120,6 @@ func softwareRows(queryRows map[string][]map[string]string) []map[string]string 
 		catalog.QuerySoftwareJetBrainsPlugins,
 		catalog.QuerySoftwareGoBinaries,
 		catalog.QuerySoftwarePythonPackages,
-		catalog.QuerySoftwarePythonPackagesLegacy,
 	}
 	var rows []map[string]string
 	for _, key := range keys {

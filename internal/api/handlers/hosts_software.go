@@ -39,7 +39,7 @@ func registerHostSoftware(
 		Path:        "/api/hosts/{id}/software",
 		Tags:        []string{hostsTag},
 		Summary:     "List software installed on a host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSoftwareInput) (*hostSoftwareOutput, error) {
 		id, params := input.params()
 		rows, count, err := softwareStore.ListForHost(ctx, id, params)

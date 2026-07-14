@@ -12,7 +12,15 @@ import (
 func TestDeleteRemovesLocalUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewUserService(store)
+	service := newTestUserService(store)
+	if _, err := service.Create(ctx, UserCreate{
+		Email:    "other-admin@example.test",
+		Name:     "Other Admin",
+		Role:     RoleAdmin,
+		Password: "correct-password",
+	}); err != nil {
+		t.Fatalf("create other admin: %v", err)
+	}
 
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
@@ -35,7 +43,15 @@ func TestDeleteRemovesLocalUsers(t *testing.T) {
 func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewUserService(store)
+	service := newTestUserService(store)
+	if _, err := service.Create(ctx, UserCreate{
+		Email:    "local-admin@example.test",
+		Name:     "Local Admin",
+		Role:     RoleAdmin,
+		Password: "correct-password",
+	}); err != nil {
+		t.Fatalf("create local admin: %v", err)
+	}
 
 	hash, err := HashPassword("correct-password")
 	if err != nil {
@@ -105,9 +121,9 @@ WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != ni
 func TestListFiltersUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewUserService(store)
+	service := newTestUserService(store)
 
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Groups: []ProviderGroup{
 			{ExternalID: "all-users", DisplayName: "All Users", MailNickname: "all-users"},
@@ -191,7 +207,7 @@ func TestListDepartmentsReturnsDirectoryDepartments(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{

@@ -85,7 +85,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 			Decision:    events.FileAccessDecisionAuditOnly,
 			OccurredAt:  occurredAt.Add(4 * time.Second),
 		},
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("ingest events: %v", err)
 	}
 

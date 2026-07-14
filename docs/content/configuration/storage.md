@@ -34,12 +34,12 @@ The `s3` upload goes from the browser directly to the bucket, which makes it a c
 
 ```json
 [
-  {
-    "AllowedOrigins": ["https://woodstar.example.com"],
-    "AllowedMethods": ["GET", "PUT", "HEAD"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag"]
-  }
+    {
+        "AllowedOrigins": ["https://woodstar.example.com"],
+        "AllowedMethods": ["GET", "PUT", "HEAD"],
+        "AllowedHeaders": ["*"],
+        "ExposeHeaders": ["ETag"]
+    }
 ]
 ```
 
@@ -61,8 +61,8 @@ The checked-in compose stack runs [Garage](https://garagehq.deuxfleurs.fr/) as a
 ```bash
 WOODSTAR_STORAGE_KIND=s3
 WOODSTAR_STORAGE_S3_ENDPOINT=http://garage:3900
-WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT=http://127.0.0.1:3900
+WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT=https://garage.woodstar.test
 WOODSTAR_STORAGE_S3_PATH_STYLE=true
 ```
 
-That, plus the bucket, region, and credentials, is enough to exercise upload and redirect locally. Browser uploads still need a CORS rule on the Garage bucket. A real deployment brings its own bucket and endpoints; the full set of settings is in [Environment](./environment#storage).
+The internal endpoint can stay on Garage's HTTP listener because only Woodstar uses it. Put the public endpoint behind local HTTPS and trust that development CA on clients; upload and redirect URLs are deliberately never issued over HTTP. Browser uploads still need a CORS rule on the Garage bucket. A real deployment brings its own bucket and endpoints; the full set of settings is in [Environment](./environment#storage).

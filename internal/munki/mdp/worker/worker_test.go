@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,9 +17,14 @@ import (
 )
 
 func newTestWorker(t *testing.T, serverURL string) *Worker {
+	return newTestWorkerWithCA(t, serverURL, "")
+}
+
+func newTestWorkerWithCA(t *testing.T, serverURL, serverCAFile string) *Worker {
 	t.Helper()
 	w, err := New(Config{
 		ServerURL:           serverURL,
+		ServerCAFile:        serverCAFile,
 		Key:                 "dp-key",
 		DataDir:             t.TempDir(),
 		DownloadConcurrency: 2,
@@ -36,8 +43,21 @@ func newTestSession(t *testing.T, serverURL string) *session {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	client := newWoodstarClient(serverURL, "dp-key")
+	client, err := newWoodstarClient(serverURL, "dp-key", "")
+	if err != nil {
+		t.Fatalf("new Woodstar client: %v", err)
+	}
 	return newSession(ctx, mirror, client, discardLogger(), 2, time.Millisecond)
+}
+
+func serverCAFile(t *testing.T, srv *httptest.Server) string {
+	t.Helper()
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	path := t.TempDir() + "/server-ca.pem"
+	if err := os.WriteFile(path, pemBytes, 0o600); err != nil {
+		t.Fatalf("write server CA: %v", err)
+	}
+	return path
 }
 
 // fakeWoodstar serves the worker's HTTP side: a per-job download URL that points
@@ -158,6 +178,90 @@ func TestSessionRetriesUntilDownloadSucceeds(t *testing.T) {
 	}
 	if _, ok := sess.mirror.get(7); !ok {
 		t.Fatal("package not mirrored after a successful retry")
+	}
+}
+
+func TestWoodstarClientUsesConfiguredCAForAPIAndDownloads(t *testing.T) {
+	content := []byte("installer")
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/munki/distribution/packages/7/download-url", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(downloadURLResponse{DownloadURL: srv.URL + "/storage/installer"})
+	})
+	mux.HandleFunc("/storage/installer", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	})
+	srv = httptest.NewTLSServer(mux)
+	defer srv.Close()
+
+	client, err := newWoodstarClient(srv.URL, "dp-key", serverCAFile(t, srv))
+	if err != nil {
+		t.Fatalf("new Woodstar client: %v", err)
+	}
+	downloadURL, err := client.downloadURL(t.Context(), 7)
+	if err != nil {
+		t.Fatalf("download URL: %v", err)
+	}
+	path := t.TempDir() + "/installer.pkg"
+	if err := client.download(t.Context(), downloadURL, path); err != nil {
+		t.Fatalf("download: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read download: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("downloaded bytes = %q", got)
+	}
+	if client.apiHTTP.Timeout <= 0 || client.downloadHTTP.Timeout <= 0 {
+		t.Fatalf("client timeouts = %v/%v, want finite", client.apiHTTP.Timeout, client.downloadHTTP.Timeout)
+	}
+}
+
+func TestDownloadErrorRedactsPresignedCredentials(t *testing.T) {
+	client := &woodstarClient{
+		downloadHTTP: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("connection refused")
+		})},
+	}
+	const rawURL = "https://access:secret@storage.example/package.pkg?signature=private"
+	err := client.download(t.Context(), rawURL, t.TempDir()+"/package.pkg")
+	if err == nil {
+		t.Fatal("download returned nil error")
+	}
+	message := err.Error()
+	if strings.Contains(message, "access") || strings.Contains(message, "secret") ||
+		strings.Contains(message, "signature") || strings.Contains(message, "private") {
+		t.Fatalf("download error contains presigned credentials: %q", message)
+	}
+	if !strings.Contains(message, "https://storage.example/package.pkg") {
+		t.Fatalf("download error = %q, want redacted target", message)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+func TestConnectOnceUsesConfiguredCA(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ws, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer ws.Close(websocket.StatusNormalClosure, "")
+		if err := ws.Write(r.Context(), websocket.MessageText, []byte(`{"type":"unknown"}`)); err != nil {
+			return
+		}
+	}))
+	defer srv.Close()
+
+	worker := newTestWorkerWithCA(t, srv.URL, serverCAFile(t, srv))
+	err := worker.connectOnce(t.Context())
+	if err == nil || !strings.Contains(err.Error(), `unexpected message type "unknown"`) {
+		t.Fatalf("connectOnce error = %v, want server message after TLS handshake", err)
 	}
 }
 

@@ -47,7 +47,7 @@ func seedAvailablePackage(
 	t.Helper()
 	var softwareID int64
 	if err := db.Pool().QueryRow(ctx,
-		`INSERT INTO munki_software (name) VALUES ($1) RETURNING id`, name,
+		`INSERT INTO munki_software (name, display_name) VALUES ($1, $1) RETURNING id`, name,
 	).Scan(&softwareID); err != nil {
 		t.Fatalf("insert software: %v", err)
 	}

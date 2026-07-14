@@ -161,34 +161,6 @@ func TestRequireHTTPAuthRejectsMissingCredentials(t *testing.T) {
 	}
 }
 
-func TestAPIKeyFromQueryPromotesBearerAuthorization(t *testing.T) {
-	var got string
-	handler := APIKeyFromQuery("apikey")(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		got = req.Header.Get("Authorization")
-	}))
-
-	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/hook?apikey=query-key", nil))
-
-	if got != "Bearer query-key" {
-		t.Fatalf("authorization = %q, want Bearer query-key", got)
-	}
-}
-
-func TestAPIKeyFromQueryDoesNotOverwriteAuthorization(t *testing.T) {
-	var got string
-	handler := APIKeyFromQuery("apikey")(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		got = req.Header.Get("Authorization")
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/hook?apikey=query-key", nil)
-	req.Header.Set("Authorization", "Bearer header-key")
-	handler.ServeHTTP(httptest.NewRecorder(), req)
-
-	if got != "Bearer header-key" {
-		t.Fatalf("authorization = %q, want existing header", got)
-	}
-}
-
 func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 	type output struct {
 		Body struct {

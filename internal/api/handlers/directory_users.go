@@ -103,7 +103,6 @@ func registerListUsers(api huma.API, userService *directory.UserService, logger 
 		Path:        "/api/users",
 		Tags:        []string{usersTag},
 		Summary:     "List Woodstar users",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
@@ -120,7 +119,6 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 		Path:        "/api/users/departments",
 		Tags:        []string{usersTag},
 		Summary:     "List directory user departments",
-		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
@@ -140,8 +138,6 @@ func registerCreateUser(api huma.API, userService *directory.UserService, logger
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userCreateInput) (*userOutput, error) {
@@ -160,7 +156,7 @@ func registerGetUser(api huma.API, userService *directory.UserService, logger *s
 		Path:        userIDPath,
 		Tags:        []string{usersTag},
 		Summary:     "Get a Woodstar user",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
 		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
@@ -179,8 +175,6 @@ func registerPutUser(api huma.API, userService *directory.UserService, logger *s
 		Summary:     "Replace a Woodstar user",
 		Errors: []int{
 			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -201,8 +195,6 @@ func registerDeleteUser(api huma.API, userService *directory.UserService, logger
 		Tags:        []string{usersTag},
 		Summary:     "Delete a Woodstar user",
 		Errors: []int{
-			http.StatusUnauthorized,
-			http.StatusForbidden,
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
@@ -218,6 +210,8 @@ func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
+	case errors.Is(err, directory.ErrLastAdministrator):
+		return huma.Error409Conflict(directory.ErrLastAdministrator.Error())
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:

@@ -19,16 +19,11 @@ type SnapshotApplier interface {
 	ApplyProviderSnapshot(ctx context.Context, source directory.Source, snapshot directory.ProviderSnapshot) error
 }
 
-type DerivedLabelRefresher interface {
-	RefreshDerived(ctx context.Context) error
-}
-
 // Service runs sync passes on demand and on a fixed interval.
 type Service struct {
-	applier        SnapshotApplier
-	fetcher        Fetcher
-	logger         *slog.Logger
-	labelRefresher DerivedLabelRefresher
+	applier SnapshotApplier
+	fetcher Fetcher
+	logger  *slog.Logger
 }
 
 // NewService composes an Entra fetcher with directory reconciliation.
@@ -36,9 +31,8 @@ func NewService(
 	applier SnapshotApplier,
 	fetcher Fetcher,
 	logger *slog.Logger,
-	labelRefresher DerivedLabelRefresher,
 ) *Service {
-	return &Service{applier: applier, fetcher: fetcher, logger: logger, labelRefresher: labelRefresher}
+	return &Service{applier: applier, fetcher: fetcher, logger: logger}
 }
 
 // Sync performs a single full reconciliation. Errors from either the fetch or
@@ -57,11 +51,6 @@ func (s *Service) Sync(ctx context.Context) error {
 	}
 	if err := s.applier.ApplyProviderSnapshot(ctx, directory.SourceEntra, snapshot); err != nil {
 		return err
-	}
-	if s.labelRefresher != nil {
-		if err := s.labelRefresher.RefreshDerived(ctx); err != nil {
-			return err
-		}
 	}
 	s.logger.InfoContext(ctx, "entra sync complete",
 		"operation", "sync",

@@ -62,9 +62,9 @@ func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
 	return store, store.Presence()
 }
 
-func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {
+func pointMutation(cidrs []string) mdp.DistributionPointMutation {
 	return mdp.DistributionPointMutation{
-		Name:          name,
+		Name:          "Melbourne",
 		Enabled:       true,
 		ClientCIDRs:   cidrs,
 		ClientBaseURL: "https://mdp.example",
@@ -82,7 +82,7 @@ func seedAvailablePackage(
 	t.Helper()
 	var softwareID int64
 	if err := db.Pool().QueryRow(ctx,
-		`INSERT INTO munki_software (name) VALUES ($1) RETURNING id`, name,
+		`INSERT INTO munki_software (name, display_name) VALUES ($1, $1) RETURNING id`, name,
 	).Scan(&softwareID); err != nil {
 		t.Fatalf("insert software: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestConnectDeliversIdentityAndDesiredSetThenRecordsState(t *testing.T) {
 	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
-	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "worker-key")
+	point, err := store.Create(ctx, pointMutation([]string{"10.0.0.0/8"}), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestConnectDeliversIdentityAndDesiredSetThenRecordsState(t *testing.T) {
 func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store, presence := newStore(db)
-	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "worker-key")
+	point, err := store.Create(ctx, pointMutation([]string{"10.0.0.0/8"}), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -229,12 +229,47 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	eventually(t, func() bool { return !presence.Online(point.ID) })
 }
 
+func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store, presence := newStore(db)
+	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	protocol := mdpprotocol.NewServer(store, fakePresigner{}, discardLogger())
+	t.Cleanup(protocol.Close)
+	router := chi.NewRouter()
+	protocol.RegisterRoutes(router)
+	httpServer := httptest.NewServer(router)
+	defer httpServer.Close()
+
+	ws, _, err := websocket.Dial(ctx, wsURL(httpServer.URL), &websocket.DialOptions{
+		HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
+	})
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer ws.CloseNow()
+	readJSON(t, ctx, ws, new(struct{}))
+	readJSON(t, ctx, ws, new(struct{}))
+	eventually(t, func() bool { return presence.Online(point.ID) })
+
+	protocol.Disconnect(point.ID)
+	eventually(t, func() bool { return !presence.Online(point.ID) })
+	readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if _, _, err := ws.Read(readCtx); websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
+		t.Fatalf("read after disconnect error = %v, want policy violation close", err)
+	}
+}
+
 func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
-	if _, err := store.Create(ctx, pointMutation("Melbourne", nil), "worker-key"); err != nil {
+	if _, err := store.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	const presigned = "https://storage.example/packages/1/Chrome.pkg?cap=signed"

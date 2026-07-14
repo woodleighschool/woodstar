@@ -33,8 +33,24 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 	if !strings.Contains(query, "LIMIT $2 OFFSET $3") {
 		t.Fatalf("query = %s", query)
 	}
-	if len(args) != 3 || args[0] != "existing" || args[1] != int32(25) || args[2] != int32(25) {
+	if len(args) != 3 || args[0] != "existing" || args[1] != int32(25) || args[2] != int64(25) {
 		t.Fatalf("args = %#v", args)
+	}
+}
+
+func TestListQueryCalculatesOffsetWithoutInt32Overflow(t *testing.T) {
+	_, args, err := ListQuery{
+		SelectSQL: "SELECT * FROM hosts",
+		Params: NormalizeListParams(ListParams{
+			PageIndex: 2_147_483_647,
+			PageSize:  1000,
+		}),
+	}.Build()
+	if err != nil {
+		t.Fatalf("Build returned error: %v", err)
+	}
+	if got, want := args[1], int64(2_147_483_647_000); got != want {
+		t.Fatalf("offset = %#v, want %d", got, want)
 	}
 }
 

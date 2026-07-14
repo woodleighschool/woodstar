@@ -61,13 +61,25 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 	if sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("missing required query was treated as complete")
 	}
-	pass.results["required"] = detailResult{rows: []map[string]string{}, status: json.RawMessage(`1`)}
+	pass.results["required"] = detailResult{
+		rows:      []map[string]string{},
+		status:    json.RawMessage(`1`),
+		hasStatus: true,
+	}
 	if sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("failed required query was treated as complete")
 	}
 	pass.results["required"] = detailResult{rows: []map[string]string{}}
+	if sawEveryRequiredDetailQuery(pass) {
+		t.Fatal("required query without a status was treated as complete")
+	}
+	pass.results["required"] = detailResult{
+		rows:      []map[string]string{},
+		status:    json.RawMessage(`0`),
+		hasStatus: true,
+	}
 	if !sawEveryRequiredDetailQuery(pass) {
-		t.Fatal("empty successful required query was not treated as complete")
+		t.Fatal("required query with integer zero status was not treated as complete")
 	}
 }
 
@@ -106,8 +118,11 @@ func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
 			catalog.QueryMunkiInstalls: {Optional: true, Ingest: catalog.IngestMunkiInstalls},
 		},
 		results: map[string]detailResult{
-			"required":             {},
-			catalog.QueryMunkiInfo: {status: json.RawMessage(`1`)},
+			"required": {
+				status:    json.RawMessage(`0`),
+				hasStatus: true,
+			},
+			catalog.QueryMunkiInfo: {status: json.RawMessage(`1`), hasStatus: true},
 		},
 		allSucceeded: true,
 	}

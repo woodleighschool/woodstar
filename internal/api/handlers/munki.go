@@ -17,23 +17,37 @@ import (
 // MunkiHandlerDeps are the stores, services, and route groups used by Munki
 // admin handlers.
 type MunkiHandlerDeps struct {
-	API          huma.API
-	Router       chi.Router
-	AuthService  *auth.Service
-	HostState    *munki.Store
-	Software     *munkisoftware.Store
-	Packages     *munki.PackageService
-	Objects      *storage.ObjectStore
-	Storage      storage.Backend
-	Distribution *mdp.Store
-	Logger       *slog.Logger
+	API            huma.API
+	Router         chi.Router
+	AuthService    *auth.Service
+	HostState      *munki.Store
+	Software       *munkisoftware.Store
+	DeleteSoftware *munki.SoftwareDeletionService
+	Packages       *munki.PackageService
+	Objects        *storage.ObjectStore
+	Storage        storage.Backend
+	Distribution   *mdp.Store
+	Connections    distributionPointConnections
+	Logger         *slog.Logger
+}
+
+type distributionPointConnections interface {
+	Disconnect(int64)
 }
 
 // RegisterMunki mounts Munki host state, software, package, and distribution
 // point endpoints.
 func RegisterMunki(deps MunkiHandlerDeps) {
 	registerHostMunkiState(deps.API, deps.HostState, deps.Logger)
-	registerMunkiSoftware(deps.API, deps.Software, deps.Packages, deps.Objects, deps.Storage, deps.Logger)
+	registerMunkiSoftware(
+		deps.API,
+		deps.Software,
+		deps.DeleteSoftware,
+		deps.Packages,
+		deps.Objects,
+		deps.Storage,
+		deps.Logger,
+	)
 	registerMunkiSoftwareIconContent(
 		deps.Router.With(middleware.RequireHTTPAuth(deps.AuthService)),
 		deps.Software,
@@ -42,5 +56,5 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 		deps.Logger,
 	)
 	registerMunkiPackages(deps.API, deps.Packages, deps.Objects, deps.Storage, deps.Logger)
-	registerMunkiDistributionPoints(deps.API, deps.Distribution, deps.Logger)
+	registerMunkiDistributionPoints(deps.API, deps.Distribution, deps.Connections, deps.Logger)
 }

@@ -144,7 +144,18 @@ func (cfg *Config) Validate() error {
 			oidcCallbackPath,
 		)
 	}
-	return validation.Struct(cfg)
+	if err := validation.Struct(cfg); err != nil {
+		return err
+	}
+	publicStorageEndpoint := cfg.StorageS3PublicEndpoint
+	if publicStorageEndpoint == "" {
+		publicStorageEndpoint = cfg.StorageS3Endpoint
+	}
+	if cfg.StorageKind == "s3" && publicStorageEndpoint != "" &&
+		!validation.IsHTTPSOrigin(publicStorageEndpoint) {
+		return errors.New("StorageS3PublicEndpoint must resolve to an HTTPS origin")
+	}
+	return nil
 }
 
 func validOIDCRedirectURL(value string) bool {
@@ -217,8 +228,8 @@ func (cfg *Config) normalizeStorage() {
 	cfg.StorageFileRoot = strings.TrimSpace(cfg.StorageFileRoot)
 	cfg.StorageS3Bucket = strings.TrimSpace(cfg.StorageS3Bucket)
 	cfg.StorageS3Region = strings.TrimSpace(cfg.StorageS3Region)
-	cfg.StorageS3Endpoint = strings.TrimSpace(cfg.StorageS3Endpoint)
-	cfg.StorageS3PublicEndpoint = strings.TrimSpace(cfg.StorageS3PublicEndpoint)
+	cfg.StorageS3Endpoint = normalizeOrigin(cfg.StorageS3Endpoint)
+	cfg.StorageS3PublicEndpoint = normalizeOrigin(cfg.StorageS3PublicEndpoint)
 	cfg.StorageS3AccessKey = strings.TrimSpace(cfg.StorageS3AccessKey)
 }
 

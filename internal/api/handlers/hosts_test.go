@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,12 +18,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestHostPrimaryUserManualOverride(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
-	primaryUsers := hosts.NewPrimaryUserStore(db)
+	primaryUserStore := hosts.NewPrimaryUserStore(db)
+	labelStore := labels.NewStore(db)
+	primaryUsers := hosts.NewPrimaryUserService(primaryUserStore, labelStore)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "host-manual-user-map"},
@@ -31,13 +35,31 @@ func TestHostPrimaryUserManualOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if err := primaryUsers.Upsert(
+	if err := primaryUserStore.Upsert(
 		ctx,
 		host.ID,
 		"agent@example.test",
 		hosts.PrimaryUserSourceOrbitProfile,
 	); err != nil {
 		t.Fatalf("seed orbit primary user: %v", err)
+	}
+	var manualUserID int64
+	if err := db.Pool().QueryRow(ctx, `
+INSERT INTO users (email, name, source, external_id, user_principal_name)
+VALUES ('manual@example.test', 'Manual User', 'entra', 'manual-user', 'manual@example.test')
+RETURNING id`).Scan(&manualUserID); err != nil {
+		t.Fatalf("insert manual directory user: %v", err)
+	}
+	derivedLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Manual primary user",
+		LabelMembershipType: labels.LabelMembershipTypeDerived,
+		Criteria: &labels.Criteria{
+			Attribute: labels.DerivedAttributeUser,
+			Values:    []string{strconv.FormatInt(manualUserID, 10)},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create derived label: %v", err)
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
@@ -68,6 +90,7 @@ func TestHostPrimaryUserManualOverride(t *testing.T) {
 		body.PrimaryUserSources[0].Source != string(hosts.PrimaryUserSourceManual) {
 		t.Fatalf("primary user sources after put = %+v, want manual source first", body.PrimaryUserSources)
 	}
+	assertHostLabel(t, ctx, labelStore, host.ID, derivedLabel.ID, true)
 
 	rec = hostAPIRequest(
 		t,
@@ -85,6 +108,33 @@ func TestHostPrimaryUserManualOverride(t *testing.T) {
 	}
 	if len(body.PrimaryUserSources) != 1 || body.PrimaryUserSources[0].Email != "agent@example.test" {
 		t.Fatalf("primary user sources after delete = %+v, want agent source only", body.PrimaryUserSources)
+	}
+	assertHostLabel(t, ctx, labelStore, host.ID, derivedLabel.ID, false)
+}
+
+func assertHostLabel(
+	t *testing.T,
+	ctx context.Context,
+	store *labels.Store,
+	hostID int64,
+	labelID int64,
+	want bool,
+) {
+	t.Helper()
+	hostLabels, err := store.ListForHost(ctx, hostID)
+	if err != nil {
+		t.Fatalf("list host labels: %v", err)
+	}
+	for _, label := range hostLabels {
+		if label.ID == labelID {
+			if !want {
+				t.Fatalf("host %d unexpectedly has label %d", hostID, labelID)
+			}
+			return
+		}
+	}
+	if want {
+		t.Fatalf("host %d does not have label %d", hostID, labelID)
 	}
 }
 

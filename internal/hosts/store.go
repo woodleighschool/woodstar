@@ -71,6 +71,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	hardware_serial = EXCLUDED.hardware_serial,
 	hardware_model_identifier = EXCLUDED.hardware_model_identifier,
 	orbit_node_key = EXCLUDED.orbit_node_key,
+	orbit_device_auth_token = '',
 	enrollment_agent = EXCLUDED.enrollment_agent,
 	enrolled_at = now(),
 	last_seen_at = now(),
@@ -318,6 +319,35 @@ UPDATE hosts
 SET last_seen_at = now(), updated_at = now()
 WHERE osquery_node_key = $1 AND osquery_node_key <> ''
 RETURNING`+hostColumnsSQL(), nodeKey)
+}
+
+// SetOrbitDeviceAuthToken replaces the machine token for an Orbit node key.
+func (s *Store) SetOrbitDeviceAuthToken(ctx context.Context, nodeKey, token string) error {
+	tag, err := s.db.Pool().Exec(ctx, `
+UPDATE hosts
+SET
+    orbit_device_auth_token = $2,
+    last_seen_at = now(),
+    updated_at = now()
+WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey, token)
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+// ValidateOrbitDeviceAuthToken confirms that a machine token belongs to a host.
+func (s *Store) ValidateOrbitDeviceAuthToken(ctx context.Context, token string) error {
+	var hostID int64
+	err := s.db.Pool().QueryRow(ctx, `
+UPDATE hosts
+SET last_seen_at = now(), updated_at = now()
+WHERE orbit_device_auth_token = $1 AND orbit_device_auth_token <> ''
+RETURNING id`, token).Scan(&hostID)
+	return dbutil.GetError(err)
 }
 
 func (s *Store) touchByNodeKey(ctx context.Context, sql, nodeKey string) (*Host, error) {

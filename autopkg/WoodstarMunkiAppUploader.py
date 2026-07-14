@@ -27,15 +27,23 @@ class WoodstarMunkiAppUploader(Processor):
     input_variables = {
         "WOODSTAR_URL": {
             "required": True,
-            "description": "Woodstar base URL, for example http://localhost:8080.",
+            "description": "Woodstar HTTPS origin, for example https://woodstar.example.",
         },
         "WOODSTAR_API_KEY": {
             "required": True,
             "description": "Woodstar admin API key.",
         },
+        "WOODSTAR_CA_FILE": {
+            "required": False,
+            "description": "PEM CA file for a private Woodstar certificate chain.",
+        },
         "name": {
             "required": False,
-            "description": "Woodstar Munki software name. Defaults to pkginfo display_name, pkginfo name, or NAME.",
+            "description": "Woodstar Munki item name. Defaults to pkginfo name or NAME.",
+        },
+        "display_name": {
+            "required": False,
+            "description": "Name shown to users. Defaults to pkginfo display_name.",
         },
         "description": {"required": False, "description": "Software description."},
         "category": {"required": False, "description": "Software category."},
@@ -75,10 +83,17 @@ class WoodstarMunkiAppUploader(Processor):
 
         icon_path = self.env.get("icon_path")
         icon_uploaded = False
-        if icon_path and needs_object(software, "icon", truthy(self.env.get("force", False))):
+        if icon_path and needs_object(
+            software,
+            "icon",
+            icon_path,
+            truthy(self.env.get("force", False)),
+        ):
             client.attach_object(f"/api/munki/software/{software['id']}/icon", icon_path)
             software = client.get(f"/api/munki/software/{software['id']}")
             icon_uploaded = True
+            if action == "Skipped":
+                action = "Updated"
         targets = software.get("targets") or empty_targets()
 
         self.env["woodstar_software"] = software
@@ -99,6 +114,7 @@ class WoodstarMunkiAppUploader(Processor):
     def upsert_software(self, client, pkginfo, name):
         body = {
             "name": name,
+            "display_name": self.env.get("display_name") or pkginfo.get("display_name") or name,
             "description": self.env.get("description") or pkginfo.get("description") or "",
             "category": self.env.get("category") or pkginfo.get("category") or "",
             "developer": self.env.get("developer") or pkginfo.get("developer") or "",
@@ -130,7 +146,6 @@ class WoodstarMunkiAppUploader(Processor):
     def software_name(self, pkginfo):
         return (
             self.env.get("name")
-            or pkginfo.get("display_name")
             or pkginfo.get("name")
             or self.env.get("NAME")
         )
