@@ -31,6 +31,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
@@ -105,6 +106,7 @@ type AppDependencies struct {
 	StorageObjects *storage.ObjectStore
 
 	MunkiPackages          *munki.PackageService
+	MunkiClientResources   *clientresources.Service
 	MunkiSoftware          *munkisoftware.Store
 	MunkiSoftwareDeletions *munki.SoftwareDeletionService
 	MunkiHostState         *munki.Store
@@ -330,18 +332,19 @@ func registerAppRoutes(
 		apiLogger,
 	)
 	handlers.RegisterMunki(handlers.MunkiHandlerDeps{
-		API:            ordinary,
-		Router:         r,
-		AuthService:    deps.App.AuthService,
-		HostState:      deps.App.MunkiHostState,
-		Software:       deps.App.MunkiSoftware,
-		DeleteSoftware: deps.App.MunkiSoftwareDeletions,
-		Packages:       munkiPackages,
-		Objects:        deps.App.StorageObjects,
-		Storage:        deps.App.StorageBackend,
-		Distribution:   deps.App.MunkiDistribution,
-		Connections:    deps.Protocols.Munki.DistributionProtocol,
-		Logger:         apiLogger,
+		API:             ordinary,
+		Router:          r,
+		AuthService:     deps.App.AuthService,
+		HostState:       deps.App.MunkiHostState,
+		Software:        deps.App.MunkiSoftware,
+		DeleteSoftware:  deps.App.MunkiSoftwareDeletions,
+		Packages:        munkiPackages,
+		ClientResources: deps.App.MunkiClientResources,
+		Objects:         deps.App.StorageObjects,
+		Storage:         deps.App.StorageBackend,
+		Distribution:    deps.App.MunkiDistribution,
+		Connections:     deps.Protocols.Munki.DistributionProtocol,
+		Logger:          apiLogger,
 	})
 	handlers.RegisterSanta(
 		ordinary,

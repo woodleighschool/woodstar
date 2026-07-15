@@ -38,6 +38,7 @@ import { Route as AuthenticatedOsqueryChecksRouteImport } from './routes/_authen
 import { Route as AuthenticatedMunkiSoftwareRouteImport } from './routes/_authenticated/munki.software'
 import { Route as AuthenticatedMunkiPackagesRouteImport } from './routes/_authenticated/munki.packages'
 import { Route as AuthenticatedMunkiDistributionPointsRouteImport } from './routes/_authenticated/munki.distribution-points'
+import { Route as AuthenticatedMunkiClientResourcesRouteImport } from './routes/_authenticated/munki.client-resources'
 import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authenticated/labels.new'
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
 import { Route as AuthenticatedEnrollmentsSantaRouteImport } from './routes/_authenticated/enrollments.santa'
@@ -238,6 +239,12 @@ const AuthenticatedMunkiDistributionPointsRoute =
   AuthenticatedMunkiDistributionPointsRouteImport.update({
     id: '/distribution-points',
     path: '/distribution-points',
+    getParentRoute: () => AuthenticatedMunkiRoute,
+  } as any)
+const AuthenticatedMunkiClientResourcesRoute =
+  AuthenticatedMunkiClientResourcesRouteImport.update({
+    id: '/client-resources',
+    path: '/client-resources',
     getParentRoute: () => AuthenticatedMunkiRoute,
   } as any)
 const AuthenticatedLabelsNewRoute = AuthenticatedLabelsNewRouteImport.update({
@@ -527,6 +534,7 @@ export interface FileRoutesByFullPath {
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
+  '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   '/munki/packages': typeof AuthenticatedMunkiPackagesRouteWithChildren
   '/munki/software': typeof AuthenticatedMunkiSoftwareRouteWithChildren
@@ -591,6 +599,7 @@ export interface FileRoutesByTo {
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
+  '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/directory': typeof AuthenticatedDirectoryIndexRoute
   '/enrollments': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
@@ -656,6 +665,7 @@ export interface FileRoutesById {
   '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
+  '/_authenticated/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/_authenticated/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   '/_authenticated/munki/packages': typeof AuthenticatedMunkiPackagesRouteWithChildren
   '/_authenticated/munki/software': typeof AuthenticatedMunkiSoftwareRouteWithChildren
@@ -732,6 +742,7 @@ export interface FileRouteTypes {
     | '/enrollments/santa'
     | '/hosts/$hostId'
     | '/labels/new'
+    | '/munki/client-resources'
     | '/munki/distribution-points'
     | '/munki/packages'
     | '/munki/software'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/enrollments/santa'
     | '/hosts/$hostId'
     | '/labels/new'
+    | '/munki/client-resources'
     | '/directory'
     | '/enrollments'
     | '/hosts'
@@ -860,6 +872,7 @@ export interface FileRouteTypes {
     | '/_authenticated/enrollments/santa'
     | '/_authenticated/hosts/$hostId'
     | '/_authenticated/labels/new'
+    | '/_authenticated/munki/client-resources'
     | '/_authenticated/munki/distribution-points'
     | '/_authenticated/munki/packages'
     | '/_authenticated/munki/software'
@@ -1125,6 +1138,13 @@ declare module '@tanstack/react-router' {
       path: '/distribution-points'
       fullPath: '/munki/distribution-points'
       preLoaderRoute: typeof AuthenticatedMunkiDistributionPointsRouteImport
+      parentRoute: typeof AuthenticatedMunkiRoute
+    }
+    '/_authenticated/munki/client-resources': {
+      id: '/_authenticated/munki/client-resources'
+      path: '/client-resources'
+      fullPath: '/munki/client-resources'
+      preLoaderRoute: typeof AuthenticatedMunkiClientResourcesRouteImport
       parentRoute: typeof AuthenticatedMunkiRoute
     }
     '/_authenticated/labels/new': {
@@ -1614,6 +1634,7 @@ const AuthenticatedMunkiSoftwareRouteWithChildren =
   )
 
 interface AuthenticatedMunkiRouteChildren {
+  AuthenticatedMunkiClientResourcesRoute: typeof AuthenticatedMunkiClientResourcesRoute
   AuthenticatedMunkiDistributionPointsRoute: typeof AuthenticatedMunkiDistributionPointsRouteWithChildren
   AuthenticatedMunkiPackagesRoute: typeof AuthenticatedMunkiPackagesRouteWithChildren
   AuthenticatedMunkiSoftwareRoute: typeof AuthenticatedMunkiSoftwareRouteWithChildren
@@ -1621,6 +1642,8 @@ interface AuthenticatedMunkiRouteChildren {
 }
 
 const AuthenticatedMunkiRouteChildren: AuthenticatedMunkiRouteChildren = {
+  AuthenticatedMunkiClientResourcesRoute:
+    AuthenticatedMunkiClientResourcesRoute,
   AuthenticatedMunkiDistributionPointsRoute:
     AuthenticatedMunkiDistributionPointsRouteWithChildren,
   AuthenticatedMunkiPackagesRoute: AuthenticatedMunkiPackagesRouteWithChildren,

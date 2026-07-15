@@ -720,6 +720,32 @@ func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPRedirectsClientResources(t *testing.T) {
+	repository := newStaticRepository()
+	repository.fileURL = "munki/clientresources/archives/9/site_default.zip"
+	store := &fakePresigner{presignURL: "https://storage.example/site_default.zip?signature=test"}
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		repository,
+		store,
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/client_resources/C02MUNKI.zip", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
+	}
+	if repository.fileClass != "client resources" || repository.fileKey != "C02MUNKI.zip" {
+		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
+	}
+	if store.gotKey != "munki/clientresources/archives/9/site_default.zip" {
+		t.Fatalf("presigned key = %q", store.gotKey)
+	}
+}
+
 func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 	router := newMunkiContractRouter(errorVerifier{}, newStaticRepository())
 	rec := httptest.NewRecorder()
@@ -880,6 +906,13 @@ func (r *staticRepository) ResolveIconFile(
 	key string,
 ) (string, error) {
 	return r.resolve("icon", key)
+}
+
+func (r *staticRepository) ResolveClientResources(
+	_ context.Context,
+	name string,
+) (string, error) {
+	return r.resolve("client resources", name)
 }
 
 func (r *staticRepository) resolve(class, key string) (string, error) {

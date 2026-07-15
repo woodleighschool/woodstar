@@ -265,6 +265,10 @@ WHERE o.id = ANY($1::bigint[])
       SELECT 1 FROM munki_packages p
       WHERE p.installer_object_id = o.id
   )
+  AND NOT EXISTS (
+      SELECT 1 FROM munki_client_resources cr
+      WHERE cr.banner_object_id = o.id OR cr.archive_object_id = o.id
+  )
 RETURNING o.prefix, o.id, o.filename`, lockedIDs)
 		if err != nil {
 			return err

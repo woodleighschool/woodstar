@@ -99,6 +99,23 @@ components:
         - organizational_unit
         - common_name
       type: object
+    ClientResourcesBannerUploadRequest:
+      additionalProperties: false
+      properties:
+        content_type:
+          type: string
+        filename:
+          type: string
+        size_bytes:
+          format: int64
+          maximum: 5242880
+          minimum: 1
+          type: integer
+      required:
+        - filename
+        - content_type
+        - size_bytes
+      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -827,6 +844,41 @@ components:
         - email
         - password
       type: object
+    MunkiClientResources:
+      additionalProperties: false
+      properties:
+        banner:
+          $ref: "#/components/schemas/MunkiObjectView"
+        banner_alignment:
+          enum:
+            - left
+            - center
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        footer_links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          type: array
+        footer_text:
+          type: string
+        links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          type: array
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - banner
+        - banner_alignment
+        - links
+        - footer_text
+        - footer_links
+        - created_at
+        - updated_at
+      type: object
     MunkiCreateMutation:
       additionalProperties: false
       properties:
@@ -1085,6 +1137,48 @@ components:
         - installed
         - installed_version
       type: object
+    MunkiLink:
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+        open_in_browser:
+          type: boolean
+        target:
+          type: string
+      required:
+        - label
+        - target
+        - open_in_browser
+      type: object
+    MunkiMutation:
+      additionalProperties: false
+      properties:
+        banner_alignment:
+          enum:
+            - left
+            - center
+          type: string
+        banner_object_id:
+          format: int64
+          type: integer
+        footer_links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          type: array
+        footer_text:
+          type: string
+        links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          type: array
+      required:
+        - banner_object_id
+        - banner_alignment
+        - links
+        - footer_text
+        - footer_links
+      type: object
     MunkiObjectView:
       additionalProperties: false
       properties:
@@ -1106,6 +1200,7 @@ components:
         - id
         - filename
         - content_type
+        - content_url
       type: object
     MunkiPackage:
       additionalProperties: false
@@ -5561,6 +5656,184 @@ paths:
       summary: Stream live query results
       tags:
         - Live Queries
+  /api/munki/client-resources:
+    delete:
+      operationId: delete-munki-client-resources
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Remove Munki client resources and use Munki defaults
+      tags:
+        - Munki
+    get:
+      operationId: get-munki-client-resources
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiClientResources"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Get configured Munki client resources
+      tags:
+        - Munki
+    put:
+      operationId: save-munki-client-resources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiMutation"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiClientResources"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Build and publish Munki client resources
+      tags:
+        - Munki
+  /api/munki/client-resources/banner:
+    post:
+      operationId: create-munki-client-resources-banner-upload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientResourcesBannerUploadRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiUploadTarget"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Create a banner upload for Munki client resources
+      tags:
+        - Munki
   /api/munki/distribution-points:
     get:
       operationId: list-munki-distribution-points

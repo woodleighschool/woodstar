@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -91,6 +92,57 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	_, err = service.ResolveIconFile(context.Background(), "42-Other.png")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("mismatched icon error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
+	availableAt := time.Now()
+	resource := &clientresources.ClientResources{
+		ArchiveObjectID: 9,
+	}
+	archive := storage.Object{
+		ID:          9,
+		Prefix:      clientresources.ArchiveObjectPrefix,
+		Filename:    "site_default.zip",
+		AvailableAt: &availableAt,
+	}
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Hosts: serviceHostStore{host: &hosts.Host{
+			ID:       1,
+			Hardware: hosts.HostHardware{Serial: "C02MUNKI"},
+		}},
+		ClientResources: serviceClientResourcesStore{resource: resource},
+		Objects:         serviceObjectStore{objects: map[int64]storage.Object{archive.ID: archive}},
+	})
+
+	for _, name := range []string{"C02MUNKI.zip", "site_default.zip"} {
+		key, err := service.ResolveClientResources(context.Background(), name)
+		if err != nil {
+			t.Fatalf("ResolveClientResources(%q): %v", name, err)
+		}
+		if key != "munki/clientresources/archives/9/site_default.zip" {
+			t.Fatalf("ResolveClientResources(%q) key = %q", name, key)
+		}
+	}
+	for _, name := range []string{"C02OTHER.zip", "nested/C02MUNKI.zip", "not-a-zip"} {
+		if _, err := service.ResolveClientResources(context.Background(), name); !errors.Is(err, munki.ErrNotFound) {
+			t.Fatalf("ResolveClientResources(%q) error = %v, want ErrNotFound", name, err)
+		}
+	}
+}
+
+func TestResolveClientResourcesMapsUnconfiguredToNotFound(t *testing.T) {
+	service := munki.NewRepositoryService(munki.Dependencies{
+		ClientResources: serviceClientResourcesStore{err: dbutil.ErrNotFound},
+	})
+	if _, err := service.ResolveClientResources(
+		context.Background(),
+		"site_default.zip",
+	); !errors.Is(
+		err,
+		munki.ErrNotFound,
+	) {
+		t.Fatalf("ResolveClientResources error = %v, want ErrNotFound", err)
 	}
 }
 
@@ -204,6 +256,15 @@ func TestIconHashesIncludesAvailableRepositoryIcons(t *testing.T) {
 type serviceObjectStore struct {
 	objects      map[int64]storage.Object
 	requestedIDs *[]int64
+}
+
+type serviceClientResourcesStore struct {
+	resource *clientresources.ClientResources
+	err      error
+}
+
+func (s serviceClientResourcesStore) Get(context.Context) (*clientresources.ClientResources, error) {
+	return s.resource, s.err
 }
 
 func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64]storage.Object, error) {

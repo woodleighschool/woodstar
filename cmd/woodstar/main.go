@@ -31,6 +31,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
@@ -245,6 +246,8 @@ type wiring struct {
 	orbitAgent *orbit.EnrollmentService
 
 	storageObjects         *storage.ObjectStore
+	munkiClientResources   *clientresources.Store
+	munkiClientResourceSvc *clientresources.Service
 	munkiPackages          *packages.Store
 	munkiPackageSvc        *munki.PackageService
 	munkiSoftware          *munkisoftware.Store
@@ -295,6 +298,12 @@ func buildWiring(
 
 	// Munki stores.
 	w.storageObjects = storage.NewObjectStore(db, storageBackend)
+	w.munkiClientResources = clientresources.NewStore(db, w.storageObjects)
+	w.munkiClientResourceSvc = clientresources.NewService(
+		w.munkiClientResources,
+		w.storageObjects,
+		storageBackend,
+	)
 	w.munkiPackages = packages.NewStore(db, w.storageObjects)
 	w.munkiSoftware = munkisoftware.NewStore(db, w.storageObjects, w.munkiPackages)
 	w.munkiHostState = munki.NewStore(db)
@@ -332,10 +341,11 @@ func buildWiring(
 	})
 
 	w.munkiRepo = munki.NewRepositoryService(munki.Dependencies{
-		Hosts:    w.hosts,
-		Software: w.munkiSoftware,
-		Packages: w.munkiPackages,
-		Objects:  w.storageObjects,
+		Hosts:           w.hosts,
+		Software:        w.munkiSoftware,
+		Packages:        w.munkiPackages,
+		Objects:         w.storageObjects,
+		ClientResources: w.munkiClientResources,
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
 	w.munkiDistribution = mdp.NewStore(db, munkiDistributionLogger)
@@ -395,6 +405,7 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			StorageObjects: w.storageObjects,
 
 			MunkiPackages:          w.munkiPackageSvc,
+			MunkiClientResources:   w.munkiClientResourceSvc,
 			MunkiSoftware:          w.munkiSoftware,
 			MunkiSoftwareDeletions: w.munkiSoftwareDeletions,
 			MunkiHostState:         w.munkiHostState,

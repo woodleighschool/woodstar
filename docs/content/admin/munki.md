@@ -1,14 +1,14 @@
 ---
 sidebar_position: 4
 title: Munki
-description: "Desired software state: titles, packages, deployments, and artifacts."
+description: "Desired software state, client presentation, and repository delivery."
 ---
 
 # Munki
 
-Munki is where you decide what software a Mac should have. Woodstar holds the managed catalog and renders the manifests and catalogs that Munki clients pull down. This is desired state, the opposite end from the [observed software inventory](./hosts-and-inventory#software) that osquery reports.
+Munki is where you decide what software a Mac should have and how Managed Software Center presents it. Woodstar holds the managed catalog, publishes client resources, and renders the repository data that Munki clients pull down. This is desired state, the opposite end from the [observed software inventory](./hosts-and-inventory#software) that osquery reports.
 
-Four objects make it work.
+The Munki admin surface has five parts.
 
 ## Software titles
 
@@ -36,6 +36,20 @@ Deployments are ordered, because a host can match more than one and the order de
 An artifact is the actual file: the package payload or an icon. The metadata is a stable Woodstar row; the bytes live in a storage backend, local files by default or an S3-compatible bucket.
 
 An artifact gets in create-first: the title or package exists first, then you attach an upload, push the bytes, and confirm them. Storage always works (the default `file` backend needs no setup), so the only real choice is whether bytes stream through Woodstar or go straight to a bucket. See [Munki Storage](../configuration/storage) for how the backends differ, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
+
+## Client resources
+
+Client Resources is the singleton builder for Managed Software Center's presentation. Woodstar has no default form state or bundled banner: until you save a configuration, clients use Munki's built-in resources.
+
+A configuration has:
+
+- One JPEG or PNG banner, up to 5 MiB. Managed Software Center displays the image at a fixed 200-pixel height. **Left** keeps its left edge anchored as the window widens; **Centre** keeps its middle anchored.
+- Optional links above the software list. When the list is empty, Managed Software Center shows its normal categories. Adding a link replaces that category list.
+- Optional footer text and links. An empty footer is not included in the archive.
+
+Links keep their displayed order and can use `http`, `https`, `mailto`, or `munki` targets. Only HTTP and HTTPS links can open in the system browser.
+
+The builder is also the preview. It follows the Managed Software Center layout closely, but the native app remains the rendering authority. **Save** validates the banner, compiles a new `site_default.zip`, stores it, and publishes it immediately. **Cancel** restores the last saved values. **Use Munki defaults** removes the configured singleton and its published archive, returning clients to Munki's built-in resources.
 
 ## Distribution points
 

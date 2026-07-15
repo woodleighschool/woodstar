@@ -29,6 +29,7 @@ type Repository interface {
 	IconHashes(context.Context) ([]byte, error)
 	ResolvePackageFile(context.Context, string) (munki.PackageInstaller, error)
 	ResolveIconFile(context.Context, string) (string, error)
+	ResolveClientResources(context.Context, string) (string, error)
 }
 
 // Selector redirects a package download to an eligible distribution point.
@@ -84,6 +85,7 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Get("/munki/pkgs/*", h.packageFile)
 	r.Get("/munki/icons/_icon_hashes.plist", h.iconHashes)
 	r.Get("/munki/icons/*", h.iconFile)
+	r.Get("/munki/client_resources/*", h.clientResources)
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +138,23 @@ func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		h.log(r, "icon", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	h.deliver(w, r, key)
+}
+
+func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
+	if ok := h.authorizedRequest(w, r, "client resources"); !ok {
+		return
+	}
+	key, err := h.repository.ResolveClientResources(r.Context(), chi.URLParam(r, "*"))
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log(r, "client resources", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -7,6 +7,8 @@
   --woodleigh-moonah: #225241;
   --woodleigh-light-grey: #e9e3dc;
   --woodleigh-dark-grey: #3d3b37;
+  --msc-small-button-background: hsl(240 30.8% 94.9%);
+  --msc-small-button-foreground: hsl(212 100% 51.4%);
 
   --background: var(--woodleigh-light-grey);
   --foreground: oklch(0.25 0.006 80);
@@ -210,6 +212,9 @@
   --color-status-online: var(--status-online);
   --color-status-offline: var(--status-offline);
   --color-status-error: var(--status-error);
+
+  --color-msc-small-button-background: var(--msc-small-button-background);
+  --color-msc-small-button-foreground: var(--msc-small-button-foreground);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);

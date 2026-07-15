@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -38,6 +40,10 @@ type objectResolver interface {
 	ListByIDs(context.Context, []int64) (map[int64]storage.Object, error)
 }
 
+type clientResourcesResolver interface {
+	Get(context.Context) (*clientresources.ClientResources, error)
+}
+
 // RepositoryService renders the Munki client-facing repository surface.
 type RepositoryService struct {
 	deps Dependencies
@@ -45,10 +51,11 @@ type RepositoryService struct {
 
 // Dependencies are the collaborators the Munki repository renderer needs.
 type Dependencies struct {
-	Hosts    hostResolver
-	Software effectivePackageResolver
-	Packages packageResolver
-	Objects  objectResolver
+	Hosts           hostResolver
+	Software        effectivePackageResolver
+	Packages        packageResolver
+	Objects         objectResolver
+	ClientResources clientResourcesResolver
 }
 
 // NewRepositoryService returns the Munki repository renderer.
@@ -215,6 +222,36 @@ func (s *RepositoryService) ResolveIconFile(
 		return "", ErrNotFound
 	}
 	return obj.Key(), nil
+}
+
+// ResolveClientResources resolves a configured archive for Munki's host-specific
+// request or its site_default.zip fallback.
+func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (string, error) {
+	if name != "site_default.zip" {
+		serial, ok := strings.CutSuffix(name, ".zip")
+		if !ok || serial == "" || strings.Contains(serial, "/") {
+			return "", ErrNotFound
+		}
+		if _, err := s.resolveManifestHostID(ctx, serial); err != nil {
+			return "", err
+		}
+	}
+	resource, err := s.deps.ClientResources.Get(ctx)
+	if errors.Is(err, dbutil.ErrNotFound) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{resource.ArchiveObjectID})
+	if err != nil {
+		return "", err
+	}
+	archive, ok := objects[resource.ArchiveObjectID]
+	if !ok || archive.Prefix != clientresources.ArchiveObjectPrefix || !archive.Available() {
+		return "", ErrNotFound
+	}
+	return archive.Key(), nil
 }
 
 func (s *RepositoryService) effectivePackages(

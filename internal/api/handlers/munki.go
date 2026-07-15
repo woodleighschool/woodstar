@@ -9,6 +9,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -17,18 +18,19 @@ import (
 // MunkiHandlerDeps are the stores, services, and route groups used by Munki
 // admin handlers.
 type MunkiHandlerDeps struct {
-	API            huma.API
-	Router         chi.Router
-	AuthService    *auth.Service
-	HostState      *munki.Store
-	Software       *munkisoftware.Store
-	DeleteSoftware *munki.SoftwareDeletionService
-	Packages       *munki.PackageService
-	Objects        *storage.ObjectStore
-	Storage        storage.Backend
-	Distribution   *mdp.Store
-	Connections    distributionPointConnections
-	Logger         *slog.Logger
+	API             huma.API
+	Router          chi.Router
+	AuthService     *auth.Service
+	HostState       *munki.Store
+	Software        *munkisoftware.Store
+	DeleteSoftware  *munki.SoftwareDeletionService
+	Packages        *munki.PackageService
+	ClientResources *clientresources.Service
+	Objects         *storage.ObjectStore
+	Storage         storage.Backend
+	Distribution    *mdp.Store
+	Connections     distributionPointConnections
+	Logger          *slog.Logger
 }
 
 type distributionPointConnections interface {
@@ -56,5 +58,12 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 		deps.Logger,
 	)
 	registerMunkiPackages(deps.API, deps.Packages, deps.Objects, deps.Storage, deps.Logger)
+	registerMunkiClientResources(
+		deps.API,
+		deps.ClientResources,
+		deps.Objects,
+		deps.Storage,
+		deps.Logger,
+	)
 	registerMunkiDistributionPoints(deps.API, deps.Distribution, deps.Connections, deps.Logger)
 }

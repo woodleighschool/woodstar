@@ -34,7 +34,7 @@ mise //web:deps
 
 [tasks.dev]
 description = "Run backend and web development servers"
-depends = ["dev-tls", "//web:build"]
+depends = ["//web:build"]
 run = "mise run dev-backend ::: //web:dev"
 
 [tasks.dev-tls]

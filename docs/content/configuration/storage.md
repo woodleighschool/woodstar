@@ -1,12 +1,12 @@
 ---
 sidebar_position: 2
 title: Munki Storage
-description: Where Munki artifacts live and how clients get to them.
+description: Where Munki files live and how clients get to them.
 ---
 
 # Munki Storage
 
-Munki package and icon artifacts are split in two. The metadata is a row in Postgres; the bytes live in a storage backend. The database always knows about an artifact, but it can only hand out the file once the bytes are uploaded and confirmed.
+Munki package installers, icons, client-resources banners, and compiled client-resources archives all use Woodstar's storage abstraction. Their owning metadata stays in Postgres; the bytes live in a storage backend. A file is available only after its storage object has been uploaded and confirmed.
 
 ## Backends
 
@@ -19,7 +19,7 @@ The rest of Woodstar behaves the same either way; only the byte transfer differs
 
 ## Getting artifacts in
 
-Uploads are create-first. You make the Munki resource, attach a pending storage object to it, push the bytes, then confirm:
+Package and icon uploads are create-first. You make the Munki resource, attach a pending storage object to it, push the bytes, then confirm:
 
 1. Create the software title or package. It can exist before it has any bytes.
 2. Attach an upload. Woodstar registers a pending object and returns an upload target.
@@ -27,6 +27,8 @@ Uploads are create-first. You make the Munki resource, attach a pending storage 
 4. Confirm. Woodstar checks the object landed and marks it available; only then will Munki serve it.
 
 The upload target depends on the backend. On `s3` it is a presigned `PUT` straight to the bucket, so the bytes never pass through Woodstar. On `file` it is a Woodstar URL that streams the body to disk, so large installers do not buffer in memory.
+
+Client Resources uses the same upload path for its banner, accepting JPEG and PNG images up to 5 MiB. On **Save**, Woodstar confirms and validates the banner, builds `site_default.zip` on the server, stores the archive through the selected backend, and replaces the singleton's banner and archive references. The client never uploads a ZIP.
 
 ### Browser uploads to S3 need bucket CORS
 
@@ -51,8 +53,9 @@ Munki clients never see raw storage keys. The manifests and catalogs Woodstar re
 
 - `/munki/pkgs/*`
 - `/munki/icons/*`
+- `/munki/client_resources/*`
 
-Each request is authenticated, the host is resolved by its serial, Woodstar checks the artifact actually applies to that host, and then it either redirects to a presigned URL (`s3`) or streams the bytes itself (`file`). A host only gets bytes for software it's assigned (see [Munki Repository](../agent-protocols/munki-repository)).
+Each request uses the shared Munki bearer secret. Woodstar resolves the stable repository name to an available storage object, then either redirects to a presigned URL (`s3`) or streams the bytes itself (`file`). Package requests may instead redirect to an eligible distribution point; icons and client resources always use Woodstar's primary storage path. See [Munki Repository](../agent-protocols/munki-repository) for the route contracts.
 
 ## Local Garage
 

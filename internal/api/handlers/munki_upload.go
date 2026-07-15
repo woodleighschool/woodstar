@@ -41,7 +41,7 @@ type MunkiObjectView struct {
 	ContentType string  `json:"content_type"`
 	SizeBytes   *int64  `json:"size_bytes,omitempty"`
 	SHA256      *string `json:"sha256,omitempty"`
-	ContentURL  string  `json:"content_url,omitempty"`
+	ContentURL  string  `json:"content_url"`
 }
 
 type munkiUploadOutput struct {

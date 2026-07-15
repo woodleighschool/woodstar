@@ -58,6 +58,7 @@ export const navSections: NavMenu[] = [
           { label: "Software", to: "/munki/software" },
           { label: "Packages", to: "/munki/packages" },
           { label: "Distribution Points", to: "/munki/distribution-points" },
+          { label: "Client Resources", to: "/munki/client-resources" },
         ],
       },
     ],

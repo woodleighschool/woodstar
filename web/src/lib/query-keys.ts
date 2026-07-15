@@ -13,6 +13,7 @@ export const queryKeys = {
   reportsAll: ["reports"] as const,
   munkiSoftwareAll: ["munki", "software"] as const,
   munkiPackagesAll: ["munki", "packages"] as const,
+  munkiClientResources: ["munki", "client-resources"] as const,
   munkiDistributionPointsAll: ["munki", "distribution-points"] as const,
   santaConfigurationsAll: ["santa", "configurations"] as const,
   santaRulesAll: ["santa", "rules"] as const,
