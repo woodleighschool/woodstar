@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
+import { Check, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,6 +9,7 @@ import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
+import { Pending } from "@/components/pending";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,14 +225,12 @@ function TargetRunPanel({
         />
       </div>
       <div className="rounded-md border p-4">
-        <Button onClick={onRun} disabled={!canRun}>
-          {isStarting ? (
-            <Loader2 data-icon="inline-start" className="animate-spin" />
-          ) : (
+        <Pending isPending={isStarting}>
+          <Button onClick={onRun} disabled={!canRun && !isStarting}>
             <Play data-icon="inline-start" />
-          )}
-          {isStarting ? "Starting" : "Run"}
-        </Button>
+            {isStarting ? "Starting…" : "Run"}
+          </Button>
+        </Pending>
       </div>
     </div>
   );
@@ -321,19 +320,12 @@ function RunResults({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => setStopOpen(true)}
-              disabled={isStopping}
-            >
-              {isStopping ? (
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-              ) : (
+            <Pending isPending={isStopping}>
+              <Button size="sm" variant="destructive" onClick={() => setStopOpen(true)}>
                 <Square data-icon="inline-start" />
-              )}
-              {isStopping ? "Stopping" : "Stop"}
-            </Button>
+                {isStopping ? "Stopping…" : "Stop"}
+              </Button>
+            </Pending>
           ) : (
             <Button size="sm" onClick={onRunAgain}>
               <Play data-icon="inline-start" />
@@ -495,8 +487,8 @@ function TargetPicker({
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (
-              <div className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" /> Searching Hosts...
+              <div className="px-2 py-2 text-sm text-muted-foreground" role="status">
+                Searching hosts…
               </div>
             ) : hostRows.length ? (
               hostRows.map((host) => (

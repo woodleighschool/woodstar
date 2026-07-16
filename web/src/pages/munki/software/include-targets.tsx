@@ -1,19 +1,17 @@
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { EmptyPanel } from "@/components/empty-panel";
-import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
+import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { focusFirstInvalidField } from "@/components/form-tabs";
+import { LabelPicker } from "@/components/labels/label-picker";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { encodeSort } from "@/hooks/use-data-table-search";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useLabels } from "@/hooks/use-labels";
 import type { MunkiInclude, MunkiPackage } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
@@ -73,12 +72,6 @@ export interface MunkiSoftwareTargetRow {
   actions: MunkiInclude["actions"];
 }
 
-interface TargetDraft {
-  label_id: number | null;
-  package: MunkiInclude["package"];
-  actions: MunkiInclude["actions"];
-}
-
 type DialogState = { mode: "add" } | { mode: "edit"; id: number } | null;
 
 export function MunkiIncludeTargets({
@@ -93,8 +86,10 @@ export function MunkiIncludeTargets({
   onChange: (rows: MunkiSoftwareTargetRow[]) => void;
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [draft, setDraft] = useState<TargetDraft>(emptyDraft);
-  const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const labels = useLabels({
+    per_page: MAX_PAGE_SIZE,
+    sort: encodeSort("name"),
+  });
   const labelsByID = useMemo(
     () =>
       new Map<number, string>((labels.data?.items ?? []).map((label) => [label.id, label.name])),
@@ -102,39 +97,13 @@ export function MunkiIncludeTargets({
   );
   const usedLabelIDs = rows.flatMap((row) => (row.label_id === null ? [] : [row.label_id]));
   const unavailableLabelIDs = [...usedLabelIDs, ...excludeLabelIDs];
-  const canSave = munkiSoftwareTargetSchema.safeParse({ ...draft, priority: 1 }).success;
 
   function openAdd() {
-    setDraft(emptyDraft());
     setDialog({ mode: "add" });
   }
 
   function openEdit(row: MunkiSoftwareTargetRow) {
-    setDraft({ label_id: row.label_id, package: row.package, actions: row.actions });
     setDialog({ mode: "edit", id: row.id });
-  }
-
-  function save() {
-    if (!canSave || dialog === null) return;
-    if (dialog.mode === "add") {
-      onChange([
-        ...rows,
-        {
-          id: nextTargetID(rows),
-          priority: rows.length + 1,
-          label_id: draft.label_id,
-          package: draft.package,
-          actions: draft.actions,
-        },
-      ]);
-    } else {
-      onChange(
-        rows.map((row) =>
-          row.id === dialog.id ? { ...row, package: draft.package, actions: draft.actions } : row,
-        ),
-      );
-    }
-    setDialog(null);
   }
 
   return (
@@ -218,61 +187,164 @@ export function MunkiIncludeTargets({
         <EmptyPanel>No includes yet</EmptyPanel>
       )}
 
-      <Dialog open={dialog !== null} onOpenChange={(open) => (open ? null : setDialog(null))}>
-        <DialogContent className="sm:max-w-lg">
+      {dialog ? (
+        <MunkiIncludeDialog
+          mode={dialog.mode}
+          initial={
+            dialog.mode === "edit"
+              ? requiredTarget(rows, dialog.id)
+              : {
+                  id: nextTargetID(rows),
+                  priority: rows.length + 1,
+                  label_id: null,
+                  package: { strategy: "latest" },
+                  actions: [],
+                }
+          }
+          packages={packages}
+          unavailableLabelIDs={unavailableLabelIDs}
+          onClose={() => setDialog(null)}
+          onSave={(target) => {
+            onChange(
+              dialog.mode === "add"
+                ? [...rows, target]
+                : rows.map((row) => (row.id === target.id ? target : row)),
+            );
+            setDialog(null);
+          }}
+        />
+      ) : null}
+    </TargetSection>
+  );
+}
+
+function MunkiIncludeDialog({
+  mode,
+  initial,
+  packages,
+  unavailableLabelIDs,
+  onClose,
+  onSave,
+}: {
+  mode: "add" | "edit";
+  initial: MunkiSoftwareTargetRow;
+  packages: MunkiPackage[];
+  unavailableLabelIDs: readonly number[];
+  onClose: () => void;
+  onSave: (target: MunkiSoftwareTargetRow) => void;
+}) {
+  const form = useForm({
+    defaultValues: initial,
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
+    validators: { onDynamic: munkiSoftwareTargetSchema },
+    onSubmit: ({ value }) => onSave(munkiSoftwareTargetSchema.parse(value)),
+  });
+  const exitGuard = useFormExitGuard({
+    form,
+    onDiscard: onClose,
+    blockNavigation: false,
+  });
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) exitGuard.requestDiscard();
+      }}
+    >
+      <DialogContent className="sm:max-w-lg">
+        <form
+          noValidate
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit().then(() => {
+              if (!form.state.isValid) focusFirstInvalidField();
+              return undefined;
+            });
+          }}
+        >
           <DialogHeader>
-            <DialogTitle>{dialog?.mode === "edit" ? "Edit Include" : "Add Include"}</DialogTitle>
+            <DialogTitle>{mode === "edit" ? "Edit Include" : "Add Include"}</DialogTitle>
           </DialogHeader>
 
-          {dialog?.mode === "add" ? (
-            <AssignmentLabelField
-              value={draft.label_id}
-              onChange={(label_id) => setDraft((current) => ({ ...current, label_id }))}
-              unavailableLabelIDs={unavailableLabelIDs}
-            />
+          {mode === "add" ? (
+            <form.Field name="label_id">
+              {(field) => (
+                <FormField field={field} label="Label" required>
+                  {(control) => (
+                    <LabelPicker
+                      value={field.state.value === null ? [] : [field.state.value]}
+                      onChange={(ids) => field.handleChange(ids[0] ?? null)}
+                      selectionMode="single"
+                      includeBuiltins
+                      unavailableLabelIDs={unavailableLabelIDs}
+                      required
+                      invalid={control["aria-invalid"]}
+                      placeholder="Select Label"
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
           ) : null}
 
-          <Field>
-            <FieldLabel htmlFor="munki-target-package">Package</FieldLabel>
-            <Select
-              value={targetPackageValue(draft.package)}
-              onValueChange={(value) =>
-                setDraft((current) => ({ ...current, package: targetPackageFromValue(value) }))
-              }
-            >
-              <SelectTrigger id="munki-target-package" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={LATEST_PACKAGE_VALUE}>Latest</SelectItem>
-                  {packages.length > 0 ? <SelectSeparator /> : null}
-                  {packages.map((pkg) => (
-                    <SelectItem key={pkg.id} value={String(pkg.id)}>
-                      {pkg.version}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
+          <form.Field name="package">
+            {(field) => (
+              <FormField field={field} label="Package" htmlFor="munki-target-package" required>
+                {(control) => (
+                  <Select
+                    value={targetPackageValue(field.state.value)}
+                    onValueChange={(value) => field.handleChange(targetPackageFromValue(value))}
+                  >
+                    <SelectTrigger {...control} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={LATEST_PACKAGE_VALUE}>Latest</SelectItem>
+                        {packages.length > 0 ? <SelectSeparator /> : null}
+                        {packages.map((pkg) => (
+                          <SelectItem key={pkg.id} value={String(pkg.id)}>
+                            {pkg.version}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
+            )}
+          </form.Field>
 
-          <TargetActionsField
-            value={draft.actions}
-            onChange={(actions) => setDraft((current) => ({ ...current, actions }))}
+          <form.Field name="actions">
+            {(field) => (
+              <FormField field={field} label="Actions" required>
+                {(control) => (
+                  <TargetActionsField
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                    invalid={control["aria-invalid"]}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
+
+          <FormActions
+            form={form}
+            submitLabel={mode === "edit" ? "Save" : "Add"}
+            onCancel={exitGuard.requestDiscard}
+            className="justify-end"
           />
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDialog(null)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={save} disabled={!canSave}>
-              {dialog?.mode === "edit" ? "Save" : "Add"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </TargetSection>
+        </form>
+        {exitGuard.dialog}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -330,19 +402,21 @@ function actionsFromSelection(selection: ActionSelection): MunkiInclude["actions
 function TargetActionsField({
   value,
   onChange,
+  invalid,
 }: {
   value: MunkiInclude["actions"];
   onChange: (actions: MunkiInclude["actions"]) => void;
+  invalid?: boolean;
 }) {
   const selection = selectionFromActions(value);
   const update = (next: Partial<ActionSelection>) =>
     onChange(actionsFromSelection({ ...selection, ...next }));
 
   return (
-    <Field>
-      <FieldLabel>Actions</FieldLabel>
+    <>
       <RadioGroup
         value={selection.intent}
+        aria-invalid={invalid ? true : undefined}
         onValueChange={(intent) => update({ intent: intent as MunkiPrimaryAction })}
       >
         {MUNKI_PRIMARY_ACTION_VALUES.map((action) => {
@@ -388,12 +462,8 @@ function TargetActionsField({
           })}
         </div>
       ) : null}
-    </Field>
+    </>
   );
-}
-
-function emptyDraft(): TargetDraft {
-  return { label_id: null, package: { strategy: "latest" }, actions: [] };
 }
 
 function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
@@ -407,4 +477,10 @@ function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
 
 function nextTargetID(rows: MunkiSoftwareTargetRow[]) {
   return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1;
+}
+
+function requiredTarget(rows: MunkiSoftwareTargetRow[], id: number) {
+  const target = rows.find((row) => row.id === id);
+  if (!target) throw new Error("The selected Munki include no longer exists");
+  return target;
 }

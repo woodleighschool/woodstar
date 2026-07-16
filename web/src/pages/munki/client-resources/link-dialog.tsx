@@ -1,21 +1,22 @@
-import { useState } from "react";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 
-import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { focusFirstInvalidField } from "@/components/form-tabs";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 
 import {
   type ClientResourceLink,
-  clientResourceLinkErrors,
+  clientResourceLinkSchema,
   emptyClientResourceLink,
 } from "./client-resources";
 
@@ -30,107 +31,133 @@ export function LinkDialog({
   link: ClientResourceLink | null;
   onSave: (link: ClientResourceLink) => void;
 }) {
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        {open ? (
-          <LinkDialogContent
-            key={link?.id ?? "new"}
-            link={link}
-            onCancel={() => onOpenChange(false)}
-            onSave={(value) => {
-              onSave(value);
-              onOpenChange(false);
-            }}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
+    <LinkDialogForm
+      key={link?.id ?? "new"}
+      link={link}
+      onClose={() => onOpenChange(false)}
+      onSave={(value) => {
+        onSave(value);
+        onOpenChange(false);
+      }}
+    />
   );
 }
 
-function LinkDialogContent({
+function LinkDialogForm({
   link,
-  onCancel,
+  onClose,
   onSave,
 }: {
   link: ClientResourceLink | null;
-  onCancel: () => void;
+  onClose: () => void;
   onSave: (link: ClientResourceLink) => void;
 }) {
-  const [value, setValue] = useState<ClientResourceLink>(() => link ?? emptyClientResourceLink());
-  const [showErrors, setShowErrors] = useState(false);
-  const errors = clientResourceLinkErrors(value);
-
-  function save() {
-    if (Object.keys(errors).length > 0) {
-      setShowErrors(true);
-      return;
-    }
-    onSave(value);
-  }
+  const form = useForm({
+    defaultValues: link ?? emptyClientResourceLink(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validators: { onDynamic: clientResourceLinkSchema },
+    onSubmit: ({ value }) => onSave(clientResourceLinkSchema.parse(value)),
+  });
+  const exitGuard = useFormExitGuard({ form, onDiscard: onClose, blockNavigation: false });
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>{link ? "Edit link" : "Add link"}</DialogTitle>
-        <DialogDescription>Use an HTTP URL, email address, or Munki route.</DialogDescription>
-      </DialogHeader>
-
-      <div className="flex flex-col gap-4">
-        <Field data-invalid={showErrors && errors.label ? true : undefined}>
-          <FieldLabel htmlFor="client-resources-link-label" required>
-            Label
-          </FieldLabel>
-          <Input
-            id="client-resources-link-label"
-            aria-invalid={showErrors && errors.label ? true : undefined}
-            maxLength={80}
-            value={value.label}
-            onChange={(event) => setValue({ ...value, label: event.target.value })}
-          />
-          {showErrors && errors.label ? <FieldError>{errors.label}</FieldError> : null}
-        </Field>
-
-        <Field data-invalid={showErrors && errors.target ? true : undefined}>
-          <FieldLabel htmlFor="client-resources-link-target" required>
-            Target
-          </FieldLabel>
-          <Input
-            id="client-resources-link-target"
-            aria-invalid={showErrors && errors.target ? true : undefined}
-            maxLength={2048}
-            value={value.target}
-            onChange={(event) => setValue({ ...value, target: event.target.value })}
-          />
-          {showErrors && errors.target ? <FieldError>{errors.target}</FieldError> : null}
-        </Field>
-
-        <Field
-          orientation="horizontal"
-          data-invalid={showErrors && errors.openInBrowser ? true : undefined}
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) exitGuard.requestDiscard();
+      }}
+    >
+      <DialogContent className="max-w-xl">
+        <form
+          noValidate
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit().then(() => {
+              if (!form.state.isValid) focusFirstInvalidField();
+              return undefined;
+            });
+          }}
         >
-          <FieldLabel htmlFor="client-resources-link-browser">Open in browser</FieldLabel>
-          <Switch
-            id="client-resources-link-browser"
-            aria-invalid={showErrors && errors.openInBrowser ? true : undefined}
-            checked={value.openInBrowser}
-            onCheckedChange={(openInBrowser) => setValue({ ...value, openInBrowser })}
-          />
-          {showErrors && errors.openInBrowser ? (
-            <FieldError>{errors.openInBrowser}</FieldError>
-          ) : null}
-        </Field>
-      </div>
+          <DialogHeader>
+            <DialogTitle>{link ? "Edit link" : "Add link"}</DialogTitle>
+            <DialogDescription>Use an HTTP URL, email address, or Munki route.</DialogDescription>
+          </DialogHeader>
 
-      <DialogFooter>
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="button" size="sm" onClick={save}>
-          {link ? "Save" : "Add"}
-        </Button>
-      </DialogFooter>
-    </>
+          <div className="flex flex-col gap-4">
+            <form.Field name="label">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Label"
+                  htmlFor="client-resources-link-label"
+                  required
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
+
+            <form.Field name="target">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Target"
+                  htmlFor="client-resources-link-target"
+                  required
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
+
+            <form.Field name="openInBrowser">
+              {(field) => (
+                <FormField
+                  field={field}
+                  label="Open in browser"
+                  htmlFor="client-resources-link-browser"
+                >
+                  {(control) => (
+                    <Switch
+                      {...control}
+                      checked={field.state.value}
+                      onBlur={field.handleBlur}
+                      onCheckedChange={field.handleChange}
+                    />
+                  )}
+                </FormField>
+              )}
+            </form.Field>
+          </div>
+
+          <FormActions
+            form={form}
+            submitLabel={link ? "Save" : "Add"}
+            onCancel={exitGuard.requestDiscard}
+            className="justify-end"
+          />
+        </form>
+        {exitGuard.dialog}
+      </DialogContent>
+    </Dialog>
   );
 }

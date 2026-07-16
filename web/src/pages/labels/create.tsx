@@ -13,10 +13,8 @@ export function LabelCreatePage() {
       title="New Label"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/labels" })}
-      onSubmit={async (body) => {
-        await create.mutateAsync(body);
-        void navigate({ to: "/labels" });
-      }}
+      onSubmit={async (body) => (await create.mutateAsync(body)).id}
+      onSuccess={() => void navigate({ to: "/labels" })}
     />
   );
 }

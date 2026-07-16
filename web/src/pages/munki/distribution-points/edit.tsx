@@ -44,11 +44,12 @@ export function DistributionPointEditPage() {
       key={point.id}
       initial={formFromDistributionPoint(point)}
       submitLabel="Save"
-      onSubmit={async (body) => {
-        const saved = await update.mutateAsync({ id: point.id, body });
+      onSubmit={async (body) => (await update.mutateAsync({ id: point.id, body })).id}
+      onSuccess={(id) => {
+        if (id === undefined) return;
         void navigate({
           to: "/munki/distribution-points/$distributionPointId",
-          params: { distributionPointId: String(saved.id) },
+          params: { distributionPointId: String(id) },
         });
       }}
     />

@@ -1,6 +1,9 @@
 package clientresources
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestMutationValidateLinks(t *testing.T) {
 	t.Parallel()
@@ -58,6 +61,53 @@ func TestMutationValidateBannerAlignment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			mutation := Mutation{BannerObjectID: 1, BannerAlignment: test.alignment}
+			mutation.normalize()
+			err := mutation.validate()
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validate() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestMutationValidateTextLimitsCountUnicodeCharacters(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		label   string
+		target  string
+		footer  string
+		wantErr bool
+	}{
+		{
+			name:   "multibyte text at limits",
+			label:  strings.Repeat("界", maxLinkLabelLength),
+			target: "https://example.com/" + strings.Repeat("界", maxLinkTargetLength-len("https://example.com/")),
+			footer: strings.Repeat("界", maxFooterTextLength),
+		},
+		{
+			name:    "label over limit",
+			label:   strings.Repeat("界", maxLinkLabelLength+1),
+			target:  "https://example.com",
+			wantErr: true,
+		},
+		{
+			name:    "footer over limit",
+			label:   "Support",
+			target:  "https://example.com",
+			footer:  strings.Repeat("界", maxFooterTextLength+1),
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			mutation := Mutation{
+				BannerObjectID:  1,
+				BannerAlignment: BannerAlignmentLeft,
+				Links:           []Link{{Label: test.label, Target: test.target}},
+				FooterText:      test.footer,
+			}
 			mutation.normalize()
 			err := mutation.validate()
 			if (err != nil) != test.wantErr {

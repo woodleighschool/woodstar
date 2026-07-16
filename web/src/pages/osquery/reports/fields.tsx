@@ -10,6 +10,11 @@ import { SQLEditor } from "@/components/editor/sql-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
+import {
+  type FormTabDefinition,
+  FormTabTrigger,
+  revealFirstInvalidFormTab,
+} from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import {
@@ -32,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { OsqueryReport, OsqueryReportMutation } from "@/lib/api";
@@ -82,9 +88,22 @@ const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, {
 
 const reportFormSchema = z.object({
   name: requiredString("Name"),
+  description: z.string().optional(),
   query: reportQuerySchema,
+  min_osquery_version: z.string().optional(),
+  schedule_interval: z.number().int().min(0).max(2_147_483_647).optional(),
   targets: labelTargetSetSchema,
 });
+
+const reportFormTabs = [
+  {
+    value: "options",
+    fields: ["name", "description", "query", "min_osquery_version", "schedule_interval"],
+  },
+  { value: "targets", fields: ["targets"] },
+] as const satisfies readonly FormTabDefinition[];
+
+const noOp = () => undefined;
 
 function trimReport(value: OsqueryReportMutation): OsqueryReportMutation {
   return {
@@ -102,6 +121,7 @@ export function ReportForm({
   title,
   submitLabel,
   onSubmit,
+  onSuccess,
   onCancel,
   headerActions,
   resultsReportId,
@@ -109,20 +129,27 @@ export function ReportForm({
   initial: OsqueryReportMutation;
   title?: string;
   submitLabel: string;
-  onSubmit: (value: OsqueryReportMutation) => Promise<void> | void;
+  onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
+  onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
   headerActions?: ReactNode;
   resultsReportId?: number;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: reportFormSchema },
-    onSubmit: async ({ value }) => onSubmit(trimReport(value)),
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(trimReport(value));
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
   });
+  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
 
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
@@ -153,23 +180,30 @@ export function ReportForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void form.handleSubmit();
+          void form.handleSubmit().then(() => {
+            revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
+            return undefined;
+          });
         }}
       >
         <form.Subscribe selector={(state) => state.values.name}>
           {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
         </form.Subscribe>
 
-        <ScrollableTabs defaultValue="options">
+        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
           <ScrollableTabsList>
-            <TabsTrigger value="options">Options</TabsTrigger>
-            <TabsTrigger value="targets">Targets</TabsTrigger>
+            <FormTabTrigger form={form} tab={reportFormTabs[0]}>
+              Options
+            </FormTabTrigger>
+            <FormTabTrigger form={form} tab={reportFormTabs[1]}>
+              Targets
+            </FormTabTrigger>
             {resultsReportId !== undefined ? (
               <TabsTrigger value="results">Results</TabsTrigger>
             ) : null}
           </ScrollableTabsList>
 
-          <TabsContent value="options">
+          <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
                 <form.Field name="name">
@@ -280,13 +314,19 @@ export function ReportForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="targets">
+          <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
             <form.Field name="targets">
               {(field) => (
-                <LabelTargetSetEditor
-                  value={normalizeLabelTargetSet(field.state.value)}
-                  onChange={field.handleChange}
-                />
+                <FormField field={field}>
+                  {(control) => (
+                    <div {...control} tabIndex={-1}>
+                      <LabelTargetSetEditor
+                        value={normalizeLabelTargetSet(field.state.value)}
+                        onChange={field.handleChange}
+                      />
+                    </div>
+                  )}
+                </FormField>
               )}
             </form.Field>
           </TabsContent>
@@ -300,7 +340,11 @@ export function ReportForm({
           ) : null}
         </ScrollableTabs>
 
-        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
 
         <SchemaSidebar
           open={schemaOpen}
@@ -309,6 +353,7 @@ export function ReportForm({
           selectedTable={selectedSchemaTable}
           onSelectedTableChange={setSelectedSchemaTable}
         />
+        {exitGuard.dialog}
       </form>
     </PageShell>
   );

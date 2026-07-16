@@ -10,6 +10,7 @@ import { manualPrimaryUserSource } from "@/components/hosts/primary-user";
 import { primaryUserSourceLabel } from "@/components/hosts/primary-user-source-labels";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { LabelChips } from "@/components/labels/label-chips";
+import { Pending } from "@/components/pending";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,9 +33,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-hosts";
 import type { Host, HostDetail } from "@/lib/api";
-import { requiredString } from "@/lib/form-validation";
+import { emailAddress } from "@/lib/form-validation";
 import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
 
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
@@ -231,13 +233,23 @@ function HostPrimaryUserDialog({
 
   const form = useForm({
     defaultValues: { email: manual?.email ?? host.primary_user?.email ?? "" },
-    validationLogic: revalidateLogic(),
-    validators: { onDynamic: z.object({ email: requiredString("Email / UPN") }) },
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validators: { onDynamic: z.object({ email: emailAddress("Enter a valid email or UPN.") }) },
     onSubmit: async ({ value }) => {
-      await setPrimaryUser.mutateAsync({ id: host.id, body: { email: value.email } });
+      await setPrimaryUser.mutateAsync({ id: host.id, body: { email: value.email.trim() } });
       onOpenChange(false);
     },
   });
+  const exitGuard = useFormExitGuard({
+    form,
+    onDiscard: () => onOpenChange(false),
+    blockNavigation: false,
+  });
+
+  function requestClose() {
+    if (pending || form.state.isSubmitting) return;
+    exitGuard.requestDiscard();
+  }
 
   async function handleClear() {
     await clearPrimaryUser.mutateAsync(host.id);
@@ -245,74 +257,86 @@ function HostPrimaryUserDialog({
   }
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
-          <DialogDescription>
-            Set the email or UPN Woodstar should prefer for this host.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          noValidate
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
-          <FieldGroup className="gap-4">
-            <form.Field name="email">
-              {(field) => (
-                <FormField field={field} label="Email / UPN" htmlFor="host-user-email" required>
-                  {(control) => (
-                    <Input
-                      {...control}
-                      type="email"
-                      autoComplete="off"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                  )}
-                </FormField>
-              )}
-            </form.Field>
-          </FieldGroup>
+    <>
+      <Dialog
+        open
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) requestClose();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
+            <DialogDescription>
+              Set the email or UPN Woodstar should prefer for this host.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            noValidate
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void form.handleSubmit();
+            }}
+          >
+            <FieldGroup className="gap-4">
+              <form.Field name="email">
+                {(field) => (
+                  <FormField field={field} label="Email / UPN" htmlFor="host-user-email" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="email"
+                        autoComplete="off"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+            </FieldGroup>
 
-          <DialogFooter className="pt-2">
-            {manual ? (
+            <DialogFooter className="pt-2">
+              {manual ? (
+                <Pending isPending={pending}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleClear()}
+                  >
+                    <Trash2 />
+                    {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
+                  </Button>
+                </Pending>
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={pending}
-                onClick={() => void handleClear()}
+                onClick={requestClose}
               >
-                <Trash2 />
-                Clear
+                Cancel
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={pending}
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <form.Subscribe selector={(state) => state.canSubmit}>
-              {(canSubmit) => (
-                <Button type="submit" size="sm" disabled={!canSubmit}>
-                  Save
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Pending isPending={pending || isSubmitting}>
+                    <Button type="submit" size="sm">
+                      {isSubmitting ? "Saving…" : "Save"}
+                    </Button>
+                  </Pending>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {exitGuard.dialog}
+    </>
   );
 }
 

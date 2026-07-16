@@ -21,6 +21,7 @@ const alignmentOptions = [
 export function BannerEditor({
   asset,
   error,
+  invalid,
   uploading,
   alignment,
   onAssetChange,
@@ -29,6 +30,7 @@ export function BannerEditor({
 }: {
   asset: ClientResourceAsset | null;
   error: string | null;
+  invalid: boolean;
   uploading: boolean;
   alignment: ClientResourcesDraft["banner"]["alignment"];
   onAssetChange: (file: File) => void;
@@ -43,7 +45,7 @@ export function BannerEditor({
       maxFiles={1}
       maxSize={clientResourceImageMaxSize}
       disabled={uploading}
-      invalid={error !== null}
+      invalid={invalid || error !== null}
       label="Banner image"
       onFileAccept={onAssetChange}
       onFileReject={(_file, message) => onAssetReject(message)}

@@ -1,17 +1,16 @@
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { z } from "zod";
 
 import { EmptyPanel } from "@/components/empty-panel";
-import { AssignmentLabelField } from "@/components/targeting/assignment-label-field";
+import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import { focusFirstInvalidField } from "@/components/form-tabs";
+import { LabelPicker } from "@/components/labels/label-picker";
 import { TargetSection } from "@/components/targeting/target-section";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,9 +27,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { encodeSort } from "@/hooks/use-data-table-search";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
+
+const labelAssignmentSchema = z.object({
+  label_id: z
+    .number()
+    .int("Label selection is invalid.")
+    .positive("Pick a label.")
+    .nullable()
+    .refine((value) => value !== null, "Pick a label."),
+});
 
 export function LabelAssignmentList({
   title,
@@ -50,7 +59,6 @@ export function LabelAssignmentList({
   onChange: (rows: LabelRef[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<number | null>(null);
   const labels = useLabels({
     per_page: MAX_PAGE_SIZE,
     sort: encodeSort("name"),
@@ -63,26 +71,11 @@ export function LabelAssignmentList({
   );
   const unavailableLabelIDs = [...rows.map((row) => row.label_id), ...crossListLabelIDs];
 
-  function addRow() {
-    if (draft === null) return;
-    onChange([...rows, { label_id: draft }]);
-    setDraft(null);
-    setAdding(false);
-  }
-
   return (
     <TargetSection
       title={title}
       action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setDraft(null);
-            setAdding(true);
-          }}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
           <Plus data-icon="inline-start" />
           {addLabel}
         </Button>
@@ -120,28 +113,105 @@ export function LabelAssignmentList({
         <EmptyPanel>{emptyText}</EmptyPanel>
       )}
 
-      <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{addLabel}</DialogTitle>
-          </DialogHeader>
-          <AssignmentLabelField
-            value={draft}
-            onChange={setDraft}
-            unavailableLabelIDs={unavailableLabelIDs}
-            includeBuiltins={includeBuiltins}
-          />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAdding(false)}>
-              Close
-            </Button>
-            <Button type="button" onClick={addRow} disabled={draft === null}>
-              Add
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {adding ? (
+        <LabelAssignmentDialog
+          title={addLabel}
+          unavailableLabelIDs={unavailableLabelIDs}
+          includeBuiltins={includeBuiltins}
+          onClose={() => setAdding(false)}
+          onSave={(labelID) => {
+            onChange([...rows, { label_id: labelID }]);
+            setAdding(false);
+          }}
+        />
+      ) : null}
     </TargetSection>
+  );
+}
+
+function LabelAssignmentDialog({
+  title,
+  unavailableLabelIDs,
+  includeBuiltins,
+  onClose,
+  onSave,
+}: {
+  title: string;
+  unavailableLabelIDs: readonly number[];
+  includeBuiltins: boolean;
+  onClose: () => void;
+  onSave: (labelID: number) => void;
+}) {
+  const form = useForm({
+    defaultValues: { label_id: null as number | null },
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
+    validators: { onDynamic: labelAssignmentSchema },
+    onSubmit: ({ value }) => {
+      const assignment = labelAssignmentSchema.parse(value);
+      if (assignment.label_id === null) return;
+      onSave(assignment.label_id);
+    },
+  });
+  const exitGuard = useFormExitGuard({
+    form,
+    onDiscard: onClose,
+    blockNavigation: false,
+  });
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) exitGuard.requestDiscard();
+      }}
+    >
+      <DialogContent>
+        <form
+          noValidate
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit().then(() => {
+              if (!form.state.isValid) focusFirstInvalidField();
+              return undefined;
+            });
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+          <form.Field name="label_id">
+            {(field) => (
+              <FormField field={field} label="Label" required>
+                {(control) => (
+                  <LabelPicker
+                    value={field.state.value === null ? [] : [field.state.value]}
+                    onChange={(ids) => field.handleChange(ids[0] ?? null)}
+                    selectionMode="single"
+                    includeBuiltins={includeBuiltins}
+                    unavailableLabelIDs={unavailableLabelIDs}
+                    required
+                    invalid={control["aria-invalid"]}
+                    placeholder="Select Label"
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
+          <FormActions
+            form={form}
+            submitLabel="Add"
+            onCancel={exitGuard.requestDiscard}
+            className="justify-end"
+          />
+        </form>
+        {exitGuard.dialog}
+      </DialogContent>
+    </Dialog>
   );
 }
 

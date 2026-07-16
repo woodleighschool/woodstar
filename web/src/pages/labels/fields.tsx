@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { Label, LabelMutation } from "@/lib/api";
 import { requiredString, selectedIDArray } from "@/lib/form-validation";
@@ -126,12 +127,14 @@ export function LabelForm({
   title,
   submitLabel,
   onSubmit,
+  onSuccess,
   onCancel,
 }: {
   initial: LabelFormValue;
   title: string;
   submitLabel: string;
-  onSubmit: (body: LabelMutation) => Promise<void> | void;
+  onSubmit: (body: LabelMutation) => Promise<number | undefined>;
+  onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
@@ -139,9 +142,17 @@ export function LabelForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: labelFormSchema },
-    onSubmit: async ({ value }) => onSubmit(toBody(value)),
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(toBody(value));
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
+  });
+  const exitGuard = useFormExitGuard({
+    form,
+    onDiscard: onCancel ?? (() => form.reset(initial)),
   });
 
   function insertAtCursor(snippet: string) {
@@ -162,208 +173,213 @@ export function LabelForm({
   );
 
   return (
-    <PageShell
-      asChild
-      className={cn(
-        "h-full transition-[padding] duration-200 ease-out",
-        schemaOpen && "pr-[21rem]",
-      )}
-    >
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
+    <>
+      <PageShell
+        asChild
+        className={cn(
+          "h-full transition-[padding] duration-200 ease-out",
+          schemaOpen && "pr-[21rem]",
+        )}
       >
-        <PageHeader title={title} />
-        <form.Subscribe selector={(state) => state.values}>
-          {(values) => {
-            const isDynamic = values.label_membership_type === "dynamic";
-            const isManual = values.label_membership_type === "manual";
-            const isDerived = values.label_membership_type === "derived";
-            const memberOption = LABEL_MEMBERSHIP_TYPES[values.label_membership_type];
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <PageHeader title={title} />
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => {
+              const isDynamic = values.label_membership_type === "dynamic";
+              const isManual = values.label_membership_type === "manual";
+              const isDerived = values.label_membership_type === "derived";
+              const memberOption = LABEL_MEMBERSHIP_TYPES[values.label_membership_type];
 
-            return (
-              <>
-                <FieldGroup className="max-w-5xl">
-                  <form.Field name="name">
-                    {(field) => (
-                      <FormField field={field} label="Name" htmlFor="label-name" required>
-                        {(control) => (
-                          <Input
-                            {...control}
-                            name={field.name}
-                            required
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
+              return (
+                <>
+                  <FieldGroup className="max-w-5xl">
+                    <form.Field name="name">
+                      {(field) => (
+                        <FormField field={field} label="Name" htmlFor="label-name" required>
+                          {(control) => (
+                            <Input
+                              {...control}
+                              name={field.name}
+                              required
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                            />
+                          )}
+                        </FormField>
+                      )}
+                    </form.Field>
 
-                  <form.Field name="description">
-                    {(field) => (
-                      <FormField field={field} label="Description" htmlFor="label-description">
-                        {(control) => (
-                          <Textarea
-                            {...control}
-                            name={field.name}
-                            rows={3}
-                            placeholder="Why this label exists"
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
+                    <form.Field name="description">
+                      {(field) => (
+                        <FormField field={field} label="Description" htmlFor="label-description">
+                          {(control) => (
+                            <Textarea
+                              {...control}
+                              name={field.name}
+                              rows={3}
+                              placeholder="Why this label exists"
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                            />
+                          )}
+                        </FormField>
+                      )}
+                    </form.Field>
 
-                  <form.Field
-                    name="label_membership_type"
-                    children={(field) => (
-                      <Field>
-                        <FieldLabel>Type</FieldLabel>
-                        <ToggleGroup
-                          type="single"
-                          value={field.state.value}
-                          onValueChange={(value) => {
-                            if (!value) return;
-                            const membershipType = value as LabelMembershipType;
-                            field.handleChange(membershipType);
-                            if (membershipType !== "dynamic") setSchemaOpen(false);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="flex-wrap"
-                        >
-                          {LABEL_MEMBERSHIP_OPTIONS.map((option) => (
-                            <ToggleGroupItem key={option.value} value={option.value}>
-                              {option.label}
-                            </ToggleGroupItem>
-                          ))}
-                        </ToggleGroup>
-                        {memberOption.description ? (
-                          <FieldDescription>{memberOption.description}</FieldDescription>
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-
-                  {isManual ? (
                     <form.Field
-                      name="host_ids"
+                      name="label_membership_type"
                       children={(field) => (
-                        <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
-                          <FieldLabel>Hosts</FieldLabel>
-                          <HostSelector value={field.state.value} onChange={field.handleChange} />
+                        <Field>
+                          <FieldLabel>Type</FieldLabel>
+                          <ToggleGroup
+                            type="single"
+                            value={field.state.value}
+                            onValueChange={(value) => {
+                              if (!value) return;
+                              const membershipType = value as LabelMembershipType;
+                              field.handleChange(membershipType);
+                              if (membershipType !== "dynamic") setSchemaOpen(false);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="flex-wrap"
+                          >
+                            {LABEL_MEMBERSHIP_OPTIONS.map((option) => (
+                              <ToggleGroupItem key={option.value} value={option.value}>
+                                {option.label}
+                              </ToggleGroupItem>
+                            ))}
+                          </ToggleGroup>
+                          {memberOption.description ? (
+                            <FieldDescription>{memberOption.description}</FieldDescription>
+                          ) : null}
+                        </Field>
+                      )}
+                    />
+
+                    {isManual ? (
+                      <form.Field
+                        name="host_ids"
+                        children={(field) => (
+                          <Field
+                            data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          >
+                            <FieldLabel>Hosts</FieldLabel>
+                            <HostSelector value={field.state.value} onChange={field.handleChange} />
+                            <FieldError errors={field.state.meta.errors} />
+                          </Field>
+                        )}
+                      />
+                    ) : null}
+
+                    {isDerived ? (
+                      <FieldGroup>
+                        <form.Field
+                          name="derived_attribute"
+                          children={(field) => (
+                            <Field>
+                              <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
+                              <Select
+                                value={field.state.value}
+                                onValueChange={(value) => {
+                                  field.handleChange(value as LabelDerivedAttribute);
+                                  form.setFieldValue("derived_values", []);
+                                }}
+                              >
+                                <SelectTrigger id="label-derived-attribute" className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    {LABEL_DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </Field>
+                          )}
+                        />
+                        <form.Field
+                          name="derived_values"
+                          children={(field) => (
+                            <Field
+                              data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                            >
+                              <FieldLabel required>
+                                {labelDerivedAttributeSelectorLabel(values.derived_attribute)}
+                              </FieldLabel>
+                              <DerivedSelector
+                                attribute={values.derived_attribute}
+                                value={field.state.value}
+                                onChange={field.handleChange}
+                              />
+                              <FieldDescription>Matches linked users and groups.</FieldDescription>
+                              <FieldError errors={field.state.meta.errors} />
+                            </Field>
+                          )}
+                        />
+                      </FieldGroup>
+                    ) : null}
+                  </FieldGroup>
+
+                  {isDynamic ? (
+                    <form.Field
+                      name="query"
+                      children={(field) => (
+                        <Field
+                          data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          className="max-w-3xl"
+                        >
+                          <FieldLabel required>Query</FieldLabel>
+                          <SQLEditor
+                            ref={editorRef}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onTableMetaClick={selectSchemaTable}
+                            placeholder="SELECT ..."
+                            invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          />
                           <FieldError errors={field.state.meta.errors} />
                         </Field>
                       )}
                     />
                   ) : null}
 
-                  {isDerived ? (
-                    <FieldGroup>
-                      <form.Field
-                        name="derived_attribute"
-                        children={(field) => (
-                          <Field>
-                            <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
-                            <Select
-                              value={field.state.value}
-                              onValueChange={(value) => {
-                                field.handleChange(value as LabelDerivedAttribute);
-                                form.setFieldValue("derived_values", []);
-                              }}
-                            >
-                              <SelectTrigger id="label-derived-attribute" className="w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  {LABEL_DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          </Field>
-                        )}
-                      />
-                      <form.Field
-                        name="derived_values"
-                        children={(field) => (
-                          <Field
-                            data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                          >
-                            <FieldLabel required>
-                              {labelDerivedAttributeSelectorLabel(values.derived_attribute)}
-                            </FieldLabel>
-                            <DerivedSelector
-                              attribute={values.derived_attribute}
-                              value={field.state.value}
-                              onChange={field.handleChange}
-                            />
-                            <FieldDescription>Matches linked users and groups.</FieldDescription>
-                            <FieldError errors={field.state.meta.errors} />
-                          </Field>
-                        )}
-                      />
-                    </FieldGroup>
+                  {isDynamic ? (
+                    <SchemaSidebar
+                      open={schemaOpen}
+                      onOpenChange={setSchemaOpen}
+                      onInsertColumn={insertAtCursor}
+                      selectedTable={selectedSchemaTable}
+                      onSelectedTableChange={setSelectedSchemaTable}
+                    />
                   ) : null}
-                </FieldGroup>
+                </>
+              );
+            }}
+          </form.Subscribe>
 
-                {isDynamic ? (
-                  <form.Field
-                    name="query"
-                    children={(field) => (
-                      <Field
-                        data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                        className="max-w-3xl"
-                      >
-                        <FieldLabel required>Query</FieldLabel>
-                        <SQLEditor
-                          ref={editorRef}
-                          value={field.state.value}
-                          onChange={field.handleChange}
-                          onTableMetaClick={selectSchemaTable}
-                          placeholder="SELECT ..."
-                          invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                        />
-                        <FieldError errors={field.state.meta.errors} />
-                      </Field>
-                    )}
-                  />
-                ) : null}
-
-                {isDynamic ? (
-                  <SchemaSidebar
-                    open={schemaOpen}
-                    onOpenChange={setSchemaOpen}
-                    onInsertColumn={insertAtCursor}
-                    selectedTable={selectedSchemaTable}
-                    onSelectedTableChange={setSelectedSchemaTable}
-                  />
-                ) : null}
-              </>
-            );
-          }}
-        </form.Subscribe>
-
-        <FormActions
-          className="max-w-5xl"
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={onCancel}
-        />
-      </form>
-    </PageShell>
+          <FormActions
+            className="max-w-5xl"
+            form={form}
+            submitLabel={submitLabel}
+            onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+          />
+        </form>
+      </PageShell>
+      {exitGuard.dialog}
+    </>
   );
 }
 

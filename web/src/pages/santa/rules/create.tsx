@@ -15,9 +15,11 @@ export function RuleCreatePage() {
       title="New Rule"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/santa/rules" })}
-      onSubmit={async (body) => {
-        const saved = await create.mutateAsync(body);
-        void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(saved.id) } });
+      onSubmit={async (body) => (await create.mutateAsync(body)).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(id) } });
+        }
       }}
     />
   );

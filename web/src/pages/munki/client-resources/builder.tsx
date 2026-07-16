@@ -6,6 +6,7 @@ import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryGate } from "@/components/query-gate";
 import { Button } from "@/components/ui/button";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import {
   useDeleteMunkiClientResources,
   useMunkiClientResources,
@@ -20,7 +21,6 @@ import {
   useClientResourcesForm,
 } from "./client-resources";
 import { ClientResourcesEditor } from "./editor";
-import { useClientResourceAsset } from "./use-client-resource-asset";
 
 export function MunkiClientResourcesPage() {
   const query = useMunkiClientResources();
@@ -44,45 +44,30 @@ export function MunkiClientResourcesPage() {
 
 function ClientResourcesBuilder({ resource }: { resource: MunkiClientResources | null }) {
   const [confirmDefaults, setConfirmDefaults] = useState(false);
-  const [bannerRequiredError, setBannerRequiredError] = useState<string | null>(null);
   const initialDraft = clientResourcesDraft(resource);
-  const banner = useClientResourceAsset(
-    resource
-      ? {
-          name: resource.banner.filename,
-          url: resource.banner.content_url,
-          objectID: resource.banner.id,
-          file: null,
-        }
-      : null,
-  );
   const saveResource = useSaveMunkiClientResources();
   const uploadAndSave = useUploadAndSaveMunkiClientResourcesBanner();
   const deleteResource = useDeleteMunkiClientResources();
   const form = useClientResourcesForm(initialDraft, save);
+  const exitGuard = useFormExitGuard({ form, onDiscard: cancel });
 
   async function save(draft: typeof initialDraft) {
-    if (!banner.asset) {
-      setBannerRequiredError("Choose a banner image.");
-      return;
-    }
-
-    setBannerRequiredError(null);
+    const banner = draft.banner.asset;
+    if (!banner) throw new Error("Validated client resources are missing a banner.");
     const body = clientResourcesMutation(draft);
-    if (banner.asset.file) {
-      await uploadAndSave.upload({ file: banner.asset.file, body });
+    if (banner.file) {
+      await uploadAndSave.upload({ file: banner.file, body });
       return;
     }
-    if (banner.asset.objectID === null) {
+    if (banner.objectID === null) {
       throw new Error("The selected banner has no upload or stored object.");
     }
-    await saveResource.mutateAsync({ ...body, banner_object_id: banner.asset.objectID });
+    await saveResource.mutateAsync({ ...body, banner_object_id: banner.objectID });
   }
 
   function cancel() {
+    uploadAndSave.cancel();
     form.reset(initialDraft);
-    banner.reset();
-    setBannerRequiredError(null);
   }
 
   return (
@@ -96,7 +81,7 @@ function ClientResourcesBuilder({ resource }: { resource: MunkiClientResources |
       >
         <PageHeader
           title="Client Resources"
-          description="Compose the branding Munki displays in Managed Software Center."
+          description="Configure Managed Software Center branding."
           actions={
             resource ? (
               <Button type="button" variant="outline" onClick={() => setConfirmDefaults(true)}>
@@ -112,19 +97,19 @@ function ClientResourcesBuilder({ resource }: { resource: MunkiClientResources |
             <ClientResourcesEditor
               form={form}
               draft={draft}
-              banner={banner.asset}
-              bannerError={banner.error ?? bannerRequiredError}
               bannerUploading={uploadAndSave.isUploading}
-              onBannerReject={setBannerRequiredError}
-              onBannerChange={(file) => {
-                if (!banner.replace(file)) return;
-                setBannerRequiredError(null);
-              }}
             />
           )}
         </form.Subscribe>
 
-        <FormActions form={form} submitLabel="Save" onCancel={cancel} />
+        <FormActions
+          form={form}
+          submitLabel="Save"
+          onCancel={exitGuard.requestDiscard}
+          canCancelWhileSubmitting
+        />
+
+        {exitGuard.dialog}
 
         <ConfirmDialog
           open={confirmDefaults}

@@ -5,6 +5,10 @@ export function requiredString(label: string) {
   return z.string().trim().min(1, `${label} is required.`);
 }
 
+export function emailAddress(message = "Enter a valid email.") {
+  return z.string().trim().pipe(z.email(message));
+}
+
 export function uniqueOptions(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).toSorted((a, b) =>
     a.localeCompare(b),

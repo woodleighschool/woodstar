@@ -139,6 +139,20 @@ func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
 	}
 }
 
+func TestMunkiClientResourcesBannerUploadCanBeCancelled(t *testing.T) {
+	fixture := newMunkiUploadFixture(t)
+	path := clientResourcesPath + "/banner"
+	target := fixture.beginUpload(t, path, "banner.png")
+	fixture.upload(t, target, []byte("pending banner"))
+
+	response := fixture.request(t, http.MethodDelete, fmt.Sprintf("%s/%d", path, target.ObjectID))
+	assertStatus(t, response, http.StatusNoContent, "cancel client resources banner")
+	_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get cancelled banner error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
 
@@ -194,6 +208,8 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 		DesiredPackagesChanged: func() {},
 	}), discardLogger())
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
+	registerCreateClientResourcesBannerUpload(api, uploads, discardLogger())
+	registerDeleteClientResourcesBannerUpload(api, uploads, discardLogger())
 	RegisterBlobStorage(router, backend, testCapabilityKey, discardLogger())
 
 	return munkiUploadFixture{

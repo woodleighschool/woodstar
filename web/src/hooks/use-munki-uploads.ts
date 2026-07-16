@@ -48,7 +48,6 @@ export function useUploadMunkiInstaller() {
     mutationKey: ["munki-installer-upload"],
     loadingText: "Uploading installer",
     successText: "Installer uploaded",
-    errorSurface: "inline",
     createIntent: ({ file }) =>
       unwrap(createMunkiPackageInstaller({ body: { filename: file.name } })),
     uploadRequest: (intent) => installerUploadRequest(intent),

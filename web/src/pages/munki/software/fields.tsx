@@ -4,7 +4,7 @@ import { z } from "zod";
 import { FormField } from "@/components/form-field";
 import { FreeTextCombobox } from "@/components/free-text-combobox";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
-import { FieldDescription, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiInclude, MunkiSoftwareDetail } from "@/lib/api";
@@ -30,10 +30,27 @@ export interface MunkiSoftwareFormState {
   description: string;
   category: string;
   developer: string;
+  icon_file: File | null;
+  icon_object_id: number | null;
+  icon_url: string;
+  targets: {
+    include: MunkiSoftwareTargetMutation[];
+    exclude: { label_id: number }[];
+  };
 }
 
 export function emptyMunkiSoftwareForm(): MunkiSoftwareFormState {
-  return { name: "", display_name: "", description: "", category: "", developer: "" };
+  return {
+    name: "",
+    display_name: "",
+    description: "",
+    category: "",
+    developer: "",
+    icon_file: null,
+    icon_object_id: null,
+    icon_url: "",
+    targets: { include: [], exclude: [] },
+  };
 }
 
 export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): MunkiSoftwareFormState {
@@ -43,106 +60,124 @@ export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): Munki
     description: title.description,
     category: title.category,
     developer: title.developer,
+    icon_file: null,
+    icon_object_id: title.icon_object_id ?? null,
+    icon_url: title.icon_url ?? "",
+    targets: {
+      include: title.targets.include.map((include, index) => ({
+        ...include,
+        id: index + 1,
+        priority: index + 1,
+      })),
+      exclude: title.targets.exclude,
+    },
   };
 }
 
 export function useMunkiSoftwareForm(
   initial: MunkiSoftwareFormState,
-  onSubmit: (value: MunkiSoftwareFormState) => Promise<void>,
+  onSubmit: (value: MunkiSoftwareFormState) => Promise<number | undefined>,
+  onSuccess?: (id: number) => void,
 ) {
   return useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
-    validators: { onDynamic: munkiSoftwareSchema },
-    onSubmit: ({ value }) => onSubmit(value),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validators: { onDynamic: munkiSoftwareFormSchema() },
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(value);
+      if (id === undefined) return;
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
   });
 }
 
 export type MunkiSoftwareForm = ReturnType<typeof useMunkiSoftwareForm>;
-
-export type MunkiSoftwareIconProps = {
-  iconUrl?: string;
-  file: File | null;
-  clearable: boolean;
-  onFileChange: (file: File | null) => void;
-  onPickExisting: (object: { id: number; url: string }) => void;
-  onClear: () => void;
-};
 
 export function MunkiSoftwareOptionsFields({
   form,
   nameReadOnly = false,
   categoryOptions,
   developerOptions,
-  icon,
 }: {
   form: MunkiSoftwareForm;
   nameReadOnly?: boolean;
   categoryOptions: string[];
   developerOptions: string[];
-  icon: MunkiSoftwareIconProps;
 }) {
   return (
     <FieldGroup className="max-w-3xl">
-      <FieldDescription>
-        The Munki name identifies the software in manifests and package relationships. The display
-        name is shown in Managed Software Center.
-      </FieldDescription>
-      <div className="flex items-start gap-4">
-        <EditableMunkiIcon
-          title="software icon"
-          iconUrl={icon.iconUrl}
-          file={icon.file}
-          clearable={icon.clearable}
-          onFileChange={icon.onFileChange}
-          onPickExisting={icon.onPickExisting}
-          onClear={icon.onClear}
-        />
-        <div className="grid min-w-0 flex-1 gap-4 md:grid-cols-2">
-          <form.Field name="name">
-            {(field) => (
-              <FormField
-                field={field}
-                label="Munki name"
-                htmlFor="munki-software-name"
-                description="Canonical name used by Munki."
-                required
-              >
-                {(control) => (
-                  <Input
-                    {...control}
-                    name={field.name}
-                    value={field.state.value}
-                    readOnly={nameReadOnly}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                  />
-                )}
-              </FormField>
+      <form.Subscribe
+        selector={(state) =>
+          [state.values.icon_url, state.values.icon_file, state.values.icon_object_id] as const
+        }
+      >
+        {([iconUrl, iconFile, iconObjectID]) => (
+          <EditableMunkiIcon
+            title="software icon"
+            iconUrl={iconUrl || undefined}
+            file={iconFile}
+            clearable={!!iconFile || iconObjectID !== null}
+            onFileChange={(file) => {
+              form.setFieldValue("icon_file", file);
+              form.setFieldValue("icon_object_id", null);
+              if (file) form.setFieldValue("icon_url", "");
+            }}
+            onPickExisting={(object) => {
+              form.setFieldValue("icon_file", null);
+              form.setFieldValue("icon_object_id", object.id);
+              form.setFieldValue("icon_url", object.url);
+            }}
+            onClear={() => {
+              form.setFieldValue("icon_file", null);
+              form.setFieldValue("icon_object_id", null);
+              form.setFieldValue("icon_url", "");
+            }}
+          />
+        )}
+      </form.Subscribe>
+      <form.Field name="name">
+        {(field) => (
+          <FormField
+            field={field}
+            label="Munki name"
+            htmlFor="munki-software-name"
+            description="Canonical name used by Munki in manifests and package relationships."
+            required
+          >
+            {(control) => (
+              <Input
+                {...control}
+                name={field.name}
+                value={field.state.value}
+                readOnly={nameReadOnly}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+              />
             )}
-          </form.Field>
-          <form.Field name="display_name">
-            {(field) => (
-              <FormField
-                field={field}
-                label="Display name"
-                htmlFor="munki-software-display-name"
-                description="Optional label shown in Managed Software Center."
-              >
-                {(control) => (
-                  <Input
-                    {...control}
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                  />
-                )}
-              </FormField>
+          </FormField>
+        )}
+      </form.Field>
+      <form.Field name="display_name">
+        {(field) => (
+          <FormField
+            field={field}
+            label="Display name"
+            htmlFor="munki-software-display-name"
+            description="Optional label shown in Managed Software Center."
+          >
+            {(control) => (
+              <Input
+                {...control}
+                name={field.name}
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+              />
             )}
-          </form.Field>
-        </div>
-      </div>
+          </FormField>
+        )}
+      </form.Field>
       <form.Field name="description">
         {(field) => (
           <FormField field={field} htmlFor="munki-software-description" label="Description">
@@ -158,46 +193,44 @@ export function MunkiSoftwareOptionsFields({
           </FormField>
         )}
       </form.Field>
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="category">
-          {(field) => (
-            <FormField field={field} label="Category" htmlFor="munki-software-category">
-              {(control) => (
-                <FreeTextCombobox
-                  id={control.id}
-                  name={field.name}
-                  value={field.state.value}
-                  items={categoryOptions}
-                  itemToStringValue={(option) => option}
-                  freeTextItem={freeTextOption}
-                  invalid={control["aria-invalid"]}
-                  onBlur={field.handleBlur}
-                  onChange={field.handleChange}
-                />
-              )}
-            </FormField>
-          )}
-        </form.Field>
-        <form.Field name="developer">
-          {(field) => (
-            <FormField field={field} label="Developer" htmlFor="munki-software-developer">
-              {(control) => (
-                <FreeTextCombobox
-                  id={control.id}
-                  name={field.name}
-                  value={field.state.value}
-                  items={developerOptions}
-                  itemToStringValue={(option) => option}
-                  freeTextItem={freeTextOption}
-                  invalid={control["aria-invalid"]}
-                  onBlur={field.handleBlur}
-                  onChange={field.handleChange}
-                />
-              )}
-            </FormField>
-          )}
-        </form.Field>
-      </div>
+      <form.Field name="category">
+        {(field) => (
+          <FormField field={field} label="Category" htmlFor="munki-software-category">
+            {(control) => (
+              <FreeTextCombobox
+                id={control.id}
+                name={field.name}
+                value={field.state.value}
+                items={categoryOptions}
+                itemToStringValue={(option) => option}
+                freeTextItem={freeTextOption}
+                invalid={control["aria-invalid"]}
+                onBlur={field.handleBlur}
+                onChange={field.handleChange}
+              />
+            )}
+          </FormField>
+        )}
+      </form.Field>
+      <form.Field name="developer">
+        {(field) => (
+          <FormField field={field} label="Developer" htmlFor="munki-software-developer">
+            {(control) => (
+              <FreeTextCombobox
+                id={control.id}
+                name={field.name}
+                value={field.state.value}
+                items={developerOptions}
+                itemToStringValue={(option) => option}
+                freeTextItem={freeTextOption}
+                invalid={control["aria-invalid"]}
+                onBlur={field.handleBlur}
+                onChange={field.handleChange}
+              />
+            )}
+          </FormField>
+        )}
+      </form.Field>
     </FieldGroup>
   );
 }
@@ -219,6 +252,7 @@ const packageSelectorSchema = z.object({
 
 export const munkiSoftwareTargetSchema = z
   .object({
+    id: z.number().int().positive(),
     priority: z.number().int("Priority must be a whole number.").positive("Priority starts at 1."),
     label_id: z
       .number()
@@ -231,7 +265,24 @@ export const munkiSoftwareTargetSchema = z
   })
   .superRefine(validateTarget);
 
+export function munkiSoftwareFormSchema() {
+  return munkiSoftwareSchema.extend({
+    icon_file: z.custom<File | null>((value) => value === null || value instanceof File),
+    icon_object_id: z.number().int().positive().nullable(),
+    icon_url: z.string(),
+    targets: z.object({
+      include: z.array(munkiSoftwareTargetSchema),
+      exclude: z.array(
+        z.object({
+          label_id: z.number().int("Label selection is invalid.").positive("Pick a label."),
+        }),
+      ),
+    }),
+  });
+}
+
 export interface MunkiSoftwareTargetMutation {
+  id: number;
   priority: number;
   label_id: number | null;
   package: MunkiInclude["package"];

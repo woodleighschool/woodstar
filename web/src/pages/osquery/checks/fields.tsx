@@ -7,13 +7,19 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
+import {
+  type FormTabDefinition,
+  FormTabTrigger,
+  revealFirstInvalidFormTab,
+} from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { OsqueryCheck, OsqueryCheckMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
@@ -47,9 +53,17 @@ const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, {
 
 const checkFormSchema = z.object({
   name: requiredString("Name"),
+  description: z.string().optional(),
   query: checkQuerySchema,
   targets: labelTargetSetSchema,
 });
+
+const checkFormTabs = [
+  { value: "options", fields: ["name", "description", "query"] },
+  { value: "targets", fields: ["targets"] },
+] as const satisfies readonly FormTabDefinition[];
+
+const noOp = () => undefined;
 
 function trimCheck(value: OsqueryCheckMutation): OsqueryCheckMutation {
   return {
@@ -66,6 +80,7 @@ export function CheckForm({
   title,
   submitLabel,
   onSubmit,
+  onSuccess,
   onCancel,
   headerContext,
   headerActions,
@@ -73,20 +88,27 @@ export function CheckForm({
   initial: OsqueryCheckMutation;
   title?: string;
   submitLabel: string;
-  onSubmit: (value: OsqueryCheckMutation) => Promise<void> | void;
+  onSubmit: (value: OsqueryCheckMutation) => Promise<number | undefined>;
+  onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
   headerContext?: ReactNode;
   headerActions?: ReactNode;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: checkFormSchema },
-    onSubmit: async ({ value }) => onSubmit(trimCheck(value)),
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(trimCheck(value));
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
   });
+  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
 
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
@@ -117,7 +139,10 @@ export function CheckForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void form.handleSubmit();
+          void form.handleSubmit().then(() => {
+            revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
+            return undefined;
+          });
         }}
       >
         <form.Subscribe selector={(state) => state.values.name}>
@@ -130,13 +155,17 @@ export function CheckForm({
           )}
         </form.Subscribe>
 
-        <ScrollableTabs defaultValue="options">
+        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
           <ScrollableTabsList>
-            <TabsTrigger value="options">Options</TabsTrigger>
-            <TabsTrigger value="targets">Targets</TabsTrigger>
+            <FormTabTrigger form={form} tab={checkFormTabs[0]}>
+              Options
+            </FormTabTrigger>
+            <FormTabTrigger form={form} tab={checkFormTabs[1]}>
+              Targets
+            </FormTabTrigger>
           </ScrollableTabsList>
 
-          <TabsContent value="options">
+          <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
             <div className="flex max-w-5xl flex-col gap-6">
               <FieldGroup className="max-w-3xl">
                 <form.Field name="name">
@@ -196,19 +225,29 @@ export function CheckForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="targets">
+          <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
             <form.Field name="targets">
               {(field) => (
-                <LabelTargetSetEditor
-                  value={normalizeLabelTargetSet(field.state.value)}
-                  onChange={field.handleChange}
-                />
+                <FormField field={field}>
+                  {(control) => (
+                    <div {...control} tabIndex={-1}>
+                      <LabelTargetSetEditor
+                        value={normalizeLabelTargetSet(field.state.value)}
+                        onChange={field.handleChange}
+                      />
+                    </div>
+                  )}
+                </FormField>
               )}
             </form.Field>
           </TabsContent>
         </ScrollableTabs>
 
-        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
 
         <SchemaSidebar
           open={schemaOpen}
@@ -217,6 +256,7 @@ export function CheckForm({
           selectedTable={selectedSchemaTable}
           onSelectedTableChange={setSelectedSchemaTable}
         />
+        {exitGuard.dialog}
       </form>
     </PageShell>
   );

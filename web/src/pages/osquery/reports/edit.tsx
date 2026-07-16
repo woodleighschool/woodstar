@@ -38,9 +38,11 @@ export function ReportEditPage() {
       submitLabel="Save"
       resultsReportId={id}
       headerActions={<LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />}
-      onSubmit={async (value) => {
-        const saved = await update.mutateAsync(value);
-        void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
+      onSubmit={async (value) => (await update.mutateAsync(value)).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(id) } });
+        }
       }}
     />
   );

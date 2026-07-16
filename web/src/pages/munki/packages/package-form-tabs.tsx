@@ -1,0 +1,664 @@
+import { useState } from "react";
+
+import { CodeEditor } from "@/components/editor/code-editor";
+import { FormField } from "@/components/form-field";
+import type { FormTabDefinition } from "@/components/form-tabs";
+import { ScrollableTabsList } from "@/components/layout/scrollable-tabs";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
+
+import {
+  MUNKI_INSTALLER_TYPE_OPTIONS,
+  MUNKI_RESTART_ACTION_OPTIONS,
+  MUNKI_UNINSTALL_METHOD_OPTIONS,
+} from "../software/munki-software";
+import type { PackageEditorForm } from "./editor-form";
+import {
+  emptyInstallerEnvironmentRow,
+  emptyInstallItemRow,
+  emptyItemToCopyRow,
+  emptyPackageReferenceRow,
+  emptyReceiptRow,
+  type PackageFormState,
+  scriptFields,
+  type ScriptKey,
+} from "./form-state";
+import {
+  ArchitectureEditor,
+  BlockingApplicationsEditor,
+  InstallerEnvironmentEditor,
+  InstallerFileField,
+  InstallsTable,
+  ItemsToCopyEditor,
+  ReceiptsTable,
+} from "./package-collection-editors";
+import {
+  AlertEditor,
+  FormCheckboxField,
+  FormCodeField,
+  FormSelectField,
+  FormSwitchField,
+  FormTextareaField,
+  FormTextField,
+  ScriptField,
+  VersionField,
+} from "./package-form-controls";
+import {
+  PackageReferenceEditor,
+  ParentSoftwareField,
+  type SoftwareInfo,
+  SoftwareSelector,
+} from "./package-reference-editors";
+
+// uninstall_script lives on the Uninstall tab; the rest are general-purpose hooks.
+const generalScriptFields = scriptFields.filter((script) => script.key !== "uninstall_script");
+
+export const packageFormTabs = [
+  {
+    value: "basic",
+    label: "Basic Info",
+    fields: [
+      "software_id",
+      "version",
+      "installer_type",
+      "installer_file",
+      "restart_required",
+      "restart_action",
+      "force_install_after_date",
+      "notes",
+      "unattended_install",
+      "unattended_uninstall",
+      "on_demand",
+      "autoremove",
+    ],
+  },
+  { value: "contents", label: "Contents", fields: ["installs", "receipts"] },
+  {
+    value: "requirements",
+    label: "Requirements",
+    fields: [
+      "requires",
+      "update_for",
+      "minimum_munki_version",
+      "minimum_os_version",
+      "maximum_os_version",
+      "installable_condition",
+    ],
+  },
+  {
+    value: "installation",
+    label: "Installation",
+    fields: [
+      "items_to_copy",
+      "blocking_applications_none",
+      "blocking_applications",
+      "blocking_applications_manual_quit_only",
+      "blocking_applications_quit_script",
+      "supported_architectures",
+      "installer_choices_xml",
+    ],
+  },
+  {
+    value: "uninstall",
+    label: "Uninstall",
+    fields: ["uninstallable", "uninstall_method", "uninstall_script"],
+  },
+  {
+    value: "scripts",
+    label: "Scripts",
+    fields: generalScriptFields.map((script) => script.key),
+  },
+  {
+    value: "alerts",
+    label: "Alerts",
+    fields: ["preinstall_alert", "preuninstall_alert"],
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+    fields: [
+      "package_path",
+      "installed_size",
+      "installer_environment",
+      "precache",
+      "apple_item",
+      "suppress_bundle_relocation",
+    ],
+  },
+] as const satisfies readonly (FormTabDefinition & { label: string })[];
+
+export function PackageEditorTabContent({
+  tab,
+  form,
+  softwareInfo,
+  softwareOptions,
+  softwareLoading,
+  packageOptions,
+  installerMetadata,
+}: {
+  tab: (typeof packageFormTabs)[number]["value"];
+  form: PackageEditorForm;
+  softwareInfo: SoftwareInfo | null;
+  softwareOptions?: MunkiSoftware[];
+  softwareLoading?: boolean;
+  packageOptions: MunkiPackage[];
+  installerMetadata?: MunkiPackage["installer_file"];
+}) {
+  switch (tab) {
+    case "basic":
+      return (
+        <BasicInfoTab
+          form={form}
+          software={softwareInfo}
+          softwareOptions={softwareOptions}
+          softwareLoading={softwareLoading}
+          installerMetadata={installerMetadata}
+        />
+      );
+    case "contents":
+      return <ContentsTab form={form} />;
+    case "requirements":
+      return <RequirementsTab form={form} packageOptions={packageOptions} />;
+    case "installation":
+      return <InstallationTab form={form} />;
+    case "uninstall":
+      return <UninstallTab form={form} />;
+    case "scripts":
+      return <ScriptsTab form={form} />;
+    case "alerts":
+      return <AlertsTab form={form} />;
+    case "advanced":
+      return <AdvancedTab form={form} />;
+  }
+}
+
+function BasicInfoTab({
+  form,
+  software,
+  softwareOptions,
+  softwareLoading,
+  installerMetadata,
+}: {
+  form: PackageEditorForm;
+  software: SoftwareInfo | null;
+  softwareOptions?: MunkiSoftware[];
+  softwareLoading?: boolean;
+  installerMetadata?: MunkiPackage["installer_file"];
+}) {
+  return (
+    <FieldGroup>
+      {softwareOptions ? (
+        <SoftwareSelector form={form} rows={softwareOptions} loading={softwareLoading === true} />
+      ) : software ? (
+        <ParentSoftwareField software={software} />
+      ) : null}
+
+      <VersionField form={form} />
+      <FormSelectField
+        form={form}
+        name="installer_type"
+        id="munki-package-installer-type"
+        label="Installer Type"
+        options={MUNKI_INSTALLER_TYPE_OPTIONS}
+      />
+      <form.Subscribe selector={(state) => state.values.installer_type}>
+        {(installerType) =>
+          installerType === "nopkg" ? null : (
+            <InstallerFileField form={form} metadata={installerMetadata} />
+          )
+        }
+      </form.Subscribe>
+      <FormSwitchField
+        form={form}
+        name="restart_required"
+        id="munki-package-restart-required"
+        label="Restart required"
+      />
+      <form.Subscribe selector={(state) => state.values.restart_required}>
+        {(restartRequired) =>
+          restartRequired ? (
+            <FormSelectField
+              form={form}
+              name="restart_action"
+              id="munki-package-restart-action"
+              label="Restart Action"
+              options={MUNKI_RESTART_ACTION_OPTIONS}
+            />
+          ) : null
+        }
+      </form.Subscribe>
+      <FormTextField
+        form={form}
+        name="force_install_after_date"
+        id="munki-package-force-install-after"
+        label="Force Install After"
+        type="datetime-local"
+      />
+      <FormTextareaField form={form} name="notes" id="munki-package-notes" label="Notes" />
+
+      <FieldSet>
+        <FieldLegend>Behavior</FieldLegend>
+        <FieldGroup data-slot="checkbox-group">
+          <FormCheckboxField
+            form={form}
+            name="unattended_install"
+            id="munki-package-unattended-install"
+            label="Unattended install"
+          />
+          <FormCheckboxField
+            form={form}
+            name="unattended_uninstall"
+            id="munki-package-unattended-uninstall"
+            label="Unattended uninstall"
+          />
+          <FormCheckboxField
+            form={form}
+            name="on_demand"
+            id="munki-package-on-demand"
+            label="On demand"
+          />
+          <FormCheckboxField
+            form={form}
+            name="autoremove"
+            id="munki-package-autoremove"
+            label="Autoremove"
+          />
+        </FieldGroup>
+      </FieldSet>
+    </FieldGroup>
+  );
+}
+
+function ContentsTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
+      <form.Field
+        name="installs"
+        mode="array"
+        children={(field) => (
+          <FormField field={field}>
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <InstallsTable
+                  rows={field.state.value}
+                  onAdd={() => field.pushValue(emptyInstallItemRow())}
+                  onReplace={(index, row) => field.replaceValue(index, row)}
+                  onRemove={(index) => field.removeValue(index)}
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+      <form.Field
+        name="receipts"
+        mode="array"
+        children={(field) => (
+          <FormField field={field}>
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <ReceiptsTable
+                  rows={field.state.value}
+                  onAdd={() => field.pushValue(emptyReceiptRow())}
+                  onReplace={(index, row) => field.replaceValue(index, row)}
+                  onRemove={(index) => field.removeValue(index)}
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+    </FieldGroup>
+  );
+}
+
+function RequirementsTab({
+  form,
+  packageOptions,
+}: {
+  form: PackageEditorForm;
+  packageOptions: MunkiPackage[];
+}) {
+  return (
+    <FieldGroup>
+      <form.Field
+        name="requires"
+        mode="array"
+        children={(field) => (
+          <FormField field={field}>
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <PackageReferenceEditor
+                  legend="Requires"
+                  addLabel="Add requirement"
+                  rows={field.state.value}
+                  packageOptions={packageOptions}
+                  onAdd={() => field.pushValue(emptyPackageReferenceRow())}
+                  onReplace={(index, row) => field.replaceValue(index, row)}
+                  onRemove={(index) => field.removeValue(index)}
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+      <form.Field
+        name="update_for"
+        mode="array"
+        children={(field) => (
+          <FormField field={field}>
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <PackageReferenceEditor
+                  legend="Update For"
+                  addLabel="Add update target"
+                  rows={field.state.value}
+                  packageOptions={packageOptions}
+                  onAdd={() => field.pushValue(emptyPackageReferenceRow())}
+                  onReplace={(index, row) => field.replaceValue(index, row)}
+                  onRemove={(index) => field.removeValue(index)}
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+      <FieldSet>
+        <FieldLegend>Compatibility</FieldLegend>
+        <FieldGroup className="grid gap-4 md:grid-cols-3">
+          <FormTextField
+            form={form}
+            name="minimum_munki_version"
+            id="munki-package-minimum-munki-version"
+            label="Minimum Munki Version"
+          />
+          <FormTextField
+            form={form}
+            name="minimum_os_version"
+            id="munki-package-minimum-os"
+            label="Minimum OS"
+          />
+          <FormTextField
+            form={form}
+            name="maximum_os_version"
+            id="munki-package-maximum-os"
+            label="Maximum OS"
+          />
+        </FieldGroup>
+        <FormCodeField
+          form={form}
+          name="installable_condition"
+          id="munki-package-installable-condition"
+          label="Installable Condition"
+          minHeight="[&_.cm-content]:min-h-32"
+        />
+      </FieldSet>
+    </FieldGroup>
+  );
+}
+
+function InstallationTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
+      <form.Field
+        name="items_to_copy"
+        mode="array"
+        children={(field) => (
+          <FormField field={field}>
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <ItemsToCopyEditor
+                  rows={field.state.value}
+                  onAdd={() => field.pushValue(emptyItemToCopyRow())}
+                  onReplace={(index, row) => field.replaceValue(index, row)}
+                  onRemove={(index) => field.removeValue(index)}
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+
+      <BlockingApplicationsEditor form={form} />
+      <FieldSet>
+        <FieldLegend>Blocking Application Handling</FieldLegend>
+        <FieldGroup>
+          <FormSwitchField
+            form={form}
+            name="blocking_applications_manual_quit_only"
+            id="munki-package-blocking-applications-manual-quit-only"
+            label="Require manual quit"
+          />
+          <FormCodeField
+            form={form}
+            name="blocking_applications_quit_script"
+            id="munki-package-blocking-applications-quit-script"
+            label="Quit Script"
+            minHeight="[&_.cm-content]:min-h-32"
+          />
+        </FieldGroup>
+      </FieldSet>
+
+      <form.Field
+        name="supported_architectures"
+        children={(field) => (
+          <ArchitectureEditor
+            values={field.state.value}
+            onChange={(values) => field.handleChange(values)}
+          />
+        )}
+      />
+
+      <form.Field
+        name="installer_choices_xml"
+        children={(field) => (
+          <FormField field={field} label="Installer Choices XML" htmlFor="installer-choices-xml">
+            {(control) => (
+              <div {...control} tabIndex={-1}>
+                <CodeEditor
+                  value={field.state.value}
+                  onChange={field.handleChange}
+                  lineNumbers={false}
+                  className="[&_.cm-content]:min-h-28"
+                />
+              </div>
+            )}
+          </FormField>
+        )}
+      />
+    </FieldGroup>
+  );
+}
+
+function UninstallTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldSet>
+      <FieldLegend>Uninstall</FieldLegend>
+      <FieldGroup>
+        <FormSwitchField
+          form={form}
+          name="uninstallable"
+          id="munki-package-uninstallable"
+          label="Uninstallable"
+        />
+        <form.Subscribe selector={(state) => state.values}>
+          {(values) =>
+            values.uninstallable ? (
+              <>
+                <div className="max-w-sm">
+                  <FormSelectField
+                    form={form}
+                    name="uninstall_method"
+                    id="munki-package-uninstall-method"
+                    label="Uninstall Method"
+                    options={MUNKI_UNINSTALL_METHOD_OPTIONS}
+                  />
+                </div>
+                {values.uninstall_method === "uninstall_script" ? (
+                  <form.Field
+                    name="uninstall_script"
+                    children={(field) => (
+                      <FormField field={field} label="Uninstall Script">
+                        {(control) => (
+                          <div {...control} tabIndex={-1}>
+                            <ScriptField value={field.state.value} onChange={field.handleChange} />
+                          </div>
+                        )}
+                      </FormField>
+                    )}
+                  />
+                ) : null}
+              </>
+            ) : null
+          }
+        </form.Subscribe>
+      </FieldGroup>
+    </FieldSet>
+  );
+}
+
+function ScriptsTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Subscribe
+      selector={(state) => state.values}
+      children={(values) => (
+        <ScriptsEditor values={values} onChange={(key, value) => form.setFieldValue(key, value)} />
+      )}
+    />
+  );
+}
+
+function ScriptsEditor({
+  values,
+  onChange,
+}: {
+  values: Pick<PackageFormState, ScriptKey>;
+  onChange: (key: ScriptKey, value: string) => void;
+}) {
+  const [active, setActive] = useState<ScriptKey>(generalScriptFields[0].key);
+
+  return (
+    <Tabs
+      value={active}
+      onValueChange={(value) => setActive(value as ScriptKey)}
+      className="max-w-3xl gap-4"
+    >
+      <ScrollableTabsList variant="default">
+        {generalScriptFields.map((script) => (
+          <TabsTrigger key={script.key} value={script.key}>
+            {script.label}
+            {values[script.key] !== "" ? (
+              <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+            ) : null}
+          </TabsTrigger>
+        ))}
+      </ScrollableTabsList>
+      {generalScriptFields.map((script) => (
+        <TabsContent key={script.key} value={script.key}>
+          <ScriptField
+            value={values[script.key]}
+            onChange={(value) => onChange(script.key, value)}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+function AlertsTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
+      <form.Field
+        name="preinstall_alert"
+        children={(field) => (
+          <AlertEditor
+            id="munki-package-preinstall-alert"
+            legend="Preinstall Alert"
+            alert={field.state.value}
+            onChange={(alert) => field.handleChange(alert)}
+          />
+        )}
+      />
+      <form.Field
+        name="preuninstall_alert"
+        children={(field) => (
+          <AlertEditor
+            id="munki-package-preuninstall-alert"
+            legend="Preuninstall Alert"
+            alert={field.state.value}
+            onChange={(alert) => field.handleChange(alert)}
+          />
+        )}
+      />
+    </FieldGroup>
+  );
+}
+
+function AdvancedTab({ form }: { form: PackageEditorForm }) {
+  return (
+    <FieldGroup>
+      <FieldSet>
+        <FieldLegend>Installer Details</FieldLegend>
+        <FieldGroup className="grid gap-4 md:grid-cols-2">
+          <FormTextField
+            form={form}
+            name="package_path"
+            id="munki-package-package-path"
+            label="Package Path"
+          />
+          <FormTextField
+            form={form}
+            name="installed_size"
+            id="munki-package-installed-size"
+            label="Installed Size"
+            type="number"
+            inputMode="numeric"
+          />
+        </FieldGroup>
+        <form.Field
+          name="installer_environment"
+          mode="array"
+          children={(field) => (
+            <FormField field={field}>
+              {(control) => (
+                <div {...control} tabIndex={-1}>
+                  <InstallerEnvironmentEditor
+                    rows={field.state.value}
+                    onAdd={() => field.pushValue(emptyInstallerEnvironmentRow())}
+                    onReplace={(index, row) => field.replaceValue(index, row)}
+                    onRemove={(index) => field.removeValue(index)}
+                  />
+                </div>
+              )}
+            </FormField>
+          )}
+        />
+      </FieldSet>
+
+      <FieldSet>
+        <FieldLegend>Flags</FieldLegend>
+        <FieldGroup>
+          <FormSwitchField
+            form={form}
+            name="precache"
+            id="munki-package-precache"
+            label="Precache"
+          />
+          <FormSwitchField
+            form={form}
+            name="apple_item"
+            id="munki-package-apple-item"
+            label="Apple item"
+          />
+          <FormSwitchField
+            form={form}
+            name="suppress_bundle_relocation"
+            id="munki-package-suppress-bundle-relocation"
+            label="Suppress bundle relocation"
+          />
+        </FieldGroup>
+      </FieldSet>
+    </FieldGroup>
+  );
+}

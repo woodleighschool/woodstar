@@ -1,8 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useMemo, useRef } from "react";
 
-import { munkiSoftwareIconURL } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import {
@@ -56,54 +54,49 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const cancelled = useRef(false);
   const packageMutationAbort = useRef<AbortController | null>(null);
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
-  const [installerFile, setInstallerFile] = useState<File | null>(null);
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const softwareInfo: SoftwareInfo = {
     id: pkg.software_id,
     name: pkg.software_name,
-    description: pkg.software_description,
-    category: pkg.software_category,
-    developer: pkg.software_developer,
-    iconUrl: munkiSoftwareIconURL(pkg.software_id),
   };
-  const form = usePackageEditorForm(initial, async (value) => {
-    cancelled.current = false;
-    if (value.installer_type !== "nopkg" && !installerFile && !pkg.installer_object_id) {
-      toast.error("Select an installer file.");
-      return;
-    }
-    let replacementObjectID: number | undefined;
-    if (value.installer_type !== "nopkg" && installerFile) {
-      replacementObjectID = (await installerUpload.upload({ file: installerFile })).id;
-      if (cancelled.current) {
-        await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
-        return;
+  const form = usePackageEditorForm(
+    initial,
+    async (value) => {
+      cancelled.current = false;
+      let replacementObjectID: number | undefined;
+      if (value.installer_type !== "nopkg" && value.installer_file) {
+        replacementObjectID = (await installerUpload.upload({ file: value.installer_file })).id;
+        if (cancelled.current) {
+          await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
+          return false;
+        }
       }
-    }
-    const installerObjectID =
-      value.installer_type === "nopkg"
-        ? undefined
-        : (replacementObjectID ?? pkg.installer_object_id);
-    const abortController = new AbortController();
-    packageMutationAbort.current = abortController;
-    try {
-      await update.mutateAsync({
-        id: packageID,
-        body: packageMutationFromForm(value, installerObjectID),
-        signal: abortController.signal,
-      });
-    } catch (error) {
-      if (replacementObjectID !== undefined) {
-        await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
+      const installerObjectID =
+        value.installer_type === "nopkg"
+          ? undefined
+          : (replacementObjectID ?? value.installer_object_id ?? undefined);
+      const abortController = new AbortController();
+      packageMutationAbort.current = abortController;
+      try {
+        await update.mutateAsync({
+          id: packageID,
+          body: packageMutationFromForm(value, installerObjectID),
+          signal: abortController.signal,
+        });
+      } catch (error) {
+        if (replacementObjectID !== undefined) {
+          await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
+        }
+        throw error;
+      } finally {
+        if (packageMutationAbort.current === abortController) {
+          packageMutationAbort.current = null;
+        }
       }
-      throw error;
-    } finally {
-      if (packageMutationAbort.current === abortController) {
-        packageMutationAbort.current = null;
-      }
-    }
-    void navigate({ to: "/munki/packages" });
-  });
+      return true;
+    },
+    () => void navigate({ to: "/munki/packages" }),
+  );
 
   return (
     <PackageForm
@@ -112,9 +105,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
       submitLabel="Save"
       softwareInfo={softwareInfo}
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
-      installerFile={installerFile}
       installerMetadata={pkg.installer_file}
-      onInstallerFileChange={setInstallerFile}
       canCancelWhileSubmitting={installerUpload.isUploading}
       onCancel={() => {
         cancelled.current = true;

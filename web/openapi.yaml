@@ -1124,10 +1124,12 @@ components:
       additionalProperties: false
       properties:
         label:
+          maxLength: 80
           type: string
         open_in_browser:
           type: boolean
         target:
+          maxLength: 2048
           type: string
       required:
         - label
@@ -1200,12 +1202,15 @@ components:
         footer_links:
           items:
             $ref: "#/components/schemas/MunkiLink"
+          maxItems: 12
           type: array
         footer_text:
+          maxLength: 500
           type: string
         links:
           items:
             $ref: "#/components/schemas/MunkiLink"
+          maxItems: 12
           type: array
       required:
         - banner_object_id
@@ -5866,6 +5871,67 @@ paths:
         - cookieAuth: []
         - bearerAuth: []
       summary: Create a banner upload for Munki client resources
+      tags:
+        - Munki
+  /api/munki/client-resources/banner/{id}:
+    delete:
+      operationId: delete-munki-client-resources-banner-upload
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Delete an unclaimed Munki client resources banner
       tags:
         - Munki
   /api/munki/distribution-points:

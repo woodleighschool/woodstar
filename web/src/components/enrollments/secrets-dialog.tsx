@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
+import { Pending } from "@/components/pending";
 import { QueryError } from "@/components/query-error";
 import {
   AlertDialog,
@@ -42,6 +43,7 @@ import {
   useDeleteAgentSecret,
   useUpdateAgentSecret,
 } from "@/hooks/use-agent-secrets";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import type { AgentSecret } from "@/lib/api";
 import {
   deleteDescription,
@@ -358,78 +360,99 @@ function SecretValueDialog({
 }) {
   const form = useForm({
     defaultValues: { value: initialValue },
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: z.object({ value: secretValueSchema }) },
     onSubmit: async ({ value }) => {
       await onSave(value.value.trim());
     },
   });
+  const exitGuard = useFormExitGuard({
+    form,
+    onDiscard: () => onOpenChange(false),
+    blockNavigation: false,
+  });
+
+  function requestClose() {
+    if (pending || form.state.isSubmitting) return;
+    exitGuard.requestDiscard();
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <form
-          noValidate
-          className="grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
-          </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) requestClose();
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <form
+            noValidate
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void form.handleSubmit();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
+            </DialogHeader>
 
-          <FieldGroup>
-            <form.Field name="value">
-              {(field) => (
-                <FormField
-                  field={field}
-                  label="Enrollment Secret"
-                  htmlFor="agent-secret-value"
-                  required
-                  description={`Use a shared secret of at least ${MIN_SECRET_LENGTH} characters.`}
-                >
-                  {(control) => (
-                    <Input
-                      {...control}
-                      value={field.state.value}
-                      required
-                      minLength={MIN_SECRET_LENGTH}
-                      className="font-mono"
-                      autoComplete="off"
-                      spellCheck={false}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                  )}
-                </FormField>
-              )}
-            </form.Field>
-          </FieldGroup>
+            <FieldGroup>
+              <form.Field name="value">
+                {(field) => (
+                  <FormField
+                    field={field}
+                    label="Enrollment Secret"
+                    htmlFor="agent-secret-value"
+                    required
+                    description={`Use a shared secret of at least ${MIN_SECRET_LENGTH} characters.`}
+                  >
+                    {(control) => (
+                      <Input
+                        {...control}
+                        value={field.state.value}
+                        required
+                        minLength={MIN_SECRET_LENGTH}
+                        className="font-mono"
+                        autoComplete="off"
+                        spellCheck={false}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+            </FieldGroup>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={pending}
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <form.Subscribe selector={(state) => state.canSubmit}>
-              {(canSubmit) => (
-                <Button type="submit" size="sm" disabled={!canSubmit}>
-                  {saveLabel}
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={pending || form.state.isSubmitting}
+                onClick={requestClose}
+              >
+                Cancel
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Pending isPending={pending || isSubmitting}>
+                    <Button type="submit" size="sm">
+                      {isSubmitting ? `${saveLabel}…` : saveLabel}
+                    </Button>
+                  </Pending>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {exitGuard.dialog}
+    </>
   );
 }
 

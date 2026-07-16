@@ -3,11 +3,11 @@ import { z } from "zod";
 
 import type { MunkiClientResources, MunkiLink, MunkiMutation } from "@/lib/api";
 
-const clientResourceLinkSchema = z
+export const clientResourceLinkSchema = z
   .object({
     id: z.string(),
-    label: z.string().trim().min(1, "Enter a label.").max(80),
-    target: z.string().trim().max(2048),
+    label: limitedString(80, "Label", "Enter a label."),
+    target: limitedString(2048, "Target"),
     openInBrowser: z.boolean(),
   })
   .superRefine((link, context) => {
@@ -36,44 +36,52 @@ const clientResourceLinkSchema = z
     }
   });
 
-export const clientResourcesSchema = z.object({
-  banner: z.object({
-    alignment: z.enum(["left", "center"]),
-  }),
-  links: z.array(clientResourceLinkSchema).max(12),
-  footer: z.object({
-    text: z.string().trim().max(500),
+const clientResourceAssetSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    url: z.string().min(1),
+    objectID: z.number().int().positive().nullable(),
+    file: z.custom<File>((value) => value instanceof File).nullable(),
+  })
+  .superRefine((asset, context) => {
+    if ((asset.objectID === null) === (asset.file === null)) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose either a stored banner or a replacement image.",
+      });
+    }
+  });
+
+export const clientResourcesSchema = z
+  .object({
+    banner: z.object({
+      alignment: z.enum(["left", "center"]),
+      asset: clientResourceAssetSchema.nullable(),
+    }),
     links: z.array(clientResourceLinkSchema).max(12),
-  }),
-});
+    footer: z.object({
+      text: limitedString(500, "Footer text"),
+      links: z.array(clientResourceLinkSchema).max(12),
+    }),
+  })
+  .superRefine((draft, context) => {
+    if (draft.banner.asset === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["banner", "asset"],
+        message: "Choose a banner image.",
+      });
+    }
+    addDuplicateLabelIssue(draft.links, ["links"], context);
+    addDuplicateLabelIssue(draft.footer.links, ["footer", "links"], context);
+  });
 
 export type ClientResourcesDraft = z.infer<typeof clientResourcesSchema>;
 export type ClientResourceLink = ClientResourcesDraft["links"][number];
 
-export function clientResourceLinkErrors(link: ClientResourceLink) {
-  const parsed = clientResourceLinkSchema.safeParse(link);
-  if (parsed.success) return {};
-
-  const errors: { label?: string; target?: string; openInBrowser?: string } = {};
-  for (const issue of parsed.error.issues) {
-    switch (issue.path[0]) {
-      case "label":
-        errors.label ??= issue.message;
-        break;
-      case "target":
-        errors.target ??= issue.message;
-        break;
-      case "openInBrowser":
-        errors.openInBrowser ??= issue.message;
-        break;
-    }
-  }
-  return errors;
-}
-
 export function emptyClientResourcesDraft(): ClientResourcesDraft {
   return {
-    banner: { alignment: "left" },
+    banner: { alignment: "left", asset: null },
     links: [],
     footer: { text: "", links: [] },
   };
@@ -93,6 +101,12 @@ export function clientResourcesDraft(resource: MunkiClientResources | null): Cli
   return {
     banner: {
       alignment: resource.banner_alignment,
+      asset: {
+        name: resource.banner.filename,
+        url: resource.banner.content_url,
+        objectID: resource.banner.id,
+        file: null,
+      },
     },
     links: resource.links.map(clientResourceLink),
     footer: {
@@ -120,9 +134,12 @@ export function useClientResourcesForm(
 ) {
   return useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: clientResourcesSchema },
-    onSubmit: ({ value }) => onSubmit(value),
+    onSubmit: async ({ value, formApi }) => {
+      await onSubmit(value);
+      formApi.reset(value);
+    },
   });
 }
 
@@ -151,5 +168,34 @@ function parseTarget(value: string): URL | null {
     return ["http:", "https:", "mailto:", "munki:"].includes(target.protocol) ? target : null;
   } catch {
     return null;
+  }
+}
+
+function limitedString(maxLength: number, label: string, requiredMessage?: string) {
+  const schema = requiredMessage ? z.string().trim().min(1, requiredMessage) : z.string().trim();
+  return schema.refine(
+    (value) => Array.from(value).length <= maxLength,
+    `${label} cannot exceed ${maxLength} characters.`,
+  );
+}
+
+function addDuplicateLabelIssue(
+  links: ClientResourceLink[],
+  path: (string | number)[],
+  context: z.RefinementCtx,
+) {
+  const labels = new Set<string>();
+  for (const link of links) {
+    const label = link.label.trim().toLocaleLowerCase();
+    if (!label || !labels.has(label)) {
+      labels.add(label);
+      continue;
+    }
+    context.addIssue({
+      code: "custom",
+      path,
+      message: `Link labels must be unique. “${link.label.trim()}” is repeated.`,
+    });
+    return;
   }
 }

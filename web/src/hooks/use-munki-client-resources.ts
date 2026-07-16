@@ -6,6 +6,7 @@ import type { ApiError, MunkiClientResources, MunkiMutation, MunkiUploadTarget }
 import {
   createMunkiClientResourcesBannerUpload,
   deleteMunkiClientResources,
+  deleteMunkiClientResourcesBannerUpload,
   getMunkiClientResources,
   nullOn404,
   saveMunkiClientResources,
@@ -66,6 +67,8 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.munkiClientResources });
       return resource;
     },
+    cleanupIntent: (intent) =>
+      unwrap(deleteMunkiClientResourcesBannerUpload({ path: { id: intent.object_id } })),
   });
 }
 

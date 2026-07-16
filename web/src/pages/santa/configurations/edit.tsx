@@ -41,12 +41,14 @@ export function ConfigurationEditPage() {
       key={configuration.id}
       initial={formFromConfiguration(configuration)}
       submitLabel="Save"
-      onSubmit={async (body) => {
-        const saved = await update.mutateAsync({ id: configuration.id, body });
-        void navigate({
-          to: "/santa/configurations/$configurationId",
-          params: { configurationId: String(saved.id) },
-        });
+      onSubmit={async (body) => (await update.mutateAsync({ id: configuration.id, body })).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({
+            to: "/santa/configurations/$configurationId",
+            params: { configurationId: String(id) },
+          });
+        }
       }}
     />
   );

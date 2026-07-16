@@ -11,7 +11,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { toast } from "sonner";
 
+import { FormField } from "@/components/form-field";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { Editable, EditableArea, EditableInput, EditablePreview } from "@/components/ui/editable";
 import {
   Sortable,
   SortableContent,
@@ -40,7 +42,7 @@ import {
   type ClientResourcesForm,
 } from "./client-resources";
 import { LinkDialog } from "./link-dialog";
-import type { ClientResourceAsset } from "./use-client-resource-asset";
+import { useClientResourceAsset } from "./use-client-resource-asset";
 
 const navigationItems = [
   { label: "Software", icon: AppWindow, active: true },
@@ -67,20 +69,14 @@ const sampleSoftware = [
 export function ClientResourcesEditor({
   form,
   draft,
-  banner,
-  bannerError,
   bannerUploading,
-  onBannerReject,
-  onBannerChange,
 }: {
   form: ClientResourcesForm;
   draft: ClientResourcesDraft;
-  banner: ClientResourceAsset | null;
-  bannerError: string | null;
   bannerUploading: boolean;
-  onBannerReject: (message: string) => void;
-  onBannerChange: (file: File) => void;
 }) {
+  const createBannerAsset = useClientResourceAsset(draft.banner.asset);
+
   return (
     <section className="min-w-0">
       <Alert className="mx-8 w-auto border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
@@ -130,29 +126,50 @@ export function ClientResourcesEditor({
             </aside>
 
             <main className="min-w-0 flex-1 bg-background">
-              <BannerEditor
-                asset={banner}
-                error={bannerError}
-                uploading={bannerUploading}
-                alignment={draft.banner.alignment}
-                onAssetChange={onBannerChange}
-                onAssetReject={onBannerReject}
-                onAlignmentChange={(alignment) => form.setFieldValue("banner.alignment", alignment)}
-              />
+              <form.Field name="banner.asset">
+                {(field) => (
+                  <FormField field={field}>
+                    {(control) => (
+                      <BannerEditor
+                        asset={field.state.value}
+                        error={null}
+                        invalid={Boolean(control["aria-invalid"])}
+                        uploading={bannerUploading}
+                        alignment={draft.banner.alignment}
+                        onAssetChange={(file) => {
+                          field.handleChange(createBannerAsset(file));
+                        }}
+                        onAssetReject={(message) => toast.error(message)}
+                        onAlignmentChange={(alignment) =>
+                          form.setFieldValue("banner.alignment", alignment)
+                        }
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
 
               <form.Field name="links" mode="array">
                 {(field) => (
-                  <div className="relative flex min-h-12 items-center justify-center border border-dashed border-primary/50 bg-muted/60 px-12 py-2 text-xs text-muted-foreground">
-                    <EditableLinks
-                      items={field.state.value}
-                      emptyState={<MunkiCategories />}
-                      addLabel="Add a link (replaces the category list)"
-                      onAdd={field.pushValue}
-                      onReplace={field.replaceValue}
-                      onRemove={field.removeValue}
-                      onReorder={field.handleChange}
-                    />
-                  </div>
+                  <FormField field={field}>
+                    {(control) => (
+                      <div
+                        {...control}
+                        tabIndex={-1}
+                        className="relative flex min-h-12 items-center justify-center border border-dashed border-primary/50 bg-muted/60 px-12 py-2 text-xs text-muted-foreground"
+                      >
+                        <EditableLinks
+                          items={field.state.value}
+                          emptyState={<MunkiCategories />}
+                          addLabel="Add a link (replaces the category list)"
+                          onAdd={field.pushValue}
+                          onReplace={field.replaceValue}
+                          onRemove={field.removeValue}
+                          onReorder={field.handleChange}
+                        />
+                      </div>
+                    )}
+                  </FormField>
                 )}
               </form.Field>
 
@@ -169,27 +186,43 @@ export function ClientResourcesEditor({
                 {(textField) => (
                   <form.Field name="footer.links" mode="array">
                     {(linksField) => (
-                      <footer className="relative flex min-h-12 flex-wrap items-center justify-center gap-y-1 border border-dashed border-primary/50 px-10 py-2 text-[11px] text-muted-foreground">
-                        <Input
-                          aria-label="Footer text"
-                          className="h-7 w-56 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none hover:border-input focus-visible:border-input"
-                          maxLength={500}
-                          placeholder="Add footer text"
-                          value={textField.state.value}
-                          onBlur={textField.handleBlur}
-                          onChange={(event) => textField.handleChange(event.target.value)}
-                        />
+                      <FormField field={linksField}>
+                        {(control) => (
+                          <footer
+                            {...control}
+                            tabIndex={-1}
+                            className="relative flex min-h-12 flex-wrap items-center justify-center gap-y-1 border border-dashed border-primary/50 px-10 py-2 text-[11px] text-muted-foreground"
+                          >
+                            <Editable
+                              value={textField.state.value}
+                              onValueChange={textField.handleChange}
+                              placeholder="Add footer text"
+                              className="w-56 gap-0"
+                            >
+                              <EditableArea className="block w-full">
+                                <EditablePreview
+                                  aria-label="Footer text"
+                                  className="h-7 px-1.5 py-0.5 text-center text-[11px]"
+                                />
+                                <EditableInput
+                                  aria-label="Footer text"
+                                  className="h-7 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none"
+                                />
+                              </EditableArea>
+                            </Editable>
 
-                        <EditableLinks
-                          items={linksField.state.value}
-                          leadingSeparator={textField.state.value.length > 0}
-                          addLabel="Add footer link"
-                          onAdd={linksField.pushValue}
-                          onReplace={linksField.replaceValue}
-                          onRemove={linksField.removeValue}
-                          onReorder={linksField.handleChange}
-                        />
-                      </footer>
+                            <EditableLinks
+                              items={linksField.state.value}
+                              leadingSeparator={textField.state.value.length > 0}
+                              addLabel="Add footer link"
+                              onAdd={linksField.pushValue}
+                              onReplace={linksField.replaceValue}
+                              onRemove={linksField.removeValue}
+                              onReorder={linksField.handleChange}
+                            />
+                          </footer>
+                        )}
+                      </FormField>
                     )}
                   </form.Field>
                 )}

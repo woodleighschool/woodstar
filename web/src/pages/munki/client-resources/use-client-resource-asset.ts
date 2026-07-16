@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 
 export const clientResourceImageAccept = "image/jpeg,image/png";
 export const clientResourceImageMaxSize = 5 * 1024 * 1024;
@@ -17,45 +17,18 @@ export function validateClientResourceImage(file: File) {
   return null;
 }
 
-export function useClientResourceAsset(initial: ClientResourceAsset | null) {
-  const [replacement, setReplacement] = useState<ClientResourceAsset | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const ownedURLs = useRef(new Set<string>());
-  const asset = replacement ?? initial;
-
+export function useClientResourceAsset(asset: ClientResourceAsset | null) {
   useEffect(
     () => () => {
-      for (const url of ownedURLs.current) URL.revokeObjectURL(url);
+      if (asset?.file) URL.revokeObjectURL(asset.url);
     },
-    [],
+    [asset],
   );
 
-  function replace(file: File) {
-    const validationError = validateClientResourceImage(file);
-    if (validationError) {
-      setError(validationError);
-      return false;
-    }
-
-    const url = URL.createObjectURL(file);
-    if (replacement?.file) {
-      URL.revokeObjectURL(replacement.url);
-      ownedURLs.current.delete(replacement.url);
-    }
-    ownedURLs.current.add(url);
-    setError(null);
-    setReplacement({ name: file.name, url, objectID: null, file });
-    return true;
-  }
-
-  function reset() {
-    if (replacement?.file) {
-      URL.revokeObjectURL(replacement.url);
-      ownedURLs.current.delete(replacement.url);
-    }
-    setError(null);
-    setReplacement(null);
-  }
-
-  return { asset, error, replace, reset };
+  return (file: File): ClientResourceAsset => ({
+    name: file.name,
+    url: URL.createObjectURL(file),
+    objectID: null,
+    file,
+  });
 }

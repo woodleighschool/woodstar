@@ -1,75 +1,42 @@
-import type {
-  FormAsyncValidateOrFn,
-  FormValidateOrFn,
-  ReactFormExtendedApi,
-} from "@tanstack/react-form";
+import type { AnyFormApi } from "@tanstack/react-form";
+import { useSelector } from "@tanstack/react-store";
 
+import { Pending } from "@/components/pending";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
-// Submit/cancel footer for mutable resource forms. It follows TanStack's
-// form.Subscribe submit pattern and leaves dirty-state policy out of the footer.
-export function FormActions<
-  TFormData,
-  TOnMount extends undefined | FormValidateOrFn<TFormData>,
-  TOnChange extends undefined | FormValidateOrFn<TFormData>,
-  TOnChangeAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
-  TOnBlur extends undefined | FormValidateOrFn<TFormData>,
-  TOnBlurAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
-  TOnSubmit extends undefined | FormValidateOrFn<TFormData>,
-  TOnSubmitAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
-  TOnDynamic extends undefined | FormValidateOrFn<TFormData>,
-  TOnDynamicAsync extends undefined | FormAsyncValidateOrFn<TFormData>,
-  TOnServer extends undefined | FormAsyncValidateOrFn<TFormData>,
-  TSubmitMeta,
->({
+// Invalid forms stay submittable so a submit attempt can reveal every field
+// error. Pending state is reserved for an active submission.
+export function FormActions({
   form,
   submitLabel,
   onCancel,
   canCancelWhileSubmitting = false,
   className,
 }: {
-  form: ReactFormExtendedApi<
-    TFormData,
-    TOnMount,
-    TOnChange,
-    TOnChangeAsync,
-    TOnBlur,
-    TOnBlurAsync,
-    TOnSubmit,
-    TOnSubmitAsync,
-    TOnDynamic,
-    TOnDynamicAsync,
-    TOnServer,
-    TSubmitMeta
-  >;
+  form: AnyFormApi;
   submitLabel: string;
   onCancel?: () => void;
   canCancelWhileSubmitting?: boolean;
   className?: string;
 }) {
+  const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
+
   return (
-    <form.Subscribe
-      selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-      children={([canSubmit, isSubmitting]) => (
-        <Field orientation="horizontal" className={cn("justify-start", className)}>
-          <Button type="submit" size="sm" disabled={!canSubmit || isSubmitting}>
-            {submitLabel}
+    <Field orientation="horizontal" className={cn("justify-start", className)}>
+      <Pending isPending={isSubmitting}>
+        <Button type="submit" size="sm">
+          {isSubmitting ? `${submitLabel}…` : submitLabel}
+        </Button>
+      </Pending>
+      {onCancel ? (
+        <Pending isPending={isSubmitting && !canCancelWhileSubmitting}>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            Cancel
           </Button>
-          {onCancel ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isSubmitting && !canCancelWhileSubmitting}
-              onClick={onCancel}
-            >
-              Cancel
-            </Button>
-          ) : null}
-        </Field>
-      )}
-    />
+        </Pending>
+      ) : null}
+    </Field>
   );
 }

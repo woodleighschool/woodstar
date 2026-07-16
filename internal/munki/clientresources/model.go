@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gabriel-vasile/mimetype"
@@ -20,9 +21,9 @@ const (
 	ArchiveObjectPrefix = "munki/clientresources/archives"
 	MaxBannerSizeBytes  = 5 * 1024 * 1024
 	maxLinks            = 12
-	maxLinkLabelBytes   = 80
-	maxLinkTargetBytes  = 2048
-	maxFooterTextBytes  = 500
+	maxLinkLabelLength  = 80
+	maxLinkTargetLength = 2048
+	maxFooterTextLength = 500
 )
 
 // BannerAlignment controls which part of a fixed-height banner remains anchored as the window resizes.
@@ -45,8 +46,8 @@ func (BannerAlignment) Schema(_ huma.Registry) *huma.Schema {
 
 // Link is one generated Managed Software Center navigation link.
 type Link struct {
-	Label         string `json:"label"`
-	Target        string `json:"target"`
+	Label         string `json:"label"           maxLength:"80"`
+	Target        string `json:"target"          maxLength:"2048"`
 	OpenInBrowser bool   `json:"open_in_browser"`
 }
 
@@ -54,9 +55,9 @@ type Link struct {
 type Mutation struct {
 	BannerObjectID  int64           `json:"banner_object_id"`
 	BannerAlignment BannerAlignment `json:"banner_alignment"`
-	Links           []Link          `json:"links"`
-	FooterText      string          `json:"footer_text"`
-	FooterLinks     []Link          `json:"footer_links"`
+	Links           []Link          `json:"links"            maxItems:"12"`
+	FooterText      string          `json:"footer_text"                    maxLength:"500"`
+	FooterLinks     []Link          `json:"footer_links"     maxItems:"12"`
 }
 
 // ClientResources is the configured singleton and its stored source and archive objects.
@@ -97,7 +98,7 @@ func (m *Mutation) validate() error {
 	if m.BannerAlignment != BannerAlignmentLeft && m.BannerAlignment != BannerAlignmentCenter {
 		return fmt.Errorf("%w: banner_alignment must be left or center", dbutil.ErrInvalidInput)
 	}
-	if len(m.FooterText) > maxFooterTextBytes {
+	if utf8.RuneCountInString(m.FooterText) > maxFooterTextLength {
 		return fmt.Errorf("%w: footer_text is too long", dbutil.ErrInvalidInput)
 	}
 	if err := validateLinks("links", m.Links); err != nil {
@@ -120,7 +121,7 @@ func validateLinks(field string, links []Link) error {
 		if link.Label == "" {
 			return fmt.Errorf("%w: %s[%d].label is required", dbutil.ErrInvalidInput, field, i)
 		}
-		if len(link.Label) > maxLinkLabelBytes {
+		if utf8.RuneCountInString(link.Label) > maxLinkLabelLength {
 			return fmt.Errorf("%w: %s[%d].label is too long", dbutil.ErrInvalidInput, field, i)
 		}
 		labelKey := strings.ToLower(link.Label)
@@ -139,7 +140,7 @@ func validateLinkTarget(link Link) error {
 	if link.Target == "" {
 		return errors.New("is required")
 	}
-	if len(link.Target) > maxLinkTargetBytes {
+	if utf8.RuneCountInString(link.Target) > maxLinkTargetLength {
 		return errors.New("is too long")
 	}
 	target, err := url.ParseRequestURI(link.Target)

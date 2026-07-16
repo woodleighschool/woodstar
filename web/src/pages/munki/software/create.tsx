@@ -1,11 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useCreateMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
 import { uniqueOptions } from "@/lib/form-validation";
@@ -13,6 +14,7 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import {
   emptyMunkiSoftwareForm,
+  munkiSoftwareInclude,
   MunkiSoftwareOptionsFields,
   munkiSoftwareSchema,
   useMunkiSoftwareForm,
@@ -32,20 +34,28 @@ export function MunkiSoftwareCreatePage() {
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
-  const [iconFile, setIconFile] = useState<File | null>(null);
-  const [pickedIcon, setPickedIcon] = useState<{ id: number; url: string } | null>(null);
-  const form = useMunkiSoftwareForm(emptyMunkiSoftwareForm(), async (value) => {
-    const data = munkiSoftwareSchema.parse(value);
-    const title = await create.mutateAsync({
-      ...data,
-      icon_object_id: pickedIcon?.id,
-      targets: { include: [], exclude: [] },
-    });
-    if (iconFile) {
-      await iconUpload.upload({ softwareId: title.id, file: iconFile });
-    }
-    void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(title.id) } });
-  });
+  const form = useMunkiSoftwareForm(
+    emptyMunkiSoftwareForm(),
+    async (value) => {
+      const data = munkiSoftwareSchema.parse(value);
+      const title = await create.mutateAsync({
+        ...data,
+        icon_object_id: value.icon_object_id ?? undefined,
+        targets: {
+          include: value.targets.include.map(munkiSoftwareInclude),
+          exclude: value.targets.exclude,
+        },
+      });
+      if (value.icon_file) {
+        await iconUpload.upload({ softwareId: title.id, file: value.icon_file });
+      }
+      return title.id;
+    },
+    (id) =>
+      void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(id) } }),
+  );
+  const cancel = () => void navigate({ to: "/munki/software" });
+  const exitGuard = useFormExitGuard({ form, onDiscard: cancel });
   const tabs = [
     {
       value: "options",
@@ -55,23 +65,6 @@ export function MunkiSoftwareCreatePage() {
           form={form}
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
-          icon={{
-            iconUrl: pickedIcon?.url,
-            file: iconFile,
-            clearable: !!iconFile || !!pickedIcon,
-            onFileChange: (file) => {
-              setIconFile(file);
-              setPickedIcon(null);
-            },
-            onPickExisting: (object) => {
-              setPickedIcon(object);
-              setIconFile(null);
-            },
-            onClear: () => {
-              setIconFile(null);
-              setPickedIcon(null);
-            },
-          }}
         />
       ),
     },
@@ -101,11 +94,8 @@ export function MunkiSoftwareCreatePage() {
             </TabsContent>
           ))}
         </ScrollableTabs>
-        <FormActions
-          form={form}
-          submitLabel="Create"
-          onCancel={() => void navigate({ to: "/munki/software" })}
-        />
+        <FormActions form={form} submitLabel="Create" onCancel={exitGuard.requestDiscard} />
+        {exitGuard.dialog}
       </form>
     </PageShell>
   );

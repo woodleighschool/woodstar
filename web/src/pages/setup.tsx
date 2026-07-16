@@ -3,22 +3,25 @@ import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
+import { Pending } from "@/components/pending";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useSetup } from "@/hooks/use-auth";
-import { requiredString } from "@/lib/form-validation";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { emailAddress, requiredString } from "@/lib/form-validation";
 
 export function SetupPage() {
   const setup = useSetup();
+  const initial = { email: "", name: "", password: "" };
 
   const form = useForm({
-    defaultValues: { email: "", name: "", password: "" },
-    validationLogic: revalidateLogic(),
+    defaultValues: initial,
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
       onDynamic: z.object({
-        email: z.email("Enter a valid email."),
+        email: emailAddress(),
         name: requiredString("Display name"),
         password: z.string().min(12, "Password must be at least 12 characters."),
       }),
@@ -29,8 +32,10 @@ export function SetupPage() {
         name: value.name.trim(),
         password: value.password,
       });
+      form.reset(value);
     },
   });
+  const exitGuard = useFormExitGuard({ form, onDiscard: () => form.reset(initial) });
 
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
@@ -118,16 +123,19 @@ export function SetupPage() {
               </form.Field>
 
               <Field>
-                <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-                  {([canSubmit, isSubmitting]) => (
-                    <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                      Create Account
-                    </Button>
+                <form.Subscribe selector={(state) => state.isSubmitting}>
+                  {(isSubmitting) => (
+                    <Pending isPending={isSubmitting}>
+                      <Button type="submit">
+                        {isSubmitting ? "Creating account…" : "Create Account"}
+                      </Button>
+                    </Pending>
                   )}
                 </form.Subscribe>
                 {setup.error ? <FieldError>{setup.error.message}</FieldError> : null}
               </Field>
             </FieldGroup>
+            {exitGuard.dialog}
           </form>
         </CardContent>
       </Card>

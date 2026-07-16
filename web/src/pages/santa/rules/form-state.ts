@@ -13,7 +13,7 @@ import { nonEmpty } from "@/lib/utils";
 
 import { santaCELExpressionError } from "./cel";
 
-const includeSchema = z
+export const santaRuleIncludeSchema = z
   .object({
     id: z.number(),
     policy: z.enum(POLICY_VALUES),
@@ -36,7 +36,11 @@ const includeSchema = z
     }
     const error = santaCELExpressionError(value.cel_expression);
     if (error) {
-      ctx.addIssue({ code: "custom", message: error, path: ["cel_expression"] });
+      ctx.addIssue({
+        code: "custom",
+        message: error,
+        path: ["cel_expression"],
+      });
     }
   });
 
@@ -47,9 +51,12 @@ export const ruleFormSchema = z
     name: requiredString("Name"),
     description: z.string().trim(),
     custom_message: z.string().trim(),
-    custom_url: z.string().trim(),
+    custom_url: z
+      .string()
+      .trim()
+      .refine((value) => value === "" || isHTTPSURL(value), "Custom URL must be an HTTPS URL."),
     targets: z.object({
-      include: z.array(includeSchema),
+      include: z.array(santaRuleIncludeSchema),
       exclude: z.array(
         z.object({
           label_id: z.number().int("Label selection is invalid.").positive("Pick a label."),
@@ -61,7 +68,11 @@ export const ruleFormSchema = z
     if (value.identifier === "") return;
     const rule = RULE_IDENTIFIER_RULES[value.rule_type];
     if (!rule.pattern.test(value.identifier)) {
-      ctx.addIssue({ code: "custom", message: rule.hint, path: ["identifier"] });
+      ctx.addIssue({
+        code: "custom",
+        message: rule.hint,
+        path: ["identifier"],
+      });
     }
   });
 
@@ -164,4 +175,15 @@ export function selectedIncludeLabelIDs(includeRows: RuleIncludeForm[]) {
 
 export function ruleIdentifierHint(ruleType: SantaRuleType) {
   return RULE_IDENTIFIER_RULES[ruleType].hint;
+}
+
+function isHTTPSURL(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" && url.host !== "" && url.username === "" && url.password === ""
+    );
+  } catch {
+    return false;
+  }
 }

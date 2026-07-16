@@ -13,9 +13,11 @@ export function CheckCreatePage() {
       title="New Check"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/osquery/checks" })}
-      onSubmit={async (value) => {
-        const saved = await create.mutateAsync(value);
-        void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
+      onSubmit={async (value) => (await create.mutateAsync(value)).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(id) } });
+        }
       }}
     />
   );

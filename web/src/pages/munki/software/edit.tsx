@@ -6,6 +6,12 @@ import { useMemo, useState } from "react";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
+import { FormField } from "@/components/form-field";
+import {
+  type FormTabDefinition,
+  FormTabTrigger,
+  revealFirstInvalidFormTab,
+} from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { MunkiIcon } from "@/components/munki/munki-icon";
@@ -15,13 +21,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import {
   useMunkiSoftware,
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
 } from "@/hooks/use-munki-software";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
-import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@/lib/api";
+import type { MunkiPackage, MunkiSoftwareDetail } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { parseRouteID } from "@/lib/route-params";
@@ -35,6 +42,22 @@ import {
   useMunkiSoftwareForm,
 } from "./fields";
 import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targets";
+
+const softwareFormTabs = [
+  {
+    value: "options",
+    fields: [
+      "name",
+      "display_name",
+      "description",
+      "category",
+      "developer",
+      "icon_file",
+      "icon_object_id",
+    ],
+  },
+  { value: "targets", fields: ["targets"] },
+] as const satisfies readonly FormTabDefinition[];
 
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
@@ -79,22 +102,8 @@ function MunkiSoftwareDetailForm({
   const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiIcon();
-  const [targetRows, setTargetRows] = useState<MunkiSoftwareTargetRow[]>(() =>
-    targetRowsFromIncludes(software.targets.include),
-  );
-  const [iconFile, setIconFile] = useState<File | null>(null);
-  const [iconCleared, setIconCleared] = useState(false);
-  const [pickedIcon, setPickedIcon] = useState<{ id: number; url: string } | null>(null);
-  const [excludeForm, setExcludeForm] = useState<number[]>(() =>
-    excludeLabelIDsFromTargets(software),
-  );
+  const [activeTab, setActiveTab] = useState("options");
   const packages = software.packages ?? [];
-  const includes = useMemo(() => software.targets.include, [software.targets.include]);
-  const excludeLabelIDs = useMemo(() => excludeLabelIDsFromTargets(software), [software]);
-  const includeLabelIDs = useMemo(
-    () => targetRows.flatMap((row) => (row.label_id === null ? [] : [row.label_id])),
-    [targetRows],
-  );
   const softwareOptionsForm = useMunkiSoftwareForm(
     munkiSoftwareFormFromSoftware(software),
     async (value) => {
@@ -106,25 +115,21 @@ function MunkiSoftwareDetailForm({
           description: data.description,
           category: data.category,
           developer: data.developer,
-          icon_object_id: pickedIcon
-            ? pickedIcon.id
-            : iconCleared
-              ? undefined
-              : (software.icon_object_id ?? undefined),
+          icon_object_id: value.icon_file
+            ? (software.icon_object_id ?? undefined)
+            : (value.icon_object_id ?? undefined),
           targets: {
-            include: targetRows.map(munkiSoftwareInclude),
-            exclude: excludeForm.map((label_id) => ({ label_id })),
+            include: value.targets.include.map(munkiSoftwareInclude),
+            exclude: value.targets.exclude,
           },
         },
       });
-      if (iconFile) {
-        await iconUpload.upload({ softwareId: software.id, file: iconFile });
+      if (value.icon_file) {
+        await iconUpload.upload({ softwareId: software.id, file: value.icon_file });
       }
-      setIconFile(null);
-      setIconCleared(false);
-      setPickedIcon(null);
-      await refetchSoftware();
+      return software.id;
     },
+    () => void refetchSoftware(),
   );
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
   const categoryOptions = useMemo(
@@ -139,24 +144,20 @@ function MunkiSoftwareDetailForm({
 
   function changeTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();
-    setTargetRows(numberTargetRows(next));
+    softwareOptionsForm.setFieldValue("targets.include", numberTargetRows(next));
   }
 
-  function changeExclude(next: number[]) {
+  function changeExclude(next: { label_id: number }[]) {
     updateSoftware.reset();
-    setExcludeForm(next);
+    softwareOptionsForm.setFieldValue("targets.exclude", next);
   }
 
   function resetTargetPage() {
     updateSoftware.reset();
     iconUpload.reset();
     softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
-    setIconFile(null);
-    setIconCleared(false);
-    setPickedIcon(null);
-    setTargetRows(targetRowsFromIncludes(includes));
-    setExcludeForm(excludeLabelIDs);
   }
+  const exitGuard = useFormExitGuard({ form: softwareOptionsForm, onDiscard: resetTargetPage });
 
   const packageColumns: ColumnDef<MunkiPackage>[] = [
     {
@@ -198,26 +199,6 @@ function MunkiSoftwareDetailForm({
           nameReadOnly
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
-          icon={{
-            iconUrl: pickedIcon ? pickedIcon.url : iconCleared ? undefined : software.icon_url,
-            file: iconFile,
-            clearable: !!iconFile || !!pickedIcon || (!iconCleared && !!software.icon_object_id),
-            onFileChange: (file) => {
-              setIconFile(file);
-              setPickedIcon(null);
-              setIconCleared(false);
-            },
-            onPickExisting: (object) => {
-              setPickedIcon(object);
-              setIconFile(null);
-              setIconCleared(false);
-            },
-            onClear: () => {
-              setIconFile(null);
-              setPickedIcon(null);
-              setIconCleared(!!software.icon_object_id);
-            },
-          }}
         />
       ),
     },
@@ -225,24 +206,38 @@ function MunkiSoftwareDetailForm({
       value: "targets",
       label: "Targets",
       content: (
-        <div className="flex flex-col gap-6">
-          <MunkiIncludeTargets
-            rows={targetRows}
-            excludeLabelIDs={excludeForm}
-            packages={packages}
-            onChange={changeTargets}
-          />
-          <Separator />
-          <LabelAssignmentList
-            title="Exclude"
-            addLabel="Add Exclude"
-            emptyText="No excludes yet"
-            rows={excludeForm.map((label_id) => ({ label_id }))}
-            crossListLabelIDs={includeLabelIDs}
-            includeBuiltins={false}
-            onChange={(rows) => changeExclude(rows.map((row) => row.label_id))}
-          />
-        </div>
+        <softwareOptionsForm.Field name="targets">
+          {(field) => {
+            const includeLabelIDs = field.state.value.include.flatMap((row) =>
+              row.label_id === null ? [] : [row.label_id],
+            );
+            const excludeLabelIDs = field.state.value.exclude.map((row) => row.label_id);
+            return (
+              <FormField field={field}>
+                {(control) => (
+                  <div {...control} tabIndex={-1} className="flex flex-col gap-6">
+                    <MunkiIncludeTargets
+                      rows={field.state.value.include}
+                      excludeLabelIDs={excludeLabelIDs}
+                      packages={packages}
+                      onChange={changeTargets}
+                    />
+                    <Separator />
+                    <LabelAssignmentList
+                      title="Exclude"
+                      addLabel="Add Exclude"
+                      emptyText="No excludes yet"
+                      rows={field.state.value.exclude}
+                      crossListLabelIDs={includeLabelIDs}
+                      includeBuiltins={false}
+                      onChange={changeExclude}
+                    />
+                  </div>
+                )}
+              </FormField>
+            );
+          }}
+        </softwareOptionsForm.Field>
       ),
     },
     {
@@ -278,36 +273,43 @@ function MunkiSoftwareDetailForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void softwareOptionsForm.handleSubmit();
+          void softwareOptionsForm.handleSubmit().then(() => {
+            revealFirstInvalidFormTab(softwareOptionsForm, softwareFormTabs, setActiveTab);
+            return undefined;
+          });
         }}
       >
-        <ScrollableTabs defaultValue="options">
+        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
           <ScrollableTabsList>
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
+            <FormTabTrigger form={softwareOptionsForm} tab={softwareFormTabs[0]}>
+              Options
+            </FormTabTrigger>
+            <FormTabTrigger form={softwareOptionsForm} tab={softwareFormTabs[1]}>
+              Targets
+            </FormTabTrigger>
+            <TabsTrigger value="packages">Packages</TabsTrigger>
           </ScrollableTabsList>
           {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value}>
+            <TabsContent
+              key={tab.value}
+              value={tab.value}
+              forceMount={tab.value === "packages" ? undefined : true}
+              className="data-[state=inactive]:hidden"
+            >
               {tab.content}
             </TabsContent>
           ))}
         </ScrollableTabs>
 
-        <FormActions form={softwareOptionsForm} submitLabel="Save" onCancel={resetTargetPage} />
+        <FormActions
+          form={softwareOptionsForm}
+          submitLabel="Save"
+          onCancel={exitGuard.requestDiscard}
+        />
+        {exitGuard.dialog}
       </form>
     </PageShell>
   );
-}
-
-function excludeLabelIDsFromTargets(software: MunkiSoftwareDetail) {
-  return software.targets.exclude.map((target) => target.label_id);
-}
-
-function targetRowsFromIncludes(includes: MunkiInclude[]): MunkiSoftwareTargetRow[] {
-  return includes.map((include, index) => ({ ...include, id: index + 1, priority: index + 1 }));
 }
 
 function numberTargetRows(rows: MunkiSoftwareTargetRow[]) {

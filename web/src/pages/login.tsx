@@ -4,13 +4,14 @@ import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
+import { Pending } from "@/components/pending";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useLogin, useSession } from "@/hooks/use-auth";
-import { requiredString } from "@/lib/form-validation";
+import { emailAddress, requiredString } from "@/lib/form-validation";
 
 export function LoginPage() {
   const { session } = useSession();
@@ -20,10 +21,10 @@ export function LoginPage() {
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
       onDynamic: z.object({
-        email: z.email("Enter a valid email."),
+        email: emailAddress(),
         password: requiredString("Password"),
       }),
     },
@@ -86,11 +87,11 @@ export function LoginPage() {
               </form.Field>
 
               <Field>
-                <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-                  {([canSubmit, isSubmitting]) => (
-                    <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                      Login
-                    </Button>
+                <form.Subscribe selector={(state) => state.isSubmitting}>
+                  {(isSubmitting) => (
+                    <Pending isPending={isSubmitting}>
+                      <Button type="submit">{isSubmitting ? "Logging in…" : "Login"}</Button>
+                    </Pending>
                   )}
                 </form.Subscribe>
 

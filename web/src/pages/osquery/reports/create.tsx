@@ -13,9 +13,11 @@ export function ReportCreatePage() {
       title="New Report"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/osquery/reports" })}
-      onSubmit={async (value) => {
-        const saved = await create.mutateAsync(value);
-        void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
+      onSubmit={async (value) => (await create.mutateAsync(value)).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(id) } });
+        }
       }}
     />
   );

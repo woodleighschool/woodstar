@@ -23,6 +23,7 @@ export function DistributionPointCreatePage() {
         onSubmit={async (body) => {
           const saved = await create.mutateAsync(body);
           setCreated({ id: saved.id, key: saved.key });
+          return saved.id;
         }}
       />
 

@@ -2983,6 +2983,57 @@ export type CreateMunkiClientResourcesBannerUploadResponses = {
 
 export type CreateMunkiClientResourcesBannerUploadResponse = CreateMunkiClientResourcesBannerUploadResponses[keyof CreateMunkiClientResourcesBannerUploadResponses];
 
+export type DeleteMunkiClientResourcesBannerUploadData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/client-resources/banner/{id}';
+};
+
+export type DeleteMunkiClientResourcesBannerUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiClientResourcesBannerUploadError = DeleteMunkiClientResourcesBannerUploadErrors[keyof DeleteMunkiClientResourcesBannerUploadErrors];
+
+export type DeleteMunkiClientResourcesBannerUploadResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiClientResourcesBannerUploadResponse = DeleteMunkiClientResourcesBannerUploadResponses[keyof DeleteMunkiClientResourcesBannerUploadResponses];
+
 export type ListMunkiDistributionPointsData = {
     body?: never;
     path?: never;

@@ -1,7 +1,17 @@
 import { Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { MunkiIcon, type MunkiIconSize } from "@/components/munki/munki-icon";
+import { MunkiIcon } from "@/components/munki/munki-icon";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+  AttachmentTrigger,
+} from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,8 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { useMunkiIcons } from "@/hooks/use-munki-icons";
-import { cn } from "@/lib/utils";
+import { formatBytes } from "@/lib/utils";
 
 export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
 
@@ -21,8 +32,6 @@ interface EditableMunkiIconProps {
   iconUrl?: string;
   file: File | null;
   clearable: boolean;
-  size?: MunkiIconSize;
-  className?: string;
   onFileChange: (file: File | null) => void;
   onPickExisting: (object: { id: number; url: string }) => void;
   onClear: () => void;
@@ -33,8 +42,6 @@ export function EditableMunkiIcon({
   iconUrl,
   file,
   clearable,
-  size = "lg",
-  className,
   onFileChange,
   onPickExisting,
   onClear,
@@ -42,7 +49,9 @@ export function EditableMunkiIcon({
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewURL, setPreviewURL] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const uploadLabel = iconUrl || file ? `Replace ${title}` : `Upload ${title}`;
+  const displayURL = previewURL || iconUrl;
+  const hasIcon = !!file || !!displayURL;
+  const uploadLabel = hasIcon ? `Replace ${title}` : `Choose ${title}`;
   const clearLabel = `Clear ${title}`;
 
   useEffect(() => {
@@ -62,48 +71,56 @@ export function EditableMunkiIcon({
   }
 
   return (
-    <div className={cn("group/munki-icon relative w-fit", className)}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={MUNKI_ICON_ACCEPT}
-        className="sr-only"
-        onChange={(event) => {
-          const next = event.target.files?.[0] ?? null;
-          resetInput();
-          if (next) {
-            onFileChange(next);
-            setPickerOpen(false);
-          }
-        }}
-      />
-      <button
-        type="button"
-        className="relative block rounded-lg outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        aria-label={uploadLabel}
-        onClick={() => setPickerOpen(true)}
-      >
-        <MunkiIcon iconUrl={previewURL || iconUrl} size={size} loading="eager" />
-        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/50 opacity-0 transition-opacity group-focus-within/munki-icon:opacity-100 group-hover/munki-icon:opacity-100">
-          <Upload data-icon />
-        </span>
-      </button>
-      {clearable ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon-xs"
-          className="absolute -top-2 -right-2 rounded-full border opacity-0 shadow-sm transition-opacity group-focus-within/munki-icon:opacity-100 group-hover/munki-icon:opacity-100"
-          aria-label={clearLabel}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClear();
+    <Field>
+      <FieldLabel>Icon</FieldLabel>
+      <div className="relative w-full">
+        <input
+          ref={inputRef}
+          type="file"
+          accept={MUNKI_ICON_ACCEPT}
+          hidden
+          onChange={(event) => {
+            const next = event.target.files?.[0] ?? null;
             resetInput();
+            if (next) {
+              onFileChange(next);
+              setPickerOpen(false);
+            }
           }}
-        >
-          <X data-icon />
-        </Button>
-      ) : null}
+        />
+        <Attachment state={hasIcon ? "done" : "idle"} className="w-full">
+          <AttachmentMedia variant={displayURL ? "image" : "icon"}>
+            {displayURL ? <MunkiIcon iconUrl={displayURL} size="md" loading="eager" /> : <Upload />}
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>
+              {file?.name ?? (displayURL ? "Current icon" : "Choose an icon")}
+            </AttachmentTitle>
+            <AttachmentDescription>
+              {file
+                ? `${formatBytes(file.size)} selected`
+                : displayURL
+                  ? "Select to replace or choose another uploaded icon."
+                  : "Upload a new image or choose an uploaded icon."}
+            </AttachmentDescription>
+          </AttachmentContent>
+          {clearable ? (
+            <AttachmentActions>
+              <AttachmentAction
+                type="button"
+                aria-label={clearLabel}
+                onClick={() => {
+                  onClear();
+                  resetInput();
+                }}
+              >
+                <X />
+              </AttachmentAction>
+            </AttachmentActions>
+          ) : null}
+          <AttachmentTrigger aria-label={uploadLabel} onClick={() => setPickerOpen(true)} />
+        </Attachment>
+      </div>
 
       <IconPickerDialog
         open={pickerOpen}
@@ -114,7 +131,7 @@ export function EditableMunkiIcon({
           setPickerOpen(false);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -141,20 +158,23 @@ function IconPickerDialog({
         {items.length > 0 ? (
           <div className="grid max-h-72 grid-cols-4 gap-2 overflow-y-auto p-1">
             {items.map((object) => (
-              <button
-                key={object.id}
-                type="button"
-                title={object.filename}
-                disabled={!object.content_url}
-                className="flex items-center justify-center rounded-lg border p-2 outline-none hover:border-ring focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                onClick={() =>
-                  object.content_url
-                    ? onPick({ id: object.id, url: object.content_url })
-                    : undefined
-                }
-              >
-                <MunkiIcon iconUrl={object.content_url} size="lg" />
-              </button>
+              <Attachment key={object.id} orientation="vertical" className="w-full">
+                <AttachmentMedia variant="image">
+                  <MunkiIcon iconUrl={object.content_url} size="lg" />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>{object.filename}</AttachmentTitle>
+                </AttachmentContent>
+                <AttachmentTrigger
+                  aria-label={`Choose ${object.filename}`}
+                  disabled={!object.content_url}
+                  onClick={() =>
+                    object.content_url
+                      ? onPick({ id: object.id, url: object.content_url })
+                      : undefined
+                  }
+                />
+              </Attachment>
             ))}
           </div>
         ) : (

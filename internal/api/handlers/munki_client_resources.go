@@ -52,6 +52,11 @@ func registerMunkiClientResources(
 	registerSaveMunkiClientResources(api, service, objects, logger)
 	registerDeleteMunkiClientResources(api, service, logger)
 	registerCreateClientResourcesBannerUpload(api, uploads, logger)
+	registerDeleteClientResourcesBannerUpload(api, uploads, logger)
+}
+
+type clientResourcesBannerUploadInput struct {
+	ID int64 `path:"id"`
 }
 
 func registerGetMunkiClientResources(
@@ -159,6 +164,35 @@ func registerCreateClientResourcesBannerUpload(
 			)
 		}
 		return munkiUploadOutputFromTarget(object, target), nil
+	})
+}
+
+func registerDeleteClientResourcesBannerUpload(
+	api huma.API,
+	uploads *munkiupload.Service,
+	logger *slog.Logger,
+) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-munki-client-resources-banner-upload",
+		Method:        http.MethodDelete,
+		Path:          clientResourcesPath + "/banner/{id}",
+		Tags:          []string{munkiTag},
+		Summary:       "Delete an unclaimed Munki client resources banner",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *clientResourcesBannerUploadInput) (*struct{}, error) {
+		if err := uploads.Delete(ctx, input.ID, clientresources.BannerObjectPrefix); err != nil {
+			return nil, resourceError(
+				ctx,
+				logger,
+				"delete-munki-client-resources-banner-upload",
+				clientResourcesLabel,
+				err,
+				"object_id",
+				input.ID,
+			)
+		}
+		return &struct{}{}, nil
 	})
 }
 

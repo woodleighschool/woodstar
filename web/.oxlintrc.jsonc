@@ -256,9 +256,20 @@
     },
     {
       // vendored DiceUI memo hooks depend on rest props; exhaustive-deps wants the unstable parent object
-      "files": ["src/lib/compose-refs.ts", "src/components/ui/sortable.tsx"],
+      "files": [
+        "src/lib/compose-refs.ts",
+        "src/components/ui/editable.tsx",
+        "src/components/ui/sortable.tsx",
+      ],
       "rules": {
         "react/exhaustive-deps": "off",
+      },
+    },
+    {
+      // DiceUI dispatches through the native input setter so React sees controlled value changes
+      "files": ["src/components/visually-hidden-input.tsx"],
+      "rules": {
+        "typescript/unbound-method": "off",
       },
     },
     {

@@ -1,18 +1,23 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 
-import { type PackageFormState, validatePackageForm } from "./form-state";
+import { packageFormSchema, type PackageFormState } from "./form-state";
 
 export function usePackageEditorForm(
   initial: PackageFormState,
-  onSubmit: (value: PackageFormState) => Promise<void>,
+  onSubmit: (value: PackageFormState) => Promise<boolean>,
+  onSuccess: () => void,
 ) {
   return useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
-      onDynamic: ({ value }) => validatePackageForm(value),
+      onDynamic: packageFormSchema(),
     },
-    onSubmit: ({ value }) => onSubmit(value),
+    onSubmit: async ({ value, formApi }) => {
+      if (!(await onSubmit(value))) return;
+      formApi.reset(value);
+      onSuccess();
+    },
   });
 }
 

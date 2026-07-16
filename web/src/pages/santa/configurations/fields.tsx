@@ -1,8 +1,14 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { useState } from "react";
 import { z } from "zod";
 
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
+import {
+  type FormTabDefinition,
+  FormTabTrigger,
+  revealFirstInvalidFormTab,
+} from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
@@ -27,9 +33,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import type { SantaConfiguration, SantaConfigurationMutation } from "@/lib/api";
 import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-validation";
 import {
@@ -89,7 +96,13 @@ const configurationFormSchema = z
     removable_media_remount_flags: z.array(z.enum(REMOUNT_FLAG_VALUES)),
     encrypted_removable_media_action: z.enum(MEDIA_ACTION_VALUES),
     encrypted_removable_media_remount_flags: z.array(z.enum(REMOUNT_FLAG_VALUES)),
-    event_detail_url: z.string().trim(),
+    event_detail_url: z
+      .string()
+      .trim()
+      .refine(
+        (value) => value === "" || isHTTPSURL(value),
+        "Event detail URL must be an HTTPS URL.",
+      ),
     event_detail_text: z.string().trim(),
   })
   .superRefine((value, ctx) => {
@@ -113,7 +126,56 @@ const configurationFormSchema = z
         path: ["encrypted_removable_media_remount_flags"],
       });
     }
+    if (
+      value.removable_media_action !== "remount" &&
+      value.removable_media_remount_flags.length > 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Mount flags are only valid for remount.",
+        path: ["removable_media_remount_flags"],
+      });
+    }
+    if (
+      value.encrypted_removable_media_action !== "remount" &&
+      value.encrypted_removable_media_remount_flags.length > 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Mount flags are only valid for remount.",
+        path: ["encrypted_removable_media_remount_flags"],
+      });
+    }
   });
+
+const configurationFormTabs = [
+  {
+    value: "options",
+    fields: [
+      "name",
+      "description",
+      "client_mode",
+      "enable_bundles",
+      "enable_transitive_rules",
+      "enable_all_event_upload",
+      "disable_unknown_event_upload",
+      "override_file_access_action",
+      "full_sync_interval_seconds",
+      "batch_size",
+      "allowed_path_regex",
+      "blocked_path_regex",
+      "event_detail_url",
+      "event_detail_text",
+      "removable_media_action",
+      "removable_media_remount_flags",
+      "encrypted_removable_media_action",
+      "encrypted_removable_media_remount_flags",
+    ],
+  },
+  { value: "targets", fields: ["targets"] },
+] as const satisfies readonly FormTabDefinition[];
+
+const noOp = () => undefined;
 
 // Santa client defaults sourced from upstream Santa. The form pre-fills these
 // so the backend never substitutes hidden defaults.
@@ -144,21 +206,28 @@ export function ConfigurationForm({
   title,
   submitLabel,
   onSubmit,
+  onSuccess,
   onCancel,
 }: {
   initial: ConfigurationFormState;
   title?: string;
   submitLabel: string;
-  onSubmit: (body: SantaConfigurationMutation) => Promise<void> | void;
+  onSubmit: (body: SantaConfigurationMutation) => Promise<number | undefined>;
+  onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState("options");
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: { onDynamic: configurationFormSchema },
-    onSubmit: async ({ value }) =>
-      onSubmit(configurationBody(configurationFormSchema.parse(value))),
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(configurationBody(configurationFormSchema.parse(value)));
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
   });
+  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
 
   return (
     <PageShell asChild>
@@ -166,20 +235,27 @@ export function ConfigurationForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void form.handleSubmit();
+          void form.handleSubmit().then(() => {
+            revealFirstInvalidFormTab(form, configurationFormTabs, setActiveTab);
+            return undefined;
+          });
         }}
       >
         <form.Subscribe selector={(state) => state.values.name}>
           {(name) => <PageHeader title={title ?? (name || "Configuration")} />}
         </form.Subscribe>
 
-        <ScrollableTabs defaultValue="options">
+        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
           <ScrollableTabsList>
-            <TabsTrigger value="options">Options</TabsTrigger>
-            <TabsTrigger value="targets">Targets</TabsTrigger>
+            <FormTabTrigger form={form} tab={configurationFormTabs[0]}>
+              Options
+            </FormTabTrigger>
+            <FormTabTrigger form={form} tab={configurationFormTabs[1]}>
+              Targets
+            </FormTabTrigger>
           </ScrollableTabsList>
 
-          <TabsContent value="options">
+          <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
             <FieldGroup className="max-w-3xl">
               <form.Field name="name">
                 {(field) => (
@@ -400,16 +476,21 @@ export function ConfigurationForm({
                 <form.Field
                   name="event_detail_url"
                   children={(field) => (
-                    <Field>
-                      <FieldLabel htmlFor="santa-event-detail-url">Event Detail URL</FieldLabel>
-                      <Input
-                        id="santa-event-detail-url"
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                      />
-                    </Field>
+                    <FormField
+                      field={field}
+                      label="Event Detail URL"
+                      htmlFor="santa-event-detail-url"
+                    >
+                      {(control) => (
+                        <Input
+                          {...control}
+                          name={field.name}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                      )}
+                    </FormField>
                   )}
                 />
                 <form.Field
@@ -440,7 +521,10 @@ export function ConfigurationForm({
                         action={actionField.state.value}
                         flags={flagsField.state.value}
                         flagsError={firstErrorMessage(flagsField.state.meta.errors)}
-                        onActionChange={actionField.handleChange}
+                        onActionChange={(action) => {
+                          actionField.handleChange(action);
+                          if (action !== "remount") flagsField.handleChange([]);
+                        }}
                         onFlagsChange={flagsField.handleChange}
                       />
                     )}
@@ -459,7 +543,10 @@ export function ConfigurationForm({
                         action={actionField.state.value}
                         flags={flagsField.state.value}
                         flagsError={firstErrorMessage(flagsField.state.meta.errors)}
-                        onActionChange={actionField.handleChange}
+                        onActionChange={(action) => {
+                          actionField.handleChange(action);
+                          if (action !== "remount") flagsField.handleChange([]);
+                        }}
                         onFlagsChange={flagsField.handleChange}
                       />
                     )}
@@ -469,20 +556,31 @@ export function ConfigurationForm({
             </FieldGroup>
           </TabsContent>
 
-          <TabsContent value="targets">
+          <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
             <form.Field
               name="targets"
               children={(field) => (
-                <LabelTargetSetEditor
-                  value={field.state.value}
-                  onChange={(next) => field.handleChange(next)}
-                />
+                <FormField field={field}>
+                  {(control) => (
+                    <div {...control} tabIndex={-1}>
+                      <LabelTargetSetEditor
+                        value={field.state.value}
+                        onChange={field.handleChange}
+                      />
+                    </div>
+                  )}
+                </FormField>
               )}
             />
           </TabsContent>
         </ScrollableTabs>
 
-        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
+        {exitGuard.dialog}
       </form>
     </PageShell>
   );
@@ -635,7 +733,18 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
 
 function removableMediaPolicyBody(action: SantaMediaAction, flags: SantaRemountFlag[]) {
   if (action === "none") return undefined;
-  return { action, remount_flags: flags };
+  return action === "remount" ? { action, remount_flags: flags } : { action };
+}
+
+function isHTTPSURL(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" && url.host !== "" && url.username === "" && url.password === ""
+    );
+  } catch {
+    return false;
+  }
 }
 
 function toggleRemountFlag(flags: SantaRemountFlag[], flag: SantaRemountFlag, checked: boolean) {

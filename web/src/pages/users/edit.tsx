@@ -52,11 +52,12 @@ function UserEdit({ user }: { user: User }) {
       <UserForm
         initial={userFromDetail(user)}
         user={user}
-        onSubmit={async (body) => {
-          const saved = await update.mutateAsync({ id: user.id, body });
+        onSubmit={async (body) => (await update.mutateAsync({ id: user.id, body })).id}
+        onSuccess={(id) => {
+          if (id === undefined) return;
           void navigate({
             to: "/directory/users/$userId/edit",
-            params: { userId: String(saved.id) },
+            params: { userId: String(id) },
           });
         }}
       />

@@ -47,9 +47,11 @@ export function CheckEditPage() {
         </>
       }
       headerActions={<LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId }} />}
-      onSubmit={async (value) => {
-        const saved = await update.mutateAsync(value);
-        void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
+      onSubmit={async (value) => (await update.mutateAsync(value)).id}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(id) } });
+        }
       }}
     />
   );

@@ -52,10 +52,8 @@ export function LabelEditPage() {
       title="Edit Label"
       submitLabel="Save"
       onCancel={() => void navigate({ to: "/labels" })}
-      onSubmit={async (body) => {
-        await update.mutateAsync(body);
-        void navigate({ to: "/labels" });
-      }}
+      onSubmit={async (body) => (await update.mutateAsync(body)).id}
+      onSuccess={() => void navigate({ to: "/labels" })}
     />
   );
 }
