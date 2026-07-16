@@ -127,7 +127,7 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	}
 }
 
-func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
+func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)

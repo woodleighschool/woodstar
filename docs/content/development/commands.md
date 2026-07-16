@@ -56,6 +56,14 @@ mise run test-openapi
 
 Munki, osquery, and Santa fail when their prerequisites or assertions fail. Orbit may skip locally only when Docker, Orbit, or osqueryd is absent. CI requires those Orbit prerequisites, so the same condition fails there.
 
+For a real local Orbit run, set `WOODSTAR_ORBIT_BINARY` and `WOODSTAR_OSQUERYD_BINARY`. They must point to Linux ELF binaries with matching CPU architectures: Orbit 1.57.0 and osqueryd 5.23.1. The Orbit job in `.github/workflows/tests.yaml` is the canonical source for checksum-pinned artifact URLs and digests.
+
+```bash
+WOODSTAR_ORBIT_BINARY=/absolute/path/to/orbit \
+WOODSTAR_OSQUERYD_BINARY=/absolute/path/to/osqueryd \
+mise run test-integration-orbit
+```
+
 The frontend has no test runner. Its verification is `mise //web:lint`, `mise //web:typecheck`, `mise run test-openapi`, and `mise //web:build`.
 
 ## Lint And Format
