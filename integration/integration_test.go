@@ -77,9 +77,6 @@ type binaryCache struct {
 var compiledTestBinary binaryCache
 
 func TestMain(m *testing.M) {
-	// Keep the shared harness reachable until its first protocol test lands.
-	_ = startTestServer
-
 	exitCode := m.Run()
 	if err := compiledTestBinary.cleanup(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "remove compiled Woodstar test binary: %v\n", err)

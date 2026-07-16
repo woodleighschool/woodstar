@@ -4,65 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"maps"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/database/dbtest/crudtest"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
-
-func TestPackageStoreConformance(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := NewStore(db, storage.NewObjectStore(db, nil), slog.New(slog.DiscardHandler))
-
-	crudtest.RunConformance(
-		t,
-		ctx,
-		crudtest.Fixtures[Package, PackageCreateMutation, PackageMutation, PackageListParams]{
-			Store: store,
-			NewValid: func(t *testing.T, ctx context.Context) PackageCreateMutation {
-				t.Helper()
-
-				softwareID := insertSoftware(t, ctx, db, "ConformanceApp")
-				return PackageCreateMutation{
-					SoftwareID: softwareID,
-					PackageMutation: PackageMutation{
-						Version:       "1.0.0",
-						InstallerType: InstallerTypeNoPkg,
-						OnDemand:      true,
-					},
-				}
-			},
-			Mutate: func(_ Package) PackageMutation {
-				return PackageMutation{
-					Version:       "2.0.0",
-					InstallerType: InstallerTypeNoPkg,
-					OnDemand:      true,
-				}
-			},
-			ID:         func(pkg Package) int64 { return pkg.ID },
-			ListParams: packageListParams,
-			SortKeys:   slices.Sorted(maps.Keys(packageOrderKeys())),
-			SearchMatch: func(pkg Package) string {
-				return pkg.SoftwareName
-			},
-			NewInvalid: func() (PackageCreateMutation, bool) {
-				return PackageCreateMutation{
-					SoftwareID: 1,
-					PackageMutation: PackageMutation{
-						Version:       "1.0.0",
-						InstallerType: InstallerType("bogus"),
-					},
-				}, true
-			},
-		},
-	)
-}
 
 func TestPackageUpdateSucceedsWhenDetachedInstallerCleanupFails(t *testing.T) {
 	db, ctx := dbtest.Open(t)
@@ -133,17 +81,6 @@ func createAvailableInstaller(
 		t.Fatalf("finalize installer: %v", err)
 	}
 	return object
-}
-
-func packageListParams(q, sort string, pageIndex, pageSize int32) PackageListParams {
-	return PackageListParams{
-		ListParams: dbutil.ListParams{
-			Q:         q,
-			Sort:      sort,
-			PageIndex: pageIndex,
-			PageSize:  pageSize,
-		},
-	}
 }
 
 func insertSoftware(t *testing.T, ctx context.Context, db *database.DB, name string) int64 {

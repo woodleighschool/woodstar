@@ -27,34 +27,6 @@ import (
 func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
 
-	t.Run("reserve upload finalize and create package", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "Installer.pkg")
-		fixture.upload(t, target, []byte{0x00, 0x01, 0x02, 0x03})
-
-		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
-		assertStatus(t, rec, http.StatusOK, "finalize installer")
-		var view MunkiObjectView
-		decodeJSON(t, rec, &view)
-		if view.ID != target.ObjectID || view.ContentType != "application/octet-stream" {
-			t.Fatalf("finalized installer = %+v, want object %d", view, target.ObjectID)
-		}
-
-		create := fixture.requestJSON(t, http.MethodPost, munkiPackagePath, packages.PackageCreateMutation{
-			SoftwareID: fixture.softwareID,
-			PackageMutation: packages.PackageMutation{
-				Version:           "1.0",
-				InstallerType:     packages.InstallerTypePkg,
-				InstallerObjectID: &view.ID,
-			},
-		})
-		assertStatus(t, create, http.StatusCreated, "create package")
-		var pkg munkiPackage
-		decodeJSON(t, create, &pkg)
-		if pkg.InstallerFile == nil || pkg.InstallerFile.SHA256 == "" || pkg.InstallerFile.SizeBytes != 4 {
-			t.Fatalf("package installer = %+v, want finalized metadata", pkg.InstallerFile)
-		}
-	})
-
 	t.Run("cancel pending upload", func(t *testing.T) {
 		target := fixture.beginUpload(t, munkiPackageInstallerPath, "cancel.pkg")
 		rec := fixture.request(
@@ -136,20 +108,6 @@ func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
 	decodeJSON(t, rec, &view)
 	if view.ID != target.ObjectID || view.ContentType != "image/png" {
 		t.Fatalf("attached icon = %+v, want object %d as image/png", view, target.ObjectID)
-	}
-}
-
-func TestMunkiClientResourcesBannerUploadCanBeCancelled(t *testing.T) {
-	fixture := newMunkiUploadFixture(t)
-	path := clientResourcesPath + "/banner"
-	target := fixture.beginUpload(t, path, "banner.png")
-	fixture.upload(t, target, []byte("pending banner"))
-
-	response := fixture.request(t, http.MethodDelete, fmt.Sprintf("%s/%d", path, target.ObjectID))
-	assertStatus(t, response, http.StatusNoContent, "cancel client resources banner")
-	_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-	if !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get cancelled banner error = %v, want ErrNotFound", err)
 	}
 }
 

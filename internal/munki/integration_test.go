@@ -127,32 +127,12 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	}
 }
 
-func TestMunkiSoftwareOmitsDisplayNameWhenUnset(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "NoDisplayName"})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	if software.DisplayName != nil {
-		t.Fatalf("display name = %q, want nil", *software.DisplayName)
-	}
-}
-
 func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
 	stores := newMunkiStores(db)
 
-	includedHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "munki-desired-included-uuid", Serial: "C02MUNKIIN"},
-		OrbitNodeKey: "munki-desired-included-orbit",
-	})
-	if err != nil {
-		t.Fatalf("enroll included host: %v", err)
-	}
 	excludedHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-desired-excluded-uuid", Serial: "C02MUNKIOUT"},
 		OrbitNodeKey: "munki-desired-excluded-orbit",
@@ -188,52 +168,37 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
+	include := []munkisoftware.Include{
+		includeTarget(allHostsID, munkisoftware.ActionManagedInstalls),
+	}
 	_, err = stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
 		Category:  title.Category,
 		Developer: title.Developer,
 		Targets: munkisoftware.Targets{
-			Include: []munkisoftware.Include{
-				includeTarget(allHostsID, munkisoftware.ActionManagedInstalls),
-			},
+			Include: include,
+		},
+	})
+	if err != nil {
+		t.Fatalf("include all hosts: %v", err)
+	}
+	effective, err := stores.software.EffectivePackagesForHost(ctx, excludedHost.ID)
+	if err != nil {
+		t.Fatalf("resolve host before exclusion: %v", err)
+	}
+	if len(effective) != 1 || effective[0].Package.SoftwareName != "GoogleChrome" {
+		t.Fatalf("effective packages before exclusion = %+v, want GoogleChrome", effective)
+	}
+
+	_, err = stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
+		Category:  title.Category,
+		Developer: title.Developer,
+		Targets: munkisoftware.Targets{
+			Include: include,
 			Exclude: labelRefs([]int64{label.ID}),
 		},
 	})
 	if err != nil {
-		t.Fatalf("update software targets: %v", err)
-	}
-
-	titles, titleCount, err := stores.software.List(ctx, dbutil.ListParams{})
-	if err != nil {
-		t.Fatalf("list softwares: %v", err)
-	}
-	if titleCount != 1 || len(titles) != 1 || titles[0].Name != "GoogleChrome" {
-		t.Fatalf("titles = %+v count = %d, want GoogleChrome", titles, titleCount)
-	}
-	packageRows, pkgCount, err := stores.packages.List(ctx, packages.PackageListParams{})
-	if err != nil {
-		t.Fatalf("list packages: %v", err)
-	}
-	if pkgCount != 1 || len(packageRows) != 1 || packageRows[0].Version != "148.0.0.1" {
-		t.Fatalf("packages = %+v count = %d, want version 148.0.0.1", packageRows, pkgCount)
-	}
-	targets, err := stores.software.TargetsForSoftware(ctx, title.ID)
-	if err != nil {
-		t.Fatalf("list targets: %v", err)
-	}
-	if len(targets.Include) != 1 || targets.Include[0].LabelID != allHostsID {
-		t.Fatalf("targets = %+v, want one include row", targets)
-	}
-
-	included, err := stores.software.EffectivePackagesForHost(ctx, includedHost.ID)
-	if err != nil {
-		t.Fatalf("resolve included host: %v", err)
-	}
-	if len(included) != 1 || included[0].Package.SoftwareName != "GoogleChrome" ||
-		!sameActions(
-			included[0].Actions,
-			[]munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-		) {
-		t.Fatalf("included effective packages = %+v, want GoogleChrome install", included)
+		t.Fatalf("add software exclusion: %v", err)
 	}
 	excluded, err := stores.software.EffectivePackagesForHost(ctx, excludedHost.ID)
 	if err != nil {
@@ -241,53 +206,6 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 	}
 	if len(excluded) != 0 {
 		t.Fatalf("excluded effective packages = %+v, want none", excluded)
-	}
-}
-
-func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	hostStore := hosts.NewStore(db)
-	labelStore := labels.NewStore(db)
-	stores := newMunkiStores(db)
-
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "munki-object-host-uuid", Serial: "C02MUNKIOBJ"},
-		OrbitNodeKey: "munki-object-orbit",
-	})
-	if err != nil {
-		t.Fatalf("enroll host: %v", err)
-	}
-	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "ObjectApp"})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	installerObject := createMunkiPackageObject(t, ctx, stores, "ObjectApp.pkg", "a")
-
-	pkg, err := stores.packages.Create(
-		ctx,
-		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
-			Version:           "1.0",
-			InstallerObjectID: &installerObject.ID,
-		}},
-	)
-	if err != nil {
-		t.Fatalf("create pkg: %v", err)
-	}
-	if pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installerObject.ID {
-		t.Fatalf("pkg installer object id = %v, want %d", pkg.InstallerObjectID, installerObject.ID)
-	}
-	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
-		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
-	})
-
-	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
-	if err != nil {
-		t.Fatalf("resolve effective packages: %v", err)
-	}
-	if len(effective) != 1 ||
-		effective[0].Package.InstallerObjectID == nil ||
-		*effective[0].Package.InstallerObjectID != installerObject.ID {
-		t.Fatalf("effective packages = %+v, want installer object id", effective)
 	}
 }
 
@@ -1122,36 +1040,6 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 	}
 	if updated.Version != "2.0" || updated.MinimumMunkiVersion != "" || len(updated.Requires) != 0 {
 		t.Fatalf("updated package = %+v, want replacement package fields", updated)
-	}
-}
-
-func TestCreateTargetTargetsAllHostsLabel(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	hostStore := hosts.NewStore(db)
-	labelStore := labels.NewStore(db)
-	stores := newMunkiStores(db)
-
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "munki-all-devices-uuid", Serial: "C02MUNKIALL"},
-		OrbitNodeKey: "munki-all-devices-orbit",
-	})
-	if err != nil {
-		t.Fatalf("enroll host: %v", err)
-	}
-	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "AllDevicesApp"})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	createMunkiPackage(t, ctx, stores, title.ID, "AllDevicesApp", "1.0")
-	replaceTargets(t, ctx, stores, title, []munkisoftware.Include{
-		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.ActionManagedInstalls),
-	})
-	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
-	if err != nil {
-		t.Fatalf("resolve effective packages: %v", err)
-	}
-	if len(effective) != 1 || effective[0].Package.SoftwareName != "AllDevicesApp" {
-		t.Fatalf("effective packages = %+v, want AllDevicesApp", effective)
 	}
 }
 

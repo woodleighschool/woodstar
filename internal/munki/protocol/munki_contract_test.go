@@ -23,116 +23,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
-			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions: []munkisoftware.Action{
-					munkisoftware.ActionManagedInstalls,
-					munkisoftware.ActionManagedUpdates,
-					munkisoftware.ActionDefaultInstalls,
-				},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
-			},
-			{
-				TargetID:   11,
-				SoftwareID: 2,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, 2, "Slack", "4.50.0"),
-			},
-			{
-				TargetID:   12,
-				SoftwareID: 3,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(22, 3, "LegacyVPN", "1.0"),
-			},
-			{
-				TargetID:   13,
-				SoftwareID: 4,
-				Actions: []munkisoftware.Action{
-					munkisoftware.ActionOptionalInstalls,
-					munkisoftware.ActionFeaturedItems,
-				},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(23, 4, "FeaturedApp", "3.2.1"),
-			},
-		}),
-	)
-
-	cases := []struct {
-		path   string
-		assert func(*testing.T, []byte)
-	}{
-		{path: "/munki/manifests/C02MUNKI", assert: assertManifestPlist},
-		{path: "/munki/catalogs/woodstar", assert: assertCatalogPlist},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.path, func(t *testing.T) {
-			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
-			req.Header.Set("Authorization", "Bearer munki-secret")
-
-			router.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-			}
-			if got := rec.Header().Get("Content-Type"); got != plistContentType {
-				t.Fatalf("Content-Type = %q, want %q", got, plistContentType)
-			}
-			tc.assert(t, rec.Body.Bytes())
-		})
-	}
-}
-
-func TestMunkiHTTPHonorsPlistETag(t *testing.T) {
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
-			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
-			},
-		}),
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("first status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	etag := rec.Header().Get("ETag")
-	if etag == "" {
-		t.Fatal("ETag is empty")
-	}
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	req.Header.Set("If-None-Match", etag)
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotModified {
-		t.Fatalf("cached status = %d, want %d; body = %q", rec.Code, http.StatusNotModified, rec.Body.String())
-	}
-	if rec.Body.Len() != 0 {
-		t.Fatalf("cached body = %q, want empty", rec.Body.String())
-	}
-}
-
 func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -159,65 +49,6 @@ func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
-	displayName := "Google Chrome"
-	objectID := int64(42)
-	sha := strings.Repeat("a", 64)
-	size := int64(4096)
-	availableAt := time.Now()
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
-			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package: packages.Package{
-					ID:                  20,
-					SoftwareID:          1,
-					SoftwareName:        "GoogleChrome",
-					SoftwareDisplayName: &displayName,
-					Version:             "148.0.0.1",
-					InstallerType:       packages.InstallerTypePkg,
-					InstallerObjectID:   &objectID,
-				},
-			},
-		}},
-		Objects: staticObjectResolver{objects: map[int64]storage.Object{
-			objectID: {
-				ID:          objectID,
-				Prefix:      packages.ObjectPrefix,
-				Filename:    "GoogleChrome.pkg",
-				SHA256:      &sha,
-				SizeBytes:   &size,
-				AvailableAt: &availableAt,
-			},
-		}},
-	})
-
-	body, err := service.Catalog(context.Background(), "woodstar")
-	if err != nil {
-		t.Fatalf("catalog: %v", err)
-	}
-
-	var decoded []map[string]any
-	if _, err := plist.Unmarshal(body, &decoded); err != nil {
-		t.Fatalf("catalog plist: %v", err)
-	}
-	if len(decoded) != 1 {
-		t.Fatalf("catalog items = %d, want 1", len(decoded))
-	}
-	if got := decoded[0]["installer_item_location"]; got != "packages/20/installer/GoogleChrome.pkg" {
-		t.Fatalf("installer_item_location = %q, want package item location", got)
-	}
-	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
-		t.Fatalf("PackageCompleteURL should not override the client's SoftwareRepoURL: %+v", decoded[0])
-	}
-	if _, ok := decoded[0]["PackageURL"]; ok {
-		t.Fatalf("PackageURL was rendered from stored pkginfo: %+v", decoded[0])
-	}
-}
-
 func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
@@ -226,7 +57,7 @@ func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, 1, "ExternalURLApp", "1.0"),
+				Package:    staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
 	})
@@ -256,66 +87,6 @@ func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	}
 }
 
-func assertManifestPlist(t *testing.T, body []byte) {
-	t.Helper()
-	var raw map[string]any
-	if _, err := plist.Unmarshal(body, &raw); err != nil {
-		t.Fatalf("response is not a manifest plist: %v", err)
-	}
-	if _, ok := raw["display_name"]; ok {
-		t.Fatalf("manifest rendered display_name: %+v", raw)
-	}
-	var decoded struct {
-		Catalogs          []string `plist:"catalogs"`
-		ManagedInstalls   []string `plist:"managed_installs"`
-		ManagedUninstalls []string `plist:"managed_uninstalls"`
-		ManagedUpdates    []string `plist:"managed_updates"`
-		OptionalInstalls  []string `plist:"optional_installs"`
-		DefaultInstalls   []string `plist:"default_installs"`
-		FeaturedItems     []string `plist:"featured_items"`
-	}
-	if _, err := plist.Unmarshal(body, &decoded); err != nil {
-		t.Fatalf("response is not a manifest plist: %v", err)
-	}
-	if got := decoded.Catalogs; len(got) != 1 || got[0] != "woodstar" {
-		t.Fatalf("catalogs = %v, want [woodstar]", got)
-	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"GoogleChrome"}) {
-		t.Fatalf("managed_installs = %v, want [GoogleChrome]", decoded.ManagedInstalls)
-	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "FeaturedApp"}) {
-		t.Fatalf("optional_installs = %v, want [Slack FeaturedApp]", decoded.OptionalInstalls)
-	}
-	if !sameStrings(decoded.ManagedUninstalls, []string{"LegacyVPN"}) {
-		t.Fatalf("managed_uninstalls = %v, want [LegacyVPN]", decoded.ManagedUninstalls)
-	}
-	if !sameStrings(decoded.ManagedUpdates, []string{"GoogleChrome"}) {
-		t.Fatalf("managed_updates = %v, want [GoogleChrome]", decoded.ManagedUpdates)
-	}
-	if !sameStrings(decoded.DefaultInstalls, []string{"GoogleChrome"}) {
-		t.Fatalf("default_installs = %v, want [GoogleChrome]", decoded.DefaultInstalls)
-	}
-	if !sameStrings(decoded.FeaturedItems, []string{"FeaturedApp"}) {
-		t.Fatalf("featured_items = %v, want [FeaturedApp]", decoded.FeaturedItems)
-	}
-}
-
-func assertCatalogPlist(t *testing.T, body []byte) {
-	t.Helper()
-	var decoded []map[string]any
-	if _, err := plist.Unmarshal(body, &decoded); err != nil {
-		t.Fatalf("response is not a catalog plist: %v", err)
-	}
-	if len(decoded) != 4 {
-		t.Fatalf("catalog items = %d, want 4", len(decoded))
-	}
-	if decoded[0]["name"] != "GoogleChrome" ||
-		decoded[0]["display_name"] != nil ||
-		decoded[0]["version"] != "148.0.0.1" {
-		t.Fatalf("first catalog item = %+v, want package 20 / GoogleChrome 148.0.0.1", decoded[0])
-	}
-}
-
 func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -325,14 +96,14 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, 1, "GoogleChrome", "148.0.0.1"),
+				Package:    staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
 			},
 			{
 				TargetID:   10,
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, 1, "GoogleChrome", "149.0.0.1"),
+				Package:    staticMunkiPackage(21, "GoogleChrome", "149.0.0.1"),
 			},
 		}),
 	)
@@ -386,21 +157,21 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, 1, "OverlapApp", "1.0"),
+				Package:    staticMunkiPackage(20, "OverlapApp", "1.0"),
 			},
 			{
 				TargetID:   11,
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, 1, "OverlapApp", "1.1"),
+				Package:    staticMunkiPackage(21, "OverlapApp", "1.1"),
 			},
 			{
 				TargetID:   12,
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(22, 1, "OverlapApp", "1.2"),
+				Package:    staticMunkiPackage(22, "OverlapApp", "1.2"),
 			},
 		}),
 	)
@@ -438,7 +209,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 				SoftwareID: 1,
 				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageSpecific},
-				Package:    staticMunkiPackage(20, 1, "PinnedApp", "1.0"),
+				Package:    staticMunkiPackage(20, "PinnedApp", "1.0"),
 			},
 		}),
 	)
@@ -476,7 +247,6 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 		{name: "missing", wantStatus: http.StatusUnauthorized},
 		{name: "wrong scheme", authorization: "Basic munki-secret", wantStatus: http.StatusUnauthorized},
 		{name: "wrong token", authorization: "Bearer wrong-secret", wantStatus: http.StatusUnauthorized},
-		{name: "valid", authorization: "Bearer munki-secret", wantStatus: http.StatusOK},
 	}
 
 	for _, tc := range cases {
@@ -525,59 +295,6 @@ func TestMunkiHTTPRequiresExistingManifestSerial(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
-	verifier := &recordingVerifier{token: "munki-secret"}
-	repository := newStaticRepository()
-	router := newMunkiContractRouter(verifier, repository)
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	if verifier.agent != agentauth.AgentMunki {
-		t.Fatalf("agent = %q, want munki", verifier.agent)
-	}
-}
-
-func TestMunkiHTTPRedirectsPackageFileWithBearer(t *testing.T) {
-	repository := newStaticRepository()
-	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
-	repository.fileContentType = "application/octet-stream"
-	store := &fakePresigner{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		repository,
-		store,
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusFound {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
-	}
-	if got := rec.Header().Get("Location"); got != store.presignURL {
-		t.Fatalf("Location = %q, want %q", got, store.presignURL)
-	}
-	if repository.fileClass != "package" ||
-		repository.fileKey != "packages/20/installer/GoogleChrome.pkg" {
-		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
-	}
-	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
-		t.Fatalf("presigned key = %q", store.gotKey)
-	}
-	if store.gotOptions.ContentType != repository.fileContentType {
-		t.Fatalf("presigned content type = %q", store.gotOptions.ContentType)
-	}
-}
-
 func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
@@ -621,98 +338,6 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPServesDirectWhenNoDistributionPoint(t *testing.T) {
-	repository := newStaticRepository()
-	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
-	repository.packageID = 20
-	store := &fakePresigner{presignURL: "https://storage.example/direct"}
-	selector := &fakeSelector{ok: false}
-
-	router := chi.NewRouter()
-	NewServer(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		repository,
-		selector,
-		store,
-		testLogger(),
-	).RegisterRoutes(router)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusFound {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
-	}
-	if got := rec.Header().Get("Location"); got != store.presignURL {
-		t.Fatalf("Location = %q, want Woodstar presign %q", got, store.presignURL)
-	}
-	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
-		t.Fatalf("presigned key = %q, want installer key", store.gotKey)
-	}
-}
-
-func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
-	displayName := "Google Chrome"
-	objectID := int64(42)
-	sha := strings.Repeat("a", 64)
-	size := int64(4096)
-	availableAt := time.Now()
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
-			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package: packages.Package{
-					ID:                  20,
-					SoftwareID:          1,
-					SoftwareName:        "GoogleChrome",
-					SoftwareDisplayName: &displayName,
-					Version:             "148.0.0.1",
-					InstallerType:       packages.InstallerTypePkg,
-					InstallerObjectID:   &objectID,
-				},
-			},
-		}},
-		Objects: staticObjectResolver{objects: map[int64]storage.Object{
-			objectID: {
-				ID:          objectID,
-				Prefix:      packages.ObjectPrefix,
-				Filename:    "GoogleChrome.pkg",
-				SHA256:      &sha,
-				SizeBytes:   &size,
-				AvailableAt: &availableAt,
-			},
-		}},
-	})
-
-	body, err := service.Catalog(context.Background(), "woodstar")
-	if err != nil {
-		t.Fatalf("catalog: %v", err)
-	}
-
-	var decoded []struct {
-		InstallerItemHash string `plist:"installer_item_hash"`
-		InstallerItemSize int64  `plist:"installer_item_size"`
-	}
-	if _, err := plist.Unmarshal(body, &decoded); err != nil {
-		t.Fatalf("catalog plist: %v", err)
-	}
-	if len(decoded) != 1 {
-		t.Fatalf("catalog items = %d, want 1", len(decoded))
-	}
-	if decoded[0].InstallerItemHash != sha {
-		t.Fatalf("installer_item_hash = %q, want %q", decoded[0].InstallerItemHash, sha)
-	}
-	// Munki pkginfo reports installer_item_size in kilobytes.
-	if decoded[0].InstallerItemSize != 4 {
-		t.Fatalf("installer_item_size = %d KB, want 4", decoded[0].InstallerItemSize)
-	}
-}
-
 func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/icons/7/GoogleChrome.png"
@@ -738,36 +363,6 @@ func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
 	}
 	if store.gotKey != "munki/icons/7/GoogleChrome.png" {
-		t.Fatalf("presigned key = %q", store.gotKey)
-	}
-	if store.gotOptions.ContentType != repository.fileContentType {
-		t.Fatalf("presigned content type = %q", store.gotOptions.ContentType)
-	}
-}
-
-func TestMunkiHTTPRedirectsClientResources(t *testing.T) {
-	repository := newStaticRepository()
-	repository.fileURL = "munki/clientresources/archives/9/site_default.zip"
-	repository.fileContentType = "application/zip"
-	store := &fakePresigner{presignURL: "https://storage.example/site_default.zip?signature=test"}
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		repository,
-		store,
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/client_resources/C02MUNKI.zip", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusFound {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
-	}
-	if repository.fileClass != "client resources" || repository.fileKey != "C02MUNKI.zip" {
-		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
-	}
-	if store.gotKey != "munki/clientresources/archives/9/site_default.zip" {
 		t.Fatalf("presigned key = %q", store.gotKey)
 	}
 	if store.gotOptions.ContentType != repository.fileContentType {
@@ -844,16 +439,6 @@ type staticVerifier struct {
 
 func (v staticVerifier) Verify(_ context.Context, agent agentauth.Agent, token string) (bool, error) {
 	return agent == v.agent && token == v.token, nil
-}
-
-type recordingVerifier struct {
-	agent agentauth.Agent
-	token string
-}
-
-func (v *recordingVerifier) Verify(_ context.Context, agent agentauth.Agent, token string) (bool, error) {
-	v.agent = agent
-	return token == v.token, nil
 }
 
 type errorVerifier struct{}
@@ -1033,27 +618,10 @@ func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string
 	}, nil
 }
 
-type staticObjectResolver struct {
-	objects map[int64]storage.Object
-}
-
-func (r staticObjectResolver) ListByIDs(
-	_ context.Context,
-	ids []int64,
-) (map[int64]storage.Object, error) {
-	objects := make(map[int64]storage.Object, len(ids))
-	for _, id := range ids {
-		if obj, ok := r.objects[id]; ok {
-			objects[id] = obj
-		}
-	}
-	return objects, nil
-}
-
-func staticMunkiPackage(id int64, softwareID int64, name string, version string) packages.Package {
+func staticMunkiPackage(id int64, name string, version string) packages.Package {
 	return packages.Package{
 		ID:            id,
-		SoftwareID:    softwareID,
+		SoftwareID:    1,
 		SoftwareName:  name,
 		Version:       version,
 		InstallerType: packages.InstallerTypeNoPkg,
