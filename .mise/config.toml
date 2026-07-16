@@ -26,9 +26,10 @@ config_roots = ["web", "docs"]
 postinstall = "lefthook install"
 
 [tasks.deps]
-description = "Install backend and web dependencies"
+description = "Install backend, integration, and web dependencies"
 run = """
 go mod download
+go -C integration mod download
 mise //web:deps
 """
 
@@ -73,28 +74,18 @@ description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.tidy]
-description = "Check go.mod and go.sum are tidy"
+description = "Check both Go modules are tidy"
 run = """
 go mod tidy
-git diff --exit-code go.mod go.sum
+go -C integration mod tidy
+git diff --exit-code go.mod go.sum integration/go.mod integration/go.sum
 """
 
 [tasks.test]
-description = "Run fast Go suite"
-run = "env -u WOODSTAR_TEST_DATABASE_URL go test -race -count=1 -v ./..."
-
-[tasks.full-test]
-description = "Run DB-backed Go suite"
+description = "Run the focused PostgreSQL-backed Go suite"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -v ./...
-"""
-
-[tasks.test-integration]
-description = "Run DB-backed protocol/auth integration tests"
-run = """
-WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./internal/agentauth ./internal/directory ./internal/orbit/protocol ./internal/osquery/protocol ./internal/santa/protocol
 """
 
 [tasks.test-autopkg]
@@ -140,8 +131,11 @@ description = "Regenerate checked-in generated artifacts"
 run = "mise run openapi-types"
 
 [tasks.go-lint]
-description = "Run Go linters"
-run = "golangci-lint run"
+description = "Run Go linters for both modules"
+run = """
+golangci-lint run
+go -C integration vet ./...
+"""
 
 [tasks.lint]
 description = "Run backend and web linters"
@@ -151,8 +145,14 @@ mise //web:lint
 """
 
 [tasks.go-format]
-description = "Format Go code"
-run = "golangci-lint fmt"
+description = "Format Go code in both modules"
+run = """
+golangci-lint fmt
+(
+  cd integration
+  golangci-lint fmt --config ../.golangci.yml
+)
+"""
 
 [tasks.format]
 description = "Format backend and web code"
@@ -167,7 +167,7 @@ run = """
 mise run format
 mise run lint
 mise run tidy
-mise run full-test
+mise run test
 mise run test-autopkg
 mise run test-openapi
 """

@@ -60,20 +60,17 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum', 'integration/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
       - name: Check go.mod tidiness
         run: mise run tidy
 
-      - name: Running Unit Tests
+      - name: Build backend
+        run: mise run backend
+
+      - name: Run Go tests
         run: mise run test
-
-      - name: Running DB Tests
-        run: mise run full-test
-
-      - name: Running Integration Tests
-        run: mise run test-integration
 
       - name: Check OpenAPI is current
         run: mise run test-openapi
