@@ -77,6 +77,9 @@ type binaryCache struct {
 var compiledTestBinary binaryCache
 
 func TestMain(m *testing.M) {
+	// Keep the shared harness reachable until its first protocol test lands.
+	_ = startTestServer
+
 	exitCode := m.Run()
 	if err := compiledTestBinary.cleanup(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "remove compiled Woodstar test binary: %v\n", err)
@@ -115,10 +118,19 @@ func startTestServer(t *testing.T) *testServer {
 	}
 	t.Cleanup(func() { _ = logFile.Close() })
 
-	redactions := []string{secret, databaseURL}
+	server := &testServer{
+		BaseURL:           baseURL,
+		Client:            client,
+		DatabaseURL:       databaseURL,
+		StorageRoot:       storageRoot,
+		CACertificate:     append([]byte(nil), tlsMaterial.caCertificate...),
+		CACertificatePath: tlsMaterial.caPath,
+		logPath:           logPath,
+	}
+	server.redact(secret, databaseURL)
 	if parsedDatabaseURL, parseErr := url.Parse(databaseURL); parseErr == nil && parsedDatabaseURL.User != nil {
 		if password, ok := parsedDatabaseURL.User.Password(); ok {
-			redactions = append(redactions, password)
+			server.redact(password)
 		}
 	}
 
@@ -134,12 +146,12 @@ func startTestServer(t *testing.T) *testServer {
 	)
 	process, err := startProcess(command)
 	if err != nil {
-		t.Fatalf("start Woodstar: %v\n%s", err, safeLogTail(logPath, redactions))
+		t.Fatalf("start Woodstar: %v\n%s", err, server.logs())
 	}
 	t.Cleanup(func() {
 		stopProcess(t, process)
 		if t.Failed() {
-			t.Logf("Woodstar server logs (tail):\n%s", safeLogTail(logPath, redactions))
+			t.Logf("Woodstar server logs (tail):\n%s", server.logs())
 		}
 	})
 
@@ -147,19 +159,14 @@ func startTestServer(t *testing.T) *testServer {
 		t.Fatalf("wait for Woodstar readiness: %v", err)
 	}
 
-	return &testServer{
-		BaseURL:           baseURL,
-		Client:            client,
-		DatabaseURL:       databaseURL,
-		StorageRoot:       storageRoot,
-		CACertificate:     append([]byte(nil), tlsMaterial.caCertificate...),
-		CACertificatePath: tlsMaterial.caPath,
-		logPath:           logPath,
-		redactions:        redactions,
-	}
+	return server
 }
 
-func (server *testServer) Logs() string {
+func (server *testServer) redact(values ...string) {
+	server.redactions = append(server.redactions, values...)
+}
+
+func (server *testServer) logs() string {
 	return safeLogTail(server.logPath, server.redactions)
 }
 
@@ -525,7 +532,7 @@ func waitForHealth(
 			return fmt.Errorf("Woodstar exited before readiness: %w", process.waitErr)
 		case <-ctx.Done():
 			timer.Stop()
-			return fmt.Errorf("health check deadline: %w (last error: %v)", ctx.Err(), lastErr)
+			return fmt.Errorf("health check deadline: %w (last error: %w)", ctx.Err(), lastErr)
 		case <-timer.C:
 		}
 		backoff = min(backoff*2, 250*time.Millisecond)

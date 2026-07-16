@@ -133,8 +133,11 @@ run = "mise run openapi-types"
 [tasks.go-lint]
 description = "Run Go linters for both modules"
 run = """
-golangci-lint run
-go -C integration vet ./...
+golangci-lint run --config .golangci.yml
+(
+  cd integration
+  golangci-lint run --config ../.golangci.yml
+)
 """
 
 [tasks.lint]
