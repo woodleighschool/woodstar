@@ -3,13 +3,11 @@ import { useMemo, useState } from "react";
 
 import {
   Combobox,
-  ComboboxAnchor,
-  ComboboxCancel,
   ComboboxContent,
   ComboboxInput,
   ComboboxItem,
+  ComboboxList,
   ComboboxSeparator,
-  ComboboxTrigger,
 } from "@/components/ui/combobox";
 
 export function FreeTextCombobox<TItem>({
@@ -64,7 +62,8 @@ export function FreeTextCombobox<TItem>({
 
   return (
     <Combobox
-      value={selected ? itemToStringValue(selected) : ""}
+      items={renderedOptions.map(itemToStringValue)}
+      value={selected ? itemToStringValue(selected) : null}
       inputValue={value}
       onInputValueChange={onChange}
       onValueChange={(next) => {
@@ -83,43 +82,41 @@ export function FreeTextCombobox<TItem>({
         onChange(itemValue);
         onSelectItem?.(item);
       }}
-      preserveInputOnBlur
     >
-      <ComboboxAnchor className="w-full">
-        <ComboboxInput
-          id={id}
-          name={name}
-          placeholder={placeholder}
-          disabled={disabled}
-          aria-invalid={invalid}
-          onBlur={onBlur}
-        />
-        {value !== "" ? <ComboboxCancel aria-label="Clear value" /> : null}
-        <ComboboxTrigger aria-label="Open values" />
-      </ComboboxAnchor>
+      <ComboboxInput
+        id={id}
+        name={name}
+        className="w-full"
+        placeholder={placeholder}
+        disabled={disabled}
+        aria-invalid={invalid}
+        onBlur={onBlur}
+        showClear={value !== ""}
+      />
       {hasRenderedOptions ? (
         <ComboboxContent>
-          {options.map((item) => {
-            const itemValue = itemToStringValue(item);
-            return (
-              <ComboboxItem
-                key={itemKey?.(item) ?? itemValue}
-                value={itemValue}
-                label={itemValue}
-                disabled={itemDisabled?.(item)}
-              >
-                {renderItem?.(item) ?? itemValue}
-              </ComboboxItem>
-            );
-          })}
-          {addItem ? (
-            <>
-              {options.length > 0 ? <ComboboxSeparator /> : null}
-              <ComboboxItem value={newValue} label={newValue}>
-                <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
-              </ComboboxItem>
-            </>
-          ) : null}
+          <ComboboxList>
+            {options.map((item) => {
+              const itemValue = itemToStringValue(item);
+              return (
+                <ComboboxItem
+                  key={itemKey?.(item) ?? itemValue}
+                  value={itemValue}
+                  disabled={itemDisabled?.(item)}
+                >
+                  {renderItem?.(item) ?? itemValue}
+                </ComboboxItem>
+              );
+            })}
+            {addItem ? (
+              <>
+                {options.length > 0 ? <ComboboxSeparator /> : null}
+                <ComboboxItem value={newValue}>
+                  <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
+                </ComboboxItem>
+              </>
+            ) : null}
+          </ComboboxList>
         </ComboboxContent>
       ) : null}
     </Combobox>

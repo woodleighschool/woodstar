@@ -12,17 +12,14 @@ import {
 } from "@/components/ui/card";
 import type { OsqueryHostReport } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
-
 interface ReportResultCardProps {
   report: OsqueryHostReport;
 }
-
 export function ReportResultCard({ report }: ReportResultCardProps) {
   const values = reportResultValues(report.first_result);
   const subtitle = report.last_fetched
     ? `Last updated ${formatRelative(report.last_fetched)}`
     : "Collecting results";
-
   return (
     <Card>
       <CardHeader>
@@ -31,10 +28,18 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
         </CardTitle>
         <CardDescription>{subtitle}</CardDescription>
         <CardAction>
-          <Button asChild size="sm" variant="outline">
-            <Link to="/osquery/reports/$reportId" params={{ reportId: String(report.report_id) }}>
-              View Report
-            </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            render={
+              <Link
+                to="/osquery/reports/$reportId"
+                params={{ reportId: String(report.report_id) }}
+              />
+            }
+            nativeButton={false}
+          >
+            View Report
           </Button>
         </CardAction>
       </CardHeader>
@@ -52,7 +57,6 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
     </Card>
   );
 }
-
 function ReportValueGrid({ values }: { values: ReportResultValue[] }) {
   return (
     <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-x-8 gap-y-5">
@@ -69,12 +73,10 @@ function ReportValueGrid({ values }: { values: ReportResultValue[] }) {
     </dl>
   );
 }
-
 interface ReportResultValue {
   key: string;
   value: string;
 }
-
 function reportResultValues(row: Record<string, string> | undefined): ReportResultValue[] {
   return Object.entries(row ?? {})
     .map(([key, value]) => ({ key, value }))

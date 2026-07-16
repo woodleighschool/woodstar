@@ -50,7 +50,7 @@ export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={150}>
+        <TooltipProvider delay={150}>
           <RouterProvider router={router} />
           <Toaster richColors closeButton position="bottom-right" />
         </TooltipProvider>

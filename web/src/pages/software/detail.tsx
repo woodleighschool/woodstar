@@ -25,13 +25,11 @@ import { useSoftwareSantaReference, useSoftwareTitle } from "@/hooks/use-softwar
 import type { SantaRule, SantaSoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
 import { ruleTypeLabel } from "@/lib/santa-rules";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
-
 type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
 type CertificateReference = NonNullable<SantaSoftwareReference["certificates"]>[number];
 type ExecutableReference = NonNullable<SantaSoftwareReference["executables"]>[number];
 type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_identities"]>[number];
 type SantaRuleType = SantaRule["rule_type"];
-
 export function SoftwareDetailPage() {
   const { softwareId } = useParams({
     from: "/_authenticated/software/titles/$softwareId",
@@ -39,10 +37,9 @@ export function SoftwareDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const query = useSoftwareTitle(Number(softwareId), {
-    refetchInterval: 30_000,
+    refetchInterval: 30000,
   });
   const title = query.data;
-
   if (query.error || !title) {
     return (
       <QueryGate
@@ -52,7 +49,6 @@ export function SoftwareDetailPage() {
       />
     );
   }
-
   return (
     <PageShell className="gap-6">
       <SoftwareHeader title={title} />
@@ -62,10 +58,8 @@ export function SoftwareDetailPage() {
     </PageShell>
   );
 }
-
 function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   const typeLabel = softwareSourceLabel(title.source, title.extension_for);
-
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-center gap-4">
@@ -81,15 +75,17 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
           </div>
         </div>
       </div>
-      <Button asChild variant="outline" size="sm">
-        <Link to="/hosts" search={{ software_title_id: title.id }}>
-          View hosts
-        </Link>
+      <Button
+        variant="outline"
+        size="sm"
+        render={<Link to="/hosts" search={{ software_title_id: title.id }} />}
+        nativeButton={false}
+      >
+        View hosts
       </Button>
     </div>
   );
 }
-
 function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
   return (
     <Card>
@@ -115,10 +111,8 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
     </Card>
   );
 }
-
 function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boolean }) {
   const query = useSoftwareSantaReference(titleID);
-
   if (query.error) {
     return (
       <QueryError
@@ -128,11 +122,9 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
       />
     );
   }
-
   if (!query.data) {
     return null;
   }
-
   const ref = query.data;
   const bundles = ref.bundles ?? [];
   const executables = ref.executables ?? [];
@@ -145,7 +137,6 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
     executables.length > 0 ||
     identities.length > 0 ||
     certificates.length > 0;
-
   return (
     <Card>
       <CardHeader>
@@ -172,7 +163,6 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
     </Card>
   );
 }
-
 function SantaMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md border px-3 py-2">
@@ -181,7 +171,6 @@ function SantaMetric({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-
 function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; isAdmin: boolean }) {
   return (
     <SantaReferenceTable title="Bundles" empty="No related bundles." count={bundles.length}>
@@ -208,7 +197,6 @@ function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; i
     </SantaReferenceTable>
   );
 }
-
 function SantaExecutablesTable({
   executables,
   isAdmin,
@@ -249,7 +237,6 @@ function SantaExecutablesTable({
     </SantaReferenceTable>
   );
 }
-
 function SantaSigningTable({
   identities,
   isAdmin,
@@ -280,7 +267,6 @@ function SantaSigningTable({
     </SantaReferenceTable>
   );
 }
-
 function SantaCertificatesTable({
   certificates,
   isAdmin,
@@ -326,7 +312,6 @@ function SantaCertificatesTable({
     </SantaReferenceTable>
   );
 }
-
 function SantaReferenceTable({
   title,
   empty,
@@ -353,7 +338,6 @@ function SantaReferenceTable({
     </div>
   );
 }
-
 function QuickAddRuleButton({
   ruleType,
   identifier,
@@ -365,21 +349,27 @@ function QuickAddRuleButton({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button asChild type="button" variant="ghost" size="icon-sm">
-          <Link to="/santa/rules/new" search={{ rule_type: ruleType, identifier, name }}>
-            <Plus />
-          </Link>
-        </Button>
+      <TooltipTrigger
+        render={
+          <Button
+            render={
+              <Link to="/santa/rules/new" search={{ rule_type: ruleType, identifier, name }} />
+            }
+            nativeButton={false}
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+          />
+        }
+      >
+        <Plus />
       </TooltipTrigger>
       <TooltipContent>New {ruleTypeLabel(ruleType)} Rule</TooltipContent>
     </Tooltip>
   );
 }
-
 function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
   const versions = title.versions ?? [];
-
   return (
     <Card>
       <CardHeader>
@@ -409,7 +399,6 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
     </Card>
   );
 }
-
 function VersionRow({ title, version }: { title: SoftwareTitle; version: SoftwareVersion }) {
   return (
     <TableRow>

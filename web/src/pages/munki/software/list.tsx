@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
@@ -21,31 +20,27 @@ import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-
 import type { MunkiSoftware } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
-
 export function MunkiSoftwareListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const query = useMunkiSoftware({
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
-
   const columns = React.useMemo<ColumnDef<MunkiSoftware>[]>(() => {
     const baseColumns: ColumnDef<MunkiSoftware>[] = [
       selectColumn<MunkiSoftware>(),
       {
         id: "name",
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Software" />,
+        header: "Software",
         cell: ({ row }) =>
           isAdmin ? (
             <Link
@@ -68,28 +63,27 @@ export function MunkiSoftwareListPage() {
       {
         id: "category",
         accessorKey: "category",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Category" />,
+        header: "Category",
         cell: ({ row }) => row.original.category || "-",
         meta: { label: "Category" },
       },
       {
         id: "developer",
         accessorKey: "developer",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Developer" />,
+        header: "Developer",
         cell: ({ row }) => row.original.developer || "-",
         meta: { label: "Developer" },
       },
       {
         id: "updated_at",
         accessorKey: "updated_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
+        header: "Updated",
         cell: ({ row }) => formatRelative(row.original.updated_at),
         meta: { label: "Updated" },
       },
     ];
     return baseColumns;
   }, [isAdmin]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: software,
@@ -99,18 +93,15 @@ export function MunkiSoftwareListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   return (
     <PageShell>
       <PageHeader
         title="Software"
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/munki/software/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/munki/software/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }

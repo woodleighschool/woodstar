@@ -63,11 +63,11 @@ export function BannerEditor({
             )}
           />
         ) : (
-          <FileUploadTrigger asChild>
-            <Button type="button" variant="outline" disabled={uploading}>
-              <ImageIcon data-icon="inline-start" />
-              Add banner
-            </Button>
+          <FileUploadTrigger
+            render={<Button type="button" variant="outline" disabled={uploading} />}
+          >
+            <ImageIcon data-icon="inline-start" />
+            Add banner
           </FileUploadTrigger>
         )}
 
@@ -82,15 +82,14 @@ export function BannerEditor({
       {asset ? (
         <div className="absolute top-2 right-2 flex items-center gap-2">
           <ToggleGroup
-            type="single"
-            value={alignment}
+            value={[alignment]}
             variant="outline"
             size="sm"
             aria-label="Banner alignment"
             className="bg-background/90 shadow-sm backdrop-blur-sm"
             onValueChange={(value) => {
-              if (value) {
-                onAlignmentChange(value as ClientResourcesDraft["banner"]["alignment"]);
+              if (value[0]) {
+                onAlignmentChange(value[0] as ClientResourcesDraft["banner"]["alignment"]);
               }
             }}
           >
@@ -105,11 +104,11 @@ export function BannerEditor({
             })}
           </ToggleGroup>
 
-          <FileUploadTrigger asChild>
-            <Button type="button" variant="secondary" size="sm" disabled={uploading}>
-              <ImageUp data-icon="inline-start" />
-              Replace
-            </Button>
+          <FileUploadTrigger
+            render={<Button type="button" variant="secondary" size="sm" disabled={uploading} />}
+          >
+            <ImageUp data-icon="inline-start" />
+            Replace
           </FileUploadTrigger>
         </div>
       ) : null}

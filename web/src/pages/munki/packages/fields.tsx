@@ -11,9 +11,7 @@ import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 import type { PackageEditorForm } from "./editor-form";
 import { PackageEditorTabContent, packageFormTabs } from "./package-form-tabs";
 import type { SoftwareInfo } from "./package-reference-editors";
-
 export type { SoftwareInfo } from "./package-reference-editors";
-
 type PackageFormProps = {
   form: PackageEditorForm;
   title: string;
@@ -26,7 +24,6 @@ type PackageFormProps = {
   onCancel: () => void;
   canCancelWhileSubmitting?: boolean;
 };
-
 export function PackageForm({
   form,
   title,
@@ -41,42 +38,42 @@ export function PackageForm({
 }: PackageFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
   const exitGuard = useFormExitGuard({ form, onDiscard: onCancel });
-
   return (
-    <PageShell asChild>
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit().then(() => {
-            revealFirstInvalidFormTab(form, packageFormTabs, setActiveTab);
-            return undefined;
-          });
-        }}
-      >
-        <PageHeader title={title} />
-        <PackageEditorTabs
-          form={form}
-          activeTab={activeTab}
-          onActiveTabChange={setActiveTab}
-          softwareInfo={softwareInfo}
-          softwareOptions={softwareOptions}
-          softwareLoading={softwareLoading}
-          packageOptions={packageOptions}
-          installerMetadata={installerMetadata}
+    <PageShell
+      render={
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit().then(() => {
+              revealFirstInvalidFormTab(form, packageFormTabs, setActiveTab);
+              return undefined;
+            });
+          }}
         />
-        <FormActions
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={exitGuard.requestDiscard}
-          canCancelWhileSubmitting={canCancelWhileSubmitting}
-        />
-        {exitGuard.dialog}
-      </form>
+      }
+    >
+      <PageHeader title={title} />
+      <PackageEditorTabs
+        form={form}
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        softwareInfo={softwareInfo}
+        softwareOptions={softwareOptions}
+        softwareLoading={softwareLoading}
+        packageOptions={packageOptions}
+        installerMetadata={installerMetadata}
+      />
+      <FormActions
+        form={form}
+        submitLabel={submitLabel}
+        onCancel={exitGuard.requestDiscard}
+        canCancelWhileSubmitting={canCancelWhileSubmitting}
+      />
+      {exitGuard.dialog}
     </PageShell>
   );
 }
-
 export function PackageEditorTabs({
   form,
   activeTab,
@@ -106,12 +103,7 @@ export function PackageEditorTabs({
         ))}
       </ScrollableTabsList>
       {packageFormTabs.map((tab) => (
-        <TabsContent
-          key={tab.value}
-          value={tab.value}
-          forceMount
-          className="data-[state=inactive]:hidden"
-        >
+        <TabsContent key={tab.value} value={tab.value} keepMounted className="data-inactive:hidden">
           <PackageEditorTabContent
             tab={tab.value}
             form={form}

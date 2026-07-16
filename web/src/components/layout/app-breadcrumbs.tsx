@@ -22,23 +22,22 @@ import { useSantaRule } from "@/hooks/use-santa-rules";
 import { useSoftwareTitle } from "@/hooks/use-software";
 import { useUser } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
-
 interface Crumb {
   key: string;
   label: ReactNode;
   to?: string;
   params?: Record<string, string>;
 }
-
 export function AppBreadcrumbs({ className }: { className?: string }) {
   const matches = useMatches();
   const leaf = matches[matches.length - 1] as
-    | { routeId: string; params: Record<string, string> }
+    | {
+        routeId: string;
+        params: Record<string, string>;
+      }
     | undefined;
   const crumbs = leaf ? crumbsForLeaf(leaf.routeId, leaf.params) : [];
-
   if (crumbs.length === 0) return null;
-
   return (
     <Breadcrumb className={cn("min-w-0", className)}>
       <BreadcrumbList>
@@ -50,10 +49,8 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
                 {isLast || !crumb.to ? (
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink asChild>
-                    <Link to={crumb.to} params={crumb.params}>
-                      {crumb.label}
-                    </Link>
+                  <BreadcrumbLink render={<Link to={crumb.to} params={crumb.params} />}>
+                    {crumb.label}
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
@@ -65,7 +62,6 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
     </Breadcrumb>
   );
 }
-
 function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[] {
   switch (routeId) {
     // Hosts
@@ -74,14 +70,12 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "hosts", label: "Hosts", to: "/hosts" },
         { key: `host-${params.hostId}`, label: <HostCrumb id={params.hostId} /> },
       ];
-
     // Software
     case "/_authenticated/software/titles/$softwareId":
       return [
         { key: "software", label: "Software", to: "/software" },
         { key: `software-${params.softwareId}`, label: <SoftwareCrumb id={params.softwareId} /> },
       ];
-
     // Labels
     case "/_authenticated/labels/new":
       return [
@@ -93,7 +87,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "labels", label: "Labels", to: "/labels" },
         { key: `label-${params.labelId}`, label: <LabelCrumb id={params.labelId} /> },
       ];
-
     // Osquery checks
     case "/_authenticated/osquery/checks/new":
       return [
@@ -132,7 +125,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         },
         { key: `report-${params.reportId}-live`, label: "Live" },
       ];
-
     // Munki
     case "/_authenticated/munki/software/new":
       return [
@@ -231,7 +223,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "santa-rules", label: "Rules", to: "/santa/rules" },
         { key: `santa-rule-${params.ruleId}`, label: <SantaRuleCrumb id={params.ruleId} /> },
       ];
-
     // Directory
     case "/_authenticated/directory/users/$userId/edit":
       return [
@@ -242,9 +233,12 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       return [];
   }
 }
-
 function resourceCrumb<T>(
-  useDetail: (id: number) => { data?: T; isError?: boolean; isLoading: boolean },
+  useDetail: (id: number) => {
+    data?: T;
+    isError?: boolean;
+    isLoading: boolean;
+  },
   label: (data: T, id: string) => ReactNode,
 ): (props: { id: string }) => ReactNode {
   return function ResourceCrumb({ id }: { id: string }) {
@@ -255,7 +249,6 @@ function resourceCrumb<T>(
     return <CrumbSkeleton />;
   };
 }
-
 function HostCrumb({ id }: { id: string }) {
   const { data, isError, isLoading } = useHost(Number(id));
   if (!data) {
@@ -265,7 +258,6 @@ function HostCrumb({ id }: { id: string }) {
   }
   return <span title={data.hardware.uuid}>{data.display_name}</span>;
 }
-
 const SoftwareCrumb = resourceCrumb(useSoftwareTitle, (d) => d.name);
 const MunkiSoftwareCrumb = resourceCrumb(useMunkiSoftwareDetail, (d) => d.name);
 const MunkiDistributionPointCrumb = resourceCrumb(useMunkiDistributionPoint, (d) => d.name);
@@ -275,7 +267,6 @@ const SantaConfigurationCrumb = resourceCrumb(useSantaConfiguration, (d) => d.na
 const SantaRuleCrumb = resourceCrumb(useSantaRule, (d) => d.name);
 const LabelCrumb = resourceCrumb(useLabel, (d) => d.name);
 const UserCrumb = resourceCrumb(useUser, (d, id) => d.name || d.email || id);
-
 function MunkiPackageCrumb({ id }: { id: string }) {
   const { data, isError, isLoading } = useMunkiPackage(Number(id));
   if (!data) {
@@ -285,7 +276,6 @@ function MunkiPackageCrumb({ id }: { id: string }) {
   }
   return <span>{`${data.software_name} ${data.version}`}</span>;
 }
-
 function CrumbSkeleton() {
   return <Skeleton className="inline-block h-4 w-24 align-middle" />;
 }

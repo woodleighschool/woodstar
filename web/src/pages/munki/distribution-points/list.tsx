@@ -6,20 +6,18 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import {
+  DraggableTableRow,
+  DraggableTableRowHandle,
+  DraggableTableRows,
+} from "@/components/data-table/draggable-table-rows";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  Sortable,
-  SortableContent,
-  SortableItem,
-  SortableItemHandle,
-} from "@/components/ui/sortable";
 import {
   Table,
   TableBody,
@@ -41,14 +39,12 @@ import {
   BoolBadge,
   ConnectionBadge,
 } from "@/pages/munki/distribution-points/distribution-point-badges";
-
 export function DistributionPointListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
-
   const query = useMunkiDistributionPoints(
     reorderEnabled
       ? { q: tableSearch.q, per_page: MAX_PAGE_SIZE, sort: encodeSort("position") }
@@ -59,19 +55,16 @@ export function DistributionPointListPage() {
           sort: tableSearch.sort,
         },
   );
-
   const serverRows = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !hasFilters && totalCount > 1 && !query.isLoading;
-
   const columns = React.useMemo<ColumnDef<MunkiDistributionPoint>[]>(
     () => distributionPointColumns(isAdmin),
     [isAdmin],
   );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: serverRows,
@@ -80,7 +73,6 @@ export function DistributionPointListPage() {
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-
   const emptyState = (
     <DataTableEmpty
       icon={<HardDrive />}
@@ -90,7 +82,6 @@ export function DistributionPointListPage() {
       filteredDescription="No distribution points matched the current filters."
     />
   );
-
   return (
     <PageShell>
       <PageHeader
@@ -110,11 +101,13 @@ export function DistributionPointListPage() {
                 </Button>
               </ButtonGroup>
               {reorderEnabled ? null : (
-                <Button asChild size="sm">
-                  <Link to="/munki/distribution-points/new">
-                    <Plus data-icon="inline-start" />
-                    Create
-                  </Link>
+                <Button
+                  size="sm"
+                  render={<Link to="/munki/distribution-points/new" />}
+                  nativeButton={false}
+                >
+                  <Plus data-icon="inline-start" />
+                  Create
                 </Button>
               )}
             </>
@@ -161,13 +154,12 @@ export function DistributionPointListPage() {
     </PageShell>
   );
 }
-
 function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistributionPoint>[] {
   return [
     {
       id: "position",
       accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Order" />,
+      header: "Order",
       cell: ({ row }) => row.original.position + 1,
       meta: { label: "Order" },
       size: 80,
@@ -175,7 +167,7 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
     {
       id: "name",
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      header: "Name",
       cell: ({ row }) =>
         isAdmin ? (
           <Link
@@ -218,7 +210,6 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
     },
   ];
 }
-
 function DistributionPointReorder({
   rows,
   truncated,
@@ -232,9 +223,7 @@ function DistributionPointReorder({
 }) {
   const [ordered, setOrdered] = React.useState<MunkiDistributionPoint[]>(rows);
   const reorder = useReorderMunkiDistributionPoints();
-
   const dragDisabled = reorder.isPending || truncated || ordered.length <= 1;
-
   function saveOrder() {
     reorder.mutate(
       ordered.map((row) => row.id),
@@ -247,7 +236,6 @@ function DistributionPointReorder({
       },
     );
   }
-
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
@@ -264,7 +252,7 @@ function DistributionPointReorder({
         </Button>
       </div>
 
-      <Sortable value={ordered} onValueChange={setOrdered} getItemValue={(row) => row.id}>
+      <DraggableTableRows value={ordered} onValueChange={setOrdered} getRowId={(row) => row.id}>
         <div className="overflow-hidden rounded-md border">
           <Table>
             <TableHeader>
@@ -277,42 +265,31 @@ function DistributionPointReorder({
                 <TableHead>Base URL</TableHead>
               </TableRow>
             </TableHeader>
-            <SortableContent asChild>
-              <TableBody>
-                {ordered.map((row, index) => (
-                  <SortableItem key={row.id} value={row.id} asChild>
-                    <TableRow>
-                      <TableCell className="w-10">
-                        <SortableItemHandle asChild disabled={dragDisabled}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Drag to reorder"
-                          >
-                            <GripVertical className="text-muted-foreground" />
-                          </Button>
-                        </SortableItemHandle>
-                      </TableCell>
-                      <TableCell className="w-20">{index + 1}</TableCell>
-                      <TableCell className="font-medium">{row.name}</TableCell>
-                      <TableCell>
-                        <BoolBadge value={row.enabled} label="Enabled" />
-                      </TableCell>
-                      <TableCell>
-                        <ConnectionBadge online={row.online} />
-                      </TableCell>
-                      <TableCell>
-                        {row.client_base_url || <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                    </TableRow>
-                  </SortableItem>
-                ))}
-              </TableBody>
-            </SortableContent>
+            <TableBody>
+              {ordered.map((row, index) => (
+                <DraggableTableRow key={row.id} id={row.id}>
+                  <TableCell className="w-10">
+                    <DraggableTableRowHandle disabled={dragDisabled}>
+                      <GripVertical className="text-muted-foreground" />
+                    </DraggableTableRowHandle>
+                  </TableCell>
+                  <TableCell className="w-20">{index + 1}</TableCell>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell>
+                    <BoolBadge value={row.enabled} label="Enabled" />
+                  </TableCell>
+                  <TableCell>
+                    <ConnectionBadge online={row.online} />
+                  </TableCell>
+                  <TableCell>
+                    {row.client_base_url || <span className="text-muted-foreground">-</span>}
+                  </TableCell>
+                </DraggableTableRow>
+              ))}
+            </TableBody>
           </Table>
         </div>
-      </Sortable>
+      </DraggableTableRows>
 
       {truncated ? (
         <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
@@ -323,7 +300,6 @@ function DistributionPointReorder({
     </div>
   );
 }
-
 function ReorderWarningDialog({
   open,
   onOpenChange,

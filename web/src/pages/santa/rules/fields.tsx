@@ -36,7 +36,6 @@ import {
   selectedIncludeLabelIDs,
 } from "./form-state";
 import { SantaIncludeTargets } from "./include-targets";
-
 const ruleFormTabs = [
   {
     value: "options",
@@ -44,9 +43,7 @@ const ruleFormTabs = [
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
-
 const noOp = () => undefined;
-
 export function RuleForm({
   initial,
   title,
@@ -74,205 +71,202 @@ export function RuleForm({
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
-
   return (
-    <PageShell asChild>
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit().then(() => {
-            revealFirstInvalidFormTab(form, ruleFormTabs, setActiveTab);
-            return undefined;
-          });
-        }}
-      >
-        <form.Subscribe selector={(state) => state.values}>
-          {(values) => (
-            <>
-              <PageHeader title={title ?? (values.name || "Rule")} />
+    <PageShell
+      render={
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit().then(() => {
+              revealFirstInvalidFormTab(form, ruleFormTabs, setActiveTab);
+              return undefined;
+            });
+          }}
+        />
+      }
+    >
+      <form.Subscribe selector={(state) => state.values}>
+        {(values) => (
+          <>
+            <PageHeader title={title ?? (values.name || "Rule")} />
 
-              <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
-                <ScrollableTabsList>
-                  <FormTabTrigger form={form} tab={ruleFormTabs[0]}>
-                    Options
-                  </FormTabTrigger>
-                  <FormTabTrigger form={form} tab={ruleFormTabs[1]}>
-                    Targets
-                  </FormTabTrigger>
-                </ScrollableTabsList>
+            <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+              <ScrollableTabsList>
+                <FormTabTrigger form={form} tab={ruleFormTabs[0]}>
+                  Options
+                </FormTabTrigger>
+                <FormTabTrigger form={form} tab={ruleFormTabs[1]}>
+                  Targets
+                </FormTabTrigger>
+              </ScrollableTabsList>
 
-                <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
-                  <FieldGroup className="max-w-3xl">
-                    <form.Field name="name">
-                      {(field) => (
-                        <FormField field={field} label="Name" htmlFor="santa-rule-name" required>
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              required
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
-                    <form.Field
-                      name="description"
-                      children={(field) => (
-                        <FormField
-                          field={field}
-                          label="Description"
-                          htmlFor="santa-rule-description"
-                        >
-                          {(control) => (
-                            <Textarea
-                              {...control}
-                              name={field.name}
-                              rows={3}
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    />
-                    <form.Field
-                      name="rule_type"
-                      children={(field) => (
-                        <Field>
-                          <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(ruleType) => {
-                              field.handleChange(ruleType as SantaRuleType);
-                              form.setFieldValue("identifier", "");
-                            }}
-                          >
-                            <SelectTrigger id="santa-rule-type" className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {RULE_TYPE_OPTIONS.map((type) => (
-                                  <SelectItem key={type.value} value={type.value}>
-                                    {type.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        </Field>
-                      )}
-                    />
-                    <form.Field name="identifier">
-                      {(field) => (
-                        <FormField
-                          field={field}
-                          label="Identifier"
-                          htmlFor="santa-rule-identifier"
-                          required
-                          description={ruleIdentifierHint(values.rule_type)}
-                        >
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              required
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    </form.Field>
-                    <form.Field
-                      name="custom_url"
-                      children={(field) => (
-                        <FormField field={field} label="Custom URL" htmlFor="santa-rule-custom-url">
-                          {(control) => (
-                            <Input
-                              {...control}
-                              name={field.name}
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    />
-                    <form.Field
-                      name="custom_message"
-                      children={(field) => (
-                        <FormField
-                          field={field}
-                          label="Custom Message"
-                          htmlFor="santa-rule-custom-message"
-                        >
-                          {(control) => (
-                            <Textarea
-                              {...control}
-                              name={field.name}
-                              rows={3}
-                              value={field.state.value}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                    />
-                  </FieldGroup>
-                </TabsContent>
-
-                <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
-                  <form.Field name="targets">
+              <TabsContent value="options" keepMounted className="data-inactive:hidden">
+                <FieldGroup className="max-w-3xl">
+                  <form.Field name="name">
                     {(field) => (
-                      <FormField field={field}>
+                      <FormField field={field} label="Name" htmlFor="santa-rule-name" required>
                         {(control) => (
-                          <FieldGroup {...control} tabIndex={-1}>
-                            <SantaIncludeTargets
-                              include={field.state.value.include}
-                              excludeLabelIDs={field.state.value.exclude.map((ref) => ref.label_id)}
-                              onChange={(include) =>
-                                field.handleChange({ ...field.state.value, include })
-                              }
-                            />
-                            <Separator />
-                            <LabelAssignmentList
-                              title="Exclude"
-                              addLabel="Add Exclude"
-                              emptyText="No excludes yet"
-                              rows={field.state.value.exclude}
-                              crossListLabelIDs={selectedIncludeLabelIDs(field.state.value.include)}
-                              includeBuiltins={false}
-                              onChange={(exclude) =>
-                                field.handleChange({ ...field.state.value, exclude })
-                              }
-                            />
-                          </FieldGroup>
+                          <Input
+                            {...control}
+                            name={field.name}
+                            required
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
                         )}
                       </FormField>
                     )}
                   </form.Field>
-                </TabsContent>
-              </ScrollableTabs>
-            </>
-          )}
-        </form.Subscribe>
-        <FormActions
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
-        {exitGuard.dialog}
-      </form>
+                  <form.Field
+                    name="description"
+                    children={(field) => (
+                      <FormField field={field} label="Description" htmlFor="santa-rule-description">
+                        {(control) => (
+                          <Textarea
+                            {...control}
+                            name={field.name}
+                            rows={3}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </FormField>
+                    )}
+                  />
+                  <form.Field
+                    name="rule_type"
+                    children={(field) => (
+                      <Field>
+                        <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
+                        <Select
+                          value={field.state.value}
+                          onValueChange={(ruleType) => {
+                            field.handleChange(ruleType as SantaRuleType);
+                            form.setFieldValue("identifier", "");
+                          }}
+                        >
+                          <SelectTrigger id="santa-rule-type" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {RULE_TYPE_OPTIONS.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    )}
+                  />
+                  <form.Field name="identifier">
+                    {(field) => (
+                      <FormField
+                        field={field}
+                        label="Identifier"
+                        htmlFor="santa-rule-identifier"
+                        required
+                        description={ruleIdentifierHint(values.rule_type)}
+                      >
+                        {(control) => (
+                          <Input
+                            {...control}
+                            name={field.name}
+                            required
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </FormField>
+                    )}
+                  </form.Field>
+                  <form.Field
+                    name="custom_url"
+                    children={(field) => (
+                      <FormField field={field} label="Custom URL" htmlFor="santa-rule-custom-url">
+                        {(control) => (
+                          <Input
+                            {...control}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </FormField>
+                    )}
+                  />
+                  <form.Field
+                    name="custom_message"
+                    children={(field) => (
+                      <FormField
+                        field={field}
+                        label="Custom Message"
+                        htmlFor="santa-rule-custom-message"
+                      >
+                        {(control) => (
+                          <Textarea
+                            {...control}
+                            name={field.name}
+                            rows={3}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </FormField>
+                    )}
+                  />
+                </FieldGroup>
+              </TabsContent>
+
+              <TabsContent value="targets" keepMounted className="data-inactive:hidden">
+                <form.Field name="targets">
+                  {(field) => (
+                    <FormField field={field}>
+                      {(control) => (
+                        <FieldGroup {...control} tabIndex={-1}>
+                          <SantaIncludeTargets
+                            include={field.state.value.include}
+                            excludeLabelIDs={field.state.value.exclude.map((ref) => ref.label_id)}
+                            onChange={(include) =>
+                              field.handleChange({ ...field.state.value, include })
+                            }
+                          />
+                          <Separator />
+                          <LabelAssignmentList
+                            title="Exclude"
+                            addLabel="Add Exclude"
+                            emptyText="No excludes yet"
+                            rows={field.state.value.exclude}
+                            crossListLabelIDs={selectedIncludeLabelIDs(field.state.value.include)}
+                            includeBuiltins={false}
+                            onChange={(exclude) =>
+                              field.handleChange({ ...field.state.value, exclude })
+                            }
+                          />
+                        </FieldGroup>
+                      )}
+                    </FormField>
+                  )}
+                </form.Field>
+              </TabsContent>
+            </ScrollableTabs>
+          </>
+        )}
+      </form.Subscribe>
+      <FormActions
+        form={form}
+        submitLabel={submitLabel}
+        onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+      />
+      {exitGuard.dialog}
     </PageShell>
   );
 }

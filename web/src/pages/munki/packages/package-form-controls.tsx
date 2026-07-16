@@ -179,9 +179,10 @@ export function FormSelectField<
         <FormField field={field} label={label} htmlFor={id}>
           {() => (
             <Select
-              value={field.state.value}
+              items={options}
+              value={field.state.value as unknown as T}
               onValueChange={(next) =>
-                field.handleChange(next as Parameters<typeof field.handleChange>[0])
+                field.handleChange(next as unknown as Parameters<typeof field.handleChange>[0])
               }
             >
               <SelectTrigger id={id} className="w-full">
@@ -275,7 +276,7 @@ export function CheckboxControl({
         id={id}
         checked={checked}
         disabled={disabled}
-        onCheckedChange={(value) => onChange(value === true)}
+        onCheckedChange={(value) => onChange(value)}
       />
       <FieldContent>
         <FieldLabel htmlFor={id}>{label}</FieldLabel>

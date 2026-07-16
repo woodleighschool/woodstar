@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -25,16 +24,12 @@ import { useBulkDeleteSantaRules, useSantaRules } from "@/hooks/use-santa-rules"
 import type { SantaRule } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { RULE_TYPE_OPTIONS, ruleTypeLabel, type SantaRuleType } from "@/lib/santa-rules";
-
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
-
 export function RuleListPage() {
   const tableSearch = useDataTableSearch(RULE_TYPE_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const ruleType = tableSearch.filters.rule_type?.[0] as SantaRuleType | undefined;
-
   const query = useSantaRules({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -42,25 +37,22 @@ export function RuleListPage() {
     sort: tableSearch.sort,
     rule_type: ruleType,
   });
-
   const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const labelsByID = React.useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
   );
-
   const rules = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!ruleType;
-
   const columns = React.useMemo<ColumnDef<SantaRule>[]>(() => {
     const baseColumns: ColumnDef<SantaRule>[] = [
       selectColumn<SantaRule>(),
       {
         id: "name",
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+        header: "Name",
         cell: ({ row }) =>
           isAdmin ? (
             <Link
@@ -79,7 +71,7 @@ export function RuleListPage() {
       {
         id: "rule_type",
         accessorKey: "rule_type",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Rule Type" />,
+        header: "Rule Type",
         cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
         meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
         enableColumnFilter: true,
@@ -87,7 +79,7 @@ export function RuleListPage() {
       {
         id: "identifier",
         accessorKey: "identifier",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Identifier" />,
+        header: "Identifier",
         cell: ({ row }) => row.original.identifier,
         meta: { label: "Identifier" },
       },
@@ -106,7 +98,6 @@ export function RuleListPage() {
     ];
     return baseColumns;
   }, [isAdmin, labelsByID]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: rules,
@@ -116,18 +107,15 @@ export function RuleListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   return (
     <PageShell>
       <PageHeader
         title="Rules"
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/santa/rules/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/santa/rules/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }

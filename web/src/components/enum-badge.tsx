@@ -16,7 +16,7 @@ export function EnumBadge<T extends string>({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipTrigger render={badge} />
       <TooltipContent className="max-w-72 text-left">{item.description}</TooltipContent>
     </Tooltip>
   );

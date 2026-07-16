@@ -31,7 +31,6 @@ import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-
 const labelAssignmentSchema = z.object({
   label_id: z
     .number()
@@ -40,7 +39,6 @@ const labelAssignmentSchema = z.object({
     .nullable()
     .refine((value) => value !== null, "Pick a label."),
 });
-
 export function LabelAssignmentList({
   title,
   addLabel,
@@ -70,7 +68,6 @@ export function LabelAssignmentList({
     [labels.data],
   );
   const unavailableLabelIDs = [...rows.map((row) => row.label_id), ...crossListLabelIDs];
-
   return (
     <TargetSection
       title={title}
@@ -128,7 +125,6 @@ export function LabelAssignmentList({
     </TargetSection>
   );
 }
-
 function LabelAssignmentDialog({
   title,
   unavailableLabelIDs,
@@ -160,7 +156,6 @@ function LabelAssignmentDialog({
     onDiscard: onClose,
     blockNavigation: false,
   });
-
   return (
     <Dialog
       open
@@ -214,20 +209,21 @@ function LabelAssignmentDialog({
     </Dialog>
   );
 }
-
 function LabelAssignmentRowActions({ title, onRemove }: { title: string; onRemove: () => void }) {
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Open ${title.toLowerCase()} actions`}
-          >
-            <MoreHorizontal />
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Open ${title.toLowerCase()} actions`}
+            />
+          }
+        >
+          <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
           <DropdownMenuGroup>

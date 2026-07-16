@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
@@ -20,29 +19,24 @@ import { useBulkDeleteReports, useReports } from "@/hooks/use-reports";
 import type { OsqueryReport } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatInterval } from "@/lib/utils";
-
 export function ReportListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const query = useReports({
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-
   const reports = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
-
   const columns = React.useMemo<ColumnDef<OsqueryReport>[]>(
     () => reportColumns(isAdmin),
     [isAdmin],
   );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: reports,
@@ -52,18 +46,15 @@ export function ReportListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   return (
     <PageShell>
       <PageHeader
         title="Reports"
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/osquery/reports/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/osquery/reports/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }
@@ -108,14 +99,13 @@ export function ReportListPage() {
     </PageShell>
   );
 }
-
 function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
   const columns: ColumnDef<OsqueryReport>[] = [
     selectColumn<OsqueryReport>(),
     {
       id: "name",
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      header: "Name",
       cell: ({ row }) =>
         isAdmin ? (
           <Link
@@ -134,7 +124,7 @@ function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
     {
       id: "schedule_interval",
       accessorKey: "schedule_interval",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Interval" />,
+      header: "Interval",
       cell: ({ row }) =>
         row.original.schedule_interval
           ? `Every ${formatInterval(row.original.schedule_interval)}`

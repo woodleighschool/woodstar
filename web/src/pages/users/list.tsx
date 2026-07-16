@@ -5,7 +5,6 @@ import { parseAsInteger, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -34,9 +33,7 @@ import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@/lib/directory";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { nonEmpty } from "@/lib/utils";
-
 const USER_FILTER_KEYS = [{ id: "role" }, { id: "source" }] as const;
-
 export function UserListPage() {
   const tableSearch = useDataTableSearch(USER_FILTER_KEYS);
   const { user: currentUser } = useAuth();
@@ -45,12 +42,10 @@ export function UserListPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<User | null>(null);
   const [deepLink, setDeepLink] = useQueryStates({ group_id: parseAsInteger });
-
   const role = tableSearch.filters.role?.[0];
   const source = tableSearch.filters.source?.[0];
   const groupID = deepLink.group_id ?? undefined;
   const group = useGroup(groupID ?? null);
-
   const query = useUsers({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -60,20 +55,18 @@ export function UserListPage() {
     source: source as UserListParams["source"],
     group_id: groupID,
   });
-
   const users = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!role || !!source || groupID !== undefined;
   const groupLabel =
     groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
-
   const columns = React.useMemo<ColumnDef<User>[]>(() => {
     const baseColumns: ColumnDef<User>[] = [
       {
         id: "name",
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+        header: "Name",
         cell: ({ row }) => {
           const label = nonEmpty(row.original.name) ?? row.original.email;
           if (isAdmin || row.original.id === currentUserId) {
@@ -94,7 +87,7 @@ export function UserListPage() {
       {
         id: "email",
         accessorKey: "email",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Email" />,
+        header: "Email",
         cell: ({ row }) =>
           `${row.original.email}${row.original.id === currentUserId ? " (you)" : ""}`,
         meta: { label: "Email" },
@@ -102,7 +95,7 @@ export function UserListPage() {
       {
         id: "role",
         accessorKey: "role",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Role" />,
+        header: "Role",
         cell: ({ row }) => (
           <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />
         ),
@@ -112,7 +105,7 @@ export function UserListPage() {
       {
         id: "source",
         accessorKey: "source",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Source" />,
+        header: "Source",
         cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
         meta: { label: "Source", options: DIRECTORY_SOURCE_OPTIONS },
         enableColumnFilter: true,
@@ -120,7 +113,7 @@ export function UserListPage() {
       {
         id: "department",
         accessorKey: "department",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Department" />,
+        header: "Department",
         cell: ({ row }) => nonEmpty(row.original.department) ?? "-",
         meta: { label: "Department" },
       },
@@ -142,7 +135,6 @@ export function UserListPage() {
     ];
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
   }, [currentUserId, isAdmin]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: users,
@@ -151,7 +143,6 @@ export function UserListPage() {
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-
   return (
     <PageShell>
       <PageHeader
@@ -230,13 +221,11 @@ export function UserListPage() {
     </PageShell>
   );
 }
-
 function userEditLink(userId: number, currentUserId: number | null) {
   return userId === currentUserId
     ? ({ to: "/account" } as const)
     : ({ to: "/directory/users/$userId/edit", params: { userId: String(userId) } } as const);
 }
-
 function UserRowActions({
   user,
   isSelf,
@@ -248,15 +237,15 @@ function UserRowActions({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" size="icon" variant="ghost" aria-label="User actions">
-          <MoreHorizontal />
-        </Button>
+      <DropdownMenuTrigger
+        render={<Button type="button" size="icon" variant="ghost" aria-label="User actions" />}
+      >
+        <MoreHorizontal />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link {...userEditLink(user.id, isSelf ? user.id : null)}>Edit</Link>
+          <DropdownMenuItem render={<Link {...userEditLink(user.id, isSelf ? user.id : null)} />}>
+            Edit
           </DropdownMenuItem>
           {!isSelf ? (
             <DropdownMenuItem variant="destructive" onSelect={() => onDelete(user)}>

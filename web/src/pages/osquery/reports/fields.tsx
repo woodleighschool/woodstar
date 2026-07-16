@@ -49,8 +49,10 @@ import {
   normalizeLabelTargetSet,
 } from "@/lib/targeting";
 import { cn, nonEmpty } from "@/lib/utils";
-
-const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
+const FREQUENCY_OPTIONS: {
+  value: number;
+  label: string;
+}[] = [
   { value: 0, label: "Off" },
   { value: 300, label: "5 Minutes" },
   { value: 600, label: "10 Minutes" },
@@ -62,7 +64,6 @@ const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 86400, label: "1 Day" },
   { value: 604800, label: "1 Week" },
 ];
-
 export const emptyReport: OsqueryReportMutation = {
   name: "",
   description: "",
@@ -70,7 +71,6 @@ export const emptyReport: OsqueryReportMutation = {
   schedule_interval: 0,
   targets: emptyLabelTargetSet(),
 };
-
 export function reportFromDetail(detail: OsqueryReport): OsqueryReportMutation {
   return {
     name: detail.name,
@@ -81,20 +81,17 @@ export function reportFromDetail(detail: OsqueryReport): OsqueryReportMutation {
     targets: normalizeLabelTargetSet(detail.targets),
   };
 }
-
 const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, {
   message: invalidSQLSyntaxMessage,
 });
-
 const reportFormSchema = z.object({
   name: requiredString("Name"),
   description: z.string().optional(),
   query: reportQuerySchema,
   min_osquery_version: z.string().optional(),
-  schedule_interval: z.number().int().min(0).max(2_147_483_647).optional(),
+  schedule_interval: z.number().int().min(0).max(2147483647).optional(),
   targets: labelTargetSetSchema,
 });
-
 const reportFormTabs = [
   {
     value: "options",
@@ -102,9 +99,7 @@ const reportFormTabs = [
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
-
 const noOp = () => undefined;
-
 function trimReport(value: OsqueryReportMutation): OsqueryReportMutation {
   return {
     ...value,
@@ -115,7 +110,6 @@ function trimReport(value: OsqueryReportMutation): OsqueryReportMutation {
     targets: normalizeLabelTargetSet(value.targets),
   };
 }
-
 export function ReportForm({
   initial,
   title,
@@ -150,7 +144,6 @@ export function ReportForm({
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
-
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
@@ -159,7 +152,6 @@ export function ReportForm({
     }
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
   }
-
   const selectSchemaTable = useCallback(
     (tableName: string) => {
       setSelectedSchemaTable(tableName);
@@ -167,198 +159,199 @@ export function ReportForm({
     },
     [setSchemaOpen],
   );
-
   return (
     <PageShell
-      asChild
       className={cn(
         "h-full transition-[padding] duration-200 ease-out",
         schemaOpen && "pr-[21rem]",
       )}
+      render={
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit().then(() => {
+              revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
+              return undefined;
+            });
+          }}
+        />
+      }
     >
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit().then(() => {
-            revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
-            return undefined;
-          });
-        }}
-      >
-        <form.Subscribe selector={(state) => state.values.name}>
-          {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
-        </form.Subscribe>
+      <form.Subscribe selector={(state) => state.values.name}>
+        {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
+      </form.Subscribe>
 
-        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
-          <ScrollableTabsList>
-            <FormTabTrigger form={form} tab={reportFormTabs[0]}>
-              Options
-            </FormTabTrigger>
-            <FormTabTrigger form={form} tab={reportFormTabs[1]}>
-              Targets
-            </FormTabTrigger>
-            {resultsReportId !== undefined ? (
-              <TabsTrigger value="results">Results</TabsTrigger>
-            ) : null}
-          </ScrollableTabsList>
+      <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+        <ScrollableTabsList>
+          <FormTabTrigger form={form} tab={reportFormTabs[0]}>
+            Options
+          </FormTabTrigger>
+          <FormTabTrigger form={form} tab={reportFormTabs[1]}>
+            Targets
+          </FormTabTrigger>
+          {resultsReportId !== undefined ? (
+            <TabsTrigger value="results">Results</TabsTrigger>
+          ) : null}
+        </ScrollableTabsList>
 
-          <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
-            <div className="flex max-w-5xl flex-col gap-6">
-              <FieldGroup className="max-w-3xl">
-                <form.Field name="name">
+        <TabsContent value="options" keepMounted className="data-inactive:hidden">
+          <div className="flex max-w-5xl flex-col gap-6">
+            <FieldGroup className="max-w-3xl">
+              <form.Field name="name">
+                {(field) => (
+                  <FormField field={field} label="Name" htmlFor="report-name" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        name={field.name}
+                        required
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+
+              <form.Field name="description">
+                {(field) => (
+                  <FormField field={field} label="Description" htmlFor="report-description">
+                    {(control) => (
+                      <Textarea
+                        {...control}
+                        name={field.name}
+                        rows={3}
+                        value={field.state.value ?? ""}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                      />
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <form.Field name="schedule_interval">
                   {(field) => (
-                    <FormField field={field} label="Name" htmlFor="report-name" required>
+                    <FormField field={field} label="Interval" htmlFor="report-interval">
+                      {(control) => (
+                        <Select
+                          value={String(field.state.value ?? 0)}
+                          onValueChange={(value) => field.handleChange(Number(value))}
+                        >
+                          <SelectTrigger {...control} className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {FREQUENCY_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={String(option.value)}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </FormField>
+                  )}
+                </form.Field>
+
+                <form.Field name="min_osquery_version">
+                  {(field) => (
+                    <FormField
+                      field={field}
+                      label="Minimum Osquery Version"
+                      htmlFor="report-min-version"
+                    >
                       {(control) => (
                         <Input
                           {...control}
                           name={field.name}
-                          required
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      )}
-                    </FormField>
-                  )}
-                </form.Field>
-
-                <form.Field name="description">
-                  {(field) => (
-                    <FormField field={field} label="Description" htmlFor="report-description">
-                      {(control) => (
-                        <Textarea
-                          {...control}
-                          name={field.name}
-                          rows={3}
                           value={field.state.value ?? ""}
+                          placeholder="5.18.1"
                           onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
+                          onChange={(event) => field.handleChange(event.target.value || undefined)}
                         />
                       )}
                     </FormField>
                   )}
                 </form.Field>
+              </div>
+            </FieldGroup>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <form.Field name="schedule_interval">
-                    {(field) => (
-                      <FormField field={field} label="Interval" htmlFor="report-interval">
-                        {(control) => (
-                          <Select
-                            value={String(field.state.value ?? 0)}
-                            onValueChange={(value) => field.handleChange(Number(value))}
-                          >
-                            <SelectTrigger {...control} className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {FREQUENCY_OPTIONS.map((option) => (
-                                  <SelectItem key={option.value} value={String(option.value)}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
-
-                  <form.Field name="min_osquery_version">
-                    {(field) => (
-                      <FormField
-                        field={field}
-                        label="Minimum Osquery Version"
-                        htmlFor="report-min-version"
-                      >
-                        {(control) => (
-                          <Input
-                            {...control}
-                            name={field.name}
-                            value={field.state.value ?? ""}
-                            placeholder="5.18.1"
-                            onBlur={field.handleBlur}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value || undefined)
-                            }
-                          />
-                        )}
-                      </FormField>
-                    )}
-                  </form.Field>
-                </div>
-              </FieldGroup>
-
-              <form.Field name="query">
-                {(field) => {
-                  const error = firstErrorMessage(field.state.meta.errors);
-                  return (
-                    <Field data-invalid={error ? true : undefined}>
-                      <FieldLabel required>Query</FieldLabel>
-                      <SQLEditor
-                        ref={editorRef}
-                        value={field.state.value}
-                        onChange={field.handleChange}
-                        onTableMetaClick={selectSchemaTable}
-                        placeholder="SELECT ..."
-                        invalid={error ? true : undefined}
-                      />
-                      {error ? <FieldError>{error}</FieldError> : null}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
-            <form.Field name="targets">
-              {(field) => (
-                <FormField field={field}>
-                  {(control) => (
-                    <div {...control} tabIndex={-1}>
-                      <LabelTargetSetEditor
-                        value={normalizeLabelTargetSet(field.state.value)}
-                        onChange={field.handleChange}
-                      />
-                    </div>
-                  )}
-                </FormField>
-              )}
+            <form.Field name="query">
+              {(field) => {
+                const error = firstErrorMessage(field.state.meta.errors);
+                return (
+                  <Field data-invalid={error ? true : undefined}>
+                    <FieldLabel>
+                      Query
+                      <span className="text-destructive" aria-hidden="true">
+                        *
+                      </span>
+                    </FieldLabel>
+                    <SQLEditor
+                      ref={editorRef}
+                      value={field.state.value}
+                      onChange={field.handleChange}
+                      onTableMetaClick={selectSchemaTable}
+                      placeholder="SELECT ..."
+                      invalid={error ? true : undefined}
+                    />
+                    {error ? <FieldError>{error}</FieldError> : null}
+                  </Field>
+                );
+              }}
             </form.Field>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="targets" keepMounted className="data-inactive:hidden">
+          <form.Field name="targets">
+            {(field) => (
+              <FormField field={field}>
+                {(control) => (
+                  <div {...control} tabIndex={-1}>
+                    <LabelTargetSetEditor
+                      value={normalizeLabelTargetSet(field.state.value)}
+                      onChange={field.handleChange}
+                    />
+                  </div>
+                )}
+              </FormField>
+            )}
+          </form.Field>
+        </TabsContent>
+
+        {resultsReportId !== undefined ? (
+          <TabsContent value="results">
+            <form.Subscribe selector={(state) => state.values.name}>
+              {() => <ReportResults reportId={resultsReportId} />}
+            </form.Subscribe>
           </TabsContent>
+        ) : null}
+      </ScrollableTabs>
 
-          {resultsReportId !== undefined ? (
-            <TabsContent value="results">
-              <form.Subscribe selector={(state) => state.values.name}>
-                {() => <ReportResults reportId={resultsReportId} />}
-              </form.Subscribe>
-            </TabsContent>
-          ) : null}
-        </ScrollableTabs>
+      <FormActions
+        form={form}
+        submitLabel={submitLabel}
+        onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+      />
 
-        <FormActions
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
-
-        <SchemaSidebar
-          open={schemaOpen}
-          onOpenChange={setSchemaOpen}
-          onInsertColumn={insertAtCursor}
-          selectedTable={selectedSchemaTable}
-          onSelectedTableChange={setSelectedSchemaTable}
-        />
-        {exitGuard.dialog}
-      </form>
+      <SchemaSidebar
+        open={schemaOpen}
+        onOpenChange={setSchemaOpen}
+        onInsertColumn={insertAtCursor}
+        selectedTable={selectedSchemaTable}
+        onSelectedTableChange={setSelectedSchemaTable}
+      />
+      {exitGuard.dialog}
     </PageShell>
   );
 }
-
 function ReportResults({ reportId }: { reportId: number }) {
   const results = useReportResults(reportId);
   const rows = reportRows(results.data);
@@ -369,9 +362,7 @@ function ReportResults({ reportId }: { reportId: number }) {
     cell: ({ row }) => resultValue(row.original.columns[name]),
   }));
   const columns = [...reportTableColumns(), ...resultColumns];
-
   if (results.isLoading) return null;
   if (rows.length === 0) return <EmptyPanel>No results yet</EmptyPanel>;
-
   return <DataTableStatic columns={columns} data={rows} />;
 }

@@ -51,14 +51,12 @@ import {
   integrationLabel,
   secretUsageDescription,
 } from "@/lib/enrollments";
-
 const MIN_SECRET_LENGTH = 32;
 const SECRET_MASK = "••••••••••••••••••••••••";
 const secretValueSchema = z
   .string()
   .trim()
   .min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
-
 export function AgentSecretsDialog({
   integration,
   open,
@@ -76,12 +74,10 @@ export function AgentSecretsDialog({
     () => (query.data ?? []).filter((secret) => secret.agent === integration),
     [integration, query.data],
   );
-
   const [creatingValue, setCreatingValue] = useState<string | null>(null);
   const [editing, setEditing] = useState<AgentSecret | null>(null);
   const [deleting, setDeleting] = useState<AgentSecret | null>(null);
   const [visibleSecrets, setVisibleSecrets] = useState<Record<number, boolean>>({});
-
   async function copySecret(secret: AgentSecret) {
     try {
       await navigator.clipboard.writeText(secret.value);
@@ -90,7 +86,6 @@ export function AgentSecretsDialog({
       toast.error("Could not copy to clipboard.");
     }
   }
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -207,7 +202,6 @@ export function AgentSecretsDialog({
     </>
   );
 }
-
 function SecretList({
   rows,
   isLoading,
@@ -223,7 +217,9 @@ function SecretList({
 }: {
   rows: AgentSecret[];
   isLoading: boolean;
-  error: { message?: string } | null;
+  error: {
+    message?: string;
+  } | null;
   onRetry: () => void;
   deletingID: number | null;
   visibleSecrets: Record<number, boolean>;
@@ -236,7 +232,6 @@ function SecretList({
   if (error) {
     return <QueryError title="Failed to load enrollment secrets" error={error} onRetry={onRetry} />;
   }
-
   if (isLoading) {
     return (
       <div className="grid gap-2">
@@ -246,11 +241,9 @@ function SecretList({
       </div>
     );
   }
-
   if (rows.length === 0) {
     return <EmptyPanel>{emptyTitle}</EmptyPanel>;
   }
-
   return (
     <div className="grid gap-2">
       {rows.map((secret) => (
@@ -268,7 +261,6 @@ function SecretList({
     </div>
   );
 }
-
 function SecretRow({
   secret,
   disabled,
@@ -315,7 +307,6 @@ function SecretRow({
     </InputGroup>
   );
 }
-
 function SecretAction({
   label,
   disabled,
@@ -329,16 +320,22 @@ function SecretAction({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <InputGroupButton size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick}>
-          {children}
-        </InputGroupButton>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            size="icon-sm"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+          />
+        }
+      >
+        {children}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }
-
 function SecretValueDialog({
   title,
   description,
@@ -371,12 +368,10 @@ function SecretValueDialog({
     onDiscard: () => onOpenChange(false),
     blockNavigation: false,
   });
-
   function requestClose() {
     if (pending || form.state.isSubmitting) return;
     exitGuard.requestDiscard();
   }
-
   return (
     <>
       <Dialog
@@ -440,10 +435,11 @@ function SecretValueDialog({
               </Button>
               <form.Subscribe selector={(state) => state.isSubmitting}>
                 {(isSubmitting) => (
-                  <Pending isPending={pending || isSubmitting}>
-                    <Button type="submit" size="sm">
-                      {isSubmitting ? `${saveLabel}…` : saveLabel}
-                    </Button>
+                  <Pending
+                    isPending={pending || isSubmitting}
+                    render={<Button type="submit" size="sm" />}
+                  >
+                    {isSubmitting ? `${saveLabel}…` : saveLabel}
                   </Pending>
                 )}
               </form.Subscribe>
@@ -455,7 +451,6 @@ function SecretValueDialog({
     </>
   );
 }
-
 function SecretDeleteDialog({
   secret,
   open,
@@ -481,39 +476,38 @@ function SecretDeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={pending}>
-              Cancel
-            </Button>
+          <AlertDialogCancel
+            render={<Button type="button" variant="ghost" size="sm" disabled={pending} />}
+          >
+            Cancel
           </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={pending}
-              onClick={(event) => {
-                event.preventDefault();
-                void onConfirm();
-              }}
-            >
-              Delete
-            </Button>
+          <AlertDialogAction
+            render={
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={pending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void onConfirm();
+                }}
+              />
+            }
+          >
+            Delete
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
-
 function generateSecretValue() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
-
   let value = "";
   for (const byte of bytes) {
     value += String.fromCharCode(byte);
   }
-
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

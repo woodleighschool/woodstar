@@ -26,20 +26,16 @@ import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useCreateUser } from "@/hooks/use-users";
 import { emailAddress } from "@/lib/form-validation";
 import { USER_ROLE_OPTIONS, type UserRole } from "@/lib/users";
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function UserFormDialog({ open, onOpenChange }: Props) {
   // Body remounts on each open, so its form state resets without an effect.
   return open ? <UserFormBody onClose={() => onOpenChange(false)} /> : null;
 }
-
 function UserFormBody({ onClose }: { onClose: () => void }) {
   const create = useCreateUser();
-
   const form = useForm({
     defaultValues: { email: "", name: "", role: "viewer" as UserRole, password: "" },
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -62,12 +58,10 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: onClose, blockNavigation: false });
-
   function requestClose() {
     if (create.isPending || form.state.isSubmitting) return;
     exitGuard.requestDiscard();
   }
-
   return (
     <>
       <Dialog
@@ -188,10 +182,8 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
               </Button>
               <form.Subscribe selector={(state) => state.isSubmitting}>
                 {(isSubmitting) => (
-                  <Pending isPending={isSubmitting}>
-                    <Button type="submit" size="sm">
-                      {isSubmitting ? "Creating…" : "Create"}
-                    </Button>
+                  <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
+                    {isSubmitting ? "Creating…" : "Create"}
                   </Pending>
                 )}
               </form.Subscribe>

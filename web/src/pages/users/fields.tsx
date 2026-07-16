@@ -34,13 +34,11 @@ import {
   userMutationRole,
 } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
-
 interface UserFormState {
   name: string;
   role: UserAccessRole;
   password: string;
 }
-
 export function userFromDetail(user: User): UserFormState {
   return {
     name: user.name,
@@ -48,7 +46,6 @@ export function userFromDetail(user: User): UserFormState {
     password: "",
   };
 }
-
 const userFormSchema = z.object({
   name: z.string(),
   role: z.enum(["admin", "viewer", "none"]),
@@ -59,7 +56,6 @@ const userFormSchema = z.object({
       "Password must be at least 12 characters.",
     ),
 });
-
 export function UserForm({
   user,
   initial,
@@ -72,7 +68,6 @@ export function UserForm({
   onSuccess?: (id: number | undefined) => void;
 }) {
   const isLocal = user.source === "local";
-
   const form = useForm({
     defaultValues: initial,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -92,7 +87,6 @@ export function UserForm({
     form,
     onDiscard: () => form.reset(initial),
   });
-
   return (
     <>
       <Card>
@@ -201,10 +195,8 @@ export function UserForm({
             </p>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending isPending={isSubmitting}>
-                  <Button type="submit" size="sm">
-                    {isSubmitting ? "Saving…" : "Save"}
-                  </Button>
+                <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
+                  {isSubmitting ? "Saving…" : "Save"}
                 </Pending>
               )}
             </form.Subscribe>

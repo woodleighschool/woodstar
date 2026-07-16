@@ -42,7 +42,6 @@ import {
   useMunkiSoftwareForm,
 } from "./fields";
 import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targets";
-
 const softwareFormTabs = [
   {
     value: "options",
@@ -58,12 +57,10 @@ const softwareFormTabs = [
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
-
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
   const softwareID = parseRouteID(params.softwareId);
   const query = useMunkiSoftwareDetail(softwareID);
-
   if (softwareID === null) {
     return (
       <QueryGate
@@ -72,7 +69,6 @@ export function MunkiSoftwareEditPage() {
       />
     );
   }
-
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -82,7 +78,6 @@ export function MunkiSoftwareEditPage() {
       />
     );
   }
-
   return (
     <MunkiSoftwareDetailForm
       key={`${query.data.id}:${query.data.updated_at}`}
@@ -91,7 +86,6 @@ export function MunkiSoftwareEditPage() {
     />
   );
 }
-
 function MunkiSoftwareDetailForm({
   software,
   refetchSoftware,
@@ -141,24 +135,24 @@ function MunkiSoftwareDetailForm({
     [titles.data?.items],
   );
   const title = software.name;
-
   function changeTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();
     softwareOptionsForm.setFieldValue("targets.include", numberTargetRows(next));
   }
-
-  function changeExclude(next: { label_id: number }[]) {
+  function changeExclude(
+    next: {
+      label_id: number;
+    }[],
+  ) {
     updateSoftware.reset();
     softwareOptionsForm.setFieldValue("targets.exclude", next);
   }
-
   function resetTargetPage() {
     updateSoftware.reset();
     iconUpload.reset();
     softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
   }
   const exitGuard = useFormExitGuard({ form: softwareOptionsForm, onDiscard: resetTargetPage });
-
   const packageColumns: ColumnDef<MunkiPackage>[] = [
     {
       id: "version",
@@ -247,11 +241,14 @@ function MunkiSoftwareDetailForm({
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold">Packages</h2>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/munki/packages/new" search={{ software_id: software.id }}>
-                <Plus data-icon="inline-start" />
-                Add Package
-              </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              render={<Link to="/munki/packages/new" search={{ software_id: software.id }} />}
+              nativeButton={false}
+            >
+              <Plus data-icon="inline-start" />
+              Add Package
             </Button>
           </div>
           {packages.length > 0 ? (
@@ -263,7 +260,6 @@ function MunkiSoftwareDetailForm({
       ),
     },
   ];
-
   return (
     <PageShell>
       <PageHeader title={title} />
@@ -293,8 +289,8 @@ function MunkiSoftwareDetailForm({
             <TabsContent
               key={tab.value}
               value={tab.value}
-              forceMount={tab.value === "packages" ? undefined : true}
-              className="data-[state=inactive]:hidden"
+              keepMounted={tab.value === "packages" ? undefined : true}
+              className="data-inactive:hidden"
             >
               {tab.content}
             </TabsContent>
@@ -311,7 +307,6 @@ function MunkiSoftwareDetailForm({
     </PageShell>
   );
 }
-
 function numberTargetRows(rows: MunkiSoftwareTargetRow[]) {
   return rows.map((row, index) => ({ ...row, priority: index + 1 }));
 }

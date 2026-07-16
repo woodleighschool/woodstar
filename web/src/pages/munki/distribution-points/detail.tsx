@@ -33,7 +33,6 @@ import {
   PackageStatusBadge,
 } from "@/pages/munki/distribution-points/distribution-point-badges";
 import { KeyRevealDialog } from "@/pages/munki/distribution-points/key-reveal-dialog";
-
 export function DistributionPointDetailPage() {
   const { distributionPointId } = useParams({
     from: "/_authenticated/munki/distribution-points/$distributionPointId",
@@ -47,7 +46,6 @@ export function DistributionPointDetailPage() {
   const remove = useDeleteMunkiDistributionPoint();
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -57,22 +55,18 @@ export function DistributionPointDetailPage() {
       />
     );
   }
-
   const point = query.data;
-
   async function rotateKey() {
     const result = await rotate.mutateAsync(point.id);
     setRotatedKey(result.key);
     toast.success("Key rotated");
   }
-
   async function deletePoint() {
     await remove.mutateAsync(point.id);
     setDeleteOpen(false);
     toast.success("Distribution point deleted");
     void navigate({ to: "/munki/distribution-points" });
   }
-
   return (
     <PageShell className="gap-6">
       <PageHeader
@@ -81,14 +75,19 @@ export function DistributionPointDetailPage() {
         actions={
           isAdmin ? (
             <>
-              <Button asChild variant="outline" size="sm">
-                <Link
-                  to="/munki/distribution-points/$distributionPointId/edit"
-                  params={{ distributionPointId: String(point.id) }}
-                >
-                  <Pencil data-icon="inline-start" />
-                  Edit
-                </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    to="/munki/distribution-points/$distributionPointId/edit"
+                    params={{ distributionPointId: String(point.id) }}
+                  />
+                }
+                nativeButton={false}
+              >
+                <Pencil data-icon="inline-start" />
+                Edit
               </Button>
               <Button
                 type="button"
@@ -148,7 +147,6 @@ export function DistributionPointDetailPage() {
     </PageShell>
   );
 }
-
 function CidrList({ cidrs }: { cidrs: MunkiDistributionPointDetail["client_cidrs"] }) {
   if (cidrs.length === 0) return <span className="text-muted-foreground">-</span>;
   return (
@@ -161,7 +159,6 @@ function CidrList({ cidrs }: { cidrs: MunkiDistributionPointDetail["client_cidrs
     </div>
   );
 }
-
 function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
   return (
     <Card>
@@ -210,14 +207,12 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
     </Card>
   );
 }
-
 function packageErrorText(error: string | undefined) {
   if (error === undefined || error === "") {
     return <span className="text-muted-foreground">-</span>;
   }
   return error;
 }
-
 function DeleteDialog({
   open,
   pending,

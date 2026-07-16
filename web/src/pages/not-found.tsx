@@ -10,7 +10,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-
 export function NotFoundPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-8">
@@ -23,8 +22,8 @@ export function NotFoundPage() {
           <EmptyDescription>That route doesn't exist in this Woodstar build.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button asChild size="sm">
-            <Link to="/hosts">Back to Hosts</Link>
+          <Button size="sm" render={<Link to="/hosts" />} nativeButton={false}>
+            Back to Hosts
           </Button>
         </EmptyContent>
       </Empty>

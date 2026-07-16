@@ -17,19 +17,15 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
-
 export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHostState }) {
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
   const matchedLabelName = santa?.configuration?.matched_via_label?.name;
-
   const configurationValue = santa?.configuration?.name ? (
     matchedLabelName ? (
       <Tooltip>
-        <TooltipTrigger asChild>
-          <span>{santa.configuration.name}</span>
-        </TooltipTrigger>
+        <TooltipTrigger render={<span />}>{santa.configuration.name}</TooltipTrigger>
         <TooltipContent>
           <div>{`Matched via label: ${matchedLabelName}`}</div>
         </TooltipContent>
@@ -38,7 +34,6 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
       santa.configuration.name
     )
   ) : undefined;
-
   const columns = useMemo<ColumnDef<SantaRuleStatus>[]>(
     () => [
       {
@@ -80,23 +75,28 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
     ],
     [],
   );
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
           <div className="mb-5 flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/santa/events" search={{ host_id: hostId }}>
-                <Activity data-icon="inline-start" />
-                View Execution Events
-              </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link to="/santa/events" search={{ host_id: hostId }} />}
+              nativeButton={false}
+            >
+              <Activity data-icon="inline-start" />
+              View Execution Events
             </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/santa/events/file-access" search={{ host_id: hostId }}>
-                <FolderLock data-icon="inline-start" />
-                View File Access Events
-              </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link to="/santa/events/file-access" search={{ host_id: hostId }} />}
+              nativeButton={false}
+            >
+              <FolderLock data-icon="inline-start" />
+              View File Access Events
             </Button>
           </div>
           <KeyValueGrid>

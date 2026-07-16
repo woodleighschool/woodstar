@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Integration } from "@/lib/enrollments";
 import { cn } from "@/lib/utils";
-
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
 const SERVER_URL_PLACEHOLDER = "REPLACE_WITH_WOODSTAR_URL";
 const SECRET_PLACEHOLDER = "REPLACE_WITH_SECRET";
@@ -19,9 +18,9 @@ const SERIAL_PLACEHOLDER = "$SERIALNUMBER";
 const ORG = "Woodleigh School";
 const PREFIX = "au.vic.edu.woodleigh.woodstar";
 const xmlExtensions: Extension[] = [xml()];
-
-type PlistDict = { [key: string]: PlistValue };
-
+type PlistDict = {
+  [key: string]: PlistValue;
+};
 export function DeploymentInstructions({
   integration,
   serverURL,
@@ -35,10 +34,8 @@ export function DeploymentInstructions({
   if (integration === "munki") {
     return <MunkiDeploymentInstructions serverURL={serverURL} />;
   }
-
   return <SantaDeploymentInstructions serverURL={serverURL} />;
 }
-
 function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
@@ -54,11 +51,15 @@ function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
         description="fleetctl produces an Orbit package for software distribution. It does not embed the Woodstar URL or enroll secret."
         value={orbitPackageCommand()}
         action={
-          <Button type="button" variant="outline" size="sm" asChild>
-            <a href={FLEETCTL_INSTALL_URL} target="_blank" rel="noreferrer">
-              <ExternalLink data-icon="inline-start" />
-              Install Fleetctl
-            </a>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            render={<a href={FLEETCTL_INSTALL_URL} target="_blank" rel="noreferrer" />}
+            nativeButton={false}
+          >
+            <ExternalLink data-icon="inline-start" />
+            Install Fleetctl
           </Button>
         }
       />
@@ -73,7 +74,6 @@ function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
     </section>
   );
 }
-
 function SantaDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
@@ -92,7 +92,6 @@ function SantaDeploymentInstructions({ serverURL }: { serverURL?: string }) {
     </section>
   );
 }
-
 function MunkiDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
@@ -110,7 +109,6 @@ function MunkiDeploymentInstructions({ serverURL }: { serverURL?: string }) {
     </section>
   );
 }
-
 function DeploymentArtifact({
   title,
   description,
@@ -127,7 +125,6 @@ function DeploymentArtifact({
   action?: ReactNode;
 }) {
   const titleID = deploymentArtifactTitleID(title);
-
   return (
     <Card className="grid min-w-0 gap-3 rounded-lg p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -143,7 +140,6 @@ function DeploymentArtifact({
     </Card>
   );
 }
-
 function DeploymentExample({
   value,
   extensions,
@@ -170,15 +166,12 @@ function DeploymentExample({
     />
   );
 }
-
 function orbitPackageCommand() {
   return "fleetctl package --type=pkg --use-system-configuration";
 }
-
 function deploymentArtifactTitleID(title: string) {
   return `deployment-${title.toLowerCase().replaceAll(" ", "-")}`;
 }
-
 function profile(opts: {
   id: string;
   uuid: string;
@@ -198,7 +191,6 @@ function profile(opts: {
     ...(opts.description ? { PayloadDescription: opts.description } : {}),
   });
 }
-
 function payloadMeta(opts: {
   id: string;
   uuid: string;
@@ -213,15 +205,12 @@ function payloadMeta(opts: {
     PayloadVersion: 1,
   };
 }
-
 function serverURL(value: string | undefined) {
   return (value ?? SERVER_URL_PLACEHOLDER).replace(/\/+$/, "");
 }
-
 function woodstarURL(serverURLValue: string | undefined, path: string) {
   return `${serverURL(serverURLValue)}${path}`;
 }
-
 function orbitProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.orbit`,
@@ -251,7 +240,6 @@ function orbitProfileTemplate(serverURLValue: string | undefined) {
     ],
   });
 }
-
 function santaProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.santa`,
@@ -277,7 +265,6 @@ function santaProfileTemplate(serverURLValue: string | undefined) {
     ],
   });
 }
-
 function munkiProfileTemplate(serverURLValue: string | undefined) {
   return profile({
     id: `${PREFIX}.munki`,

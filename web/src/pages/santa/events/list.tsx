@@ -5,7 +5,6 @@ import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -33,9 +32,7 @@ import { formatDateTime, formatRelative } from "@/lib/utils";
 
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./decisions";
 import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
-
 const DECISION_FILTER_KEYS = [{ id: "decision" }] as const;
-
 export function SantaEventListPage() {
   const [deepLink, setDeepLink] = useQueryStates({ host_id: parseAsInteger, user: parseAsString });
   return (
@@ -60,7 +57,6 @@ export function SantaEventListPage() {
     </PageShell>
   );
 }
-
 export function SantaFileAccessEventListPage() {
   const [deepLink, setDeepLink] = useQueryStates({ host_id: parseAsInteger });
   return (
@@ -80,7 +76,6 @@ export function SantaFileAccessEventListPage() {
     </PageShell>
   );
 }
-
 function EventContextChips({
   hostId,
   user,
@@ -106,7 +101,6 @@ function EventContextChips({
     </>
   );
 }
-
 function EventListNav({
   active,
   hostId,
@@ -118,25 +112,22 @@ function EventListNav({
   return (
     <Tabs value={active}>
       <TabsList>
-        <TabsTrigger value="execution" asChild>
-          <Link to="/santa/events" search={search}>
-            Execution
-          </Link>
+        <TabsTrigger value="execution" render={<Link to="/santa/events" search={search} />}>
+          Execution
         </TabsTrigger>
-        <TabsTrigger value="file-access" asChild>
-          <Link to="/santa/events/file-access" search={search}>
-            File Access
-          </Link>
+        <TabsTrigger
+          value="file-access"
+          render={<Link to="/santa/events/file-access" search={search} />}
+        >
+          File Access
         </TabsTrigger>
       </TabsList>
     </Tabs>
   );
 }
-
 function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string }) {
   const tableSearch = useDataTableSearch(DECISION_FILTER_KEYS);
   const decisions = tableSearch.filters.decision ?? [];
-
   const query = useSantaEvents({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -146,26 +137,24 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     user,
     decisions: decisions as SantaEventListParams["decisions"],
   });
-
   const events = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters =
     !!tableSearch.q || hostId !== undefined || user !== undefined || decisions.length > 0;
-
   const columns = React.useMemo<ColumnDef<SantaEvent>[]>(
     () => [
       {
         id: "occurred_at",
         accessorKey: "occurred_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Occurred" />,
+        header: "Occurred",
         cell: ({ row }) => <Timestamp value={row.original.occurred_at} />,
         meta: { label: "Occurred" },
       },
       {
         id: "file_name",
         accessorFn: (row) => row.executable.file_name,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Executable" />,
+        header: "Executable",
         cell: ({ row }) => (
           <Link
             to="/santa/events/$eventId"
@@ -182,14 +171,14 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
         id: "file_path",
         accessorKey: "file_path",
         enableSorting: false,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Path" />,
+        header: "Path",
         cell: ({ row }) => row.original.file_path || "-",
         meta: { label: "Path" },
       },
       {
         id: "decision",
         accessorKey: "decision",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Decision" />,
+        header: "Decision",
         cell: ({ row }) => <ExecutionDecisionBadge decision={row.original.decision} />,
         meta: { label: "Decision", options: DECISION_FILTERS },
         enableColumnFilter: true,
@@ -197,21 +186,20 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
       {
         id: "host",
         accessorFn: (row) => row.host.display_name,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Host" />,
+        header: "Host",
         cell: ({ row }) => <EventHostLink host={row.original.host} />,
         meta: { label: "Host" },
       },
       {
         id: "executing_user",
         accessorKey: "executing_user",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="User" />,
+        header: "User",
         cell: ({ row }) => <EventUserLink user={row.original.executing_user} hostId={hostId} />,
         meta: { label: "User" },
       },
     ],
     [hostId],
   );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: events,
@@ -220,7 +208,6 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-
   if (query.error) {
     return (
       <QueryError
@@ -233,7 +220,6 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   if (query.isLoading) {
     return <DataTableSkeleton columnCount={6} filterCount={1} />;
   }
-
   return (
     <DataTable
       table={table}
@@ -254,11 +240,9 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     </DataTable>
   );
 }
-
 function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   const tableSearch = useDataTableSearch(DECISION_FILTER_KEYS);
   const decisions = tableSearch.filters.decision ?? [];
-
   const query = useSantaFileAccessEvents({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -267,25 +251,23 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     host_id: hostId,
     decisions: decisions as SantaFileAccessEventListParams["decisions"],
   });
-
   const events = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || hostId !== undefined || decisions.length > 0;
-
   const columns = React.useMemo<ColumnDef<SantaFileAccessEvent>[]>(
     () => [
       {
         id: "occurred_at",
         accessorKey: "occurred_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Occurred" />,
+        header: "Occurred",
         cell: ({ row }) => <Timestamp value={row.original.occurred_at} />,
         meta: { label: "Occurred" },
       },
       {
         id: "target",
         accessorKey: "target",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Target" />,
+        header: "Target",
         cell: ({ row }) => (
           <Link
             to="/santa/events/file-access/$eventId"
@@ -301,7 +283,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
       {
         id: "decision",
         accessorKey: "decision",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Decision" />,
+        header: "Decision",
         cell: ({ row }) => <FileAccessDecisionBadge decision={row.original.decision} />,
         meta: { label: "Decision", options: FILE_ACCESS_DECISION_FILTERS },
         enableColumnFilter: true,
@@ -309,28 +291,28 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
       {
         id: "host",
         accessorFn: (row) => row.host.display_name,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Host" />,
+        header: "Host",
         cell: ({ row }) => <EventHostLink host={row.original.host} />,
         meta: { label: "Host" },
       },
       {
         id: "process",
         enableSorting: false,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Process" />,
+        header: "Process",
         cell: ({ row }) => row.original.primary_process.file_name || "-",
         meta: { label: "Process" },
       },
       {
         id: "rule_name",
         accessorKey: "rule_name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Rule" />,
+        header: "Rule",
         cell: ({ row }) => row.original.rule_name || "-",
         meta: { label: "Rule" },
       },
       {
         id: "rule_version",
         accessorKey: "rule_version",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Rule Version" />,
+        header: "Rule Version",
         cell: ({ row }) => row.original.rule_version || "-",
         enableSorting: false,
         meta: { label: "Rule Version" },
@@ -338,7 +320,6 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     ],
     [],
   );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: events,
@@ -347,7 +328,6 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-
   if (query.error) {
     return (
       <QueryError
@@ -360,7 +340,6 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   if (query.isLoading) {
     return <DataTableSkeleton columnCount={6} filterCount={1} />;
   }
-
   return (
     <DataTable
       table={table}
@@ -381,7 +360,6 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     </DataTable>
   );
 }
-
 function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: string }) {
   return (
     <DataTableEmpty
@@ -393,7 +371,6 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
     />
   );
 }
-
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
     <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="hover:underline">
@@ -401,7 +378,6 @@ function EventHostLink({ host }: { host: SantaHostSummary }) {
     </Link>
   );
 }
-
 function EventUserLink({ user, hostId }: { user: string; hostId?: number }) {
   if (!user) return "-";
   return (
@@ -410,7 +386,6 @@ function EventUserLink({ user, hostId }: { user: string; hostId?: number }) {
     </Link>
   );
 }
-
 function Timestamp({ value }: { value: string }) {
   return <span title={formatDateTime(value)}>{formatRelative(value)}</span>;
 }

@@ -10,7 +10,6 @@ import {
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EmptyPanel } from "@/components/empty-panel";
@@ -40,14 +39,12 @@ import {
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
 } from "@/pages/software/software-source-labels";
-
 const HOST_SOFTWARE_PAGE_SIZE = 50;
-
 const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "name",
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+    header: "Name",
     cell: ({ row }) => (
       <Link
         to="/software/titles/$softwareId"
@@ -63,14 +60,14 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "version",
     accessorFn: (row) => row.installed_versions[0].version,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Version" />,
+    header: "Version",
     cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions),
     meta: { label: "Version" },
   },
   {
     id: "source",
     accessorKey: "source",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
+    header: "Type",
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
@@ -78,7 +75,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "last_opened_at",
     accessorFn: (row) => pickLatestLastOpened(row.installed_versions) ?? "",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Last Opened" />,
+    header: "Last Opened",
     cell: ({ row }) => {
       const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions);
       return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
@@ -113,7 +110,6 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
     meta: { label: "Hash" },
   },
 ];
-
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const [draft, setDraft] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
@@ -124,10 +120,8 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const updateQuery = useDebouncedCallback((value: string) => setActiveQuery(value.trim()), 200);
-
   const sources =
     (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
-
   const setSearch = (next: string) => {
     setDraft(next);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -138,7 +132,6 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       updateQuery(next);
     }
   };
-
   const query = useHostSoftware(hostId, {
     q: activeQuery,
     source: expandSoftwareSourceFilters(sources),
@@ -146,11 +139,9 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     per_page: pagination.pageSize,
     sort: sorting.length > 0 ? encodeSort(sorting[0].id, sorting[0].desc) : undefined,
   });
-
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = activeQuery !== "" || sources.length > 0;
-
   const table = useReactTable({
     data,
     columns: softwareColumns,
@@ -172,7 +163,6 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     },
   });
-
   if (query.error) {
     return (
       <QueryError
@@ -183,7 +173,6 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     );
   }
   if (query.isLoading) return <DataTableSkeleton columnCount={6} filterCount={1} />;
-
   return (
     <DataTable
       table={table}
@@ -206,17 +195,14 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     </DataTable>
   );
 }
-
 function singleSort(sorting: SortingState): SortingState {
   return sorting.length > 0 ? [sorting[0]] : [];
 }
-
 interface InstalledPath {
   path: string;
   version: string;
   signature?: PathSignatureInformation;
 }
-
 function InstalledPathCell({
   row,
   versionLabel,
@@ -234,13 +220,12 @@ function InstalledPathCell({
   if (paths.length === 1) {
     return paths[0].path;
   }
-
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="link" size="sm" className="h-auto px-0 py-0 text-xs">
-          {paths.length} paths
-        </Button>
+      <DialogTrigger
+        render={<Button variant="link" size="sm" className="h-auto px-0 py-0 text-xs" />}
+      >
+        {paths.length} paths
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -271,7 +256,6 @@ function InstalledPathCell({
     </Dialog>
   );
 }
-
 function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledPath[] {
   return versions.flatMap((version) => {
     const signatures = buildSignatureIndex(version.signature_information);
@@ -282,12 +266,10 @@ function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledP
     }));
   });
 }
-
 function singleHash(paths: InstalledPath[]): string {
   if (paths.length !== 1) return "-";
   return paths[0].signature?.hash_sha256 ?? "-";
 }
-
 function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string | undefined {
   let latest: string | undefined;
   for (const version of versions) {
@@ -299,7 +281,6 @@ function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string 
   }
   return latest;
 }
-
 function buildSignatureIndex(
   rows: PathSignatureInformation[],
 ): Map<string, PathSignatureInformation> {

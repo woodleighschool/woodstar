@@ -43,14 +43,12 @@ import {
 } from "./client-resources";
 import { LinkDialog } from "./link-dialog";
 import { useClientResourceAsset } from "./use-client-resource-asset";
-
 const navigationItems = [
   { label: "Software", icon: AppWindow, active: true },
   { label: "Categories", icon: Folder, active: false },
   { label: "My Items", icon: Brush, active: false },
   { label: "Updates", icon: PackageOpen, active: false },
 ];
-
 const defaultCategories = [
   "Business",
   "Education",
@@ -58,14 +56,12 @@ const defaultCategories = [
   "Security",
   "Utilities",
 ] as const;
-
 const sampleSoftware = [
   { name: "1Password", detail: "Security - AgileBits Inc." },
   { name: "ActivInspire", detail: "Education - Promethean" },
   { name: "Adobe Creative Cloud", detail: "Creativity - Adobe" },
   { name: "Audacity", detail: "Creativity - Audacity" },
 ] as const;
-
 export function ClientResourcesEditor({
   form,
   draft,
@@ -76,7 +72,6 @@ export function ClientResourcesEditor({
   bannerUploading: boolean;
 }) {
   const createBannerAsset = useClientResourceAsset(draft.banner.asset);
-
   return (
     <section className="min-w-0">
       <Alert className="mx-8 w-auto border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
@@ -108,7 +103,6 @@ export function ClientResourcesEditor({
               >
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
-
                   return (
                     <div
                       key={item.label}
@@ -234,7 +228,6 @@ export function ClientResourcesEditor({
     </section>
   );
 }
-
 function EditableLinks({
   items,
   emptyState,
@@ -256,40 +249,38 @@ function EditableLinks({
 }) {
   const [dialogIndex, setDialogIndex] = useState<number | "new" | null>(null);
   const editedLink = typeof dialogIndex === "number" ? (items[dialogIndex] ?? null) : null;
-
   return (
     <>
       {items.length > 0 ? (
-        <Sortable
-          value={items}
-          getItemValue={(item) => item.id}
-          orientation="horizontal"
-          onValueChange={onReorder}
-        >
+        <Sortable value={items} getItemValue={(item) => item.id} onValueChange={onReorder}>
           <SortableContent className="flex flex-wrap items-center justify-center gap-y-1">
             {items.map((link, index) => (
               <SortableItem key={link.id} value={link.id} className="flex items-center">
                 {index > 0 || leadingSeparator ? <span className="px-2 text-border">|</span> : null}
-                <SortableItemHandle asChild>
-                  <button
-                    type="button"
-                    className="cursor-grab rounded-sm px-0.5 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-                    aria-label={`Drag ${link.label || "untitled link"} to reorder`}
-                  >
-                    {link.label || "Untitled link"}
-                  </button>
+                <SortableItemHandle
+                  render={
+                    <button
+                      type="button"
+                      className="cursor-grab rounded-sm px-0.5 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+                      aria-label={`Drag ${link.label || "untitled link"} to reorder`}
+                    />
+                  }
+                >
+                  {link.label || "Untitled link"}
                 </SortableItemHandle>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="ml-0.5 size-5"
-                      aria-label={`Actions for ${link.label || "untitled link"}`}
-                    >
-                      <MoreHorizontal />
-                    </Button>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="ml-0.5 size-5"
+                        aria-label={`Actions for ${link.label || "untitled link"}`}
+                      />
+                    }
+                  >
+                    <MoreHorizontal />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
                     <DropdownMenuGroup>
@@ -313,18 +304,20 @@ function EditableLinks({
       )}
 
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="absolute right-2"
-            aria-label={addLabel}
-            disabled={items.length >= 12}
-            onClick={() => setDialogIndex("new")}
-          >
-            <Plus />
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="absolute right-2"
+              aria-label={addLabel}
+              disabled={items.length >= 12}
+              onClick={() => setDialogIndex("new")}
+            />
+          }
+        >
+          <Plus />
         </TooltipTrigger>
         <TooltipContent>{addLabel}</TooltipContent>
       </Tooltip>
@@ -346,7 +339,6 @@ function EditableLinks({
     </>
   );
 }
-
 function MunkiCategories() {
   return (
     <div
@@ -366,7 +358,6 @@ function MunkiCategories() {
     </div>
   );
 }
-
 function SoftwareItem({ item }: { item: (typeof sampleSoftware)[number] }) {
   return (
     <div className="flex min-w-0 gap-4 border-b py-4">

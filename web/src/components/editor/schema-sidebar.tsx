@@ -4,12 +4,11 @@ import { isValidElement, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Combobox,
-  ComboboxAnchor,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
-  ComboboxTrigger,
+  ComboboxList,
 } from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -40,7 +39,7 @@ export function SchemaSidebar({
   const Icon = open ? PanelRightClose : PanelRightOpen;
 
   return (
-    <TooltipProvider delayDuration={150}>
+    <TooltipProvider delay={150}>
       <button
         type="button"
         aria-label={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
@@ -145,7 +144,8 @@ function TableSelector({
 
   return (
     <Combobox
-      value={value ?? ""}
+      items={tableNames}
+      value={value}
       inputValue={inputValue}
       onValueChange={(next) => {
         if (next) {
@@ -158,17 +158,16 @@ function TableSelector({
         if (tableNames.includes(next)) onChange(next);
       }}
     >
-      <ComboboxAnchor className="w-full">
-        <ComboboxInput placeholder="Select a Table" className="text-sm" />
-        <ComboboxTrigger aria-label="Open tables" />
-      </ComboboxAnchor>
+      <ComboboxInput placeholder="Select a Table" className="w-full text-sm" />
       <ComboboxContent>
         <ComboboxEmpty>No Tables Found.</ComboboxEmpty>
-        {tableNames.map((item) => (
-          <ComboboxItem key={item} value={item} label={item} className="text-sm">
-            {item}
-          </ComboboxItem>
-        ))}
+        <ComboboxList>
+          {tableNames.map((item) => (
+            <ComboboxItem key={item} value={item} className="text-sm">
+              {item}
+            </ComboboxItem>
+          ))}
+        </ComboboxList>
       </ComboboxContent>
     </Combobox>
   );
@@ -324,7 +323,7 @@ function ColumnRow({
   return (
     <li>
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger render={button} />
         <TooltipContent side="left" className="max-w-xs text-xs whitespace-normal">
           {tooltip}
         </TooltipContent>

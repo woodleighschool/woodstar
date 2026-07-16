@@ -1,5 +1,6 @@
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
-import { Slot as SlotPrimitive } from "radix-ui";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -26,23 +27,29 @@ const statusVariants = cva(
   },
 );
 
-interface StatusProps extends VariantProps<typeof statusVariants>, React.ComponentProps<"div"> {
-  asChild?: boolean;
-}
+interface StatusProps
+  extends
+    VariantProps<typeof statusVariants>,
+    React.ComponentProps<"div">,
+    useRender.ComponentProps<"div"> {}
 
 function Status(props: StatusProps) {
-  const { className, variant = "default", asChild, ...rootProps } = props;
+  const { className, variant = "default", render, ...rootProps } = props;
 
-  const RootPrimitive = asChild ? SlotPrimitive.Slot : "div";
-
-  return (
-    <RootPrimitive
-      data-slot="status"
-      data-variant={variant}
-      {...rootProps}
-      className={cn(statusVariants({ variant }), className)}
-    />
-  );
+  return useRender({
+    defaultTagName: "div",
+    props: mergeProps<"div">(
+      {
+        className: cn(statusVariants({ variant }), className),
+      },
+      rootProps,
+    ),
+    render,
+    state: {
+      slot: "status",
+      variant,
+    },
+  });
 }
 
 function StatusIndicator(props: React.ComponentProps<"div">) {

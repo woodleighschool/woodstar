@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
@@ -53,19 +52,19 @@ export function HostSelector({
       {
         id: "display_name",
         accessorFn: (row) => row.display_name,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Host" />,
+        header: "Host",
         cell: ({ row }) => row.original.display_name,
       },
       {
         id: "hardware.serial",
         accessorFn: (row) => row.hardware.serial,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Serial" />,
+        header: "Serial",
         cell: ({ row }) => row.original.hardware.serial,
       },
       {
         id: "hardware.model_identifier",
         accessorFn: (row) => row.hardware.model_identifier,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Model" />,
+        header: "Model",
         cell: ({ row }) => row.original.hardware.model_identifier || "Unknown",
       },
     ],
@@ -133,7 +132,7 @@ function DepartmentSelector({
     () => [
       {
         accessorKey: "value",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Department" />,
+        header: "Department",
         cell: ({ row }) => row.original.value,
       },
     ],
@@ -180,12 +179,12 @@ function GroupSelector({
     () => [
       {
         accessorKey: "display_name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Group" />,
+        header: "Group",
         cell: ({ row }) => row.original.display_name,
       },
       {
         accessorKey: "mail_nickname",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Nickname" />,
+        header: "Nickname",
         cell: ({ row }) => row.original.mail_nickname ?? "None",
       },
     ],
@@ -232,12 +231,12 @@ function UserSelector({
     () => [
       {
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="User" />,
+        header: "User",
         cell: ({ row }) => row.original.name,
       },
       {
         accessorKey: "department",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Department" />,
+        header: "Department",
         cell: ({ row }) => row.original.department ?? "None",
       },
     ],
@@ -382,10 +381,10 @@ function SelectorTable<TData>({
           className="h-8 min-w-64 flex-1"
         />
         <ToggleGroup
-          type="single"
-          value={controls.filter}
+          value={[controls.filter]}
           onValueChange={(next) => {
-            if (next === "all" || next === "selected") controls.setSelectionFilter(next);
+            const value = next[0];
+            if (value === "all" || value === "selected") controls.setSelectionFilter(value);
           }}
           variant="outline"
           size="sm"

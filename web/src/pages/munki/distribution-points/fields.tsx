@@ -27,21 +27,17 @@ import { Switch } from "@/components/ui/switch";
 import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import type { MunkiDistributionPointDetail, MunkiDistributionPointMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
-
 interface StringRow {
   rowID: string;
   value: string;
 }
-
 interface DistributionPointFormState {
   name: string;
   enabled: boolean;
   client_base_url: string;
   client_cidrs: StringRow[];
 }
-
 const cidrSchema = z.union([z.cidrv4(), z.cidrv6()]);
-
 const distributionPointFormSchema = z
   .object({
     name: requiredString("Name"),
@@ -61,14 +57,12 @@ const distributionPointFormSchema = z
     path: ["client_base_url"],
     message: "Base URL is required to enable a distribution point.",
   });
-
 export const emptyDistributionPointForm: DistributionPointFormState = {
   name: "",
   enabled: true,
   client_base_url: "",
   client_cidrs: [],
 };
-
 export function DistributionPointForm({
   initial,
   title,
@@ -98,127 +92,123 @@ export function DistributionPointForm({
     form,
     onDiscard: onCancel ?? (() => form.reset(initial)),
   });
-
   return (
     <>
-      <PageShell asChild>
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
-          <form.Subscribe selector={(state) => state.values.name}>
-            {(name) => <PageHeader title={title ?? (name || "Distribution Point")} />}
-          </form.Subscribe>
-
-          <FieldGroup className="max-w-3xl">
-            <form.Field name="name">
-              {(field) => (
-                <FormField
-                  field={field}
-                  label="Name"
-                  htmlFor="munki-distribution-point-name"
-                  required
-                >
-                  {(control) => (
-                    <Input
-                      {...control}
-                      name={field.name}
-                      required
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                  )}
-                </FormField>
-              )}
-            </form.Field>
-            <form.Field
-              name="enabled"
-              children={(field) => (
-                <BoolField
-                  id="munki-distribution-point-enabled"
-                  label="Enabled"
-                  value={field.state.value}
-                  onChange={field.handleChange}
-                />
-              )}
-            />
-            <form.Field
-              name="client_base_url"
-              children={(field) => (
-                <FormField
-                  field={field}
-                  label="Base URL"
-                  htmlFor="munki-distribution-point-base-url"
-                >
-                  {(control) => (
-                    <Input
-                      {...control}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                  )}
-                </FormField>
-              )}
-            />
-            <form.Field
-              name="client_cidrs"
-              mode="array"
-              children={(field) => {
-                const error = firstErrorMessage(field.state.meta.errors);
-                return (
-                  <FieldSet
-                    className="gap-4 data-[invalid=true]:text-destructive"
-                    data-invalid={error ? true : undefined}
-                  >
-                    <FieldLegend variant="label">Client CIDRs</FieldLegend>
-                    <FieldGroup className="gap-2">
-                      <StringArrayRows
-                        ariaLabel="CIDR"
-                        removeLabel="Remove CIDR"
-                        rows={field.state.value}
-                        invalid={Boolean(error)}
-                        onReplace={(index, row) => field.replaceValue(index, row)}
-                        onRemove={(index) => field.removeValue(index)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-fit"
-                        onClick={() => field.pushValue(emptyStringRow())}
-                      >
-                        Add CIDR
-                      </Button>
-                    </FieldGroup>
-                    <FieldDescription>
-                      Clients in these ranges redirect to this distribution point. Empty matches
-                      nothing.
-                    </FieldDescription>
-                    {error ? <FieldError>{error}</FieldError> : null}
-                  </FieldSet>
-                );
-              }}
-            />
-          </FieldGroup>
-
-          <FormActions
-            form={form}
-            submitLabel={submitLabel}
-            onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+      <PageShell
+        render={
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
           />
-        </form>
+        }
+      >
+        <form.Subscribe selector={(state) => state.values.name}>
+          {(name) => <PageHeader title={title ?? (name || "Distribution Point")} />}
+        </form.Subscribe>
+
+        <FieldGroup className="max-w-3xl">
+          <form.Field name="name">
+            {(field) => (
+              <FormField
+                field={field}
+                label="Name"
+                htmlFor="munki-distribution-point-name"
+                required
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    name={field.name}
+                    required
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          </form.Field>
+          <form.Field
+            name="enabled"
+            children={(field) => (
+              <BoolField
+                id="munki-distribution-point-enabled"
+                label="Enabled"
+                value={field.state.value}
+                onChange={field.handleChange}
+              />
+            )}
+          />
+          <form.Field
+            name="client_base_url"
+            children={(field) => (
+              <FormField field={field} label="Base URL" htmlFor="munki-distribution-point-base-url">
+                {(control) => (
+                  <Input
+                    {...control}
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </FormField>
+            )}
+          />
+          <form.Field
+            name="client_cidrs"
+            mode="array"
+            children={(field) => {
+              const error = firstErrorMessage(field.state.meta.errors);
+              return (
+                <FieldSet
+                  className="gap-4 data-[invalid=true]:text-destructive"
+                  data-invalid={error ? true : undefined}
+                >
+                  <FieldLegend variant="label">Client CIDRs</FieldLegend>
+                  <FieldGroup className="gap-2">
+                    <StringArrayRows
+                      ariaLabel="CIDR"
+                      removeLabel="Remove CIDR"
+                      rows={field.state.value}
+                      invalid={Boolean(error)}
+                      onReplace={(index, row) => field.replaceValue(index, row)}
+                      onRemove={(index) => field.removeValue(index)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      onClick={() => field.pushValue(emptyStringRow())}
+                    >
+                      Add CIDR
+                    </Button>
+                  </FieldGroup>
+                  <FieldDescription>
+                    Clients in these ranges redirect to this distribution point. Empty matches
+                    nothing.
+                  </FieldDescription>
+                  {error ? <FieldError>{error}</FieldError> : null}
+                </FieldSet>
+              );
+            }}
+          />
+        </FieldGroup>
+
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
       </PageShell>
       {exitGuard.dialog}
     </>
   );
 }
-
 function BoolField({
   id,
   label,
@@ -242,7 +232,6 @@ function BoolField({
     </Field>
   );
 }
-
 function StringArrayRows({
   ariaLabel,
   removeLabel,
@@ -285,7 +274,6 @@ function StringArrayRows({
     </>
   );
 }
-
 export function formFromDistributionPoint(
   point: MunkiDistributionPointDetail,
 ): DistributionPointFormState {
@@ -296,7 +284,6 @@ export function formFromDistributionPoint(
     client_cidrs: stringRows(point.client_cidrs),
   };
 }
-
 function distributionPointBody(form: DistributionPointFormState): MunkiDistributionPointMutation {
   return {
     name: form.name.trim(),
@@ -305,23 +292,18 @@ function distributionPointBody(form: DistributionPointFormState): MunkiDistribut
     client_cidrs: cleanStringRows(form.client_cidrs),
   };
 }
-
 function emptyStringRow(): StringRow {
   return { rowID: rowID(), value: "" };
 }
-
 function stringRows(values: string[]): StringRow[] {
   return values.map((value) => ({ rowID: rowID(), value }));
 }
-
 function cleanStringRows(rows: StringRow[]): string[] {
   return rows.map((row) => row.value.trim()).filter(Boolean);
 }
-
 function rowID(): string {
   return crypto.randomUUID();
 }
-
 function isHTTPSOrigin(value: string): boolean {
   try {
     const url = new URL(value);

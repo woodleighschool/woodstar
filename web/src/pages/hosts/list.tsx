@@ -6,7 +6,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -168,7 +167,7 @@ const hostColumns: ColumnDef<Host>[] = [
   {
     id: "display_name",
     accessorFn: (row) => row.display_name,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+    header: "Name",
     cell: ({ row }) => (
       <Link
         to="/hosts/$hostId"
@@ -193,28 +192,28 @@ const hostColumns: ColumnDef<Host>[] = [
   {
     id: "os.version",
     accessorFn: (row) => row.os.version,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="OS" />,
+    header: "OS",
     cell: ({ row }) => row.original.os.version || "-",
     meta: { label: "OS" },
   },
   {
     id: "hardware.model_identifier",
     accessorFn: (row) => row.hardware.model_identifier,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Model" />,
+    header: "Model",
     cell: ({ row }) => row.original.hardware.model_identifier || "-",
     meta: { label: "Model" },
   },
   {
     id: "hardware.serial",
     accessorFn: (row) => row.hardware.serial,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Serial" />,
+    header: "Serial",
     cell: ({ row }) => row.original.hardware.serial || "-",
     meta: { label: "Serial" },
   },
   {
     id: "storage.boot_volume.available_bytes",
     accessorFn: (row) => row.storage.boot_volume.available_bytes,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Disk Free" />,
+    header: "Disk Free",
     cell: ({ row }) =>
       row.original.storage.boot_volume.available_bytes
         ? formatBytes(row.original.storage.boot_volume.available_bytes)
@@ -231,35 +230,35 @@ const hostColumns: ColumnDef<Host>[] = [
   {
     id: "timestamps.last_seen_at",
     accessorFn: (row) => row.timestamps.last_seen_at,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Last Seen" />,
+    header: "Last Seen",
     cell: ({ row }) => formatRelative(row.original.timestamps.last_seen_at),
     meta: { label: "Last Seen" },
   },
   {
     id: "hardware.uuid",
     accessorFn: (row) => row.hardware.uuid,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="UUID" />,
+    header: "UUID",
     cell: ({ row }) => row.original.hardware.uuid || "-",
     meta: { label: "UUID" },
   },
   {
     id: "network.primary_ip",
     accessorFn: (row) => row.network.primary_ip,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Private IP" />,
+    header: "Private IP",
     cell: ({ row }) => row.original.network.primary_ip ?? "-",
     meta: { label: "Private IP" },
   },
   {
     id: "network.last_remote_ip",
     accessorFn: (row) => row.network.last_remote_ip,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Public IP" />,
+    header: "Public IP",
     cell: ({ row }) => row.original.network.last_remote_ip ?? "-",
     meta: { label: "Public IP" },
   },
   {
     id: "hardware.memory_bytes",
     accessorFn: (row) => row.hardware.memory_bytes,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Memory" />,
+    header: "Memory",
     cell: ({ row }) =>
       row.original.hardware.memory_bytes > 0
         ? formatBytes(row.original.hardware.memory_bytes)
@@ -269,14 +268,14 @@ const hostColumns: ColumnDef<Host>[] = [
   {
     id: "agents.osquery.version",
     accessorFn: (row) => row.agents.osquery.version,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Osquery" />,
+    header: "Osquery",
     cell: ({ row }) => row.original.agents.osquery.version || "-",
     meta: { label: "Osquery Version" },
   },
   {
     id: "timestamps.last_restarted_at",
     accessorFn: (row) => row.timestamps.last_restarted_at,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Last Restarted" />,
+    header: "Last Restarted",
     cell: ({ row }) =>
       row.original.timestamps.last_restarted_at
         ? formatRelative(row.original.timestamps.last_restarted_at)

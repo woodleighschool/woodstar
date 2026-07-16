@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -23,17 +22,13 @@ import type { MunkiPackage, MunkiPackageMutation } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 import { MUNKI_INSTALLER_TYPE_OPTIONS } from "@/pages/munki/software/munki-software";
-
 type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
-
 const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type" }] as const;
-
 export function MunkiPackageListPage() {
   const tableSearch = useDataTableSearch(PACKAGE_TYPE_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const packageTypes = (tableSearch.filters.type ?? []) as MunkiInstallerType[];
-
   const query = useMunkiPackages({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -41,19 +36,17 @@ export function MunkiPackageListPage() {
     sort: tableSearch.sort,
     type: packageTypes,
   });
-
   const packages = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || packageTypes.length > 0;
-
   const columns = React.useMemo<ColumnDef<MunkiPackage>[]>(() => {
     const baseColumns: ColumnDef<MunkiPackage>[] = [
       selectColumn<MunkiPackage>(),
       {
         id: "software_name",
         accessorKey: "software_name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Package" />,
+        header: "Package",
         cell: ({ row }) =>
           isAdmin ? (
             <Link
@@ -76,14 +69,14 @@ export function MunkiPackageListPage() {
       {
         id: "version",
         accessorKey: "version",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Version" />,
+        header: "Version",
         cell: ({ row }) => row.original.version,
         meta: { label: "Version" },
       },
       {
         id: "type",
         accessorKey: "installer_type",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
+        header: "Type",
         cell: ({ row }) => row.original.installer_type,
         enableColumnFilter: true,
         meta: { label: "Type", options: MUNKI_INSTALLER_TYPE_OPTIONS },
@@ -91,7 +84,7 @@ export function MunkiPackageListPage() {
       {
         id: "size",
         accessorFn: (row) => row.installer_file?.size_bytes ?? 0,
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Size" />,
+        header: "Size",
         cell: ({ row }) => {
           const bytes = row.original.installer_file?.size_bytes ?? 0;
           return bytes > 0 ? formatBytes(bytes) : "-";
@@ -101,14 +94,13 @@ export function MunkiPackageListPage() {
       {
         id: "updated_at",
         accessorKey: "updated_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
+        header: "Updated",
         cell: ({ row }) => formatRelative(row.original.updated_at),
         meta: { label: "Updated" },
       },
     ];
     return baseColumns;
   }, [isAdmin]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: packages,
@@ -118,18 +110,15 @@ export function MunkiPackageListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   return (
     <PageShell>
       <PageHeader
         title="Packages"
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/munki/packages/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/munki/packages/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }

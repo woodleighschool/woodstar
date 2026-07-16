@@ -531,9 +531,7 @@ export function ReceiptsTable({
                     <Checkbox
                       aria-label="Optional"
                       checked={row.optional === true}
-                      onCheckedChange={(value) =>
-                        onReplace(index, { ...row, optional: value === true })
-                      }
+                      onCheckedChange={(value) => onReplace(index, { ...row, optional: value })}
                     />
                   </TableCell>
                   <TableCell className="w-9 p-0 pr-1 text-right">

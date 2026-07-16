@@ -30,14 +30,12 @@ import {
   normalizeLabelTargetSet,
 } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
-
 export const emptyCheck: OsqueryCheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
   targets: emptyLabelTargetSet(),
 };
-
 export function checkFromDetail(detail: OsqueryCheck): OsqueryCheckMutation {
   return {
     name: detail.name,
@@ -46,25 +44,20 @@ export function checkFromDetail(detail: OsqueryCheck): OsqueryCheckMutation {
     targets: normalizeLabelTargetSet(detail.targets),
   };
 }
-
 const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, {
   message: invalidSQLSyntaxMessage,
 });
-
 const checkFormSchema = z.object({
   name: requiredString("Name"),
   description: z.string().optional(),
   query: checkQuerySchema,
   targets: labelTargetSetSchema,
 });
-
 const checkFormTabs = [
   { value: "options", fields: ["name", "description", "query"] },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
-
 const noOp = () => undefined;
-
 function trimCheck(value: OsqueryCheckMutation): OsqueryCheckMutation {
   return {
     ...value,
@@ -74,7 +67,6 @@ function trimCheck(value: OsqueryCheckMutation): OsqueryCheckMutation {
     targets: normalizeLabelTargetSet(value.targets),
   };
 }
-
 export function CheckForm({
   initial,
   title,
@@ -109,7 +101,6 @@ export function CheckForm({
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
-
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
@@ -118,7 +109,6 @@ export function CheckForm({
     }
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
   }
-
   const selectSchemaTable = useCallback(
     (tableName: string) => {
       setSelectedSchemaTable(tableName);
@@ -126,138 +116,142 @@ export function CheckForm({
     },
     [setSchemaOpen],
   );
-
   return (
     <PageShell
-      asChild
       className={cn(
         "h-full transition-[padding] duration-200 ease-out",
         schemaOpen && "pr-[21rem]",
       )}
+      render={
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit().then(() => {
+              revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
+              return undefined;
+            });
+          }}
+        />
+      }
     >
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit().then(() => {
-            revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
-            return undefined;
-          });
-        }}
-      >
-        <form.Subscribe selector={(state) => state.values.name}>
-          {(name) => (
-            <PageHeader
-              title={title ?? (name || "Check")}
-              context={headerContext}
-              actions={headerActions}
-            />
-          )}
-        </form.Subscribe>
+      <form.Subscribe selector={(state) => state.values.name}>
+        {(name) => (
+          <PageHeader
+            title={title ?? (name || "Check")}
+            context={headerContext}
+            actions={headerActions}
+          />
+        )}
+      </form.Subscribe>
 
-        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
-          <ScrollableTabsList>
-            <FormTabTrigger form={form} tab={checkFormTabs[0]}>
-              Options
-            </FormTabTrigger>
-            <FormTabTrigger form={form} tab={checkFormTabs[1]}>
-              Targets
-            </FormTabTrigger>
-          </ScrollableTabsList>
+      <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+        <ScrollableTabsList>
+          <FormTabTrigger form={form} tab={checkFormTabs[0]}>
+            Options
+          </FormTabTrigger>
+          <FormTabTrigger form={form} tab={checkFormTabs[1]}>
+            Targets
+          </FormTabTrigger>
+        </ScrollableTabsList>
 
-          <TabsContent value="options" forceMount className="data-[state=inactive]:hidden">
-            <div className="flex max-w-5xl flex-col gap-6">
-              <FieldGroup className="max-w-3xl">
-                <form.Field name="name">
-                  {(field) => (
-                    <FormField field={field} label="Name" htmlFor="check-name" required>
-                      {(control) => (
-                        <Input
-                          {...control}
-                          name={field.name}
-                          required
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      )}
-                    </FormField>
-                  )}
-                </form.Field>
-
-                <form.Field name="description">
-                  {(field) => (
-                    <FormField field={field} label="Description" htmlFor="check-description">
-                      {(control) => (
-                        <Textarea
-                          {...control}
-                          name={field.name}
-                          rows={3}
-                          value={field.state.value ?? ""}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                      )}
-                    </FormField>
-                  )}
-                </form.Field>
-              </FieldGroup>
-
-              <form.Field name="query">
-                {(field) => {
-                  const error = firstErrorMessage(field.state.meta.errors);
-                  return (
-                    <Field data-invalid={error ? true : undefined}>
-                      <FieldLabel required>Query</FieldLabel>
-                      <SQLEditor
-                        ref={editorRef}
+        <TabsContent value="options" keepMounted className="data-inactive:hidden">
+          <div className="flex max-w-5xl flex-col gap-6">
+            <FieldGroup className="max-w-3xl">
+              <form.Field name="name">
+                {(field) => (
+                  <FormField field={field} label="Name" htmlFor="check-name" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        name={field.name}
+                        required
                         value={field.state.value}
-                        onChange={field.handleChange}
-                        onTableMetaClick={selectSchemaTable}
-                        placeholder="SELECT ..."
-                        invalid={error ? true : undefined}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
                       />
-                      {error ? <FieldError>{error}</FieldError> : null}
-                    </Field>
-                  );
-                }}
+                    )}
+                  </FormField>
+                )}
               </form.Field>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="targets" forceMount className="data-[state=inactive]:hidden">
-            <form.Field name="targets">
-              {(field) => (
-                <FormField field={field}>
-                  {(control) => (
-                    <div {...control} tabIndex={-1}>
-                      <LabelTargetSetEditor
-                        value={normalizeLabelTargetSet(field.state.value)}
-                        onChange={field.handleChange}
+              <form.Field name="description">
+                {(field) => (
+                  <FormField field={field} label="Description" htmlFor="check-description">
+                    {(control) => (
+                      <Textarea
+                        {...control}
+                        name={field.name}
+                        rows={3}
+                        value={field.state.value ?? ""}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
                       />
-                    </div>
-                  )}
-                </FormField>
-              )}
+                    )}
+                  </FormField>
+                )}
+              </form.Field>
+            </FieldGroup>
+
+            <form.Field name="query">
+              {(field) => {
+                const error = firstErrorMessage(field.state.meta.errors);
+                return (
+                  <Field data-invalid={error ? true : undefined}>
+                    <FieldLabel>
+                      Query
+                      <span className="text-destructive" aria-hidden="true">
+                        *
+                      </span>
+                    </FieldLabel>
+                    <SQLEditor
+                      ref={editorRef}
+                      value={field.state.value}
+                      onChange={field.handleChange}
+                      onTableMetaClick={selectSchemaTable}
+                      placeholder="SELECT ..."
+                      invalid={error ? true : undefined}
+                    />
+                    {error ? <FieldError>{error}</FieldError> : null}
+                  </Field>
+                );
+              }}
             </form.Field>
-          </TabsContent>
-        </ScrollableTabs>
+          </div>
+        </TabsContent>
 
-        <FormActions
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
+        <TabsContent value="targets" keepMounted className="data-inactive:hidden">
+          <form.Field name="targets">
+            {(field) => (
+              <FormField field={field}>
+                {(control) => (
+                  <div {...control} tabIndex={-1}>
+                    <LabelTargetSetEditor
+                      value={normalizeLabelTargetSet(field.state.value)}
+                      onChange={field.handleChange}
+                    />
+                  </div>
+                )}
+              </FormField>
+            )}
+          </form.Field>
+        </TabsContent>
+      </ScrollableTabs>
 
-        <SchemaSidebar
-          open={schemaOpen}
-          onOpenChange={setSchemaOpen}
-          onInsertColumn={insertAtCursor}
-          selectedTable={selectedSchemaTable}
-          onSelectedTableChange={setSelectedSchemaTable}
-        />
-        {exitGuard.dialog}
-      </form>
+      <FormActions
+        form={form}
+        submitLabel={submitLabel}
+        onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+      />
+
+      <SchemaSidebar
+        open={schemaOpen}
+        onOpenChange={setSchemaOpen}
+        onInsertColumn={insertAtCursor}
+        selectedTable={selectedSchemaTable}
+        onSelectedTableChange={setSelectedSchemaTable}
+      />
+      {exitGuard.dialog}
     </PageShell>
   );
 }

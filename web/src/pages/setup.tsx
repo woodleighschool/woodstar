@@ -11,11 +11,9 @@ import { Input } from "@/components/ui/input";
 import { useSetup } from "@/hooks/use-auth";
 import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { emailAddress, requiredString } from "@/lib/form-validation";
-
 export function SetupPage() {
   const setup = useSetup();
   const initial = { email: "", name: "", password: "" };
-
   const form = useForm({
     defaultValues: initial,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -36,7 +34,6 @@ export function SetupPage() {
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: () => form.reset(initial) });
-
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
       <Card className="w-full max-w-md">
@@ -125,10 +122,8 @@ export function SetupPage() {
               <Field>
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
-                    <Pending isPending={isSubmitting}>
-                      <Button type="submit">
-                        {isSubmitting ? "Creating account…" : "Create Account"}
-                      </Button>
+                    <Pending isPending={isSubmitting} render={<Button type="submit" />}>
+                      {isSubmitting ? "Creating account…" : "Create Account"}
                     </Pending>
                   )}
                 </form.Subscribe>

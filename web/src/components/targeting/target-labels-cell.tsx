@@ -10,7 +10,6 @@ import {
   targetLabelIDs,
   targetSummary,
 } from "@/lib/targeting";
-
 export function TargetLabelsCell({
   labelIDs,
   targets,
@@ -26,25 +25,26 @@ export function TargetLabelsCell({
   const countText = targets
     ? targetSummary(targets)
     : `${ids.length} label${ids.length === 1 ? "" : "s"}`;
-
   if (ids.length === 0) {
     return empty ?? <span className="text-sm tabular-nums">{countText}</span>;
   }
-
   const labels = labelsFromIDs(ids, labelsByID);
   if (!targets && labels.length === 1 && isAllHostsLabel(labels[0])) {
     return <span className="text-sm">{labels[0].name}</span>;
   }
-
   return (
-    <HoverCard openDelay={150} closeDelay={150}>
-      <HoverCardTrigger asChild>
-        <button
-          type="button"
-          className="rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          {countText}
-        </button>
+    <HoverCard>
+      <HoverCardTrigger
+        delay={150}
+        closeDelay={150}
+        render={
+          <button
+            type="button"
+            className="rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          />
+        }
+      >
+        {countText}
       </HoverCardTrigger>
       <HoverCardContent align="start" side="top" className="w-auto max-w-80 p-2">
         <LabelChips labels={labels} />

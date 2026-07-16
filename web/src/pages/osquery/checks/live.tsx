@@ -6,11 +6,9 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
-
 export function CheckLivePage() {
   const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
   const check = useCheck(Number(checkId));
-
   if (check.error) {
     return (
       <PageShell>
@@ -30,7 +28,6 @@ export function CheckLivePage() {
       </PageShell>
     );
   }
-
   return (
     <LiveRunner
       kind="check"
@@ -38,10 +35,13 @@ export function CheckLivePage() {
       name={check.data.name}
       sql={check.data.query}
       editAction={
-        <Button asChild variant="outline" size="sm">
-          <Link to="/osquery/checks/$checkId" params={{ checkId }}>
-            Edit Check
-          </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          render={<Link to="/osquery/checks/$checkId" params={{ checkId }} />}
+          nativeButton={false}
+        >
+          Edit Check
         </Button>
       }
     />

@@ -20,7 +20,7 @@ export function EnumStatus<T extends string>({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{status}</TooltipTrigger>
+      <TooltipTrigger render={status} />
       <TooltipContent className="max-w-72 text-left">{item.description}</TooltipContent>
     </Tooltip>
   );

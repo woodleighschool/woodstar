@@ -1,50 +1,35 @@
-import {
-  cloneElement,
-  type ComponentProps,
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import { type ComponentProps, type ReactNode } from "react";
 
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { cn } from "@/lib/utils";
 
 function PageShell({
   className,
-  asChild = false,
   children,
+  render,
   ...props
-}: ComponentProps<"div"> & {
-  asChild?: boolean;
-}) {
-  const shellClassName = cn("flex min-w-0 flex-col gap-5 p-6", className);
-  const shellChildren = (
-    <>
-      <AppBreadcrumbs className="-mb-1" />
-      {children}
-    </>
-  );
-
-  if (asChild && isValidElement(children)) {
-    const child = children as ReactElement<{ className?: string; children?: ReactNode }>;
-
-    return cloneElement(child, {
-      ...props,
-      className: cn(shellClassName, child.props.className),
-      children: (
-        <>
-          <AppBreadcrumbs className="-mb-1" />
-          {child.props.children}
-        </>
-      ),
-    });
-  }
-
-  return (
-    <div className={shellClassName} {...props}>
-      {shellChildren}
-    </div>
-  );
+}: ComponentProps<"div"> & useRender.ComponentProps<"div">) {
+  return useRender({
+    defaultTagName: "div",
+    props: mergeProps<"div">(
+      {
+        className: cn("flex min-w-0 flex-col gap-5 p-6", className),
+        children: (
+          <>
+            <AppBreadcrumbs className="-mb-1" />
+            {children}
+          </>
+        ),
+      },
+      props,
+    ),
+    render,
+    state: {
+      slot: "page-shell",
+    },
+  });
 }
 
 function PageHeader({

@@ -42,11 +42,16 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { POLICY_OPTIONS, type SantaRulePolicy } from "@/lib/santa-rules";
 
 import { type RuleIncludeForm, santaRuleIncludeSchema } from "./form-state";
-
 const POLICY_LABELS = new Map(POLICY_OPTIONS.map((option) => [option.value, option.label]));
-
-type DialogState = { mode: "add" } | { mode: "edit"; id: number } | null;
-
+type DialogState =
+  | {
+      mode: "add";
+    }
+  | {
+      mode: "edit";
+      id: number;
+    }
+  | null;
 export function SantaIncludeTargets({
   include,
   excludeLabelIDs,
@@ -68,15 +73,12 @@ export function SantaIncludeTargets({
   );
   const usedLabelIDs = include.flatMap((row) => (row.label_id === null ? [] : [row.label_id]));
   const unavailableLabelIDs = [...usedLabelIDs, ...excludeLabelIDs];
-
   function openAdd() {
     setDialog({ mode: "add" });
   }
-
   function openEdit(row: RuleIncludeForm) {
     setDialog({ mode: "edit", id: row.id });
   }
-
   return (
     <TargetSection
       title="Include"
@@ -158,7 +160,6 @@ export function SantaIncludeTargets({
     </TargetSection>
   );
 }
-
 function SantaIncludeDialog({
   mode,
   initial,
@@ -186,7 +187,6 @@ function SantaIncludeDialog({
     onDiscard: onClose,
     blockNavigation: false,
   });
-
   return (
     <Dialog
       open
@@ -305,7 +305,6 @@ function SantaIncludeDialog({
     </Dialog>
   );
 }
-
 function SantaIncludeRowActions({
   onEdit,
   onRemove,
@@ -316,10 +315,17 @@ function SantaIncludeRowActions({
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Open include actions">
-            <MoreHorizontal />
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Open include actions"
+            />
+          }
+        >
+          <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
           <DropdownMenuGroup>
@@ -333,16 +339,13 @@ function SantaIncludeRowActions({
     </div>
   );
 }
-
 function includeLabel(row: RuleIncludeForm, labelsByID: Map<number, string>) {
   if (row.label_id === null) return "-";
   return labelsByID.get(row.label_id) ?? `Label ${row.label_id}`;
 }
-
 function nextIncludeID(include: RuleIncludeForm[]) {
   return include.reduce((max, row) => Math.max(max, row.id), 0) + 1;
 }
-
 function requiredInclude(include: RuleIncludeForm[], id: number) {
   const target = include.find((row) => row.id === id);
   if (!target) throw new Error("The selected Santa include no longer exists");

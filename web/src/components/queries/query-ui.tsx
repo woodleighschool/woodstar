@@ -12,11 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-
 const LazySQLEditor = lazy(() =>
   import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
 );
-
 export function DetailSettings({
   children,
   className,
@@ -30,7 +28,6 @@ export function DetailSettings({
     </div>
   );
 }
-
 export function SettingItem({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-2">
@@ -39,15 +36,12 @@ export function SettingItem({ label, children }: { label: string; children: Reac
     </div>
   );
 }
-
 export function ShowQueryButton({ sql }: { sql: string }) {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <FileCode2 data-icon="inline-start" />
-          Show Query
-        </Button>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        <FileCode2 data-icon="inline-start" />
+        Show Query
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
@@ -65,7 +59,6 @@ export function ShowQueryButton({ sql }: { sql: string }) {
     </Dialog>
   );
 }
-
 export function LiveRunButton({
   to,
   params,
@@ -77,15 +70,16 @@ export function LiveRunButton({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   if (!isAdmin) return null;
-
   return (
-    <Button asChild variant="outline" size="sm">
-      <Link to={to} params={params} search={search}>
-        <Play data-icon="inline-start" />
-        Run Live
-      </Link>
+    <Button
+      variant="outline"
+      size="sm"
+      render={<Link to={to} params={params} search={search} />}
+      nativeButton={false}
+    >
+      <Play data-icon="inline-start" />
+      Run Live
     </Button>
   );
 }

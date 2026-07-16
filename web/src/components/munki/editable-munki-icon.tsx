@@ -24,9 +24,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { useMunkiIcons } from "@/hooks/use-munki-icons";
 import { formatBytes } from "@/lib/utils";
-
 export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
-
 interface EditableMunkiIconProps {
   title: string;
   iconUrl?: string;
@@ -36,7 +34,6 @@ interface EditableMunkiIconProps {
   onPickExisting: (object: { id: number; url: string }) => void;
   onClear: () => void;
 }
-
 export function EditableMunkiIcon({
   title,
   iconUrl,
@@ -53,7 +50,6 @@ export function EditableMunkiIcon({
   const hasIcon = !!file || !!displayURL;
   const uploadLabel = hasIcon ? `Replace ${title}` : `Choose ${title}`;
   const clearLabel = `Clear ${title}`;
-
   useEffect(() => {
     if (!file) {
       setPreviewURL("");
@@ -63,13 +59,11 @@ export function EditableMunkiIcon({
     setPreviewURL(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
   function resetInput() {
     if (inputRef.current) {
       inputRef.current.value = "";
     }
   }
-
   return (
     <Field>
       <FieldLabel>Icon</FieldLabel>
@@ -134,7 +128,6 @@ export function EditableMunkiIcon({
     </Field>
   );
 }
-
 function IconPickerDialog({
   open,
   onOpenChange,
@@ -148,7 +141,6 @@ function IconPickerDialog({
 }) {
   const icons = useMunkiIcons(open);
   const items = icons.data?.items ?? [];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -183,11 +175,7 @@ function IconPickerDialog({
           </p>
         )}
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </DialogClose>
+          <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
           <Button type="button" onClick={onUpload}>
             <Upload data-icon="inline-start" />
             Upload New

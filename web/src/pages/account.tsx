@@ -25,10 +25,8 @@ import type { Account } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
-
 export function AccountPage() {
   const account = useAccount();
-
   if (account.error) {
     return (
       <PageShell>
@@ -40,11 +38,9 @@ export function AccountPage() {
       </PageShell>
     );
   }
-
   if (!account.data) {
     return null;
   }
-
   return (
     <PageShell className="max-w-3xl gap-4">
       <AccountProfileCard key={account.data.user.updated_at} account={account.data} />
@@ -52,13 +48,11 @@ export function AccountPage() {
     </PageShell>
   );
 }
-
 function AccountProfileCard({ account }: { account: Account }) {
   const user = account.user;
   const update = useUpdateAccount();
   const isLocal = user.source === "local";
   const initial = { name: user.name, password: "" };
-
   const form = useForm({
     defaultValues: initial,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -87,7 +81,6 @@ function AccountProfileCard({ account }: { account: Account }) {
     form,
     onDiscard: () => form.reset(initial),
   });
-
   return (
     <>
       <Card>
@@ -170,10 +163,8 @@ function AccountProfileCard({ account }: { account: Account }) {
             </p>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending isPending={isSubmitting}>
-                  <Button type="submit" size="sm">
-                    {isSubmitting ? "Saving…" : "Save"}
-                  </Button>
+                <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
+                  {isSubmitting ? "Saving…" : "Save"}
                 </Pending>
               )}
             </form.Subscribe>

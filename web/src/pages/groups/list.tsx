@@ -4,7 +4,6 @@ import { UsersRound } from "lucide-react";
 import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
@@ -39,7 +38,7 @@ export function GroupListPage() {
       {
         id: "display_name",
         accessorKey: "display_name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+        header: "Name",
         cell: ({ row }) => (
           <Link
             to="/directory/users"
@@ -55,21 +54,21 @@ export function GroupListPage() {
       {
         id: "mail_nickname",
         accessorKey: "mail_nickname",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Nickname" />,
+        header: "Nickname",
         cell: ({ row }) => nonEmpty(row.original.mail_nickname) ?? "-",
         meta: { label: "Nickname" },
       },
       {
         id: "member_count",
         accessorKey: "member_count",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Members" />,
+        header: "Members",
         cell: ({ row }) => row.original.member_count,
         meta: { label: "Members" },
       },
       {
         id: "source",
         accessorKey: "source",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Source" />,
+        header: "Source",
         cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
         meta: { label: "Source" },
       },

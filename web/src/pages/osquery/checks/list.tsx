@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
@@ -19,26 +18,21 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import type { OsqueryCheck } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-
 export function CheckListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const query = useChecks({
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-
   const checks = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
-
   const columns = React.useMemo<ColumnDef<OsqueryCheck>[]>(() => checkColumns(isAdmin), [isAdmin]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: checks,
@@ -48,18 +42,15 @@ export function CheckListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   return (
     <PageShell>
       <PageHeader
         title="Checks"
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/osquery/checks/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/osquery/checks/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }
@@ -100,14 +91,13 @@ export function CheckListPage() {
     </PageShell>
   );
 }
-
 function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
   const columns: ColumnDef<OsqueryCheck>[] = [
     selectColumn<OsqueryCheck>(),
     {
       id: "name",
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      header: "Name",
       cell: ({ row }) =>
         isAdmin ? (
           <Link
@@ -164,7 +154,6 @@ function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
   ];
   return columns;
 }
-
 function HostCount({
   checkId,
   response,

@@ -7,10 +7,14 @@ import { toast } from "sonner";
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import {
+  DraggableTableRow,
+  DraggableTableRowHandle,
+  DraggableTableRows,
+} from "@/components/data-table/draggable-table-rows";
 import { selectColumn } from "@/components/data-table/select-column";
 import { EnumStatus } from "@/components/enum-status";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
@@ -19,12 +23,6 @@ import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  Sortable,
-  SortableContent,
-  SortableItem,
-  SortableItemHandle,
-} from "@/components/ui/sortable";
 import {
   Table,
   TableBody,
@@ -46,14 +44,12 @@ import type { SantaConfiguration } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import { CLIENT_MODES } from "@/lib/santa-configurations";
 import { formatRelative } from "@/lib/utils";
-
 export function ConfigurationListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
-
   const query = useSantaConfigurations(
     reorderEnabled
       ? { q: tableSearch.q, per_page: MAX_PAGE_SIZE, sort: encodeSort("position") }
@@ -64,25 +60,21 @@ export function ConfigurationListPage() {
           sort: tableSearch.sort,
         },
   );
-
   const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const labelsByID = React.useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
   );
-
   const serverRows = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !hasFilters && totalCount > 1 && !query.isLoading;
-
   const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(
     () => configurationColumns(labelsByID, isAdmin),
     [isAdmin, labelsByID],
   );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: serverRows,
@@ -92,7 +84,6 @@ export function ConfigurationListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
-
   const emptyState = (
     <DataTableEmpty
       icon={<FileSliders />}
@@ -102,7 +93,6 @@ export function ConfigurationListPage() {
       filteredDescription="No configurations matched the current filters."
     />
   );
-
   return (
     <PageShell>
       <PageHeader
@@ -122,11 +112,13 @@ export function ConfigurationListPage() {
                 </Button>
               </ButtonGroup>
               {reorderEnabled ? null : (
-                <Button asChild size="sm">
-                  <Link to="/santa/configurations/new">
-                    <Plus data-icon="inline-start" />
-                    Create
-                  </Link>
+                <Button
+                  size="sm"
+                  render={<Link to="/santa/configurations/new" />}
+                  nativeButton={false}
+                >
+                  <Plus data-icon="inline-start" />
+                  Create
                 </Button>
               )}
             </>
@@ -187,7 +179,6 @@ export function ConfigurationListPage() {
     </PageShell>
   );
 }
-
 function configurationColumns(
   labelsByID: ReadonlyMap<number, LabelChip>,
   isAdmin: boolean,
@@ -197,7 +188,7 @@ function configurationColumns(
     {
       id: "position",
       accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Order" />,
+      header: "Order",
       cell: ({ row }) => row.original.position + 1,
       meta: { label: "Order" },
       size: 80,
@@ -205,7 +196,7 @@ function configurationColumns(
     {
       id: "name",
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+      header: "Name",
       cell: ({ row }) =>
         isAdmin ? (
           <Link
@@ -249,7 +240,6 @@ function configurationColumns(
   ];
   return columns;
 }
-
 function ConfigurationReorder({
   rows,
   labelsByID,
@@ -265,9 +255,7 @@ function ConfigurationReorder({
 }) {
   const [ordered, setOrdered] = React.useState<SantaConfiguration[]>(rows);
   const reorder = useReorderSantaConfigurations();
-
   const dragDisabled = reorder.isPending || truncated || ordered.length <= 1;
-
   function saveOrder() {
     reorder.mutate(
       ordered.map((row) => row.id),
@@ -280,7 +268,6 @@ function ConfigurationReorder({
       },
     );
   }
-
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
@@ -297,7 +284,7 @@ function ConfigurationReorder({
         </Button>
       </div>
 
-      <Sortable value={ordered} onValueChange={setOrdered} getItemValue={(row) => row.id}>
+      <DraggableTableRows value={ordered} onValueChange={setOrdered} getRowId={(row) => row.id}>
         <div className="overflow-hidden rounded-md border">
           <Table>
             <TableHeader>
@@ -310,40 +297,29 @@ function ConfigurationReorder({
                 <TableHead>Updated</TableHead>
               </TableRow>
             </TableHeader>
-            <SortableContent asChild>
-              <TableBody>
-                {ordered.map((row, index) => (
-                  <SortableItem key={row.id} value={row.id} asChild>
-                    <TableRow>
-                      <TableCell className="w-10">
-                        <SortableItemHandle asChild disabled={dragDisabled}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Drag to reorder"
-                          >
-                            <GripVertical className="text-muted-foreground" />
-                          </Button>
-                        </SortableItemHandle>
-                      </TableCell>
-                      <TableCell className="w-20">{index + 1}</TableCell>
-                      <TableCell className="font-medium">{row.name}</TableCell>
-                      <TableCell>
-                        <EnumStatus value={row.client_mode} metadata={CLIENT_MODES} />
-                      </TableCell>
-                      <TableCell>
-                        <TargetLabelsCell targets={row.targets} labelsByID={labelsByID} />
-                      </TableCell>
-                      <TableCell>{formatRelative(row.updated_at)}</TableCell>
-                    </TableRow>
-                  </SortableItem>
-                ))}
-              </TableBody>
-            </SortableContent>
+            <TableBody>
+              {ordered.map((row, index) => (
+                <DraggableTableRow key={row.id} id={row.id}>
+                  <TableCell className="w-10">
+                    <DraggableTableRowHandle disabled={dragDisabled}>
+                      <GripVertical className="text-muted-foreground" />
+                    </DraggableTableRowHandle>
+                  </TableCell>
+                  <TableCell className="w-20">{index + 1}</TableCell>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell>
+                    <EnumStatus value={row.client_mode} metadata={CLIENT_MODES} />
+                  </TableCell>
+                  <TableCell>
+                    <TargetLabelsCell targets={row.targets} labelsByID={labelsByID} />
+                  </TableCell>
+                  <TableCell>{formatRelative(row.updated_at)}</TableCell>
+                </DraggableTableRow>
+              ))}
+            </TableBody>
           </Table>
         </div>
-      </Sortable>
+      </DraggableTableRows>
 
       {truncated ? (
         <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
@@ -354,7 +330,6 @@ function ConfigurationReorder({
     </div>
   );
 }
-
 function ReorderWarningDialog({
   open,
   onOpenChange,

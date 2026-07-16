@@ -12,13 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useLogin, useSession } from "@/hooks/use-auth";
 import { emailAddress, requiredString } from "@/lib/form-validation";
-
 export function LoginPage() {
   const { session } = useSession();
-  const search: { sso_error?: string } = useSearch({ strict: false });
+  const search: {
+    sso_error?: string;
+  } = useSearch({ strict: false });
   const ssoEnabled = session?.sso_enabled ?? false;
   const login = useLogin();
-
   const form = useForm({
     defaultValues: { email: "", password: "" },
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -32,7 +32,6 @@ export function LoginPage() {
       await login.mutateAsync({ email: value.email.trim(), password: value.password });
     },
   });
-
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
       <Card className="w-full max-w-md">
@@ -89,8 +88,8 @@ export function LoginPage() {
               <Field>
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
-                    <Pending isPending={isSubmitting}>
-                      <Button type="submit">{isSubmitting ? "Logging in…" : "Login"}</Button>
+                    <Pending isPending={isSubmitting} render={<Button type="submit" />}>
+                      {isSubmitting ? "Logging in…" : "Login"}
                     </Pending>
                   )}
                 </form.Subscribe>
@@ -102,8 +101,13 @@ export function LoginPage() {
                 {ssoEnabled ? (
                   <>
                     <Separator />
-                    <Button asChild type="button" variant="outline">
-                      <a href="/api/auth/sso/start">Login with SSO</a>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      render={<a href="/api/auth/sso/start" />}
+                      nativeButton={false}
+                    >
+                      Login with SSO
                     </Button>
                   </>
                 ) : null}

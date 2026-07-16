@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -29,17 +28,13 @@ import type { Label } from "@/lib/api";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
-
 const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
-
 export function LabelListPage() {
   const tableSearch = useDataTableSearch(MEMBERSHIP_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleting, setDeleting] = React.useState<Label | null>(null);
-
   const membership = tableSearch.filters.label_membership_type?.[0];
-
   const query = useLabels(
     {
       q: tableSearch.q,
@@ -49,20 +44,18 @@ export function LabelListPage() {
       label_type: "regular",
       label_membership_type: membership as LabelListParams["label_membership_type"],
     },
-    { refetchInterval: 30_000 },
+    { refetchInterval: 30000 },
   );
-
   const labels = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!membership;
-
   const columns = React.useMemo<ColumnDef<Label>[]>(() => {
     const baseColumns: ColumnDef<Label>[] = [
       {
         id: "name",
         accessorKey: "name",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+        header: "Name",
         cell: ({ row }) =>
           isAdmin ? (
             <Link
@@ -81,7 +74,7 @@ export function LabelListPage() {
       {
         id: "label_membership_type",
         accessorKey: "label_membership_type",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Membership" />,
+        header: "Membership",
         cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
         meta: { label: "Membership", options: LABEL_MEMBERSHIP_OPTIONS },
         enableColumnFilter: true,
@@ -89,14 +82,14 @@ export function LabelListPage() {
       {
         id: "hosts_count",
         accessorKey: "hosts_count",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Hosts" />,
+        header: "Hosts",
         cell: ({ row }) => row.original.hosts_count,
         meta: { label: "Hosts" },
       },
       {
         id: "updated_at",
         accessorKey: "updated_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Updated" />,
+        header: "Updated",
         cell: ({ row }) =>
           row.original.updated_at ? formatRelative(row.original.updated_at) : "-",
         meta: { label: "Updated" },
@@ -113,7 +106,6 @@ export function LabelListPage() {
     ];
     return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
   }, [isAdmin]);
-
   const table = useDataTable({
     tableState: tableSearch,
     data: labels,
@@ -122,7 +114,6 @@ export function LabelListPage() {
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-
   return (
     <PageShell>
       <PageHeader
@@ -130,11 +121,9 @@ export function LabelListPage() {
         description="Group hosts for targeting, reporting, and Santa rules."
         actions={
           isAdmin ? (
-            <Button asChild size="sm">
-              <Link to="/labels/new">
-                <Plus data-icon="inline-start" />
-                Create
-              </Link>
+            <Button size="sm" render={<Link to="/labels/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
             </Button>
           ) : null
         }
@@ -185,21 +174,18 @@ export function LabelListPage() {
     </PageShell>
   );
 }
-
 function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: Label) => void }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" size="icon" variant="ghost">
-          <MoreHorizontal />
-        </Button>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link to="/labels/$labelId/edit" params={{ labelId: String(label.id) }}>
-              Edit
-            </Link>
+          <DropdownMenuItem
+            render={<Link to="/labels/$labelId/edit" params={{ labelId: String(label.id) }} />}
+          >
+            Edit
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => onDelete(label)}>
             Delete
@@ -209,7 +195,6 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
     </DropdownMenu>
   );
 }
-
 function LabelDeleteDialog({
   label,
   open,
@@ -220,14 +205,12 @@ function LabelDeleteDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const remove = useDeleteLabel();
-
   async function handleDelete() {
     if (!label) return;
     await remove.mutateAsync(label.id);
     onOpenChange(false);
     toast.success("Deleted label");
   }
-
   return (
     <ConfirmDialog
       open={open}

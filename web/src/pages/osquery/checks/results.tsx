@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck, useCheckResults } from "@/hooks/use-checks";
 import type { OsqueryCheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
-
 const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "host_name",
@@ -37,7 +36,6 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     cell: ({ row }) => formatRelative(row.original.updated_at),
   },
 ];
-
 export function CheckResultsPage() {
   const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
   const search = useSearch({ from: "/_authenticated/osquery/checks/$checkId/results" });
@@ -47,17 +45,19 @@ export function CheckResultsPage() {
   const rows = results.data ?? [];
   const responseLabel =
     search.response === "pass" ? "Passing" : search.response === "fail" ? "Failing" : "All";
-
   return (
     <PageShell>
       <PageHeader
         title={check.data?.name ? `${check.data.name} Results` : "Check Results"}
         description={`${responseLabel} check results by host.`}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/osquery/checks/$checkId" params={{ checkId }}>
-              Edit Check
-            </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link to="/osquery/checks/$checkId" params={{ checkId }} />}
+            nativeButton={false}
+          >
+            Edit Check
           </Button>
         }
       />

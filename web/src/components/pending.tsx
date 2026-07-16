@@ -1,4 +1,5 @@
-import { Slot as SlotPrimitive } from "radix-ui";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import * as React from "react";
 
 interface UsePendingOptions {
@@ -23,7 +24,7 @@ function usePending<T extends HTMLElement = HTMLElement>(
   const { id, isPending = false, disabled = false } = options;
 
   const instanceId = React.useId();
-  const pendingId = id || instanceId;
+  const pendingId = id ?? instanceId;
 
   const pendingProps = React.useMemo(() => {
     const props: React.HTMLAttributes<T> & {
@@ -74,15 +75,23 @@ function usePending<T extends HTMLElement = HTMLElement>(
   }, [pendingProps, isPending]);
 }
 
-interface PendingProps extends React.ComponentProps<typeof SlotPrimitive.Slot> {
+interface PendingProps extends React.ComponentProps<"button">, useRender.ComponentProps<"button"> {
   isPending?: boolean;
   disabled?: boolean;
 }
 
-function Pending({ id, isPending, disabled, ...props }: PendingProps) {
+function Pending({ id, isPending, disabled, render, ...props }: PendingProps) {
   const { pendingProps } = usePending({ id, isPending, disabled });
 
-  return <SlotPrimitive.Slot {...props} {...pendingProps} />;
+  return useRender({
+    defaultTagName: "button",
+    props: mergeProps<"button">(props, pendingProps),
+    render,
+    state: {
+      disabled,
+      pending: isPending,
+    },
+  });
 }
 
 export { Pending, usePending };

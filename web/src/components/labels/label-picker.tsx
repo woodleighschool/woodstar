@@ -2,15 +2,17 @@ import { useState } from "react";
 
 import {
   Combobox,
-  ComboboxAnchor,
-  ComboboxBadgeItem,
-  ComboboxBadgeList,
-  ComboboxCancel,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
+  ComboboxList,
   ComboboxTrigger,
+  ComboboxValue,
+  useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { encodeSort } from "@/hooks/use-data-table-search";
@@ -59,6 +61,7 @@ export function LabelPicker({
   const noLabelsMessage = emptyMessage ?? "No Labels Available.";
   const selectedValues = selected.map((label) => String(label.id));
   const selectedLabel = selected[0] ?? null;
+  const anchorRef = useComboboxAnchor();
 
   if (labels.isLoading) {
     return <Skeleton className="h-9 w-full" />;
@@ -87,18 +90,20 @@ export function LabelPicker({
   return (
     <Combobox
       multiple
+      items={items.map((label) => String(label.id))}
       value={selectedValues}
       onValueChange={(next) => onChange(next.map((id) => Number(id)).filter(Number.isFinite))}
     >
-      <ComboboxAnchor className="h-auto min-h-9 flex-wrap py-1.5 pr-2">
-        <ComboboxBadgeList>
-          {selected.map((label) => (
-            <ComboboxBadgeItem key={label.id} value={String(label.id)}>
-              {label.name}
-            </ComboboxBadgeItem>
-          ))}
-        </ComboboxBadgeList>
-        <ComboboxInput
+      <ComboboxChips ref={anchorRef} className="h-auto min-h-9 pr-2">
+        <ComboboxValue>
+          {(current: string[]) =>
+            current.map((id) => {
+              const label = rows.find((candidate) => String(candidate.id) === id);
+              return label ? <ComboboxChip key={label.id}>{label.name}</ComboboxChip> : null;
+            })
+          }
+        </ComboboxValue>
+        <ComboboxChipsInput
           className="h-[calc(--spacing(5.5))] min-w-16 flex-1 px-0 py-0 text-sm"
           placeholder={
             items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
@@ -107,10 +112,10 @@ export function LabelPicker({
           aria-invalid={invalid ? true : undefined}
         />
         <ComboboxTrigger aria-label="Open labels" className="ml-auto" />
-      </ComboboxAnchor>
-      <ComboboxContent>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchorRef}>
         <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
-        {items.map(labelItem)}
+        <ComboboxList>{items.map(labelItem)}</ComboboxList>
       </ComboboxContent>
     </Combobox>
   );
@@ -141,7 +146,8 @@ function SingleLabelCombobox({
 
   return (
     <Combobox
-      value={selected ? String(selected.id) : ""}
+      items={items.map((label) => String(label.id))}
+      value={selected ? String(selected.id) : null}
       inputValue={inputValue}
       onInputValueChange={setInputValue}
       onValueChange={(next) => {
@@ -150,28 +156,16 @@ function SingleLabelCombobox({
         setInputValue(label?.name ?? "");
       }}
     >
-      <ComboboxAnchor className="w-full">
-        <ComboboxInput
-          placeholder={
-            items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
-          }
-          required={required}
-          aria-invalid={invalid ? true : undefined}
-        />
-        {inputValue !== "" ? (
-          <ComboboxCancel
-            aria-label="Clear label"
-            onClick={() => {
-              setInputValue("");
-              onChange([]);
-            }}
-          />
-        ) : null}
-        <ComboboxTrigger aria-label="Open labels" />
-      </ComboboxAnchor>
+      <ComboboxInput
+        className="w-full"
+        placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
+        required={required}
+        aria-invalid={invalid ? true : undefined}
+        showClear={inputValue !== ""}
+      />
       <ComboboxContent>
         <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
-        {items.map(labelItem)}
+        <ComboboxList>{items.map(labelItem)}</ComboboxList>
       </ComboboxContent>
     </Combobox>
   );
@@ -179,7 +173,7 @@ function SingleLabelCombobox({
 
 function labelItem(label: WoodstarLabel) {
   return (
-    <ComboboxItem key={label.id} value={String(label.id)} label={label.name} className="gap-2">
+    <ComboboxItem key={label.id} value={String(label.id)} className="gap-2">
       <span className="min-w-0 flex-1 truncate">{label.name}</span>
       <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
     </ComboboxItem>

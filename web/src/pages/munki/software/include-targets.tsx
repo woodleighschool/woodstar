@@ -2,6 +2,11 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import {
+  DraggableTableRow,
+  DraggableTableRowHandle,
+  DraggableTableRows,
+} from "@/components/data-table/draggable-table-rows";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
@@ -31,12 +36,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sortable,
-  SortableContent,
-  SortableItem,
-  SortableItemHandle,
-} from "@/components/ui/sortable";
-import {
   Table,
   TableBody,
   TableCell,
@@ -63,7 +62,6 @@ import {
   MUNKI_SOFTWARE_ACTIONS,
   type MunkiPrimaryAction,
 } from "./munki-software";
-
 export interface MunkiSoftwareTargetRow {
   id: number;
   label_id: number | null;
@@ -71,9 +69,15 @@ export interface MunkiSoftwareTargetRow {
   package: MunkiInclude["package"];
   actions: MunkiInclude["actions"];
 }
-
-type DialogState = { mode: "add" } | { mode: "edit"; id: number } | null;
-
+type DialogState =
+  | {
+      mode: "add";
+    }
+  | {
+      mode: "edit";
+      id: number;
+    }
+  | null;
 export function MunkiIncludeTargets({
   rows,
   excludeLabelIDs,
@@ -97,15 +101,12 @@ export function MunkiIncludeTargets({
   );
   const usedLabelIDs = rows.flatMap((row) => (row.label_id === null ? [] : [row.label_id]));
   const unavailableLabelIDs = [...usedLabelIDs, ...excludeLabelIDs];
-
   function openAdd() {
     setDialog({ mode: "add" });
   }
-
   function openEdit(row: MunkiSoftwareTargetRow) {
     setDialog({ mode: "edit", id: row.id });
   }
-
   return (
     <TargetSection
       title="Include"
@@ -117,12 +118,12 @@ export function MunkiIncludeTargets({
       }
     >
       {rows.length > 0 ? (
-        <Sortable
+        <DraggableTableRows
           value={rows}
           onValueChange={(next) =>
             onChange(next.map((row, index) => ({ ...row, priority: index + 1 })))
           }
-          getItemValue={(row) => row.id}
+          getRowId={(row) => row.id}
         >
           <div className="overflow-x-auto rounded-md border">
             <Table>
@@ -135,54 +136,43 @@ export function MunkiIncludeTargets({
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
-              <SortableContent asChild>
-                <TableBody>
-                  {rows.map((row) => (
-                    <SortableItem key={row.id} value={row.id} asChild>
-                      <TableRow>
-                        <TableCell className="w-10">
-                          <SortableItemHandle asChild disabled={rows.length <= 1}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Drag to reorder"
-                            >
-                              <GripVertical className="text-muted-foreground" />
-                            </Button>
-                          </SortableItemHandle>
-                        </TableCell>
-                        <TableCell>
-                          {row.label_id === null
-                            ? "-"
-                            : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
-                        </TableCell>
-                        <TableCell>{packageLabel(row.package, packages)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) =>
-                              row.actions.includes(option.value),
-                            ).map((option) => (
-                              <Badge key={option.value} variant="secondary" className="font-normal">
-                                {option.label}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-12">
-                          <MunkiIncludeRowActions
-                            onEdit={() => openEdit(row)}
-                            onRemove={() => onChange(rows.filter((item) => item.id !== row.id))}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </SortableItem>
-                  ))}
-                </TableBody>
-              </SortableContent>
+              <TableBody>
+                {rows.map((row) => (
+                  <DraggableTableRow key={row.id} id={row.id}>
+                    <TableCell className="w-10">
+                      <DraggableTableRowHandle disabled={rows.length <= 1}>
+                        <GripVertical className="text-muted-foreground" />
+                      </DraggableTableRowHandle>
+                    </TableCell>
+                    <TableCell>
+                      {row.label_id === null
+                        ? "-"
+                        : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
+                    </TableCell>
+                    <TableCell>{packageLabel(row.package, packages)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) =>
+                          row.actions.includes(option.value),
+                        ).map((option) => (
+                          <Badge key={option.value} variant="secondary" className="font-normal">
+                            {option.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="w-12">
+                      <MunkiIncludeRowActions
+                        onEdit={() => openEdit(row)}
+                        onRemove={() => onChange(rows.filter((item) => item.id !== row.id))}
+                      />
+                    </TableCell>
+                  </DraggableTableRow>
+                ))}
+              </TableBody>
             </Table>
           </div>
-        </Sortable>
+        </DraggableTableRows>
       ) : (
         <EmptyPanel>No includes yet</EmptyPanel>
       )}
@@ -217,7 +207,6 @@ export function MunkiIncludeTargets({
     </TargetSection>
   );
 }
-
 function MunkiIncludeDialog({
   mode,
   initial,
@@ -247,7 +236,6 @@ function MunkiIncludeDialog({
     onDiscard: onClose,
     blockNavigation: false,
   });
-
   return (
     <Dialog
       open
@@ -298,8 +286,14 @@ function MunkiIncludeDialog({
               <FormField field={field} label="Package" htmlFor="munki-target-package" required>
                 {(control) => (
                   <Select
+                    items={[
+                      { value: LATEST_PACKAGE_VALUE, label: "Latest" },
+                      ...packages.map((pkg) => ({ value: String(pkg.id), label: pkg.version })),
+                    ]}
                     value={targetPackageValue(field.state.value)}
-                    onValueChange={(value) => field.handleChange(targetPackageFromValue(value))}
+                    onValueChange={(value) =>
+                      field.handleChange(targetPackageFromValue(value ?? LATEST_PACKAGE_VALUE))
+                    }
                   >
                     <SelectTrigger {...control} className="w-full">
                       <SelectValue />
@@ -347,7 +341,6 @@ function MunkiIncludeDialog({
     </Dialog>
   );
 }
-
 function MunkiIncludeRowActions({
   onEdit,
   onRemove,
@@ -358,10 +351,17 @@ function MunkiIncludeRowActions({
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Open include actions">
-            <MoreHorizontal />
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Open include actions"
+            />
+          }
+        >
+          <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
           <DropdownMenuGroup>
@@ -375,13 +375,11 @@ function MunkiIncludeRowActions({
     </div>
   );
 }
-
 interface ActionSelection {
   intent: MunkiPrimaryAction | "";
   featured: boolean;
   preselect: boolean;
 }
-
 function selectionFromActions(actions: MunkiInclude["actions"]): ActionSelection {
   return {
     intent: MUNKI_PRIMARY_ACTION_VALUES.find((action) => actions.includes(action)) ?? "",
@@ -389,7 +387,6 @@ function selectionFromActions(actions: MunkiInclude["actions"]): ActionSelection
     preselect: actions.includes("default_installs"),
   };
 }
-
 function actionsFromSelection(selection: ActionSelection): MunkiInclude["actions"] {
   if (selection.intent === "") return [];
   if (selection.intent !== "optional_installs") return [selection.intent];
@@ -398,7 +395,6 @@ function actionsFromSelection(selection: ActionSelection): MunkiInclude["actions
   if (selection.preselect) actions.push("default_installs");
   return actions;
 }
-
 function TargetActionsField({
   value,
   onChange,
@@ -411,7 +407,6 @@ function TargetActionsField({
   const selection = selectionFromActions(value);
   const update = (next: Partial<ActionSelection>) =>
     onChange(actionsFromSelection({ ...selection, ...next }));
-
   return (
     <>
       <RadioGroup
@@ -445,9 +440,7 @@ function TargetActionsField({
                   checked={checked}
                   onCheckedChange={(state) =>
                     update(
-                      modifier === "featured_items"
-                        ? { featured: state === true }
-                        : { preselect: state === true },
+                      modifier === "featured_items" ? { featured: state } : { preselect: state },
                     )
                   }
                 />
@@ -465,7 +458,6 @@ function TargetActionsField({
     </>
   );
 }
-
 function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
   if (pkg.strategy === "specific") {
     const selected = packages.find((item) => item.id === pkg.package_id);
@@ -474,11 +466,9 @@ function packageLabel(pkg: MunkiInclude["package"], packages: MunkiPackage[]) {
   }
   return "Latest";
 }
-
 function nextTargetID(rows: MunkiSoftwareTargetRow[]) {
   return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1;
 }
-
 function requiredTarget(rows: MunkiSoftwareTargetRow[], id: number) {
   const target = rows.find((row) => row.id === id);
   if (!target) throw new Error("The selected Munki include no longer exists");

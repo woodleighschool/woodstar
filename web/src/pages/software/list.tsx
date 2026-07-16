@@ -4,7 +4,6 @@ import { Package } from "lucide-react";
 import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
@@ -107,7 +106,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
   {
     id: "name",
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Name" />,
+    header: "Name",
     cell: ({ row }) => (
       <Link
         to="/software/titles/$softwareId"
@@ -124,14 +123,14 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
   {
     id: "versions_count",
     accessorFn: (row) => row.versions_count,
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Versions" />,
+    header: "Versions",
     cell: ({ row }) => versionsSummaryLabel(row.original.versions ?? []),
     meta: { label: "Versions" },
   },
   {
     id: "source",
     accessorKey: "source",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Type" />,
+    header: "Type",
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
@@ -139,7 +138,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
   {
     id: "hosts_count",
     accessorKey: "hosts_count",
-    header: ({ column }) => <DataTableColumnHeader column={column} label="Hosts" />,
+    header: "Hosts",
     cell: ({ row }) => row.original.hosts_count,
     meta: { label: "Hosts" },
   },

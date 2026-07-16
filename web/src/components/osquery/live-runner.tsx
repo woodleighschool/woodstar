@@ -32,11 +32,9 @@ import {
 import type { Host, Label } from "@/lib/api";
 import { isAllHostsLabel } from "@/lib/labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
 type ReportResultRow = Record<string, string>;
-
 export function LiveRunner({
   kind,
   itemId,
@@ -89,7 +87,6 @@ export function LiveRunner({
     !isStarting &&
     !isRunning &&
     !isStopping;
-
   async function run() {
     create.reset();
     stop.reset();
@@ -104,13 +101,11 @@ export function LiveRunner({
     setLiveQueryId(handle.id);
     setStep("run");
   }
-
   async function stopRun() {
     if (liveQueryId === null) return;
     setStopRequested(true);
     await stop.mutateAsync(liveQueryId);
   }
-
   function backToTargets() {
     if (liveQueryId !== null && stream.status === "running") {
       void stop.mutateAsync(liveQueryId).catch(() => undefined);
@@ -122,10 +117,8 @@ export function LiveRunner({
     create.reset();
     stop.reset();
   }
-
   const itemLabel = kind === "report" ? "report" : "check";
   const title = step === "targets" ? `Run ${name}` : `${name} Live Run`;
-
   if (!isAdmin) {
     return (
       <PageShell>
@@ -138,7 +131,6 @@ export function LiveRunner({
       </PageShell>
     );
   }
-
   return (
     <PageShell>
       <PageHeader
@@ -192,7 +184,6 @@ export function LiveRunner({
     </PageShell>
   );
 }
-
 function TargetRunPanel({
   selectedCount,
   hasTargets,
@@ -225,17 +216,17 @@ function TargetRunPanel({
         />
       </div>
       <div className="rounded-md border p-4">
-        <Pending isPending={isStarting}>
-          <Button onClick={onRun} disabled={!canRun && !isStarting}>
-            <Play data-icon="inline-start" />
-            {isStarting ? "Starting…" : "Run"}
-          </Button>
+        <Pending
+          isPending={isStarting}
+          render={<Button onClick={onRun} disabled={!canRun && !isStarting} />}
+        >
+          <Play data-icon="inline-start" />
+          {isStarting ? "Starting…" : "Run"}
         </Pending>
       </div>
     </div>
   );
 }
-
 function TargetSummary({
   selectedCount,
   hasTargets,
@@ -276,7 +267,6 @@ function TargetSummary({
     </p>
   );
 }
-
 function RunResults({
   kind,
   rows,
@@ -303,12 +293,10 @@ function RunResults({
   const isRunning = status === "running";
   const finished = status === "completed";
   const [stopOpen, setStopOpen] = useState(false);
-
   async function confirmStop() {
     await onStop();
     setStopOpen(false);
   }
-
   return (
     <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
@@ -320,11 +308,12 @@ function RunResults({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
-            <Pending isPending={isStopping}>
-              <Button size="sm" variant="destructive" onClick={() => setStopOpen(true)}>
-                <Square data-icon="inline-start" />
-                {isStopping ? "Stopping…" : "Stop"}
-              </Button>
+            <Pending
+              isPending={isStopping}
+              render={<Button size="sm" variant="destructive" onClick={() => setStopOpen(true)} />}
+            >
+              <Square data-icon="inline-start" />
+              {isStopping ? "Stopping…" : "Stop"}
             </Pending>
           ) : (
             <Button size="sm" onClick={onRunAgain}>
@@ -356,7 +345,6 @@ function RunResults({
     </div>
   );
 }
-
 function runHeading(status: string, stopped: boolean) {
   if (status === "running") return "Running";
   if (stopped) return "Stopped";
@@ -364,7 +352,6 @@ function runHeading(status: string, stopped: boolean) {
   if (status === "error") return "Stream Interrupted";
   return "Starting";
 }
-
 function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boolean }) {
   const resultRows = reportResultRows(rows);
   const errorRows = liveErrorRows(rows);
@@ -374,7 +361,6 @@ function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: bo
     </RunResultsTabs>
   );
 }
-
 function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boolean }) {
   const hostRows = checkResultRows(rows);
   const errorRows = liveErrorRows(rows);
@@ -393,7 +379,6 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
     </RunResultsTabs>
   );
 }
-
 function RunResultsTabs({
   children,
   errorRows,
@@ -416,7 +401,6 @@ function RunResultsTabs({
     </Tabs>
   );
 }
-
 function TargetPicker({
   selectedLabels,
   selectedHosts,
@@ -433,13 +417,11 @@ function TargetPicker({
   const hosts = useHosts({ q: hostSearch, per_page: 8, sort: encodeSort("display_name") });
   const grouped = useMemo(() => groupLabels(labels.data?.items ?? []), [labels.data?.items]);
   const hostRows = hosts.data?.items ?? [];
-
   useEffect(() => {
     if (selectedLabels.length > 0 || selectedHosts.length > 0) return;
     const allHosts = grouped.allHosts.at(0);
     if (allHosts) onLabelsChange([allHosts]);
   }, [grouped.allHosts, onLabelsChange, selectedHosts.length, selectedLabels.length]);
-
   function toggleLabel(label: Label) {
     const isAllHosts = isAllHostsLabel(label);
     const alreadySelected = selectedLabels.some((item) => item.id === label.id);
@@ -454,14 +436,12 @@ function TargetPicker({
     }
     onLabelsChange([...selectedLabels.filter((item) => !isAllHostsLabel(item)), label]);
   }
-
   function addHost(host: Host) {
     if (selectedHosts.some((item) => item.id === host.id)) return;
     onLabelsChange(selectedLabels.filter((item) => !isAllHostsLabel(item)));
     onHostsChange([...selectedHosts, host]);
     setHostSearch("");
   }
-
   return (
     <div className="grid content-start gap-5 rounded-md border p-4">
       <div>
@@ -522,7 +502,6 @@ function TargetPicker({
     </div>
   );
 }
-
 function LabelChipGroup({
   title,
   labels,
@@ -551,7 +530,6 @@ function LabelChipGroup({
     </div>
   );
 }
-
 function TargetChip({
   label,
   selected,
@@ -573,7 +551,6 @@ function TargetChip({
     </button>
   );
 }
-
 function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: boolean }) {
   const resultColumns = reportColumns(rows);
   const columns: ColumnDef<ReportResultRow>[] = [
@@ -605,7 +582,6 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
     />
   );
 }
-
 function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: boolean }) {
   const columns: ColumnDef<CheckLiveRow>[] = [
     {
@@ -635,7 +611,6 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
     />
   );
 }
-
 function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
   const columns: ColumnDef<LiveQueryRow>[] = [
     {
@@ -653,22 +628,18 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
     <DataTableStatic columns={columns} data={rows} empty={<RunEmptyState text="No errors yet" />} />
   );
 }
-
 function RunEmptyState({ text }: { text: string }) {
   return <EmptyPanel className="border-0">{text}</EmptyPanel>;
 }
-
 function groupLabels(labels: Label[]) {
   return {
     allHosts: labels.filter(isAllHostsLabel),
     other: labels.filter((label) => !isAllHostsLabel(label)),
   };
 }
-
 function displayLabel(label: Label) {
   return label.name;
 }
-
 function reportResultRows(rows: LiveQueryRow[]) {
   return rows.flatMap((row) => {
     if (row.status !== "success") return [];
@@ -679,13 +650,11 @@ function reportResultRows(rows: LiveQueryRow[]) {
     }));
   });
 }
-
 type CheckLiveRow = {
   host_id: number;
   host_name?: string;
   response: "pass" | "fail";
 };
-
 function checkResultRows(rows: LiveQueryRow[]): CheckLiveRow[] {
   return rows.flatMap((row) => {
     if (row.status !== "success" || row.host_id === undefined) return [];
@@ -698,11 +667,9 @@ function checkResultRows(rows: LiveQueryRow[]): CheckLiveRow[] {
     ];
   });
 }
-
 function liveErrorRows(rows: LiveQueryRow[]) {
   return rows.filter((row) => row.status !== "success" && row.status !== "stopped");
 }
-
 function liveDataRows(row: LiveQueryResult): Array<Record<string, string>> {
   if (Array.isArray(row.data)) {
     return row.data.filter(isRecord).map(stringRecord);
@@ -712,17 +679,14 @@ function liveDataRows(row: LiveQueryResult): Array<Record<string, string>> {
   }
   return [];
 }
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
 function stringRecord(row: Record<string, unknown>) {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [key, formatLiveValue(value)]),
   );
 }
-
 function formatLiveValue(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);
@@ -731,7 +695,6 @@ function formatLiveValue(value: unknown) {
     return String(value);
   return "";
 }
-
 function reportColumns(rows: Array<Record<string, string>>) {
   const seen = new Set<string>();
   for (const row of rows) {

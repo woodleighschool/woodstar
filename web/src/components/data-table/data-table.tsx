@@ -1,4 +1,5 @@
 import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type * as React from "react";
 
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -10,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getColumnPinningStyle } from "@/lib/data-table";
 import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData> extends React.ComponentProps<"div"> {
@@ -35,19 +35,60 @@ export function DataTable<TData>({
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    style={{
-                      ...getColumnPinningStyle({ column: header.column }),
-                    }}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const direction = header.column.getIsSorted();
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      aria-sort={
+                        direction === "asc"
+                          ? "ascending"
+                          : direction === "desc"
+                            ? "descending"
+                            : "none"
+                      }
+                    >
+                      {header.isPlaceholder ? null : (
+                        <div
+                          className={cn(
+                            header.column.getCanSort() &&
+                              "flex h-full cursor-pointer items-center justify-between gap-2 select-none",
+                          )}
+                          onClick={header.column.getToggleSortingHandler()}
+                          onKeyDown={(event) => {
+                            if (
+                              header.column.getCanSort() &&
+                              (event.key === "Enter" || event.key === " ")
+                            ) {
+                              event.preventDefault();
+                              header.column.getToggleSortingHandler()?.(event);
+                            }
+                          }}
+                          tabIndex={header.column.getCanSort() ? 0 : undefined}
+                        >
+                          <span className="truncate">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </span>
+                          {direction === "asc" ? (
+                            <ChevronUpIcon
+                              className="shrink-0 opacity-60"
+                              size={16}
+                              aria-hidden="true"
+                            />
+                          ) : direction === "desc" ? (
+                            <ChevronDownIcon
+                              className="shrink-0 opacity-60"
+                              size={16}
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                        </div>
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -56,12 +97,7 @@ export function DataTable<TData>({
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      style={{
-                        ...getColumnPinningStyle({ column: cell.column }),
-                      }}
-                    >
+                    <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -69,7 +105,7 @@ export function DataTable<TData>({
               ))
             ) : (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={table.getAllColumns().length} className="p-0">
+                <TableCell colSpan={table.getVisibleLeafColumns().length} className="p-0">
                   {empty}
                 </TableCell>
               </TableRow>

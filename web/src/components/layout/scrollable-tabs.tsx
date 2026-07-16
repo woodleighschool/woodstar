@@ -1,4 +1,4 @@
-import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 
 import { ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsList } from "@/components/ui/tabs";

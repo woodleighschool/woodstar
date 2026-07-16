@@ -6,11 +6,9 @@ import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReport } from "@/hooks/use-reports";
-
 export function ReportLivePage() {
   const { reportId } = useParams({ from: "/_authenticated/osquery/reports/$reportId" });
   const report = useReport(Number(reportId));
-
   if (report.error) {
     return (
       <PageShell>
@@ -30,7 +28,6 @@ export function ReportLivePage() {
       </PageShell>
     );
   }
-
   return (
     <LiveRunner
       kind="report"
@@ -38,10 +35,13 @@ export function ReportLivePage() {
       name={report.data.name}
       sql={report.data.query}
       editAction={
-        <Button asChild variant="outline" size="sm">
-          <Link to="/osquery/reports/$reportId" params={{ reportId }}>
-            Edit Report
-          </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          render={<Link to="/osquery/reports/$reportId" params={{ reportId }} />}
+          nativeButton={false}
+        >
+          Edit Report
         </Button>
       }
     />

@@ -18,9 +18,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
 const KEY_MASK = "••••••••••••••••••••••••";
-
 export function KeyRevealDialog({
   title,
   description,
@@ -35,7 +33,6 @@ export function KeyRevealDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [visible, setVisible] = useState(false);
-
   async function copyKey() {
     try {
       await navigator.clipboard.writeText(value);
@@ -44,7 +41,6 @@ export function KeyRevealDialog({
       toast.error("Could not copy to clipboard.");
     }
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -82,7 +78,6 @@ export function KeyRevealDialog({
     </Dialog>
   );
 }
-
 function KeyAction({
   label,
   onClick,
@@ -94,10 +89,10 @@ function KeyAction({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <InputGroupButton size="icon-sm" aria-label={label} onClick={onClick}>
-          {children}
-        </InputGroupButton>
+      <TooltipTrigger
+        render={<InputGroupButton size="icon-sm" aria-label={label} onClick={onClick} />}
+      >
+        {children}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>

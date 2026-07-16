@@ -1,21 +1,21 @@
 import type { Column } from "@tanstack/react-table";
-import { Check, PlusCircle, XCircle } from "lucide-react";
+import { PlusCircle, X } from "lucide-react";
 import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import type { Option } from "@/types/data-table";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
@@ -29,73 +29,58 @@ export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
   options,
-  multiple,
+  multiple = false,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const [open, setOpen] = React.useState(false);
-
+  const anchorRef = useComboboxAnchor();
   const columnFilterValue = column?.getFilterValue();
   const selectedValues = React.useMemo(
     () => new Set(Array.isArray(columnFilterValue) ? columnFilterValue : []),
     [columnFilterValue],
   );
 
-  const onItemSelect = React.useCallback(
-    (option: Option, isSelected: boolean) => {
-      if (!column) return;
+  function setFilter(next: string[]) {
+    if (!column) return;
 
-      if (multiple) {
-        const newSelectedValues = new Set(selectedValues);
-        if (isSelected) {
-          newSelectedValues.delete(option.value);
-        } else {
-          newSelectedValues.add(option.value);
-        }
-        const filterValues = Array.from(newSelectedValues);
-        column.setFilterValue(filterValues.length ? filterValues : undefined);
-      } else {
-        column.setFilterValue(isSelected ? undefined : [option.value]);
-        setOpen(false);
-      }
-    },
-    [column, multiple, selectedValues],
-  );
+    if (multiple) {
+      column.setFilterValue(next.length > 0 ? next : undefined);
+      return;
+    }
 
-  const onReset = React.useCallback(
-    (event?: React.MouseEvent) => {
-      event?.stopPropagation();
-      column?.setFilterValue(undefined);
-    },
-    [column],
-  );
+    const added = next.find((value) => !selectedValues.has(value));
+    const value = added ?? next[0];
+    column.setFilterValue(value ? [value] : undefined);
+    setOpen(false);
+  }
+
+  function resetFilter() {
+    column?.setFilterValue(undefined);
+  }
+
+  const selected = Array.from(selectedValues, String);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="border-dashed font-normal">
-          {selectedValues?.size > 0 ? (
-            <div
-              role="button"
-              aria-label={`Clear ${title} filter`}
-              tabIndex={0}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-              onClick={onReset}
-            >
-              <XCircle />
-            </div>
-          ) : (
-            <PlusCircle />
-          )}
+    <Combobox
+      multiple
+      items={options.map((option) => option.value)}
+      value={selected}
+      onValueChange={setFilter}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <ButtonGroup ref={anchorRef}>
+        <ComboboxTrigger
+          render={<Button variant="outline" size="sm" className="border-dashed font-normal" />}
+        >
+          <PlusCircle />
           {title}
-          {selectedValues?.size > 0 && (
+          {selectedValues.size > 0 ? (
             <>
-              <Separator
-                orientation="vertical"
-                className="mx-0.5 data-[orientation=vertical]:h-4"
-              />
+              <Separator orientation="vertical" className="mx-0.5 h-4" />
               <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
                 {selectedValues.size}
               </Badge>
-              <div className="hidden items-center gap-1 lg:flex">
+              <span className="hidden items-center gap-1 lg:flex">
                 {selectedValues.size > 2 ? (
                   <Badge variant="secondary" className="rounded-sm px-1 font-normal">
                     {selectedValues.size} selected
@@ -113,52 +98,37 @@ export function DataTableFacetedFilter<TData, TValue>({
                       </Badge>
                     ))
                 )}
-              </div>
+              </span>
             </>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-50 p-0" align="start">
-        <Command>
-          <CommandInput placeholder={title} />
-          <CommandList className="max-h-full">
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup className="max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto">
-              {options.map((option) => {
-                const isSelected = selectedValues.has(option.value);
-
-                return (
-                  <CommandItem key={option.value} onSelect={() => onItemSelect(option, isSelected)}>
-                    <div
-                      className={cn(
-                        "flex size-4 items-center justify-center rounded-sm border border-primary",
-                        isSelected ? "bg-primary" : "opacity-50 [&_svg]:invisible",
-                      )}
-                    >
-                      <Check />
-                    </div>
-                    {option.icon && <option.icon />}
-                    <span className="truncate">{option.label}</span>
-                    {option.count && (
-                      <span className="ml-auto font-mono text-xs">{option.count}</span>
-                    )}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-            {selectedValues.size > 0 && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem onSelect={() => onReset()} className="justify-center text-center">
-                    Clear filters
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          ) : null}
+        </ComboboxTrigger>
+        {selectedValues.size > 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={`Clear ${title ?? "table"} filter`}
+            onClick={resetFilter}
+          >
+            <X />
+          </Button>
+        ) : null}
+      </ButtonGroup>
+      <ComboboxContent anchor={anchorRef} className="w-56">
+        <ComboboxInput placeholder={title ? `Search ${title.toLowerCase()}...` : "Search..."} />
+        <ComboboxEmpty>No results found.</ComboboxEmpty>
+        <ComboboxList className="max-h-72">
+          {options.map((option) => (
+            <ComboboxItem key={option.value} value={option.value}>
+              {option.icon ? <option.icon /> : null}
+              <span className="truncate">{option.label}</span>
+              {option.count !== undefined ? (
+                <span className="ml-auto pr-5 font-mono text-xs">{option.count}</span>
+              ) : null}
+            </ComboboxItem>
+          ))}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

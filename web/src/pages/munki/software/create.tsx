@@ -19,7 +19,6 @@ import {
   munkiSoftwareSchema,
   useMunkiSoftwareForm,
 } from "./fields";
-
 export function MunkiSoftwareCreatePage() {
   const navigate = useNavigate();
   const create = useCreateMunkiSoftware();
@@ -69,34 +68,35 @@ export function MunkiSoftwareCreatePage() {
       ),
     },
   ];
-
   return (
-    <PageShell asChild>
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
-        <PageHeader title="New Software" />
-        <ScrollableTabs defaultValue="options">
-          <ScrollableTabsList>
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </ScrollableTabsList>
+    <PageShell
+      render={
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        />
+      }
+    >
+      <PageHeader title="New Software" />
+      <ScrollableTabs defaultValue="options">
+        <ScrollableTabsList>
           {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value}>
-              {tab.content}
-            </TabsContent>
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
           ))}
-        </ScrollableTabs>
-        <FormActions form={form} submitLabel="Create" onCancel={exitGuard.requestDiscard} />
-        {exitGuard.dialog}
-      </form>
+        </ScrollableTabsList>
+        {tabs.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value}>
+            {tab.content}
+          </TabsContent>
+        ))}
+      </ScrollableTabs>
+      <FormActions form={form} submitLabel="Create" onCancel={exitGuard.requestDiscard} />
+      {exitGuard.dialog}
     </PageShell>
   );
 }

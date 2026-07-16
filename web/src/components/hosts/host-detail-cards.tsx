@@ -38,19 +38,15 @@ import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-host
 import type { Host, HostDetail } from "@/lib/api";
 import { emailAddress } from "@/lib/form-validation";
 import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
-
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
-
 const certificateSourceLabels: Record<string, string> = {
   system: "System",
   user: "User",
 };
-
 export function HostInfoCard({ host }: { host: HostDetail }) {
   const osqueryVersion = host.agents.osquery.version;
   const orbitVersion = host.agents.orbit.version;
   const battery = host.batteries?.[0];
-
   return (
     <Card>
       <CardContent>
@@ -106,14 +102,12 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
     </Card>
   );
 }
-
 export function HostIdentityCard({ host }: { host: HostDetail }) {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const primaryUser = host.primary_user;
   const canEdit = user?.role === "admin";
   const hasManualSource = manualPrimaryUserSource(host.primary_user_sources) !== null;
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -150,7 +144,6 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
     </Card>
   );
 }
-
 export function HostLabelsCard({ host }: { host: HostDetail }) {
   const labels = (host.labels ?? []).filter((l) => l.label_type === "regular");
   if (labels.length === 0) return null;
@@ -165,11 +158,9 @@ export function HostLabelsCard({ host }: { host: HostDetail }) {
     </Card>
   );
 }
-
 export function HostUsersCard({ host }: { host: HostDetail }) {
   const users = (host.users ?? []).filter((u) => u.username);
   if (users.length === 0) return null;
-
   return (
     <Card>
       <CardHeader>
@@ -202,7 +193,6 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
     </Card>
   );
 }
-
 function UserGroups({ groups }: { groups: readonly string[] }) {
   const uniqueGroups = [...new Set(groups)];
   if (uniqueGroups.length === 0) return <span>-</span>;
@@ -218,7 +208,6 @@ function UserGroups({ groups }: { groups: readonly string[] }) {
     </div>
   );
 }
-
 function HostPrimaryUserDialog({
   host,
   onOpenChange,
@@ -230,7 +219,6 @@ function HostPrimaryUserDialog({
   const setPrimaryUser = useSetHostPrimaryUser();
   const clearPrimaryUser = useClearHostPrimaryUser();
   const pending = setPrimaryUser.isPending || clearPrimaryUser.isPending;
-
   const form = useForm({
     defaultValues: { email: manual?.email ?? host.primary_user?.email ?? "" },
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
@@ -245,17 +233,14 @@ function HostPrimaryUserDialog({
     onDiscard: () => onOpenChange(false),
     blockNavigation: false,
   });
-
   function requestClose() {
     if (pending || form.state.isSubmitting) return;
     exitGuard.requestDiscard();
   }
-
   async function handleClear() {
     await clearPrimaryUser.mutateAsync(host.id);
     onOpenChange(false);
   }
-
   return (
     <>
       <Dialog
@@ -301,16 +286,19 @@ function HostPrimaryUserDialog({
 
             <DialogFooter className="pt-2">
               {manual ? (
-                <Pending isPending={pending}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void handleClear()}
-                  >
-                    <Trash2 />
-                    {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
-                  </Button>
+                <Pending
+                  isPending={pending}
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void handleClear()}
+                    />
+                  }
+                >
+                  <Trash2 />
+                  {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
                 </Pending>
               ) : null}
               <Button
@@ -324,10 +312,11 @@ function HostPrimaryUserDialog({
               </Button>
               <form.Subscribe selector={(state) => state.isSubmitting}>
                 {(isSubmitting) => (
-                  <Pending isPending={pending || isSubmitting}>
-                    <Button type="submit" size="sm">
-                      {isSubmitting ? "Saving…" : "Save"}
-                    </Button>
+                  <Pending
+                    isPending={pending || isSubmitting}
+                    render={<Button type="submit" size="sm" />}
+                  >
+                    {isSubmitting ? "Saving…" : "Save"}
                   </Pending>
                 )}
               </form.Subscribe>
@@ -339,7 +328,6 @@ function HostPrimaryUserDialog({
     </>
   );
 }
-
 export function HostCertificatesCard({ host }: { host: HostDetail }) {
   const [selectedCertificate, setSelectedCertificate] = useState<HostCertificate | null>(null);
   const certificates = useMemo(
@@ -354,7 +342,6 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
     [],
   );
   if (certificates.length === 0) return null;
-
   return (
     <Card className="gap-4 py-4">
       <CardHeader>
@@ -370,7 +357,6 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
     </Card>
   );
 }
-
 function certificateColumns(
   onSelect: (certificate: HostCertificate) => void,
 ): ColumnDef<HostCertificate>[] {
@@ -421,7 +407,6 @@ function certificateColumns(
     },
   ];
 }
-
 function CertificateDetailsDialog({
   certificate,
   onOpenChange,
@@ -477,7 +462,6 @@ function CertificateDetailsDialog({
     </Dialog>
   );
 }
-
 function CertificateDetailSection({
   title,
   rows,
@@ -489,7 +473,6 @@ function CertificateDetailSection({
     ([, value]) => value !== "" && value !== null && value !== undefined,
   );
   if (visibleRows.length === 0) return null;
-
   return (
     <section className="grid gap-2">
       <h3 className="text-sm font-medium">{title}</h3>
@@ -504,11 +487,9 @@ function CertificateDetailSection({
     </section>
   );
 }
-
 function certificateSourceLabel(source: string) {
   return certificateSourceLabels[source] ?? source;
 }
-
 function certificateNameRows(name: HostCertificate["subject"]): Array<[string, ReactNode]> {
   return [
     ["Country", name.country],
@@ -517,14 +498,12 @@ function certificateNameRows(name: HostCertificate["subject"]): Array<[string, R
     ["Common name", name.common_name],
   ];
 }
-
 function diskPercent(host: Host) {
   const available = host.storage.boot_volume.available_bytes;
   const total = host.storage.boot_volume.total_bytes;
   if (available == null || total == null || total <= 0) return "";
   return ` (${((available / total) * 100).toFixed(0)}%)`;
 }
-
 function osDisplayName(host: Host) {
   const parts = [host.os.name, host.os.version].filter(Boolean);
   if (parts.length > 0) return parts.join(" ");

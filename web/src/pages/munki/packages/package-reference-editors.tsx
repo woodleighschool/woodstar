@@ -6,14 +6,13 @@ import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
-  ComboboxAnchor,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
-  ComboboxGroupLabel,
   ComboboxInput,
   ComboboxItem,
-  ComboboxTrigger,
+  ComboboxLabel,
+  ComboboxList,
 } from "@/components/ui/combobox";
 import {
   Field,
@@ -101,7 +100,8 @@ function SoftwareCombobox({
 
   return (
     <Combobox
-      value={selected ? String(selected.id) : ""}
+      items={rows.map((item) => String(item.id))}
+      value={selected ? String(selected.id) : null}
       inputValue={inputValue}
       onInputValueChange={setInputValue}
       onValueChange={(next) => {
@@ -110,24 +110,24 @@ function SoftwareCombobox({
         setInputValue(item?.name ?? "");
       }}
     >
-      <ComboboxAnchor className="w-full">
-        <ComboboxInput
-          {...control}
-          id="munki-package-software"
-          placeholder={loading ? "Loading software..." : "Select software"}
-          onBlur={onBlur}
-        />
-        <ComboboxTrigger aria-label="Open software" />
-      </ComboboxAnchor>
+      <ComboboxInput
+        {...control}
+        id="munki-package-software"
+        className="w-full"
+        placeholder={loading ? "Loading software..." : "Select software"}
+        onBlur={onBlur}
+      />
       <ComboboxContent>
         <ComboboxEmpty>
           {rows.length === 0 ? "No software available." : "No software found."}
         </ComboboxEmpty>
-        {rows.map((item) => (
-          <ComboboxItem key={item.id} value={String(item.id)} label={item.name}>
-            {item.name}
-          </ComboboxItem>
-        ))}
+        <ComboboxList>
+          {rows.map((item) => (
+            <ComboboxItem key={item.id} value={String(item.id)}>
+              {item.name}
+            </ComboboxItem>
+          ))}
+        </ComboboxList>
       </ComboboxContent>
     </Combobox>
   );
@@ -193,7 +193,11 @@ function PackageReferenceCombobox({
 
   return (
     <Combobox
-      value={selectedValue}
+      items={packageGroups.flatMap((group) => [
+        packageReferenceSoftwareValue(group.softwareID),
+        ...group.packages.map((pkg) => packageReferencePackageValue(pkg.id)),
+      ])}
+      value={selectedValue || null}
       inputValue={inputValue}
       onInputValueChange={setInputValue}
       onValueChange={(value) => {
@@ -203,9 +207,7 @@ function PackageReferenceCombobox({
         setInputValue(selection.label);
       }}
     >
-      <ComboboxAnchor className="w-full">
-        <ComboboxInput placeholder="Select Package" />
-        <ComboboxTrigger aria-label="Open packages" />
+      <ComboboxInput className="w-full" placeholder="Select Package">
         <Button
           type="button"
           variant="ghost"
@@ -218,31 +220,26 @@ function PackageReferenceCombobox({
         >
           <Trash2 />
         </Button>
-      </ComboboxAnchor>
+      </ComboboxInput>
       <ComboboxContent>
         <ComboboxEmpty>
           {packageGroups.length === 0 ? "No Packages Available." : "No Packages Found."}
         </ComboboxEmpty>
-        {packageGroups.map((group) => (
-          <ComboboxGroup key={group.softwareID}>
-            <ComboboxGroupLabel>{group.softwareTitle}</ComboboxGroupLabel>
-            <ComboboxItem
-              value={packageReferenceSoftwareValue(group.softwareID)}
-              label={`${group.softwareTitle} — All versions`}
-            >
-              All versions
-            </ComboboxItem>
-            {group.packages.map((option) => (
-              <ComboboxItem
-                key={option.id}
-                value={packageReferencePackageValue(option.id)}
-                label={packageLabel(option)}
-              >
-                {packageLabel(option)}
+        <ComboboxList>
+          {packageGroups.map((group) => (
+            <ComboboxGroup key={group.softwareID}>
+              <ComboboxLabel>{group.softwareTitle}</ComboboxLabel>
+              <ComboboxItem value={packageReferenceSoftwareValue(group.softwareID)}>
+                All versions
               </ComboboxItem>
-            ))}
-          </ComboboxGroup>
-        ))}
+              {group.packages.map((option) => (
+                <ComboboxItem key={option.id} value={packageReferencePackageValue(option.id)}>
+                  {packageLabel(option)}
+                </ComboboxItem>
+              ))}
+            </ComboboxGroup>
+          ))}
+        </ComboboxList>
       </ComboboxContent>
     </Combobox>
   );
@@ -270,9 +267,10 @@ function packageReferenceInputValue(
 }
 
 function packageReferenceSelection(
-  value: string,
+  value: string | null,
   packageGroups: ReturnType<typeof packageReferenceGroups>,
 ) {
+  if (!value) return null;
   if (value.startsWith("software:")) {
     const softwareID = Number(value.slice("software:".length));
     const group = packageGroups.find((option) => option.softwareID === softwareID);

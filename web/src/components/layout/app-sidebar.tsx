@@ -44,12 +44,10 @@ import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
 import { userRoleLabel } from "@/lib/users";
 import { nonEmpty } from "@/lib/utils";
-
 export function AppSidebar() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -67,25 +65,21 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
 function SidebarBrand() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" asChild>
-          <Link to="/hosts">
-            <WoodstarMark />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">Woodstar</span>
-              <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>
-            </div>
-          </Link>
+        <SidebarMenuButton size="lg" render={<Link to="/hosts" />}>
+          <WoodstarMark />
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold">Woodstar</span>
+            <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>
+          </div>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
   );
 }
-
 function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: string }) {
   return (
     <SidebarGroup>
@@ -98,123 +92,107 @@ function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: st
     </SidebarGroup>
   );
 }
-
 function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const Icon = item.icon;
   const active = isActivePath(pathname, item);
-
   if (item.items?.length) {
     return (
-      <Collapsible asChild defaultOpen={active} className="group/collapsible">
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton tooltip={item.label} isActive={active}>
-              {Icon ? <Icon /> : null}
-              <span>{item.label}</span>
-              <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="sidebar-subnav-collapsible">
-            <SidebarMenuSub>
-              {item.items.map((child) => (
-                <SidebarMenuSubItem key={child.to ?? child.label}>
+      <Collapsible defaultOpen={active} className="group/collapsible" render={<SidebarMenuItem />}>
+        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={active} />}>
+          {Icon ? <Icon /> : null}
+          <span>{item.label}</span>
+          <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="sidebar-subnav-collapsible">
+          <SidebarMenuSub>
+            {item.items.map((child) => (
+              <SidebarMenuSubItem key={child.to ?? child.label}>
+                {child.to ? (
                   <SidebarMenuSubButton
-                    asChild={!!child.to}
+                    render={<Link to={child.to} />}
                     isActive={isActivePath(pathname, child)}
                   >
-                    {child.to ? (
-                      <Link to={child.to}>
-                        <span>{child.label}</span>
-                      </Link>
-                    ) : (
-                      <span>{child.label}</span>
-                    )}
+                    <span>{child.label}</span>
                   </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
+                ) : (
+                  <SidebarMenuSubButton isActive={isActivePath(pathname, child)}>
+                    <span>{child.label}</span>
+                  </SidebarMenuSubButton>
+                )}
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
       </Collapsible>
     );
   }
-
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        asChild={!!item.to && !item.disabled}
+        render={item.to && !item.disabled ? <Link to={item.to} /> : undefined}
         tooltip={item.label}
         isActive={active}
         disabled={item.disabled}
       >
-        {item.to && !item.disabled ? (
-          <Link to={item.to}>
-            {Icon ? <Icon /> : null}
-            <span>{item.label}</span>
-          </Link>
-        ) : (
-          <>
-            {Icon ? <Icon /> : null}
-            <span>{item.label}</span>
-          </>
-        )}
+        {Icon ? <Icon /> : null}
+        <span>{item.label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
 }
-
 function SidebarUserMenu() {
   const { isMobile } = useSidebar();
   const { setTheme } = useTheme();
   const { user } = useAuth();
   const logout = useLogout();
   const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <SidebarUserAvatar email={user?.email} />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{label}</span>
-                {user?.role ? (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {userRoleLabel(user.role)}
-                  </span>
-                ) : null}
-              </div>
-              <ChevronsUpDown className="ml-auto" />
-            </SidebarMenuButton>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              />
+            }
+          >
+            <SidebarUserAvatar email={user?.email} />
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{label}</span>
+              {user?.role ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {userRoleLabel(user.role)}
+                </span>
+              ) : null}
+            </div>
+            <ChevronsUpDown className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-(--anchor-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <SidebarUserAvatar email={user?.email} />
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{label}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user?.email ?? "Not signed in"}
-                  </span>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                  <SidebarUserAvatar email={user?.email} />
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{label}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {user?.email ?? "Not signed in"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </DropdownMenuLabel>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link to="/account">
-                  <UserIcon />
-                  Account
-                </Link>
+              <DropdownMenuItem render={<Link to="/account" />}>
+                <UserIcon />
+                Account
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -233,20 +211,20 @@ function SidebarUserMenu() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
-              <LogOut />
-              Sign out
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
+                <LogOut />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
   );
 }
-
 function SidebarUserAvatar({ email }: { email?: string }) {
   const src = email ? gravatarUrl(email, { size: 80, default: "404" }) : undefined;
-
   return (
     <Avatar className="rounded-lg">
       {src ? <AvatarImage src={src} className="rounded-lg" /> : null}
@@ -256,7 +234,6 @@ function SidebarUserAvatar({ email }: { email?: string }) {
     </Avatar>
   );
 }
-
 function isActivePath(pathname: string, item: NavItem): boolean {
   if (item.to && (pathname === item.to || pathname.startsWith(`${item.to}/`))) return true;
   return item.items?.some((child) => isActivePath(pathname, child)) ?? false;

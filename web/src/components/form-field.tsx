@@ -34,8 +34,15 @@ export function FormField({
   return (
     <Field data-invalid={invalid} className={className}>
       {label ? (
-        <FieldLabel htmlFor={htmlFor} required={required}>
-          {label}
+        <FieldLabel htmlFor={htmlFor}>
+          <span>
+            {label}
+            {required ? (
+              <span className="text-destructive" aria-hidden="true">
+                *
+              </span>
+            ) : null}
+          </span>
         </FieldLabel>
       ) : null}
       {children({ id: htmlFor, "aria-invalid": invalid })}
