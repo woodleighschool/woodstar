@@ -25,7 +25,6 @@ INSERT INTO munki_host_status (
 	host_id,
 	version,
 	manifest_name,
-	success,
 	errors,
 	warnings,
 	problem_installs,
@@ -36,7 +35,6 @@ VALUES (
 	@host_id,
 	@version,
 	@manifest_name,
-	@success,
 	@errors,
 	@warnings,
 	@problem_installs,
@@ -46,7 +44,6 @@ VALUES (
 ON CONFLICT (host_id) DO UPDATE SET
 	version = EXCLUDED.version,
 	manifest_name = EXCLUDED.manifest_name,
-	success = EXCLUDED.success,
 	errors = EXCLUDED.errors,
 	warnings = EXCLUDED.warnings,
 	problem_installs = EXCLUDED.problem_installs,
@@ -56,7 +53,6 @@ ON CONFLICT (host_id) DO UPDATE SET
 			"host_id":          observation.HostID,
 			"version":          observation.Version,
 			"manifest_name":    observation.ManifestName,
-			"success":          observation.Success,
 			"errors":           dbutil.NonNilSlice(observation.Errors),
 			"warnings":         dbutil.NonNilSlice(observation.Warnings),
 			"problem_installs": dbutil.NonNilSlice(observation.ProblemInstalls),
@@ -115,7 +111,6 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	type statusRow struct {
 		Version         string     `db:"version"`
 		ManifestName    string     `db:"manifest_name"`
-		Success         bool       `db:"success"`
 		Errors          []string   `db:"errors"`
 		Warnings        []string   `db:"warnings"`
 		ProblemInstalls []string   `db:"problem_installs"`
@@ -124,7 +119,7 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	}
 
 	statusRows, err := s.db.Pool().Query(ctx, `
-		SELECT version, manifest_name, success, errors, warnings, problem_installs,
+		SELECT version, manifest_name, errors, warnings, problem_installs,
 		       run_started_at, run_ended_at
 		FROM munki_host_status
 		WHERE host_id = $1`,
@@ -169,7 +164,6 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	return &HostState{
 		Version:         status.Version,
 		ManifestName:    status.ManifestName,
-		Success:         status.Success,
 		Errors:          dbutil.NonNilSlice(status.Errors),
 		Warnings:        dbutil.NonNilSlice(status.Warnings),
 		ProblemInstalls: dbutil.NonNilSlice(status.ProblemInstalls),

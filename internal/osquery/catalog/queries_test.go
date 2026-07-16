@@ -227,7 +227,6 @@ func TestMunkiQueriesProjectStatusShape(t *testing.T) {
 		"errors",
 		"warnings",
 		"problem_installs",
-		"success",
 		"start_time",
 		"end_time",
 		"manifest_name",

@@ -1030,8 +1030,6 @@ components:
         run_started_at:
           format: date-time
           type: string
-        success:
-          type: boolean
         version:
           type: string
         warnings:
@@ -1041,7 +1039,6 @@ components:
       required:
         - version
         - manifest_name
-        - success
         - errors
         - warnings
         - problem_installs

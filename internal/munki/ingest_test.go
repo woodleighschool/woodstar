@@ -15,7 +15,6 @@ func TestDetailIngestorProjectsRows(t *testing.T) {
 	if err := ingestor.IngestInfo(ctx, 42, []map[string]string{{
 		"version":       "7.1.2.5700",
 		"manifest_name": "site_default",
-		"success":       "true",
 		"errors":        "first; second",
 	}}); err != nil {
 		t.Fatalf("ingest munki info: %v", err)

@@ -1337,7 +1337,6 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		HostID:          host.ID,
 		Version:         "7.1.2.5700",
 		ManifestName:    "site_default",
-		Success:         true,
 		Errors:          []string{"first error"},
 		Warnings:        []string{"first warning"},
 		ProblemInstalls: []string{"Broken App"},
@@ -1362,9 +1361,6 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}
 	if detail.Version != "7.1.2.5700" || detail.ManifestName != "site_default" {
 		t.Fatalf("detail = %+v, want version and manifest", detail)
-	}
-	if !detail.Success {
-		t.Fatalf("success = %v, want true", detail.Success)
 	}
 	if len(detail.Items) != 2 || detail.Items[0].Name != "GoogleChrome" || !detail.Items[0].Installed {
 		t.Fatalf("items = %+v", detail.Items)

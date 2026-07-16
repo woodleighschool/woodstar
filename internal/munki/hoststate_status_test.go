@@ -9,7 +9,6 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	status, ok := HostStatusFromInfoRows(42, []map[string]string{{
 		"version":          "7.1.2.5700",
 		"manifest_name":    "site_default",
-		"success":          "true",
 		"errors":           "first error;second error",
 		"warnings":         "first warning;second warning",
 		"problem_installs": "Broken App",
@@ -21,9 +20,6 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	}
 	if status.HostID != 42 || status.Version != "7.1.2.5700" || status.ManifestName != "site_default" {
 		t.Fatalf("status identity = %+v, want host/version/manifest", status)
-	}
-	if !status.Success {
-		t.Fatalf("success = %v, want true", status.Success)
 	}
 	if !sameStrings(status.Errors, []string{"first error", "second error"}) {
 		t.Fatalf("errors = %#v", status.Errors)

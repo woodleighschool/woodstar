@@ -75,7 +75,7 @@ export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
                 {munki.items.map((item) => (
                   <TableRow key={item.name}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.installed ? "Installed" : "Pending"}</TableCell>
+                    <TableCell>{item.installed ? "Installed" : "Not Installed"}</TableCell>
                     <TableCell>{item.installed_version}</TableCell>
                   </TableRow>
                 ))}
@@ -91,10 +91,10 @@ export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
 }
 
 function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
-  if (!munki.success) {
+  if (munki.errors.length > 0) {
     return <Badge variant="destructive">Failed</Badge>;
   }
-  if (munki.errors.length > 0 || munki.problem_installs.length > 0) {
+  if (munki.problem_installs.length > 0) {
     return <Badge variant="secondary">Problems</Badge>;
   }
   if (munki.warnings.length > 0) {

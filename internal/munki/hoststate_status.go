@@ -14,7 +14,6 @@ func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostObserva
 		HostID:          hostID,
 		Version:         row["version"],
 		ManifestName:    row["manifest_name"],
-		Success:         row["success"] == "true",
 		Errors:          splitMunkiList(row["errors"]),
 		Warnings:        splitMunkiList(row["warnings"]),
 		ProblemInstalls: splitMunkiList(row["problem_installs"]),

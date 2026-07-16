@@ -7,7 +7,6 @@ type HostObservation struct {
 	HostID          int64
 	Version         string
 	ManifestName    string
-	Success         bool
 	Errors          []string
 	Warnings        []string
 	ProblemInstalls []string
@@ -27,7 +26,6 @@ type Item struct {
 type HostState struct {
 	Version         string     `json:"version"`
 	ManifestName    string     `json:"manifest_name"`
-	Success         bool       `json:"success"`
 	Errors          []string   `json:"errors"`
 	Warnings        []string   `json:"warnings"`
 	ProblemInstalls []string   `json:"problem_installs"`
