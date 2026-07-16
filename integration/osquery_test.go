@@ -332,7 +332,6 @@ func TestOsquery(t *testing.T) {
 					"physical_memory":    "68719476736",
 				},
 				"osquery_info": {"version": "5.12.0"},
-				"orbit_info":   {"version": "1.47.0"},
 				"os_version": {
 					"name":     "macOS",
 					"version":  "26.5",
