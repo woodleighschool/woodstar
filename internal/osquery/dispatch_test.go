@@ -109,7 +109,7 @@ func TestRowPresenceResultRequiresIntegerZeroStatus(t *testing.T) {
 	}
 }
 
-func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
+func TestFinalizeDetailPassPreservesMunkiWithoutSuccessfulObservation(t *testing.T) {
 	projector := &recordingInventoryProjector{}
 	pass := &detailDispatchPass{
 		registry: map[string]catalog.DetailQuery{
@@ -131,33 +131,11 @@ func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
 	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
 		t.Fatalf("finalize detail pass: %v", err)
 	}
-	if len(projector.cleared) != 2 ||
-		projector.cleared[0] != catalog.QueryMunkiInfo ||
-		projector.cleared[1] != catalog.QueryMunkiInstalls {
-		t.Fatalf("cleared = %#v, want munki_info and munki_installs", projector.cleared)
-	}
-	if !projector.markedFresh {
-		t.Fatal("optional munki clear blocked freshness")
-	}
-}
-
-func TestFinalizeDetailPassDoesNotClearMunkiOnNonDetailWrite(t *testing.T) {
-	projector := &recordingInventoryProjector{}
-	pass := &detailDispatchPass{
-		registry: map[string]catalog.DetailQuery{
-			"required":             {Ingest: catalog.IngestHostDetail},
-			catalog.QueryMunkiInfo: {Optional: true, Ingest: catalog.IngestMunkiInfo},
-		},
-		results:      map[string]detailResult{},
-		allSucceeded: true,
-	}
-
-	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector}}
-	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
-		t.Fatalf("finalize detail pass: %v", err)
-	}
 	if len(projector.cleared) > 0 {
 		t.Fatalf("cleared = %#v, want none", projector.cleared)
+	}
+	if !projector.markedFresh {
+		t.Fatal("optional Munki failure blocked inventory freshness")
 	}
 }
 

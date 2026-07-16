@@ -213,9 +213,6 @@ func (s *AgentService) finalizeDetailPass(
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if err := s.clearMissingOrFailedMunkiDetails(ctx, host.ID, pass); err != nil {
-		return err
-	}
 	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
 		return nil
 	}
@@ -228,30 +225,6 @@ func (s *AgentService) finalizeDetailPass(
 		"host_id", host.ID,
 		"query_count", len(pass.results),
 	)
-	return nil
-}
-
-func (s *AgentService) clearMissingOrFailedMunkiDetails(
-	ctx context.Context,
-	hostID int64,
-	pass *detailDispatchPass,
-) error {
-	if !sawRequiredDetailQuery(pass) {
-		return nil
-	}
-	for _, name := range []string{catalog.QueryMunkiInfo, catalog.QueryMunkiInstalls} {
-		query, ok := pass.registry[name]
-		if !ok {
-			continue
-		}
-		result, ok := pass.results[name]
-		if ok && distributedStatusOK(result.status, result.hasStatus) {
-			continue
-		}
-		if err := s.deps.InventoryProjector.IngestDetail(ctx, query, name, hostID, nil); err != nil {
-			return fmt.Errorf("clear stale %s detail: %w", name, err)
-		}
-	}
 	return nil
 }
 
@@ -274,18 +247,6 @@ func successfulSoftwareRows(
 		}
 	}
 	return rowsBySuffix, baseSucceeded
-}
-
-func sawRequiredDetailQuery(pass *detailDispatchPass) bool {
-	for name, query := range pass.registry {
-		if query.Optional {
-			continue
-		}
-		if _, ok := pass.results[name]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {
