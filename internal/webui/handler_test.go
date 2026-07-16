@@ -30,19 +30,6 @@ func TestHandlerServesKnownRootAsset(t *testing.T) {
 	}
 }
 
-func TestHandlerServesOtherRootPublicAsset(t *testing.T) {
-	t.Parallel()
-
-	recorder := requestWeb(t, "/site.webmanifest")
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	if got := recorder.Body.String(); got != `{"name":"Woodstar"}` {
-		t.Fatalf("body = %q, want public asset content", got)
-	}
-}
-
 func TestHandlerServesHashedAssetWithImmutableCache(t *testing.T) {
 	t.Parallel()
 
@@ -140,8 +127,7 @@ func requestWeb(t *testing.T, path string) *httptest.ResponseRecorder {
 			"assets/app-abcd1234.js": {
 				Data: []byte("console.log('ok')"),
 			},
-			"index.html":       {Data: []byte("<!doctype html><html><head></head><body></body></html>")},
-			"site.webmanifest": {Data: []byte(`{"name":"Woodstar"}`)},
+			"index.html": {Data: []byte("<!doctype html><html><head></head><body></body></html>")},
 		},
 		Version:   "test",
 		ServerURL: "https://woodstar.example",

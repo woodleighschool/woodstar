@@ -26,13 +26,13 @@ Use mise tasks as the repo contract.
 
 - Build: `mise run build`, backend only `mise run backend`, web only `mise //web:build`
 - Dev: `mise run dev`, backend only `mise run dev-backend`, web only `mise //web:dev`
-- Tests: `mise run test`, DB/full suite `mise run full-test`, protocol/auth slice `mise run test-integration`
+- Tests: focused suite `mise run test`; integrations `mise run test-integration-{munki,osquery,santa,orbit}` or aggregate `mise run test-integration`
 - Lint/format: `mise run lint`, `mise run format`, Go only `mise run go-lint` / `mise run go-format`, web only `mise //web:lint` / `mise //web:format`
 - Generated API: `mise run openapi-types`, freshness check `mise run test-openapi`
 - Full local gate: `mise run precommit`
 - Docs only when in scope: `mise //docs:check`, `mise //docs:format`
 
-`mise run test` unsets `WOODSTAR_TEST_DATABASE_URL`, so DB-backed tests skip there. `mise run full-test` and `mise run test-integration` use the default local Postgres URL.
+`mise run test` and every integration task use the default local Postgres URL when `WOODSTAR_TEST_DATABASE_URL` is unset. Munki, osquery, and Santa never skip. Orbit may skip locally only when Docker or its external binaries are absent; CI makes those prerequisites required. The frontend has no test suite: use web lint/typecheck, OpenAPI freshness, and the production build.
 
 ## Backend
 

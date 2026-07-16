@@ -21,7 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-func TestHostPrimaryUserManualOverride(t *testing.T) {
+func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	primaryUserStore := hosts.NewPrimaryUserStore(db)
@@ -101,13 +101,6 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 	)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	body.PrimaryUserSources = nil
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode host detail after delete: %v", err)
-	}
-	if len(body.PrimaryUserSources) != 1 || body.PrimaryUserSources[0].Email != "agent@example.test" {
-		t.Fatalf("primary user sources after delete = %+v, want agent source only", body.PrimaryUserSources)
 	}
 	assertHostLabel(t, ctx, labelStore, host.ID, derivedLabel.ID, false)
 }

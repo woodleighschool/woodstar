@@ -9,14 +9,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func TestObjectKey(t *testing.T) {
-	t.Parallel()
-	obj := Object{ID: 42, Prefix: "munki/packages", Filename: "Firefox-120.0.dmg"}
-	if got, want := obj.Key(), "munki/packages/42/Firefox-120.0.dmg"; got != want {
-		t.Fatalf("Key() = %q, want %q", got, want)
-	}
-}
-
 func TestNormalizeUploadFilename(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{

@@ -44,12 +44,19 @@ mise //web:dev
 
 ```bash
 mise run test
-mise run full-test
+mise run test-integration-munki
+mise run test-integration-osquery
+mise run test-integration-santa
+mise run test-integration-orbit
 mise run test-integration
 mise run test-openapi
 ```
 
-`mise run test` unsets `WOODSTAR_TEST_DATABASE_URL`, so DB-backed `dbtest` tests skip. `mise run full-test` supplies a local Postgres URL if the variable is unset and expects the database to be reachable.
+`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. The target integration tasks run one compiled-server lifecycle; `mise run test-integration` runs all four lifecycles in one integration process. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
+
+Munki, osquery, and Santa fail when their prerequisites or assertions fail. Orbit may skip locally only when Docker, Orbit, or osqueryd is absent. CI requires those Orbit prerequisites, so the same condition fails there.
+
+The frontend has no test runner. Its verification is `mise //web:lint`, `mise //web:typecheck`, `mise run test-openapi`, and `mise //web:build`.
 
 ## Lint And Format
 
@@ -80,4 +87,4 @@ mise run generate
 mise run precommit
 ```
 
-The precommit task runs format, lint, full DB-backed tests, and OpenAPI freshness checks.
+The precommit task runs format, lint, tidy, build, the focused PostgreSQL-backed suite, all compiled integrations, and OpenAPI freshness in that order.

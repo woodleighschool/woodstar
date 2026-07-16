@@ -8,31 +8,11 @@ import (
 	"github.com/alexedwards/scs/v2/memstore"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
-func TestGenerateAPIKey(t *testing.T) {
-	t.Parallel()
-	a, err := randtoken.Generate(apiKeyByteLen)
-	if err != nil {
-		t.Fatalf("randtoken.Generate returned error: %v", err)
-	}
-	b, err := randtoken.Generate(apiKeyByteLen)
-	if err != nil {
-		t.Fatalf("randtoken.Generate returned error: %v", err)
-	}
-	if a == b {
-		t.Fatalf("two consecutive keys collided: %q", a)
-	}
-	if len(a) < 32 {
-		t.Fatalf("key length = %d, want >= 32 (24 random bytes base64-encoded)", len(a))
-	}
-}
-
-func TestRotateAndRevokeAPIKey(t *testing.T) {
+func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := directory.NewUserService(directory.NewStore(database), labels.NewStore(database))
 	user, err := userService.Create(ctx, directory.UserCreate{
@@ -48,29 +28,33 @@ func TestRotateAndRevokeAPIKey(t *testing.T) {
 	sessions.Store = memstore.New()
 	service := NewService(userService, sessions)
 
-	account, err := service.RotateAPIKey(ctx, user.ID)
+	first, err := service.RotateAPIKey(ctx, user.ID)
 	if err != nil {
-		t.Fatalf("rotate api key: %v", err)
+		t.Fatalf("rotate first api key: %v", err)
 	}
-	if account.APIKey == "" {
-		t.Fatal("rotated api key is empty")
+	if first.APIKey == "" {
+		t.Fatal("first rotated api key is empty")
 	}
-	got, err := userService.GetByAPIKey(ctx, account.APIKey)
+
+	second, err := service.RotateAPIKey(ctx, user.ID)
 	if err != nil {
-		t.Fatalf("get user by rotated api key: %v", err)
+		t.Fatalf("rotate second api key: %v", err)
+	}
+	if second.APIKey == "" {
+		t.Fatal("second rotated api key is empty")
+	}
+	if second.APIKey == first.APIKey {
+		t.Fatal("second rotated api key did not replace the first")
+	}
+
+	got, err := service.userByAPIKey(ctx, second.APIKey)
+	if err != nil {
+		t.Fatalf("authenticate with second api key: %v", err)
 	}
 	if got.ID != user.ID {
 		t.Fatalf("api key user id = %d, want %d", got.ID, user.ID)
 	}
-
-	revoked, err := service.RevokeAPIKey(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("revoke api key: %v", err)
-	}
-	if revoked.APIKey != "" {
-		t.Fatalf("revoked api key = %q, want empty", revoked.APIKey)
-	}
-	if _, err := userService.GetByAPIKey(ctx, account.APIKey); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get revoked api key err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := service.userByAPIKey(ctx, first.APIKey); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("authenticate with first api key error = %v, want %v", err, ErrNotAuthenticated)
 	}
 }

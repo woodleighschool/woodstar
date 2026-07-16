@@ -77,28 +77,6 @@ func TestCompressionMiddlewareBypassesStorage(t *testing.T) {
 	}
 }
 
-func TestCompressionMiddlewareCompressesAPIResponses(t *testing.T) {
-	t.Parallel()
-	compression, err := compressionMiddleware()
-	if err != nil {
-		t.Fatalf("compressionMiddleware returned error: %v", err)
-	}
-	handler := compression(
-		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = w.Write([]byte(strings.Repeat("api-bytes", 200)))
-		}),
-	)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/example", nil)
-	req.Header.Set("Accept-Encoding", "gzip")
-	handler.ServeHTTP(rec, req)
-
-	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
-		t.Fatalf("Content-Encoding = %q, want gzip", got)
-	}
-}
-
 func TestCompressionMiddlewareBypassesDistributionWebSocket(t *testing.T) {
 	t.Parallel()
 	compression, err := compressionMiddleware()

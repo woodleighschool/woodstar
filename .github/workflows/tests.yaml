@@ -78,6 +78,97 @@ jobs:
       - name: Ensure generated files are committed
         run: git diff --exit-code
 
+  integration:
+    name: Integration (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - munki
+          - osquery
+          - santa
+          - orbit
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: woodstar
+          POSTGRES_PASSWORD: woodstar
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U woodstar -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
+        with:
+          experimental: true
+          install_args: --locked
+
+      - name: Cache Go modules and build
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum', 'integration/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Install pinned Orbit artifacts
+        if: matrix.target == 'orbit'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_dir="$RUNNER_TEMP/woodstar-agent-artifacts"
+          orbit_path="$artifact_dir/orbit"
+          osqueryd_path="$artifact_dir/osqueryd"
+          mkdir -p "$artifact_dir"
+
+          curl --fail --location --retry 3 --retry-all-errors --proto '=https' --tlsv1.2 \
+            --output "$orbit_path" \
+            https://updates.fleetdm.com/targets/orbit/linux/1.57.0/orbit
+          curl --fail --location --retry 3 --retry-all-errors --proto '=https' --tlsv1.2 \
+            --output "$osqueryd_path" \
+            https://updates.fleetdm.com/targets/osqueryd/linux/5.23.1/osqueryd
+
+          check_size() {
+            local path="$1"
+            local expected="$2"
+            local actual
+            actual="$(stat --format='%s' "$path")"
+            if [[ "$actual" != "$expected" ]]; then
+              printf 'unexpected size for %s: got %s, want %s\n' "$path" "$actual" "$expected" >&2
+              exit 1
+            fi
+          }
+          check_size "$orbit_path" 32269672
+          check_size "$osqueryd_path" 94622168
+
+          printf '%s  %s\n%s  %s\n' \
+            67babaffeb01f68434e4c6d74cd40fd889aa4d1233d2d4f05845f7fc41e4e5acf246ac90ac89b22d52fe8aeae31b5786fc287a3a2b0de9441e52c6d248209cad "$orbit_path" \
+            ffc88cc9661f627a05017e840ab388d6d96620cabb580f44840296e237b718020fd103a10af1267800a248609685f991ab5e831bff105fdb37f8f3b9c207c674 "$osqueryd_path" \
+            | sha512sum --check --strict
+
+          chmod 0755 "$orbit_path" "$osqueryd_path"
+          printf 'WOODSTAR_ORBIT_BINARY=%s\nWOODSTAR_OSQUERYD_BINARY=%s\nWOODSTAR_INTEGRATION_REQUIRED=orbit\n' \
+            "$orbit_path" "$osqueryd_path" >> "$GITHUB_ENV"
+
+      - name: Run ${{ matrix.target }} integration
+        run: mise run test-integration-${{ matrix.target }}
+
   web:
     name: Web Build
     runs-on: ubuntu-24.04

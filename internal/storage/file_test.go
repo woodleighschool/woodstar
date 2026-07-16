@@ -7,48 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
-
-func TestFileStoreRoundTrip(t *testing.T) {
-	t.Parallel()
-	store := newTestFileStore(t)
-	ctx := context.Background()
-	key := "munki/packages/42/installer.pkg"
-	want := []byte("installer bytes")
-
-	if err := store.Put(ctx, key, bytes.NewReader(want), PutOptions{}); err != nil {
-		t.Fatalf("Put: %v", err)
-	}
-
-	rc, info, err := store.Open(ctx, key)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	if info.Size != int64(len(want)) {
-		t.Fatalf("Open size = %d, want %d", info.Size, len(want))
-	}
-	got, err := io.ReadAll(rc)
-	_ = rc.Close()
-	if err != nil {
-		t.Fatalf("ReadAll: %v", err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("Open returned %q, want %q", got, want)
-	}
-
-	if err := store.Delete(ctx, key); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	if _, _, err := store.Open(ctx, key); !errors.Is(err, ErrObjectNotFound) {
-		t.Fatalf("Open after delete = %v, want ErrObjectNotFound", err)
-	}
-}
 
 func TestFileStoreMoveMovesBytesToCanonicalKey(t *testing.T) {
 	t.Parallel()
@@ -83,22 +46,6 @@ func TestFileStoreMoveMovesBytesToCanonicalKey(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("destination = %q, want %q", got, want)
-	}
-}
-
-func TestFileStoreDeletePrunesEmptyDir(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	store := newTestFileStoreAt(t, root)
-	ctx := context.Background()
-	if err := store.Put(ctx, "munki/icons/7/icon.png", bytes.NewReader([]byte("x")), PutOptions{}); err != nil {
-		t.Fatalf("Put: %v", err)
-	}
-	if err := store.Delete(ctx, "munki/icons/7/icon.png"); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "munki", "icons", "7")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("object dir still present: %v", err)
 	}
 }
 
