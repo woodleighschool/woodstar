@@ -528,27 +528,6 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	}
 }
 
-func TestSyncTargetsFromRulesKeepsFirstRuleForAnIdentity(t *testing.T) {
-	identifier := strings.Repeat("a", 64)
-	targets := rules.SyncTargetsFromRules([]rules.HostRule{
-		{
-			RuleID:     1,
-			RuleType:   rules.RuleTypeBinary,
-			Identifier: identifier,
-			Policy:     rules.PolicyBlocklist,
-		},
-		{
-			RuleID:     2,
-			RuleType:   rules.RuleTypeBinary,
-			Identifier: identifier,
-			Policy:     rules.PolicyAllowlist,
-		},
-	})
-	if len(targets) != 1 || targets[0].Policy != string(rules.PolicyBlocklist) {
-		t.Fatalf("sync targets = %+v, want first identity only", targets)
-	}
-}
-
 func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)

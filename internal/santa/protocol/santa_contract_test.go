@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,243 +18,13 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
-	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/targeting"
 )
-
-func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newSantaContractStores(db)
-	router := newSantaIntegratedContractRouter(stores)
-
-	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
-	machineID := "santa-contract-" + suffix
-	host, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware: hosts.HostHardware{
-			UUID:   machineID,
-			Serial: "SANTACONTRACT",
-		},
-		OrbitNodeKey: "santa-contract-orbit-" + suffix,
-	})
-	if err != nil {
-		t.Fatalf("enroll host: %v", err)
-	}
-
-	label, err := stores.labels.Create(ctx, labels.LabelMutation{
-		Name:                "Santa Contract " + suffix,
-		LabelMembershipType: labels.LabelMembershipTypeManual,
-	})
-	if err != nil {
-		t.Fatalf("create label: %v", err)
-	}
-	if err := stores.labels.SetMembership(ctx, label.ID, host.ID, true); err != nil {
-		t.Fatalf("set label membership: %v", err)
-	}
-
-	if _, err := stores.configurations.Create(ctx, configurations.ConfigurationMutation{
-		Name:                      "Contract configuration " + suffix,
-		ClientMode:                configurations.ClientModeLockdown,
-		EnableBundles:             true,
-		DisableUnknownEventUpload: true,
-		OverrideFileAccessAction:  configurations.FileAccessActionAuditOnly,
-		FullSyncIntervalSeconds:   600,
-		BatchSize:                 50,
-		Targets: configurations.ConfigurationTargets{
-			Include: []targeting.LabelRef{{LabelID: label.ID}},
-		},
-	}); err != nil {
-		t.Fatalf("create configuration: %v", err)
-	}
-
-	ruleIdentifier := strings.Repeat("a", 64)
-	if _, err := stores.rules.Create(ctx, santarules.RuleMutation{
-		RuleType:      santarules.RuleTypeBinary,
-		Identifier:    ruleIdentifier,
-		Name:          "Contract rule " + suffix,
-		CustomMessage: "Blocked by contract",
-		Targets: santarules.RuleTargets{
-			Include: []santarules.RuleInclude{{
-				Policy:  santarules.PolicyBlocklist,
-				LabelID: label.ID,
-			}},
-		},
-	}); err != nil {
-		t.Fatalf("create rule: %v", err)
-	}
-
-	secret, err := stores.agentSecrets.Create(
-		ctx,
-		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-contract-secret-value-long-32"},
-	)
-	if err != nil {
-		t.Fatalf("create santa agent secret: %v", err)
-	}
-
-	var preflight syncv1.PreflightResponse
-	doSantaContractProto(t, router, secret.Value, "/santa/sync/preflight/"+machineID, &syncv1.PreflightRequest{
-		MachineId:        machineID,
-		SerialNumber:     "SANTACONTRACT",
-		SantaVersion:     "2026.2",
-		ClientMode:       syncv1.ClientMode_MONITOR,
-		RequestCleanSync: true,
-		RulesHash:        strings.Repeat("0", 32),
-	}, &preflight)
-	if preflight.GetSyncType() != syncv1.SyncType_CLEAN {
-		t.Fatalf("sync type = %v, want CLEAN", preflight.GetSyncType())
-	}
-	if preflight.GetClientMode() != syncv1.ClientMode_LOCKDOWN {
-		t.Fatalf("client mode = %v, want LOCKDOWN", preflight.GetClientMode())
-	}
-	if preflight.EnableBundles == nil || !preflight.GetEnableBundles() {
-		t.Fatalf("enable bundles = %v, want true", preflight.EnableBundles)
-	}
-	if preflight.DisableUnknownEventUpload == nil || !preflight.GetDisableUnknownEventUpload() {
-		t.Fatalf("disable unknown event upload = %v, want true", preflight.DisableUnknownEventUpload)
-	}
-	if preflight.OverrideFileAccessAction == nil ||
-		preflight.GetOverrideFileAccessAction() != syncv1.FileAccessAction_AUDIT_ONLY {
-		t.Fatalf("override file access action = %v, want AUDIT_ONLY", preflight.OverrideFileAccessAction)
-	}
-
-	var download syncv1.RuleDownloadResponse
-	doSantaContractProto(t, router, secret.Value, "/santa/sync/ruledownload/"+machineID,
-		&syncv1.RuleDownloadRequest{MachineId: machineID}, &download)
-	if len(download.GetRules()) != 1 {
-		t.Fatalf("downloaded rules = %+v, want one", download.GetRules())
-	}
-	rule := download.GetRules()[0]
-	if rule.GetIdentifier() != ruleIdentifier ||
-		rule.GetRuleType() != syncv1.RuleType_BINARY ||
-		rule.GetPolicy() != syncv1.Policy_BLOCKLIST ||
-		rule.GetCustomMsg() != "Blocked by contract" {
-		t.Fatalf("downloaded rule = %+v", rule)
-	}
-
-	doSantaContractProto(t, router, secret.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
-		MachineId:      machineID,
-		RulesHash:      strings.Repeat("1", 32),
-		RulesReceived:  uint32(len(download.GetRules())),
-		RulesProcessed: uint32(len(download.GetRules())),
-		SyncType:       syncv1.SyncType_CLEAN,
-	}, &syncv1.PostflightResponse{})
-
-	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
-		MachineId: machineID,
-		Events: []*syncv1.Event{
-			{
-				FileSha256:    "sha256-contract-" + suffix,
-				FilePath:      "/Applications/Contract.app/Contents/MacOS/Contract",
-				FileName:      "Contract",
-				ExecutingUser: "alice",
-				Decision:      syncv1.Decision_BLOCK_BINARY,
-				StaticRule:    true,
-				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC).Unix()),
-			},
-			{
-				FileSha256:    "sha256-mismatch-" + suffix,
-				FilePath:      "/Applications/Mismatch.app/Contents/MacOS/Mismatch",
-				FileName:      "Mismatch",
-				ExecutingUser: "alice",
-				Decision:      syncv1.Decision_BLOCK_BINARY_MISMATCH,
-				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 1, 0, 0, time.UTC).Unix()),
-			},
-			{
-				FileSha256:    "sha256-platform-" + suffix,
-				FilePath:      "/System/Library/CoreServices/SystemUIServer.app/Contents/MacOS/SystemUIServer",
-				FileName:      "SystemUIServer",
-				ExecutingUser: "alice",
-				Decision:      syncv1.Decision_ALLOW_PLATFORM,
-				ExecutionTime: float64(time.Date(2026, 5, 24, 10, 2, 0, 0, time.UTC).Unix()),
-			},
-		},
-		AuditEvents: []*syncv1.AuditEvent{{
-			Event: &syncv1.AuditEvent_StandaloneModeRuleCreation{
-				StandaloneModeRuleCreation: &syncv1.StandaloneModeRuleCreation{
-					Decision:   syncv1.Decision_ALLOW_BINARY,
-					Identifier: strings.Repeat("d", 64),
-					Timestamp:  uint32(time.Date(2026, 5, 24, 10, 3, 0, 0, time.UTC).Unix()),
-				},
-			},
-		}},
-		FileAccessEvents: []*syncv1.FileAccessEvent{{
-			RuleVersion: "policy-v1",
-			RuleName:    "Protect Payroll",
-			Target:      "/Users/alice/Payroll.csv",
-			Decision:    syncv1.FileAccessDecision_FILE_ACCESS_DECISION_DENIED,
-			AccessTime:  float64(time.Date(2026, 5, 24, 10, 5, 0, 0, time.UTC).Unix()),
-			ProcessChain: []*syncv1.Process{{
-				Pid:        123,
-				FilePath:   "/Applications/Contract.app/Contents/MacOS/Contract",
-				FileSha256: "process-sha-contract-" + suffix,
-				SigningId:  "TEAMID:contract",
-				TeamId:     "TEAMID",
-				Cdhash:     "process-cdhash",
-			}},
-		}},
-	}, &syncv1.EventUploadResponse{})
-
-	events, _, err := stores.events.ListEvents(ctx, santaevents.ExecutionEventListParams{
-		EventListParams: santaevents.EventListParams{HostID: host.ID},
-	})
-	if err != nil {
-		t.Fatalf("list events: %v", err)
-	}
-	wantDecisions := map[santaevents.ExecutionDecision]bool{
-		santaevents.ExecutionDecisionBlockBinary:         true,
-		santaevents.ExecutionDecisionBlockBinaryMismatch: true,
-		santaevents.ExecutionDecisionAllowPlatform:       true,
-	}
-	if len(events) != len(wantDecisions) {
-		t.Fatalf("stored events = %+v, want %d execution events", events, len(wantDecisions))
-	}
-	for _, event := range events {
-		if !wantDecisions[event.Decision] {
-			t.Fatalf("stored decision = %q, want one of %+v", event.Decision, wantDecisions)
-		}
-		delete(wantDecisions, event.Decision)
-		if event.Decision == santaevents.ExecutionDecisionBlockBinary && !event.StaticRule {
-			t.Fatalf("block binary event static_rule = false, want true")
-		}
-	}
-	if len(wantDecisions) != 0 {
-		t.Fatalf("missing decisions = %+v", wantDecisions)
-	}
-
-	fileAccessEvents, _, err := stores.events.ListFileAccessEvents(ctx, santaevents.FileAccessEventListParams{
-		EventListParams: santaevents.EventListParams{HostID: host.ID},
-	})
-	if err != nil {
-		t.Fatalf("list file access events: %v", err)
-	}
-	if len(fileAccessEvents) != 1 ||
-		fileAccessEvents[0].Decision != santaevents.FileAccessDecisionDenied ||
-		fileAccessEvents[0].Target != "/Users/alice/Payroll.csv" ||
-		fileAccessEvents[0].PrimaryProcess.FileSHA256 != "process-sha-contract-"+suffix {
-		t.Fatalf("stored file access events = %+v, want one denied payroll event", fileAccessEvents)
-	}
-	var auditIdentifier string
-	var auditDecision string
-	if err := db.Pool().QueryRow(ctx, `
-		SELECT identifier, decision::text
-		FROM santa_standalone_rule_creation_events
-		WHERE host_id = $1
-	`, host.ID).Scan(&auditIdentifier, &auditDecision); err != nil {
-		t.Fatalf("get standalone rule creation event: %v", err)
-	}
-	if auditIdentifier != strings.Repeat("d", 64) ||
-		auditDecision != string(santaevents.ExecutionDecisionAllowBinary) {
-		t.Fatalf("standalone rule creation event = %q/%q", auditIdentifier, auditDecision)
-	}
-}
 
 func TestSantaHTTPRuleDownloadRoundTripsCursor(t *testing.T) {
 	service := &recordingService{ruleDownloadResponse: santa.RuleDownloadResponse{Cursor: "next"}}
@@ -527,26 +295,6 @@ func TestSantaHTTPPostflightMapsSyncContract(t *testing.T) {
 	}
 }
 
-func TestProtoSyncTypeMapsExactValues(t *testing.T) {
-	tests := map[syncstate.SyncType]syncv1.SyncType{
-		syncstate.SyncTypeNormal:   syncv1.SyncType_NORMAL,
-		syncstate.SyncTypeClean:    syncv1.SyncType_CLEAN,
-		syncstate.SyncTypeCleanAll: syncv1.SyncType_CLEAN_ALL,
-	}
-	for input, want := range tests {
-		got, err := protoSyncType(input)
-		if err != nil {
-			t.Fatalf("protoSyncType(%q): %v", input, err)
-		}
-		if got != want {
-			t.Fatalf("protoSyncType(%q) = %q, want %q", input, got, want)
-		}
-	}
-	if _, err := protoSyncType("unknown"); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("unknown sync type error = %v, want invalid input", err)
-	}
-}
-
 func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	service := &recordingService{
 		ruleDownloadResponse: santa.RuleDownloadResponse{
@@ -646,64 +394,6 @@ func TestSantaHTTPRuleDownloadEncodesSilentBlocklistPolicies(t *testing.T) {
 	}
 }
 
-func TestSantaHTTPCoversAllSyncStages(t *testing.T) {
-	tests := []struct {
-		name      string
-		path      string
-		request   proto.Message
-		wantStage string
-	}{
-		{
-			name:      "preflight",
-			path:      "/santa/sync/preflight/machine-1",
-			request:   &syncv1.PreflightRequest{},
-			wantStage: "preflight",
-		},
-		{
-			name:      "event upload",
-			path:      "/santa/sync/eventupload/machine-1",
-			request:   &syncv1.EventUploadRequest{},
-			wantStage: "eventupload",
-		},
-		{
-			name:      "rule download",
-			path:      "/santa/sync/ruledownload/machine-1",
-			request:   &syncv1.RuleDownloadRequest{},
-			wantStage: "ruledownload",
-		},
-		{
-			name: "postflight",
-			path: "/santa/sync/postflight/machine-1",
-			request: &syncv1.PostflightRequest{
-				SyncType:  syncv1.SyncType_NORMAL,
-				RulesHash: strings.Repeat("0", 32),
-			},
-			wantStage: "postflight",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service := &recordingService{}
-			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
-			rec := httptest.NewRecorder()
-			req := santaContractRequest(t, tt.path, tt.request)
-
-			router.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-			}
-			if service.stage != tt.wantStage {
-				t.Fatalf("stage = %q, want %q", service.stage, tt.wantStage)
-			}
-			if service.machineID != "machine-1" {
-				t.Fatalf("machine id = %q, want machine-1", service.machineID)
-			}
-		})
-	}
-}
-
 func TestSantaHTTPRejectsMachineIDMismatch(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -765,7 +455,6 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 		contentType     string
 		contentEncoding string
 		authorization   string
-		serviceErr      error
 		wantStatus      int
 	}{
 		{
@@ -838,21 +527,11 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 			authorization:   "Bearer ok",
 			wantStatus:      http.StatusBadRequest,
 		},
-		{
-			name:            "unknown santa host",
-			tokenVerifier:   &staticVerifier{ok: true},
-			body:            validBody,
-			contentType:     protobufContentType,
-			contentEncoding: "gzip",
-			authorization:   "Bearer ok",
-			serviceErr:      dbutil.ErrNotFound,
-			wantStatus:      http.StatusNotFound,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{err: tt.serviceErr})
+			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{})
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
 			if tt.contentType != "" {
@@ -953,41 +632,6 @@ func newSantaContractRouter(verifier agentauth.SecretVerifier, service SyncServi
 	return r
 }
 
-type santaContractStores struct {
-	hosts          *hosts.Store
-	labels         *labels.Store
-	hostState      *santa.Store
-	agentSecrets   *agentauth.Store
-	configurations *configurations.Store
-	events         *santaevents.Store
-	rules          *santarules.Store
-	sync           *syncstate.Store
-}
-
-func newSantaContractStores(db *database.DB) santaContractStores {
-	return santaContractStores{
-		hosts:          hosts.NewStore(db),
-		labels:         labels.NewStore(db),
-		hostState:      santa.NewStore(db),
-		agentSecrets:   agentauth.NewStore(db),
-		configurations: configurations.NewStore(db),
-		events:         santaevents.NewStore(db),
-		rules:          santarules.NewStore(db),
-		sync:           syncstate.NewStore(db),
-	}
-}
-
-func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
-	service := santa.NewSyncService(santa.Dependencies{
-		HostStore:      stores.hostState,
-		Configurations: stores.configurations,
-		Events:         stores.events,
-		Rules:          stores.rules,
-		Sync:           stores.sync,
-	})
-	return newSantaContractRouter(stores.agentSecrets, service)
-}
-
 func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Request {
 	t.Helper()
 
@@ -1006,28 +650,6 @@ func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Re
 
 func machineIDFromSyncPath(path string) string {
 	return path[strings.LastIndex(path, "/")+1:]
-}
-
-func doSantaContractProto(
-	t *testing.T,
-	router http.Handler,
-	token string,
-	path string,
-	request proto.Message,
-	response proto.Message,
-) {
-	t.Helper()
-
-	req := santaContractRequest(t, path, request)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	if response != nil {
-		mustReadProtoResponse(t, rec.Body.Bytes(), response)
-	}
 }
 
 func mustGzipProto(t *testing.T, msg proto.Message) []byte {

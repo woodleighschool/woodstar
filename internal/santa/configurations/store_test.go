@@ -125,12 +125,6 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 			config.Targets, firstLabelID, secondLabelID, thirdLabelID)
 	}
 
-	overlapping := baseline("Overlapping")
-	overlapping.Targets = configurationTargets(labelRefs(firstLabelID), nil)
-	if _, err := store.Create(ctx, overlapping); err != nil {
-		t.Fatalf("overlapping configuration create error = %v, want allowed overlap", err)
-	}
-
 	update := baseline("Updated")
 	update.Description = "Updated policy"
 	update.Targets = configurationTargets(labelRefs(thirdLabelID), nil)

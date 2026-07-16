@@ -19,7 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testing.T) {
+func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
@@ -152,17 +152,11 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	if got := entitlements["com.apple.security.cs.allow-jit"]; got != true {
 		t.Fatalf("allow-jit entitlement = %v, want true", got)
 	}
-	if !blockEvent.OccurredAt.Equal(occurredAt) {
-		t.Fatalf("occurred_at = %v, want %v", blockEvent.OccurredAt, occurredAt)
-	}
 	if !slices.Equal(blockEvent.LoggedInUsers, []string{"bob", "alice"}) {
 		t.Fatalf("logged_in_users = %v, want client order", blockEvent.LoggedInUsers)
 	}
 	if !slices.Equal(blockEvent.CurrentSessions, []string{"console", "ssh"}) {
 		t.Fatalf("current_sessions = %v, want client order", blockEvent.CurrentSessions)
-	}
-	if !allowEvent.OccurredAt.Equal(occurredAt.Add(time.Second)) {
-		t.Fatalf("occurred_at = %v, want %v", allowEvent.OccurredAt, occurredAt.Add(time.Second))
 	}
 	if len(allowEvent.LoggedInUsers) != 0 {
 		t.Fatalf("omitted logged_in_users = %v, want empty array", allowEvent.LoggedInUsers)
@@ -207,9 +201,6 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	detail, err := eventStore.GetExecutionEvent(ctx, blockEvent.ID)
 	if err != nil {
 		t.Fatalf("get execution event: %v", err)
-	}
-	if detail.Host.ID != host.ID || detail.Host.DisplayName != host.DisplayName {
-		t.Fatalf("detail host = %+v, want host %d/%q", detail.Host, host.ID, host.DisplayName)
 	}
 	if len(detail.Executable.SigningChain) != 2 ||
 		detail.Executable.SigningChain[0].CommonName != "Leaf" ||

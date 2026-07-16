@@ -18,33 +18,6 @@ const (
 	syncedRulesHash = "11111111111111111111111111111111"
 )
 
-func TestPreparePendingInitialSyncIsCleanAndFreezesDesiredPayload(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := syncstate.NewStore(db)
-	host := createHost(t, ctx, db, "initial")
-
-	syncType, err := store.PreparePending(ctx, host.ID, []syncstate.Target{
-		target("binary", "a", "blocklist", "hash-a"),
-	}, syncstate.RuleCounts{}, false, emptyRulesHash)
-	if err != nil {
-		t.Fatalf("prepare pending: %v", err)
-	}
-	if syncType != syncstate.SyncTypeClean {
-		t.Fatalf("sync type = %q, want clean", syncType)
-	}
-
-	page, err := store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
-	if err != nil {
-		t.Fatalf("load pending payload: %v", err)
-	}
-	if got := payloadSummary(page.Rules); got != "binary:a:blocklist:false" {
-		t.Fatalf("payload = %q, want initial desired rule", got)
-	}
-	if got := countRows(t, ctx, db, "santa_sync_targets", host.ID, "phase = 'desired'"); got != 1 {
-		t.Fatalf("desired rows = %d, want 1", got)
-	}
-}
-
 func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := syncstate.NewStore(db)

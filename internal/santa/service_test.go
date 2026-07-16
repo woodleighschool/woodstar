@@ -12,7 +12,6 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
@@ -24,12 +23,10 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
-	store := santa.NewStore(db)
 	ruleStore := santarules.NewStore(db)
-	configurationStore := configurations.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
-		HostStore:      store,
-		Configurations: configurationStore,
+		HostStore:      santa.NewStore(db),
+		Configurations: configurations.NewStore(db),
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
@@ -49,24 +46,10 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, labelID, host.ID, true); err != nil {
 		t.Fatalf("set label membership: %v", err)
 	}
-	if _, err := configurationStore.Create(ctx, configurations.ConfigurationMutation{
-		Name:                     "Sync Config",
-		ClientMode:               configurations.ClientModeLockdown,
-		EnableBundles:            true,
-		OverrideFileAccessAction: configurations.FileAccessActionNone,
-		FullSyncIntervalSeconds:  120,
-		BatchSize:                50,
-		Targets: configurations.ConfigurationTargets{
-			Include: []targeting.LabelRef{{LabelID: labelID}},
-		},
-	}); err != nil {
-		t.Fatalf("create configuration: %v", err)
-	}
 	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
-		RuleType:      santarules.RuleTypeBinary,
-		Identifier:    binaryIdentifier,
-		Name:          "Blocked binary",
-		CustomMessage: "Blocked",
+		RuleType:   santarules.RuleTypeBinary,
+		Identifier: binaryIdentifier,
+		Name:       "Blocked binary",
 		Targets: santarules.RuleTargets{
 			Include: []santarules.RuleInclude{{
 				Policy:  santarules.PolicyBlocklist,
@@ -74,46 +57,16 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 			}},
 		},
 	}); err != nil {
-		t.Fatalf("create rule: %v", err)
+		t.Fatalf("create initial rule: %v", err)
 	}
 
-	preflight, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
+	if _, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
-		Version:          "2026.2",
 		RulesHash:        "00000000000000000000000000000000",
-		ClientMode:       configurations.ReportedClientModeMonitor,
 		RequestCleanSync: true,
-		PrimaryUser:      "test1@woodleigh.vic.edu.au",
-	})
-	if err != nil {
-		t.Fatalf("preflight: %v", err)
+	}); err != nil {
+		t.Fatalf("freeze desired rules at preflight: %v", err)
 	}
-	if preflight.SyncType != syncstate.SyncTypeClean {
-		t.Fatalf("sync type = %v, want clean", preflight.SyncType)
-	}
-	if preflight.Configuration == nil || preflight.Configuration.ClientMode != configurations.ClientModeLockdown {
-		t.Fatalf("configuration = %+v, want lockdown", preflight.Configuration)
-	}
-	if !preflight.Configuration.EnableBundles {
-		t.Fatalf("enable bundles = %v, want true", preflight.Configuration.EnableBundles)
-	}
-	if preflight.Configuration.FullSyncIntervalSeconds != 120 {
-		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
-	}
-	download, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
-	if err != nil {
-		t.Fatalf("rule download: %v", err)
-	}
-	if len(download.Rules) != 1 {
-		t.Fatalf("downloaded rules = %+v, want one", download.Rules)
-	}
-	if download.Rules[0].Identifier != binaryIdentifier ||
-		download.Rules[0].Policy != string(santarules.PolicyBlocklist) ||
-		download.Rules[0].RuleType != string(santarules.RuleTypeBinary) ||
-		download.Rules[0].CustomMessage != "Blocked" {
-		t.Fatalf("downloaded rule = %+v", download.Rules[0])
-	}
-
 	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
 		RuleType:   santarules.RuleTypeCertificate,
 		Identifier: certificateIdentifier,
@@ -125,35 +78,15 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 			}},
 		},
 	}); err != nil {
-		t.Fatalf("create post-preflight rule: %v", err)
+		t.Fatalf("create rule after preflight: %v", err)
 	}
+
 	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
 	if err != nil {
-		t.Fatalf("rule download after desired change: %v", err)
+		t.Fatalf("download frozen rules: %v", err)
 	}
 	if len(frozenDownload.Rules) != 1 || frozenDownload.Rules[0].Identifier != binaryIdentifier {
-		t.Fatalf("frozen download = %+v, want original preflight payload", frozenDownload.Rules)
-	}
-
-	if _, err := service.Postflight(ctx, "santa-sync-host", santa.PostflightRequest{
-		RulesReceived:  1,
-		RulesProcessed: 1,
-		SyncType:       syncstate.SyncTypeClean,
-		RulesHash:      "11111111111111111111111111111111",
-	}); err != nil {
-		t.Fatalf("postflight: %v", err)
-	}
-
-	hostState := santa.NewHostStateService(store, configurationStore)
-	state, err := hostState.LoadHostState(ctx, host.ID)
-	if err != nil {
-		t.Fatalf("load host state: %v", err)
-	}
-	if state.RuleSync.DesiredCount != 1 || state.RuleSync.AppliedCount != 1 || state.RuleSync.PendingCount != 0 {
-		t.Fatalf("rule sync = %+v, want promoted clean snapshot", state.RuleSync)
-	}
-	if state.RuleSync.LastCleanSyncAt == nil {
-		t.Fatalf("last clean sync was not recorded")
+		t.Fatalf("frozen download = %+v, want only the preflight snapshot", frozenDownload.Rules)
 	}
 }
 

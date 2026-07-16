@@ -93,7 +93,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
 	registerSantaEvents(api, eventsStore, discardLogger())
 
-	rec := santaEventsRequest(t, router, "/api/santa/events?decisions=blocked&page_size=1")
+	rec := santaEventsRequest(t, router, "/api/santa/events?decisions=blocked&per_page=1")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -105,6 +105,13 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"count":2`) {
 		t.Fatalf("body = %q, want count=2 for normal pagination", rec.Body.String())
+	}
+	var blockedList Page[events.ExecutionEvent]
+	if err := json.Unmarshal(rec.Body.Bytes(), &blockedList); err != nil {
+		t.Fatalf("decode blocked execution list: %v", err)
+	}
+	if blockedList.Count != 2 || len(blockedList.Items) != 1 {
+		t.Fatalf("blocked execution list = %+v count=%d, want one of two", blockedList.Items, blockedList.Count)
 	}
 
 	rec = santaEventsRequest(t, router, "/api/santa/events?q=Allowed&decisions=allowed")
