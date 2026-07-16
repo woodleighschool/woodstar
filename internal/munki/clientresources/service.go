@@ -3,15 +3,12 @@ package clientresources
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
-	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -23,11 +20,13 @@ const (
 )
 
 type registry interface {
-	CreatePending(context.Context, string, string, string) (*storage.Object, error)
 	GetByID(context.Context, int64) (*storage.Object, error)
-	Confirm(context.Context, int64, int64, string, string) (*storage.Object, error)
-	ConfirmUploaded(context.Context, int64) (*storage.Object, error)
-	DeleteUnreferenced(context.Context, ...int64) error
+}
+
+type uploader interface {
+	Finalize(context.Context, int64, string) (*storage.Object, error)
+	Write(context.Context, string, string, string, []byte) (*storage.Object, error)
+	Delete(context.Context, int64) error
 }
 
 type resourceStore interface {
@@ -40,11 +39,17 @@ type resourceStore interface {
 type Service struct {
 	resources resourceStore
 	objects   registry
+	uploads   uploader
 	storage   storage.Store
 }
 
-func NewService(resources resourceStore, objects registry, storage storage.Store) *Service {
-	return &Service{resources: resources, objects: objects, storage: storage}
+func NewService(
+	resources resourceStore,
+	objects registry,
+	uploads uploader,
+	storage storage.Store,
+) *Service {
+	return &Service{resources: resources, objects: objects, uploads: uploads, storage: storage}
 }
 
 func (s *Service) Get(ctx context.Context) (*ClientResources, error) {
@@ -63,7 +68,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	}
 	cleanupBanner := func() error {
 		if wasPending {
-			return cleanupObjects(ctx, s.objects, banner.ID)
+			return cleanupObjects(ctx, s.uploads, banner.ID)
 		}
 		return nil
 	}
@@ -72,7 +77,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	if err != nil {
 		return nil, errors.Join(err, cleanupBanner())
 	}
-	extension, _ := BannerExtension(banner.ContentType)
+	extension, _ := bannerExtension(banner.ContentType)
 	archiveBody, err := Compile(mutation, extension, bannerBody)
 	if err != nil {
 		return nil, errors.Join(err, cleanupBanner())
@@ -89,7 +94,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	if err != nil {
 		return nil, errors.Join(
 			err,
-			cleanupObjects(ctx, s.objects, archive.ID),
+			cleanupObjects(ctx, s.uploads, archive.ID),
 			cleanupBanner(),
 		)
 	}
@@ -113,20 +118,20 @@ func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.O
 	}
 	wasPending := !banner.Available()
 	if wasPending {
-		banner, err = s.objects.ConfirmUploaded(ctx, objectID)
+		banner, err = s.uploads.Finalize(ctx, objectID, BannerObjectPrefix)
 		if errors.Is(err, storage.ErrObjectNotFound) {
 			return nil, true, errors.Join(
 				fmt.Errorf("%w: uploaded banner does not exist", dbutil.ErrInvalidInput),
-				cleanupObjects(ctx, s.objects, objectID),
+				cleanupObjects(ctx, s.uploads, objectID),
 			)
 		}
 		if err != nil {
-			return nil, true, errors.Join(err, cleanupObjects(ctx, s.objects, objectID))
+			return nil, true, errors.Join(err, cleanupObjects(ctx, s.uploads, objectID))
 		}
 	}
-	if err := ValidateBannerUpload(banner.ContentType, banner.SizeBytesValue()); err != nil {
+	if err := validateBanner(banner.ContentType, banner.SizeBytesValue()); err != nil {
 		if wasPending {
-			err = errors.Join(err, cleanupObjects(ctx, s.objects, banner.ID))
+			err = errors.Join(err, cleanupObjects(ctx, s.uploads, banner.ID))
 		}
 		return nil, wasPending, err
 	}
@@ -153,40 +158,19 @@ func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte
 }
 
 func (s *Service) storeArchive(ctx context.Context, body []byte) (*storage.Object, error) {
-	archive, err := s.objects.CreatePending(ctx, ArchiveObjectPrefix, archiveFilename, archiveContentType)
-	if err != nil {
-		return nil, err
-	}
-	cleanup := func() error { return cleanupObjects(ctx, s.objects, archive.ID) }
-	if err := s.storage.Put(
-		ctx,
-		archive.Key(),
-		bytes.NewReader(body),
-		storage.PutOptions{ContentType: archiveContentType},
-	); err != nil {
-		return nil, errors.Join(err, cleanup())
-	}
-	hash := sha256.Sum256(body)
-	confirmed, err := s.objects.Confirm(
-		ctx,
-		archive.ID,
-		int64(len(body)),
-		archiveContentType,
-		hex.EncodeToString(hash[:]),
-	)
-	if err != nil {
-		return nil, errors.Join(err, cleanup())
-	}
-	return confirmed, nil
+	return s.uploads.Write(ctx, ArchiveObjectPrefix, archiveFilename, archiveContentType, body)
 }
 
 func validateBannerBody(contentType string, body []byte) error {
-	normalizedContentType := strings.ToLower(strings.TrimSpace(contentType))
-	switch normalizedContentType {
-	case "image/jpeg", "image/png":
+	detected := lookupContentType(contentType)
+	if detected == nil {
+		return fmt.Errorf("%w: unsupported banner content type", dbutil.ErrInvalidInput)
+	}
+	switch {
+	case detected.Is("image/jpeg"), detected.Is("image/png"):
 		var config image.Config
 		var err error
-		if normalizedContentType == "image/jpeg" {
+		if detected.Is("image/jpeg") {
 			config, err = jpeg.DecodeConfig(bytes.NewReader(body))
 		} else {
 			config, err = png.DecodeConfig(bytes.NewReader(body))

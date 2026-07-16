@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/gabriel-vasile/mimetype"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
@@ -23,11 +24,6 @@ const (
 	maxLinkTargetBytes  = 2048
 	maxFooterTextBytes  = 500
 )
-
-var bannerContentTypes = map[string]string{
-	"image/jpeg": "jpg",
-	"image/png":  "png",
-}
 
 // BannerAlignment controls which part of a fixed-height banner remains anchored as the window resizes.
 type BannerAlignment string
@@ -165,19 +161,31 @@ func validateLinkTarget(link Link) error {
 	return nil
 }
 
-// BannerExtension returns the canonical archive extension for a supported image type.
-func BannerExtension(contentType string) (string, bool) {
-	extension, ok := bannerContentTypes[strings.ToLower(strings.TrimSpace(contentType))]
-	return extension, ok
+func bannerExtension(contentType string) (string, bool) {
+	detected := lookupContentType(contentType)
+	if detected == nil {
+		return "", false
+	}
+	switch {
+	case detected.Is("image/jpeg"):
+		return "jpg", true
+	case detected.Is("image/png"):
+		return "png", true
+	default:
+		return "", false
+	}
 }
 
-// ValidateBannerUpload checks the metadata available before storage is reserved.
-func ValidateBannerUpload(contentType string, sizeBytes int64) error {
-	if _, ok := BannerExtension(contentType); !ok {
+func validateBanner(contentType string, sizeBytes int64) error {
+	if _, ok := bannerExtension(contentType); !ok {
 		return fmt.Errorf("%w: banner must be a JPEG or PNG image", dbutil.ErrInvalidInput)
 	}
 	if sizeBytes <= 0 || sizeBytes > MaxBannerSizeBytes {
 		return fmt.Errorf("%w: banner must be between 1 byte and 5 MiB", dbutil.ErrInvalidInput)
 	}
 	return nil
+}
+
+func lookupContentType(contentType string) *mimetype.MIME {
+	return mimetype.Lookup(contentType)
 }

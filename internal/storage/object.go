@@ -2,11 +2,9 @@ package storage
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
+	"mime"
 	"path"
 	"regexp"
 	"strings"
@@ -35,13 +33,6 @@ type Object struct {
 const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at
 FROM storage_objects`
 
-// objectUnrefRow is the minimal projection used by DeleteUnreferenced.
-type objectUnrefRow struct {
-	Prefix   string `db:"prefix"`
-	ID       int64  `db:"id"`
-	Filename string `db:"filename"`
-}
-
 // Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
 // one place the key format lives.
 func Key(prefix string, id int64, filename string) string {
@@ -53,12 +44,12 @@ func (o Object) Key() string {
 	return Key(o.Prefix, o.ID, o.Filename)
 }
 
-// Available reports whether the bytes have been confirmed present.
+// Available reports whether the bytes have been finalized.
 func (o Object) Available() bool {
 	return o.AvailableAt != nil
 }
 
-// SHA256Value returns the confirmed hash, or "" while the object is pending.
+// SHA256Value returns the recorded hash, or "" while the object is pending.
 func (o Object) SHA256Value() string {
 	if o.SHA256 == nil {
 		return ""
@@ -66,7 +57,7 @@ func (o Object) SHA256Value() string {
 	return *o.SHA256
 }
 
-// SizeBytesValue returns the confirmed byte length, or 0 while the object is pending.
+// SizeBytesValue returns the recorded byte length, or 0 while the object is pending.
 func (o Object) SizeBytesValue() int64 {
 	if o.SizeBytes == nil {
 		return 0
@@ -74,7 +65,7 @@ func (o Object) SizeBytesValue() int64 {
 	return *o.SizeBytes
 }
 
-// SizeKBValue returns the rounded-up confirmed size in KiB.
+// SizeKBValue returns the rounded-up recorded size in KiB.
 func (o Object) SizeKBValue() int64 {
 	sizeBytes := o.SizeBytesValue()
 	if sizeBytes <= 0 {
@@ -86,17 +77,21 @@ func (o Object) SizeKBValue() int64 {
 // ObjectStore is the database registry of stored objects.
 type ObjectStore struct {
 	db      *database.DB
-	backend Store
+	backend objectBackend
+}
+
+type objectBackend interface {
+	Delete(context.Context, string) error
+	PresignGet(context.Context, string, time.Duration, GetOptions) (string, error)
 }
 
 // NewObjectStore returns a registry backed by db.
-func NewObjectStore(db *database.DB, backend Store) *ObjectStore {
+func NewObjectStore(db *database.DB, backend objectBackend) *ObjectStore {
 	return &ObjectStore{db: db, backend: backend}
 }
 
-// CreatePending inserts a pending object and returns it with its assigned id.
-// The caller uploads to Object.Key() and then calls Confirm.
-func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, contentType string) (*Object, error) {
+// CreatePending reserves an object in the registry without classifying content.
+func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string) (*Object, error) {
 	if !prefixPattern.MatchString(prefix) {
 		return nil, fmt.Errorf("%w: invalid storage prefix %q", dbutil.ErrInvalidInput, prefix)
 	}
@@ -104,13 +99,12 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename, conte
 	if err := validateUploadFilename(filename); err != nil {
 		return nil, err
 	}
-	const sql = `INSERT INTO storage_objects (prefix, filename, content_type)
-VALUES (@prefix, @filename, @content_type)
+	const sql = `INSERT INTO storage_objects (prefix, filename)
+VALUES (@prefix, @filename)
 RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
-		"prefix":       prefix,
-		"filename":     filename,
-		"content_type": contentType,
+		"prefix":   prefix,
+		"filename": filename,
 	})
 	if err != nil {
 		return nil, dbutil.MutationError(err)
@@ -118,20 +112,32 @@ RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, 
 	return &obj, nil
 }
 
-// Confirm records the landed object's size, sha, and content type, and marks it
-// available. A content type of "" keeps whatever was set at creation.
-func (s *ObjectStore) Confirm(ctx context.Context, id, size int64, contentType, sha256sum string) (*Object, error) {
+// MarkAvailable records application-derived representation metadata for an object.
+func (s *ObjectStore) MarkAvailable(
+	ctx context.Context,
+	id int64,
+	sizeBytes int64,
+	contentType string,
+	sha256sum string,
+) (*Object, error) {
+	contentType, err := normalizeContentType(contentType)
+	if err != nil {
+		return nil, err
+	}
+	if sizeBytes < 0 || sha256sum == "" {
+		return nil, fmt.Errorf("%w: incomplete storage object metadata", dbutil.ErrInvalidInput)
+	}
 	const sql = `UPDATE storage_objects
 SET size_bytes = @size_bytes,
     sha256 = @sha256,
-    content_type = COALESCE(NULLIF(@content_type::text, ''), content_type),
+    content_type = @content_type,
     available_at = now(),
     updated_at = now()
 WHERE id = @id
 RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"id":           id,
-		"size_bytes":   &size,
+		"size_bytes":   &sizeBytes,
 		"sha256":       &sha256sum,
 		"content_type": contentType,
 	})
@@ -141,33 +147,12 @@ RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, 
 	return &obj, nil
 }
 
-// ConfirmUploaded verifies the bytes in the configured backend and marks the
-// object available with server-derived size and SHA-256 metadata.
-func (s *ObjectStore) ConfirmUploaded(ctx context.Context, id int64) (*Object, error) {
+// ContentURL returns a direct read URL with the registry's content type.
+func (s *ObjectStore) ContentURL(ctx context.Context, object Object) (string, error) {
 	if s.backend == nil {
-		return nil, errors.New("storage backend is not configured")
+		return "", errors.New("storage backend is not configured")
 	}
-	obj, err := s.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	// Re-read the whole object to compute its SHA-256; pkginfo needs a real one.
-	reader, info, err := s.backend.Open(ctx, obj.Key())
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
-	if err != nil {
-		return nil, fmt.Errorf("hash %q: %w", obj.Key(), err)
-	}
-	contentType := info.ContentType
-	if contentType == "" {
-		contentType = obj.ContentType
-	}
-	return s.Confirm(ctx, obj.ID, size, contentType, hex.EncodeToString(hash.Sum(nil)))
+	return s.backend.PresignGet(ctx, object.Key(), 0, GetOptions{ContentType: object.ContentType})
 }
 
 // GetByID returns one object.
@@ -217,92 +202,35 @@ func (s *ObjectStore) ListByPrefix(
 	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
 }
 
-// DeleteByID removes an object row. It fails with a conflict if a consumer FK
-// still references it.
-func (s *ObjectStore) DeleteByID(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM storage_objects WHERE id = $1`, id)
+// Delete removes one registry row and its bytes. Foreign keys decide whether
+// another row still uses the object.
+func (s *ObjectStore) Delete(ctx context.Context, id int64) error {
+	const sql = `DELETE FROM storage_objects
+WHERE id = $1
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "storage object is still referenced")
 	}
-	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+	if s.backend == nil {
+		return nil
+	}
+	if err := s.backend.Delete(ctx, object.Key()); err != nil {
+		return fmt.Errorf("delete %q: %w", object.Key(), err)
 	}
 	return nil
 }
 
-// DeleteUnreferenced removes objects that no Munki resource references anymore.
-// Registry rows are deleted before backend bytes so a concurrent reference can
-// never point at bytes cleanup has already removed.
-func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) error {
-	if len(ids) == 0 {
-		return nil
-	}
-
-	var unreferenced []objectUnrefRow
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-SELECT id
-FROM storage_objects
-WHERE id = ANY($1::bigint[])
-ORDER BY id
-FOR UPDATE`, ids)
-		if err != nil {
-			return err
-		}
-		lockedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
-		if err != nil {
-			return err
-		}
-		if len(lockedIDs) == 0 {
-			return nil
-		}
-
-		rows, err = tx.Query(ctx, `
-DELETE FROM storage_objects o
-WHERE o.id = ANY($1::bigint[])
-  AND NOT EXISTS (SELECT 1 FROM munki_software s WHERE s.icon_object_id = o.id)
-  AND NOT EXISTS (
-      SELECT 1 FROM munki_packages p
-      WHERE p.installer_object_id = o.id
-  )
-  AND NOT EXISTS (
-      SELECT 1 FROM munki_client_resources cr
-      WHERE cr.banner_object_id = o.id OR cr.archive_object_id = o.id
-  )
-RETURNING o.prefix, o.id, o.filename`, lockedIDs)
-		if err != nil {
-			return err
-		}
-		unreferenced, err = pgx.CollectRows(rows, pgx.RowToStructByName[objectUnrefRow])
-		return err
-	})
+func normalizeContentType(value string) (string, error) {
+	mediaType, params, err := mime.ParseMediaType(value)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("%w: invalid content type: %w", dbutil.ErrInvalidInput, err)
 	}
-
-	// Backend deletion follows the registry commit. A backend failure can leave
-	// orphaned bytes, but it cannot leave a database reference to missing bytes.
-	for _, row := range unreferenced {
-		key := Key(row.Prefix, row.ID, row.Filename)
-		if s.backend != nil {
-			if err := s.backend.Delete(ctx, key); err != nil {
-				return fmt.Errorf("delete %q: %w", key, err)
-			}
-		}
+	value = mime.FormatMediaType(mediaType, params)
+	if value == "" {
+		return "", fmt.Errorf("%w: invalid content type", dbutil.ErrInvalidInput)
 	}
-	return nil
-}
-
-// ReplacedObjectIDs returns the old object id when a pointer field now points
-// at a different object or has been cleared.
-func ReplacedObjectIDs(oldID, newID *int64) []int64 {
-	if oldID == nil {
-		return nil
-	}
-	if newID != nil && *oldID == *newID {
-		return nil
-	}
-	return []int64{*oldID}
+	return value, nil
 }
 
 // prefixPattern constrains a storage prefix to the lowercase slash-separated

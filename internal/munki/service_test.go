@@ -36,6 +36,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 			ID:          installerID,
 			Prefix:      packages.ObjectPrefix,
 			Filename:    "GoogleChrome.pkg",
+			ContentType: "application/octet-stream",
 			AvailableAt: &availableAt,
 		},
 	}}
@@ -50,6 +51,9 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	}
 	if installer.PackageID != 10 {
 		t.Fatalf("package id = %d, want 10", installer.PackageID)
+	}
+	if installer.ContentType != "application/octet-stream" {
+		t.Fatalf("content type = %q, want application/octet-stream", installer.ContentType)
 	}
 
 	_, err = service.ResolvePackageFile(context.Background(), "munki/packages/99/Blocked.pkg")
@@ -76,17 +80,18 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 			ID:          iconID,
 			Prefix:      "munki/icons",
 			Filename:    "GoogleChrome.png",
+			ContentType: "image/png",
 			AvailableAt: &availableAt,
 		},
 	}}
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 
-	key, err := service.ResolveIconFile(context.Background(), "42-GoogleChrome.png")
+	file, err := service.ResolveIconFile(context.Background(), "42-GoogleChrome.png")
 	if err != nil {
 		t.Fatalf("ResolveIconFile allowed icon: %v", err)
 	}
-	if key != "munki/icons/42/GoogleChrome.png" {
-		t.Fatalf("key = %q, want icon storage key", key)
+	if file.Key != "munki/icons/42/GoogleChrome.png" || file.ContentType != "image/png" {
+		t.Fatalf("file = %+v, want canonical icon storage metadata", file)
 	}
 
 	_, err = service.ResolveIconFile(context.Background(), "42-Other.png")
@@ -104,6 +109,7 @@ func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
 		ID:          9,
 		Prefix:      clientresources.ArchiveObjectPrefix,
 		Filename:    "site_default.zip",
+		ContentType: "application/zip",
 		AvailableAt: &availableAt,
 	}
 	service := munki.NewRepositoryService(munki.Dependencies{
@@ -116,12 +122,12 @@ func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
 	})
 
 	for _, name := range []string{"C02MUNKI.zip", "site_default.zip"} {
-		key, err := service.ResolveClientResources(context.Background(), name)
+		file, err := service.ResolveClientResources(context.Background(), name)
 		if err != nil {
 			t.Fatalf("ResolveClientResources(%q): %v", name, err)
 		}
-		if key != "munki/clientresources/archives/9/site_default.zip" {
-			t.Fatalf("ResolveClientResources(%q) key = %q", name, key)
+		if file.Key != "munki/clientresources/archives/9/site_default.zip" || file.ContentType != "application/zip" {
+			t.Fatalf("ResolveClientResources(%q) file = %+v", name, file)
 		}
 	}
 	for _, name := range []string{"C02OTHER.zip", "nested/C02MUNKI.zip", "not-a-zip"} {

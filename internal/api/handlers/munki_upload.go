@@ -2,18 +2,25 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
+	"errors"
+	"fmt"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
+const munkiUploadLabel = "Munki upload"
+
 type MunkiUploadRequest struct {
-	Filename    string `json:"filename"`
-	ContentType string `json:"content_type,omitempty"`
+	Filename string `json:"filename"`
+}
+
+type MunkiObjectMutation struct {
+	ObjectID int64 `json:"object_id" minimum:"1"`
 }
 
 type MunkiUploadTransport storage.UploadTransport
@@ -52,14 +59,6 @@ type munkiObjectOutput struct {
 	Body MunkiObjectView
 }
 
-type munkiUploadConfirm struct {
-	Operation string
-	Prefix    string
-	ObjectID  int64
-	Attach    func(int64) error
-	Attrs     []any
-}
-
 func munkiUploadOutputFromTarget(obj *storage.Object, target storage.UploadTarget) *munkiUploadOutput {
 	return &munkiUploadOutput{Body: MunkiUploadTarget{
 		ObjectID:        obj.ID,
@@ -82,11 +81,11 @@ func munkiObjectView(o storage.Object) MunkiObjectView {
 
 func munkiObjectViewWithContentURL(
 	ctx context.Context,
-	presigner storage.Presigner,
+	objects *storage.ObjectStore,
 	o storage.Object,
 ) (MunkiObjectView, error) {
 	view := munkiObjectView(o)
-	contentURL, err := munkiupload.ContentURL(ctx, presigner, o)
+	contentURL, err := objects.ContentURL(ctx, o)
 	if err != nil {
 		return MunkiObjectView{}, err
 	}
@@ -94,40 +93,44 @@ func munkiObjectViewWithContentURL(
 	return view, nil
 }
 
-func confirmMunkiObjectUpload(
+func finalizeMunkiUpload(
 	ctx context.Context,
-	objects *storage.ObjectStore,
-	presigner storage.Presigner,
-	logger *slog.Logger,
-	confirm munkiUploadConfirm,
-) (*munkiObjectOutput, error) {
-	obj, err := munkiupload.Confirm(ctx, objects, confirm.Prefix, confirm.ObjectID, confirm.Attach)
-	if err != nil {
-		return nil, resourceError(
-			ctx,
-			logger,
-			confirm.Operation,
-			munkiupload.Label,
-			err,
-			confirm.attrsWithObjectID()...,
+	uploads *munkiupload.Service,
+	prefix string,
+	objectID int64,
+) (*storage.Object, error) {
+	object, err := uploads.Finalize(ctx, objectID, prefix)
+	if errors.Is(err, storage.ErrObjectNotFound) {
+		return nil, errors.Join(
+			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
+			cleanupMunkiUpload(ctx, uploads, objectID),
 		)
 	}
-	view, err := munkiObjectViewWithContentURL(ctx, presigner, *obj)
-	if err != nil {
-		return nil, resourceError(
-			ctx,
-			logger,
-			confirm.Operation,
-			munkiupload.Label,
-			err,
-			confirm.attrsWithObjectID()...,
-		)
-	}
-	return &munkiObjectOutput{Body: view}, nil
+	return object, err
 }
 
-func (c munkiUploadConfirm) attrsWithObjectID() []any {
-	attrs := make([]any, 0, len(c.Attrs)+2)
-	attrs = append(attrs, c.Attrs...)
-	return append(attrs, "object_id", c.ObjectID)
+func setMunkiObject(
+	ctx context.Context,
+	objects *storage.ObjectStore,
+	uploads *munkiupload.Service,
+	prefix string,
+	objectID int64,
+	set func(int64) error,
+) (MunkiObjectView, error) {
+	object, err := finalizeMunkiUpload(ctx, uploads, prefix, objectID)
+	if err != nil {
+		return MunkiObjectView{}, err
+	}
+	if err := set(object.ID); err != nil {
+		return MunkiObjectView{}, errors.Join(err, cleanupMunkiUpload(ctx, uploads, object.ID))
+	}
+	return munkiObjectViewWithContentURL(ctx, objects, *object)
+}
+
+func cleanupMunkiUpload(ctx context.Context, uploads *munkiupload.Service, objectID int64) error {
+	err := uploads.Delete(ctx, objectID)
+	if errors.Is(err, dbutil.ErrConflict) || errors.Is(err, dbutil.ErrNotFound) {
+		return nil
+	}
+	return err
 }

@@ -28,8 +28,8 @@ type Repository interface {
 	Catalog(context.Context, string) ([]byte, error)
 	IconHashes(context.Context) ([]byte, error)
 	ResolvePackageFile(context.Context, string) (munki.PackageInstaller, error)
-	ResolveIconFile(context.Context, string) (string, error)
-	ResolveClientResources(context.Context, string) (string, error)
+	ResolveIconFile(context.Context, string) (munki.RepositoryFile, error)
+	ResolveClientResources(context.Context, string) (munki.RepositoryFile, error)
 }
 
 // Selector redirects a package download to an eligible distribution point.
@@ -124,14 +124,14 @@ func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // server-minted redirect target
 		return
 	}
-	h.deliver(w, r, installer.Key)
+	h.deliver(w, r, munki.RepositoryFile{Key: installer.Key, ContentType: installer.ContentType})
 }
 
 func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 	if ok := h.authorizedRequest(w, r, "icon"); !ok {
 		return
 	}
-	key, err := h.repository.ResolveIconFile(r.Context(), chi.URLParam(r, "*"))
+	file, err := h.repository.ResolveIconFile(r.Context(), chi.URLParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -141,14 +141,14 @@ func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	h.deliver(w, r, key)
+	h.deliver(w, r, file)
 }
 
 func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
 	if ok := h.authorizedRequest(w, r, "client resources"); !ok {
 		return
 	}
-	key, err := h.repository.ResolveClientResources(r.Context(), chi.URLParam(r, "*"))
+	file, err := h.repository.ResolveClientResources(r.Context(), chi.URLParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -158,7 +158,7 @@ func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	h.deliver(w, r, key)
+	h.deliver(w, r, file)
 }
 
 func (h handler) authorizedRequest(w http.ResponseWriter, r *http.Request, operation string) bool {
@@ -190,15 +190,20 @@ func (h handler) redirectToDistributionPoint(
 }
 
 // deliver serves the blob Woodstar-direct through a short-lived transfer URL.
-func (h handler) deliver(w http.ResponseWriter, r *http.Request, key string) {
-	url, err := h.storage.PresignGet(r.Context(), key, 0, storage.GetOptions{})
+func (h handler) deliver(w http.ResponseWriter, r *http.Request, file munki.RepositoryFile) {
+	url, err := h.storage.PresignGet(
+		r.Context(),
+		file.Key,
+		0,
+		storage.GetOptions{ContentType: file.ContentType},
+	)
 	if err != nil {
 		h.log(r, "file", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// Target is a storage-backend presigned URL, not client input.
-	http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // server-minted redirect target
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h handler) writePlist(

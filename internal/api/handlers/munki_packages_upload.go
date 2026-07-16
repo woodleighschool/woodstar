@@ -22,29 +22,28 @@ type munkiPackageObjectInput struct {
 	ID int64 `path:"id"`
 }
 
-type munkiPackageConfirmInput struct {
-	ID       int64 `path:"id"`
-	ObjectID int64 `path:"object_id"`
+type munkiPackageInstallerPutInput struct {
+	ID   int64 `path:"id"`
+	Body MunkiObjectMutation
 }
 
 func registerObjectRoutes(
 	api huma.API,
 	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
-	store storage.Presigner,
+	uploads *munkiupload.Service,
 	logger *slog.Logger,
 ) {
 	objectPath := munkiPackagePath + "/{id}/installer"
-	registerCreatePackageInstallerRoute(api, packageService, objects, store, objectPath, logger)
-	registerConfirmPackageInstallerRoute(api, packageService, objects, store, objectPath, logger)
+	registerCreatePackageInstallerRoute(api, packageService, uploads, objectPath, logger)
+	registerSetPackageInstallerRoute(api, packageService, objects, uploads, objectPath, logger)
 	registerDeletePackageInstallerRoute(api, packageService, objectPath, logger)
 }
 
 func registerCreatePackageInstallerRoute(
 	api huma.API,
 	packageService *munki.PackageService,
-	objects *storage.ObjectStore,
-	store storage.Presigner,
+	uploads *munkiupload.Service,
 	objectPath string,
 	logger *slog.Logger,
 ) {
@@ -65,26 +64,19 @@ func registerCreatePackageInstallerRoute(
 				ctx,
 				logger,
 				"create-munki-package-installer-upload",
-				munkiupload.Label,
+				munkiUploadLabel,
 				err,
 				"package_id",
 				input.ID,
 			)
 		}
-		obj, target, err := munkiupload.Create(
-			ctx,
-			objects,
-			store,
-			packages.ObjectPrefix,
-			input.Body.Filename,
-			input.Body.ContentType,
-		)
+		obj, target, err := uploads.Begin(ctx, packages.ObjectPrefix, input.Body.Filename)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
 				"create-munki-package-installer-upload",
-				munkiupload.Label,
+				munkiUploadLabel,
 				err,
 				"package_id",
 				input.ID,
@@ -94,41 +86,48 @@ func registerCreatePackageInstallerRoute(
 	})
 }
 
-func registerConfirmPackageInstallerRoute(
+func registerSetPackageInstallerRoute(
 	api huma.API,
 	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
-	store storage.Presigner,
+	uploads *munkiupload.Service,
 	objectPath string,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "confirm-munki-package-installer-upload",
-		Method:        http.MethodPost,
-		Path:          objectPath + "/{object_id}/confirm",
+		OperationID:   "set-munki-package-installer",
+		Method:        http.MethodPut,
+		Path:          objectPath,
 		Tags:          []string{munkiTag},
-		Summary:       "Confirm and attach an installer upload to a Munki package",
+		Summary:       "Set the uploaded installer for a Munki package",
 		DefaultStatus: http.StatusOK,
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
 		},
-	}, func(ctx context.Context, input *munkiPackageConfirmInput) (*munkiObjectOutput, error) {
-		return confirmMunkiObjectUpload(
+	}, func(ctx context.Context, input *munkiPackageInstallerPutInput) (*munkiObjectOutput, error) {
+		view, err := setMunkiObject(
 			ctx,
 			objects,
-			store,
-			logger,
-			munkiUploadConfirm{
-				Operation: "confirm-munki-package-installer-upload",
-				Prefix:    packages.ObjectPrefix,
-				ObjectID:  input.ObjectID,
-				Attach: func(objectID int64) error {
-					return packageService.SetInstallerObject(ctx, input.ID, objectID)
-				},
-				Attrs: []any{"package_id", input.ID},
+			uploads,
+			packages.ObjectPrefix,
+			input.Body.ObjectID,
+			func(objectID int64) error {
+				return packageService.SetInstallerObject(ctx, input.ID, objectID)
 			},
 		)
+		if err != nil {
+			return nil, resourceError(
+				ctx,
+				logger,
+				"set-munki-package-installer",
+				munkiUploadLabel,
+				err,
+				"package_id", input.ID,
+				"object_id", input.Body.ObjectID,
+			)
+		}
+		return &munkiObjectOutput{Body: view}, nil
 	})
 }
 
@@ -156,7 +155,7 @@ func registerDeletePackageInstallerRoute(
 				ctx,
 				logger,
 				"delete-munki-package-installer",
-				munkiupload.Label,
+				munkiUploadLabel,
 				err,
 				"package_id",
 				input.ID,

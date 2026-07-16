@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -15,8 +16,8 @@ func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	objects := storage.NewObjectStore(db, nil)
 	store := NewStore(db, objects)
-	banner := createAvailableObject(t, ctx, objects, BannerObjectPrefix, "banner.png", "image/png")
-	firstArchive := createAvailableObject(t, ctx, objects, ArchiveObjectPrefix, archiveFilename, archiveContentType)
+	banner := createAvailableObject(t, ctx, db, objects, BannerObjectPrefix, "banner.png", "image/png")
+	firstArchive := createAvailableObject(t, ctx, db, objects, ArchiveObjectPrefix, archiveFilename, "application/zip")
 
 	first, err := store.Upsert(ctx, storedMutation{
 		Mutation: Mutation{
@@ -41,7 +42,7 @@ func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
 		t.Fatalf("banner alignment = %q, want %q", first.BannerAlignment, BannerAlignmentLeft)
 	}
 
-	secondArchive := createAvailableObject(t, ctx, objects, ArchiveObjectPrefix, archiveFilename, archiveContentType)
+	secondArchive := createAvailableObject(t, ctx, db, objects, ArchiveObjectPrefix, archiveFilename, "application/zip")
 	second, err := store.Upsert(ctx, storedMutation{
 		Mutation: Mutation{
 			BannerObjectID:  banner.ID,
@@ -80,19 +81,24 @@ func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
 func createAvailableObject(
 	t *testing.T,
 	ctx context.Context,
+	db *database.DB,
 	objects *storage.ObjectStore,
 	prefix string,
 	filename string,
 	contentType string,
 ) *storage.Object {
 	t.Helper()
-	object, err := objects.CreatePending(ctx, prefix, filename, contentType)
-	if err != nil {
-		t.Fatalf("CreatePending: %v", err)
+	var objectID int64
+	if err := db.Pool().QueryRow(ctx, `
+INSERT INTO storage_objects (
+    prefix, filename, content_type, size_bytes, sha256, available_at
+) VALUES ($1, $2, $3, 1, $4, now())
+RETURNING id`, prefix, filename, contentType, strings.Repeat("a", 64)).Scan(&objectID); err != nil {
+		t.Fatalf("insert available object: %v", err)
 	}
-	object, err = objects.Confirm(ctx, object.ID, 1, contentType, strings.Repeat("a", 64))
+	object, err := objects.GetByID(ctx, objectID)
 	if err != nil {
-		t.Fatalf("Confirm: %v", err)
+		t.Fatalf("get available object: %v", err)
 	}
 	return object
 }

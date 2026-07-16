@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
+	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -78,7 +79,7 @@ func registerMunkiPackages(
 	api huma.API,
 	store *munki.PackageService,
 	objects *storage.ObjectStore,
-	storageStore storage.Presigner,
+	uploads *munkiupload.Service,
 	logger *slog.Logger,
 ) {
 	registerListMunkiPackages(api, store, logger)
@@ -87,7 +88,7 @@ func registerMunkiPackages(
 	registerPutMunkiPackage(api, store, logger)
 	registerDeleteMunkiPackage(api, store, logger)
 	registerBulkDeleteMunkiPackages(api, store, logger)
-	registerObjectRoutes(api, store, objects, storageStore, logger)
+	registerObjectRoutes(api, store, objects, uploads, logger)
 }
 
 func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger *slog.Logger) {

@@ -48,8 +48,6 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
         createMunkiClientResourcesBannerUpload({
           body: {
             filename: file.name,
-            content_type: file.type,
-            size_bytes: file.size,
           },
         }),
       ),

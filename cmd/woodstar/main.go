@@ -35,6 +35,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
+	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -246,6 +247,7 @@ type wiring struct {
 	orbitAgent *orbit.EnrollmentService
 
 	storageObjects         *storage.ObjectStore
+	munkiUploads           *munkiupload.Service
 	munkiClientResources   *clientresources.Store
 	munkiClientResourceSvc *clientresources.Service
 	munkiPackages          *packages.Store
@@ -265,6 +267,7 @@ type wiring struct {
 	santaState     *santa.HostStateService
 }
 
+//nolint:funlen // Dependency construction is intentionally visible in one place.
 func buildWiring(
 	ctx context.Context,
 	cfg config.Config,
@@ -298,10 +301,12 @@ func buildWiring(
 
 	// Munki stores.
 	w.storageObjects = storage.NewObjectStore(db, storageBackend)
+	w.munkiUploads = munkiupload.NewService(w.storageObjects, storageBackend)
 	w.munkiClientResources = clientresources.NewStore(db, w.storageObjects)
 	w.munkiClientResourceSvc = clientresources.NewService(
 		w.munkiClientResources,
 		w.storageObjects,
+		w.munkiUploads,
 		storageBackend,
 	)
 	w.munkiPackages = packages.NewStore(db, w.storageObjects)
@@ -403,6 +408,7 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			StorageBackend: w.storageBackend,
 			StorageKey:     slices.Clone(w.storageKey),
 			StorageObjects: w.storageObjects,
+			MunkiUploads:   w.munkiUploads,
 
 			MunkiPackages:          w.munkiPackageSvc,
 			MunkiClientResources:   w.munkiClientResourceSvc,

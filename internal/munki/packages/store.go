@@ -2,6 +2,7 @@ package packages
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,7 +23,7 @@ const (
 
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
-	DeleteUnreferenced(context.Context, ...int64) error
+	Delete(context.Context, int64) error
 }
 
 type Store struct {
@@ -241,8 +242,10 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 	if err != nil {
 		return nil, err
 	}
-	replacedIDs := storage.ReplacedObjectIDs(existing.InstallerObjectID, params.InstallerObjectID)
-	if err := s.objects.DeleteUnreferenced(ctx, replacedIDs...); err != nil {
+	if err := deleteObjects(
+		ctx,
+		s.objects,
+		replacedObjectID(existing.InstallerObjectID, params.InstallerObjectID)...); err != nil {
 		return nil, err
 	}
 	return s.GetByID(ctx, id)
@@ -283,7 +286,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
+	return deleteObjects(ctx, s.objects, objectIDs...)
 }
 
 // DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
@@ -320,7 +323,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if err != nil {
 		return deleted, err
 	}
-	return deleted, s.objects.DeleteUnreferenced(ctx, objectIDs...)
+	return deleted, deleteObjects(ctx, s.objects, objectIDs...)
 }
 
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
@@ -490,7 +493,7 @@ func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int6
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, &objectID)...)
+	return deleteObjects(ctx, s.objects, replacedObjectID(oldObjectID, &objectID)...)
 }
 
 // ClearInstallerObject detaches a package installer object and deletes its bytes
@@ -511,7 +514,25 @@ func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldObjectID, nil)...)
+	return deleteObjects(ctx, s.objects, replacedObjectID(oldObjectID, nil)...)
+}
+
+func deleteObjects(ctx context.Context, objects objectStore, ids ...int64) error {
+	for _, id := range ids {
+		if err := objects.Delete(ctx, id); err != nil &&
+			!errors.Is(err, dbutil.ErrConflict) &&
+			!errors.Is(err, dbutil.ErrNotFound) {
+			return err
+		}
+	}
+	return nil
+}
+
+func replacedObjectID(oldID, newID *int64) []int64 {
+	if oldID == nil || newID != nil && *oldID == *newID {
+		return nil
+	}
+	return []int64{*oldID}
 }
 
 func (s *Store) packageObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]int64, error) {

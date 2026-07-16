@@ -22,7 +22,12 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 	t.Parallel()
 	store := newTestFileStore(t)
 	const key = "munki/packages/1/Installer.pkg"
-	if err := store.Put(t.Context(), key, strings.NewReader("0123456789"), storage.PutOptions{}); err != nil {
+	if err := store.Put(
+		t.Context(),
+		key,
+		strings.NewReader("0123456789"),
+		storage.PutOptions{},
+	); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 	router := newBlobTestRouter(store)
@@ -106,10 +111,9 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 	router := newBlobTestRouter(store)
 	key := "munki/icons/7/icon.png"
 	putToken := signBlobCapability(t, storage.BlobCapabilityClaims{
-		Op:          capability.OpPut,
-		Key:         key,
-		Exp:         time.Now().Add(time.Minute).Unix(),
-		ContentType: "image/png",
+		Op:  capability.OpPut,
+		Key: key,
+		Exp: time.Now().Add(time.Minute).Unix(),
 	})
 
 	rec := httptest.NewRecorder()
@@ -247,10 +251,6 @@ func (failingOpenStore) Put(context.Context, string, io.Reader, storage.PutOptio
 
 func (failingOpenStore) Delete(context.Context, string) error {
 	return nil
-}
-
-func (failingOpenStore) Stat(context.Context, string) (storage.ObjectInfo, error) {
-	return storage.ObjectInfo{}, nil
 }
 
 var testCapabilityKey = []byte("storage capability test key")

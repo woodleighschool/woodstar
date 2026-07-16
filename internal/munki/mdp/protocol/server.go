@@ -113,7 +113,7 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	key, err := h.store.InstallerObjectKey(r.Context(), packageID)
+	object, err := h.store.InstallerObject(r.Context(), packageID)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -123,7 +123,12 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	url, err := h.presigner.PresignGet(r.Context(), key, workerDownloadTTL, storage.GetOptions{})
+	url, err := h.presigner.PresignGet(
+		r.Context(),
+		object.Key,
+		workerDownloadTTL,
+		storage.GetOptions{ContentType: object.ContentType},
+	)
 	if err != nil {
 		h.log(r, "download-url", err)
 		w.WriteHeader(http.StatusInternalServerError)

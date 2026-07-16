@@ -1,15 +1,19 @@
 package storage
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func TestServeObjectReadsS3Ranges(t *testing.T) {
@@ -68,5 +72,113 @@ func TestServeObjectReadsS3Ranges(t *testing.T) {
 	mu.Unlock()
 	if len(ranges) < 2 || ranges[len(ranges)-1] != "bytes=2-" {
 		t.Fatalf("S3 ranges = %q, want final request from byte 2", ranges)
+	}
+}
+
+func TestS3PresignGetOverridesBackendContentType(t *testing.T) {
+	t.Parallel()
+	client := newS3Client(aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("access", "secret", ""),
+	}, "https://storage.example", true)
+	store := &s3Store{
+		bucket:    "test",
+		presigner: s3.NewPresignClient(client),
+	}
+
+	rawURL, err := store.PresignGet(
+		t.Context(),
+		"munki/icons/7/icon.png",
+		time.Minute,
+		GetOptions{ContentType: "image/png"},
+	)
+	if err != nil {
+		t.Fatalf("presign get: %v", err)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse URL: %v", err)
+	}
+	if got := parsed.Query().Get("response-content-type"); got != "image/png" {
+		t.Fatalf("response content type = %q, want image/png", got)
+	}
+}
+
+func TestS3StoreMovePreservesContentTypeAndDeletesSource(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var requests []struct {
+		method            string
+		path              string
+		copySource        string
+		contentType       string
+		metadataDirective string
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, struct {
+			method            string
+			path              string
+			copySource        string
+			contentType       string
+			metadataDirective string
+		}{
+			r.Method,
+			r.URL.Path,
+			r.Header.Get("X-Amz-Copy-Source"),
+			r.Header.Get("Content-Type"),
+			r.Header.Get("X-Amz-Metadata-Directive"),
+		})
+		mu.Unlock()
+		if r.Method == http.MethodPut {
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = io.WriteString(w, `<CopyObjectResult><ETag>"etag"</ETag></CopyObjectResult>`)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	client := newS3Client(aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("access", "secret", ""),
+		HTTPClient:  server.Client(),
+	}, server.URL, true)
+	store := &s3Store{bucket: "test", client: client}
+	sourceKey := ".uploads/42"
+	destinationKey := "munki/packages/42/Installer.pkg"
+	if err := store.Move(
+		t.Context(),
+		sourceKey,
+		destinationKey,
+		PutOptions{ContentType: "application/octet-stream"},
+	); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+
+	mu.Lock()
+	got := append([]struct {
+		method            string
+		path              string
+		copySource        string
+		contentType       string
+		metadataDirective string
+	}(nil), requests...)
+	mu.Unlock()
+	if len(got) != 2 {
+		t.Fatalf("requests = %#v, want copy and delete", got)
+	}
+	decodedSource, err := url.PathUnescape(got[0].copySource)
+	if err != nil {
+		t.Fatalf("decode copy source: %v", err)
+	}
+	if got[0].method != http.MethodPut || got[0].path != "/test/"+destinationKey || decodedSource != "test/"+sourceKey {
+		t.Fatalf("copy request = %#v, decoded source %q", got[0], decodedSource)
+	}
+	if got[0].contentType != "application/octet-stream" || got[0].metadataDirective != "REPLACE" {
+		t.Fatalf("copy metadata = %#v, want content type replacement", got[0])
+	}
+	if got[1].method != http.MethodDelete || got[1].path != "/test/"+sourceKey {
+		t.Fatalf("delete request = %#v", got[1])
 	}
 }

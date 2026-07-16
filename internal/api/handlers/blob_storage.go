@@ -46,9 +46,12 @@ func (h blobStorageHandler) put(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.store.Put(r.Context(), claims.Key, r.Body, storage.PutOptions{
-		ContentType: claims.ContentType,
-	}); err != nil {
+	if err := h.store.Put(
+		r.Context(),
+		claims.Key,
+		r.Body,
+		storage.PutOptions{},
+	); err != nil {
 		h.logError(r, "put-storage-object", err, "key", claims.Key)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -18,7 +18,7 @@ type ServeOptions struct {
 
 // ServeObject streams an already-authorized object key from store.
 func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string, opts ServeOptions) error {
-	reader, info, err := store.Open(r.Context(), key)
+	reader, _, err := store.Open(r.Context(), key)
 	if errors.Is(err, ErrObjectNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return nil
@@ -29,12 +29,8 @@ func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string
 	}
 	defer reader.Close()
 
-	contentType := opts.ContentType
-	if contentType == "" {
-		contentType = info.ContentType
-	}
-	if contentType != "" {
-		w.Header().Set("Content-Type", contentType)
+	if opts.ContentType != "" {
+		w.Header().Set("Content-Type", opts.ContentType)
 	}
 	if opts.CacheControl != "" {
 		w.Header().Set("Cache-Control", opts.CacheControl)

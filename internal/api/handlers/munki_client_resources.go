@@ -19,14 +19,8 @@ const (
 	clientResourcesLabel = "Munki client resources"
 )
 
-type ClientResourcesBannerUploadRequest struct {
-	Filename    string `json:"filename"`
-	ContentType string `json:"content_type"`
-	SizeBytes   int64  `json:"size_bytes"   minimum:"1" maximum:"5242880"`
-}
-
 type clientResourcesUploadInput struct {
-	Body ClientResourcesBannerUploadRequest
+	Body MunkiUploadRequest
 }
 
 type clientResourcesPutInput struct {
@@ -51,20 +45,19 @@ func registerMunkiClientResources(
 	api huma.API,
 	service *clientresources.Service,
 	objects *storage.ObjectStore,
-	presigner storage.Presigner,
+	uploads *munkiupload.Service,
 	logger *slog.Logger,
 ) {
-	registerGetMunkiClientResources(api, service, objects, presigner, logger)
-	registerSaveMunkiClientResources(api, service, objects, presigner, logger)
+	registerGetMunkiClientResources(api, service, objects, logger)
+	registerSaveMunkiClientResources(api, service, objects, logger)
 	registerDeleteMunkiClientResources(api, service, logger)
-	registerCreateClientResourcesBannerUpload(api, objects, presigner, logger)
+	registerCreateClientResourcesBannerUpload(api, uploads, logger)
 }
 
 func registerGetMunkiClientResources(
 	api huma.API,
 	service *clientresources.Service,
 	objects *storage.ObjectStore,
-	presigner storage.Presigner,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -79,7 +72,7 @@ func registerGetMunkiClientResources(
 		if err != nil {
 			return nil, resourceError(ctx, logger, "get-munki-client-resources", clientResourcesLabel, err)
 		}
-		output, err := clientResourcesResponse(ctx, objects, presigner, *resource)
+		output, err := clientResourcesResponse(ctx, objects, *resource)
 		if err != nil {
 			return nil, resourceError(ctx, logger, "get-munki-client-resources", clientResourcesLabel, err)
 		}
@@ -91,7 +84,6 @@ func registerSaveMunkiClientResources(
 	api huma.API,
 	service *clientresources.Service,
 	objects *storage.ObjectStore,
-	presigner storage.Presigner,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -109,7 +101,7 @@ func registerSaveMunkiClientResources(
 		if err != nil {
 			return nil, resourceError(ctx, logger, "save-munki-client-resources", clientResourcesLabel, err)
 		}
-		output, err := clientResourcesResponse(ctx, objects, presigner, *resource)
+		output, err := clientResourcesResponse(ctx, objects, *resource)
 		if err != nil {
 			return nil, resourceError(ctx, logger, "save-munki-client-resources", clientResourcesLabel, err)
 		}
@@ -140,8 +132,7 @@ func registerDeleteMunkiClientResources(
 
 func registerCreateClientResourcesBannerUpload(
 	api huma.API,
-	objects *storage.ObjectStore,
-	presigner storage.Presigner,
+	uploads *munkiupload.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -153,22 +144,10 @@ func registerCreateClientResourcesBannerUpload(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
-		if err := clientresources.ValidateBannerUpload(input.Body.ContentType, input.Body.SizeBytes); err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"create-munki-client-resources-banner-upload",
-				clientResourcesLabel,
-				err,
-			)
-		}
-		object, target, err := munkiupload.Create(
+		object, target, err := uploads.Begin(
 			ctx,
-			objects,
-			presigner,
 			clientresources.BannerObjectPrefix,
 			input.Body.Filename,
-			input.Body.ContentType,
 		)
 		if err != nil {
 			return nil, resourceError(
@@ -186,7 +165,6 @@ func registerCreateClientResourcesBannerUpload(
 func clientResourcesResponse(
 	ctx context.Context,
 	objects *storage.ObjectStore,
-	presigner storage.Presigner,
 	resource clientresources.ClientResources,
 ) (*clientResourcesOutput, error) {
 	bannerObject, err := objects.GetByID(ctx, resource.BannerObjectID)
@@ -196,7 +174,7 @@ func clientResourcesResponse(
 	if bannerObject.Prefix != clientresources.BannerObjectPrefix || !bannerObject.Available() {
 		return nil, errors.New("configured client resources reference an invalid banner object")
 	}
-	banner, err := munkiObjectViewWithContentURL(ctx, presigner, *bannerObject)
+	banner, err := munkiObjectViewWithContentURL(ctx, objects, *bannerObject)
 	if err != nil {
 		return nil, err
 	}

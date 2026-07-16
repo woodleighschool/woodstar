@@ -2,21 +2,25 @@ package software
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
+// IconObjectPrefix namespaces software icon objects in storage.
+const IconObjectPrefix = "munki/icons"
+
 type objectStore interface {
 	GetByID(context.Context, int64) (*storage.Object, error)
-	DeleteUnreferenced(context.Context, ...int64) error
+	Delete(context.Context, int64) error
 }
 
 type packageStore interface {
@@ -108,9 +112,7 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.objects.DeleteUnreferenced(
-		ctx,
-		storage.ReplacedObjectIDs(oldIconObjectID, params.IconObjectID)...); err != nil {
+	if err := deleteObjects(ctx, s.objects, replacedObjectID(oldIconObjectID, params.IconObjectID)...); err != nil {
 		return nil, err
 	}
 	return s.GetByID(ctx, id)
@@ -143,7 +145,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, objectIDs...)
+	return deleteObjects(ctx, s.objects, objectIDs...)
 }
 
 // DeleteMany removes multiple software rows. Missing IDs are ignored for bulk idempotency.
@@ -173,7 +175,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if err != nil {
 		return deleted, err
 	}
-	return deleted, s.objects.DeleteUnreferenced(ctx, objectIDs...)
+	return deleted, deleteObjects(ctx, s.objects, objectIDs...)
 }
 
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
@@ -202,36 +204,16 @@ func (s *Store) validateIcon(ctx context.Context, objectID *int64) error {
 	if objectID == nil {
 		return nil
 	}
-	obj, err := s.objects.GetByID(ctx, *objectID)
-	if err != nil {
-		return err
-	}
-	if obj.Prefix != munkiupload.IconObjectPrefix {
-		return fmt.Errorf(
-			"%w: icon_object_id must reference an icon",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	if !obj.Available() {
-		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
-	}
-	return nil
+	return s.requireIcon(ctx, *objectID)
 }
 
 // SetIcon points software at an icon storage object.
 func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
-	obj, err := s.objects.GetByID(ctx, objectID)
-	if err != nil {
+	if err := s.requireIcon(ctx, objectID); err != nil {
 		return err
 	}
-	if obj.Prefix != munkiupload.IconObjectPrefix {
-		return fmt.Errorf("%w: icon_object_id must reference an icon", dbutil.ErrInvalidInput)
-	}
-	if !obj.Available() {
-		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
-	}
 	var oldIconObjectID *int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		existing, err := getSoftwareByID(ctx, tx, softwareID)
 		if err != nil {
 			return err
@@ -254,7 +236,53 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	if err != nil {
 		return err
 	}
-	return s.objects.DeleteUnreferenced(ctx, storage.ReplacedObjectIDs(oldIconObjectID, &objectID)...)
+	return deleteObjects(ctx, s.objects, replacedObjectID(oldIconObjectID, &objectID)...)
+}
+
+func (s *Store) requireIcon(ctx context.Context, objectID int64) error {
+	object, err := s.objects.GetByID(ctx, objectID)
+	if err != nil {
+		return err
+	}
+	if object.Prefix != IconObjectPrefix {
+		return fmt.Errorf("%w: icon_object_id must reference an icon", dbutil.ErrInvalidInput)
+	}
+	if !object.Available() {
+		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
+	}
+	if !supportedIconContentType(object.ContentType) {
+		return fmt.Errorf("%w: icon must be a PNG, JPEG, WebP, or ICNS image", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
+func supportedIconContentType(contentType string) bool {
+	detected := mimetype.Lookup(contentType)
+	if detected == nil {
+		return false
+	}
+	return detected.Is("image/png") ||
+		detected.Is("image/jpeg") ||
+		detected.Is("image/webp") ||
+		detected.Is("image/x-icns")
+}
+
+func deleteObjects(ctx context.Context, objects objectStore, ids ...int64) error {
+	for _, id := range ids {
+		if err := objects.Delete(ctx, id); err != nil &&
+			!errors.Is(err, dbutil.ErrConflict) &&
+			!errors.Is(err, dbutil.ErrNotFound) {
+			return err
+		}
+	}
+	return nil
+}
+
+func replacedObjectID(oldID, newID *int64) []int64 {
+	if oldID == nil || newID != nil && *oldID == *newID {
+		return nil
+	}
+	return []int64{*oldID}
 }
 
 func softwareOrderKeys() map[string]dbutil.OrderExpr {

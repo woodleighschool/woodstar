@@ -531,6 +531,7 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 func TestMunkiHTTPRedirectsPackageFileWithBearer(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/packages/42/GoogleChrome.pkg"
+	repository.fileContentType = "application/octet-stream"
 	store := &fakePresigner{presignURL: "https://storage.example/GoogleChrome.pkg?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -556,6 +557,9 @@ func TestMunkiHTTPRedirectsPackageFileWithBearer(t *testing.T) {
 	}
 	if store.gotKey != "munki/packages/42/GoogleChrome.pkg" {
 		t.Fatalf("presigned key = %q", store.gotKey)
+	}
+	if store.gotOptions.ContentType != repository.fileContentType {
+		t.Fatalf("presigned content type = %q", store.gotOptions.ContentType)
 	}
 }
 
@@ -695,6 +699,7 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/icons/7/GoogleChrome.png"
+	repository.fileContentType = "image/png"
 	store := &fakePresigner{presignURL: "https://storage.example/icon.png?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -718,11 +723,15 @@ func TestMunkiHTTPRedirectsIconFileWithNestedIconName(t *testing.T) {
 	if store.gotKey != "munki/icons/7/GoogleChrome.png" {
 		t.Fatalf("presigned key = %q", store.gotKey)
 	}
+	if store.gotOptions.ContentType != repository.fileContentType {
+		t.Fatalf("presigned content type = %q", store.gotOptions.ContentType)
+	}
 }
 
 func TestMunkiHTTPRedirectsClientResources(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileURL = "munki/clientresources/archives/9/site_default.zip"
+	repository.fileContentType = "application/zip"
 	store := &fakePresigner{presignURL: "https://storage.example/site_default.zip?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
@@ -743,6 +752,9 @@ func TestMunkiHTTPRedirectsClientResources(t *testing.T) {
 	}
 	if store.gotKey != "munki/clientresources/archives/9/site_default.zip" {
 		t.Fatalf("presigned key = %q", store.gotKey)
+	}
+	if store.gotOptions.ContentType != repository.fileContentType {
+		t.Fatalf("presigned content type = %q", store.gotOptions.ContentType)
 	}
 }
 
@@ -794,25 +806,18 @@ func (f *fakeSelector) SelectRedirect(
 type fakePresigner struct {
 	presignURL string
 	gotKey     string
+	gotOptions storage.GetOptions
 }
 
 func (f *fakePresigner) PresignGet(
 	_ context.Context,
 	key string,
 	_ time.Duration,
-	_ storage.GetOptions,
+	opts storage.GetOptions,
 ) (string, error) {
 	f.gotKey = key
+	f.gotOptions = opts
 	return f.presignURL, nil
-}
-
-func (f *fakePresigner) PresignPut(
-	context.Context,
-	string,
-	time.Duration,
-	storage.PutOptions,
-) (storage.UploadTarget, error) {
-	return storage.UploadTarget{}, nil
 }
 
 type staticVerifier struct {
@@ -841,15 +846,16 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service      *munki.RepositoryService
-	manifestName string
-	fileURL      string
-	fileErr      error
-	fileClass    string
-	fileKey      string
-	packageID    int64
-	fileSHA      string
-	fileSize     int64
+	service         *munki.RepositoryService
+	manifestName    string
+	fileURL         string
+	fileErr         error
+	fileClass       string
+	fileKey         string
+	packageID       int64
+	fileSHA         string
+	fileSize        int64
+	fileContentType string
 }
 
 func newStaticRepository() *staticRepository {
@@ -892,6 +898,7 @@ func (r *staticRepository) ResolvePackageFile(
 		PackageID:             r.packageID,
 		InstallerItemLocation: key,
 		Key:                   key,
+		ContentType:           r.fileContentType,
 		SHA256:                r.fileSHA,
 		SizeBytes:             r.fileSize,
 	}
@@ -904,27 +911,27 @@ func (r *staticRepository) ResolvePackageFile(
 func (r *staticRepository) ResolveIconFile(
 	_ context.Context,
 	key string,
-) (string, error) {
+) (munki.RepositoryFile, error) {
 	return r.resolve("icon", key)
 }
 
 func (r *staticRepository) ResolveClientResources(
 	_ context.Context,
 	name string,
-) (string, error) {
+) (munki.RepositoryFile, error) {
 	return r.resolve("client resources", name)
 }
 
-func (r *staticRepository) resolve(class, key string) (string, error) {
+func (r *staticRepository) resolve(class, key string) (munki.RepositoryFile, error) {
 	r.fileClass = class
 	r.fileKey = key
 	if r.fileErr != nil {
-		return "", r.fileErr
+		return munki.RepositoryFile{}, r.fileErr
 	}
 	if r.fileURL != "" {
-		return r.fileURL, nil
+		key = r.fileURL
 	}
-	return key, nil
+	return munki.RepositoryFile{Key: key, ContentType: r.fileContentType}, nil
 }
 
 type staticPackageResolver struct {

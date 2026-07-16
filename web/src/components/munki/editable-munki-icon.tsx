@@ -14,7 +14,7 @@ import {
 import { useMunkiIcons } from "@/hooks/use-munki-icons";
 import { cn } from "@/lib/utils";
 
-export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/icns,.icns";
+export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
 
 interface EditableMunkiIconProps {
   title: string;

@@ -34,6 +34,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
+	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -104,6 +105,7 @@ type AppDependencies struct {
 	StorageBackend storage.Backend
 	StorageKey     []byte
 	StorageObjects *storage.ObjectStore
+	MunkiUploads   *munkiupload.Service
 
 	MunkiPackages          *munki.PackageService
 	MunkiClientResources   *clientresources.Service
@@ -341,6 +343,7 @@ func registerAppRoutes(
 		Packages:        munkiPackages,
 		ClientResources: deps.App.MunkiClientResources,
 		Objects:         deps.App.StorageObjects,
+		Uploads:         deps.App.MunkiUploads,
 		Storage:         deps.App.StorageBackend,
 		Distribution:    deps.App.MunkiDistribution,
 		Connections:     deps.Protocols.Munki.DistributionProtocol,
@@ -437,10 +440,10 @@ func compressionMiddleware() (func(http.Handler) http.Handler, error) {
 
 func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {
 	withTimeout := chimiddleware.Timeout(timeout)
-	withPackageConfirmTimeout := chimiddleware.Timeout(packageConfirmTimeout)
+	withPackageInstallerTimeout := chimiddleware.Timeout(packageInstallerTimeout)
 	return func(next http.Handler) http.Handler {
 		timed := withTimeout(next)
-		packageConfirmTimed := withPackageConfirmTimeout(next)
+		packageInstallerTimed := withPackageInstallerTimeout(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if isStorageTransfer(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
 				next.ServeHTTP(w, req)
@@ -448,9 +451,9 @@ func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Han
 			}
 			requestTimeout := timeout
 			requestHandler := timed
-			if isPackageConfirm(req) {
-				requestTimeout = packageConfirmTimeout
-				requestHandler = packageConfirmTimed
+			if isPackageInstallerMutation(req) {
+				requestTimeout = packageInstallerTimeout
+				requestHandler = packageInstallerTimed
 			}
 			deadline := time.Now().Add(requestTimeout)
 			controller := http.NewResponseController(w)
@@ -461,7 +464,7 @@ func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Han
 	}
 }
 
-const packageConfirmTimeout = time.Hour
+const packageInstallerTimeout = time.Hour
 
 func isStorageTransfer(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/storage/")
@@ -478,9 +481,9 @@ func isDistributionWebSocket(req *http.Request) bool {
 		strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
 }
 
-func isPackageConfirm(req *http.Request) bool {
-	matched, _ := pathpkg.Match("/api/munki/packages/*/installer/*/confirm", req.URL.Path)
-	return req.Method == http.MethodPost && matched
+func isPackageInstallerMutation(req *http.Request) bool {
+	matched, _ := pathpkg.Match("/api/munki/packages/*/installer", req.URL.Path)
+	return req.Method == http.MethodPut && matched
 }
 
 func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {

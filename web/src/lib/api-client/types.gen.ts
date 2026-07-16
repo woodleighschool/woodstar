@@ -42,12 +42,6 @@ export type CertificateName = {
     organizational_unit: string;
 };
 
-export type ClientResourcesBannerUploadRequest = {
-    content_type: string;
-    filename: string;
-    size_bytes: number;
-};
-
 export type Criteria = {
     attribute: 'user_department' | 'directory_group' | 'user';
     values: Array<string>;
@@ -441,6 +435,10 @@ export type MunkiMutation = {
     links: Array<MunkiLink>;
 };
 
+export type MunkiObjectMutation = {
+    object_id: number;
+};
+
 export type MunkiObjectView = {
     content_type: string;
     content_url: string;
@@ -734,7 +732,6 @@ export type MunkiUpdateMutation = {
 };
 
 export type MunkiUploadRequest = {
-    content_type?: string;
     filename: string;
 };
 
@@ -2927,7 +2924,7 @@ export type SaveMunkiClientResourcesResponses = {
 export type SaveMunkiClientResourcesResponse = SaveMunkiClientResourcesResponses[keyof SaveMunkiClientResourcesResponses];
 
 export type CreateMunkiClientResourcesBannerUploadData = {
-    body: ClientResourcesBannerUploadRequest;
+    body: MunkiUploadRequest;
     path?: never;
     query?: never;
     url: '/api/munki/client-resources/banner';
@@ -3662,17 +3659,16 @@ export type CreateMunkiPackageInstallerUploadResponses = {
 
 export type CreateMunkiPackageInstallerUploadResponse = CreateMunkiPackageInstallerUploadResponses[keyof CreateMunkiPackageInstallerUploadResponses];
 
-export type ConfirmMunkiPackageInstallerUploadData = {
-    body?: never;
+export type SetMunkiPackageInstallerData = {
+    body: MunkiObjectMutation;
     path: {
         id: number;
-        object_id: number;
     };
     query?: never;
-    url: '/api/munki/packages/{id}/installer/{object_id}/confirm';
+    url: '/api/munki/packages/{id}/installer';
 };
 
-export type ConfirmMunkiPackageInstallerUploadErrors = {
+export type SetMunkiPackageInstallerErrors = {
     /**
      * Bad Request
      */
@@ -3699,16 +3695,16 @@ export type ConfirmMunkiPackageInstallerUploadErrors = {
     500: ErrorModel;
 };
 
-export type ConfirmMunkiPackageInstallerUploadError = ConfirmMunkiPackageInstallerUploadErrors[keyof ConfirmMunkiPackageInstallerUploadErrors];
+export type SetMunkiPackageInstallerError = SetMunkiPackageInstallerErrors[keyof SetMunkiPackageInstallerErrors];
 
-export type ConfirmMunkiPackageInstallerUploadResponses = {
+export type SetMunkiPackageInstallerResponses = {
     /**
      * OK
      */
     200: MunkiObjectView;
 };
 
-export type ConfirmMunkiPackageInstallerUploadResponse = ConfirmMunkiPackageInstallerUploadResponses[keyof ConfirmMunkiPackageInstallerUploadResponses];
+export type SetMunkiPackageInstallerResponse = SetMunkiPackageInstallerResponses[keyof SetMunkiPackageInstallerResponses];
 
 export type ListMunkiSoftwareData = {
     body?: never;
@@ -4014,17 +4010,16 @@ export type CreateMunkiSoftwareIconUploadResponses = {
 
 export type CreateMunkiSoftwareIconUploadResponse = CreateMunkiSoftwareIconUploadResponses[keyof CreateMunkiSoftwareIconUploadResponses];
 
-export type ConfirmMunkiSoftwareIconUploadData = {
-    body?: never;
+export type SetMunkiSoftwareIconData = {
+    body: MunkiObjectMutation;
     path: {
         id: number;
-        object_id: number;
     };
     query?: never;
-    url: '/api/munki/software/{id}/icon/{object_id}/confirm';
+    url: '/api/munki/software/{id}/icon';
 };
 
-export type ConfirmMunkiSoftwareIconUploadErrors = {
+export type SetMunkiSoftwareIconErrors = {
     /**
      * Bad Request
      */
@@ -4051,16 +4046,16 @@ export type ConfirmMunkiSoftwareIconUploadErrors = {
     500: ErrorModel;
 };
 
-export type ConfirmMunkiSoftwareIconUploadError = ConfirmMunkiSoftwareIconUploadErrors[keyof ConfirmMunkiSoftwareIconUploadErrors];
+export type SetMunkiSoftwareIconError = SetMunkiSoftwareIconErrors[keyof SetMunkiSoftwareIconErrors];
 
-export type ConfirmMunkiSoftwareIconUploadResponses = {
+export type SetMunkiSoftwareIconResponses = {
     /**
      * OK
      */
     200: MunkiObjectView;
 };
 
-export type ConfirmMunkiSoftwareIconUploadResponse = ConfirmMunkiSoftwareIconUploadResponses[keyof ConfirmMunkiSoftwareIconUploadResponses];
+export type SetMunkiSoftwareIconResponse = SetMunkiSoftwareIconResponses[keyof SetMunkiSoftwareIconResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

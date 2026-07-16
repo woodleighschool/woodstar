@@ -99,23 +99,6 @@ components:
         - organizational_unit
         - common_name
       type: object
-    ClientResourcesBannerUploadRequest:
-      additionalProperties: false
-      properties:
-        content_type:
-          type: string
-        filename:
-          type: string
-        size_bytes:
-          format: int64
-          maximum: 5242880
-          minimum: 1
-          type: integer
-      required:
-        - filename
-        - content_type
-        - size_bytes
-      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -1179,6 +1162,16 @@ components:
         - footer_text
         - footer_links
       type: object
+    MunkiObjectMutation:
+      additionalProperties: false
+      properties:
+        object_id:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - object_id
+      type: object
     MunkiObjectView:
       additionalProperties: false
       properties:
@@ -2022,8 +2015,6 @@ components:
     MunkiUploadRequest:
       additionalProperties: false
       properties:
-        content_type:
-          type: string
         filename:
           type: string
       required:
@@ -5789,7 +5780,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ClientResourcesBannerUploadRequest"
+              $ref: "#/components/schemas/MunkiUploadRequest"
         required: true
       responses:
         "201":
@@ -6749,9 +6740,8 @@ paths:
       summary: Create an installer upload for a Munki package
       tags:
         - Munki
-  /api/munki/packages/{id}/installer/{object_id}/confirm:
-    post:
-      operationId: confirm-munki-package-installer-upload
+    put:
+      operationId: set-munki-package-installer
       parameters:
         - in: path
           name: id
@@ -6759,12 +6749,12 @@ paths:
           schema:
             format: int64
             type: integer
-        - in: path
-          name: object_id
-          required: true
-          schema:
-            format: int64
-            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiObjectMutation"
+        required: true
       responses:
         "200":
           content:
@@ -6811,7 +6801,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Confirm and attach an installer upload to a Munki package
+      summary: Set the uploaded installer for a Munki package
       tags:
         - Munki
   /api/munki/software:
@@ -7209,9 +7199,8 @@ paths:
       summary: Create an icon upload for Munki software
       tags:
         - Munki
-  /api/munki/software/{id}/icon/{object_id}/confirm:
-    post:
-      operationId: confirm-munki-software-icon-upload
+    put:
+      operationId: set-munki-software-icon
       parameters:
         - in: path
           name: id
@@ -7219,12 +7208,12 @@ paths:
           schema:
             format: int64
             type: integer
-        - in: path
-          name: object_id
-          required: true
-          schema:
-            format: int64
-            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiObjectMutation"
+        required: true
       responses:
         "200":
           content:
@@ -7271,7 +7260,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Confirm and attach an icon upload to Munki software
+      summary: Set the uploaded icon for Munki software
       tags:
         - Munki
   /api/osquery/checks:

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-const acceptedImageTypes = new Set(["image/jpeg", "image/png"]);
-
 export const clientResourceImageAccept = "image/jpeg,image/png";
 export const clientResourceImageMaxSize = 5 * 1024 * 1024;
 
@@ -13,7 +11,6 @@ export interface ClientResourceAsset {
 }
 
 export function validateClientResourceImage(file: File) {
-  if (!acceptedImageTypes.has(file.type)) return "Use a JPG or PNG image.";
   if (file.size <= 0 || file.size > clientResourceImageMaxSize) {
     return "Image must be 5 MB or smaller.";
   }

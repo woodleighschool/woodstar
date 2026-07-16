@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import mimetypes
 import os
 from urllib.parse import urlsplit, urlunsplit
 
@@ -67,19 +66,19 @@ class WoodstarClient:
 
     def attach_object(self, attach_path, file_path, display_name=None):
         """Upload a file to a resource via the create-first storage lifecycle:
-        create a pending object on the resource, PUT the bytes, then confirm.
+        create a pending object, PUT the bytes, then adopt it on the resource.
         attach_path is the resource upload endpoint, for example
-        /api/munki/packages/12/installer. Returns the confirmed object."""
+        /api/munki/packages/12/installer. Returns the stored object."""
         file_path = os.path.abspath(file_path)
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
         filename = display_name or os.path.basename(file_path)
-        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        target = self.post(attach_path, {"filename": filename, "content_type": content_type})
+        target = self.post(attach_path, {"filename": filename})
         self.upload_bytes(target, file_path)
         return self.request(
-            "POST",
-            f"{attach_path}/{target['object_id']}/confirm",
+            "PUT",
+            attach_path,
+            {"object_id": target["object_id"]},
             timeout=UPLOAD_TIMEOUT,
         )
 

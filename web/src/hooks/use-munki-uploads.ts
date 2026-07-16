@@ -3,11 +3,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDirectUpload } from "@/hooks/use-direct-upload";
 import type { ApiError, MunkiObjectView, MunkiUploadTarget } from "@/lib/api";
 import {
-  confirmMunkiPackageInstallerUpload,
-  confirmMunkiSoftwareIconUpload,
   createMunkiPackageInstallerUpload,
   createMunkiSoftwareIconUpload,
   deleteMunkiPackageInstaller,
+  setMunkiPackageInstaller,
+  setMunkiSoftwareIcon,
   unwrap,
 } from "@/lib/api";
 import type { UploadTransport } from "@/lib/direct-upload";
@@ -27,14 +27,15 @@ export function useUploadMunkiIcon() {
       unwrap(
         createMunkiSoftwareIconUpload({
           path: { id: softwareId },
-          body: { filename: file.name, content_type: file.type || undefined },
+          body: { filename: file.name },
         }),
       ),
     uploadRequest: uploadRequestFromIntent,
     completeUpload: (intent, { softwareId }) =>
       unwrap(
-        confirmMunkiSoftwareIconUpload({
-          path: { id: softwareId, object_id: intent.object_id },
+        setMunkiSoftwareIcon({
+          path: { id: softwareId },
+          body: { object_id: intent.object_id },
         }),
       ),
   });
@@ -51,14 +52,15 @@ export function useUploadMunkiInstaller() {
       unwrap(
         createMunkiPackageInstallerUpload({
           path: { id: packageId },
-          body: { filename: file.name, content_type: file.type || undefined },
+          body: { filename: file.name },
         }),
       ),
     uploadRequest: uploadRequestFromIntent,
     completeUpload: (intent, { packageId }) =>
       unwrap(
-        confirmMunkiPackageInstallerUpload({
-          path: { id: packageId, object_id: intent.object_id },
+        setMunkiPackageInstaller({
+          path: { id: packageId },
+          body: { object_id: intent.object_id },
         }),
       ),
   });

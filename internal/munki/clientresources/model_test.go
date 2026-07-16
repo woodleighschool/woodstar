@@ -66,10 +66,3 @@ func TestMutationValidateBannerAlignment(t *testing.T) {
 		})
 	}
 }
-
-func TestValidateBannerUploadRejectsSVG(t *testing.T) {
-	t.Parallel()
-	if err := ValidateBannerUpload("image/svg+xml", 1024); err == nil {
-		t.Fatal("ValidateBannerUpload() accepted SVG")
-	}
-}

@@ -1,11 +1,8 @@
 package storage
 
 import (
-	"context"
 	"errors"
-	"io"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -61,29 +58,47 @@ func TestListByPrefixReturnsAvailableObjectsNewestFirst(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := NewObjectStore(db, nil)
 
-	first, err := store.CreatePending(ctx, "munki/icons", "first.png", "image/png")
+	first, err := store.CreatePending(ctx, "munki/icons", "first.png")
 	if err != nil {
 		t.Fatalf("create first object: %v", err)
 	}
-	if _, err := store.Confirm(ctx, first.ID, 1, "image/png", strings.Repeat("a", 64)); err != nil {
-		t.Fatalf("confirm first object: %v", err)
+	if _, err := store.MarkAvailable(
+		ctx,
+		first.ID,
+		1,
+		"image/png",
+		strings.Repeat("a", 64),
+	); err != nil {
+		t.Fatalf("finalize first object: %v", err)
 	}
-	second, err := store.CreatePending(ctx, "munki/icons", "second.png", "image/png")
+	second, err := store.CreatePending(ctx, "munki/icons", "second.png")
 	if err != nil {
 		t.Fatalf("create second object: %v", err)
 	}
-	if _, err := store.Confirm(ctx, second.ID, 1, "image/png", strings.Repeat("b", 64)); err != nil {
-		t.Fatalf("confirm second object: %v", err)
+	if _, err := store.MarkAvailable(
+		ctx,
+		second.ID,
+		1,
+		"image/png",
+		strings.Repeat("b", 64),
+	); err != nil {
+		t.Fatalf("finalize second object: %v", err)
 	}
-	if _, err := store.CreatePending(ctx, "munki/icons", "pending.png", "image/png"); err != nil {
+	if _, err := store.CreatePending(ctx, "munki/icons", "pending.png"); err != nil {
 		t.Fatalf("create pending object: %v", err)
 	}
-	other, err := store.CreatePending(ctx, "munki/packages", "other.pkg", "application/octet-stream")
+	other, err := store.CreatePending(ctx, "munki/packages", "other.pkg")
 	if err != nil {
 		t.Fatalf("create other-prefix object: %v", err)
 	}
-	if _, err := store.Confirm(ctx, other.ID, 1, "application/octet-stream", strings.Repeat("c", 64)); err != nil {
-		t.Fatalf("confirm other-prefix object: %v", err)
+	if _, err := store.MarkAvailable(
+		ctx,
+		other.ID,
+		1,
+		"application/octet-stream",
+		strings.Repeat("c", 64),
+	); err != nil {
+		t.Fatalf("finalize other-prefix object: %v", err)
 	}
 
 	objects, count, err := store.ListByPrefix(ctx, "munki/icons", dbutil.ListParams{})
@@ -98,77 +113,47 @@ func TestListByPrefixReturnsAvailableObjectsNewestFirst(t *testing.T) {
 	}
 }
 
+func TestMarkAvailableNormalizesContentType(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewObjectStore(db, nil)
+	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+
+	available, err := store.MarkAvailable(
+		ctx,
+		object.ID,
+		1,
+		"IMAGE/PNG; profile=\"screen\"",
+		strings.Repeat("a", 64),
+	)
+	if err != nil {
+		t.Fatalf("mark available: %v", err)
+	}
+	if available.ContentType != "image/png; profile=screen" {
+		t.Fatalf("content type = %q, want normalized media type", available.ContentType)
+	}
+}
+
+func TestMarkAvailableRejectsInvalidContentType(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewObjectStore(db, nil)
+	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+
+	_, err = store.MarkAvailable(ctx, object.ID, 1, "not a content type", strings.Repeat("a", 64))
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("mark available error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func objectIDs(objects []Object) []int64 {
 	ids := make([]int64, len(objects))
 	for i, object := range objects {
 		ids[i] = object.ID
 	}
 	return ids
-}
-
-func TestDeleteUnreferencedPreventsNewReferencesBeforeDeletingBytes(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	backend := newBlockingDeleteStore()
-	store := NewObjectStore(database, backend)
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png", "image/png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-
-	cleanupResult := make(chan error, 1)
-	go func() {
-		cleanupResult <- store.DeleteUnreferenced(ctx, object.ID)
-	}()
-
-	<-backend.deleteStarted
-	_, referenceErr := database.Pool().Exec(ctx, `
-INSERT INTO munki_software (name, display_name, icon_object_id)
-VALUES ('Race App', 'Race App', $1)`, object.ID)
-	backend.releaseDelete()
-
-	cleanupErr := <-cleanupResult
-	if referenceErr == nil {
-		t.Fatal("new software reference succeeded after object deletion began")
-	}
-	if cleanupErr != nil {
-		t.Fatalf("delete unreferenced object: %v", cleanupErr)
-	}
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get deleted object error = %v, want %v", err, dbutil.ErrNotFound)
-	}
-}
-
-type blockingDeleteStore struct {
-	deleteStarted chan struct{}
-	deleteRelease chan struct{}
-	releaseOnce   sync.Once
-}
-
-func newBlockingDeleteStore() *blockingDeleteStore {
-	return &blockingDeleteStore{
-		deleteStarted: make(chan struct{}),
-		deleteRelease: make(chan struct{}),
-	}
-}
-
-func (s *blockingDeleteStore) Open(context.Context, string) (ObjectReader, ObjectInfo, error) {
-	return nil, ObjectInfo{}, errors.New("unexpected open")
-}
-
-func (s *blockingDeleteStore) Put(context.Context, string, io.Reader, PutOptions) error {
-	return errors.New("unexpected put")
-}
-
-func (s *blockingDeleteStore) Delete(context.Context, string) error {
-	close(s.deleteStarted)
-	<-s.deleteRelease
-	return nil
-}
-
-func (s *blockingDeleteStore) Stat(context.Context, string) (ObjectInfo, error) {
-	return ObjectInfo{}, errors.New("unexpected stat")
-}
-
-func (s *blockingDeleteStore) releaseDelete() {
-	s.releaseOnce.Do(func() { close(s.deleteRelease) })
 }

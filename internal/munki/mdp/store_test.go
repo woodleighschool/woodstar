@@ -53,8 +53,8 @@ func seedAvailablePackage(
 	}
 	var objectID int64
 	if err := db.Pool().QueryRow(ctx,
-		`INSERT INTO storage_objects (prefix, filename, size_bytes, sha256, available_at)
-		 VALUES ('packages', $1, $2, $3, now()) RETURNING id`,
+		`INSERT INTO storage_objects (prefix, filename, content_type, size_bytes, sha256, available_at)
+		 VALUES ('packages', $1, 'application/octet-stream', $2, $3, now()) RETURNING id`,
 		name+".pkg", size, sha256,
 	).Scan(&objectID); err != nil {
 		t.Fatalf("insert object: %v", err)

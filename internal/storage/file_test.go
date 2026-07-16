@@ -26,17 +26,12 @@ func TestFileStoreRoundTrip(t *testing.T) {
 		t.Fatalf("Put: %v", err)
 	}
 
-	info, err := store.Stat(ctx, key)
-	if err != nil {
-		t.Fatalf("Stat: %v", err)
-	}
-	if info.Size != int64(len(want)) {
-		t.Fatalf("Stat size = %d, want %d", info.Size, len(want))
-	}
-
-	rc, _, err := store.Open(ctx, key)
+	rc, info, err := store.Open(ctx, key)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
+	}
+	if info.Size != int64(len(want)) {
+		t.Fatalf("Open size = %d, want %d", info.Size, len(want))
 	}
 	got, err := io.ReadAll(rc)
 	_ = rc.Close()
@@ -50,8 +45,44 @@ func TestFileStoreRoundTrip(t *testing.T) {
 	if err := store.Delete(ctx, key); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if _, err := store.Stat(ctx, key); !errors.Is(err, ErrObjectNotFound) {
-		t.Fatalf("Stat after delete = %v, want ErrObjectNotFound", err)
+	if _, _, err := store.Open(ctx, key); !errors.Is(err, ErrObjectNotFound) {
+		t.Fatalf("Open after delete = %v, want ErrObjectNotFound", err)
+	}
+}
+
+func TestFileStoreMoveMovesBytesToCanonicalKey(t *testing.T) {
+	t.Parallel()
+	store := newTestFileStore(t)
+	ctx := context.Background()
+	sourceKey := ".uploads/42"
+	destinationKey := "munki/packages/42/installer.pkg"
+	want := []byte("installer bytes")
+
+	if err := store.Put(ctx, sourceKey, bytes.NewReader(want), PutOptions{}); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := store.Move(
+		ctx,
+		sourceKey,
+		destinationKey,
+		PutOptions{ContentType: "application/octet-stream"},
+	); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	if _, _, err := store.Open(ctx, sourceKey); !errors.Is(err, ErrObjectNotFound) {
+		t.Fatalf("source after Move = %v, want ErrObjectNotFound", err)
+	}
+	reader, _, err := store.Open(ctx, destinationKey)
+	if err != nil {
+		t.Fatalf("Open destination: %v", err)
+	}
+	got, err := io.ReadAll(reader)
+	_ = reader.Close()
+	if err != nil {
+		t.Fatalf("ReadAll destination: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("destination = %q, want %q", got, want)
 	}
 }
 
@@ -127,7 +158,6 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 		context.Background(),
 		"munki/packages/42/Installer.pkg",
 		time.Minute,
-		PutOptions{ContentType: "application/octet-stream"},
 	)
 	if err != nil {
 		t.Fatalf("PresignPut: %v", err)

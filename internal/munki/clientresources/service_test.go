@@ -8,11 +8,13 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -28,8 +30,9 @@ func TestServiceSaveReplaceAndDelete(t *testing.T) {
 		t.Fatalf("create file storage: %v", err)
 	}
 	objects := storage.NewObjectStore(db, backend)
-	service := NewService(NewStore(db, objects), objects, backend)
-	banner := createPendingBanner(t, ctx, objects, backend)
+	uploads := objectupload.NewService(objects, backend)
+	service := NewService(NewStore(db, objects), objects, uploads, backend)
+	banner := createPendingBanner(t, ctx, uploads, backend)
 
 	first, err := service.Save(ctx, Mutation{
 		BannerObjectID:  banner.ID,
@@ -55,6 +58,9 @@ func TestServiceSaveReplaceAndDelete(t *testing.T) {
 	}
 	if !firstBanner.Available() || !firstArchive.Available() {
 		t.Fatal("Save did not publish the banner and archive")
+	}
+	if firstBanner.ContentType != "image/png" || firstArchive.ContentType != "application/zip" {
+		t.Fatalf("stored content types = %q and %q", firstBanner.ContentType, firstArchive.ContentType)
 	}
 	files := openArchive(t, ctx, backend, *firstArchive)
 	if got := files.body["templates/showcase_template.html"]; !strings.Contains(
@@ -99,13 +105,13 @@ func TestServiceSaveReplaceAndDelete(t *testing.T) {
 func createPendingBanner(
 	t *testing.T,
 	ctx context.Context,
-	objects *storage.ObjectStore,
+	uploads *objectupload.Service,
 	backend storage.Store,
 ) *storage.Object {
 	t.Helper()
-	banner, err := objects.CreatePending(ctx, BannerObjectPrefix, "banner.png", "image/png")
+	banner, target, err := uploads.Begin(ctx, BannerObjectPrefix, "banner.png")
 	if err != nil {
-		t.Fatalf("CreatePending: %v", err)
+		t.Fatalf("begin banner upload: %v", err)
 	}
 
 	var body bytes.Buffer
@@ -114,12 +120,12 @@ func createPendingBanner(
 	if err := png.Encode(&body, img); err != nil {
 		t.Fatalf("encode PNG: %v", err)
 	}
-	if err := backend.Put(
-		ctx,
-		banner.Key(),
-		bytes.NewReader(body.Bytes()),
-		storage.PutOptions{ContentType: "image/png"},
-	); err != nil {
+	targetURL, err := url.Parse(target.URL)
+	if err != nil {
+		t.Fatalf("parse banner upload URL: %v", err)
+	}
+	uploadKey := strings.TrimPrefix(targetURL.Path, "/storage/")
+	if err := backend.Put(ctx, uploadKey, bytes.NewReader(body.Bytes()), storage.PutOptions{}); err != nil {
 		t.Fatalf("put banner: %v", err)
 	}
 	return banner

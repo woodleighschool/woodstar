@@ -112,6 +112,34 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 	return nil
 }
 
+func (s *fileStore) Move(
+	_ context.Context,
+	sourceKey string,
+	destinationKey string,
+	_ PutOptions,
+) error {
+	sourcePath, err := s.resolve(sourceKey)
+	if err != nil {
+		return err
+	}
+	destinationPath, err := s.resolve(destinationKey)
+	if err != nil {
+		return err
+	}
+	// #nosec G703 -- both paths come from resolve, which keeps them under root.
+	if err := os.MkdirAll(filepath.Dir(destinationPath), 0o750); err != nil {
+		return fmt.Errorf("create dir for %q: %w", destinationKey, err)
+	}
+	// #nosec G703 -- both paths come from resolve, which keeps them under root.
+	if err := os.Rename(sourcePath, destinationPath); errors.Is(err, os.ErrNotExist) {
+		return ErrObjectNotFound
+	} else if err != nil {
+		return fmt.Errorf("move %q to %q: %w", sourceKey, destinationKey, err)
+	}
+	_ = os.Remove(filepath.Dir(sourcePath))
+	return nil
+}
+
 func (s *fileStore) Delete(_ context.Context, key string) error {
 	path, err := s.resolve(key)
 	if err != nil {
@@ -120,24 +148,9 @@ func (s *fileStore) Delete(_ context.Context, key string) error {
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("delete %q: %w", key, err)
 	}
-	// Prune the now-empty <id> directory; ignore if it has siblings.
+	// Prune the now-empty parent directory; ignore if it has siblings.
 	_ = os.Remove(filepath.Dir(path))
 	return nil
-}
-
-func (s *fileStore) Stat(_ context.Context, key string) (ObjectInfo, error) {
-	path, err := s.resolve(key)
-	if err != nil {
-		return ObjectInfo{}, err
-	}
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return ObjectInfo{}, ErrObjectNotFound
-	}
-	if err != nil {
-		return ObjectInfo{}, fmt.Errorf("stat %q: %w", key, err)
-	}
-	return ObjectInfo{Size: info.Size()}, nil
 }
 
 func (s *fileStore) PresignGet(
@@ -158,13 +171,11 @@ func (s *fileStore) PresignPut(
 	_ context.Context,
 	key string,
 	ttl time.Duration,
-	opts PutOptions,
 ) (UploadTarget, error) {
 	url, err := s.blobURL(BlobCapabilityClaims{
-		Op:          capability.OpPut,
-		Key:         key,
-		Exp:         time.Now().Add(s.expires(ttl)).Unix(),
-		ContentType: opts.ContentType,
+		Op:  capability.OpPut,
+		Key: key,
+		Exp: time.Now().Add(s.expires(ttl)).Unix(),
 	})
 	if err != nil {
 		return UploadTarget{}, err

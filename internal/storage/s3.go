@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
-// s3Store stores blobs in an S3-compatible bucket. It implements Store and
-// Presigner, so transfers go directly between client and bucket.
 type s3Store struct {
 	bucket    string
 	ttl       time.Duration
@@ -74,10 +74,7 @@ func (s *s3Store) Open(ctx context.Context, key string) (ObjectReader, ObjectInf
 		size:   size,
 		openAt: s.openObjectAt,
 	}
-	return reader, ObjectInfo{
-		Size:        size,
-		ContentType: aws.ToString(output.ContentType),
-	}, nil
+	return reader, ObjectInfo{Size: size}, nil
 }
 
 func (s *s3Store) getObject(ctx context.Context, key string, offset int64) (*s3.GetObjectOutput, error) {
@@ -200,6 +197,33 @@ func (s *s3Store) Put(ctx context.Context, key string, r io.Reader, opts PutOpti
 	return nil
 }
 
+func (s *s3Store) Move(
+	ctx context.Context,
+	sourceKey string,
+	destinationKey string,
+	opts PutOptions,
+) error {
+	copySource := url.PathEscape(s.bucket + "/" + sourceKey)
+	input := &s3.CopyObjectInput{
+		Bucket:     aws.String(s.bucket),
+		CopySource: aws.String(copySource),
+		Key:        aws.String(destinationKey),
+	}
+	if opts.ContentType != "" {
+		input.ContentType = aws.String(opts.ContentType)
+		input.MetadataDirective = types.MetadataDirectiveReplace
+	}
+	if _, err := s.client.CopyObject(ctx, input); s3NotFound(err) {
+		return ErrObjectNotFound
+	} else if err != nil {
+		return fmt.Errorf("move %q to %q: %w", sourceKey, destinationKey, err)
+	}
+	if err := s.Delete(ctx, sourceKey); err != nil {
+		return fmt.Errorf("remove moved source %q: %w", sourceKey, err)
+	}
+	return nil
+}
+
 func (s *s3Store) Delete(ctx context.Context, key string) error {
 	if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
@@ -210,33 +234,20 @@ func (s *s3Store) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (s *s3Store) Stat(ctx context.Context, key string) (ObjectInfo, error) {
-	output, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	})
-	if s3NotFound(err) {
-		return ObjectInfo{}, ErrObjectNotFound
-	}
-	if err != nil {
-		return ObjectInfo{}, fmt.Errorf("stat %q: %w", key, err)
-	}
-	return ObjectInfo{
-		Size:        aws.ToInt64(output.ContentLength),
-		ContentType: aws.ToString(output.ContentType),
-	}, nil
-}
-
 func (s *s3Store) PresignGet(
 	ctx context.Context,
 	key string,
 	ttl time.Duration,
-	_ GetOptions,
+	opts GetOptions,
 ) (string, error) {
-	output, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
-	}, s.expires(ttl))
+	}
+	if opts.ContentType != "" {
+		input.ResponseContentType = aws.String(opts.ContentType)
+	}
+	output, err := s.presigner.PresignGetObject(ctx, input, s.expires(ttl))
 	if err != nil {
 		return "", fmt.Errorf("presign get %q: %w", key, err)
 	}
@@ -247,14 +258,10 @@ func (s *s3Store) PresignPut(
 	ctx context.Context,
 	key string,
 	ttl time.Duration,
-	opts PutOptions,
 ) (UploadTarget, error) {
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
-	}
-	if opts.ContentType != "" {
-		input.ContentType = aws.String(opts.ContentType)
 	}
 	output, err := s.presigner.PresignPutObject(ctx, input, s.expires(ttl))
 	if err != nil {
@@ -303,10 +310,3 @@ func singleValueHeaders(headers http.Header) map[string]string {
 	}
 	return out
 }
-
-var (
-	_ Store     = (*fileStore)(nil)
-	_ Presigner = (*fileStore)(nil)
-	_ Store     = (*s3Store)(nil)
-	_ Presigner = (*s3Store)(nil)
-)

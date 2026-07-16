@@ -11,6 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -27,6 +28,7 @@ type MunkiHandlerDeps struct {
 	Packages        *munki.PackageService
 	ClientResources *clientresources.Service
 	Objects         *storage.ObjectStore
+	Uploads         *munkiupload.Service
 	Storage         storage.Backend
 	Distribution    *mdp.Store
 	Connections     distributionPointConnections
@@ -47,7 +49,7 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 		deps.DeleteSoftware,
 		deps.Packages,
 		deps.Objects,
-		deps.Storage,
+		deps.Uploads,
 		deps.Logger,
 	)
 	registerMunkiSoftwareIconContent(
@@ -57,12 +59,12 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 		deps.Storage,
 		deps.Logger,
 	)
-	registerMunkiPackages(deps.API, deps.Packages, deps.Objects, deps.Storage, deps.Logger)
+	registerMunkiPackages(deps.API, deps.Packages, deps.Objects, deps.Uploads, deps.Logger)
 	registerMunkiClientResources(
 		deps.API,
 		deps.ClientResources,
 		deps.Objects,
-		deps.Storage,
+		deps.Uploads,
 		deps.Logger,
 	)
 	registerMunkiDistributionPoints(deps.API, deps.Distribution, deps.Connections, deps.Logger)

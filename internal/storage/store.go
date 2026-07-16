@@ -17,7 +17,6 @@ type Store interface {
 	Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error)
 	Put(ctx context.Context, key string, r io.Reader, opts PutOptions) error
 	Delete(ctx context.Context, key string) error
-	Stat(ctx context.Context, key string) (ObjectInfo, error)
 }
 
 // ObjectReader is a backend object stream that supports HTTP range reads.
@@ -32,23 +31,21 @@ type ObjectReader interface {
 type Backend interface {
 	Store
 	Presigner
+	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
+	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 }
 
-// Presigner hands a client a URL to transfer bytes directly.
+// Presigner mints direct read URLs.
 type Presigner interface {
 	PresignGet(ctx context.Context, key string, ttl time.Duration, opts GetOptions) (string, error)
-	PresignPut(ctx context.Context, key string, ttl time.Duration, opts PutOptions) (UploadTarget, error)
 }
 
-// ObjectInfo is backend metadata for a stored object. ContentType is empty for
-// backends that do not record it (the file backend); callers fall back to the
-// content type declared when the object was created.
+// ObjectInfo is backend metadata for stored bytes.
 type ObjectInfo struct {
-	Size        int64
-	ContentType string
+	Size int64
 }
 
-// PutOptions carries optional hints for a write or a presigned upload.
+// PutOptions carries representation metadata to preserve with stored bytes.
 type PutOptions struct {
 	ContentType string
 }

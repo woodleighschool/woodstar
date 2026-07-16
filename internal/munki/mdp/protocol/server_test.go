@@ -22,20 +22,20 @@ import (
 )
 
 type fakePresigner struct {
-	url string
+	url     string
+	options *storage.GetOptions
 }
 
-func (f fakePresigner) PresignGet(context.Context, string, time.Duration, storage.GetOptions) (string, error) {
+func (f fakePresigner) PresignGet(
+	_ context.Context,
+	_ string,
+	_ time.Duration,
+	options storage.GetOptions,
+) (string, error) {
+	if f.options != nil {
+		*f.options = options
+	}
 	return f.url, nil
-}
-
-func (f fakePresigner) PresignPut(
-	context.Context,
-	string,
-	time.Duration,
-	storage.PutOptions,
-) (storage.UploadTarget, error) {
-	return storage.UploadTarget{}, nil
 }
 
 func discardLogger() *slog.Logger {
@@ -88,8 +88,8 @@ func seedAvailablePackage(
 	}
 	var objectID int64
 	if err := db.Pool().QueryRow(ctx,
-		`INSERT INTO storage_objects (prefix, filename, size_bytes, sha256, available_at)
-		 VALUES ('packages', $1, $2, $3, now()) RETURNING id`,
+		`INSERT INTO storage_objects (prefix, filename, content_type, size_bytes, sha256, available_at)
+		 VALUES ('packages', $1, 'application/octet-stream', $2, $3, now()) RETURNING id`,
 		name+".pkg", size, sha256,
 	).Scan(&objectID); err != nil {
 		t.Fatalf("insert object: %v", err)
@@ -273,7 +273,8 @@ func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	const presigned = "https://storage.example/packages/1/Chrome.pkg?cap=signed"
-	router := agentRouter(t, store, fakePresigner{url: presigned})
+	var options storage.GetOptions
+	router := agentRouter(t, store, fakePresigner{url: presigned, options: &options})
 
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
 
@@ -293,6 +294,9 @@ func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
 		}
 		if body.DownloadURL != presigned {
 			t.Fatalf("download_url = %q, want %q", body.DownloadURL, presigned)
+		}
+		if options.ContentType != "application/octet-stream" {
+			t.Fatalf("download content type = %q", options.ContentType)
 		}
 	})
 

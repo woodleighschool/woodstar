@@ -400,18 +400,26 @@ ORDER BY p.id`)
 	return packages, nil
 }
 
-// InstallerObjectKey returns the storage key of a package's installer object.
-func (s *Store) InstallerObjectKey(ctx context.Context, packageID int64) (string, error) {
+// InstallerContent identifies the canonical bytes and content type for a package.
+type InstallerContent struct {
+	Key         string
+	ContentType string
+}
+
+// InstallerObject returns the stored content for a package's installer.
+func (s *Store) InstallerObject(ctx context.Context, packageID int64) (InstallerContent, error) {
 	type installerObjectRow struct {
-		Prefix   string `db:"prefix"`
-		ID       int64  `db:"object_id"`
-		Filename string `db:"filename"`
+		Prefix      string `db:"prefix"`
+		ID          int64  `db:"object_id"`
+		Filename    string `db:"filename"`
+		ContentType string `db:"content_type"`
 	}
 	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), `
 SELECT
 	o.prefix,
 	o.id AS object_id,
-	o.filename
+	o.filename,
+	o.content_type
 FROM munki_packages p
 JOIN storage_objects o ON o.id = p.installer_object_id
 WHERE p.id = $1
@@ -419,9 +427,12 @@ WHERE p.id = $1
 		packageID,
 	)
 	if err != nil {
-		return "", err
+		return InstallerContent{}, err
 	}
-	return storage.Key(row.Prefix, row.ID, row.Filename), nil
+	return InstallerContent{
+		Key:         storage.Key(row.Prefix, row.ID, row.Filename),
+		ContentType: row.ContentType,
+	}, nil
 }
 
 // RecordPackageState upserts one package's mirror state for a distribution

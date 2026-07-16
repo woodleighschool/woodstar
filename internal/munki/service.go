@@ -147,8 +147,15 @@ type PackageInstaller struct {
 	PackageID             int64
 	InstallerItemLocation string
 	Key                   string
+	ContentType           string
 	SHA256                string
 	SizeBytes             int64
+}
+
+// RepositoryFile is canonical stored content exposed through the Munki repository.
+type RepositoryFile struct {
+	Key         string
+	ContentType string
 }
 
 // ResolvePackageFile resolves a package installer Munki path to the package
@@ -188,6 +195,7 @@ func (s *RepositoryService) ResolvePackageFile(
 		PackageID:             pkg.ID,
 		InstallerItemLocation: key,
 		Key:                   obj.Key(),
+		ContentType:           obj.ContentType,
 		SHA256:                obj.SHA256Value(),
 		SizeBytes:             obj.SizeBytesValue(),
 	}, nil
@@ -198,60 +206,60 @@ func (s *RepositoryService) ResolvePackageFile(
 func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
 	key string,
-) (string, error) {
+) (RepositoryFile, error) {
 	if key == "" {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
 	iconObjectID, ok := packages.ParseIconName(key)
 	if !ok {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
 	pkgs, err := s.deps.Packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
 	if err != nil {
-		return "", err
+		return RepositoryFile{}, err
 	}
 	if len(pkgs) == 0 {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{iconObjectID})
 	if err != nil {
-		return "", err
+		return RepositoryFile{}, err
 	}
 	obj, ok := objects[iconObjectID]
 	if !ok || !obj.Available() || packages.IconName(obj) != key {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
-	return obj.Key(), nil
+	return RepositoryFile{Key: obj.Key(), ContentType: obj.ContentType}, nil
 }
 
 // ResolveClientResources resolves a configured archive for Munki's host-specific
 // request or its site_default.zip fallback.
-func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (string, error) {
+func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (RepositoryFile, error) {
 	if name != "site_default.zip" {
 		serial, ok := strings.CutSuffix(name, ".zip")
 		if !ok || serial == "" || strings.Contains(serial, "/") {
-			return "", ErrNotFound
+			return RepositoryFile{}, ErrNotFound
 		}
 		if _, err := s.resolveManifestHostID(ctx, serial); err != nil {
-			return "", err
+			return RepositoryFile{}, err
 		}
 	}
 	resource, err := s.deps.ClientResources.Get(ctx)
 	if errors.Is(err, dbutil.ErrNotFound) {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
 	if err != nil {
-		return "", err
+		return RepositoryFile{}, err
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{resource.ArchiveObjectID})
 	if err != nil {
-		return "", err
+		return RepositoryFile{}, err
 	}
 	archive, ok := objects[resource.ArchiveObjectID]
 	if !ok || archive.Prefix != clientresources.ArchiveObjectPrefix || !archive.Available() {
-		return "", ErrNotFound
+		return RepositoryFile{}, ErrNotFound
 	}
-	return archive.Key(), nil
+	return RepositoryFile{Key: archive.Key(), ContentType: archive.ContentType}, nil
 }
 
 func (s *RepositoryService) effectivePackages(

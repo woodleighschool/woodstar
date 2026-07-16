@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -73,7 +72,7 @@ func (h iconContentHandler) get(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if obj.Prefix != munkiupload.IconObjectPrefix || !obj.Available() {
+	if obj.Prefix != munkisoftware.IconObjectPrefix || !obj.Available() {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

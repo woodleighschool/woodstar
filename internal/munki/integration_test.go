@@ -20,6 +20,7 @@ import (
 )
 
 type munkiStores struct {
+	db        *database.DB
 	objects   *storage.ObjectStore
 	hoststate *munki.Store
 	packages  *packages.Store
@@ -31,6 +32,7 @@ func newMunkiStores(db *database.DB) munkiStores {
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
+		db:        db,
 		objects:   objectStore,
 		hoststate: munki.NewStore(db),
 		packages:  packageStore,
@@ -38,7 +40,7 @@ func newMunkiStores(db *database.DB) munkiStores {
 	}
 }
 
-// createMunkiStorageObject inserts a confirmed (available) storage object under
+// createMunkiStorageObject inserts an available storage object under
 // prefix and returns it for use as an installer or icon in tests.
 func createMunkiStorageObject(
 	t *testing.T,
@@ -47,15 +49,24 @@ func createMunkiStorageObject(
 	prefix, filename, hashChar string,
 ) *storage.Object {
 	t.Helper()
-	obj, err := stores.objects.CreatePending(ctx, prefix, filename, "application/octet-stream")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
+	contentType := "application/octet-stream"
+	if prefix == munkisoftware.IconObjectPrefix {
+		contentType = "image/png"
 	}
-	confirmed, err := stores.objects.Confirm(ctx, obj.ID, 512, "", strings.Repeat(hashChar, 64))
+	var objectID int64
+	err := stores.db.Pool().QueryRow(ctx, `
+INSERT INTO storage_objects (
+    prefix, filename, content_type, size_bytes, sha256, available_at
+) VALUES ($1, $2, $3, 512, $4, now())
+RETURNING id`, prefix, filename, contentType, strings.Repeat(hashChar, 64)).Scan(&objectID)
 	if err != nil {
-		t.Fatalf("confirm object: %v", err)
+		t.Fatalf("insert available object: %v", err)
 	}
-	return confirmed
+	object, err := stores.objects.GetByID(ctx, objectID)
+	if err != nil {
+		t.Fatalf("get available object: %v", err)
+	}
+	return object
 }
 
 func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
@@ -852,7 +863,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		{name: "installer", id: installerObject.ID},
 	}
 	for _, ref := range references {
-		if err := stores.objects.DeleteByID(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
+		if err := stores.objects.Delete(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
 			t.Fatalf("delete referenced %s object error = %v, want ErrConflict", ref.name, err)
 		}
 	}

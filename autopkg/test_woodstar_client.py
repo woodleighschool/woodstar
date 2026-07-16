@@ -79,7 +79,7 @@ class WoodstarClientTests(unittest.TestCase):
             self.assertEqual(message, "upload to https://uploads.example/package failed: HTTP 403")
             self.assertNotIn("signature", message)
 
-    def test_attach_confirmation_uses_transfer_timeout(self):
+    def test_attach_adoption_uses_transfer_timeout(self):
         with tempfile.NamedTemporaryFile() as artifact:
             artifact.write(b"package")
             artifact.flush()
@@ -96,9 +96,9 @@ class WoodstarClientTests(unittest.TestCase):
                 "method": "PUT",
                 "upload_transport": "s3",
             }
-            confirm = Mock(content=b'{"id":42}')
-            confirm.json.return_value = {"id": 42}
-            client.session.request = Mock(side_effect=[create, confirm])
+            adopted = Mock(content=b'{"id":42}')
+            adopted.json.return_value = {"id": 42}
+            client.session.request = Mock(side_effect=[create, adopted])
             client.upload_bytes = Mock()
 
             self.assertEqual(
@@ -106,8 +106,13 @@ class WoodstarClientTests(unittest.TestCase):
                 {"id": 42},
             )
 
-            confirm_call = client.session.request.call_args_list[1]
-            self.assertEqual(confirm_call.kwargs["timeout"], UPLOAD_TIMEOUT)
+            adoption_call = client.session.request.call_args_list[1]
+            self.assertEqual(
+                adoption_call.args[:2],
+                ("PUT", "https://woodstar.example/api/munki/packages/7/installer"),
+            )
+            self.assertEqual(adoption_call.kwargs["json"], {"object_id": 42})
+            self.assertEqual(adoption_call.kwargs["timeout"], UPLOAD_TIMEOUT)
 
     def test_safe_url_removes_user_information_and_query(self):
         self.assertEqual(
