@@ -10,33 +10,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
-func TestQueryNameRoundTrips(t *testing.T) {
-	tests := []struct {
-		name   string
-		kind   queryKind
-		suffix string
-	}{
-		{name: "detail", kind: kindDetail, suffix: "system_info"},
-		{name: "label", kind: kindLabel, suffix: "42"},
-		{name: "check", kind: kindCheck, suffix: "7"},
-		{name: "live", kind: kindLive, suffix: "3"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			name := queryName(tt.kind, tt.suffix)
-			gotKind, gotSuffix, ok := parseQueryName(name)
-			if !ok {
-				t.Fatalf("parseQueryName(%q) ok = false, want true", name)
-			}
-			if gotKind != tt.kind || gotSuffix != tt.suffix {
-				t.Fatalf("parseQueryName(%q) = %q, %q; want %q, %q", name, gotKind, gotSuffix, tt.kind, tt.suffix)
-			}
-		})
-	}
-}
-
 func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 	for _, name := range []string{
 		"system_info",

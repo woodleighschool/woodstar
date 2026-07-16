@@ -1,12 +1,8 @@
 package ingest
 
 import (
-	"context"
-	"log/slog"
 	"testing"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
 func TestParseSoftwareRows(t *testing.T) {
@@ -124,46 +120,5 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 		got[0].ExecutableSHA256 != "executable-hash" ||
 		got[0].ExecutablePath != "/Applications/Example.app/Contents/MacOS/Example" {
 		t.Fatalf("enrichment parsed incorrectly: %#v", got[0])
-	}
-}
-
-func TestIngestDetailDispatchesRegisteredHandler(t *testing.T) {
-	projector := NewProjector(nil, nil, slog.New(slog.DiscardHandler))
-
-	var (
-		gotHostID int64
-		gotRows   []map[string]string
-	)
-	projector.RegisterDetailHandler(
-		catalog.IngestMunkiInfo,
-		func(_ context.Context, hostID int64, rows []map[string]string) error {
-			gotHostID = hostID
-			gotRows = rows
-			return nil
-		},
-	)
-
-	rows := []map[string]string{{"version": "7.1.2"}}
-	if err := projector.IngestDetail(
-		context.Background(),
-		catalog.DetailQuery{Ingest: catalog.IngestMunkiInfo},
-		catalog.QueryMunkiInfo,
-		42,
-		rows,
-	); err != nil {
-		t.Fatalf("ingest registered detail: %v", err)
-	}
-	if gotHostID != 42 || len(gotRows) != 1 {
-		t.Fatalf("handler got host=%d rows=%d, want 42/1", gotHostID, len(gotRows))
-	}
-
-	if err := projector.IngestDetail(
-		context.Background(),
-		catalog.DetailQuery{Ingest: catalog.IngestMunkiInstalls},
-		catalog.QueryMunkiInstalls,
-		42,
-		nil,
-	); err != nil {
-		t.Fatalf("unregistered detail kind should no-op: %v", err)
 	}
 }

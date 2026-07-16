@@ -6,45 +6,6 @@ import (
 	"time"
 )
 
-func TestDetailQueryRegistryIsComplete(t *testing.T) {
-	queries := DetailQueries()
-	wantNames := []string{
-		"os_version",
-		"system_info",
-		"osquery_info",
-		"osquery_flags",
-		"orbit_info",
-		"uptime",
-		"root_disk_darwin",
-		"primary_interface_unix",
-		"users",
-		"batteries",
-		"certificates_darwin",
-		"munki_info",
-		"munki_installs",
-		"software_macos",
-		"software_vscode_extensions",
-		"software_jetbrains_plugins",
-		"software_go_binaries",
-		"software_python_packages",
-		"software_macos_codesign",
-		"software_macos_executable_sha256",
-	}
-	if len(queries) != len(wantNames) {
-		t.Fatalf("len(DetailQueries()) = %d, want %d", len(queries), len(wantNames))
-	}
-
-	for _, name := range wantNames {
-		query, ok := queries[name]
-		if !ok {
-			t.Fatalf("missing query %q", name)
-		}
-		if query.SQL == "" {
-			t.Fatalf("%s SQL is empty", name)
-		}
-	}
-}
-
 func TestDetailQueriesDue(t *testing.T) {
 	got := DetailQueriesDue(nil, "")
 	for _, name := range []string{

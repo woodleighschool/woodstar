@@ -95,6 +95,13 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
   go -C integration test -race -count=1 -v -run '^TestMunki$' .
 """
 
+[tasks.test-integration-osquery]
+description = "Run the compiled osquery protocol lifecycle"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go -C integration test -race -count=1 -v -run '^TestOsquery$' .
+"""
+
 [tasks.test-autopkg]
 description = "Run AutoPkg processor tests"
 run = "/usr/local/autopkg/python -m unittest discover -s autopkg -p 'test_woodstar_*.py'"
