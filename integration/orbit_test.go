@@ -34,6 +34,7 @@ const (
 	orbitIterationTimeout      = 5 * time.Second
 	orbitCleanupTimeout        = 20 * time.Second
 	orbitStopTimeout           = 10 * time.Second
+	orbitLogRedactionOverlap   = 256
 )
 
 var orbitLogCredentialPatterns = []*regexp.Regexp{
@@ -527,7 +528,7 @@ func orbitContainerLogTail(container testcontainers.Container, redactions []stri
 	if err != nil {
 		return "read container logs: " + err.Error()
 	}
-	contents, readErr := readOrbitBoundedTail(reader, serverLogTailLimit)
+	contents, readErr := readOrbitBoundedTail(reader, serverLogTailLimit+orbitLogRedactionOverlap)
 	closeErr := reader.Close()
 	if err := errors.Join(readErr, closeErr); err != nil {
 		return "read container logs: " + err.Error()
@@ -541,6 +542,7 @@ func orbitContainerLogTail(container testcontainers.Container, redactions []stri
 	for _, pattern := range orbitLogCredentialPatterns {
 		logs = pattern.ReplaceAllString(logs, "[REDACTED_CREDENTIAL]")
 	}
+	logs = tail([]byte(logs), serverLogTailLimit)
 	if logs == "" {
 		return "(no container output)"
 	}
