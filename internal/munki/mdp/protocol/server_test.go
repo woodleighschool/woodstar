@@ -50,7 +50,7 @@ func agentRouter(
 	presigner storage.Presigner,
 ) chi.Router {
 	t.Helper()
-	server := mdpprotocol.NewServer(store, presigner, discardLogger())
+	server := mdpprotocol.NewServer(t.Context(), store, presigner, discardLogger())
 	t.Cleanup(server.Close)
 	r := chi.NewRouter()
 	server.RegisterRoutes(r)
@@ -237,7 +237,7 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	protocol := mdpprotocol.NewServer(store, fakePresigner{}, discardLogger())
+	protocol := mdpprotocol.NewServer(t.Context(), store, fakePresigner{}, discardLogger())
 	t.Cleanup(protocol.Close)
 	router := chi.NewRouter()
 	protocol.RegisterRoutes(router)

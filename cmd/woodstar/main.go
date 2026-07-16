@@ -169,6 +169,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
 	}
+	//nolint:contextcheck // Huma supplies its middleware context from each request.
 	server, err := api.NewServer(wiring.apiDependencies())
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)
@@ -204,7 +205,7 @@ func runServer(
 		return nil
 
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulShutdownTimeout)
 		defer cancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
@@ -358,7 +359,12 @@ func buildWiring(
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
 	w.munkiDistribution = mdp.NewStore(db, munkiDistributionLogger)
-	w.munkiMDPProtocol = mdpprotocol.NewServer(w.munkiDistribution, storageBackend, munkiDistributionLogger)
+	w.munkiMDPProtocol = mdpprotocol.NewServer(
+		ctx,
+		w.munkiDistribution,
+		storageBackend,
+		munkiDistributionLogger,
+	)
 	w.munkiPackageSvc = munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               w.munkiPackages,
 		DesiredPackagesChanged: w.munkiMDPProtocol.RefreshDesiredPackages,

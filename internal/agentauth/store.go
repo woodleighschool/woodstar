@@ -11,7 +11,7 @@ import (
 
 // SecretVerifier reports whether a shared secret is valid for an agent.
 type SecretVerifier interface {
-	Verify(context.Context, Agent, string) (bool, error)
+	Verify(ctx context.Context, agent Agent, value string) (bool, error)
 }
 
 type Store struct {

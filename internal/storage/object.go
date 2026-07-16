@@ -82,8 +82,8 @@ type ObjectStore struct {
 }
 
 type objectBackend interface {
-	Delete(context.Context, string) error
-	PresignGet(context.Context, string, time.Duration, GetOptions) (string, error)
+	Delete(ctx context.Context, key string) error
+	PresignGet(ctx context.Context, key string, ttl time.Duration, opts GetOptions) (string, error)
 }
 
 // NewObjectStore returns a registry backed by db.

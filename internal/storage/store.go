@@ -40,10 +40,15 @@ type Backend interface {
 
 // MultipartBackend is the optional S3 multipart transfer capability.
 type MultipartBackend interface {
-	CreateMultipartUpload(context.Context, string) (string, error)
-	PresignMultipartPart(context.Context, string, string, int32, time.Duration) (UploadTarget, error)
-	CompleteMultipartUpload(context.Context, string, string, []CompletedPart) error
-	AbortMultipartUpload(context.Context, string, string) error
+	CreateMultipartUpload(ctx context.Context, key string) (string, error)
+	PresignMultipartPart(
+		ctx context.Context,
+		key, uploadID string,
+		partNumber int32,
+		ttl time.Duration,
+	) (UploadTarget, error)
+	CompleteMultipartUpload(ctx context.Context, key, uploadID string, parts []CompletedPart) error
+	AbortMultipartUpload(ctx context.Context, key, uploadID string) error
 }
 
 // Presigner mints direct read URLs.

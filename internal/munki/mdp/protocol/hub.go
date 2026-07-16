@@ -88,13 +88,12 @@ type Hub struct {
 
 	wake   chan struct{}
 	done   chan struct{}
-	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 type presenceWriter interface {
-	Connect(int64)
-	Disconnect(int64)
+	Connect(pointID int64)
+	Disconnect(pointID int64)
 }
 
 type connection struct {
@@ -105,8 +104,8 @@ type connection struct {
 // newHub returns a connection hub backed by store, writing presence as workers
 // connect and disconnect. It runs one fan-out goroutine so desired-set pushes
 // reach every worker in a single, ordered sequence.
-func newHub(store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub {
-	ctx, cancel := context.WithCancel(context.Background())
+func newHub(ctx context.Context, store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub {
+	ctx, cancel := context.WithCancel(ctx)
 	h := &Hub{
 		store:    store,
 		presence: presence,
@@ -114,10 +113,9 @@ func newHub(store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub 
 		conns:    map[int64]*connection{},
 		wake:     make(chan struct{}, 1),
 		done:     make(chan struct{}),
-		ctx:      ctx,
 		cancel:   cancel,
 	}
-	go h.fanoutLoop()
+	go h.fanoutLoop(ctx)
 	return h
 }
 
@@ -146,8 +144,8 @@ func (h *Hub) Close() {
 // Serve runs one distribution point connection: it sends hello and the desired
 // set, relays later desired-set changes outbound, and records reported package
 // state inbound, until the connection closes.
-func (h *Hub) Serve(ws *websocket.Conn, dp *mdp.DistributionPoint) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func (h *Hub) Serve(parent context.Context, ws *websocket.Conn, dp *mdp.DistributionPoint) error {
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
 	if err := h.sendHello(ctx, ws, dp); err != nil {
@@ -238,25 +236,25 @@ func (h *Hub) refreshDesiredPackages() {
 	}
 }
 
-func (h *Hub) fanoutLoop() {
+func (h *Hub) fanoutLoop(ctx context.Context) {
 	defer close(h.done)
 	for {
 		select {
-		case <-h.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-h.wake:
-			h.broadcastDesired()
+			h.broadcastDesired(ctx)
 		}
 	}
 }
 
-func (h *Hub) broadcastDesired() {
-	msg, err := h.desiredSetBytes(h.ctx)
+func (h *Hub) broadcastDesired(ctx context.Context) {
+	msg, err := h.desiredSetBytes(ctx)
 	if err != nil {
-		if h.ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return
 		}
-		h.logger.Warn("munki distribution desired broadcast failed",
+		h.logger.WarnContext(ctx, "munki distribution desired broadcast failed",
 			"operation", "desired_set", "err", err)
 		return
 	}

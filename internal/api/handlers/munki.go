@@ -36,7 +36,7 @@ type MunkiHandlerDeps struct {
 }
 
 type distributionPointConnections interface {
-	Disconnect(int64)
+	Disconnect(pointID int64)
 }
 
 // RegisterMunki mounts Munki host state, software, package, and distribution

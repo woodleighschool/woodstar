@@ -25,7 +25,7 @@ const (
 )
 
 type objectStore interface {
-	Delete(context.Context, int64) error
+	Delete(ctx context.Context, objectID int64) error
 }
 
 type Store struct {

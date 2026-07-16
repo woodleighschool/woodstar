@@ -10,7 +10,7 @@ import (
 )
 
 type hostMunkiStateLoader interface {
-	LoadHostState(context.Context, int64) (*munki.HostState, error)
+	LoadHostState(ctx context.Context, hostID int64) (*munki.HostState, error)
 }
 
 func registerHostMunkiState(

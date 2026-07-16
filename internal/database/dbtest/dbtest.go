@@ -53,7 +53,7 @@ func createDatabase(t testing.TB, ctx context.Context, baseURL string) string {
 	defer func() { _ = admin.Close(ctx) }()
 	identifier := pgx.Identifier{databaseName}.Sanitize()
 	t.Cleanup(func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		cleanupAdmin, err := connectAdmin(cleanupCtx, adminURL)
 		if err != nil {

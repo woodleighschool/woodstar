@@ -59,6 +59,8 @@ linters:
     - bidichk # checks for dangerous unicode character sequences
     - bodyclose # checks whether HTTP response body is closed successfully
     - canonicalheader # checks whether net/http.Header uses canonical header
+    - containedctx # detects struct contained context.Context field
+    - contextcheck # checks whether functions use inherited contexts
     - copyloopvar # detects places where loop variables are copied (Go 1.22+)
     - depguard # checks if package imports are in a list of acceptable packages
     - dupl # tool for code clone detection
@@ -112,6 +114,7 @@ linters:
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
     - testableexamples # checks if examples are testable (have an expected output)
     - testifylint # checks usage of github.com/stretchr/testify
+    - thelper # detects test helpers that do not start with t.Helper()
     - unconvert # removes unnecessary type conversions
     - unparam # reports unused function parameters
     - unqueryvet # detects SELECT * in SQL queries and SQL builders, encouraging explicit column selection
@@ -139,8 +142,6 @@ linters:
     #- zerologlint # detects the wrong usage of zerolog that a user forgets to dispatch zerolog.Event
 
     ## disabled
-    #- containedctx # detects struct contained context.Context field
-    #- contextcheck # [too many false positives] checks the function whether use a non-inherited context
     #- dogsled # checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
     #- dupword # [useless without config] checks for duplicate words in the source code
     #- err113 # [too strict] checks the errors handling expressions
@@ -156,7 +157,6 @@ linters:
     #- nlreturn # [too strict and mostly code is not more readable] checks for a new line before return and branch statements to increase code clarity
     #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # checks the struct tags
-    #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
     #- wsl_v5 # [too strict and mostly code is not more readable] add or remove empty lines
 
@@ -391,6 +391,25 @@ linters:
         # Omit embedded fields from selector expression.
         # https://staticcheck.dev/docs/checks/#QF1008
         - -QF1008
+
+    thelper:
+      # Enforce helper attribution without prescribing parameter names or order.
+      test:
+        begin: true
+        first: false
+        name: false
+      fuzz:
+        begin: true
+        first: false
+        name: false
+      benchmark:
+        begin: true
+        first: false
+        name: false
+      tb:
+        begin: true
+        first: false
+        name: false
 
     usetesting:
       # Enable/disable `os.TempDir()` detections.

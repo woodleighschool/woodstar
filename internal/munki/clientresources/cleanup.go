@@ -11,11 +11,11 @@ import (
 const objectCleanupTimeout = 15 * time.Second
 
 type objectCleaner interface {
-	Delete(context.Context, int64) error
+	Delete(ctx context.Context, objectID int64) error
 }
 
 type uploadCleaner interface {
-	Delete(context.Context, int64, string) error
+	Delete(ctx context.Context, uploadID int64, prefix string) error
 }
 
 func cleanupObjects(ctx context.Context, objects objectCleaner, ids ...int64) error {

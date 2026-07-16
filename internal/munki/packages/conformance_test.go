@@ -26,6 +26,8 @@ func TestPackageStoreConformance(t *testing.T) {
 		crudtest.Fixtures[Package, PackageCreateMutation, PackageMutation, PackageListParams]{
 			Store: store,
 			NewValid: func(t *testing.T, ctx context.Context) PackageCreateMutation {
+				t.Helper()
+
 				softwareID := insertSoftware(t, ctx, db, "ConformanceApp")
 				return PackageCreateMutation{
 					SoftwareID: softwareID,

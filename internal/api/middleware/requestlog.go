@@ -18,13 +18,14 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 			started := time.Now()
 			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					logger.ErrorContext(
-						r.Context(),
+						ctx,
 						"panic recovered",
 						"method", r.Method,
 						"path", requestLogPath(r),
@@ -33,7 +34,7 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 					)
 					http.Error(ww, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
-				logRequest(r.Context(), logger, r, ww, time.Since(started))
+				logRequest(ctx, logger, r, ww, time.Since(started))
 			}()
 
 			next.ServeHTTP(ww, r)

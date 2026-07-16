@@ -4,9 +4,9 @@ import "context"
 
 // hostStateStore persists observed Munki host state.
 type hostStateStore interface {
-	UpsertHostObservation(context.Context, HostObservation) error
-	ClearHostObservation(context.Context, int64) error
-	ReplaceHostItems(context.Context, int64, []Item) error
+	UpsertHostObservation(ctx context.Context, observation HostObservation) error
+	ClearHostObservation(ctx context.Context, hostID int64) error
+	ReplaceHostItems(ctx context.Context, hostID int64, items []Item) error
 }
 
 // DetailIngestor projects osquery munki_info and munki_installs detail rows into

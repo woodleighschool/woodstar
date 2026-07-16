@@ -29,7 +29,7 @@ func (db *DB) migrate(ctx context.Context) error {
 		return fmt.Errorf("acquire migration lock: %w", err)
 	}
 	defer func() {
-		_, _ = sqlDB.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", migrationLockID)
+		_, _ = sqlDB.ExecContext(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", migrationLockID)
 	}()
 
 	goose.SetBaseFS(migrationsFS)

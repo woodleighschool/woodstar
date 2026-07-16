@@ -60,7 +60,8 @@ func (h blobStorageHandler) put(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h blobStorageHandler) logError(r *http.Request, operation string, err error, attrs ...any) {
-	args := []any{"operation", operation, "status", http.StatusInternalServerError}
+	args := make([]any, 0, 6+len(attrs))
+	args = append(args, "operation", operation, "status", http.StatusInternalServerError)
 	args = append(args, attrs...)
 	args = append(args, "err", err)
 	h.logger.ErrorContext(r.Context(), "storage blob handler failed", args...)

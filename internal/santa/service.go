@@ -25,39 +25,50 @@ type Dependencies struct {
 }
 
 type hostStore interface {
-	hostIDByMachineID(context.Context, string) (int64, error)
-	UpsertHostObservation(context.Context, HostObservation) error
+	hostIDByMachineID(ctx context.Context, machineID string) (int64, error)
+	UpsertHostObservation(ctx context.Context, observation HostObservation) error
 }
 
 type configurationResolver interface {
-	ResolveConfigurationForHost(context.Context, int64) (*configurations.ConfigurationMatch, error)
+	ResolveConfigurationForHost(ctx context.Context, hostID int64) (*configurations.ConfigurationMatch, error)
 }
 
 type eventStore interface {
 	IngestEvents(
-		context.Context,
-		int64,
-		[]santaevents.ExecutionEventInput,
-		[]santaevents.FileAccessEventInput,
-		[]santaevents.StandaloneRuleCreationEventInput,
+		ctx context.Context,
+		hostID int64,
+		executionEvents []santaevents.ExecutionEventInput,
+		fileAccessEvents []santaevents.FileAccessEventInput,
+		standaloneEvents []santaevents.StandaloneRuleCreationEventInput,
 	) ([]string, error)
 }
 
 type ruleStore interface {
-	ResolveRulesForHost(context.Context, int64) ([]santarules.HostRule, error)
+	ResolveRulesForHost(ctx context.Context, hostID int64) ([]santarules.HostRule, error)
 }
 
 type syncStore interface {
 	PreparePending(
-		context.Context,
-		int64,
-		[]syncstate.Target,
-		syncstate.RuleCounts,
-		bool,
-		string,
+		ctx context.Context,
+		hostID int64,
+		targets []syncstate.Target,
+		reported syncstate.RuleCounts,
+		requestCleanSync bool,
+		clientRulesHash string,
 	) (syncstate.SyncType, error)
-	LoadPendingPayloadPage(context.Context, int64, string, int32) (syncstate.PayloadRulePage, error)
-	PromotePending(context.Context, int64, int32, int32, syncstate.SyncType, string) error
+	LoadPendingPayloadPage(
+		ctx context.Context,
+		hostID int64,
+		cursor string,
+		limit int32,
+	) (syncstate.PayloadRulePage, error)
+	PromotePending(
+		ctx context.Context,
+		hostID int64,
+		rulesReceived, rulesProcessed int32,
+		syncType syncstate.SyncType,
+		rulesHash string,
+	) error
 }
 
 func NewSyncService(deps Dependencies) *SyncService {

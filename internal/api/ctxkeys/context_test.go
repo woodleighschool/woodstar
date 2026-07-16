@@ -15,23 +15,22 @@ func TestRequireAdmin(t *testing.T) {
 	viewerRole := directory.RoleViewer
 	tests := []struct {
 		name       string
-		ctx        context.Context
+		user       *directory.User
 		wantStatus int
 		wantOK     bool
 	}{
 		{
 			name:   "admin in context",
-			ctx:    WithUser(context.Background(), &directory.User{ID: 1, Role: &adminRole}),
+			user:   &directory.User{ID: 1, Role: &adminRole},
 			wantOK: true,
 		},
 		{
 			name:       "viewer is forbidden",
-			ctx:        WithUser(context.Background(), &directory.User{ID: 2, Role: &viewerRole}),
+			user:       &directory.User{ID: 2, Role: &viewerRole},
 			wantStatus: 403,
 		},
 		{
 			name:       "missing user is unauthorized",
-			ctx:        context.Background(),
 			wantStatus: 401,
 		},
 	}
@@ -39,7 +38,11 @@ func TestRequireAdmin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := RequireAdmin(tt.ctx)
+			ctx := context.Background()
+			if tt.user != nil {
+				ctx = WithUser(ctx, tt.user)
+			}
+			got, err := RequireAdmin(ctx)
 			if tt.wantOK {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)

@@ -12,7 +12,7 @@ import (
 )
 
 type hostSantaStateLoader interface {
-	LoadHostState(context.Context, int64) (*santa.HostState, error)
+	LoadHostState(ctx context.Context, hostID int64) (*santa.HostState, error)
 }
 
 type hostSantaRulesOutput struct {

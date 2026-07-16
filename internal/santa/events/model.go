@@ -99,7 +99,8 @@ var SigningStatusValues = []SigningStatus{
 }
 
 func decisionFilterValues() []DecisionFilter {
-	values := []DecisionFilter{DecisionFilterAllowed, DecisionFilterBlocked}
+	values := make([]DecisionFilter, 0, 2+len(ExecutionDecisionValues))
+	values = append(values, DecisionFilterAllowed, DecisionFilterBlocked)
 	for _, decision := range ExecutionDecisionValues {
 		values = append(values, DecisionFilter(decision))
 	}

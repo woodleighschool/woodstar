@@ -21,7 +21,7 @@ type Store struct {
 }
 
 type hostLabelReader interface {
-	ListForHost(context.Context, int64) ([]labels.Label, error)
+	ListForHost(ctx context.Context, hostID int64) ([]labels.Label, error)
 }
 
 func NewStore(db *database.DB) *Store {

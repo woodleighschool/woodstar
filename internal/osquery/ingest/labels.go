@@ -10,8 +10,8 @@ import (
 
 // labelStore is what label evaluation needs.
 type labelStore interface {
-	ListApplicableDynamic(context.Context) ([]labels.DynamicLabel, error)
-	SetDynamicMemberships(context.Context, int64, []labels.DynamicMembership) (int, error)
+	ListApplicableDynamic(ctx context.Context) ([]labels.DynamicLabel, error)
+	SetDynamicMemberships(ctx context.Context, labelID int64, memberships []labels.DynamicMembership) (int, error)
 }
 
 // LabelResult is one label match.

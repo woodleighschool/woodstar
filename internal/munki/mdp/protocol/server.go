@@ -47,13 +47,14 @@ type downloadURLResponse struct {
 
 // NewServer returns a worker-facing protocol server.
 func NewServer(
+	ctx context.Context,
 	store *mdp.Store,
 	presigner storage.Presigner,
 	logger *slog.Logger,
 ) *Server {
 	return &Server{
 		store:     store,
-		hub:       newHub(store, store.Presence(), logger),
+		hub:       newHub(ctx, store, store.Presence(), logger),
 		presigner: presigner,
 		logger:    logger,
 	}
@@ -94,7 +95,7 @@ func (h workerHandler) connect(w http.ResponseWriter, r *http.Request) {
 		h.log(r, "connect", err)
 		return
 	}
-	if err := h.hub.Serve(ws, dp); err != nil && !isExpectedClose(err) {
+	if err := h.hub.Serve(r.Context(), ws, dp); err != nil && !isExpectedClose(err) {
 		h.log(r, "connect", err)
 		_ = ws.Close(websocket.StatusInternalError, "serve error")
 		return

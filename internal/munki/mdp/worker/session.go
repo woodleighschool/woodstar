@@ -25,7 +25,6 @@ const maxJobRetry = 5 * time.Minute
 // into outlives it. Reconciliation runs off the read loop so a slow download
 // never stalls liveness or control messages.
 type session struct {
-	ctx        context.Context
 	mirror     *mirror
 	client     *woodstarClient
 	logger     *slog.Logger
@@ -49,7 +48,6 @@ type jobHandle struct {
 }
 
 func newSession(
-	ctx context.Context,
 	m *mirror,
 	client *woodstarClient,
 	logger *slog.Logger,
@@ -60,7 +58,6 @@ func newSession(
 		concurrency = 1
 	}
 	return &session{
-		ctx:        ctx,
 		mirror:     m,
 		client:     client,
 		logger:     logger,
@@ -91,26 +88,26 @@ func (s *session) submitDesired(pkgs []desiredPackage) {
 }
 
 // reconcileLoop applies desired sets one at a time until the connection ends.
-func (s *session) reconcileLoop() {
+func (s *session) reconcileLoop(ctx context.Context) {
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			return
 		case pkgs := <-s.desiredCh:
-			s.applyDesiredSet(pkgs)
+			s.applyDesiredSet(ctx, pkgs)
 		}
 	}
 }
 
 // writeEvents flushes package events to the WebSocket. It is the connection's
 // sole writer; the read loop only reads.
-func (s *session) writeEvents(ws *websocket.Conn) {
+func (s *session) writeEvents(ctx context.Context, ws *websocket.Conn) {
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			return
 		case event := <-s.events:
-			if err := writeJSON(s.ctx, ws, event); err != nil {
+			if err := writeJSON(ctx, ws, event); err != nil {
 				return
 			}
 		}
@@ -127,7 +124,7 @@ func (s *session) wait() {
 // applyDesiredSet reconciles the mirror against the full desired list: it starts
 // or restarts jobs for missing or changed packages, re-advertises packages it
 // already holds, and prunes everything no longer wanted.
-func (s *session) applyDesiredSet(pkgs []desiredPackage) {
+func (s *session) applyDesiredSet(ctx context.Context, pkgs []desiredPackage) {
 	wanted := make(map[int64]bool, len(pkgs))
 	var current, start []desiredPackage
 
@@ -148,23 +145,23 @@ func (s *session) applyDesiredSet(pkgs []desiredPackage) {
 		delete(s.desired, id)
 	}
 	for _, pkg := range start {
-		s.ensureJobLocked(pkg)
+		s.ensureJobLocked(ctx, pkg)
 	}
 	s.mu.Unlock()
 
 	for _, pkg := range current {
-		s.logger.DebugContext(s.ctx, "package already current",
+		s.logger.DebugContext(ctx, "package already current",
 			"package_id", pkg.PackageID, "filename", pkg.Filename)
-		s.emit(packageEvent{Type: eventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256})
+		s.emit(ctx, packageEvent{Type: eventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256})
 	}
 	for _, id := range prune {
-		s.logger.DebugContext(s.ctx, "pruning package", "package_id", id)
+		s.logger.DebugContext(ctx, "pruning package", "package_id", id)
 		s.pruneBytes(id)
 	}
 	if len(prune) > 0 {
-		s.save()
+		s.save(ctx)
 	}
-	s.logger.DebugContext(s.ctx, "reconciled desired set",
+	s.logger.DebugContext(ctx, "reconciled desired set",
 		"desired", len(pkgs),
 		"already_current", len(current),
 		"downloading", len(start),
@@ -200,7 +197,7 @@ func (s *session) cancelJobLocked(packageID int64) {
 
 // ensureJobLocked starts a mirror job for a package unless one targeting the
 // same bytes is already running; a job for different bytes is cancelled first.
-func (s *session) ensureJobLocked(pkg desiredPackage) {
+func (s *session) ensureJobLocked(ctx context.Context, pkg desiredPackage) {
 	if handle, ok := s.jobs[pkg.PackageID]; ok {
 		if handle.sha == pkg.SHA256 && handle.size == pkg.SizeBytes {
 			return
@@ -208,7 +205,7 @@ func (s *session) ensureJobLocked(pkg desiredPackage) {
 		handle.cancel()
 		delete(s.jobs, pkg.PackageID)
 	}
-	jobCtx, cancel := context.WithCancel(s.ctx)
+	jobCtx, cancel := context.WithCancel(ctx)
 	s.jobs[pkg.PackageID] = &jobHandle{cancel: cancel, sha: pkg.SHA256, size: pkg.SizeBytes}
 	s.wg.Add(1)
 	go s.runJob(jobCtx, pkg)
@@ -223,7 +220,7 @@ func (s *session) runJob(ctx context.Context, pkg desiredPackage) {
 
 	s.logger.DebugContext(ctx, "mirroring package",
 		"package_id", pkg.PackageID, "filename", pkg.Filename, "size_bytes", pkg.SizeBytes)
-	s.emit(packageEvent{Type: eventPackageSyncing, PackageID: pkg.PackageID})
+	s.emit(ctx, packageEvent{Type: eventPackageSyncing, PackageID: pkg.PackageID})
 
 	delay := s.retryDelay
 	for attempt := 1; ; attempt++ {
@@ -233,13 +230,13 @@ func (s *session) runJob(ctx context.Context, pkg desiredPackage) {
 		if err := s.fetchOnce(ctx, pkg); err == nil {
 			s.logger.InfoContext(ctx, "package mirrored",
 				"package_id", pkg.PackageID, "filename", pkg.Filename, "size_bytes", pkg.SizeBytes)
-			s.emit(packageEvent{
+			s.emit(ctx, packageEvent{
 				Type: eventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256,
 			})
 			return
 		} else if ctx.Err() == nil {
 			s.logFailure(ctx, pkg.PackageID, attempt, err)
-			s.emit(packageEvent{
+			s.emit(ctx, packageEvent{
 				Type: eventPackageError, PackageID: pkg.PackageID, Error: err.Error(),
 			})
 		}
@@ -309,7 +306,7 @@ func (s *session) fetchOnce(ctx context.Context, pkg desiredPackage) error {
 		SizeBytes:  pkg.SizeBytes,
 		VerifiedAt: time.Now(),
 	})
-	s.save()
+	s.save(ctx)
 	return nil
 }
 
@@ -320,18 +317,18 @@ func (s *session) pruneBytes(packageID int64) {
 	s.mirror.remove(packageID)
 }
 
-func (s *session) save() {
+func (s *session) save(ctx context.Context) {
 	if err := s.mirror.save(); err != nil {
-		s.logger.WarnContext(s.ctx, "snapshot failed", "err", err)
+		s.logger.WarnContext(ctx, "snapshot failed", "err", err)
 	}
 }
 
 // emit hands a package event to the writer, dropping it if the connection has
 // already ended (its replacement reconciles from a fresh desired set).
-func (s *session) emit(event packageEvent) {
+func (s *session) emit(ctx context.Context, event packageEvent) {
 	select {
 	case s.events <- event:
-	case <-s.ctx.Done():
+	case <-ctx.Done():
 	}
 }
 

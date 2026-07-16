@@ -24,12 +24,12 @@ const plistContentType = "application/x-plist"
 
 // Repository loads raw Munki repository objects.
 type Repository interface {
-	Manifest(context.Context, string) ([]byte, error)
-	Catalog(context.Context, string) ([]byte, error)
-	IconHashes(context.Context) ([]byte, error)
-	ResolvePackageFile(context.Context, string) (munki.PackageInstaller, error)
-	ResolveIconFile(context.Context, string) (munki.RepositoryFile, error)
-	ResolveClientResources(context.Context, string) (munki.RepositoryFile, error)
+	Manifest(ctx context.Context, name string) ([]byte, error)
+	Catalog(ctx context.Context, name string) ([]byte, error)
+	IconHashes(ctx context.Context) ([]byte, error)
+	ResolvePackageFile(ctx context.Context, name string) (munki.PackageInstaller, error)
+	ResolveIconFile(ctx context.Context, name string) (munki.RepositoryFile, error)
+	ResolveClientResources(ctx context.Context, name string) (munki.RepositoryFile, error)
 }
 
 // Selector redirects a package download to a matching distribution point.

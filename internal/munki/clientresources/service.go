@@ -20,19 +20,19 @@ const (
 )
 
 type registry interface {
-	GetByID(context.Context, int64) (*storage.Object, error)
+	GetByID(ctx context.Context, objectID int64) (*storage.Object, error)
 }
 
 type uploader interface {
-	Finalize(context.Context, int64, string) (*storage.Object, error)
-	Write(context.Context, string, string, string, []byte) (*storage.Object, error)
-	Delete(context.Context, int64, string) error
+	Finalize(ctx context.Context, objectID int64, prefix string) (*storage.Object, error)
+	Write(ctx context.Context, prefix, filename, contentType string, body []byte) (*storage.Object, error)
+	Delete(ctx context.Context, objectID int64, prefix string) error
 }
 
 type resourceStore interface {
-	Get(context.Context) (*ClientResources, error)
-	Upsert(context.Context, storedMutation) (*ClientResources, error)
-	Delete(context.Context) error
+	Get(ctx context.Context) (*ClientResources, error)
+	Upsert(ctx context.Context, mutation storedMutation) (*ClientResources, error)
+	Delete(ctx context.Context) error
 }
 
 // Service validates builder input, compiles the archive, and publishes the singleton.

@@ -36,35 +36,41 @@ type Dependencies struct {
 }
 
 type hostStore interface {
-	UpsertOnOsqueryEnroll(context.Context, hosts.InventoryUpdate) (*hosts.Host, error)
-	GetByOsqueryNodeKey(context.Context, string) (*hosts.Host, error)
-	ApplyInventory(context.Context, int64, hosts.InventoryUpdate) error
+	UpsertOnOsqueryEnroll(ctx context.Context, update hosts.InventoryUpdate) (*hosts.Host, error)
+	GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, error)
+	ApplyInventory(ctx context.Context, hostID int64, update hosts.InventoryUpdate) error
 }
 
 type inventoryProjector interface {
-	IngestDetail(context.Context, catalog.DetailQuery, string, int64, []map[string]string) error
-	IngestSoftware(context.Context, int64, map[string][]map[string]string) error
-	MarkFresh(context.Context, int64) error
+	IngestDetail(
+		ctx context.Context,
+		query catalog.DetailQuery,
+		status string,
+		hostID int64,
+		rows []map[string]string,
+	) error
+	IngestSoftware(ctx context.Context, hostID int64, rows map[string][]map[string]string) error
+	MarkFresh(ctx context.Context, hostID int64) error
 }
 
 type labelEvaluator interface {
-	ApplicableLabels(context.Context) ([]labels.DynamicLabel, error)
-	Finalize(context.Context, *hosts.Host, []ingest.LabelResult) error
+	ApplicableLabels(ctx context.Context) ([]labels.DynamicLabel, error)
+	Finalize(ctx context.Context, host *hosts.Host, results []ingest.LabelResult) error
 }
 
 type reportStore interface {
-	ScheduledForHost(context.Context, *hosts.Host) ([]reports.Report, error)
-	OverwriteResults(context.Context, int64, int64, []map[string]string, time.Time) error
+	ScheduledForHost(ctx context.Context, host *hosts.Host) ([]reports.Report, error)
+	OverwriteResults(ctx context.Context, reportID, hostID int64, rows []map[string]string, updatedAt time.Time) error
 }
 
 type checkStore interface {
-	ApplicableForHost(context.Context, *hosts.Host) ([]checks.Check, error)
-	UpsertMembership(context.Context, int64, int64, *bool) error
+	ApplicableForHost(ctx context.Context, host *hosts.Host) ([]checks.Check, error)
+	UpsertMembership(ctx context.Context, checkID, hostID int64, result *bool) error
 }
 
 type liveQueries interface {
-	PendingForHost(int64) []livequery.Work
-	RecordResult(livequery.Result)
+	PendingForHost(hostID int64) []livequery.Work
+	RecordResult(result livequery.Result)
 }
 
 func NewAgentService(deps Dependencies) *AgentService {

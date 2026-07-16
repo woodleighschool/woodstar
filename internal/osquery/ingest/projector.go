@@ -14,15 +14,15 @@ import (
 )
 
 type hostStore interface {
-	MarkInventoryFresh(context.Context, int64, string) error
-	ApplyInventory(context.Context, int64, hosts.InventoryUpdate) error
-	ReplaceUsers(context.Context, int64, []hosts.HostUser) error
-	ReplaceBatteries(context.Context, int64, []hosts.HostBattery) error
-	ReplaceCertificates(context.Context, int64, []hosts.HostCertificate) error
+	MarkInventoryFresh(ctx context.Context, hostID int64, detailQueryHash string) error
+	ApplyInventory(ctx context.Context, hostID int64, update hosts.InventoryUpdate) error
+	ReplaceUsers(ctx context.Context, hostID int64, users []hosts.HostUser) error
+	ReplaceBatteries(ctx context.Context, hostID int64, batteries []hosts.HostBattery) error
+	ReplaceCertificates(ctx context.Context, hostID int64, certificates []hosts.HostCertificate) error
 }
 
 type softwareStore interface {
-	ReplaceHostSoftware(context.Context, int64, []inventory.HostSoftwareEntry) error
+	ReplaceHostSoftware(ctx context.Context, hostID int64, software []inventory.HostSoftwareEntry) error
 }
 
 type Projector struct {

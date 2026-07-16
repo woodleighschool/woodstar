@@ -76,6 +76,8 @@ func RunConformance[D, C, M, P any](t *testing.T, ctx context.Context, f Fixture
 }
 
 func assertGetMatchesCreate[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], created D) {
+	t.Helper()
+
 	got, err := f.Store.GetByID(ctx, f.ID(created))
 	if err != nil {
 		t.Fatalf("GetByID(%d): %v", f.ID(created), err)
@@ -89,6 +91,8 @@ func assertGetMatchesCreate[D, C, M, P any](t *testing.T, ctx context.Context, f
 }
 
 func assertUpdateReflects[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], created D) {
+	t.Helper()
+
 	id := f.ID(created)
 	updated, err := f.Store.Update(ctx, id, f.Mutate(created))
 	if err != nil {
@@ -104,6 +108,8 @@ func assertUpdateReflects[D, C, M, P any](t *testing.T, ctx context.Context, f F
 }
 
 func assertListContains[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], id int64) {
+	t.Helper()
+
 	rows, count, err := f.Store.List(ctx, f.ListParams("", "", 0, 50))
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -117,6 +123,8 @@ func assertListContains[D, C, M, P any](t *testing.T, ctx context.Context, f Fix
 }
 
 func assertListPaginates[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P]) {
+	t.Helper()
+
 	const pageSize = 1
 	first, total, err := f.Store.List(ctx, f.ListParams("", "", 0, pageSize))
 	if err != nil {
@@ -141,6 +149,8 @@ func assertListPaginates[D, C, M, P any](t *testing.T, ctx context.Context, f Fi
 }
 
 func assertListSorts[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], id int64) {
+	t.Helper()
+
 	for _, key := range f.SortKeys {
 		for _, sort := range []string{key, key + ".desc"} {
 			rows, count, err := f.Store.List(ctx, f.ListParams("", sort, 0, 50))
@@ -155,6 +165,8 @@ func assertListSorts[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtur
 }
 
 func assertListSearch[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], created D, id int64) {
+	t.Helper()
+
 	if f.SearchMatch == nil {
 		t.Skip("no SearchMatch fixture")
 	}
@@ -169,6 +181,8 @@ func assertListSearch[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtu
 }
 
 func assertRejectsInvalid[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P]) {
+	t.Helper()
+
 	if f.NewInvalid == nil {
 		t.Skip("no NewInvalid fixture")
 	}
@@ -182,6 +196,8 @@ func assertRejectsInvalid[D, C, M, P any](t *testing.T, ctx context.Context, f F
 }
 
 func assertDeleteNotFound[D, C, M, P any](t *testing.T, ctx context.Context, f Fixtures[D, C, M, P], id int64) {
+	t.Helper()
+
 	if err := f.Store.Delete(ctx, id); err != nil {
 		t.Fatalf("Delete(%d): %v", id, err)
 	}

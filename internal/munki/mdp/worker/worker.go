@@ -110,7 +110,7 @@ func (w *Worker) Run(ctx context.Context) error {
 	cancelConn()
 	<-loopDone
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil && runErr == nil {
 		runErr = fmt.Errorf("shutdown serve node: %w", err)
@@ -170,13 +170,13 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 	w.logger.InfoContext(ctx, "connected", "server_url", w.cfg.ServerURL)
 
 	connCtx, cancel := context.WithCancel(ctx)
-	session := newSession(connCtx, w.mirror, w.client, w.logger, w.cfg.DownloadConcurrency, initialJobRetry)
+	session := newSession(w.mirror, w.client, w.logger, w.cfg.DownloadConcurrency, initialJobRetry)
 	defer func() {
 		cancel()
 		session.wait()
 	}()
-	go session.reconcileLoop()
-	go session.writeEvents(ws)
+	go session.reconcileLoop(connCtx)
+	go session.writeEvents(connCtx, ws)
 
 	for {
 		_, data, err := ws.Read(connCtx)

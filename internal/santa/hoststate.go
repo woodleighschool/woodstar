@@ -7,11 +7,14 @@ import (
 )
 
 type observedHostStateStore interface {
-	LoadObservedHostState(context.Context, int64) (*HostState, error)
+	LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error)
 }
 
 type configurationWithTargetsResolver interface {
-	ResolveConfigurationForHostWithTargets(context.Context, int64) (*configurations.ConfigurationMatch, error)
+	ResolveConfigurationForHostWithTargets(
+		ctx context.Context,
+		hostID int64,
+	) (*configurations.ConfigurationMatch, error)
 }
 
 // HostStateService composes Santa host observation with the matching configuration.

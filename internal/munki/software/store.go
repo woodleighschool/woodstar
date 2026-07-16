@@ -19,13 +19,13 @@ import (
 const IconObjectPrefix = "munki/icons"
 
 type objectStore interface {
-	GetByID(context.Context, int64) (*storage.Object, error)
-	Delete(context.Context, int64) error
+	GetByID(ctx context.Context, objectID int64) (*storage.Object, error)
+	Delete(ctx context.Context, objectID int64) error
 }
 
 type packageStore interface {
-	GetByID(context.Context, int64) (*packages.Package, error)
-	PackagesByID(context.Context, []int64) ([]packages.Package, error)
+	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
+	PackagesByID(ctx context.Context, packageIDs []int64) ([]packages.Package, error)
 }
 
 type Store struct {

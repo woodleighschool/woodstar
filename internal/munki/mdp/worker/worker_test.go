@@ -17,6 +17,8 @@ import (
 )
 
 func newTestWorker(t *testing.T, serverURL string) *Worker {
+	t.Helper()
+
 	return newTestWorkerWithCA(t, serverURL, "")
 }
 
@@ -41,13 +43,11 @@ func newTestSession(t *testing.T, serverURL string) *session {
 	if err != nil {
 		t.Fatalf("loadMirror: %v", err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	client, err := newWoodstarClient(serverURL, "dp-key", "")
 	if err != nil {
 		t.Fatalf("new Woodstar client: %v", err)
 	}
-	return newSession(ctx, mirror, client, discardLogger(), 2, time.Millisecond)
+	return newSession(mirror, client, discardLogger(), 2, time.Millisecond)
 }
 
 func serverCAFile(t *testing.T, srv *httptest.Server) string {
@@ -100,7 +100,7 @@ func TestSessionMirrorsVerifiesAndPrunes(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet([]desiredPackage{
+	sess.applyDesiredSet(t.Context(), []desiredPackage{
 		{PackageID: 7, Filename: "Chrome.pkg", SHA256: sha, SizeBytes: size},
 	})
 
@@ -122,7 +122,7 @@ func TestSessionMirrorsVerifiesAndPrunes(t *testing.T) {
 	}
 
 	// The package vanishes from the desired set and must be pruned.
-	sess.applyDesiredSet(nil)
+	sess.applyDesiredSet(t.Context(), nil)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("stale file still present: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestSessionRejectsCorruptDownload(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet([]desiredPackage{
+	sess.applyDesiredSet(t.Context(), []desiredPackage{
 		{PackageID: 7, Filename: "Chrome.pkg", SHA256: sha256Hex([]byte("expected")), SizeBytes: 8},
 	})
 
@@ -164,7 +164,7 @@ func TestSessionRetriesUntilDownloadSucceeds(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet([]desiredPackage{
+	sess.applyDesiredSet(t.Context(), []desiredPackage{
 		{
 			PackageID: 7,
 			Filename:  "Chrome.pkg",

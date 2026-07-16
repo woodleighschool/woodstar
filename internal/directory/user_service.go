@@ -22,7 +22,7 @@ type UserService struct {
 
 // DerivedLabelRefresher recomputes materialized label membership after user resolution changes.
 type DerivedLabelRefresher interface {
-	RefreshDerivedTx(context.Context, pgx.Tx) error
+	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
 }
 
 // NewUserService returns the user-management service.

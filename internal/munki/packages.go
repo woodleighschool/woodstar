@@ -7,12 +7,12 @@ import (
 )
 
 type packageStore interface {
-	List(context.Context, packages.PackageListParams) ([]packages.Package, int, error)
-	Create(context.Context, packages.PackageCreateMutation) (*packages.Package, error)
-	GetByID(context.Context, int64) (*packages.Package, error)
-	Update(context.Context, int64, packages.PackageMutation) (*packages.Package, error)
-	Delete(context.Context, int64) error
-	DeleteMany(context.Context, []int64) (int, error)
+	List(ctx context.Context, params packages.PackageListParams) ([]packages.Package, int, error)
+	Create(ctx context.Context, mutation packages.PackageCreateMutation) (*packages.Package, error)
+	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
+	Update(ctx context.Context, packageID int64, mutation packages.PackageMutation) (*packages.Package, error)
+	Delete(ctx context.Context, packageID int64) error
+	DeleteMany(ctx context.Context, packageIDs []int64) (int, error)
 }
 
 // PackageService owns app-side Munki package mutations and signals when the

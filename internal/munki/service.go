@@ -23,26 +23,26 @@ const catalogName = "woodstar"
 var ErrNotFound = errors.New("munki resource not found")
 
 type hostResolver interface {
-	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
+	GetByHardwareSerial(ctx context.Context, serial string) (*hosts.Host, error)
 }
 
 type effectivePackageResolver interface {
-	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
+	EffectivePackagesForHost(ctx context.Context, hostID int64) ([]munkisoftware.EffectivePackage, error)
 }
 
 type packageResolver interface {
-	ListRepositoryPackages(context.Context) ([]packages.Package, error)
-	ListRepositoryIconObjectIDs(context.Context) ([]int64, error)
-	PackagesByID(context.Context, []int64) ([]packages.Package, error)
-	RepositoryPackagesByIconObjectID(context.Context, int64) ([]packages.Package, error)
+	ListRepositoryPackages(ctx context.Context) ([]packages.Package, error)
+	ListRepositoryIconObjectIDs(ctx context.Context) ([]int64, error)
+	PackagesByID(ctx context.Context, packageIDs []int64) ([]packages.Package, error)
+	RepositoryPackagesByIconObjectID(ctx context.Context, iconObjectID int64) ([]packages.Package, error)
 }
 
 type objectResolver interface {
-	ListByIDs(context.Context, []int64) (map[int64]storage.Object, error)
+	ListByIDs(ctx context.Context, objectIDs []int64) (map[int64]storage.Object, error)
 }
 
 type clientResourcesResolver interface {
-	Get(context.Context) (*clientresources.ClientResources, error)
+	Get(ctx context.Context) (*clientresources.ClientResources, error)
 }
 
 // RepositoryService renders the Munki client-facing repository surface.

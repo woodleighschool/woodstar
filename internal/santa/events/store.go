@@ -1170,14 +1170,12 @@ func executionEventFromRow(row executionEventRow) ExecutionEvent {
 			SigningID:               row.SigningID,
 			TeamID:                  row.TeamID,
 			CDHash:                  row.CDHash,
+			CodesigningFlags:        uint32(row.CodesigningFlags),
 			SigningStatus:           normalizeSigningStatus(SigningStatus(row.SigningStatus)),
 			SecureSigningTime:       row.SecureSigningTime,
 			SigningTime:             row.SigningTime,
 			SigningChain:            signingChainOutputEntries(row.SigningChain),
 		},
-	}
-	if row.CodesigningFlags > 0 {
-		event.Executable.CodesigningFlags = uint32(row.CodesigningFlags)
 	}
 	if len(row.Entitlements) > 0 {
 		event.Executable.Entitlements = append(json.RawMessage(nil), row.Entitlements...)

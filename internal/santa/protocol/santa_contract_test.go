@@ -991,7 +991,7 @@ func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
 func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Request {
 	t.Helper()
 
-	setter, ok := msg.(interface{ SetMachineId(string) })
+	setter, ok := msg.(interface{ SetMachineId(machineID string) })
 	if !ok {
 		t.Fatalf("request %T cannot set machine_id", msg)
 	}

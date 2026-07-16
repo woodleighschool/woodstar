@@ -22,10 +22,11 @@ func handlerError(ctx context.Context, logger *slog.Logger, operation string, er
 		status = statusErr.GetStatus()
 	}
 	if status >= http.StatusInternalServerError {
-		args := []any{
+		args := make([]any, 0, 6+len(attrs))
+		args = append(args,
 			"operation", operation,
 			"status", status,
-		}
+		)
 		args = append(args, attrs...)
 		args = append(args, "err", err)
 		logger.ErrorContext(ctx, "api handler failed", args...)

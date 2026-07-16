@@ -24,6 +24,8 @@ func TestRuleStoreConformance(t *testing.T) {
 		crudtest.Fixtures[Rule, RuleMutation, RuleMutation, RuleListParams]{
 			Store: store,
 			NewValid: func(t *testing.T, ctx context.Context) RuleMutation {
+				t.Helper()
+
 				label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
 					Name:                "Conformance Rule Label",
 					LabelMembershipType: labels.LabelMembershipTypeManual,

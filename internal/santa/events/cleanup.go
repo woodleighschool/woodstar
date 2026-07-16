@@ -8,7 +8,7 @@ import (
 )
 
 type CleanupStore interface {
-	SweepEventsBefore(context.Context, time.Time) (int, error)
+	SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error)
 }
 
 // Cleanup owns the Santa event-retention background loop.

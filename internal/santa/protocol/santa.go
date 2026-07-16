@@ -49,10 +49,14 @@ type machineIDProtoMessage interface {
 
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
-	Preflight(context.Context, string, santa.PreflightRequest) (santa.PreflightResponse, error)
-	EventUpload(context.Context, string, santa.EventUploadRequest) (santa.EventUploadResponse, error)
-	RuleDownload(context.Context, string, santa.RuleDownloadRequest) (santa.RuleDownloadResponse, error)
-	Postflight(context.Context, string, santa.PostflightRequest) (santa.PostflightResponse, error)
+	Preflight(ctx context.Context, machineID string, req santa.PreflightRequest) (santa.PreflightResponse, error)
+	EventUpload(ctx context.Context, machineID string, req santa.EventUploadRequest) (santa.EventUploadResponse, error)
+	RuleDownload(
+		ctx context.Context,
+		machineID string,
+		req santa.RuleDownloadRequest,
+	) (santa.RuleDownloadResponse, error)
+	Postflight(ctx context.Context, machineID string, req santa.PostflightRequest) (santa.PostflightResponse, error)
 }
 
 type handler struct {
@@ -183,10 +187,6 @@ func handleSyncRequest[ProtoReq machineIDProtoMessage, DomainReq any, DomainResp
 }
 
 func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightRequest, error) {
-	ruleCounts, err := ruleCountsFromProto(req)
-	if err != nil {
-		return santa.PreflightRequest{}, err
-	}
 	var sipStatus *int16
 	if req.GetSipStatus() != 0 {
 		value := int16(req.GetSipStatus())
@@ -198,7 +198,7 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 		RulesHash:         req.GetRulesHash(),
 		ClientMode:        clientModeFromProto(req.GetClientMode()),
 		RequestCleanSync:  req.GetRequestCleanSync(),
-		RuleCounts:        ruleCounts,
+		RuleCounts:        ruleCountsFromProto(req),
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),
 		SIPStatus:         sipStatus,
@@ -273,21 +273,13 @@ func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleD
 }
 
 func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.PostflightRequest, error) {
-	rulesReceived, err := int32FromUint32(req.GetRulesReceived(), "rules_received")
-	if err != nil {
-		return santa.PostflightRequest{}, err
-	}
-	rulesProcessed, err := int32FromUint32(req.GetRulesProcessed(), "rules_processed")
-	if err != nil {
-		return santa.PostflightRequest{}, err
-	}
 	syncType, err := syncTypeFromProto(req.GetSyncType())
 	if err != nil {
 		return santa.PostflightRequest{}, err
 	}
 	return santa.PostflightRequest{
-		RulesReceived:  rulesReceived,
-		RulesProcessed: rulesProcessed,
+		RulesReceived:  int32(req.GetRulesReceived()),
+		RulesProcessed: int32(req.GetRulesProcessed()),
 		SyncType:       syncType,
 		RulesHash:      req.GetRulesHash(),
 	}, nil
@@ -371,43 +363,16 @@ func standaloneRuleCreationEventFromProto(
 	}, nil
 }
 
-func ruleCountsFromProto(req *syncv1.PreflightRequest) (syncstate.RuleCounts, error) {
-	values := []struct {
-		name  string
-		value uint32
-	}{
-		{name: "binary_rule_count", value: req.GetBinaryRuleCount()},
-		{name: "certificate_rule_count", value: req.GetCertificateRuleCount()},
-		{name: "teamid_rule_count", value: req.GetTeamidRuleCount()},
-		{name: "signingid_rule_count", value: req.GetSigningidRuleCount()},
-		{name: "cdhash_rule_count", value: req.GetCdhashRuleCount()},
-		{name: "compiler_rule_count", value: req.GetCompilerRuleCount()},
-		{name: "transitive_rule_count", value: req.GetTransitiveRuleCount()},
-	}
-	counts := make([]int32, len(values))
-	for i, value := range values {
-		converted, err := int32FromUint32(value.value, value.name)
-		if err != nil {
-			return syncstate.RuleCounts{}, err
-		}
-		counts[i] = converted
-	}
+func ruleCountsFromProto(req *syncv1.PreflightRequest) syncstate.RuleCounts {
 	return syncstate.RuleCounts{
-		Binary:      counts[0],
-		Certificate: counts[1],
-		TeamID:      counts[2],
-		SigningID:   counts[3],
-		CDHash:      counts[4],
-		Compiler:    counts[5],
-		Transitive:  counts[6],
-	}, nil
-}
-
-func int32FromUint32(value uint32, field string) (int32, error) {
-	if value > math.MaxInt32 {
-		return 0, fmt.Errorf("%w: %s exceeds supported range", dbutil.ErrInvalidInput, field)
+		Binary:      int32(req.GetBinaryRuleCount()),
+		Certificate: int32(req.GetCertificateRuleCount()),
+		TeamID:      int32(req.GetTeamidRuleCount()),
+		SigningID:   int32(req.GetSigningidRuleCount()),
+		CDHash:      int32(req.GetCdhashRuleCount()),
+		Compiler:    int32(req.GetCompilerRuleCount()),
+		Transitive:  int32(req.GetTransitiveRuleCount()),
 	}
-	return int32(value), nil
 }
 
 func syncTypeFromProto(value syncv1.SyncType) (syncstate.SyncType, error) {

@@ -3,8 +3,8 @@ package munki
 import "context"
 
 type softwareDeleter interface {
-	Delete(context.Context, int64) error
-	DeleteMany(context.Context, []int64) (int, error)
+	Delete(ctx context.Context, softwareID int64) error
+	DeleteMany(ctx context.Context, softwareIDs []int64) (int, error)
 }
 
 // SoftwareDeletionService removes software and signals when cascaded package

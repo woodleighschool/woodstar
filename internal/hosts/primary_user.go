@@ -103,7 +103,7 @@ type primaryUserMutation struct {
 // DerivedLabelRefresher recomputes materialized label membership after a
 // primary-user source changes.
 type DerivedLabelRefresher interface {
-	RefreshDerivedTx(context.Context, pgx.Tx) error
+	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
 }
 
 // PrimaryUserService updates host primary-user sources and their derived label memberships.
