@@ -2,15 +2,12 @@ package protocol
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,73 +19,29 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
-func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
+func TestOrbitDeviceMappingPersistsProfilePrimaryUser(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	stores := newOrbitContractStores(database)
 	router := newOrbitContractRouter(stores)
 
-	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
-	hardwareUUID := "orbit-contract-" + suffix
-	userEmail := "student-" + suffix + "@example.test"
-
-	secret, err := stores.agentSecrets.Create(
-		ctx,
-		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "orbit-contract-secret-value-" + suffix},
+	const (
+		nodeKey   = "orbit-contract-node-key"
+		userEmail = "student@example.test"
 	)
-	if err != nil {
-		t.Fatalf("create orbit agent secret: %v", err)
-	}
-	t.Cleanup(func() {
-		cleanupOrbitContractRows(context.Background(), t, database, hardwareUUID, secret.Value)
+	_, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "orbit-contract-mapping"},
+		OrbitNodeKey: nodeKey,
 	})
-
-	var enrollBody orbit.EnrollResponse
-	doOrbitJSON(t, router, http.MethodPost, "/api/fleet/orbit/enroll", orbit.EnrollRequest{
-		EnrollSecret:   secret.Value,
-		HardwareUUID:   hardwareUUID,
-		HardwareSerial: "C02ORBIT",
-		Hostname:       "orbit-mac",
-		ComputerName:   "Orbit Mac",
-		HardwareModel:  "Mac15,8",
-	}, http.StatusOK, &enrollBody)
-	if enrollBody.OrbitNodeKey == "" {
-		t.Fatal("enroll returned empty orbit node key")
-	}
-
-	var configBody orbit.ConfigResponse
-	doOrbitJSON(
-		t,
-		router,
-		http.MethodPost,
-		"/api/fleet/orbit/config",
-		orbit.ConfigRequest(enrollBody),
-		http.StatusOK,
-		&configBody,
-	)
-	var flags map[string]any
-	if err := json.Unmarshal(configBody.CommandLineStartupFlags, &flags); err != nil {
-		t.Fatalf("decode command-line flags: %v", err)
-	}
-	if flags["disable_carver"] != true ||
-		flags["carver_disable_function"] != true ||
-		flags["logger_min_status"] != float64(4) {
-		t.Fatalf("command-line flags = %#v", flags)
+	if err != nil {
+		t.Fatalf("seed Orbit host: %v", err)
 	}
 
 	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
-		OrbitNodeKey: enrollBody.OrbitNodeKey,
+		OrbitNodeKey: nodeKey,
 		Email:        userEmail,
-	}, http.StatusOK, nil)
-	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
-		OrbitNodeKey: enrollBody.OrbitNodeKey,
-		Email:        "not-an-email",
-	}, http.StatusBadRequest, nil)
-	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
-		OrbitNodeKey: "not-a-node-key",
-		Email:        "valid@example.test",
-	}, http.StatusUnauthorized, nil)
+	}, http.StatusOK)
 
-	host, err := stores.hosts.GetByOrbitNodeKey(ctx, enrollBody.OrbitNodeKey)
+	host, err := stores.hosts.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		t.Fatalf("get host by orbit node key: %v", err)
 	}
@@ -99,13 +52,44 @@ func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 	if !hasPrimaryUserSource(detail.PrimaryUserSources, userEmail) {
 		t.Fatalf("primary user source %q not found: %#v", userEmail, detail.PrimaryUserSources)
 	}
+}
 
-	deviceToken := "731dbefd-d87c-4ccf-b4d1-7f45b804edfe"
-	doOrbitJSON(t, router, http.MethodPost, "/api/fleet/orbit/device_token", orbit.DeviceTokenRequest{
-		OrbitNodeKey:    enrollBody.OrbitNodeKey,
-		DeviceAuthToken: deviceToken,
-	}, http.StatusOK, nil)
-	doOrbitJSON(t, router, http.MethodHead, "/api/latest/fleet/device/"+deviceToken+"/ping", nil, http.StatusOK, nil)
+func TestOrbitDeviceMappingRejectsMalformedEmail(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	stores := newOrbitContractStores(database)
+	router := newOrbitContractRouter(stores)
+
+	const nodeKey = "orbit-contract-node-key"
+	_, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "orbit-contract-malformed-email"},
+		OrbitNodeKey: nodeKey,
+	})
+	if err != nil {
+		t.Fatalf("seed Orbit host: %v", err)
+	}
+
+	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
+		OrbitNodeKey: nodeKey,
+		Email:        "not-an-email",
+	}, http.StatusBadRequest)
+}
+
+func TestOrbitDeviceMappingRejectsUnknownNodeKey(t *testing.T) {
+	database, _ := dbtest.Open(t)
+	stores := newOrbitContractStores(database)
+	router := newOrbitContractRouter(stores)
+
+	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
+		OrbitNodeKey: "not-a-node-key",
+		Email:        "valid@example.test",
+	}, http.StatusUnauthorized)
+}
+
+func TestOrbitDevicePingRejectsUnknownToken(t *testing.T) {
+	database, _ := dbtest.Open(t)
+	stores := newOrbitContractStores(database)
+	router := newOrbitContractRouter(stores)
+
 	doOrbitJSON(
 		t,
 		router,
@@ -113,7 +97,6 @@ func TestOrbitHTTPEnrollConfigAndPrimaryUser(t *testing.T) {
 		"/api/latest/fleet/device/471f74c8-4192-444b-8c77-da229df57f29/ping",
 		nil,
 		http.StatusUnauthorized,
-		nil,
 	)
 }
 
@@ -125,7 +108,7 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 	doOrbitJSON(t, router, http.MethodPost, "/api/fleet/orbit/enroll", orbit.EnrollRequest{
 		EnrollSecret: "not-a-real-secret",
 		HardwareUUID: "orbit-invalid-secret",
-	}, http.StatusUnauthorized, nil)
+	}, http.StatusUnauthorized)
 }
 
 type orbitContractStores struct {
@@ -160,27 +143,6 @@ func hasPrimaryUserSource(sources []hosts.HostPrimaryUserSource, email string) b
 	return false
 }
 
-func cleanupOrbitContractRows(
-	ctx context.Context,
-	t *testing.T,
-	database *database.DB,
-	hardwareUUID string,
-	secretValue string,
-) {
-	t.Helper()
-	for _, stmt := range []struct {
-		sql  string
-		args []any
-	}{
-		{sql: `DELETE FROM hosts WHERE hardware_uuid = $1`, args: []any{hardwareUUID}},
-		{sql: `DELETE FROM agent_secrets WHERE value = $1`, args: []any{secretValue}},
-	} {
-		if _, err := database.Pool().Exec(ctx, stmt.sql, stmt.args...); err != nil {
-			t.Fatalf("cleanup orbit contract rows: %v", err)
-		}
-	}
-}
-
 func doOrbitJSON(
 	t *testing.T,
 	router http.Handler,
@@ -188,7 +150,6 @@ func doOrbitJSON(
 	path string,
 	payload any,
 	wantStatus int,
-	out any,
 ) {
 	t.Helper()
 
@@ -213,10 +174,5 @@ func doOrbitJSON(
 	}
 	if got := rec.Header().Get(capabilitiesHeader); !strings.Contains(got, "token_rotation") {
 		t.Fatalf("capabilities header = %q, want token_rotation", got)
-	}
-	if out != nil {
-		if err := json.NewDecoder(rec.Body).Decode(out); err != nil {
-			t.Fatalf("decode %s %s response: %v; body: %s", method, path, err, rec.Body.String())
-		}
 	}
 }

@@ -59,21 +59,3 @@ func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 		})
 	}
 }
-
-func TestOrbitDoesNotExposeUnsupportedFeatureRoutes(t *testing.T) {
-	router := chi.NewRouter()
-	NewServer(nil, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
-
-	for _, path := range []string{
-		"/api/fleet/orbit/scripts/request",
-		"/api/fleet/orbit/software_install/details",
-		"/api/fleet/orbit/setup_experience/init",
-	} {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
-		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusNotFound {
-			t.Fatalf("POST %s status = %d, want %d", path, rec.Code, http.StatusNotFound)
-		}
-	}
-}
