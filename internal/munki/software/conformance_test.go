@@ -2,6 +2,7 @@ package software
 
 import (
 	"context"
+	"log/slog"
 	"maps"
 	"slices"
 	"testing"
@@ -16,7 +17,7 @@ import (
 func TestSoftwareStoreConformance(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	objectStore := storage.NewObjectStore(db, nil)
-	packageStore := packages.NewStore(db, objectStore)
+	packageStore := packages.NewStore(db, objectStore, slog.New(slog.DiscardHandler))
 	store := NewStore(db, objectStore, packageStore)
 
 	crudtest.RunConformance(

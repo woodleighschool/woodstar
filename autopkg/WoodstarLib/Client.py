@@ -67,8 +67,7 @@ class WoodstarClient:
     def attach_object(self, attach_path, file_path, display_name=None):
         """Upload a file to a resource via the create-first storage lifecycle:
         create a pending object, PUT the bytes, then adopt it on the resource.
-        attach_path is the resource upload endpoint, for example
-        /api/munki/packages/12/installer. Returns the stored object."""
+        Returns the stored object."""
         file_path = os.path.abspath(file_path)
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
@@ -81,6 +80,28 @@ class WoodstarClient:
             {"object_id": target["object_id"]},
             timeout=UPLOAD_TIMEOUT,
         )
+
+    def upload_package_installer(self, file_path, display_name=None):
+        """Reserve, upload, and finalize an unclaimed Munki package installer."""
+        file_path = os.path.abspath(file_path)
+        if not os.path.isfile(file_path):
+            raise ProcessorError(f"upload file does not exist: {file_path}")
+        filename = display_name or os.path.basename(file_path)
+        target = self.post("/api/munki/package-installers", {"filename": filename})
+        object_id = target["object_id"]
+        try:
+            self.upload_bytes(target, file_path)
+            return self.request(
+                "PUT",
+                f"/api/munki/package-installers/{object_id}",
+                timeout=UPLOAD_TIMEOUT,
+            )
+        except ProcessorError:
+            try:
+                self.delete(f"/api/munki/package-installers/{object_id}")
+            except ProcessorError:
+                pass
+            raise
 
     def upload_bytes(self, target, file_path):
         url = target["upload_url"]

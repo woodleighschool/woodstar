@@ -3,6 +3,7 @@ package munki_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ type munkiStores struct {
 
 func newMunkiStores(db *database.DB) munkiStores {
 	objectStore := storage.NewObjectStore(db, nil)
-	packageStore := packages.NewStore(db, objectStore)
+	packageStore := packages.NewStore(db, objectStore, slog.New(slog.DiscardHandler))
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
 		db:        db,
@@ -94,7 +95,6 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		},
 	})
 	if err != nil {
@@ -183,7 +183,6 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 			Version:       "148.0.0.1",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if err != nil {
@@ -269,7 +268,6 @@ func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:           "1.0",
 			InstallerObjectID: &installerObject.ID,
-			Eligible:          true,
 		}},
 	)
 	if err != nil {
@@ -290,6 +288,135 @@ func TestPackageObjectCreateListAndBindPackage(t *testing.T) {
 		effective[0].Package.InstallerObjectID == nil ||
 		*effective[0].Package.InstallerObjectID != installerObject.ID {
 		t.Fatalf("effective packages = %+v, want installer object id", effective)
+	}
+}
+
+func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "InstallerLifecycle"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+
+	pending, err := stores.objects.CreatePending(ctx, packages.ObjectPrefix, "pending.pkg")
+	if err != nil {
+		t.Fatalf("create pending installer: %v", err)
+	}
+	_, err = stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:           "pending",
+			InstallerObjectID: &pending.ID,
+		},
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("create with pending installer error = %v, want ErrInvalidInput", err)
+	}
+
+	firstObject := createMunkiPackageObject(t, ctx, stores, "first.pkg", "1")
+	first, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:           "1.0",
+			InstallerObjectID: &firstObject.ID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create first package: %v", err)
+	}
+	_, err = stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:           "owned",
+			InstallerObjectID: &firstObject.ID,
+		},
+	})
+	if !errors.Is(err, dbutil.ErrConflict) {
+		t.Fatalf("create with owned installer error = %v, want ErrConflict", err)
+	}
+
+	secondObject := createMunkiPackageObject(t, ctx, stores, "second.pkg", "2")
+	second, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:           "2.0",
+			InstallerObjectID: &secondObject.ID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create second package: %v", err)
+	}
+	_, err = stores.db.Pool().Exec(
+		ctx,
+		`UPDATE munki_packages SET installer_object_id = $1 WHERE id = $2`,
+		firstObject.ID,
+		second.ID,
+	)
+	if !errors.Is(dbutil.MutationError(err), dbutil.ErrAlreadyExists) {
+		t.Fatalf("database unique owner error = %v, want ErrAlreadyExists", err)
+	}
+
+	_, err = stores.packages.Update(ctx, first.ID, packages.PackageMutation{
+		Version:       first.Version,
+		InstallerType: packages.InstallerTypePkg,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("update without explicit installer error = %v, want ErrInvalidInput", err)
+	}
+	unchanged, err := stores.packages.GetByID(ctx, first.ID)
+	if err != nil {
+		t.Fatalf("get unchanged package: %v", err)
+	}
+	if unchanged.InstallerObjectID == nil || *unchanged.InstallerObjectID != firstObject.ID {
+		t.Fatalf("unchanged installer = %v, want %d", unchanged.InstallerObjectID, firstObject.ID)
+	}
+
+	replacement := createMunkiPackageObject(t, ctx, stores, "replacement.dmg", "3")
+	replaced, err := stores.packages.Update(ctx, first.ID, packages.PackageMutation{
+		Version:           first.Version,
+		InstallerType:     packages.InstallerTypePkg,
+		InstallerObjectID: &replacement.ID,
+	})
+	if err != nil {
+		t.Fatalf("replace installer: %v", err)
+	}
+	if replaced.InstallerObjectID == nil || *replaced.InstallerObjectID != replacement.ID {
+		t.Fatalf("replacement installer = %v, want %d", replaced.InstallerObjectID, replacement.ID)
+	}
+	if _, err := stores.objects.GetByID(ctx, firstObject.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("old installer lookup error = %v, want ErrNotFound", err)
+	}
+
+	packageless, err := stores.packages.Update(ctx, first.ID, packages.PackageMutation{
+		Version:       first.Version,
+		InstallerType: packages.InstallerTypeNoPkg,
+	})
+	if err != nil {
+		t.Fatalf("switch to nopkg: %v", err)
+	}
+	if packageless.InstallerObjectID != nil {
+		t.Fatalf("nopkg installer = %v, want nil", packageless.InstallerObjectID)
+	}
+	if _, err := stores.objects.GetByID(ctx, replacement.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("cleared installer lookup error = %v, want ErrNotFound", err)
+	}
+
+	dmg := createMunkiPackageObject(t, ctx, stores, "copy.dmg", "4")
+	copied, err := stores.packages.Update(ctx, first.ID, packages.PackageMutation{
+		Version:           first.Version,
+		InstallerType:     packages.InstallerTypeCopyFromDMG,
+		InstallerObjectID: &dmg.ID,
+		ItemsToCopy: []packages.PackageItemToCopy{{
+			SourceItem:      "Example.app",
+			DestinationPath: "/Applications",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("switch to copy_from_dmg: %v", err)
+	}
+	if copied.InstallerObjectID == nil || *copied.InstallerObjectID != dmg.ID {
+		t.Fatalf("copy_from_dmg installer = %v, want %d", copied.InstallerObjectID, dmg.ID)
 	}
 }
 
@@ -343,7 +470,6 @@ func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:           "1.0",
 			InstallerObjectID: &iconObject.ID,
-			Eligible:          true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -379,7 +505,6 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if err != nil {
@@ -390,7 +515,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	}
 }
 
-func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *testing.T) {
+func TestRepositoryPackagesByIconObjectIDIncludesEveryPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -407,11 +532,10 @@ func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *tes
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
-			Eligible:      false,
 		}},
 	)
 	if err != nil {
-		t.Fatalf("create ineligible package: %v", err)
+		t.Fatalf("create first package: %v", err)
 	}
 	_, err = stores.packages.Create(
 		ctx,
@@ -419,19 +543,18 @@ func TestRepositoryPackagesByIconObjectIDFiltersToCatalogEligiblePackages(t *tes
 			Version:       "2.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if err != nil {
-		t.Fatalf("create eligible package: %v", err)
+		t.Fatalf("create second package: %v", err)
 	}
 
 	pkgs, err := stores.packages.RepositoryPackagesByIconObjectID(ctx, icon.ID)
 	if err != nil {
 		t.Fatalf("RepositoryPackagesByIconObjectID: %v", err)
 	}
-	if len(pkgs) != 1 || pkgs[0].Version != "2.0" {
-		t.Fatalf("icon packages = %+v, want only eligible package version 2.0", pkgs)
+	if len(pkgs) != 2 || pkgs[0].Version != "1.0" || pkgs[1].Version != "2.0" {
+		t.Fatalf("icon packages = %+v, want both package versions", pkgs)
 	}
 	if pkgs[0].SoftwareIconObjectID == nil || *pkgs[0].SoftwareIconObjectID != icon.ID {
 		t.Fatalf("software icon object id = %v, want %d", pkgs[0].SoftwareIconObjectID, icon.ID)
@@ -572,7 +695,6 @@ func TestCreatePackageRejectsUnsupportedArchitecture(t *testing.T) {
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:                "1.0",
 			SupportedArchitectures: []string{"ppc"},
-			Eligible:               true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -604,7 +726,6 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if err != nil {
@@ -617,7 +738,6 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 			InstallerType:            packages.InstallerTypeNoPkg,
 			BlockingApplicationsNone: true,
 			OnDemand:                 true,
-			Eligible:                 true,
 		}},
 	)
 	if err != nil {
@@ -630,7 +750,6 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 			InstallerType:        packages.InstallerTypeNoPkg,
 			BlockingApplications: []string{"Blocking App"},
 			OnDemand:             true,
-			Eligible:             true,
 		}},
 	)
 	if err != nil {
@@ -691,7 +810,6 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: missingPackageID},
 			},
-			Eligible: true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrNotFound) {
@@ -715,7 +833,6 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
 			Requires:      []packages.PackageReferenceMutation{{SoftwareID: title.ID, PackageID: -1}},
-			Eligible:      true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -741,7 +858,6 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
-			Eligible: true,
 		}},
 	)
 	if err != nil {
@@ -780,7 +896,6 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
-			Eligible: true,
 		}},
 	)
 	if err != nil {
@@ -823,7 +938,6 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 			Requires: []packages.PackageReferenceMutation{
 				{SoftwareID: title.ID, PackageID: targetPackage.ID},
 			},
-			Eligible: true,
 		}},
 	)
 	if err != nil {
@@ -849,7 +963,6 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:           "1.0",
 			InstallerObjectID: &installerObject.ID,
-			Eligible:          true,
 		}},
 	)
 	if err != nil {
@@ -887,7 +1000,6 @@ func TestCreatePackageRejectsInvalidSoftwareID(t *testing.T) {
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -909,7 +1021,6 @@ func TestCreatePackageBadInstalledSizeFallsThroughToInvalidInput(t *testing.T) {
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:       "1.0",
 			InstalledSize: -1,
-			Eligible:      true,
 		}},
 	)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
@@ -943,7 +1054,6 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 				{SoftwareID: dependencyTitle.ID},
 				{SoftwareID: dependencyTitle.ID, PackageID: dependency.ID},
 			},
-			Eligible: true,
 		}},
 	)
 	if err != nil {
@@ -984,7 +1094,6 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
 			Version:           "1.0",
 			InstallerObjectID: &installerObject.ID,
-			Eligible:          true,
 		}},
 	)
 	if err != nil {
@@ -996,7 +1105,6 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 		InstallerType:      packages.InstallerTypeNoPkg,
 		OnDemand:           true,
 		InstallcheckScript: "#!/bin/sh\nexit 0\n",
-		Eligible:           true,
 	})
 	if err != nil {
 		t.Fatalf("update package: %v", err)
@@ -1412,7 +1520,6 @@ func createMunkiPackage(
 			Version:       version,
 			InstallerType: packages.InstallerTypeNoPkg,
 			OnDemand:      true,
-			Eligible:      true,
 		}},
 	)
 	if err != nil {

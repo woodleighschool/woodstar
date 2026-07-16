@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryChecksData, BulkDeleteOsqueryChecksErrors, BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteSetupData, CompleteSetupErrors, CompleteSetupResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerUploadData, CreateMunkiPackageInstallerUploadErrors, CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareIconUploadData, CreateMunkiSoftwareIconUploadErrors, CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareResponses, CreateOsqueryCheckData, CreateOsqueryCheckErrors, CreateOsqueryCheckResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageData, DeleteMunkiPackageErrors, DeleteMunkiPackageInstallerData, DeleteMunkiPackageInstallerErrors, DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryCheckData, DeleteOsqueryCheckErrors, DeleteOsqueryCheckResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryCheckData, GetOsqueryCheckErrors, GetOsqueryCheckResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetSoftwareSantaReferenceData, GetSoftwareSantaReferenceErrors, GetSoftwareSantaReferenceResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostOsqueryChecksData, ListHostOsqueryChecksErrors, ListHostOsqueryChecksResponses, ListHostOsqueryReportResultsData, ListHostOsqueryReportResultsErrors, ListHostOsqueryReportResultsResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryCheckResultsData, ListOsqueryCheckResultsErrors, ListOsqueryCheckResultsResponses, ListOsqueryChecksData, ListOsqueryChecksErrors, ListOsqueryChecksResponses, ListOsqueryReportResultsData, ListOsqueryReportResultsErrors, ListOsqueryReportResultsResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, SaveMunkiClientResourcesData, SaveMunkiClientResourcesErrors, SaveMunkiClientResourcesResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiPackageInstallerData, SetMunkiPackageInstallerErrors, SetMunkiPackageInstallerResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, StopLiveQueryData, StopLiveQueryErrors, StopLiveQueryResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryCheckData, UpdateOsqueryCheckErrors, UpdateOsqueryCheckResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
+import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryChecksData, BulkDeleteOsqueryChecksErrors, BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteMunkiPackageInstallerMultipartData, CompleteMunkiPackageInstallerMultipartErrors, CompleteMunkiPackageInstallerMultipartResponses, CompleteSetupData, CompleteSetupErrors, CompleteSetupResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerData, CreateMunkiPackageInstallerErrors, CreateMunkiPackageInstallerMultipartData, CreateMunkiPackageInstallerMultipartErrors, CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareIconUploadData, CreateMunkiSoftwareIconUploadErrors, CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareResponses, CreateOsqueryCheckData, CreateOsqueryCheckErrors, CreateOsqueryCheckResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageData, DeleteMunkiPackageErrors, DeleteMunkiPackageInstallerData, DeleteMunkiPackageInstallerErrors, DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryCheckData, DeleteOsqueryCheckErrors, DeleteOsqueryCheckResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, FinalizeMunkiPackageInstallerData, FinalizeMunkiPackageInstallerErrors, FinalizeMunkiPackageInstallerResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryCheckData, GetOsqueryCheckErrors, GetOsqueryCheckResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetSoftwareSantaReferenceData, GetSoftwareSantaReferenceErrors, GetSoftwareSantaReferenceResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostOsqueryChecksData, ListHostOsqueryChecksErrors, ListHostOsqueryChecksResponses, ListHostOsqueryReportResultsData, ListHostOsqueryReportResultsErrors, ListHostOsqueryReportResultsResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryCheckResultsData, ListOsqueryCheckResultsErrors, ListOsqueryCheckResultsResponses, ListOsqueryChecksData, ListOsqueryChecksErrors, ListOsqueryChecksResponses, ListOsqueryReportResultsData, ListOsqueryReportResultsErrors, ListOsqueryReportResultsResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, SaveMunkiClientResourcesData, SaveMunkiClientResourcesErrors, SaveMunkiClientResourcesResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, SignMunkiPackageInstallerPartData, SignMunkiPackageInstallerPartErrors, SignMunkiPackageInstallerPartResponses, StopLiveQueryData, StopLiveQueryErrors, StopLiveQueryResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryCheckData, UpdateOsqueryCheckErrors, UpdateOsqueryCheckResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -680,6 +680,92 @@ export const listMunkiIcons = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
+ * Reserve a Munki package installer upload
+ */
+export const createMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerResponses, CreateMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerResponses, CreateMunkiPackageInstallerErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete an unclaimed Munki package installer
+ */
+export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers/{id}',
+    ...options
+});
+
+/**
+ * Finalize a Munki package installer upload
+ */
+export const finalizeMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<FinalizeMunkiPackageInstallerData, ThrowOnError>): RequestResult<FinalizeMunkiPackageInstallerResponses, FinalizeMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).put<FinalizeMunkiPackageInstallerResponses, FinalizeMunkiPackageInstallerErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers/{id}',
+    ...options
+});
+
+/**
+ * Create a Munki package installer multipart upload
+ */
+export const createMunkiPackageInstallerMultipart = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerMultipartData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerMultipartErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerMultipartErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers/{id}/multipart',
+    ...options
+});
+
+/**
+ * Complete a Munki package installer multipart upload
+ */
+export const completeMunkiPackageInstallerMultipart = <ThrowOnError extends boolean = false>(options: Options<CompleteMunkiPackageInstallerMultipartData, ThrowOnError>): RequestResult<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError> => (options.client ?? client).post<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers/{id}/multipart/complete',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sign one Munki package installer multipart part
+ */
+export const signMunkiPackageInstallerPart = <ThrowOnError extends boolean = false>(options: Options<SignMunkiPackageInstallerPartData, ThrowOnError>): RequestResult<SignMunkiPackageInstallerPartResponses, SignMunkiPackageInstallerPartErrors, ThrowOnError> => (options.client ?? client).post<SignMunkiPackageInstallerPartResponses, SignMunkiPackageInstallerPartErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/package-installers/{id}/multipart/parts/{part_number}',
+    ...options
+});
+
+/**
  * List Munki packages
  */
 export const listMunkiPackages = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiPackagesData, ThrowOnError>): RequestResult<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError>({
@@ -763,53 +849,6 @@ export const updateMunkiPackage = <ThrowOnError extends boolean = false>(options
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
     url: '/api/munki/packages/{id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete the installer file from a Munki package
- */
-export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/packages/{id}/installer',
-    ...options
-});
-
-/**
- * Create an installer upload for a Munki package
- */
-export const createMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/packages/{id}/installer',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Set the uploaded installer for a Munki package
- */
-export const setMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<SetMunkiPackageInstallerData, ThrowOnError>): RequestResult<SetMunkiPackageInstallerResponses, SetMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).put<SetMunkiPackageInstallerResponses, SetMunkiPackageInstallerErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/packages/{id}/installer',
     ...options,
     headers: {
         'Content-Type': 'application/json',

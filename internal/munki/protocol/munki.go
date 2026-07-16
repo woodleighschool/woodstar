@@ -32,7 +32,7 @@ type Repository interface {
 	ResolveClientResources(context.Context, string) (munki.RepositoryFile, error)
 }
 
-// Selector redirects a package download to an eligible distribution point.
+// Selector redirects a package download to a matching distribution point.
 type Selector interface {
 	SelectRedirect(ctx context.Context, req mdp.SelectionRequest) (string, bool)
 }
@@ -175,7 +175,7 @@ func (h handler) authorizedRequest(w http.ResponseWriter, r *http.Request, opera
 	return true
 }
 
-// redirectToDistributionPoint asks the selector for an eligible distribution point.
+// redirectToDistributionPoint asks the selector for a matching distribution point.
 func (h handler) redirectToDistributionPoint(
 	r *http.Request,
 	installer munki.PackageInstaller,

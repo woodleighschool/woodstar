@@ -225,11 +225,8 @@ JOIN munki_packages p ON p.software_id = a.software_id
 		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
 		OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
 	)
-LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
-WHERE a.direction = 'include'
-  AND p.eligible
-  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
-  AND NOT EXISTS (
+	WHERE a.direction = 'include'
+	  AND NOT EXISTS (
       SELECT 1
       FROM munki_software_targets excluded
       JOIN label_membership excluded_lm

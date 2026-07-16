@@ -20,6 +20,8 @@ import (
 
 func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	installerID := int64(42)
+	installerSize := int64(1024)
+	installerSHA := strings.Repeat("a", 64)
 	availableAt := time.Now()
 	store := servicePackageStore{
 		packagesByID: map[int64]packages.Package{10: {
@@ -27,7 +29,6 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 			SoftwareName:      "GoogleChrome",
 			InstallerType:     packages.InstallerTypePkg,
 			InstallerObjectID: &installerID,
-			Eligible:          true,
 		}},
 		listRepositoryErr: errors.New("full repository scan should not be used"),
 	}
@@ -37,6 +38,8 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 			Prefix:      packages.ObjectPrefix,
 			Filename:    "GoogleChrome.pkg",
 			ContentType: "application/octet-stream",
+			SizeBytes:   &installerSize,
+			SHA256:      &installerSHA,
 			AvailableAt: &availableAt,
 		},
 	}}
@@ -71,7 +74,6 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 			SoftwareName:         "GoogleChrome",
 			InstallerType:        packages.InstallerTypeNoPkg,
 			SoftwareIconObjectID: &iconID,
-			Eligible:             true,
 		}}},
 		listRepositoryErr: errors.New("full repository scan should not be used"),
 	}

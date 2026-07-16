@@ -18,7 +18,8 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	iconHash := "abc123"
 	installerSize := int64(1536)
 	installerID := int64(50)
-	got := plistMap(t, Pkginfo(Package{
+	availableAt := time.Now()
+	got := plistMap(t, mustPkginfo(t, Package{
 		ID:                     12,
 		SoftwareID:             7,
 		SoftwareName:           "com.example.app",
@@ -61,11 +62,12 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		InstallerObjectID:        &installerID,
 	}, PkginfoObjects{
 		Installer: &storage.Object{
-			ID:        installerID,
-			Prefix:    ObjectPrefix,
-			Filename:  "Example.pkg",
-			SizeBytes: &installerSize,
-			SHA256:    &installerHash,
+			ID:          installerID,
+			Prefix:      ObjectPrefix,
+			Filename:    "Example.pkg",
+			SizeBytes:   &installerSize,
+			SHA256:      &installerHash,
+			AvailableAt: &availableAt,
 		},
 		Icon: &storage.Object{
 			ID:       7,
@@ -138,13 +140,13 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 }
 
 func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
-	got := plistMap(t, Pkginfo(Package{
+	got := plistMap(t, mustPkginfo(t, Package{
 		ID:            12,
 		SoftwareID:    7,
 		SoftwareName:  "Example App",
 		Version:       "1.2.3",
 		InstallerType: InstallerTypePkg,
-	}, PkginfoObjects{}))
+	}, pkginfoObjects()))
 
 	for _, key := range []string{
 		"installer_choices_xml",
@@ -162,7 +164,7 @@ func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 }
 
 func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
-	got := plistMap(t, Pkginfo(Package{
+	got := plistMap(t, mustPkginfo(t, Package{
 		ID:              12,
 		SoftwareID:      7,
 		SoftwareName:    "Example App",
@@ -183,7 +185,7 @@ func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
 				DestinationPath: "/Applications/Utilities",
 			},
 		},
-	}, PkginfoObjects{}))
+	}, pkginfoObjects()))
 
 	itemsToRemove := mapSlice(t, got["items_to_remove"])
 	if len(itemsToRemove) != 2 ||
@@ -250,26 +252,56 @@ func TestPkginfoRendersBlockingApplicationsFromExplicitNoneSwitch(t *testing.T) 
 		InstallerType: InstallerTypePkg,
 	}
 
-	derived := plistMap(t, Pkginfo(base, PkginfoObjects{}))
+	derived := plistMap(t, mustPkginfo(t, base, pkginfoObjects()))
 	if _, ok := derived["blocking_applications"]; ok {
 		t.Fatalf("blocking_applications rendered for derive-from-installs state: %+v", derived)
 	}
 
 	nonePackage := base
 	nonePackage.BlockingApplicationsNone = true
-	empty := plistMap(t, Pkginfo(nonePackage, PkginfoObjects{}))
+	empty := plistMap(t, mustPkginfo(t, nonePackage, pkginfoObjects()))
 	if values, ok := stringSlice(empty["blocking_applications"]); !ok || len(values) != 0 {
 		t.Fatalf("blocking_applications = %#v, want explicit empty list", empty["blocking_applications"])
 	}
 
 	populatedPackage := base
 	populatedPackage.BlockingApplications = []string{"Example App"}
-	populated := plistMap(t, Pkginfo(populatedPackage, PkginfoObjects{}))
+	populated := plistMap(t, mustPkginfo(t, populatedPackage, pkginfoObjects()))
 	if values, ok := stringSlice(populated["blocking_applications"]); !ok ||
 		len(values) != 1 ||
 		values[0] != "Example App" {
 		t.Fatalf("blocking_applications = %#v, want populated list", populated["blocking_applications"])
 	}
+}
+
+func TestPkginfoRejectsMissingFinalizedInstaller(t *testing.T) {
+	_, err := Pkginfo(Package{ID: 12, InstallerType: InstallerTypePkg}, PkginfoObjects{})
+	if err == nil {
+		t.Fatal("Pkginfo() error = nil, want missing installer error")
+	}
+}
+
+func mustPkginfo(t *testing.T, pkg Package, objects PkginfoObjects) any {
+	t.Helper()
+	value, err := Pkginfo(pkg, objects)
+	if err != nil {
+		t.Fatalf("Pkginfo() error = %v", err)
+	}
+	return value
+}
+
+func pkginfoObjects() PkginfoObjects {
+	availableAt := time.Now()
+	size := int64(1)
+	sha256sum := "hash"
+	return PkginfoObjects{Installer: &storage.Object{
+		ID:          1,
+		Prefix:      ObjectPrefix,
+		Filename:    "Installer.pkg",
+		SizeBytes:   &size,
+		SHA256:      &sha256sum,
+		AvailableAt: &availableAt,
+	}}
 }
 
 func plistMap(t *testing.T, value any) map[string]any {

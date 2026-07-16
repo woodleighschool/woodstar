@@ -32,7 +32,7 @@ type PackageSelector struct {
 }
 
 // PackageStrategy describes whether Munki software follows the latest
-// eligible package or pins one package version.
+// package or pins one package version.
 type PackageStrategy string
 
 const (

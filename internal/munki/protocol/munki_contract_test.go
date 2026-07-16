@@ -162,6 +162,9 @@ func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 	displayName := "Google Chrome"
 	objectID := int64(42)
+	sha := strings.Repeat("a", 64)
+	size := int64(4096)
+	availableAt := time.Now()
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -181,7 +184,14 @@ func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 			},
 		}},
 		Objects: staticObjectResolver{objects: map[int64]storage.Object{
-			objectID: {ID: objectID, Prefix: packages.ObjectPrefix, Filename: "GoogleChrome.pkg"},
+			objectID: {
+				ID:          objectID,
+				Prefix:      packages.ObjectPrefix,
+				Filename:    "GoogleChrome.pkg",
+				SHA256:      &sha,
+				SizeBytes:   &size,
+				AvailableAt: &availableAt,
+			},
 		}},
 	})
 
@@ -208,7 +218,7 @@ func TestMunkiCatalogUsesStableInstallerItemLocation(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogOmitsPackageURLsWithoutInstallerItemLocation(t *testing.T) {
+func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -238,6 +248,11 @@ func TestMunkiCatalogOmitsPackageURLsWithoutInstallerItemLocation(t *testing.T) 
 	}
 	if _, ok := decoded[0]["PackageURL"]; ok {
 		t.Fatalf("PackageURL rendered without an installer item location: %+v", decoded[0])
+	}
+	for _, key := range []string{"installer_item_location", "installer_item_hash", "installer_item_size"} {
+		if _, ok := decoded[0][key]; ok {
+			t.Fatalf("nopkg rendered %s: %+v", key, decoded[0])
+		}
 	}
 }
 
@@ -643,6 +658,7 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 	objectID := int64(42)
 	sha := strings.Repeat("a", 64)
 	size := int64(4096)
+	availableAt := time.Now()
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -663,11 +679,12 @@ func TestMunkiCatalogProjectsInstallerHashAndSize(t *testing.T) {
 		}},
 		Objects: staticObjectResolver{objects: map[int64]storage.Object{
 			objectID: {
-				ID:        objectID,
-				Prefix:    packages.ObjectPrefix,
-				Filename:  "GoogleChrome.pkg",
-				SHA256:    &sha,
-				SizeBytes: &size,
+				ID:          objectID,
+				Prefix:      packages.ObjectPrefix,
+				Filename:    "GoogleChrome.pkg",
+				SHA256:      &sha,
+				SizeBytes:   &size,
+				AvailableAt: &availableAt,
 			},
 		}},
 	})

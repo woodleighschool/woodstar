@@ -19,18 +19,19 @@ import (
 // Object is a row in the storage registry: one stored (or pending) blob. The
 // byte key is derived, never stored, so the path format lives in one place.
 type Object struct {
-	ID          int64      `db:"id"`
-	Prefix      string     `db:"prefix"`
-	Filename    string     `db:"filename"`
-	ContentType string     `db:"content_type"`
-	SizeBytes   *int64     `db:"size_bytes"`
-	SHA256      *string    `db:"sha256"`
-	AvailableAt *time.Time `db:"available_at"`
-	CreatedAt   time.Time  `db:"created_at"`
-	UpdatedAt   time.Time  `db:"updated_at"`
+	ID                int64      `db:"id"`
+	Prefix            string     `db:"prefix"`
+	Filename          string     `db:"filename"`
+	ContentType       string     `db:"content_type"`
+	SizeBytes         *int64     `db:"size_bytes"`
+	SHA256            *string    `db:"sha256"`
+	AvailableAt       *time.Time `db:"available_at"`
+	MultipartUploadID *string    `db:"multipart_upload_id"`
+	CreatedAt         time.Time  `db:"created_at"`
+	UpdatedAt         time.Time  `db:"updated_at"`
 }
 
-const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at
+const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at
 FROM storage_objects`
 
 // Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
@@ -101,7 +102,7 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string
 	}
 	const sql = `INSERT INTO storage_objects (prefix, filename)
 VALUES (@prefix, @filename)
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"prefix":   prefix,
 		"filename": filename,
@@ -134,7 +135,7 @@ SET size_bytes = @size_bytes,
     available_at = now(),
     updated_at = now()
 WHERE id = @id
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"id":           id,
 		"size_bytes":   &sizeBytes,
@@ -145,6 +146,66 @@ RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, 
 		return nil, dbutil.MutationError(err)
 	}
 	return &obj, nil
+}
+
+// RecordMultipartUploadID records the provider upload ID, or returns the ID
+// already recorded by a concurrent or retried creation request.
+func (s *ObjectStore) RecordMultipartUploadID(
+	ctx context.Context,
+	id int64,
+	uploadID string,
+) (string, bool, error) {
+	uploadID = strings.TrimSpace(uploadID)
+	if uploadID == "" {
+		return "", false, fmt.Errorf("%w: multipart upload ID is blank", dbutil.ErrInvalidInput)
+	}
+	var recorded string
+	err := s.db.Pool().QueryRow(ctx, `
+UPDATE storage_objects
+SET multipart_upload_id = $2,
+    updated_at = now()
+WHERE id = $1
+  AND available_at IS NULL
+  AND multipart_upload_id IS NULL
+RETURNING multipart_upload_id`, id, uploadID).Scan(&recorded)
+	if err == nil {
+		return recorded, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return "", false, dbutil.MutationError(err)
+	}
+	object, err := s.GetByID(ctx, id)
+	if err != nil {
+		return "", false, err
+	}
+	if object.MultipartUploadID != nil {
+		return *object.MultipartUploadID, false, nil
+	}
+	return "", false, fmt.Errorf("%w: storage object is already finalized", dbutil.ErrInvalidInput)
+}
+
+// ClearMultipartUploadID closes the recorded provider upload after assembly.
+func (s *ObjectStore) ClearMultipartUploadID(ctx context.Context, id int64, uploadID string) error {
+	tag, err := s.db.Pool().Exec(ctx, `
+UPDATE storage_objects
+SET multipart_upload_id = NULL,
+    updated_at = now()
+WHERE id = $1
+  AND multipart_upload_id = $2`, id, uploadID)
+	if err != nil {
+		return dbutil.MutationError(err)
+	}
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+	object, err := s.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if object.MultipartUploadID == nil {
+		return nil
+	}
+	return fmt.Errorf("%w: multipart upload ID changed", dbutil.ErrConflict)
 }
 
 // ContentURL returns a direct read URL with the registry's content type.
@@ -207,7 +268,7 @@ func (s *ObjectStore) ListByPrefix(
 func (s *ObjectStore) Delete(ctx context.Context, id int64) error {
 	const sql = `DELETE FROM storage_objects
 WHERE id = $1
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, created_at, updated_at`
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
 	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "storage object is still referenced")

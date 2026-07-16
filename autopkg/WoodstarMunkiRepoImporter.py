@@ -67,12 +67,12 @@ class WoodstarMunkiRepoImporter(Processor):
 
         self.preflight_entries(client, munki_repo, entries)
         prepared = [
-            self.prepare_pkginfo(client, munki_repo, pkginfo_path, pkginfo, counts)
+            self.prepare_pkginfo(client, munki_repo, pkginfo_path, pkginfo, counts, force)
             for pkginfo_path, pkginfo in entries
         ]
         resolver = PackageReferenceResolver.from_client(client)
         for item in prepared:
-            self.finish_pkginfo(client, item, resolver, force, counts)
+            self.finish_pkginfo(client, item, resolver, counts)
 
         self.env["woodstar_imported_pkginfo_count"] = counts["pkginfos"]
         if changed_count(counts):
@@ -187,7 +187,7 @@ class WoodstarMunkiRepoImporter(Processor):
             raise ProcessorError(f"MUNKI_REPO pkgsinfo directory was not found: {munki_repo}")
         return munki_repo
 
-    def prepare_pkginfo(self, client, munki_repo, pkginfo_path, pkginfo, counts):
+    def prepare_pkginfo(self, client, munki_repo, pkginfo_path, pkginfo, counts, force=False):
         counts["pkginfos"] += 1
         app = WoodstarMunkiAppUploader()
         app.env = {
@@ -224,25 +224,34 @@ class WoodstarMunkiRepoImporter(Processor):
             existing = client.get(f"/api/munki/packages/{existing['id']}")
             body["requires"] = reference_request(existing.get("requires"))
             body["update_for"] = reference_request(existing.get("update_for"))
-        saved, package_action, package_changed = package.save_package(client, int(software["id"]), body)
+        installer_path = package.installer_artifact_path(pkginfo)
+        _saved, package_action, package_changed, installer_uploaded = package.save_package(
+            client,
+            int(software["id"]),
+            body,
+            installer_path,
+            force,
+        )
+        counts["package_binaries_uploaded"] += int(installer_uploaded)
 
         return {
             "pkginfo": pkginfo,
             "package": package,
             "software_id": int(software["id"]),
-            "saved": saved,
             "initial_action": package_action,
             "changed": package_changed,
+            "installer_path": installer_path,
         }
 
-    def finish_pkginfo(self, client, item, resolver, force, counts):
+    def finish_pkginfo(self, client, item, resolver, counts):
         package = item["package"]
         pkginfo = item["pkginfo"]
         body = package.package_body(pkginfo, item["software_id"], resolver)
-        saved, package_action, package_changed = package.save_package(
+        _saved, package_action, package_changed, installer_uploaded = package.save_package(
             client,
             item["software_id"],
             body,
+            item["installer_path"],
         )
         changed = item["changed"] or package_changed
         action = (
@@ -253,8 +262,6 @@ class WoodstarMunkiRepoImporter(Processor):
         if changed:
             increment_action(counts, "packages", action)
 
-        installer_path = package.installer_artifact_path(pkginfo)
-        installer_uploaded = package.attach_binary(client, saved, "installer", installer_path, force)
         counts["package_binaries_uploaded"] += int(installer_uploaded)
 
     def software_for_pkginfo(self, client, munki_repo, pkginfo, name):

@@ -83,16 +83,18 @@ SELECT
 		WHEN o.sha256 = s.reported_sha256 THEN 'current'
 		ELSE 'syncing'
 	END::text AS status,
-	COALESCE(s.error, '') AS error
+	COALESCE(s.error, '') AS error,
+	(
+		o.available_at IS NOT NULL
+		AND o.sha256 IS NOT NULL
+		AND o.size_bytes IS NOT NULL
+	) AS installer_finalized
 FROM munki_packages p
 JOIN munki_software sw ON sw.id = p.software_id
 JOIN storage_objects o ON o.id = p.installer_object_id
 LEFT JOIN munki_distribution_package_states s
 	ON s.package_id = p.id
 	AND s.distribution_point_id = $1
-WHERE o.available_at IS NOT NULL
-  AND o.sha256 IS NOT NULL
-  AND o.size_bytes IS NOT NULL
 ORDER BY sw.name, p.version`,
 		id,
 	)
@@ -109,6 +111,9 @@ ORDER BY sw.name, p.version`,
 		Packages:          make([]PackageState, len(stateRows)),
 	}
 	for i, state := range stateRows {
+		if !state.InstallerFinalized {
+			return nil, fmt.Errorf("munki package %d installer object is not finalized", state.PackageID)
+		}
 		detail.Packages[i] = packageStateFromRow(state)
 	}
 	return &detail, nil
@@ -314,9 +319,9 @@ func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*Distributi
 	return &point, nil
 }
 
-// ResolveForClient returns the first eligible, online distribution point for a
+// ResolveForClient returns the first matching, online distribution point for a
 // client IP and package, or nil when Woodstar should serve the file itself.
-// Eligibility is a database filter; liveness is the in-memory presence set, so a
+// Package state is a database filter; liveness is the in-memory presence set, so a
 // just-disconnected point is skipped before its stored state reflects the drop.
 func (s *Store) ResolveForClient(
 	ctx context.Context,
@@ -340,8 +345,7 @@ WHERE c.enabled
       WHERE s.distribution_point_id = c.id
         AND s.package_id = $2
         AND s.status = 'current'
-        AND o.available_at IS NOT NULL
-        AND o.sha256 = s.reported_sha256
+		AND o.sha256 = s.reported_sha256
   )
 ORDER BY c.position, c.id`,
 		clientIP,
@@ -362,7 +366,7 @@ ORDER BY c.position, c.id`,
 	return nil, nil
 }
 
-// DesiredPackages returns every package whose installer is available to mirror.
+// DesiredPackages returns every installer-backed package to mirror.
 func (s *Store) DesiredPackages(ctx context.Context) ([]DesiredPackage, error) {
 	qrows, err := s.db.Pool().Query(ctx, `
 SELECT
@@ -372,9 +376,6 @@ SELECT
 	o.size_bytes
 FROM munki_packages p
 JOIN storage_objects o ON o.id = p.installer_object_id
-WHERE o.available_at IS NOT NULL
-  AND o.sha256 IS NOT NULL
-  AND o.size_bytes IS NOT NULL
 ORDER BY p.id`)
 	if err != nil {
 		return nil, err
@@ -385,15 +386,14 @@ ORDER BY p.id`)
 	}
 	packages := make([]DesiredPackage, len(rows))
 	for i, row := range rows {
+		if row.Sha256 == nil || row.SizeBytes == nil {
+			return nil, fmt.Errorf("munki package %d installer object is not finalized", row.PackageID)
+		}
 		pkg := DesiredPackage{
 			PackageID: row.PackageID,
 			Filename:  row.Filename,
-		}
-		if row.Sha256 != nil {
-			pkg.SHA256 = *row.Sha256
-		}
-		if row.SizeBytes != nil {
-			pkg.SizeBytes = *row.SizeBytes
+			SHA256:    *row.Sha256,
+			SizeBytes: *row.SizeBytes,
 		}
 		packages[i] = pkg
 	}
@@ -409,25 +409,33 @@ type InstallerContent struct {
 // InstallerObject returns the stored content for a package's installer.
 func (s *Store) InstallerObject(ctx context.Context, packageID int64) (InstallerContent, error) {
 	type installerObjectRow struct {
-		Prefix      string `db:"prefix"`
-		ID          int64  `db:"object_id"`
-		Filename    string `db:"filename"`
-		ContentType string `db:"content_type"`
+		Prefix      string     `db:"prefix"`
+		ID          int64      `db:"object_id"`
+		Filename    string     `db:"filename"`
+		ContentType string     `db:"content_type"`
+		SizeBytes   *int64     `db:"size_bytes"`
+		SHA256      *string    `db:"sha256"`
+		AvailableAt *time.Time `db:"available_at"`
 	}
 	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), `
 SELECT
 	o.prefix,
 	o.id AS object_id,
 	o.filename,
-	o.content_type
+	o.content_type,
+	o.size_bytes,
+	o.sha256,
+	o.available_at
 FROM munki_packages p
 JOIN storage_objects o ON o.id = p.installer_object_id
-WHERE p.id = $1
-  AND o.available_at IS NOT NULL`,
+WHERE p.id = $1`,
 		packageID,
 	)
 	if err != nil {
 		return InstallerContent{}, err
+	}
+	if row.AvailableAt == nil || row.SizeBytes == nil || row.SHA256 == nil {
+		return InstallerContent{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
 	}
 	return InstallerContent{
 		Key:         storage.Key(row.Prefix, row.ID, row.Filename),
@@ -566,6 +574,7 @@ type packageStateRow struct {
 	SoftwareIconObjectID *int64 `db:"software_icon_object_id"`
 	Status               string `db:"status"`
 	Error                string `db:"error"`
+	InstallerFinalized   bool   `db:"installer_finalized"`
 }
 
 // resolvedPointRow is the minimal scan target for the client-resolution query.

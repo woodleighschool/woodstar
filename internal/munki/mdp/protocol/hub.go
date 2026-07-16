@@ -25,7 +25,7 @@ const (
 	messageDesiredSet = "desired_set"
 
 	// Worker-to-server package events. Only a current event with a matching hash
-	// makes a point eligible; syncing and error are advisory for the admin view.
+	// makes a point current; syncing and error are advisory for the admin view.
 	eventPackageSyncing = "package_syncing"
 	eventPackageCurrent = "package_current"
 	eventPackageError   = "package_error"

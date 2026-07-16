@@ -79,7 +79,7 @@ class WoodstarClientTests(unittest.TestCase):
             self.assertEqual(message, "upload to https://uploads.example/package failed: HTTP 403")
             self.assertNotIn("signature", message)
 
-    def test_attach_adoption_uses_transfer_timeout(self):
+    def test_resource_attachment_uses_transfer_timeout(self):
         with tempfile.NamedTemporaryFile() as artifact:
             artifact.write(b"package")
             artifact.flush()
@@ -102,17 +102,54 @@ class WoodstarClientTests(unittest.TestCase):
             client.upload_bytes = Mock()
 
             self.assertEqual(
-                client.attach_object("/api/munki/packages/7/installer", artifact.name),
+                client.attach_object("/api/munki/software/7/icon", artifact.name),
                 {"id": 42},
             )
 
             adoption_call = client.session.request.call_args_list[1]
             self.assertEqual(
                 adoption_call.args[:2],
-                ("PUT", "https://woodstar.example/api/munki/packages/7/installer"),
+                ("PUT", "https://woodstar.example/api/munki/software/7/icon"),
             )
             self.assertEqual(adoption_call.kwargs["json"], {"object_id": 42})
             self.assertEqual(adoption_call.kwargs["timeout"], UPLOAD_TIMEOUT)
+
+    def test_package_installer_upload_reserves_then_finalizes(self):
+        with tempfile.NamedTemporaryFile() as artifact:
+            artifact.write(b"package")
+            artifact.flush()
+            client = WoodstarClient("https://woodstar.example", "secret")
+            reserved = Mock(
+                content=(
+                    b'{"object_id":42,"upload_url":"https://uploads.example/object",'
+                    b'"method":"PUT","upload_transport":"s3"}'
+                )
+            )
+            reserved.json.return_value = {
+                "object_id": 42,
+                "upload_url": "https://uploads.example/object",
+                "method": "PUT",
+                "upload_transport": "s3",
+            }
+            finalized = Mock(content=b'{"id":42}')
+            finalized.json.return_value = {"id": 42}
+            client.session.request = Mock(side_effect=[reserved, finalized])
+            client.upload_bytes = Mock()
+
+            self.assertEqual(client.upload_package_installer(artifact.name), {"id": 42})
+
+            reserve_call, finalize_call = client.session.request.call_args_list
+            self.assertEqual(
+                reserve_call.args[:2],
+                ("POST", "https://woodstar.example/api/munki/package-installers"),
+            )
+            self.assertEqual(reserve_call.kwargs["json"], {"filename": os.path.basename(artifact.name)})
+            self.assertEqual(
+                finalize_call.args[:2],
+                ("PUT", "https://woodstar.example/api/munki/package-installers/42"),
+            )
+            self.assertNotIn("json", finalize_call.kwargs)
+            self.assertEqual(finalize_call.kwargs["timeout"], UPLOAD_TIMEOUT)
 
     def test_safe_url_removes_user_information_and_query(self):
         self.assertEqual(

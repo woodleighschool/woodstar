@@ -8,9 +8,75 @@ import (
 )
 
 func validPackageMutation() PackageMutation {
+	installerObjectID := int64(1)
 	return PackageMutation{
-		Version:       "1.0",
-		InstallerType: InstallerTypePkg,
+		Version:           "1.0",
+		InstallerType:     InstallerTypePkg,
+		InstallerObjectID: &installerObjectID,
+	}
+}
+
+func TestPackageMutationValidateInstallerRelationship(t *testing.T) {
+	t.Parallel()
+	installerObjectID := int64(1)
+	cases := []struct {
+		name     string
+		mutation PackageMutation
+		wantErr  bool
+	}{
+		{name: "nopkg", mutation: PackageMutation{Version: "1.0", InstallerType: InstallerTypeNoPkg}},
+		{
+			name: "pkg",
+			mutation: PackageMutation{
+				Version:           "1.0",
+				InstallerType:     InstallerTypePkg,
+				InstallerObjectID: &installerObjectID,
+			},
+		},
+		{
+			name: "copy from dmg",
+			mutation: PackageMutation{
+				Version:           "1.0",
+				InstallerType:     InstallerTypeCopyFromDMG,
+				InstallerObjectID: &installerObjectID,
+				ItemsToCopy:       []PackageItemToCopy{{SourceItem: "Example.app", DestinationPath: "/Applications"}},
+			},
+		},
+		{
+			name: "nopkg with installer",
+			mutation: PackageMutation{
+				Version:           "1.0",
+				InstallerType:     InstallerTypeNoPkg,
+				InstallerObjectID: &installerObjectID,
+			},
+			wantErr: true,
+		},
+		{
+			name:     "pkg without installer",
+			mutation: PackageMutation{Version: "1.0", InstallerType: InstallerTypePkg},
+			wantErr:  true,
+		},
+		{
+			name: "copy from dmg without installer",
+			mutation: PackageMutation{
+				Version:       "1.0",
+				InstallerType: InstallerTypeCopyFromDMG,
+				ItemsToCopy:   []PackageItemToCopy{{SourceItem: "Example.app", DestinationPath: "/Applications"}},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := tc.mutation.validate()
+			if tc.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("validate() error = %v, want nil", err)
+			}
+		})
 	}
 }
 

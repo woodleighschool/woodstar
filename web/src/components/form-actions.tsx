@@ -27,6 +27,7 @@ export function FormActions<
   form,
   submitLabel,
   onCancel,
+  canCancelWhileSubmitting = false,
   className,
 }: {
   form: ReactFormExtendedApi<
@@ -45,6 +46,7 @@ export function FormActions<
   >;
   submitLabel: string;
   onCancel?: () => void;
+  canCancelWhileSubmitting?: boolean;
   className?: string;
 }) {
   return (
@@ -56,7 +58,13 @@ export function FormActions<
             {submitLabel}
           </Button>
           {onCancel ? (
-            <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isSubmitting && !canCancelWhileSubmitting}
+              onClick={onCancel}
+            >
               Cancel
             </Button>
           ) : null}

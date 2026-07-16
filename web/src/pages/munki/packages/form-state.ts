@@ -78,7 +78,6 @@ export interface PackageFormState {
   blocking_applications_quit_script: string;
   requires: PackageReferenceRow[];
   update_for: PackageReferenceRow[];
-  eligible: boolean;
   unattended_install: boolean;
   unattended_uninstall: boolean;
   on_demand: boolean;
@@ -187,7 +186,10 @@ export function validatePackageForm(value: PackageFormState) {
   return { fields: fieldErrors(result) };
 }
 
-export function packageMutationFromForm(form: PackageFormState): MunkiPackageMutation {
+export function packageMutationFromForm(
+  form: PackageFormState,
+  installerObjectID?: number,
+): MunkiPackageMutation {
   const installerType = form.installer_type;
   const uninstallMethod = form.uninstall_method;
   const usesInstallerOptions = installerType !== "nopkg";
@@ -199,6 +201,7 @@ export function packageMutationFromForm(form: PackageFormState): MunkiPackageMut
   return {
     version: form.version,
     installer_type: installerType,
+    installer_object_id: installerType === "nopkg" ? undefined : installerObjectID,
     uninstall_method: form.uninstallable ? uninstallMethod : undefined,
     restart_action: form.restart_required ? form.restart_action : undefined,
     minimum_munki_version: nonEmpty(form.minimum_munki_version),
@@ -212,7 +215,6 @@ export function packageMutationFromForm(form: PackageFormState): MunkiPackageMut
     blocking_applications_quit_script: nonEmpty(form.blocking_applications_quit_script),
     requires: cleanPackageReferences(form.requires),
     update_for: cleanPackageReferences(form.update_for),
-    eligible: form.eligible,
     unattended_install: form.unattended_install,
     unattended_uninstall: form.unattended_uninstall,
     on_demand: form.on_demand,
@@ -268,7 +270,6 @@ export function emptyPackageForm(): PackageFormState {
     blocking_applications_quit_script: "",
     requires: [],
     update_for: [],
-    eligible: true,
     unattended_install: false,
     unattended_uninstall: false,
     on_demand: false,
@@ -319,7 +320,6 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     blocking_applications_quit_script: pkg.blocking_applications_quit_script,
     requires: packageReferenceRows(pkg.requires ?? []),
     update_for: packageReferenceRows(pkg.update_for ?? []),
-    eligible: pkg.eligible,
     unattended_install: pkg.unattended_install,
     unattended_uninstall: pkg.unattended_uninstall,
     on_demand: pkg.on_demand,

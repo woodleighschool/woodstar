@@ -23,6 +23,26 @@ type MunkiObjectMutation struct {
 	ObjectID int64 `json:"object_id" minimum:"1"`
 }
 
+type MunkiMultipartUpload struct {
+	UploadID string `json:"upload_id"`
+	Key      string `json:"key"`
+}
+
+type MunkiMultipartPartTarget struct {
+	UploadURL string            `json:"upload_url"`
+	Method    string            `json:"method"`
+	Headers   map[string]string `json:"headers,omitempty"`
+}
+
+type MunkiMultipartCompletedPart struct {
+	PartNumber int32  `json:"part_number" minimum:"1" maximum:"10000"`
+	ETag       string `json:"etag"                                    minLength:"1"`
+}
+
+type MunkiMultipartCompleteRequest struct {
+	Parts []MunkiMultipartCompletedPart `json:"parts" minItems:"1"`
+}
+
 type MunkiUploadTransport storage.UploadTransport
 
 var munkiUploadTransportValues = []MunkiUploadTransport{
@@ -103,7 +123,7 @@ func finalizeMunkiUpload(
 	if errors.Is(err, storage.ErrObjectNotFound) {
 		return nil, errors.Join(
 			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
-			cleanupMunkiUpload(ctx, uploads, objectID),
+			cleanupMunkiUpload(ctx, uploads, objectID, prefix),
 		)
 	}
 	return object, err
@@ -122,13 +142,18 @@ func setMunkiObject(
 		return MunkiObjectView{}, err
 	}
 	if err := set(object.ID); err != nil {
-		return MunkiObjectView{}, errors.Join(err, cleanupMunkiUpload(ctx, uploads, object.ID))
+		return MunkiObjectView{}, errors.Join(err, cleanupMunkiUpload(ctx, uploads, object.ID, prefix))
 	}
 	return munkiObjectViewWithContentURL(ctx, objects, *object)
 }
 
-func cleanupMunkiUpload(ctx context.Context, uploads *munkiupload.Service, objectID int64) error {
-	err := uploads.Delete(ctx, objectID)
+func cleanupMunkiUpload(
+	ctx context.Context,
+	uploads *munkiupload.Service,
+	objectID int64,
+	prefix string,
+) error {
+	err := uploads.Delete(ctx, objectID, prefix)
 	if errors.Is(err, dbutil.ErrConflict) || errors.Is(err, dbutil.ErrNotFound) {
 		return nil
 	}

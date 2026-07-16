@@ -150,6 +150,51 @@ func TestMarkAvailableRejectsInvalidContentType(t *testing.T) {
 	}
 }
 
+func TestMultipartUploadIDMustBeNonblankAndClosedBeforeAvailability(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewObjectStore(db, nil)
+	object, err := store.CreatePending(ctx, "munki/packages", "installer.pkg")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+	if _, _, err := store.RecordMultipartUploadID(ctx, object.ID, "  "); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("record blank multipart ID error = %v, want ErrInvalidInput", err)
+	}
+	uploadID, created, err := store.RecordMultipartUploadID(ctx, object.ID, "upload-1")
+	if err != nil {
+		t.Fatalf("record multipart ID: %v", err)
+	}
+	if !created || uploadID != "upload-1" {
+		t.Fatalf("recorded multipart = %q/%t, want upload-1/true", uploadID, created)
+	}
+	_, err = store.MarkAvailable(
+		ctx,
+		object.ID,
+		1,
+		"application/octet-stream",
+		strings.Repeat("a", 64),
+	)
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("finalize open multipart error = %v, want ErrInvalidInput", err)
+	}
+	if err := store.ClearMultipartUploadID(ctx, object.ID, uploadID); err != nil {
+		t.Fatalf("clear multipart ID: %v", err)
+	}
+	available, err := store.MarkAvailable(
+		ctx,
+		object.ID,
+		1,
+		"application/octet-stream",
+		strings.Repeat("a", 64),
+	)
+	if err != nil {
+		t.Fatalf("finalize closed multipart: %v", err)
+	}
+	if available.MultipartUploadID != nil {
+		t.Fatalf("available multipart ID = %v, want nil", available.MultipartUploadID)
+	}
+}
+
 func objectIDs(objects []Object) []int64 {
 	ids := make([]int64, len(objects))
 	for i, object := range objects {

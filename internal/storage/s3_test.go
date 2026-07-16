@@ -16,6 +16,93 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
+func TestS3MultipartCreateSignCompleteAndAbort(t *testing.T) {
+	t.Parallel()
+	type requestRecord struct {
+		method string
+		query  string
+		body   string
+	}
+	var mu sync.Mutex
+	var requests []requestRecord
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		requests = append(requests, requestRecord{method: r.Method, query: r.URL.RawQuery, body: string(body)})
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/xml")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Query().Has("uploads"):
+			_, _ = io.WriteString(
+				w,
+				`<CreateMultipartUploadResult><Bucket>test</Bucket><Key>munki/packages/42/Installer.pkg</Key><UploadId>upload-42</UploadId></CreateMultipartUploadResult>`,
+			)
+		case r.Method == http.MethodPost && r.URL.Query().Get("uploadId") == "upload-42":
+			_, _ = io.WriteString(
+				w,
+				`<CompleteMultipartUploadResult><Bucket>test</Bucket><Key>munki/packages/42/Installer.pkg</Key><ETag>whole</ETag></CompleteMultipartUploadResult>`,
+			)
+		case r.Method == http.MethodDelete && r.URL.Query().Get("uploadId") == "upload-42":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := newS3Client(aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("access", "secret", ""),
+		HTTPClient:  server.Client(),
+	}, server.URL, true)
+	store := &s3Store{bucket: "test", client: client, presigner: s3.NewPresignClient(client)}
+	key := "munki/packages/42/Installer.pkg"
+	uploadID, err := store.CreateMultipartUpload(t.Context(), key)
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+	if uploadID != "upload-42" {
+		t.Fatalf("upload ID = %q, want upload-42", uploadID)
+	}
+
+	target, err := store.PresignMultipartPart(t.Context(), key, uploadID, 7, time.Minute)
+	if err != nil {
+		t.Fatalf("PresignMultipartPart: %v", err)
+	}
+	parsed, err := url.Parse(target.URL)
+	if err != nil {
+		t.Fatalf("parse part URL: %v", err)
+	}
+	if target.Method != http.MethodPut || parsed.Query().Get("partNumber") != "7" ||
+		parsed.Query().Get("uploadId") != uploadID {
+		t.Fatalf("part target = %+v, want signed PUT for part 7", target)
+	}
+
+	parts := []CompletedPart{
+		{PartNumber: 1, ETag: `"etag-1"`},
+		{PartNumber: 7, ETag: `"etag-7"`},
+	}
+	if err := store.CompleteMultipartUpload(t.Context(), key, uploadID, parts); err != nil {
+		t.Fatalf("CompleteMultipartUpload: %v", err)
+	}
+	if err := store.AbortMultipartUpload(t.Context(), key, uploadID); err != nil {
+		t.Fatalf("AbortMultipartUpload: %v", err)
+	}
+
+	mu.Lock()
+	got := append([]requestRecord(nil), requests...)
+	mu.Unlock()
+	if len(got) != 3 {
+		t.Fatalf("requests = %#v, want create, complete, abort", got)
+	}
+	completion := got[1].body
+	first := strings.Index(completion, "<PartNumber>1</PartNumber>")
+	second := strings.Index(completion, "<PartNumber>7</PartNumber>")
+	if first < 0 || second <= first {
+		t.Fatalf("completion body = %q, want parts in ascending order", completion)
+	}
+}
+
 func TestServeObjectReadsS3Ranges(t *testing.T) {
 	t.Parallel()
 	const body = "0123456789"

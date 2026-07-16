@@ -3,6 +3,7 @@ package munki
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -180,7 +181,7 @@ func (s *RepositoryService) ResolvePackageFile(
 		return PackageInstaller{}, ErrNotFound
 	}
 	pkg := pkgs[0]
-	if !pkg.Eligible || pkg.InstallerType == packages.InstallerTypeNoPkg {
+	if pkg.InstallerType == packages.InstallerTypeNoPkg {
 		return PackageInstaller{}, ErrNotFound
 	}
 	objects, err := s.objectsForPackages(ctx, []packages.Package{pkg})
@@ -188,7 +189,10 @@ func (s *RepositoryService) ResolvePackageFile(
 		return PackageInstaller{}, err
 	}
 	obj := objectByID(objects, pkg.InstallerObjectID)
-	if obj == nil || !obj.Available() || packages.InstallerItemLocation(pkg, *obj) != key {
+	if obj == nil || !obj.Available() || obj.SizeBytes == nil || obj.SHA256 == nil {
+		return PackageInstaller{}, fmt.Errorf("package %d installer object is not finalized", pkg.ID)
+	}
+	if packages.InstallerItemLocation(pkg, *obj) != key {
 		return PackageInstaller{}, ErrNotFound
 	}
 	return PackageInstaller{
@@ -306,7 +310,11 @@ func (s *RepositoryService) catalogItems(
 	}
 	items := make([]any, 0, len(pkgs))
 	for _, pkg := range pkgs {
-		items = append(items, packages.Pkginfo(pkg, packageObjects(pkg, objects)))
+		item, err := packages.Pkginfo(pkg, packageObjects(pkg, objects))
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
 	return items, nil
 }

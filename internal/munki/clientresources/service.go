@@ -26,7 +26,7 @@ type registry interface {
 type uploader interface {
 	Finalize(context.Context, int64, string) (*storage.Object, error)
 	Write(context.Context, string, string, string, []byte) (*storage.Object, error)
-	Delete(context.Context, int64) error
+	Delete(context.Context, int64, string) error
 }
 
 type resourceStore interface {
@@ -68,7 +68,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	}
 	cleanupBanner := func() error {
 		if wasPending {
-			return cleanupObjects(ctx, s.uploads, banner.ID)
+			return cleanupUploads(ctx, s.uploads, BannerObjectPrefix, banner.ID)
 		}
 		return nil
 	}
@@ -94,7 +94,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	if err != nil {
 		return nil, errors.Join(
 			err,
-			cleanupObjects(ctx, s.uploads, archive.ID),
+			cleanupUploads(ctx, s.uploads, ArchiveObjectPrefix, archive.ID),
 			cleanupBanner(),
 		)
 	}
@@ -122,16 +122,19 @@ func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.O
 		if errors.Is(err, storage.ErrObjectNotFound) {
 			return nil, true, errors.Join(
 				fmt.Errorf("%w: uploaded banner does not exist", dbutil.ErrInvalidInput),
-				cleanupObjects(ctx, s.uploads, objectID),
+				cleanupUploads(ctx, s.uploads, BannerObjectPrefix, objectID),
 			)
 		}
 		if err != nil {
-			return nil, true, errors.Join(err, cleanupObjects(ctx, s.uploads, objectID))
+			return nil, true, errors.Join(
+				err,
+				cleanupUploads(ctx, s.uploads, BannerObjectPrefix, objectID),
+			)
 		}
 	}
 	if err := validateBanner(banner.ContentType, banner.SizeBytesValue()); err != nil {
 		if wasPending {
-			err = errors.Join(err, cleanupObjects(ctx, s.uploads, banner.ID))
+			err = errors.Join(err, cleanupUploads(ctx, s.uploads, BannerObjectPrefix, banner.ID))
 		}
 		return nil, wasPending, err
 	}

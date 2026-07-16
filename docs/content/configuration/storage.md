@@ -6,7 +6,7 @@ description: Where Munki files live and how clients get to them.
 
 # Munki Storage
 
-Munki package installers, icons, client-resources banners, and compiled client-resources archives all use Woodstar's storage abstraction. Their owning metadata stays in Postgres; the bytes live in a storage backend. A file is available only after its storage object has been uploaded and confirmed.
+Munki package installers, icons, client-resources banners, and compiled client-resources archives all use Woodstar's storage backends. Their owning metadata stays in Postgres; the bytes live on disk or in a bucket. A file is available only after its storage object has been uploaded and finalized.
 
 ## Backends
 
@@ -17,22 +17,26 @@ Munki package installers, icons, client-resources banners, and compiled client-r
 
 The rest of Woodstar behaves the same either way; only the byte transfer differs.
 
-## Getting artifacts in
+## Getting package installers in
 
-Package and icon uploads are create-first. You make the Munki resource, attach a pending storage object to it, push the bytes, then confirm:
+Installer-backed packages use one installer-first lifecycle:
 
-1. Create the software title or package. It can exist before it has any bytes.
-2. Attach an upload. Woodstar registers a pending object and returns an upload target.
-3. Upload the bytes to that target.
-4. Confirm. Woodstar checks the object landed and marks it available; only then will Munki serve it.
+1. Reserve an unclaimed package-installer object.
+2. Upload its bytes.
+3. Finalize it. Woodstar derives the content type, size, and whole-file SHA-256 and marks the object available.
+4. Create or fully replace the package with that `installer_object_id`.
 
-The upload target depends on the backend. On `s3` it is a presigned `PUT` straight to the bucket, so the bytes never pass through Woodstar. On `file` it is a Woodstar URL that streams the body to disk, so large installers do not buffer in memory.
+A `pkg` or `copy_from_dmg` package cannot be persisted without its finalized installer. A `nopkg` package has no installer object. Packages are therefore available to catalogs and targeting as soon as they exist; there is no separate eligibility or availability switch.
 
-Client Resources uses the same upload path for its banner, accepting JPEG and PNG images up to 5 MiB. On **Save**, Woodstar confirms and validates the banner, builds `site_default.zip` on the server, stores the archive through the selected backend, and replaces the singleton's banner and archive references. The client never uploads a ZIP.
+On `file`, upload is one raw `PUT` to a Woodstar URL. The file backend has no multipart operations. On `s3`, files up to 100 MiB use the existing presigned single `PUT`; larger browser uploads use S3 multipart upload and presigned part `PUT`s. Multipart completion assembles bytes at the immutable canonical object key, then normal finalization streams that object once through Woodstar to calculate Munki's whole-file SHA-256. A multipart ETag is never used as `installer_item_hash`.
+
+Canceling an upload aborts an open S3 multipart upload and removes the unclaimed object. Configure the bucket's incomplete-multipart lifecycle rule for abandoned uploads that never reach explicit cancellation.
+
+Icons keep their resource-scoped reserve, upload, and attach lifecycle. Client Resources uses the same scoped upload path for its banner, accepting JPEG and PNG images up to 5 MiB. On **Save**, Woodstar finalizes and validates the banner, builds `site_default.zip` on the server, stores the archive through the selected backend, and replaces the singleton's banner and archive references. The client never uploads a ZIP.
 
 ### Browser uploads to S3 need bucket CORS
 
-The `s3` upload goes from the browser directly to the bucket, which makes it a cross-origin request. The bucket has to return CORS headers for the admin origin, or the browser blocks the `PUT`: the preflight `OPTIONS` is rejected (Cloudflare R2, for example, answers `403`) and the upload never starts. Add a CORS rule that allows the Woodstar origin with `PUT`, `GET`, and `HEAD`:
+The `s3` upload goes from the browser directly to the bucket, which makes it a cross-origin request. The bucket has to return CORS headers for the admin origin, or the browser blocks the `PUT`. Multipart uploads also require the browser to read each part's `ETag`. Add a CORS rule that allows the Woodstar origin with `PUT`, `GET`, and `HEAD` and exposes `ETag`:
 
 ```json
 [

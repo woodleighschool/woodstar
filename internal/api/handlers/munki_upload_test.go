@@ -24,70 +24,126 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestMunkiUploadRoutes(t *testing.T) {
+func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
 
-	t.Run("package installer", func(t *testing.T) {
-		path := fmt.Sprintf("/api/munki/packages/%d/installer", fixture.packageID)
-		target := fixture.beginUpload(t, path, "Installer.pkg")
+	t.Run("reserve upload finalize and create package", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "Installer.pkg")
 		fixture.upload(t, target, []byte{0x00, 0x01, 0x02, 0x03})
 
-		rec := fixture.requestJSON(
-			t,
-			http.MethodPut,
-			path,
-			MunkiObjectMutation{ObjectID: target.ObjectID},
-		)
-		assertStatus(t, rec, http.StatusOK, "attach package")
+		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
+		assertStatus(t, rec, http.StatusOK, "finalize installer")
 		var view MunkiObjectView
 		decodeJSON(t, rec, &view)
 		if view.ID != target.ObjectID || view.ContentType != "application/octet-stream" {
-			t.Fatalf(
-				"attached package = %+v, want object %d as application/octet-stream",
-				view,
-				target.ObjectID,
-			)
+			t.Fatalf("finalized installer = %+v, want object %d", view, target.ObjectID)
+		}
+
+		create := fixture.requestJSON(t, http.MethodPost, munkiPackagePath, packages.PackageCreateMutation{
+			SoftwareID: fixture.softwareID,
+			PackageMutation: packages.PackageMutation{
+				Version:           "1.0",
+				InstallerType:     packages.InstallerTypePkg,
+				InstallerObjectID: &view.ID,
+			},
+		})
+		assertStatus(t, create, http.StatusCreated, "create package")
+		var pkg munkiPackage
+		decodeJSON(t, create, &pkg)
+		if pkg.InstallerFile == nil || pkg.InstallerFile.SHA256 == "" || pkg.InstallerFile.SizeBytes != 4 {
+			t.Fatalf("package installer = %+v, want finalized metadata", pkg.InstallerFile)
 		}
 	})
 
-	t.Run("software icon", func(t *testing.T) {
-		path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
-		target := fixture.beginUpload(t, path, "icon.png")
-		fixture.upload(t, target, []byte("\x89PNG\r\n\x1a\n"))
-
-		rec := fixture.requestJSON(
+	t.Run("cancel pending upload", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "cancel.pkg")
+		rec := fixture.request(
 			t,
-			http.MethodPut,
-			path,
-			MunkiObjectMutation{ObjectID: target.ObjectID},
+			http.MethodDelete,
+			fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID),
 		)
-		assertStatus(t, rec, http.StatusOK, "attach icon")
-		var view MunkiObjectView
-		decodeJSON(t, rec, &view)
-		if view.ID != target.ObjectID || view.ContentType != "image/png" {
-			t.Fatalf("attached icon = %+v, want object %d as image/png", view, target.ObjectID)
+		assertStatus(t, rec, http.StatusNoContent, "cancel installer")
+		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
+		if !errors.Is(err, dbutil.ErrNotFound) {
+			t.Fatalf("get cancelled object error = %v, want ErrNotFound", err)
 		}
 	})
 
 	t.Run("missing upload bytes", func(t *testing.T) {
-		path := fmt.Sprintf("/api/munki/packages/%d/installer", fixture.packageID)
-		target := fixture.beginUpload(t, path, "missing.pkg")
-		rec := fixture.requestJSON(
-			t,
-			http.MethodPut,
-			path,
-			MunkiObjectMutation{ObjectID: target.ObjectID},
-		)
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "missing.pkg")
+		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
 		assertStatus(t, rec, http.StatusBadRequest, "missing upload")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
 		if !errors.Is(err, dbutil.ErrNotFound) {
-			t.Fatalf("get cleaned missing upload error = %v, want %v", err, dbutil.ErrNotFound)
+			t.Fatalf("get cleaned missing upload error = %v, want ErrNotFound", err)
 		}
 	})
 
+	t.Run("referenced object conflicts", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "claimed.pkg")
+		fixture.upload(t, target, []byte("claimed installer"))
+		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
+		assertStatus(t, fixture.request(t, http.MethodPut, path), http.StatusOK, "finalize claimed installer")
+		if _, err := fixture.packages.Create(t.Context(), packages.PackageCreateMutation{
+			SoftwareID: fixture.softwareID,
+			PackageMutation: packages.PackageMutation{
+				Version:           "2.0",
+				InstallerType:     packages.InstallerTypePkg,
+				InstallerObjectID: &target.ObjectID,
+			},
+		}); err != nil {
+			t.Fatalf("create package: %v", err)
+		}
+		assertStatus(
+			t,
+			fixture.request(t, http.MethodDelete, path),
+			http.StatusConflict,
+			"delete claimed installer",
+		)
+	})
+
+	t.Run("delete rejects another object prefix", func(t *testing.T) {
+		iconPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
+		target := fixture.beginUpload(t, iconPath, "icon.png")
+		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
+		assertStatus(t, fixture.request(t, http.MethodDelete, path), http.StatusBadRequest, "delete icon as installer")
+		if _, err := fixture.objects.GetByID(t.Context(), target.ObjectID); err != nil {
+			t.Fatalf("get cross-prefix object: %v", err)
+		}
+	})
+
+	t.Run("multipart is rejected by file storage", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "multipart.pkg")
+		path := fmt.Sprintf("%s/%d/multipart", munkiPackageInstallerPath, target.ObjectID)
+		assertStatus(
+			t,
+			fixture.request(t, http.MethodPost, path),
+			http.StatusBadRequest,
+			"create multipart upload",
+		)
+	})
+}
+
+func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
+	fixture := newMunkiUploadFixture(t)
+	path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
+	target := fixture.beginUpload(t, path, "icon.png")
+	fixture.upload(t, target, []byte("\x89PNG\r\n\x1a\n"))
+
+	rec := fixture.requestJSON(t, http.MethodPut, path, MunkiObjectMutation{ObjectID: target.ObjectID})
+	assertStatus(t, rec, http.StatusOK, "attach icon")
+	var view MunkiObjectView
+	decodeJSON(t, rec, &view)
+	if view.ID != target.ObjectID || view.ContentType != "image/png" {
+		t.Fatalf("attached icon = %+v, want object %d as image/png", view, target.ObjectID)
+	}
+}
+
+func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
+	fixture := newMunkiUploadFixture(t)
+
 	t.Run("wrong object prefix", func(t *testing.T) {
-		packagePath := fmt.Sprintf("/api/munki/packages/%d/installer", fixture.packageID)
-		target := fixture.beginUpload(t, packagePath, "wrong-prefix.pkg")
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "wrong-prefix.pkg")
 		rec := fixture.requestJSON(
 			t,
 			http.MethodPut,
@@ -101,16 +157,11 @@ func TestMunkiUploadRoutes(t *testing.T) {
 		path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
 		target := fixture.beginUpload(t, path, "not-an-icon.txt")
 		fixture.upload(t, target, []byte("not an image"))
-		rec := fixture.requestJSON(
-			t,
-			http.MethodPut,
-			path,
-			MunkiObjectMutation{ObjectID: target.ObjectID},
-		)
+		rec := fixture.requestJSON(t, http.MethodPut, path, MunkiObjectMutation{ObjectID: target.ObjectID})
 		assertStatus(t, rec, http.StatusBadRequest, "invalid icon")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
 		if !errors.Is(err, dbutil.ErrNotFound) {
-			t.Fatalf("get cleaned invalid icon error = %v, want %v", err, dbutil.ErrNotFound)
+			t.Fatalf("get cleaned invalid icon error = %v, want ErrNotFound", err)
 		}
 	})
 }
@@ -118,8 +169,8 @@ func TestMunkiUploadRoutes(t *testing.T) {
 type munkiUploadFixture struct {
 	router     *chi.Mux
 	objects    *storage.ObjectStore
+	packages   *packages.Store
 	softwareID int64
-	packageID  int64
 }
 
 func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
@@ -128,39 +179,28 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	backend := newTestFileStore(t)
 	objects := storage.NewObjectStore(db, backend)
 	uploads := munkiupload.NewService(objects, backend)
-	packageStore := packages.NewStore(db, objects)
+	packageStore := packages.NewStore(db, objects, discardLogger())
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "Upload Test"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
-	pkg, err := packageStore.Create(ctx, packages.PackageCreateMutation{
-		SoftwareID: software.ID,
-		PackageMutation: packages.PackageMutation{
-			Version:       "1.0",
-			InstallerType: packages.InstallerTypePkg,
-			Eligible:      true,
-		},
-	})
-	if err != nil {
-		t.Fatalf("create package: %v", err)
-	}
-	packageService := munki.NewPackageService(munki.PackageServiceDependencies{
-		Packages:               packageStore,
-		DesiredPackagesChanged: func() {},
-	})
 
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerObjectRoutes(api, packageService, objects, uploads, discardLogger())
+	registerPackageInstallerRoutes(api, objects, uploads, discardLogger())
+	registerCreateMunkiPackage(api, munki.NewPackageService(munki.PackageServiceDependencies{
+		Packages:               packageStore,
+		DesiredPackagesChanged: func() {},
+	}), discardLogger())
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
 	RegisterBlobStorage(router, backend, testCapabilityKey, discardLogger())
 
 	return munkiUploadFixture{
 		router:     router,
 		objects:    objects,
+		packages:   packageStore,
 		softwareID: software.ID,
-		packageID:  pkg.ID,
 	}
 }
 
@@ -188,6 +228,18 @@ func (f munkiUploadFixture) upload(t *testing.T, target MunkiUploadTarget, body 
 	assertStatus(t, rec, http.StatusNoContent, "upload")
 }
 
+func (f munkiUploadFixture) request(
+	t *testing.T,
+	method string,
+	path string,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
+	f.router.ServeHTTP(rec, req)
+	return rec
+}
+
 func (f munkiUploadFixture) requestJSON(
 	t *testing.T,
 	method string,
@@ -213,20 +265,9 @@ func decodeJSON(t *testing.T, rec *httptest.ResponseRecorder, target any) {
 	}
 }
 
-func assertStatus(
-	t *testing.T,
-	rec *httptest.ResponseRecorder,
-	want int,
-	operation string,
-) {
+func assertStatus(t *testing.T, rec *httptest.ResponseRecorder, want int, operation string) {
 	t.Helper()
 	if rec.Code != want {
-		t.Fatalf(
-			"%s status = %d, want %d; body = %q",
-			operation,
-			rec.Code,
-			want,
-			rec.Body.String(),
-		)
+		t.Fatalf("%s status = %d, want %d; body = %q", operation, rec.Code, want, rec.Body.String())
 	}
 }

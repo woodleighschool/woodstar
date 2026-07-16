@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -15,7 +15,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { useMunkiSoftware } from "@/hooks/use-munki-software";
-import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { deleteUnclaimedMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import type { MunkiSoftware } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
@@ -31,20 +31,48 @@ export function MunkiPackageCreatePage() {
   const [softwareID, setSoftwareID] = useState<number | null>(initialSoftwareID);
   const create = useCreateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
+  const cancelled = useRef(false);
+  const packageMutationAbort = useRef<AbortController | null>(null);
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const form = usePackageEditorForm(emptyPackageForm(), async (value) => {
+    cancelled.current = false;
     if (softwareID === null) {
       toast.error("Pick software.");
       return;
     }
-    const pkg = await create.mutateAsync({
-      software_id: softwareID,
-      ...packageMutationFromForm(value),
-    });
-    if (value.installer_type !== "nopkg" && installerFile) {
-      await installerUpload.upload({ packageId: pkg.id, file: installerFile });
+    let installerObjectID: number | undefined;
+    if (value.installer_type !== "nopkg") {
+      if (!installerFile) {
+        toast.error("Select an installer file.");
+        return;
+      }
+      installerObjectID = (await installerUpload.upload({ file: installerFile })).id;
+      if (cancelled.current) {
+        await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
+        return;
+      }
+    }
+    const abortController = new AbortController();
+    packageMutationAbort.current = abortController;
+    try {
+      await create.mutateAsync({
+        body: {
+          software_id: softwareID,
+          ...packageMutationFromForm(value, installerObjectID),
+        },
+        signal: abortController.signal,
+      });
+    } catch (error) {
+      if (installerObjectID !== undefined) {
+        await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
+      }
+      throw error;
+    } finally {
+      if (packageMutationAbort.current === abortController) {
+        packageMutationAbort.current = null;
+      }
     }
     void navigate({ to: "/munki/packages" });
   });
@@ -80,11 +108,14 @@ export function MunkiPackageCreatePage() {
       packageOptions={packages.data?.items ?? []}
       installerFile={installerFile}
       installerMetadata={undefined}
-      hasInstallerObject={false}
       onInstallerFileChange={setInstallerFile}
-      onDeleteInstaller={undefined}
-      deletingInstaller={false}
-      onCancel={() => void navigate({ to: "/munki/packages" })}
+      canCancelWhileSubmitting={installerUpload.isUploading}
+      onCancel={() => {
+        cancelled.current = true;
+        installerUpload.cancel();
+        packageMutationAbort.current?.abort();
+        void navigate({ to: "/munki/packages" });
+      }}
     />
   );
 }

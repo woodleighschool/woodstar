@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/gabriel-vasile/mimetype"
 
@@ -22,6 +23,12 @@ const uploadPrefix = "munki/.uploads/"
 type Service struct {
 	objects *storage.ObjectStore
 	backend storage.Backend
+}
+
+// MultipartUpload is the provider state Uppy needs to start uploading parts.
+type MultipartUpload struct {
+	UploadID string
+	Key      string
 }
 
 // NewService returns a Munki object ingestion service.
@@ -41,7 +48,7 @@ func (s *Service) Begin(
 	}
 	target, err := s.backend.PresignPut(ctx, uploadKey(object.ID), 0)
 	if err != nil {
-		return nil, storage.UploadTarget{}, errors.Join(err, s.Delete(ctx, object.ID))
+		return nil, storage.UploadTarget{}, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
 	return object, target, nil
 }
@@ -96,6 +103,9 @@ func (s *Service) Finalize(
 	if object.Available() {
 		return object, nil
 	}
+	if object.MultipartUploadID != nil {
+		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", dbutil.ErrInvalidInput)
+	}
 
 	sourceKey := object.Key()
 	metadata, err := s.inspect(ctx, sourceKey)
@@ -123,7 +133,7 @@ func (s *Service) Finalize(
 		if canonicalMetadata != metadata {
 			return nil, errors.Join(
 				fmt.Errorf("%w: uploaded object changed during finalization", dbutil.ErrInvalidInput),
-				s.Delete(ctx, object.ID),
+				s.Delete(ctx, object.ID, prefix),
 			)
 		}
 		metadata = canonicalMetadata
@@ -137,11 +147,124 @@ func (s *Service) Finalize(
 	)
 }
 
-// Delete removes a pending upload or a canonical object.
-func (s *Service) Delete(ctx context.Context, objectID int64) error {
+// CreateMultipart creates or resumes the provider upload recorded for a pending object.
+func (s *Service) CreateMultipart(
+	ctx context.Context,
+	objectID int64,
+	prefix string,
+) (MultipartUpload, error) {
+	object, backend, err := s.multipartObject(ctx, objectID, prefix)
+	if err != nil {
+		return MultipartUpload{}, err
+	}
+	if object.MultipartUploadID != nil {
+		return MultipartUpload{UploadID: *object.MultipartUploadID, Key: object.Key()}, nil
+	}
+	canonicalExists, err := s.canonicalObjectExists(ctx, object.Key())
+	if err != nil {
+		return MultipartUpload{}, err
+	}
+	if canonicalExists {
+		return MultipartUpload{}, fmt.Errorf(
+			"%w: multipart upload is already completed and ready to finalize",
+			dbutil.ErrInvalidInput,
+		)
+	}
+	uploadID, err := backend.CreateMultipartUpload(ctx, object.Key())
+	if err != nil {
+		return MultipartUpload{}, err
+	}
+	recordedID, created, err := s.objects.RecordMultipartUploadID(ctx, object.ID, uploadID)
+	if err != nil {
+		return MultipartUpload{}, errors.Join(err, backend.AbortMultipartUpload(ctx, object.Key(), uploadID))
+	}
+	if !created {
+		abortErr := backend.AbortMultipartUpload(ctx, object.Key(), uploadID)
+		if abortErr != nil && !errors.Is(abortErr, storage.ErrMultipartUploadNotFound) {
+			return MultipartUpload{}, abortErr
+		}
+	}
+	return MultipartUpload{UploadID: recordedID, Key: object.Key()}, nil
+}
+
+// PresignMultipartPart returns an S3 PUT target for a recorded multipart upload.
+func (s *Service) PresignMultipartPart(
+	ctx context.Context,
+	objectID int64,
+	prefix string,
+	partNumber int32,
+) (storage.UploadTarget, error) {
+	if partNumber < 1 || partNumber > 10_000 {
+		return storage.UploadTarget{}, fmt.Errorf("%w: part_number must be between 1 and 10000", dbutil.ErrInvalidInput)
+	}
+	object, backend, err := s.multipartObject(ctx, objectID, prefix)
+	if err != nil {
+		return storage.UploadTarget{}, err
+	}
+	if object.MultipartUploadID == nil {
+		return storage.UploadTarget{}, fmt.Errorf("%w: multipart upload has not been created", dbutil.ErrInvalidInput)
+	}
+	return backend.PresignMultipartPart(ctx, object.Key(), *object.MultipartUploadID, partNumber, 0)
+}
+
+// CompleteMultipart assembles uploaded parts at the canonical object key.
+func (s *Service) CompleteMultipart(
+	ctx context.Context,
+	objectID int64,
+	prefix string,
+	parts []storage.CompletedPart,
+) error {
+	if err := validateCompletedParts(parts); err != nil {
+		return err
+	}
+	object, backend, err := s.multipartObject(ctx, objectID, prefix)
+	if err != nil {
+		return err
+	}
+	if object.MultipartUploadID == nil {
+		exists, existsErr := s.canonicalObjectExists(ctx, object.Key())
+		if existsErr != nil {
+			return existsErr
+		}
+		if exists {
+			return nil
+		}
+		return fmt.Errorf("%w: multipart upload has not been created", dbutil.ErrInvalidInput)
+	}
+	uploadID := *object.MultipartUploadID
+	err = backend.CompleteMultipartUpload(ctx, object.Key(), uploadID, parts)
+	if errors.Is(err, storage.ErrMultipartUploadNotFound) {
+		exists, existsErr := s.canonicalObjectExists(ctx, object.Key())
+		if existsErr != nil {
+			return existsErr
+		}
+		if !exists {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	return s.objects.ClearMultipartUploadID(ctx, object.ID, uploadID)
+}
+
+// Delete removes a pending upload or a canonical object under prefix.
+func (s *Service) Delete(ctx context.Context, objectID int64, prefix string) error {
 	object, err := s.objects.GetByID(ctx, objectID)
 	if err != nil {
 		return err
+	}
+	if object.Prefix != prefix {
+		return fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
+	}
+	if object.MultipartUploadID != nil {
+		backend, err := s.multipartBackend()
+		if err != nil {
+			return err
+		}
+		if err := backend.AbortMultipartUpload(ctx, object.Key(), *object.MultipartUploadID); err != nil &&
+			!errors.Is(err, storage.ErrMultipartUploadNotFound) {
+			return err
+		}
 	}
 	if !object.Available() {
 		key := uploadKey(object.ID)
@@ -150,6 +273,70 @@ func (s *Service) Delete(ctx context.Context, objectID int64) error {
 		}
 	}
 	return s.objects.Delete(ctx, object.ID)
+}
+
+func (s *Service) multipartObject(
+	ctx context.Context,
+	objectID int64,
+	prefix string,
+) (*storage.Object, storage.MultipartBackend, error) {
+	backend, err := s.multipartBackend()
+	if err != nil {
+		return nil, nil, err
+	}
+	object, err := s.objects.GetByID(ctx, objectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if object.Prefix != prefix {
+		return nil, nil, fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
+	}
+	if object.Available() {
+		return nil, nil, fmt.Errorf("%w: storage object is already finalized", dbutil.ErrInvalidInput)
+	}
+	return object, backend, nil
+}
+
+func (s *Service) multipartBackend() (storage.MultipartBackend, error) {
+	backend, ok := s.backend.(storage.MultipartBackend)
+	if !ok {
+		return nil, fmt.Errorf("%w: multipart uploads require S3 storage", dbutil.ErrInvalidInput)
+	}
+	return backend, nil
+}
+
+func (s *Service) canonicalObjectExists(ctx context.Context, key string) (bool, error) {
+	reader, _, err := s.backend.Open(ctx, key)
+	if errors.Is(err, storage.ErrObjectNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if err := reader.Close(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func validateCompletedParts(parts []storage.CompletedPart) error {
+	if len(parts) == 0 {
+		return fmt.Errorf("%w: multipart completion requires at least one part", dbutil.ErrInvalidInput)
+	}
+	var previous int32
+	for _, part := range parts {
+		if part.PartNumber < 1 || part.PartNumber > 10_000 {
+			return fmt.Errorf("%w: part_number must be between 1 and 10000", dbutil.ErrInvalidInput)
+		}
+		if part.PartNumber <= previous {
+			return fmt.Errorf("%w: multipart parts must be strictly ascending", dbutil.ErrInvalidInput)
+		}
+		if strings.TrimSpace(part.ETag) == "" {
+			return fmt.Errorf("%w: multipart part etag must not be blank", dbutil.ErrInvalidInput)
+		}
+		previous = part.PartNumber
+	}
+	return nil
 }
 
 type objectMetadata struct {

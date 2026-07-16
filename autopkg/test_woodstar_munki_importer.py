@@ -274,6 +274,121 @@ class PackageUploaderTests(unittest.TestCase):
                 ]
             )
 
+    def test_package_installer_upload_precedes_create_and_supplies_object_id(self):
+        client = FakeWoodstarClient()
+        software = client.post("/api/munki/software", self.software_body())
+        client.operations.clear()
+        uploader = WoodstarMunkiPackageUploader()
+        body = default_package_mutation()
+        body.update({"software_id": software["id"], "version": "1.0"})
+
+        with tempfile.NamedTemporaryFile(suffix=".pkg") as artifact:
+            artifact.write(b"package-v1")
+            artifact.flush()
+            package, action, changed, uploaded = uploader.save_package(
+                client, software["id"], body, artifact.name
+            )
+
+        self.assertEqual([operation[0] for operation in client.operations], ["upload", "post-package"])
+        self.assertEqual(package["installer_object_id"], 1)
+        self.assertEqual((action, changed, uploaded), ("Created", True, True))
+
+    def test_unchanged_installer_is_reused_before_update_comparison(self):
+        client = FakeWoodstarClient()
+        software = client.post("/api/munki/software", self.software_body())
+        uploader = WoodstarMunkiPackageUploader()
+        body = default_package_mutation()
+        body.update({"software_id": software["id"], "version": "1.0"})
+
+        with tempfile.NamedTemporaryFile(suffix=".pkg") as artifact:
+            artifact.write(b"package-v1")
+            artifact.flush()
+            uploader.save_package(client, software["id"], body, artifact.name)
+            client.operations.clear()
+            package, action, changed, uploaded = uploader.save_package(
+                client, software["id"], body, artifact.name
+            )
+
+        self.assertEqual(client.operations, [])
+        self.assertEqual(package["installer_object_id"], 1)
+        self.assertEqual((action, changed, uploaded), ("Skipped", False, False))
+
+    def test_failed_package_mutation_deletes_new_installer(self):
+        client = FakeWoodstarClient()
+        software = client.post("/api/munki/software", self.software_body())
+        uploader = WoodstarMunkiPackageUploader()
+        body = default_package_mutation()
+        body.update({"software_id": software["id"], "version": "1.0"})
+        client.fail_package_mutation = True
+
+        with tempfile.NamedTemporaryFile(suffix=".pkg") as artifact:
+            artifact.write(b"package-v1")
+            artifact.flush()
+            with self.assertRaises(ProcessorError):
+                uploader.save_package(client, software["id"], body, artifact.name)
+
+        self.assertEqual(
+            [operation[0] for operation in client.operations[-3:]],
+            ["upload", "post-package", "delete-installer"],
+        )
+
+    def test_failed_update_keeps_old_installer_and_deletes_replacement(self):
+        client = FakeWoodstarClient()
+        software = client.post("/api/munki/software", self.software_body())
+        uploader = WoodstarMunkiPackageUploader()
+        body = default_package_mutation()
+        body.update({"software_id": software["id"], "version": "1.0"})
+
+        with tempfile.NamedTemporaryFile(suffix=".pkg") as artifact:
+            artifact.write(b"package-v1")
+            artifact.flush()
+            original, _action, _changed, _uploaded = uploader.save_package(
+                client, software["id"], body, artifact.name
+            )
+            artifact.seek(0)
+            artifact.truncate()
+            artifact.write(b"package-v2")
+            artifact.flush()
+            client.operations.clear()
+            client.fail_package_mutation = True
+            with self.assertRaises(ProcessorError):
+                uploader.save_package(client, software["id"], body, artifact.name)
+
+        self.assertEqual(
+            [operation[0] for operation in client.operations],
+            ["upload", "put-package", "delete-installer"],
+        )
+        self.assertEqual(client.packages[original["id"]]["installer_object_id"], 1)
+
+    def test_nopkg_creates_without_installer_upload(self):
+        client = FakeWoodstarClient()
+        software = client.post("/api/munki/software", self.software_body())
+        client.operations.clear()
+        uploader = WoodstarMunkiPackageUploader()
+        body = default_package_mutation()
+        body.update(
+            {"software_id": software["id"], "version": "1.0", "installer_type": "nopkg"}
+        )
+
+        package, action, changed, uploaded = uploader.save_package(
+            client, software["id"], body, None
+        )
+
+        self.assertNotIn("installer_object_id", package)
+        self.assertEqual([operation[0] for operation in client.operations], ["post-package"])
+        self.assertEqual((action, changed, uploaded), ("Created", True, False))
+
+    @staticmethod
+    def software_body():
+        return {
+            "name": "Example",
+            "display_name": "",
+            "description": "",
+            "category": "",
+            "developer": "",
+            "targets": {"include": [], "exclude": []},
+        }
+
 
 class RepoImporterTests(unittest.TestCase):
     def test_preflight_rejects_divergent_software_metadata(self):
@@ -306,7 +421,7 @@ class RepoImporterTests(unittest.TestCase):
     def test_two_phase_import_resolves_later_versioned_dependency_and_is_idempotent(self):
         client = FakeWoodstarClient()
         importer = WoodstarMunkiRepoImporter()
-        importer.env = {"eligible": True}
+        importer.env = {}
         consumer = {
             "name": "Consumer",
             "display_name": "Consumer App",
@@ -368,7 +483,7 @@ class RepoImporterTests(unittest.TestCase):
         ]
         resolver = PackageReferenceResolver.from_client(client)
         for item in prepared:
-            importer.finish_pkginfo(client, item, resolver, False, counts)
+            importer.finish_pkginfo(client, item, resolver, counts)
         return counts
 
 
@@ -378,6 +493,10 @@ class FakeWoodstarClient:
         self.packages = {}
         self.next_software_id = 1
         self.next_package_id = 1
+        self.next_object_id = 1
+        self.objects = {}
+        self.operations = []
+        self.fail_package_mutation = False
 
     def get(self, path, query=None):
         if path == "/api/munki/software":
@@ -402,11 +521,15 @@ class FakeWoodstarClient:
             self.next_software_id += 1
             return dict(item)
         if path == "/api/munki/packages":
+            self.operations.append(("post-package", dict(body)))
+            if self.fail_package_mutation:
+                raise ProcessorError("package mutation failed")
             item = dict(body)
             item["id"] = self.next_package_id
             item["software_name"] = self.software[item["software_id"]]["name"]
             item.setdefault("requires", [])
             item.setdefault("update_for", [])
+            self.add_installer_metadata(item)
             self.packages[item["id"]] = item
             self.next_package_id += 1
             return dict(item)
@@ -415,7 +538,18 @@ class FakeWoodstarClient:
     def put(self, path, body=None):
         if path.startswith("/api/munki/packages/"):
             package_id = int(path.rsplit("/", 1)[1])
-            self.packages[package_id].update(body)
+            self.operations.append(("put-package", package_id, dict(body)))
+            if self.fail_package_mutation:
+                raise ProcessorError("package mutation failed")
+            software_id = self.packages[package_id]["software_id"]
+            software_name = self.packages[package_id]["software_name"]
+            self.packages[package_id] = {
+                **dict(body),
+                "id": package_id,
+                "software_id": software_id,
+                "software_name": software_name,
+            }
+            self.add_installer_metadata(self.packages[package_id])
             return dict(self.packages[package_id])
         raise AssertionError(f"unexpected PUT {path}")
 
@@ -425,6 +559,29 @@ class FakeWoodstarClient:
         software_id = int(path.split("/")[4])
         self.software[software_id]["icon_object_id"] = 42
         self.software[software_id]["icon_file"] = local_file_metadata(file_path)
+
+    def upload_package_installer(self, file_path):
+        object_id = self.next_object_id
+        self.next_object_id += 1
+        metadata = local_file_metadata(file_path)
+        self.objects[object_id] = metadata
+        self.operations.append(("upload", object_id))
+        return {"id": object_id, **metadata}
+
+    def delete(self, path):
+        prefix = "/api/munki/package-installers/"
+        if not path.startswith(prefix):
+            raise AssertionError(f"unexpected DELETE {path}")
+        object_id = int(path.removeprefix(prefix))
+        self.operations.append(("delete-installer", object_id))
+        self.objects.pop(object_id, None)
+
+    def add_installer_metadata(self, package):
+        object_id = package.get("installer_object_id")
+        if object_id is None:
+            package.pop("installer_file", None)
+            return
+        package["installer_file"] = dict(self.objects[object_id])
 
     @staticmethod
     def page(items):

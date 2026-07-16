@@ -88,7 +88,7 @@ func registerMunkiPackages(
 	registerPutMunkiPackage(api, store, logger)
 	registerDeleteMunkiPackage(api, store, logger)
 	registerBulkDeleteMunkiPackages(api, store, logger)
-	registerObjectRoutes(api, store, objects, uploads, logger)
+	registerPackageInstallerRoutes(api, objects, uploads, logger)
 }
 
 func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger *slog.Logger) {

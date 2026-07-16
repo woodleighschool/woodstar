@@ -119,11 +119,6 @@ class WoodstarMunkiPackageUploader(Processor):
             "required": False,
             "description": "Existing Woodstar Munki software ID. Defaults to woodstar_software_id.",
         },
-        "eligible": {
-            "required": False,
-            "description": "Whether this package is eligible when targets request the latest package.",
-            "default": True,
-        },
         "force": {
             "required": False,
             "description": "Upload package artifacts even when Woodstar already has the same file.",
@@ -148,11 +143,13 @@ class WoodstarMunkiPackageUploader(Processor):
 
         resolver = PackageReferenceResolver.from_client(client)
         body = self.package_body(pkginfo, software_id, resolver)
-        package, action, package_changed = self.save_package(client, software_id, body)
-
-        installer_uploaded = self.attach_binary(client, package, "installer", installer_path, force)
-        if installer_uploaded:
-            package = client.get(f"/api/munki/packages/{package['id']}")
+        package, action, package_changed, installer_uploaded = self.save_package(
+            client,
+            software_id,
+            body,
+            installer_path,
+            force,
+        )
 
         self.env["woodstar_package"] = package
         self.env["woodstar_package_id"] = package["id"]
@@ -176,12 +173,6 @@ class WoodstarMunkiPackageUploader(Processor):
             }
         self.output(
             f"{action} Woodstar package {package['id']}: {package.get('software_name', '')} {package['version']}")
-
-    def attach_binary(self, client, package, kind, file_path, force):
-        if not file_path or not needs_object(package, kind, file_path, force):
-            return False
-        client.attach_object(f"/api/munki/packages/{package['id']}/{kind}", file_path)
-        return True
 
     def software_id(self):
         software_id = self.env.get("software_id") or self.env.get("woodstar_software_id")
@@ -285,7 +276,6 @@ class WoodstarMunkiPackageUploader(Processor):
     def base_package_body(self, pkginfo, software_id):
         body = self.package_mutation_from_pkginfo(pkginfo)
         body["software_id"] = software_id
-        body["eligible"] = truthy(self.env.get("eligible", True))
         return body
 
     def package_body(self, pkginfo, software_id, resolver):
@@ -335,16 +325,41 @@ class WoodstarMunkiPackageUploader(Processor):
                 body[woodstar_key] = self.alert(pkginfo[munki_key], munki_key)
         return body
 
-    def save_package(self, client, software_id, body):
+    def save_package(self, client, software_id, body, installer_path, force=False):
         existing = self.existing_package(client, software_id, body["version"])
         if existing:
             existing = client.get(f"/api/munki/packages/{existing['id']}")
-            if self.package_matches(existing, body):
-                return existing, "Skipped", False
-            update_body = mutation_request_body(body)
-            del update_body["software_id"]
-            return client.put(f"/api/munki/packages/{existing['id']}", update_body), "Updated", True
-        return client.post("/api/munki/packages", mutation_request_body(body)), "Created", True
+        installer_object_id = None
+        installer_uploaded = False
+        if body["installer_type"] != "nopkg":
+            if not installer_path:
+                raise ProcessorError("package-bearing pkginfo requires an installer artifact")
+            if not existing or needs_object(existing, "installer", installer_path, force):
+                installer = client.upload_package_installer(installer_path)
+                installer_object_id = installer["id"]
+                installer_uploaded = True
+            else:
+                installer_object_id = existing["installer_object_id"]
+            body = {**body, "installer_object_id": installer_object_id}
+
+        if existing and self.package_matches(existing, body):
+            return existing, "Skipped", False, installer_uploaded
+
+        try:
+            if existing:
+                update_body = mutation_request_body(body)
+                del update_body["software_id"]
+                saved = client.put(f"/api/munki/packages/{existing['id']}", update_body)
+                return saved, "Updated", True, installer_uploaded
+            saved = client.post("/api/munki/packages", mutation_request_body(body))
+            return saved, "Created", True, installer_uploaded
+        except ProcessorError:
+            if installer_uploaded:
+                try:
+                    client.delete(f"/api/munki/package-installers/{installer_object_id}")
+                except ProcessorError:
+                    pass
+            raise
 
     @staticmethod
     def existing_package(client, software_id, version):

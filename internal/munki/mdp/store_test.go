@@ -203,7 +203,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 		t.Fatalf("package not mirrored by this point resolved %+v, want nil", got)
 	}
 
-	// A stale hash (installer changed, DP not current yet) is not eligible.
+	// A stale hash means the distribution point is not current for this installer.
 	if err := store.RecordPackageState(
 		ctx, point.ID, pkg, mdp.PackageStatusCurrent, strings.Repeat("f", 64), "",
 	); err != nil {

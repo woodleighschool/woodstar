@@ -12,6 +12,9 @@ import (
 // ErrObjectNotFound reports that a backend has no object for a key.
 var ErrObjectNotFound = errors.New("storage object not found")
 
+// ErrMultipartUploadNotFound reports that a provider no longer has an upload ID.
+var ErrMultipartUploadNotFound = errors.New("storage multipart upload not found")
+
 // Store reads and writes blobs by key. Backends: file, s3.
 type Store interface {
 	Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error)
@@ -33,6 +36,14 @@ type Backend interface {
 	Presigner
 	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
+}
+
+// MultipartBackend is the optional S3 multipart transfer capability.
+type MultipartBackend interface {
+	CreateMultipartUpload(context.Context, string) (string, error)
+	PresignMultipartPart(context.Context, string, string, int32, time.Duration) (UploadTarget, error)
+	CompleteMultipartUpload(context.Context, string, string, []CompletedPart) error
+	AbortMultipartUpload(context.Context, string, string) error
 }
 
 // Presigner mints direct read URLs.
@@ -69,4 +80,10 @@ type UploadTarget struct {
 	Method    string
 	Transport UploadTransport
 	Headers   map[string]string
+}
+
+// CompletedPart identifies one uploaded S3 multipart part.
+type CompletedPart struct {
+	PartNumber int32
+	ETag       string
 }

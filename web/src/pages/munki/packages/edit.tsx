@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { munkiSoftwareIconURL } from "@/components/munki/munki-icon";
@@ -10,7 +10,7 @@ import {
   useMunkiPackages,
   useUpdateMunkiPackage,
 } from "@/hooks/use-munki-packages";
-import { useDeleteMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { deleteUnclaimedMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import type { MunkiPackage } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { parseRouteID } from "@/lib/route-params";
@@ -53,7 +53,8 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const navigate = useNavigate();
   const update = useUpdateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
-  const installerDelete = useDeleteMunkiInstaller();
+  const cancelled = useRef(false);
+  const packageMutationAbort = useRef<AbortController | null>(null);
   const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
@@ -66,9 +67,40 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
     iconUrl: munkiSoftwareIconURL(pkg.software_id),
   };
   const form = usePackageEditorForm(initial, async (value) => {
-    await update.mutateAsync({ id: packageID, body: packageMutationFromForm(value) });
+    cancelled.current = false;
+    if (value.installer_type !== "nopkg" && !installerFile && !pkg.installer_object_id) {
+      toast.error("Select an installer file.");
+      return;
+    }
+    let replacementObjectID: number | undefined;
     if (value.installer_type !== "nopkg" && installerFile) {
-      await installerUpload.upload({ packageId: packageID, file: installerFile });
+      replacementObjectID = (await installerUpload.upload({ file: installerFile })).id;
+      if (cancelled.current) {
+        await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
+        return;
+      }
+    }
+    const installerObjectID =
+      value.installer_type === "nopkg"
+        ? undefined
+        : (replacementObjectID ?? pkg.installer_object_id);
+    const abortController = new AbortController();
+    packageMutationAbort.current = abortController;
+    try {
+      await update.mutateAsync({
+        id: packageID,
+        body: packageMutationFromForm(value, installerObjectID),
+        signal: abortController.signal,
+      });
+    } catch (error) {
+      if (replacementObjectID !== undefined) {
+        await deleteUnclaimedMunkiInstaller(replacementObjectID).catch(() => undefined);
+      }
+      throw error;
+    } finally {
+      if (packageMutationAbort.current === abortController) {
+        packageMutationAbort.current = null;
+      }
     }
     void navigate({ to: "/munki/packages" });
   });
@@ -82,15 +114,14 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
       installerFile={installerFile}
       installerMetadata={pkg.installer_file}
-      hasInstallerObject={pkg.installer_object_id != null}
       onInstallerFileChange={setInstallerFile}
-      onDeleteInstaller={async () => {
-        await installerDelete.mutateAsync(packageID);
-        setInstallerFile(null);
-        toast.success("Installer deleted");
+      canCancelWhileSubmitting={installerUpload.isUploading}
+      onCancel={() => {
+        cancelled.current = true;
+        installerUpload.cancel();
+        packageMutationAbort.current?.abort();
+        void navigate({ to: "/munki/packages" });
       }}
-      deletingInstaller={installerDelete.isPending}
-      onCancel={() => void navigate({ to: "/munki/packages" })}
     />
   );
 }

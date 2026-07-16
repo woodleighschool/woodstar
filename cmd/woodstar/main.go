@@ -309,7 +309,11 @@ func buildWiring(
 		w.munkiUploads,
 		storageBackend,
 	)
-	w.munkiPackages = packages.NewStore(db, w.storageObjects)
+	w.munkiPackages = packages.NewStore(
+		db,
+		w.storageObjects,
+		logger.With("component", "munki_packages"),
+	)
 	w.munkiSoftware = munkisoftware.NewStore(db, w.storageObjects, w.munkiPackages)
 	w.munkiHostState = munki.NewStore(db)
 

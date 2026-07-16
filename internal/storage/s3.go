@@ -275,6 +275,90 @@ func (s *s3Store) PresignPut(
 	}, nil
 }
 
+func (s *s3Store) CreateMultipartUpload(ctx context.Context, key string) (string, error) {
+	output, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return "", fmt.Errorf("create multipart upload for %q: %w", key, err)
+	}
+	uploadID := aws.ToString(output.UploadId)
+	if uploadID == "" {
+		return "", fmt.Errorf("create multipart upload for %q: provider returned an empty upload ID", key)
+	}
+	return uploadID, nil
+}
+
+func (s *s3Store) PresignMultipartPart(
+	ctx context.Context,
+	key string,
+	uploadID string,
+	partNumber int32,
+	ttl time.Duration,
+) (UploadTarget, error) {
+	output, err := s.presigner.PresignUploadPart(ctx, &s3.UploadPartInput{
+		Bucket:     aws.String(s.bucket),
+		Key:        aws.String(key),
+		UploadId:   aws.String(uploadID),
+		PartNumber: aws.Int32(partNumber),
+	}, s.expires(ttl))
+	if err != nil {
+		return UploadTarget{}, fmt.Errorf("presign multipart part %d for %q: %w", partNumber, key, err)
+	}
+	return UploadTarget{
+		URL:       output.URL,
+		Method:    http.MethodPut,
+		Transport: UploadTransportS3,
+		Headers:   singleValueHeaders(output.SignedHeader),
+	}, nil
+}
+
+func (s *s3Store) CompleteMultipartUpload(
+	ctx context.Context,
+	key string,
+	uploadID string,
+	parts []CompletedPart,
+) error {
+	completed := make([]types.CompletedPart, len(parts))
+	for i, part := range parts {
+		completed[i] = types.CompletedPart{
+			ETag:       aws.String(part.ETag),
+			PartNumber: aws.Int32(part.PartNumber),
+		}
+	}
+	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(s.bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+		MultipartUpload: &types.CompletedMultipartUpload{
+			Parts: completed,
+		},
+	})
+	if s3NoSuchUpload(err) {
+		return ErrMultipartUploadNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("complete multipart upload for %q: %w", key, err)
+	}
+	return nil
+}
+
+func (s *s3Store) AbortMultipartUpload(ctx context.Context, key string, uploadID string) error {
+	_, err := s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(s.bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+	})
+	if s3NoSuchUpload(err) {
+		return ErrMultipartUploadNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("abort multipart upload for %q: %w", key, err)
+	}
+	return nil
+}
+
 func (s *s3Store) expires(ttl time.Duration) func(*s3.PresignOptions) {
 	ttl = ttlOrDefault(ttl, s.ttl)
 	return func(options *s3.PresignOptions) {
@@ -293,6 +377,11 @@ func s3NotFound(err error) bool {
 	default:
 		return false
 	}
+}
+
+func s3NoSuchUpload(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchUpload"
 }
 
 func singleValueHeaders(headers http.Header) map[string]string {

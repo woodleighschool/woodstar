@@ -212,7 +212,6 @@ type PackageMutation struct {
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"                                  validate:"omitempty,gt=0"                                                                minimum:"1"`
-	Eligible                 bool                                  `json:"eligible"`
 }
 
 // PackageCreateMutation creates one package version under selected Munki software.
@@ -283,7 +282,6 @@ type Package struct {
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
 	SoftwareIconObjectID     *int64                                `json:"-"`
-	Eligible                 bool                                  `json:"eligible"`
 	CreatedAt                time.Time                             `json:"created_at"`
 	UpdatedAt                time.Time                             `json:"updated_at"`
 }
@@ -322,6 +320,17 @@ func (m PackageCreateMutation) validate() error {
 }
 
 func (m *PackageMutation) validateRelations() error {
+	hasInstaller := m.InstallerObjectID != nil
+	switch m.InstallerType {
+	case InstallerTypeNoPkg:
+		if hasInstaller {
+			return fmt.Errorf("%w: nopkg must not reference installer_object_id", dbutil.ErrInvalidInput)
+		}
+	case InstallerTypePkg, InstallerTypeCopyFromDMG:
+		if !hasInstaller {
+			return fmt.Errorf("%w: %s requires installer_object_id", dbutil.ErrInvalidInput, m.InstallerType)
+		}
+	}
 	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
 		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", dbutil.ErrInvalidInput)
 	}

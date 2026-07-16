@@ -20,14 +20,9 @@ type UploadMethod = "PUT";
 
 export type UploadTransport = "uppy-s3" | "xhr";
 
-export type DirectMultipartUploadResult = UploadResult & {
-  objectId?: number;
-  [key: string]: unknown;
-};
+export type DirectMultipartUploadResult = UploadResult;
 
 export interface DirectMultipartUploadRequest {
-  shouldUseMultipart?: (file: File) => boolean;
-  getChunkSize?: (file: File) => number;
   createMultipartUpload: (file: File) => Promise<DirectMultipartUploadResult>;
   listParts?: (file: File, upload: UploadResultWithSignal) => Promise<AwsS3Part[]>;
   signPart: (
@@ -183,12 +178,9 @@ function awsS3Options({
     };
   }
 
-  const getChunkSize = multipart.getChunkSize;
   return {
     allowedMetaFields: false,
-    shouldUseMultipart: () => multipart.shouldUseMultipart?.(file) ?? true,
     getUploadParameters,
-    ...(getChunkSize ? { getChunkSize: () => getChunkSize(file) } : {}),
     createMultipartUpload: () => multipart.createMultipartUpload(file),
     listParts: (_uppyFile, upload) => multipart.listParts?.(file, upload) ?? [],
     signPart: (_uppyFile, part) => multipart.signPart(file, part),

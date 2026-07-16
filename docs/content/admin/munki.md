@@ -16,7 +16,7 @@ A title is the human-owned grouping for one managed thing, "Google Chrome", say.
 
 ## Packages
 
-A package is one installable version under a title. Packages keep a lot of Munki's own vocabulary, because that's what ends up in the rendered pkginfo: installer type, restart action, blocking applications, `requires`, `update_for`, supported architectures, the unattended flags, and an `extra_pkginfo` escape hatch for anything Woodstar doesn't model directly.
+A package is one complete installable version under a title. Packages keep Munki's own vocabulary because that is what ends up in the rendered pkginfo: installer type, restart action, blocking applications, `requires`, `update_for`, supported architectures, and the unattended flags. `pkg` and `copy_from_dmg` require finalized installer bytes; only `nopkg` is packageless. There is no separate availability control.
 
 You can create package metadata by hand, or import an existing pkginfo item. In practice most packages arrive through [AutoPkg](../autopkg/overview) rather than being typed in.
 
@@ -35,7 +35,7 @@ Deployments are ordered, because a host can match more than one and the order de
 
 An artifact is the actual file: the package payload or an icon. The metadata is a stable Woodstar row; the bytes live in a storage backend, local files by default or an S3-compatible bucket.
 
-An artifact gets in create-first: the title or package exists first, then you attach an upload, push the bytes, and confirm them. Storage always works (the default `file` backend needs no setup), so the only real choice is whether bytes stream through Woodstar or go straight to a bucket. See [Munki Storage](../configuration/storage) for how the backends differ, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
+For an installer-backed package, Woodstar reserves an unclaimed installer object, uploads and finalizes it, then creates or replaces the package with that object. A failed package mutation removes the new unclaimed object and leaves an existing package untouched. Storage always works (the default `file` backend needs no setup); S3 adds direct and multipart bucket uploads. See [Munki Storage](../configuration/storage) for the transfer details, and [Munki Repository](../agent-protocols/munki-repository) for how clients fetch it.
 
 ## Client resources
 

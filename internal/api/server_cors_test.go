@@ -164,7 +164,8 @@ func TestRequestTimeoutMiddlewareExemptsLongLivedResponses(t *testing.T) {
 		{name: "storage", path: "/storage/munki/packages/1/Installer.pkg"},
 		{name: "SSE", method: http.MethodGet, path: "/api/live-queries/1/stream"},
 		{name: "WebSocket", method: http.MethodGet, path: "/api/munki/distribution/connect", headers: map[string]string{"Upgrade": "websocket"}},
-		{name: "package installer adoption", method: http.MethodPut, path: "/api/munki/packages/1/installer", wantExpiry: true, wantTimeout: packageInstallerTimeout},
+		{name: "package installer finalization", method: http.MethodPut, path: "/api/munki/package-installers/1", wantExpiry: true, wantTimeout: packageInstallerTimeout},
+		{name: "package installer multipart completion", method: http.MethodPost, path: "/api/munki/package-installers/1/multipart/complete", wantExpiry: true, wantTimeout: packageInstallerTimeout},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

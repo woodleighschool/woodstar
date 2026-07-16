@@ -41,11 +41,11 @@ Manifest rendering starts from the host's effective package set, which is whatev
 
 The manifest always references the `woodstar` catalog. When a deployment asks for the latest release, the manifest references the bare Munki name; when it pins a release, the manifest references Munki's `name--version` syntax.
 
-The catalog is shared across hosts. It contains every eligible package that can be served: `nopkg` items and installer packages whose installer upload is available. That lets Munki resolve normal catalog relationships such as `requires` and `update_for` without Woodstar building per-host catalog fragments.
+The catalog is shared across hosts and contains every persisted package. `pkg` and `copy_from_dmg` packages always have a finalized installer, so their pkginfo always carries `installer_item_location`, `installer_item_size`, and the whole-file SHA-256 in `installer_item_hash`. `nopkg` omits those fields. There is no package eligibility switch or installer-availability filter. If stored package and object state ever break that invariant, catalog rendering fails instead of emitting an incomplete pkginfo.
 
 ## Artifacts
 
-Artifacts are stable Woodstar rows. The package and icon routes authorize the bearer secret, resolve the requested `installer_item_location` or icon name against the shared repository objects, and then hand back the bytes by redirecting to a presigned URL on the S3 backend or streaming them directly on the file backend.
+Installer objects are reserved, uploaded, and finalized before the package is created or replaced. Each finalized installer has exactly one package owner. Icons retain their resource-scoped upload lifecycle. The package and icon routes authorize the bearer secret, resolve the requested `installer_item_location` or icon name against the shared repository objects, and then hand back the bytes by redirecting to a presigned URL on the S3 backend or streaming them directly on the file backend.
 
 If the path does not match a known package installer or icon in the repository, the route returns `404`. The storage wiring is in [Munki Storage](../configuration/storage).
 

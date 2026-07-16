@@ -181,13 +181,6 @@ function MunkiSoftwareDetailForm({
       cell: ({ row }) => row.original.installer_type,
     },
     {
-      id: "eligible",
-      accessorKey: "eligible",
-      header: "Available",
-      enableSorting: false,
-      cell: ({ row }) => (row.original.eligible ? "Yes" : "No"),
-    },
-    {
       id: "updated_at",
       accessorKey: "updated_at",
       header: "Updated",

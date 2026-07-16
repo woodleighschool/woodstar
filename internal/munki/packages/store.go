@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,39 +17,44 @@ import (
 // ObjectPrefix namespaces package installer objects in storage.
 const ObjectPrefix = "munki/packages"
 
+const detachedObjectCleanupTimeout = 15 * time.Second
+
 const (
 	relationKindRequires  = "requires"
 	relationKindUpdateFor = "update_for"
 )
 
 type objectStore interface {
-	GetByID(context.Context, int64) (*storage.Object, error)
 	Delete(context.Context, int64) error
 }
 
 type Store struct {
 	db      *database.DB
 	objects objectStore
+	logger  *slog.Logger
 }
 
-func NewStore(db *database.DB, objects objectStore) *Store {
+func NewStore(db *database.DB, objects objectStore, logger *slog.Logger) *Store {
 	return &Store{
 		db:      db,
 		objects: objects,
+		logger:  logger,
 	}
 }
 
 //nolint:funlen // Keep the package insert contract with the store method that owns it.
 func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package, error) {
-	params, err := s.prepareCreateMutation(ctx, in)
+	params, err := prepareCreateMutation(in)
 	if err != nil {
 		return nil, err
 	}
-	params = carryExistingObjects(params, Package{})
 	write := newPackageWrite(in.SoftwareID, params)
 
 	var id int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, 0); err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_packages (
 	software_id,
@@ -99,8 +105,7 @@ INSERT INTO munki_packages (
 	preuninstall_alert_detail,
 	preuninstall_alert_ok_label,
 	preuninstall_alert_cancel_label,
-	installer_object_id,
-	eligible
+	installer_object_id
 )
 VALUES (
 	@software_id,
@@ -151,8 +156,7 @@ VALUES (
 	@preuninstall_alert_detail,
 	@preuninstall_alert_ok_label,
 	@preuninstall_alert_cancel_label,
-	@installer_object_id,
-	@eligible
+	@installer_object_id
 )
 RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
@@ -165,20 +169,28 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 	return s.GetByID(ctx, id)
 }
 
+//nolint:funlen // Keep the package replacement contract with the store method that owns it.
 func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
-	params, err := s.prepareMutation(ctx, params)
+	params, err := prepareMutation(params)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := s.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	params = carryExistingObjects(params, *existing)
-	write := newPackageWrite(existing.SoftwareID, params)
-	write.ID = id
 
+	var oldObjectID *int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, id); err != nil {
+			return err
+		}
+		var softwareID int64
+		if err := tx.QueryRow(ctx, `
+SELECT software_id, installer_object_id
+FROM munki_packages
+WHERE id = $1
+FOR UPDATE`, id).Scan(&softwareID, &oldObjectID); err != nil {
+			return dbutil.GetError(err)
+		}
+		write := newPackageWrite(softwareID, params)
+		write.ID = id
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
 UPDATE munki_packages
@@ -231,7 +243,6 @@ SET
 	preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
 	preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
 	installer_object_id = @installer_object_id,
-	eligible = @eligible,
 	updated_at = now()
 WHERE id = @id
 RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
@@ -242,13 +253,27 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 	if err != nil {
 		return nil, err
 	}
-	if err := deleteObjects(
-		ctx,
-		s.objects,
-		replacedObjectID(existing.InstallerObjectID, params.InstallerObjectID)...); err != nil {
+	committedCtx, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx),
+		detachedObjectCleanupTimeout,
+	)
+	defer cancel()
+	pkg, err := s.GetByID(committedCtx, id)
+	if err != nil {
 		return nil, err
 	}
-	return s.GetByID(ctx, id)
+	if err := deleteObjects(
+		committedCtx,
+		s.objects,
+		replacedObjectID(oldObjectID, params.InstallerObjectID)...); err != nil {
+		s.logger.WarnContext(
+			committedCtx,
+			"munki package installer cleanup failed",
+			"package_id", id,
+			"err", err,
+		)
+	}
+	return pkg, nil
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
@@ -359,8 +384,6 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 // Munki catalog.
 func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
 	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
-WHERE p.eligible
-  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
 ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
@@ -375,11 +398,8 @@ func (s *Store) ListRepositoryIconObjectIDs(ctx context.Context) ([]int64, error
 SELECT DISTINCT s.icon_object_id
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
-LEFT JOIN storage_objects installer_obj ON installer_obj.id = p.installer_object_id
 JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
-WHERE p.eligible
-  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
-  AND icon_obj.available_at IS NOT NULL
+WHERE icon_obj.available_at IS NOT NULL
 ORDER BY s.icon_object_id`)
 	if err != nil {
 		return nil, err
@@ -405,16 +425,14 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
-// RepositoryPackagesByIconObjectID returns repository-eligible packages that
-// reference the given software icon object.
+// RepositoryPackagesByIconObjectID returns packages that reference the given
+// software icon object.
 func (s *Store) RepositoryPackagesByIconObjectID(ctx context.Context, iconObjectID int64) ([]Package, error) {
 	if iconObjectID <= 0 {
 		return []Package{}, nil
 	}
 	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
 WHERE s.icon_object_id = $1
-  AND p.eligible
-  AND (p.installer_type = 'nopkg' OR installer_obj.available_at IS NOT NULL)
 ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
 	if err != nil {
 		return nil, err
@@ -422,99 +440,64 @@ ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
 	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
-func (s *Store) prepareMutation(ctx context.Context, params PackageMutation) (PackageMutation, error) {
+func prepareMutation(params PackageMutation) (PackageMutation, error) {
 	params = applyDefaults(params)
 	params.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
-	if err := s.validatePackageObject(ctx, params.InstallerObjectID); err != nil {
-		return PackageMutation{}, err
-	}
 	return params, nil
 }
 
-func (s *Store) prepareCreateMutation(ctx context.Context, params PackageCreateMutation) (PackageMutation, error) {
+func prepareCreateMutation(params PackageCreateMutation) (PackageMutation, error) {
 	params.PackageMutation = applyDefaults(params.PackageMutation)
 	params.PackageMutation.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
-	if err := s.validatePackageObject(ctx, params.InstallerObjectID); err != nil {
-		return PackageMutation{}, err
-	}
 	return params.PackageMutation, nil
 }
 
-func (s *Store) validatePackageObject(ctx context.Context, objectID *int64) error {
+func validateAndLockInstallerObject(
+	ctx context.Context,
+	tx pgx.Tx,
+	objectID *int64,
+	packageID int64,
+) error {
 	if objectID == nil {
 		return nil
 	}
-	return s.requirePackageObject(ctx, *objectID, "installer_object_id")
-}
-
-func carryExistingObjects(params PackageMutation, existing Package) PackageMutation {
-	if params.InstallerType == InstallerTypeNoPkg {
-		params.InstallerObjectID = nil
-	} else if params.InstallerObjectID == nil {
-		params.InstallerObjectID = existing.InstallerObjectID
+	var prefix string
+	var sizeBytes *int64
+	var sha256sum *string
+	var availableAt *time.Time
+	if err := tx.QueryRow(ctx, `
+SELECT prefix, size_bytes, sha256, available_at
+FROM storage_objects
+WHERE id = $1
+FOR UPDATE`, *objectID).Scan(&prefix, &sizeBytes, &sha256sum, &availableAt); err != nil {
+		return dbutil.GetError(err)
 	}
-	return params
-}
-
-func (s *Store) requirePackageObject(ctx context.Context, id int64, field string) error {
-	obj, err := s.objects.GetByID(ctx, id)
-	if err != nil {
+	if prefix != ObjectPrefix {
+		return fmt.Errorf("%w: installer_object_id must reference a package installer", dbutil.ErrInvalidInput)
+	}
+	if availableAt == nil || sizeBytes == nil || sha256sum == nil {
+		return fmt.Errorf("%w: installer_object_id must reference a finalized object", dbutil.ErrInvalidInput)
+	}
+	var ownerID int64
+	err := tx.QueryRow(ctx, `
+SELECT id
+FROM munki_packages
+WHERE installer_object_id = $1
+  AND id <> $2
+LIMIT 1`, *objectID, packageID).Scan(&ownerID)
+	if err == nil {
+		return fmt.Errorf("%w: installer object is already owned by package %d", dbutil.ErrConflict, ownerID)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return err
-	}
-	if obj.Prefix != ObjectPrefix {
-		return fmt.Errorf("%w: %s must reference a package installer", dbutil.ErrInvalidInput, field)
-	}
-	if !obj.Available() {
-		return fmt.Errorf("%w: %s must reference an uploaded object", dbutil.ErrInvalidInput, field)
 	}
 	return nil
-}
-
-// SetInstallerObject points a package at an installer storage object.
-func (s *Store) SetInstallerObject(ctx context.Context, packageID, objectID int64) error {
-	if err := s.requirePackageObject(ctx, objectID, "installer_object_id"); err != nil {
-		return err
-	}
-	var oldObjectID *int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var err error
-		oldObjectID, err = installerObjectID(ctx, tx, packageID)
-		if err != nil {
-			return err
-		}
-		return setInstallerObjectID(ctx, tx, packageID, &objectID)
-	})
-	if err != nil {
-		return err
-	}
-	return deleteObjects(ctx, s.objects, replacedObjectID(oldObjectID, &objectID)...)
-}
-
-// ClearInstallerObject detaches a package installer object and deletes its bytes
-// when no other Munki resource references it.
-func (s *Store) ClearInstallerObject(ctx context.Context, packageID int64) error {
-	var oldObjectID *int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var err error
-		oldObjectID, err = installerObjectID(ctx, tx, packageID)
-		if err != nil {
-			return err
-		}
-		if oldObjectID == nil {
-			return nil
-		}
-		return setInstallerObjectID(ctx, tx, packageID, nil)
-	})
-	if err != nil {
-		return err
-	}
-	return deleteObjects(ctx, s.objects, replacedObjectID(oldObjectID, nil)...)
 }
 
 func deleteObjects(ctx context.Context, objects objectStore, ids ...int64) error {
@@ -545,31 +528,6 @@ func (s *Store) packageObjectIDs(ctx context.Context, q dbutil.Queryer, ids []in
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
-}
-
-func installerObjectID(ctx context.Context, tx pgx.Tx, packageID int64) (*int64, error) {
-	var objectID *int64
-	err := tx.QueryRow(ctx, `SELECT installer_object_id FROM munki_packages WHERE id = $1`, packageID).Scan(&objectID)
-	if err != nil {
-		return nil, dbutil.GetError(err)
-	}
-	return objectID, nil
-}
-
-func setInstallerObjectID(ctx context.Context, tx pgx.Tx, packageID int64, objectID *int64) error {
-	tag, err := tx.Exec(
-		ctx,
-		`UPDATE munki_packages SET installer_object_id = $2, updated_at = now() WHERE id = $1`,
-		packageID,
-		objectID,
-	)
-	if err != nil {
-		return dbutil.MutationError(err)
-	}
-	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
-	}
-	return nil
 }
 
 func applyDefaults(params PackageMutation) PackageMutation {
@@ -648,7 +606,6 @@ func packageFromRow(row packageRow) Package {
 		PreuninstallAlert:        row.PreuninstallAlert(),
 		InstallerObjectID:        row.InstallerObjectID,
 		SoftwareIconObjectID:     row.SoftwareIconObjectID,
-		Eligible:                 row.Eligible,
 		CreatedAt:                row.CreatedAt,
 		UpdatedAt:                row.UpdatedAt,
 	}
@@ -749,7 +706,6 @@ type packageRow struct {
 	PreuninstallAlertCancelLabel string
 	InstallerObjectID            *int64
 	SoftwareIconObjectID         *int64 `db:"software_icon_object_id"`
-	Eligible                     bool
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
 }
@@ -852,7 +808,6 @@ type packageWrite struct {
 	PreuninstallAlertOKLabel     string                      `db:"preuninstall_alert_ok_label"`
 	PreuninstallAlertCancelLabel string                      `db:"preuninstall_alert_cancel_label"`
 	InstallerObjectID            *int64                      `db:"installer_object_id"`
-	Eligible                     bool                        `db:"eligible"`
 }
 
 func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
@@ -906,7 +861,6 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		PreuninstallAlertOKLabel:     params.PreuninstallAlert.OKLabel,
 		PreuninstallAlertCancelLabel: params.PreuninstallAlert.CancelLabel,
 		InstallerObjectID:            params.InstallerObjectID,
-		Eligible:                     params.Eligible,
 	}
 }
 
@@ -971,7 +925,6 @@ func packageColumnsSQL() string {
 	p.preuninstall_alert_ok_label,
 	p.preuninstall_alert_cancel_label,
 	p.installer_object_id,
-	p.eligible,
 	p.created_at,
 	p.updated_at`
 }

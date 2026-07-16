@@ -26,7 +26,7 @@ type SelectionRequest struct {
 	SizeBytes             int64
 }
 
-// SelectRedirect returns a redirect URL to an eligible distribution point, or
+// SelectRedirect returns a redirect URL to a matching distribution point, or
 // ok=false to fall back to Woodstar-direct delivery. Every outcome is logged.
 func (s *Store) SelectRedirect(ctx context.Context, req SelectionRequest) (string, bool) {
 	addr, err := netip.ParseAddr(req.ClientIP)

@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import { FileArchive, Trash2 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useState } from "react";
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
@@ -123,11 +122,9 @@ type PackageFormProps = {
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   installerMetadata?: MunkiPackage["installer_file"];
-  hasInstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
-  onDeleteInstaller?: () => Promise<void>;
-  deletingInstaller: boolean;
   onCancel: () => void;
+  canCancelWhileSubmitting?: boolean;
 };
 
 export function PackageForm({
@@ -139,11 +136,9 @@ export function PackageForm({
   packageOptions,
   installerFile,
   installerMetadata,
-  hasInstallerObject,
   onInstallerFileChange,
-  onDeleteInstaller,
-  deletingInstaller,
   onCancel,
+  canCancelWhileSubmitting,
 }: PackageFormProps) {
   return (
     <PageShell asChild>
@@ -162,12 +157,14 @@ export function PackageForm({
           packageOptions={packageOptions}
           installerFile={installerFile}
           installerMetadata={installerMetadata}
-          hasInstallerObject={hasInstallerObject}
           onInstallerFileChange={onInstallerFileChange}
-          onDeleteInstaller={onDeleteInstaller}
-          deletingInstaller={deletingInstaller}
         />
-        <FormActions form={form} submitLabel={submitLabel} onCancel={onCancel} />
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel}
+          canCancelWhileSubmitting={canCancelWhileSubmitting}
+        />
       </form>
     </PageShell>
   );
@@ -180,10 +177,7 @@ export function PackageEditorTabs({
   packageOptions,
   installerFile,
   installerMetadata,
-  hasInstallerObject,
   onInstallerFileChange,
-  onDeleteInstaller,
-  deletingInstaller,
 }: {
   form: PackageEditorForm;
   softwareInfo: SoftwareInfo | null;
@@ -191,10 +185,7 @@ export function PackageEditorTabs({
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   installerMetadata?: MunkiPackage["installer_file"];
-  hasInstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
-  onDeleteInstaller?: () => Promise<void>;
-  deletingInstaller: boolean;
 }) {
   const tabs = [
     {
@@ -222,10 +213,7 @@ export function PackageEditorTabs({
           form={form}
           installerFile={installerFile}
           installerMetadata={installerMetadata}
-          hasInstallerObject={hasInstallerObject}
           onInstallerFileChange={onInstallerFileChange}
-          onDeleteInstaller={onDeleteInstaller}
-          deletingInstaller={deletingInstaller}
         />
       ),
     },
@@ -351,16 +339,6 @@ function BasicInfoTab({
             label="Autoremove"
           />
         </FieldGroup>
-      </FieldSet>
-
-      <FieldSet>
-        <FieldLegend>Woodstar</FieldLegend>
-        <FormSwitchField
-          form={form}
-          name="eligible"
-          id="munki-package-eligible"
-          label="Available for targeting"
-        />
       </FieldSet>
     </FieldGroup>
   );
@@ -526,18 +504,12 @@ function InstallationTab({
   form,
   installerFile,
   installerMetadata,
-  hasInstallerObject,
   onInstallerFileChange,
-  onDeleteInstaller,
-  deletingInstaller,
 }: {
   form: PackageEditorForm;
   installerFile: File | null;
   installerMetadata?: MunkiPackage["installer_file"];
-  hasInstallerObject: boolean;
   onInstallerFileChange: (file: File | null) => void;
-  onDeleteInstaller?: () => Promise<void>;
-  deletingInstaller: boolean;
 }) {
   return (
     <FieldGroup>
@@ -547,10 +519,7 @@ function InstallationTab({
             <InstallerFileCard
               file={installerFile}
               metadata={installerMetadata}
-              hasInstallerObject={hasInstallerObject}
-              deleting={deletingInstaller}
               onFileChange={onInstallerFileChange}
-              onDelete={onDeleteInstaller}
             />
           )
         }
@@ -1012,77 +981,44 @@ function FormCheckboxField({
 function InstallerFileCard({
   file,
   metadata,
-  hasInstallerObject,
-  deleting,
   onFileChange,
-  onDelete,
 }: {
   file: File | null;
   metadata?: MunkiPackage["installer_file"];
-  hasInstallerObject: boolean;
-  deleting: boolean;
   onFileChange: (file: File | null) => void;
-  onDelete?: () => Promise<void>;
 }) {
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const canDelete = hasInstallerObject && onDelete !== undefined;
-
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Installer</CardTitle>
-          {canDelete ? (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={deleting}
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 data-icon="inline-start" />
-              Delete
-            </Button>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          {metadata ? (
-            <KeyValueGrid>
-              <KeyValueItem label="Filename" value={metadata.filename} />
-              <KeyValueItem label="Size" value={formatBytes(metadata.size_bytes)} />
-              <KeyValueItem
-                label="SHA-256"
-                value={metadata.sha256}
-                className="sm:col-span-2"
-                valueClassName="font-mono text-xs break-all"
-              />
-            </KeyValueGrid>
-          ) : hasInstallerObject ? (
-            <p className="text-sm text-muted-foreground">Installer metadata is not available.</p>
-          ) : (
-            <PackageFileField
-              id="munki-package-installer-file"
-              label="Installer File"
-              description="No installer file selected."
-              icon={<FileArchive />}
-              file={file}
-              onChange={onFileChange}
+    <Card>
+      <CardHeader>
+        <CardTitle>Installer</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {metadata ? (
+          <KeyValueGrid>
+            <KeyValueItem label="Filename" value={metadata.filename} />
+            <KeyValueItem label="Size" value={formatBytes(metadata.size_bytes)} />
+            <KeyValueItem
+              label="SHA-256"
+              value={metadata.sha256}
+              className="sm:col-span-2"
+              valueClassName="font-mono text-xs break-all"
             />
-          )}
-        </CardContent>
-      </Card>
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete Installer?"
-        description="This detaches the installer from the package and deletes the stored file when it is no longer referenced."
-        confirmLabel="Delete"
-        variant="destructive"
-        pending={deleting}
-        onConfirm={() => void onDelete?.()}
-      />
-    </>
+          </KeyValueGrid>
+        ) : null}
+        <PackageFileField
+          id="munki-package-installer-file"
+          label={metadata ? "Replacement Installer File" : "Installer File"}
+          description={
+            metadata
+              ? "Keep the current installer or select its replacement."
+              : "Select an installer file."
+          }
+          icon={<FileArchive />}
+          file={file}
+          onChange={onFileChange}
+        />
+      </CardContent>
+    </Card>
   );
 }
 

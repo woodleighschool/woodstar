@@ -482,8 +482,15 @@ func isDistributionWebSocket(req *http.Request) bool {
 }
 
 func isPackageInstallerMutation(req *http.Request) bool {
-	matched, _ := pathpkg.Match("/api/munki/packages/*/installer", req.URL.Path)
-	return req.Method == http.MethodPut && matched
+	if req.Method == http.MethodPut {
+		matched, _ := pathpkg.Match("/api/munki/package-installers/*", req.URL.Path)
+		return matched
+	}
+	if req.Method == http.MethodPost {
+		matched, _ := pathpkg.Match("/api/munki/package-installers/*/multipart/complete", req.URL.Path)
+		return matched
+	}
+	return false
 }
 
 func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {

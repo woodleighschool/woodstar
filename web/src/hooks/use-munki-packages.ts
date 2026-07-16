@@ -50,8 +50,12 @@ export function useMunkiPackage(id: number | null) {
 
 export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, MunkiPackageCreateMutation>({
-    mutationFn: (body) => unwrap(createMunkiPackage({ body })),
+  return useMutation<
+    MunkiPackage,
+    ApiError,
+    { body: MunkiPackageCreateMutation; signal?: AbortSignal }
+  >({
+    mutationFn: ({ body, signal }) => unwrap(createMunkiPackage({ body, signal })),
     onSuccess: async (pkg) => {
       toast.success("Package created");
       await Promise.all([
@@ -66,8 +70,13 @@ export function useCreateMunkiPackage() {
 
 export function useUpdateMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, { id: number; body: MunkiPackageMutation }>({
-    mutationFn: ({ id, body }) => unwrap(updateMunkiPackage({ path: { id }, body })),
+  return useMutation<
+    MunkiPackage,
+    ApiError,
+    { id: number; body: MunkiPackageMutation; signal?: AbortSignal }
+  >({
+    mutationFn: ({ id, body, signal }) =>
+      unwrap(updateMunkiPackage({ path: { id }, body, signal })),
     onSuccess: async (pkg) => {
       toast.success("Package saved");
       await Promise.all([

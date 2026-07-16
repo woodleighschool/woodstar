@@ -13,8 +13,6 @@ type packageStore interface {
 	Update(context.Context, int64, packages.PackageMutation) (*packages.Package, error)
 	Delete(context.Context, int64) error
 	DeleteMany(context.Context, []int64) (int, error)
-	SetInstallerObject(context.Context, int64, int64) error
-	ClearInstallerObject(context.Context, int64) error
 }
 
 // PackageService owns app-side Munki package mutations and signals when the
@@ -76,18 +74,6 @@ func (s *PackageService) DeleteMany(ctx context.Context, ids []int64) (int, erro
 		s.deps.DesiredPackagesChanged()
 	}
 	return deleted, err
-}
-
-func (s *PackageService) SetInstallerObject(ctx context.Context, packageID, objectID int64) error {
-	err := s.deps.Packages.SetInstallerObject(ctx, packageID, objectID)
-	s.notifyDesiredPackages(err)
-	return err
-}
-
-func (s *PackageService) ClearInstallerObject(ctx context.Context, packageID int64) error {
-	err := s.deps.Packages.ClearInstallerObject(ctx, packageID)
-	s.notifyDesiredPackages(err)
-	return err
 }
 
 func (s *PackageService) notifyDesiredPackages(err error) {

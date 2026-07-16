@@ -20,8 +20,14 @@ func MunkiVersionedSoftwareName(softwareName, packageVersion string) string {
 }
 
 // Pkginfo renders the Munki pkginfo shape for a Woodstar package.
-func Pkginfo(pkg Package, objects PkginfoObjects) any {
-	return munkiPkginfoFromPackage(pkg, objects)
+func Pkginfo(pkg Package, objects PkginfoObjects) (any, error) {
+	if pkg.InstallerType != InstallerTypeNoPkg {
+		installer := objects.Installer
+		if installer == nil || !installer.Available() || installer.SizeBytes == nil || installer.SHA256 == nil {
+			return nil, fmt.Errorf("package %d installer object is not finalized", pkg.ID)
+		}
+	}
+	return munkiPkginfoFromPackage(pkg, objects), nil
 }
 
 // PkginfoObjects are storage objects needed only while rendering Munki pkginfo.
