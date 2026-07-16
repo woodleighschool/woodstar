@@ -116,41 +116,41 @@ checksum = "sha256:ee920559aaa2391569cff4d737e3b83963430e3a14dedd91bfe0ff53171b5
 url = "https://nodejs.org/dist/v26.5.0/node-v26.5.0-darwin-arm64.tar.gz"
 
 [[tools.oxfmt]]
-version = "0.58.0"
+version = "0.59.0"
 backend = "npm:oxfmt"
 
 [[tools.oxlint]]
-version = "1.73.0"
+version = "1.74.0"
 backend = "npm:oxlint"
 
 [[tools.pnpm]]
-version = "11.12.0"
+version = "11.13.0"
 backend = "aqua:pnpm/pnpm"
 
 [tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:dd19bfd8bcd33a3b38dcce335e8d233194c0a61ffe1f5bcf5047f60f6d4978b8"
-url = "https://github.com/pnpm/pnpm/releases/download/v11.12.0/pnpm-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/473790556"
+checksum = "sha256:2c15f7b6ab256642f4d01687a2b01e07714d835d05d29ba045bdbde59b17bb4f"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.13.0/pnpm-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/475928558"
 provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:0d63d9b468690e661a182efd2c1bc752dbddc753e852b76ca5218f32fcf78a2e"
-url = "https://github.com/pnpm/pnpm/releases/download/v11.12.0/pnpm-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/473790555"
+checksum = "sha256:01af2f0e57108a4f82193a14618c57104c1426137ce62b95e0199852a542880f"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.13.0/pnpm-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/475928565"
 provenance = "github-attestations"
 
 [[tools.zizmor]]
-version = "1.26.1"
+version = "1.27.0"
 backend = "aqua:zizmorcore/zizmor"
 
 [tools.zizmor."platforms.linux-x64"]
-checksum = "sha256:8556289a64e7aaf2400cd516f61a471aa91c5902cc56ad96a82fd12f90c2ef73"
-url = "https://github.com/zizmorcore/zizmor/releases/download/v1.26.1/zizmor-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/453417985"
+checksum = "sha256:277f2bd8fd37cf60c42ab7afca6faa884e65440fa31e02b44bdaae60f62a358f"
+url = "https://github.com/zizmorcore/zizmor/releases/download/v1.27.0/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/476453097"
 provenance = "github-attestations"
 
 [tools.zizmor."platforms.macos-arm64"]
-checksum = "sha256:68ab2b37836bbd44f6cfffcc102b9ffffbc20c5d67d84293dafb63bd2775a1da"
-url = "https://github.com/zizmorcore/zizmor/releases/download/v1.26.1/zizmor-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/453417984"
+checksum = "sha256:81336423d1b280c5dd0cdd8644a1e5f3238ab3ceb8d6e4334dfd05dab95a8a86"
+url = "https://github.com/zizmorcore/zizmor/releases/download/v1.27.0/zizmor-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/476453095"
 provenance = "github-attestations"

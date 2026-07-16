@@ -5,7 +5,7 @@ go 1.26.0
 ignore node_modules/
 
 require (
-	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260708205013-26d7b6481dee.1
+	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260715141808-2e443f37a544.1
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
@@ -18,7 +18,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/coder/websocket v1.8.15
 	github.com/coreos/go-oidc/v3 v3.20.0
-	github.com/danielgtaylor/huma/v2 v2.38.0
+	github.com/danielgtaylor/huma/v2 v2.39.0
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-playground/validator/v10 v10.30.3
@@ -61,7 +61,6 @@ require (
 	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -71,6 +70,6 @@ require (
 	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260713224248-f5fc221cf8c4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260713224248-f5fc221cf8c4 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260715232425-e75dac1f907d // indirect
 )
