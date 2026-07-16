@@ -14,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
+func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 	const (
 		binaryIdentifier      = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		certificateIdentifier = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
