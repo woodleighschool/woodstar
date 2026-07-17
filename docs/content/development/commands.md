@@ -47,22 +47,13 @@ mise run test
 mise run test-integration-munki
 mise run test-integration-osquery
 mise run test-integration-santa
-mise run test-integration-orbit
 mise run test-integration
 mise run test-openapi
 ```
 
-`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. The target integration tasks run one compiled-server lifecycle; `mise run test-integration` runs all four lifecycles in one integration process. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
+`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. The target integration tasks run compiled-server lifecycles; `mise run test-integration` runs them in one integration process. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
 
-Munki, osquery, and Santa fail when their prerequisites or assertions fail. Orbit may skip locally only when Docker, Orbit, or osqueryd is absent. CI requires those Orbit prerequisites, so the same condition fails there.
-
-For a real local Orbit run, set `WOODSTAR_ORBIT_BINARY` and `WOODSTAR_OSQUERYD_BINARY`. They must point to Linux ELF binaries with matching CPU architectures: Orbit 1.57.0 and osqueryd 5.23.1. The Orbit job in `.github/workflows/tests.yaml` is the canonical source for checksum-pinned artifact URLs and digests.
-
-```bash
-WOODSTAR_ORBIT_BINARY=/absolute/path/to/orbit \
-WOODSTAR_OSQUERYD_BINARY=/absolute/path/to/osqueryd \
-mise run test-integration-orbit
-```
+Munki, Santa, and the deterministic osquery protocol lifecycle fail when their prerequisites or assertions fail. The osquery task also starts the same official osquery container pattern Fleet uses for preview environments. That real-client lifecycle may skip locally only when Docker is absent; CI requires it.
 
 The frontend has no test runner. Its verification is `mise //web:lint`, `mise //web:typecheck`, `mise run test-openapi`, and `mise //web:build`.
 
