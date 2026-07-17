@@ -90,6 +90,8 @@ jobs:
           - munki
           - osquery
           - santa
+          - storage
+          - mdp
     services:
       postgres:
         image: postgres:18
@@ -126,6 +128,8 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
 
       - name: Run ${{ matrix.target }} integration
+        env:
+          WOODSTAR_INTEGRATION_REQUIRED: ${{ matrix.target }}
         run: mise run test-integration-${{ matrix.target }}
 
   web:

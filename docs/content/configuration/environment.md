@@ -96,7 +96,7 @@ Munki package and icon bytes go to the backend chosen by `WOODSTAR_STORAGE_KIND`
 | `WOODSTAR_STORAGE_S3_PATH_STYLE`      | `false`        | Use path-style addressing.                                                             |
 | `WOODSTAR_STORAGE_S3_PRESIGN_TTL`     | `15m`          | Lifetime of presigned URLs. Must be positive.                                          |
 
-With `s3`, the bucket, region, access key, and secret key have to be present together. See [Munki Storage](./storage) for how the backends fit the artifact flow, including the local Garage defaults and the bucket CORS rule browser uploads need.
+With `s3`, the bucket, region, access key, and secret key have to be present together. See [Munki Storage](./storage) for how the backends fit the artifact flow and the bucket CORS rule browser uploads need.
 
 ## Distribution point worker
 

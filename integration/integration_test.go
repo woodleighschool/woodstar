@@ -146,7 +146,7 @@ func startTestServer(t *testing.T) *testServer {
 		t.Fatalf("start Woodstar: %v\n%s", err, server.logs())
 	}
 	t.Cleanup(func() {
-		stopProcess(t, process)
+		stopProcess(t, "Woodstar", process)
 		if t.Failed() {
 			t.Logf("Woodstar server logs (tail):\n%s", server.logs())
 		}
@@ -536,12 +536,12 @@ func waitForHealth(
 	}
 }
 
-func stopProcess(t *testing.T, process *serverProcess) {
+func stopProcess(t *testing.T, name string, process *serverProcess) {
 	t.Helper()
 
 	select {
 	case <-process.done:
-		t.Errorf("Woodstar exited unexpectedly: %v", process.waitErr)
+		t.Errorf("%s exited unexpectedly: %v", name, process.waitErr)
 		return
 	default:
 	}
@@ -549,10 +549,10 @@ func stopProcess(t *testing.T, process *serverProcess) {
 	if err := process.command.Process.Signal(os.Interrupt); err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
 			<-process.done
-			t.Errorf("Woodstar exited unexpectedly: %v", process.waitErr)
+			t.Errorf("%s exited unexpectedly: %v", name, process.waitErr)
 			return
 		}
-		t.Errorf("signal Woodstar process: %v", err)
+		t.Errorf("signal %s process: %v", name, err)
 	}
 
 	timer := time.NewTimer(processShutdownTimeout)
@@ -560,14 +560,14 @@ func stopProcess(t *testing.T, process *serverProcess) {
 	select {
 	case <-process.done:
 		if process.waitErr != nil {
-			t.Errorf("wait for Woodstar process: %v", process.waitErr)
+			t.Errorf("wait for %s process: %v", name, process.waitErr)
 		}
 	case <-timer.C:
 		if err := process.command.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-			t.Errorf("kill Woodstar process after shutdown timeout: %v", err)
+			t.Errorf("kill %s process after shutdown timeout: %v", name, err)
 		}
 		<-process.done
-		t.Errorf("Woodstar did not stop within %s", processShutdownTimeout)
+		t.Errorf("%s did not stop within %s", name, processShutdownTimeout)
 	}
 }
 

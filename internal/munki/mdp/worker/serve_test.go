@@ -56,41 +56,6 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		return tok
 	}
 
-	t.Run("valid full", func(t *testing.T) {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(
-			http.MethodGet,
-			"/munki/pkgs/"+installerItemLocation+"?cap="+
-				token(7, installerItemLocation, sha, size, now.Add(time.Minute)),
-			nil,
-		)
-		handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", rec.Code)
-		}
-		if rec.Body.String() != string(content) {
-			t.Fatalf("body = %q, want full installer", rec.Body.String())
-		}
-	})
-
-	t.Run("range", func(t *testing.T) {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(
-			http.MethodGet,
-			"/munki/pkgs/"+installerItemLocation+"?cap="+
-				token(7, installerItemLocation, sha, size, now.Add(time.Minute)),
-			nil,
-		)
-		req.Header.Set("Range", "bytes=0-3")
-		handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusPartialContent {
-			t.Fatalf("status = %d, want 206", rec.Code)
-		}
-		if rec.Body.String() != "inst" {
-			t.Fatalf("range body = %q, want inst", rec.Body.String())
-		}
-	})
-
 	cases := []struct {
 		name string
 		cap  string

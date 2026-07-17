@@ -35,17 +35,13 @@ The CA certificate is `tmp/tls/ca/rootCA.pem`. Its private key stays under the i
 
 ## Start Postgres
 
-The checked-in compose file gives you local Postgres, plus Garage for Munki artifact work:
+The checked-in compose file provides only local PostgreSQL:
 
 ```bash
 docker compose up -d postgres
 ```
 
-If you're going to touch Munki artifacts, start Garage too:
-
-```bash
-docker compose up -d garage
-```
+Woodstar uses file storage by default. The storage integration test starts an ephemeral Garage container when it exercises the S3 backend; it is not part of the development stack.
 
 ## Run the server
 

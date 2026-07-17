@@ -8,36 +8,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
-func TestSignVerifyCarriesGrantClaims(t *testing.T) {
-	t.Parallel()
-	now := time.Unix(1_700_000_000, 0)
-	key := []byte("distribution-point-key")
-	claims := Claims{
-		Exp:                 now.Add(time.Minute).Unix(),
-		PackageID:           12,
-		SHA256:              "abc123",
-		SizeBytes:           4096,
-		DistributionPointID: 3,
-	}
-
-	token, err := Sign(key, claims)
-	if err != nil {
-		t.Fatalf("Sign: %v", err)
-	}
-
-	got, err := Verify(key, token, now)
-	if err != nil {
-		t.Fatalf("Verify: %v", err)
-	}
-	if got.Op != capability.OpGet {
-		t.Fatalf("op = %q, want %q", got.Op, capability.OpGet)
-	}
-	claims.Op = capability.OpGet
-	if got != claims {
-		t.Fatalf("claims = %+v, want %+v", got, claims)
-	}
-}
-
 func TestVerifyRejectsWrongKeyExpiryAndTampering(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1_700_000_000, 0)

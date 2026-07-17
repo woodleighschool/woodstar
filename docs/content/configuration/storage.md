@@ -61,15 +61,8 @@ Munki clients never see raw storage keys. The manifests and catalogs Woodstar re
 
 Each request uses the shared Munki bearer secret. Woodstar resolves the stable repository name to an available storage object, then either redirects to a presigned URL (`s3`) or streams the bytes itself (`file`). Package requests may instead redirect to an eligible distribution point; icons and client resources always use Woodstar's primary storage path. See [Munki Repository](../agent-protocols/munki-repository) for the route contracts.
 
-## Local Garage
+## Backend integration test
 
-The checked-in compose stack runs [Garage](https://garagehq.deuxfleurs.fr/) as a local S3 backend, with path-style addressing:
+`mise run test-integration-storage` runs the shared storage contract against the file backend and an S3 backend. The S3 case starts an ephemeral [Garage](https://garagehq.deuxfleurs.fr/) container with testcontainers; Garage is a small standards-compliant S3 server for the test, not a persistent development dependency.
 
-```bash
-WOODSTAR_STORAGE_KIND=s3
-WOODSTAR_STORAGE_S3_ENDPOINT=http://garage:3900
-WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT=https://garage.woodstar.test
-WOODSTAR_STORAGE_S3_PATH_STYLE=true
-```
-
-The internal endpoint can stay on Garage's HTTP listener because only Woodstar uses it. Put the public endpoint behind local HTTPS and trust that development CA on clients; upload and redirect URLs are deliberately never issued over HTTP. Browser uploads still need a CORS rule on the Garage bucket. A real deployment brings its own bucket and endpoints; the full set of settings is in [Environment](./environment#storage).
+A real deployment supplies its own S3-compatible bucket, credentials, and endpoints. The full provider-agnostic settings are in [Environment](./environment#storage).

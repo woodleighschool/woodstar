@@ -21,19 +21,6 @@ func setRequiredConfigEnvironment(t *testing.T) {
 	t.Setenv("WOODSTAR_MDP_TLS_KEY_FILE", "")
 }
 
-func TestLoadConfigReadsServerCAFile(t *testing.T) {
-	setRequiredConfigEnvironment(t)
-	t.Setenv("WOODSTAR_MDP_SERVER_CA_FILE", " /etc/woodstar/server-ca.pem ")
-
-	cfg, err := LoadConfig()
-	if err != nil {
-		t.Fatalf("LoadConfig returned error: %v", err)
-	}
-	if cfg.ServerCAFile != "/etc/woodstar/server-ca.pem" {
-		t.Fatalf("ServerCAFile = %q", cfg.ServerCAFile)
-	}
-}
-
 func TestLoadConfigDefaultsAndNormalizes(t *testing.T) {
 	setRequiredConfigEnvironment(t)
 
@@ -77,23 +64,6 @@ func TestLoadConfigReturnsEnvironmentInputErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), name) {
 			t.Errorf("LoadConfig error %q does not name %s", err, name)
 		}
-	}
-}
-
-func TestLoadConfigReadsTLSFiles(t *testing.T) {
-	setRequiredConfigEnvironment(t)
-	t.Setenv("WOODSTAR_MDP_TLS_CERT_FILE", " /etc/woodstar/mdp.crt ")
-	t.Setenv("WOODSTAR_MDP_TLS_KEY_FILE", " /etc/woodstar/mdp.key ")
-
-	cfg, err := LoadConfig()
-	if err != nil {
-		t.Fatalf("LoadConfig returned error: %v", err)
-	}
-	if cfg.TLSCertFile != "/etc/woodstar/mdp.crt" || cfg.TLSKeyFile != "/etc/woodstar/mdp.key" {
-		t.Fatalf("TLS files = %q, %q", cfg.TLSCertFile, cfg.TLSKeyFile)
-	}
-	if !cfg.TLSConfigured() {
-		t.Fatal("TLSConfigured = false with certificate and key files")
 	}
 }
 

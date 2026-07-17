@@ -14,9 +14,10 @@ Use mise tasks as the repo contract. Direct `go test` or `pnpm` commands are fin
 mise trust
 mise install
 mise run deps
+docker compose up -d postgres
 ```
 
-`mise run deps` downloads Go modules and installs frontend dependencies in `web/`.
+`mise run deps` downloads Go modules and installs frontend dependencies in `web/`. Compose provides only the local PostgreSQL service; Woodstar runs through mise, and integration tests create their own ephemeral dependencies.
 
 ## Build
 
@@ -47,13 +48,15 @@ mise run test
 mise run test-integration-munki
 mise run test-integration-osquery
 mise run test-integration-santa
+mise run test-integration-storage
+mise run test-integration-mdp
 mise run test-integration
 mise run test-openapi
 ```
 
-`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. The target integration tasks run compiled-server lifecycles; `mise run test-integration` runs them in one integration process. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
+`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. Most integration tasks run compiled-server lifecycles; the storage task exercises both backends directly. `mise run test-integration` runs them in one integration process. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
 
-Munki, Santa, and the deterministic osquery protocol lifecycle fail when their prerequisites or assertions fail. The osquery task also starts the same official osquery container pattern Fleet uses for preview environments. That real-client lifecycle may skip locally only when Docker is absent; CI requires it.
+Munki, Santa, MDP, and the deterministic osquery protocol lifecycle fail when their prerequisites or assertions fail. The osquery task also starts an official osquery container. The storage task runs the same contract against local files and S3, using an ephemeral Garage testcontainer as the S3 server. The real osqueryd lifecycle and Garage-backed storage checks may skip locally only when Docker is absent; CI requires Docker for both. Garage is test infrastructure, not a persistent Compose service.
 
 The frontend has no test runner. Its verification is `mise //web:lint`, `mise //web:typecheck`, `mise run test-openapi`, and `mise //web:build`.
 

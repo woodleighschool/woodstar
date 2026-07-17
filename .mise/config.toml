@@ -115,8 +115,22 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
   go -C integration test -race -count=1 -v -run '^TestSanta$' .
 """
 
+[tasks.test-integration-storage]
+description = "Run the file and Garage-backed S3 storage lifecycles"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go -C integration test -race -count=1 -v -run '^TestStorage$' .
+"""
+
+[tasks.test-integration-mdp]
+description = "Run the compiled MDP package mirroring lifecycle"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go -C integration test -race -count=1 -v -run '^TestMDP$' .
+"""
+
 [tasks.test-integration]
-description = "Run all compiled integration lifecycles"
+description = "Run all integration lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go -C integration test -race -count=1 -v .

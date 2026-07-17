@@ -1,36 +1,5 @@
 ---
 services:
-  woodstar:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      WOODSTAR_PORT: 8080
-      WOODSTAR_URL: https://woodstar:8080
-      WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
-      WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
-      WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem
-      WOODSTAR_STORAGE_KIND: s3
-      WOODSTAR_STORAGE_S3_BUCKET: woodstar-munki
-      WOODSTAR_STORAGE_S3_REGION: garage
-      WOODSTAR_STORAGE_S3_ENDPOINT: http://garage:3900
-      WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT: ${WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT:-http://127.0.0.1:3900}
-      WOODSTAR_STORAGE_S3_ACCESS_KEY: GKWOODSTARDEVACCESSKEY00000001
-      WOODSTAR_STORAGE_S3_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      WOODSTAR_STORAGE_S3_PATH_STYLE: "true"
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./tmp/tls/woodstar.pem:/tls/woodstar.pem:ro
-      - ./tmp/tls/woodstar-key.pem:/tls/woodstar-key.pem:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      garage:
-        condition: service_started
-
   postgres:
     image: postgres:18
     restart: unless-stopped
@@ -48,23 +17,5 @@ services:
       timeout: 3s
       retries: 20
 
-  garage:
-    image: dxflrs/garage:v2.3.0
-    restart: unless-stopped
-    command: ["/garage", "server", "--single-node", "--default-bucket"]
-    environment:
-      GARAGE_DEFAULT_ACCESS_KEY: GKWOODSTARDEVACCESSKEY00000001
-      GARAGE_DEFAULT_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      GARAGE_DEFAULT_BUCKET: woodstar-munki
-    ports:
-      - "3900:3900"
-      - "3901:3901"
-      - "3902:3902"
-      - "3903:3903"
-    volumes:
-      - ./deploy/dev/garage.toml:/etc/garage.toml:ro
-      - garage-data:/var/lib/garage
-
 volumes:
   postgres-data:
-  garage-data:

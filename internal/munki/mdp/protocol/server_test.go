@@ -21,21 +21,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-type fakePresigner struct {
-	url     string
-	options *storage.GetOptions
-}
+type fakePresigner struct{}
 
-func (f fakePresigner) PresignGet(
+func (fakePresigner) PresignGet(
 	_ context.Context,
 	_ string,
 	_ time.Duration,
-	options storage.GetOptions,
+	_ storage.GetOptions,
 ) (string, error) {
-	if f.options != nil {
-		*f.options = options
-	}
-	return f.url, nil
+	return "", nil
 }
 
 func discardLogger() *slog.Logger {
@@ -132,75 +126,6 @@ func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	}
 }
 
-func TestConnectDeliversIdentityAndDesiredSetThenRecordsState(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store, presence := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
-	point, err := store.Create(ctx, pointMutation([]string{"10.0.0.0/8"}), "worker-key")
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	router := agentRouter(t, store, fakePresigner{})
-	srv := httptest.NewServer(router)
-	defer srv.Close()
-
-	ws, _, err := websocket.Dial(ctx, wsURL(srv.URL), &websocket.DialOptions{
-		HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
-	})
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer ws.Close(websocket.StatusNormalClosure, "")
-
-	// hello carries identity only; the desired set follows in its own message.
-	var hello struct {
-		Type              string `json:"type"`
-		DistributionPoint struct {
-			ID int64 `json:"id"`
-		} `json:"distribution_point"`
-	}
-	readJSON(t, ctx, ws, &hello)
-	if hello.Type != "hello" || hello.DistributionPoint.ID != point.ID {
-		t.Fatalf("hello = %+v, want hello for point %d", hello, point.ID)
-	}
-
-	var desired struct {
-		Type     string `json:"type"`
-		Packages []struct {
-			PackageID int64  `json:"package_id"`
-			Filename  string `json:"filename"`
-			SHA256    string `json:"sha256"`
-			SizeBytes int64  `json:"size_bytes"`
-		} `json:"packages"`
-	}
-	readJSON(t, ctx, ws, &desired)
-	if desired.Type != "desired_set" || len(desired.Packages) != 1 {
-		t.Fatalf("desired_set = %+v, want one package", desired)
-	}
-	got := desired.Packages[0]
-	if got.PackageID != pkg || got.Filename != "Chrome.pkg" || got.SHA256 != sha || got.SizeBytes != 4096 {
-		t.Fatalf("desired package = %+v, want mirror bytes for %d", got, pkg)
-	}
-
-	// The connection makes the point online for the resolver.
-	eventually(t, func() bool { return presence.Online(point.ID) })
-
-	// A package_current event is recorded server-side and gates eligibility.
-	current := `{"type":"package_current","package_id":` +
-		strconv.FormatInt(pkg, 10) + `,"sha256":"` + sha + `"}`
-	if err := ws.Write(ctx, websocket.MessageText, []byte(current)); err != nil {
-		t.Fatalf("write package_current: %v", err)
-	}
-	eventually(t, func() bool {
-		detail, err := store.GetByID(ctx, point.ID)
-		return err == nil &&
-			len(detail.Packages) == 1 &&
-			detail.Packages[0].Status == mdp.PackageStatusCurrent
-	})
-}
-
 func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store, presence := newStore(db)
@@ -264,7 +189,7 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	}
 }
 
-func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
+func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
@@ -272,33 +197,9 @@ func TestDownloadURLMintsPresignedURLForWorker(t *testing.T) {
 	if _, err := store.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	const presigned = "https://storage.example/packages/1/Chrome.pkg?cap=signed"
-	var options storage.GetOptions
-	router := agentRouter(t, store, fakePresigner{url: presigned, options: &options})
+	router := agentRouter(t, store, fakePresigner{})
 
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
-
-	t.Run("authorized", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
-		req.Header.Set("Authorization", "Bearer worker-key")
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", rec.Code)
-		}
-		var body struct {
-			DownloadURL string `json:"download_url"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-			t.Fatalf("decode: %v", err)
-		}
-		if body.DownloadURL != presigned {
-			t.Fatalf("download_url = %q, want %q", body.DownloadURL, presigned)
-		}
-		if options.ContentType != "application/octet-stream" {
-			t.Fatalf("download content type = %q", options.ContentType)
-		}
-	})
 
 	t.Run("missing bearer", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)

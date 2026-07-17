@@ -167,6 +167,9 @@ func requireOsquerydProvider(t *testing.T) {
 func osquerydPrerequisiteUnavailablef(t *testing.T, format string, args ...any) {
 	t.Helper()
 
+	if integrationRequired("osquery") {
+		t.Fatalf("osqueryd integration prerequisite unavailable: "+format, args...)
+	}
 	t.Skipf("osqueryd integration prerequisite unavailable: "+format, args...)
 }
 

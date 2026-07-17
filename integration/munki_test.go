@@ -707,15 +707,3 @@ func requireCapabilityRedirect(t *testing.T, response *http.Response, baseURL *u
 	}
 	return location
 }
-
-func drainAndClose(t *testing.T, response *http.Response) {
-	t.Helper()
-
-	if _, err := io.Copy(io.Discard, response.Body); err != nil {
-		_ = response.Body.Close()
-		t.Fatalf("drain HTTP response: %v", err)
-	}
-	if err := response.Body.Close(); err != nil {
-		t.Fatalf("close HTTP response: %v", err)
-	}
-}

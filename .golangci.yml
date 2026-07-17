@@ -329,6 +329,11 @@ linters:
         # https://github.com/godoc-lint/godoc-lint?tab=readme-ov-file#require-stdlib-doclink
         - require-stdlib-doclink
 
+    gomoddirectives:
+      # The integration module exercises checkout code through the canonical
+      # parent module path.
+      replace-local: true
+
     gosec:
       # Uncomment when needed to sus integer overflow nags
       excludes:
