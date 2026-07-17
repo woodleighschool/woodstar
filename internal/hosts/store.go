@@ -80,8 +80,6 @@ RETURNING`+hostColumnsSQL(), write)
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
-//
-//nolint:funlen // Keep the osquery enrollment mutation with the store method that owns it.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	write := osqueryEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,

@@ -105,7 +105,7 @@ func (s *s3Store) openObjectAt(ctx context.Context, key string, offset int64) (i
 
 type s3ObjectReader struct {
 	body   io.ReadCloser
-	ctx    context.Context //nolint:containedctx // ObjectReader Read and Seek cannot accept a context.
+	ctx    context.Context
 	key    string
 	size   int64
 	offset int64

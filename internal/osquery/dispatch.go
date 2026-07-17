@@ -52,6 +52,8 @@ func parseQueryName(name string) (queryKind, string, bool) {
 	switch kind {
 	case kindDetail, kindLabel, kindCheck, kindLive:
 		return kind, suffix, true
+	case kindReport:
+		return "", "", false
 	default:
 		return "", "", false
 	}
@@ -109,7 +111,7 @@ func (s *AgentService) dispatchWriteResults(
 		message := req.Messages[name]
 
 		var err error
-		switch kind { //nolint:exhaustive // parseQueryName already narrowed to the four dispatched kinds
+		switch kind { //nolint:exhaustive // parseQueryName excludes report queries.
 		case kindDetail:
 			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, hasStatus, message, details)
 		case kindLabel:

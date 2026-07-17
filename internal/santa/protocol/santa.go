@@ -266,8 +266,12 @@ func ruleDownloadRequestFromProto(req *syncv1.RuleDownloadRequest) (santa.RuleDo
 }
 
 func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
+	rules, err := protoRulesFromPayloadRules(resp.Rules)
+	if err != nil {
+		return nil, err
+	}
 	return &syncv1.RuleDownloadResponse{
-		Rules:  protoRulesFromPayloadRules(resp.Rules),
+		Rules:  rules,
 		Cursor: resp.Cursor,
 	}, nil
 }
@@ -383,9 +387,13 @@ func syncTypeFromProto(value syncv1.SyncType) (syncstate.SyncType, error) {
 		return syncstate.SyncTypeClean, nil
 	case syncv1.SyncType_CLEAN_ALL:
 		return syncstate.SyncTypeCleanAll, nil
+	case syncv1.SyncType_SYNC_TYPE_UNSPECIFIED,
+		syncv1.SyncType_CLEAN_STANDALONE,
+		syncv1.SyncType_CLEAN_RULES,
+		syncv1.SyncType_CLEAN_FILE_ACCESS_RULES:
 	default:
-		return "", fmt.Errorf("%w: unsupported sync_type %q", dbutil.ErrInvalidInput, value)
 	}
+	return "", fmt.Errorf("%w: unsupported sync_type %q", dbutil.ErrInvalidInput, value)
 }
 
 func entitlementJSON(event *syncv1.Event) ([]byte, error) {
@@ -632,6 +640,8 @@ func clientModeFromProto(mode syncv1.ClientMode) configurations.ReportedClientMo
 		return configurations.ReportedClientModeLockdown
 	case syncv1.ClientMode_STANDALONE:
 		return configurations.ReportedClientModeStandalone
+	case syncv1.ClientMode_UNKNOWN_CLIENT_MODE:
+		return configurations.ReportedClientModeUnknown
 	default:
 		return configurations.ReportedClientModeUnknown
 	}
@@ -671,12 +681,16 @@ func protoSyncType(syncType syncstate.SyncType) (syncv1.SyncType, error) {
 	}
 }
 
-func protoRulesFromPayloadRules(payload []syncstate.PayloadRule) []*syncv1.Rule {
+func protoRulesFromPayloadRules(payload []syncstate.PayloadRule) ([]*syncv1.Rule, error) {
 	rules := make([]*syncv1.Rule, 0, len(payload))
 	for _, rule := range payload {
+		ruleType, err := protoRuleType(rule.RuleType)
+		if err != nil {
+			return nil, err
+		}
 		rules = append(rules, &syncv1.Rule{
 			Identifier:          rule.Identifier,
-			RuleType:            protoRuleType(rule.RuleType),
+			RuleType:            ruleType,
 			Policy:              protoPolicy(rule),
 			CelExpr:             rule.CELExpression,
 			CustomMsg:           rule.CustomMessage,
@@ -684,23 +698,32 @@ func protoRulesFromPayloadRules(payload []syncstate.PayloadRule) []*syncv1.Rule 
 			NotificationAppName: rule.AppName,
 		})
 	}
-	return rules
+	return rules, nil
 }
 
-func protoRuleType(ruleType string) syncv1.RuleType {
+func protoRuleType(ruleType string) (syncv1.RuleType, error) {
 	switch santarules.RuleType(ruleType) {
 	case santarules.RuleTypeBinary:
-		return syncv1.RuleType_BINARY
+		return syncv1.RuleType_BINARY, nil
 	case santarules.RuleTypeCertificate:
-		return syncv1.RuleType_CERTIFICATE
+		return syncv1.RuleType_CERTIFICATE, nil
 	case santarules.RuleTypeTeamID:
-		return syncv1.RuleType_TEAMID
+		return syncv1.RuleType_TEAMID, nil
 	case santarules.RuleTypeSigningID:
-		return syncv1.RuleType_SIGNINGID
+		return syncv1.RuleType_SIGNINGID, nil
 	case santarules.RuleTypeCDHash:
-		return syncv1.RuleType_CDHASH
+		return syncv1.RuleType_CDHASH, nil
+	case santarules.RuleTypeBundle:
+		return syncv1.RuleType_RULETYPE_UNKNOWN, fmt.Errorf(
+			"%w: bundle rules must be expanded before download",
+			dbutil.ErrInvalidInput,
+		)
 	default:
-		return syncv1.RuleType_RULETYPE_UNKNOWN
+		return syncv1.RuleType_RULETYPE_UNKNOWN, fmt.Errorf(
+			"%w: unsupported rule type %q",
+			dbutil.ErrInvalidInput,
+			ruleType,
+		)
 	}
 }
 
@@ -764,6 +787,8 @@ func decisionFromProto(decision syncv1.Decision) santaevents.ExecutionDecision {
 		return santaevents.ExecutionDecisionBlockBinaryMismatch
 	case syncv1.Decision_ALLOW_PLATFORM:
 		return santaevents.ExecutionDecisionAllowPlatform
+	case syncv1.Decision_DECISION_UNKNOWN:
+		return santaevents.ExecutionDecisionUnknown
 	default:
 		return santaevents.ExecutionDecisionUnknown
 	}
@@ -777,6 +802,8 @@ func fileAccessDecisionFromProto(decision syncv1.FileAccessDecision) santaevents
 		return santaevents.FileAccessDecisionDeniedInvalidSignature
 	case syncv1.FileAccessDecision_FILE_ACCESS_DECISION_AUDIT_ONLY:
 		return santaevents.FileAccessDecisionAuditOnly
+	case syncv1.FileAccessDecision_FILE_ACCESS_DECISION_UNKNOWN:
+		return santaevents.FileAccessDecisionUnknown
 	default:
 		return santaevents.FileAccessDecisionUnknown
 	}
@@ -794,6 +821,8 @@ func signingStatusFromProto(status syncv1.SigningStatus) santaevents.SigningStat
 		return santaevents.SigningStatusDevelopment
 	case syncv1.SigningStatus_SIGNING_STATUS_PRODUCTION:
 		return santaevents.SigningStatusProduction
+	case syncv1.SigningStatus_SIGNING_STATUS_UNSPECIFIED:
+		return santaevents.SigningStatusUnspecified
 	default:
 		return santaevents.SigningStatusUnspecified
 	}

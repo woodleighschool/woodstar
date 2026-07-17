@@ -215,7 +215,7 @@ func (s *fileStore) expires(ttl time.Duration) time.Duration {
 }
 
 // fileObjectReader exposes only the object-reader contract.
-// Do not return raw *os.File here: its optional interfaces allow net/http/io.Copy
+// Returning the concrete file would expose optional interfaces that allow net/http
 // to select platform sendfile paths, which can break HTTP framing on some stacks.
 type fileObjectReader struct {
 	io.ReadSeeker

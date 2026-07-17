@@ -42,7 +42,6 @@ func NewStore(db *database.DB, objects objectStore, logger *slog.Logger) *Store 
 	}
 }
 
-//nolint:funlen // Keep the package insert contract with the store method that owns it.
 func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package, error) {
 	params, err := prepareCreateMutation(in)
 	if err != nil {
@@ -169,7 +168,6 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 	return s.GetByID(ctx, id)
 }
 
-//nolint:funlen // Keep the package replacement contract with the store method that owns it.
 func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
 	params, err := prepareMutation(params)
 	if err != nil {

@@ -264,6 +264,7 @@ func prepareOrbitArtifacts(t *testing.T) orbitArtifacts {
 	}
 
 	artifacts := orbitArtifacts{orbitPath: orbitPath, osqueryPath: osqueryPath}
+	//nolint:exhaustive // Only amd64 and arm64 Orbit artifacts are supported.
 	switch orbitMachine {
 	case elf.EM_X86_64:
 		artifacts.platform = "linux/amd64"

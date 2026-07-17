@@ -7,11 +7,7 @@ import (
 )
 
 // labelCriteria scans the nullable criteria jsonb column inline and marshals the
-// normalized criteria back out. A pointer receiver is needed for sql.Scanner (it
-// sets the wrapped value) and a value receiver for driver.Valuer (the write
-// struct holds it as a non-addressable field), so recvcheck is suppressed.
-//
-//nolint:recvcheck // Scanner needs a pointer receiver; Valuer needs a value receiver.
+// normalized criteria back out.
 type labelCriteria struct {
 	value *Criteria
 }

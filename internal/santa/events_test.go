@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -19,7 +20,19 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing.T) {
+type uploadedEventFixture struct {
+	db                *database.DB
+	eventStore        *santaevents.Store
+	allowEvent        santaevents.ExecutionEvent
+	blockEvent        santaevents.ExecutionEvent
+	signingTime       time.Time
+	secureSigningTime time.Time
+	bundleHash        string
+}
+
+func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
+	t.Helper()
+
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
@@ -44,9 +57,13 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 	}
 
 	occurredAt := time.Date(2026, 5, 23, 12, 30, 0, 0, time.UTC)
-	signingTime := time.Date(2026, 5, 22, 8, 15, 0, 0, time.UTC)
-	secureSigningTime := time.Date(2026, 5, 22, 8, 16, 0, 0, time.UTC)
-	bundleHash := strings.Repeat("c", 64)
+	fixture := uploadedEventFixture{
+		db:                db,
+		eventStore:        eventStore,
+		signingTime:       time.Date(2026, 5, 22, 8, 15, 0, 0, time.UTC),
+		secureSigningTime: time.Date(2026, 5, 22, 8, 16, 0, 0, time.UTC),
+		bundleHash:        strings.Repeat("c", 64),
+	}
 	_, err = service.EventUpload(ctx, "santa-events-host", santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{
 			{
@@ -78,7 +95,7 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 				BundleName:              "Example",
 				BundleVersion:           "2.0.0",
 				BundleVersionString:     "2.0.0 (42)",
-				BundleHash:              bundleHash,
+				BundleHash:              fixture.bundleHash,
 				BundleHashMillis:        23,
 				BundleBinaryCount:       1,
 				SigningID:               "TEAMID:com.example.new",
@@ -86,8 +103,8 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 				CDHash:                  "new-cdhash",
 				CodesigningFlags:        570425345,
 				SigningStatus:           santaevents.SigningStatusProduction,
-				SecureSigningTime:       secureSigningTime,
-				SigningTime:             signingTime,
+				SecureSigningTime:       fixture.secureSigningTime,
+				SigningTime:             fixture.signingTime,
 				Entitlements: []byte(
 					`{"application-identifier":"TEAMID.com.example.new","com.apple.security.cs.allow-jit":true}`,
 				),
@@ -107,43 +124,60 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 	if len(items) != 2 {
 		t.Fatalf("events = %+v, want two execution events", items)
 	}
-	allowEvent := santaevents.ExecutionEvent{}
-	blockEvent := santaevents.ExecutionEvent{}
+	eventsByDecision := make(map[santaevents.ExecutionDecision]santaevents.ExecutionEvent, len(items))
 	for _, event := range items {
-		if event.Decision == santaevents.ExecutionDecisionAllowBinary {
-			allowEvent = event
-		}
-		if event.Decision == santaevents.ExecutionDecisionBlockBinary {
-			blockEvent = event
-		}
+		eventsByDecision[event.Decision] = event
 	}
-	if allowEvent.ID == 0 || blockEvent.ID == 0 {
+	fixture.allowEvent = eventsByDecision[santaevents.ExecutionDecisionAllowBinary]
+	fixture.blockEvent = eventsByDecision[santaevents.ExecutionDecisionBlockBinary]
+	if fixture.allowEvent.ID == 0 || fixture.blockEvent.ID == 0 {
 		t.Fatalf("events = %+v, want allow_binary and block_binary", items)
 	}
-	if allowEvent.Executable.FileName != "Example Renamed" ||
-		allowEvent.Executable.BundleID != "com.example.new" ||
-		allowEvent.Executable.BundleExecutableRelPath != "Contents/MacOS/Example" ||
-		allowEvent.Executable.BundleName != "Example" ||
-		allowEvent.Executable.BundleVersion != "2.0.0" ||
-		allowEvent.Executable.BundleVersionString != "2.0.0 (42)" ||
-		allowEvent.Executable.BundleHash != bundleHash ||
-		allowEvent.Executable.BundleHashMillis != 23 ||
-		allowEvent.Executable.BundleBinaryCount != 1 ||
-		allowEvent.Executable.SigningID != "TEAMID:com.example.new" ||
-		allowEvent.Executable.CDHash != "new-cdhash" ||
-		allowEvent.Executable.CodesigningFlags != 570425345 ||
-		allowEvent.Executable.SigningStatus != santaevents.SigningStatusProduction {
-		t.Fatalf("executable metadata was not updated: %+v", allowEvent.Executable)
+	return fixture
+}
+
+func TestEventUploadProjectsExecutableDetails(t *testing.T) {
+	fixture := newUploadedEventFixture(t)
+
+	t.Run("replaces executable metadata", func(t *testing.T) {
+		assertEventUploadReplacesExecutableMetadata(t, fixture)
+	})
+	t.Run("normalizes joined lists", func(t *testing.T) {
+		assertEventUploadNormalizesJoinedLists(t, fixture)
+	})
+	t.Run("persists signing chain", func(t *testing.T) {
+		assertEventUploadPersistsSigningChain(t, fixture)
+	})
+}
+
+func assertEventUploadReplacesExecutableMetadata(t *testing.T, fixture uploadedEventFixture) {
+	t.Helper()
+
+	executable := fixture.allowEvent.Executable
+
+	if executable.FileName != "Example Renamed" ||
+		executable.BundleID != "com.example.new" ||
+		executable.BundleExecutableRelPath != "Contents/MacOS/Example" ||
+		executable.BundleName != "Example" ||
+		executable.BundleVersion != "2.0.0" ||
+		executable.BundleVersionString != "2.0.0 (42)" ||
+		executable.BundleHash != fixture.bundleHash ||
+		executable.BundleHashMillis != 23 ||
+		executable.BundleBinaryCount != 1 ||
+		executable.SigningID != "TEAMID:com.example.new" ||
+		executable.CDHash != "new-cdhash" ||
+		executable.CodesigningFlags != 570425345 ||
+		executable.SigningStatus != santaevents.SigningStatusProduction {
+		t.Fatalf("executable metadata was not updated: %+v", executable)
 	}
-	if allowEvent.Executable.SecureSigningTime == nil ||
-		!allowEvent.Executable.SecureSigningTime.Equal(secureSigningTime) {
-		t.Fatalf("secure signing time = %v, want %v", allowEvent.Executable.SecureSigningTime, secureSigningTime)
+	if executable.SecureSigningTime == nil || !executable.SecureSigningTime.Equal(fixture.secureSigningTime) {
+		t.Fatalf("secure signing time = %v, want %v", executable.SecureSigningTime, fixture.secureSigningTime)
 	}
-	if allowEvent.Executable.SigningTime == nil || !allowEvent.Executable.SigningTime.Equal(signingTime) {
-		t.Fatalf("signing time = %v, want %v", allowEvent.Executable.SigningTime, signingTime)
+	if executable.SigningTime == nil || !executable.SigningTime.Equal(fixture.signingTime) {
+		t.Fatalf("signing time = %v, want %v", executable.SigningTime, fixture.signingTime)
 	}
 	var entitlements map[string]any
-	if err := json.Unmarshal(allowEvent.Executable.Entitlements, &entitlements); err != nil {
+	if err := json.Unmarshal(executable.Entitlements, &entitlements); err != nil {
 		t.Fatalf("entitlements JSON: %v", err)
 	}
 	if got := entitlements["application-identifier"]; got != "TEAMID.com.example.new" {
@@ -152,35 +186,50 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 	if got := entitlements["com.apple.security.cs.allow-jit"]; got != true {
 		t.Fatalf("allow-jit entitlement = %v, want true", got)
 	}
-	if !slices.Equal(blockEvent.LoggedInUsers, []string{"bob", "alice"}) {
-		t.Fatalf("logged_in_users = %v, want client order", blockEvent.LoggedInUsers)
+}
+
+func assertEventUploadNormalizesJoinedLists(t *testing.T, fixture uploadedEventFixture) {
+	t.Helper()
+
+	if !slices.Equal(fixture.blockEvent.LoggedInUsers, []string{"bob", "alice"}) {
+		t.Fatalf("logged_in_users = %v, want client order", fixture.blockEvent.LoggedInUsers)
 	}
-	if !slices.Equal(blockEvent.CurrentSessions, []string{"console", "ssh"}) {
-		t.Fatalf("current_sessions = %v, want client order", blockEvent.CurrentSessions)
+	if !slices.Equal(fixture.blockEvent.CurrentSessions, []string{"console", "ssh"}) {
+		t.Fatalf("current_sessions = %v, want client order", fixture.blockEvent.CurrentSessions)
 	}
-	if len(allowEvent.LoggedInUsers) != 0 {
-		t.Fatalf("omitted logged_in_users = %v, want empty array", allowEvent.LoggedInUsers)
+	if len(fixture.allowEvent.LoggedInUsers) != 0 {
+		t.Fatalf("omitted logged_in_users = %v, want empty array", fixture.allowEvent.LoggedInUsers)
 	}
-	if len(allowEvent.CurrentSessions) != 0 {
-		t.Fatalf("omitted current_sessions = %v, want empty array", allowEvent.CurrentSessions)
+	if len(fixture.allowEvent.CurrentSessions) != 0 {
+		t.Fatalf("omitted current_sessions = %v, want empty array", fixture.allowEvent.CurrentSessions)
 	}
+}
+
+func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFixture) {
+	t.Helper()
+
+	ctx := t.Context()
 
 	var chainCount int
-	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).Scan(&chainCount); err != nil {
+	if err := fixture.db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).
+		Scan(&chainCount); err != nil {
 		t.Fatalf("count signing chains: %v", err)
 	}
 	if chainCount != 1 {
 		t.Fatalf("signing chain count = %d, want 1", chainCount)
 	}
 	var certificateCount int
-	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_certificates`).Scan(&certificateCount); err != nil {
+	if err := fixture.db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_certificates`).
+		Scan(&certificateCount); err != nil {
 		t.Fatalf("count certificates: %v", err)
 	}
 	if certificateCount != 2 {
 		t.Fatalf("certificate count = %d, want 2", certificateCount)
 	}
 	var chainEntryCount int
-	if err := db.Pool().
+	if err := fixture.db.Pool().
 		QueryRow(ctx, `SELECT count(*) FROM santa_signing_chain_entries`).
 		Scan(&chainEntryCount); err != nil {
 		t.Fatalf("count signing chain entries: %v", err)
@@ -189,7 +238,7 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 		t.Fatalf("signing chain entry count = %d, want 2", chainEntryCount)
 	}
 	var linkCount int
-	if err := db.Pool().
+	if err := fixture.db.Pool().
 		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
 		Scan(&linkCount); err != nil {
 		t.Fatalf("count signing chain links: %v", err)
@@ -198,7 +247,7 @@ func TestEventUploadReplacesExecutableMetadataAndNormalizesJoinedData(t *testing
 		t.Fatalf("signing chain link count = %d, want 1", linkCount)
 	}
 
-	detail, err := eventStore.GetExecutionEvent(ctx, blockEvent.ID)
+	detail, err := fixture.eventStore.GetExecutionEvent(ctx, fixture.blockEvent.ID)
 	if err != nil {
 		t.Fatalf("get execution event: %v", err)
 	}

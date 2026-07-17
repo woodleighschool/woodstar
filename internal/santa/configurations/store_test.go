@@ -24,87 +24,69 @@ func baseline(name string) configurations.ConfigurationMutation {
 	}
 }
 
-func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing.T) {
+func TestConfigurationStoreRejectsInvalidMutations(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := configurations.NewStore(db)
+	labelID := createSantaConfigurationLabel(t, db, "Santa Configuration Validation")
+
+	tests := []struct {
+		name   string
+		mutate func(*configurations.ConfigurationMutation)
+		want   error
+	}{
+		{name: "short sync", mutate: func(m *configurations.ConfigurationMutation) {
+			m.FullSyncIntervalSeconds = 59
+		}, want: dbutil.ErrInvalidInput},
+		{name: "tiny batch", mutate: func(m *configurations.ConfigurationMutation) {
+			m.BatchSize = 1
+		}, want: dbutil.ErrInvalidInput},
+		{name: "missing name", mutate: func(m *configurations.ConfigurationMutation) {
+			m.Name = ""
+		}, want: dbutil.ErrInvalidInput},
+		{name: "empty client mode", mutate: func(m *configurations.ConfigurationMutation) {
+			m.ClientMode = ""
+		}, want: dbutil.ErrInvalidInput},
+		{name: "invalid file access action", mutate: func(m *configurations.ConfigurationMutation) {
+			m.OverrideFileAccessAction = ""
+		}, want: dbutil.ErrInvalidInput},
+		{name: "invalid label", mutate: func(m *configurations.ConfigurationMutation) {
+			m.Targets = configurationTargets(labelRefs(0), nil)
+		}, want: dbutil.ErrInvalidInput},
+		{name: "missing label", mutate: func(m *configurations.ConfigurationMutation) {
+			m.Targets = configurationTargets(labelRefs(999_999), nil)
+		}, want: dbutil.ErrNotFound},
+		{name: "duplicate targets", mutate: func(m *configurations.ConfigurationMutation) {
+			m.Targets = configurationTargets(labelRefs(labelID, labelID), nil)
+		}, want: dbutil.ErrInvalidInput},
+		{name: "overlapping targets", mutate: func(m *configurations.ConfigurationMutation) {
+			m.Targets = configurationTargets(labelRefs(labelID), labelRefs(labelID))
+		}, want: dbutil.ErrInvalidInput},
+		{name: "remount without flags", mutate: func(m *configurations.ConfigurationMutation) {
+			m.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
+				Action: configurations.RemovableMediaActionRemount,
+			}
+		}, want: dbutil.ErrInvalidInput},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mutation := baseline(tt.name)
+			tt.mutate(&mutation)
+			if _, err := store.Create(ctx, mutation); !errors.Is(err, tt.want) {
+				t.Fatalf("Create error = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigurationStorePersistsEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := configurations.NewStore(db)
 	firstLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration First")
 	secondLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Second")
 	thirdLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Third")
 
-	short := baseline("short sync")
-	short.FullSyncIntervalSeconds = 59
-	if _, err := store.Create(ctx, short); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("short full sync error = %v, want ErrInvalidInput", err)
-	}
-
-	tinyBatch := baseline("tiny batch")
-	tinyBatch.BatchSize = 1
-	if _, err := store.Create(ctx, tinyBatch); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("tiny batch size error = %v, want ErrInvalidInput", err)
-	}
-
-	missingName := baseline("")
-	if _, err := store.Create(ctx, missingName); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("missing name error = %v, want ErrInvalidInput", err)
-	}
-
-	emptyClientMode := baseline("empty client mode")
-	emptyClientMode.ClientMode = ""
-	if _, err := store.Create(ctx, emptyClientMode); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("empty client mode error = %v, want ErrInvalidInput", err)
-	}
-
-	invalidFileAccessAction := baseline("invalid file access action")
-	invalidFileAccessAction.OverrideFileAccessAction = ""
-	if _, err := store.Create(ctx, invalidFileAccessAction); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("invalid file access action error = %v, want ErrInvalidInput", err)
-	}
-
-	invalidLabel := baseline("invalid label")
-	invalidLabel.Targets = configurationTargets(labelRefs(0), nil)
-	if _, err := store.Create(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("invalid label ID error = %v, want ErrInvalidInput", err)
-	}
-
-	missingLabel := baseline("missing label")
-	missingLabel.Targets = configurationTargets(labelRefs(999_999), nil)
-	if _, err := store.Create(ctx, missingLabel); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("missing label ID error = %v, want ErrNotFound", err)
-	}
-
-	duplicateTargets := baseline("duplicate targets")
-	duplicateTargets.Targets = configurationTargets(labelRefs(firstLabelID, firstLabelID), nil)
-	if _, err := store.Create(ctx, duplicateTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("duplicate target error = %v, want ErrInvalidInput", err)
-	}
-
-	overlappingTargets := baseline("overlapping targets")
-	overlappingTargets.Targets = configurationTargets(labelRefs(firstLabelID), labelRefs(firstLabelID))
-	if _, err := store.Create(ctx, overlappingTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("overlapping target error = %v, want ErrInvalidInput", err)
-	}
-
-	remountWithoutFlags := baseline("remount without flags")
-	remountWithoutFlags.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
-		Action: configurations.RemovableMediaActionRemount,
-	}
-	if _, err := store.Create(ctx, remountWithoutFlags); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("remount without flags error = %v, want ErrInvalidInput", err)
-	}
-
-	create := baseline("Baseline")
-	create.Description = "Baseline policy"
-	create.ClientMode = configurations.ClientModeLockdown
-	create.EnableBundles = true
-	create.DisableUnknownEventUpload = true
-	create.OverrideFileAccessAction = configurations.FileAccessActionDisable
-	create.FullSyncIntervalSeconds = 120
-	create.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
-		Action:       configurations.RemovableMediaActionRemount,
-		RemountFlags: []string{"rw", "nosuid"},
-	}
-	create.Targets = configurationTargets(labelRefs(firstLabelID, secondLabelID), labelRefs(thirdLabelID))
-
+	create := editableConfiguration(firstLabelID, secondLabelID, thirdLabelID)
 	config, err := store.Create(ctx, create)
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
@@ -123,6 +105,18 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		!sameLabelRefs(config.Targets.Exclude, labelRefs(thirdLabelID)) {
 		t.Fatalf("targets = %+v, want include [%d %d] exclude [%d]",
 			config.Targets, firstLabelID, secondLabelID, thirdLabelID)
+	}
+}
+
+func TestConfigurationStoreUpdateReplacesEditableShape(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := configurations.NewStore(db)
+	firstLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Update First")
+	secondLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Update Second")
+	thirdLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Update Third")
+	config, err := store.Create(ctx, editableConfiguration(firstLabelID, secondLabelID, thirdLabelID))
+	if err != nil {
+		t.Fatalf("create configuration: %v", err)
 	}
 
 	update := baseline("Updated")
@@ -145,6 +139,22 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	if !sameLabelRefs(updated.Targets.Include, labelRefs(thirdLabelID)) || len(updated.Targets.Exclude) != 0 {
 		t.Fatalf("updated targets = %+v, want only include label %d", updated.Targets, thirdLabelID)
 	}
+}
+
+func editableConfiguration(firstLabelID, secondLabelID, thirdLabelID int64) configurations.ConfigurationMutation {
+	mutation := baseline("Baseline")
+	mutation.Description = "Baseline policy"
+	mutation.ClientMode = configurations.ClientModeLockdown
+	mutation.EnableBundles = true
+	mutation.DisableUnknownEventUpload = true
+	mutation.OverrideFileAccessAction = configurations.FileAccessActionDisable
+	mutation.FullSyncIntervalSeconds = 120
+	mutation.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
+		Action:       configurations.RemovableMediaActionRemount,
+		RemountFlags: []string{"rw", "nosuid"},
+	}
+	mutation.Targets = configurationTargets(labelRefs(firstLabelID, secondLabelID), labelRefs(thirdLabelID))
+	return mutation
 }
 
 func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {

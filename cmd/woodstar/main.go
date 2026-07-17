@@ -169,7 +169,6 @@ func serve(parent context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
 	}
-	//nolint:contextcheck // Huma supplies its middleware context from each request.
 	server, err := api.NewServer(wiring.apiDependencies())
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)
@@ -268,7 +267,6 @@ type wiring struct {
 	santaState     *santa.HostStateService
 }
 
-//nolint:funlen // Dependency construction is intentionally visible in one place.
 func buildWiring(
 	ctx context.Context,
 	cfg config.Config,

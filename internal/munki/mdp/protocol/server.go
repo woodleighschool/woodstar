@@ -172,10 +172,8 @@ func isExpectedClose(err error) bool {
 		errors.Is(err, io.EOF) {
 		return true
 	}
-	switch websocket.CloseStatus(err) {
-	case websocket.StatusNormalClosure, websocket.StatusGoingAway, websocket.StatusPolicyViolation:
-		return true
-	default:
-		return false
-	}
+	status := websocket.CloseStatus(err)
+	return status == websocket.StatusNormalClosure ||
+		status == websocket.StatusGoingAway ||
+		status == websocket.StatusPolicyViolation
 }

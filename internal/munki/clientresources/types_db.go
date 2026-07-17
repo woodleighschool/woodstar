@@ -6,7 +6,6 @@ import (
 	"fmt"
 )
 
-//nolint:recvcheck // Scanner needs a pointer receiver; Valuer needs a value receiver.
 type linksValue []Link
 
 func (v *linksValue) Scan(src any) error {

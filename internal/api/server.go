@@ -54,9 +54,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
+// Huma exposes array nullability only through a package global.
+//
+//nolint:gochecknoinits // Set it before any schema registry can be built.
 func init() {
-	//nolint:reassign // huma exposes array nullability only as a package global
-	huma.DefaultArrayNullable = false
+	huma.DefaultArrayNullable = false //nolint:reassign // No per-API setting exists.
 }
 
 // Server owns the listener and router.
@@ -406,6 +408,8 @@ func BuildSchemaAPI(version string, deps *Dependencies) huma.API {
 // config never imports chi. The default trusts the connection's remote address.
 func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	switch cfg.ClientIPSource {
+	case config.ClientIPSourceRemoteAddr:
+		return chimiddleware.ClientIPFromRemoteAddr
 	case config.ClientIPSourceHeader:
 		return chimiddleware.ClientIPFromHeader(cfg.ClientIPHeader)
 	case config.ClientIPSourceXFFTrustedCIDRs:
@@ -413,7 +417,7 @@ func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	case config.ClientIPSourceXFFTrustedProxies:
 		return chimiddleware.ClientIPFromXFFTrustedProxies(cfg.ClientIPTrustedProxies)
 	default:
-		return chimiddleware.ClientIPFromRemoteAddr
+		panic(fmt.Sprintf("unsupported client IP source %q", cfg.ClientIPSource))
 	}
 }
 

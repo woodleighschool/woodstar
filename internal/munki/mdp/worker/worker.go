@@ -156,7 +156,7 @@ func (w *Worker) connectLoop(ctx context.Context) {
 func (w *Worker) connectOnce(ctx context.Context) error {
 	w.logger.DebugContext(ctx, "connecting", "url", w.connectURL())
 	dialCtx, cancelDial := context.WithTimeout(ctx, websocketHandshakeTimeout)
-	//nolint:bodyclose // websocket.Dial owns the handshake response body.
+	//nolint:bodyclose // websocket.Dial owns the handshake response body even when dialing fails.
 	ws, _, err := websocket.Dial(dialCtx, w.connectURL(), &websocket.DialOptions{
 		HTTPClient: w.client.websocketHTTP,
 		HTTPHeader: http.Header{"Authorization": {"Bearer " + w.cfg.Key}},

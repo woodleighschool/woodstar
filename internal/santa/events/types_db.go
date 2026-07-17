@@ -6,14 +6,8 @@ import (
 	"fmt"
 )
 
-// The JSON column types below need a pointer receiver for sql.Scanner (it mutates
-// the slice) and a value receiver for driver.Valuer (the struct fields holding them
-// are non-addressable values), so recvcheck is suppressed.
-
-//nolint:recvcheck // Scanner needs a pointer receiver; Valuer needs a value receiver.
 type signingChainColumn []signingChainEntry
 
-//nolint:recvcheck // Scanner needs a pointer receiver; Valuer needs a value receiver.
 type processChainColumn []Process
 
 func (v *signingChainColumn) Scan(src any) error          { return scanJSONSlice(src, v) }

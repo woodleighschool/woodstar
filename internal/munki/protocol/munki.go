@@ -121,7 +121,7 @@ func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
 	if url, ok := h.redirectToDistributionPoint(r, installer); ok {
 		// Target is the admin-configured distribution point base URL plus a
 		// server-signed grant, not client input.
-		http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // server-minted redirect target
+		http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // Server-minted distribution URL.
 		return
 	}
 	h.deliver(w, r, munki.RepositoryFile{Key: installer.Key, ContentType: installer.ContentType})

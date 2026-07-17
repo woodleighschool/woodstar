@@ -115,21 +115,11 @@ func validateExcludedLabels(ctx context.Context, q dbutil.Queryer, excludes []ta
 }
 
 func storagePackageSelection(selector PackageSelector) string {
-	switch selector.Strategy {
-	case PackageSpecific:
-		return string(PackageSpecific)
-	default:
-		return string(PackageLatest)
-	}
+	return string(selector.Strategy)
 }
 
 func packageSelectorFromStorage(selection string, packageID *int64) PackageSelector {
-	switch PackageStrategy(selection) {
-	case PackageSpecific:
-		return PackageSelector{Strategy: PackageSpecific, PackageID: packageID}
-	default:
-		return PackageSelector{Strategy: PackageLatest}
-	}
+	return PackageSelector{Strategy: PackageStrategy(selection), PackageID: packageID}
 }
 
 func storageActions(actions []Action) []string {

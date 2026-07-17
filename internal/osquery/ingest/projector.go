@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -76,11 +77,15 @@ func (p *Projector) IngestDetail(
 		return ingestBatteries(ctx, p, hostID, rows)
 	case catalog.IngestCertificates:
 		return ingestCertificates(ctx, p, hostID, rows)
-	default:
+	case catalog.IngestMunkiInfo, catalog.IngestMunkiInstalls:
 		if handler, ok := p.detailHandlers[query.Ingest]; ok {
 			return handler(ctx, hostID, rows)
 		}
-		return nil
+		return fmt.Errorf("no detail handler registered for %q", query.Ingest)
+	case catalog.IngestSoftwareBase, catalog.IngestSoftwareEnrichment:
+		return fmt.Errorf("deferred software ingest %q cannot be projected alone", query.Ingest)
+	default:
+		return fmt.Errorf("unknown detail ingest %q", query.Ingest)
 	}
 }
 

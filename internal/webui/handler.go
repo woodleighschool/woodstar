@@ -37,12 +37,6 @@ type Handler struct {
 	logger   *slog.Logger
 }
 
-func init() {
-	_ = mime.AddExtensionType(".css", "text/css; charset=utf-8")
-	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
-	_ = mime.AddExtensionType(".svg", "image/svg+xml")
-}
-
 // NewHandler returns an HTTP handler for the embedded web UI.
 func NewHandler(opts HandlerOptions) *Handler {
 	h := &Handler{
@@ -158,12 +152,12 @@ func redirectIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		target += "?" + r.URL.RawQuery
 	}
-	//nolint:gosec // G710: target is always the same-origin root path, only the query string is preserved
+	//nolint:gosec // The destination is always the same-origin root; only its query is preserved.
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
 func setAssetHeaders(w http.ResponseWriter, name string) {
-	if contentType := mime.TypeByExtension(filepath.Ext(name)); contentType != "" {
+	if contentType := assetContentType(name); contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
 	if strings.HasPrefix(name, "assets/") {
@@ -171,6 +165,19 @@ func setAssetHeaders(w http.ResponseWriter, name string) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=86400")
+}
+
+func assetContentType(name string) string {
+	switch extension := filepath.Ext(name); extension {
+	case ".css":
+		return "text/css; charset=utf-8"
+	case ".js":
+		return "application/javascript; charset=utf-8"
+	case ".svg":
+		return "image/svg+xml"
+	default:
+		return mime.TypeByExtension(extension)
+	}
 }
 
 func isAssetPath(path string) bool {
