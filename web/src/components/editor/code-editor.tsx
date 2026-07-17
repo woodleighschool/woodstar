@@ -4,8 +4,7 @@ import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useTheme } from "next-themes";
-import { forwardRef, useMemo } from "react";
+import { forwardRef, useMemo, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,6 +22,17 @@ interface CodeEditorProps {
 }
 
 const EMPTY_EXTENSIONS: Extension[] = [];
+const DARK_MODE_QUERY = "(prefers-color-scheme: dark)";
+
+function subscribeToColorScheme(onChange: () => void) {
+  const media = window.matchMedia(DARK_MODE_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function prefersDarkMode() {
+  return window.matchMedia(DARK_MODE_QUERY).matches;
+}
 
 const editorCompletionKeymap = Prec.highest(
   keymap.of([
@@ -143,8 +153,7 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
   },
   ref,
 ) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const isDark = useSyncExternalStore(subscribeToColorScheme, prefersDarkMode);
   const editorExtensions = useMemo(
     () => [
       editorCompletionKeymap,

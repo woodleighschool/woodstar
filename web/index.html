@@ -9,30 +9,24 @@
     <meta name="color-scheme" content="light dark" />
     <title>Woodstar</title>
     <script>
-      /* Anti-FOUC: apply theme class and background before first paint */
+      /* Apply the system theme before first paint and keep it in sync. */
       (function () {
         try {
           const root = document.documentElement;
           const media = window.matchMedia("(prefers-color-scheme: dark)");
-          const storedTheme = window.localStorage.getItem("theme");
-          const isDark =
-            storedTheme === "dark" ||
-            ((storedTheme === null || storedTheme === "system" || storedTheme === "auto") &&
-              media.matches);
 
-          if (isDark) {
-            root.classList.add("dark");
-          } else {
-            root.classList.remove("dark");
-          }
+          const applySystemTheme = (isDark) => {
+            root.classList.toggle("dark", isDark);
+            root.style.backgroundColor = isDark ? "oklch(0.2 0.006 80)" : "#e9e3dc";
+          };
 
-          const bgColor = isDark ? "oklch(0.2 0.006 80)" : "#e9e3dc";
-          root.style.backgroundColor = bgColor;
+          applySystemTheme(media.matches);
+          media.addEventListener("change", (event) => applySystemTheme(event.matches));
         } catch (_err) {
-          // Fallback to dark if theme preference is unreadable.
+          // Fall back to the light tokens if the system preference is unavailable.
           const root = document.documentElement;
-          root.classList.add("dark");
-          root.style.backgroundColor = "oklch(0.2 0.006 80)";
+          root.classList.remove("dark");
+          root.style.backgroundColor = "#e9e3dc";
         }
       })();
     </script>

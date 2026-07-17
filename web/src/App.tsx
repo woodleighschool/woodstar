@@ -2,7 +2,6 @@ import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { ThemeProvider } from "next-themes";
 import { toast, Toaster } from "sonner";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,19 +47,17 @@ setUnauthorizedHandler(() =>
 
 export default function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider delay={150}>
-          <RouterProvider router={router} />
-          <Toaster richColors closeButton position="bottom-right" />
-        </TooltipProvider>
-        {import.meta.env.DEV ? (
-          <>
-            <ReactQueryDevtools buttonPosition="bottom-left" />
-            <TanStackRouterDevtools router={router} position="bottom-right" />
-          </>
-        ) : null}
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider delay={150}>
+        <RouterProvider router={router} />
+        <Toaster theme="system" richColors closeButton position="bottom-right" />
+      </TooltipProvider>
+      {import.meta.env.DEV ? (
+        <>
+          <ReactQueryDevtools buttonPosition="bottom-left" />
+          <TanStackRouterDevtools router={router} position="bottom-right" />
+        </>
+      ) : null}
+    </QueryClientProvider>
   );
 }

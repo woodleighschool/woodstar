@@ -1,15 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import gravatarUrl from "gravatar-url";
-import {
-  ChevronRight,
-  ChevronsUpDown,
-  LogOut,
-  Monitor,
-  Moon,
-  Sun,
-  User as UserIcon,
-} from "lucide-react";
-import { useTheme } from "next-themes";
+import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
@@ -142,7 +133,6 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
 }
 function SidebarUserMenu() {
   const { isMobile } = useSidebar();
-  const { setTheme } = useTheme();
   const { user } = useAuth();
   const logout = useLogout();
   const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
@@ -197,22 +187,7 @@ function SidebarUserMenu() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => setTheme("light")}>
-                <Sun />
-                Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme("dark")}>
-                <Moon />
-                Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme("system")}>
-                <Monitor />
-                System
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
+              <DropdownMenuItem onClick={() => logout.mutate()} disabled={logout.isPending}>
                 <LogOut />
                 Sign out
               </DropdownMenuItem>
