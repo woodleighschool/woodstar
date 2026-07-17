@@ -730,13 +730,17 @@ func primaryProcess(chain []ProcessInput) ProcessInput {
 func normalizeStringSlice(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
-		value = strings.TrimSpace(strings.ReplaceAll(value, "\x00", ""))
+		value = strings.TrimSpace(normalizeString(value))
 		if value == "" || slices.Contains(out, value) {
 			continue
 		}
 		out = append(out, value)
 	}
 	return out
+}
+
+func normalizeString(value string) string {
+	return strings.ReplaceAll(value, "\x00", "")
 }
 
 func executableEntitlements(event ExecutionEventInput) []byte {
