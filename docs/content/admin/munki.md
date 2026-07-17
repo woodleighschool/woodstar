@@ -20,16 +20,20 @@ A package is one complete installable version under a title. Packages keep Munki
 
 You can create package metadata by hand, or import an existing pkginfo item. In practice most packages arrive through [AutoPkg](../autopkg/overview) rather than being typed in.
 
-## Deployments
+## Targets
 
-A deployment is how a title reaches machines. It targets all hosts, or includes and excludes labels, or includes and excludes specific host IDs, and it carries an action:
+Targets are how a title reaches machines. Each include selects a label, chooses the latest package or pins a specific version, and sets one or more Munki manifest actions:
 
-- `install`
-- `remove`
-- `update_if_present`
-- `none`
+- Managed installs keep the item installed.
+- Managed uninstalls keep the item removed.
+- Managed updates update the item only where some version is already installed.
+- Optional installs make the item available in Managed Software Center.
+- Featured items highlight an optional install.
+- Default installs initially select an optional install for the user.
 
-Deployments are ordered, because a host can match more than one and the order decides which wins. When Woodstar renders a manifest for a Mac, it works out the effective set of packages from the deployments that apply and drops each one into the right Munki key (managed installs, managed uninstalls, managed updates, optional installs, or featured items).
+Optional installs and managed updates can be used together. The item remains available for a user to install, while any installed copy must take an available update. Managed updates alone never install an absent item.
+
+Includes are ordered from highest to lowest priority. When a host matches more than one include label for the same title, the first one wins. A matching exclude label suppresses the title regardless of which include matched.
 
 ## Artifacts
 

@@ -76,18 +76,16 @@ export const MUNKI_SOFTWARE_ACTIONS = {
 
 export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(MUNKI_SOFTWARE_ACTIONS);
 
-// An include resolves to one primary intent plus, for optional installs, the
-// featured/default modifiers. These subsets drive the radio + checkbox editor.
-export const MUNKI_PRIMARY_ACTION_VALUES = [
+// Managed installs and uninstalls are exclusive assignment intents. Managed
+// updates and optional installs can be combined for optional-but-forced updates.
+export const MUNKI_ASSIGNMENT_ACTION_VALUES = [
   "managed_installs",
   "managed_uninstalls",
   "managed_updates",
   "optional_installs",
 ] as const satisfies readonly MunkiSoftwareAction[];
 
-export type MunkiPrimaryAction = (typeof MUNKI_PRIMARY_ACTION_VALUES)[number];
-
-export const MUNKI_OPTIONAL_MODIFIER_VALUES = [
+export const MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES = [
   "featured_items",
   "default_installs",
 ] as const satisfies readonly MunkiSoftwareAction[];

@@ -25,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -56,11 +55,11 @@ import {
   targetPackageValue,
 } from "./fields";
 import {
-  MUNKI_OPTIONAL_MODIFIER_VALUES,
-  MUNKI_PRIMARY_ACTION_VALUES,
+  MUNKI_ASSIGNMENT_ACTION_VALUES,
+  MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES,
   MUNKI_SOFTWARE_ACTION_OPTIONS,
+  MUNKI_SOFTWARE_ACTION_VALUES,
   MUNKI_SOFTWARE_ACTIONS,
-  type MunkiPrimaryAction,
 } from "./munki-software";
 export interface MunkiSoftwareTargetRow {
   id: number;
@@ -375,26 +374,8 @@ function MunkiIncludeRowActions({
     </div>
   );
 }
-interface ActionSelection {
-  intent: MunkiPrimaryAction | "";
-  featured: boolean;
-  preselect: boolean;
-}
-function selectionFromActions(actions: MunkiInclude["actions"]): ActionSelection {
-  return {
-    intent: MUNKI_PRIMARY_ACTION_VALUES.find((action) => actions.includes(action)) ?? "",
-    featured: actions.includes("featured_items"),
-    preselect: actions.includes("default_installs"),
-  };
-}
-function actionsFromSelection(selection: ActionSelection): MunkiInclude["actions"] {
-  if (selection.intent === "") return [];
-  if (selection.intent !== "optional_installs") return [selection.intent];
-  const actions: MunkiInclude["actions"] = ["optional_installs"];
-  if (selection.featured) actions.push("featured_items");
-  if (selection.preselect) actions.push("default_installs");
-  return actions;
-}
+const MUNKI_EXCLUSIVE_ACTION_VALUES = ["managed_installs", "managed_uninstalls"] as const;
+
 function TargetActionsField({
   value,
   onChange,
@@ -404,21 +385,47 @@ function TargetActionsField({
   onChange: (actions: MunkiInclude["actions"]) => void;
   invalid?: boolean;
 }) {
-  const selection = selectionFromActions(value);
-  const update = (next: Partial<ActionSelection>) =>
-    onChange(actionsFromSelection({ ...selection, ...next }));
+  const selectedAssignmentActions = MUNKI_ASSIGNMENT_ACTION_VALUES.filter((action) =>
+    value.includes(action),
+  );
+  const hasExclusiveAction = MUNKI_EXCLUSIVE_ACTION_VALUES.some((action) => value.includes(action));
+  const updateAction = (action: MunkiInclude["actions"][number], checked: boolean) => {
+    const next = new Set(value);
+    if (checked) {
+      next.add(action);
+    } else {
+      next.delete(action);
+      if (action === "optional_installs") {
+        MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES.forEach((optionalAction) =>
+          next.delete(optionalAction),
+        );
+      }
+    }
+    onChange(MUNKI_SOFTWARE_ACTION_VALUES.filter((candidate) => next.has(candidate)));
+  };
   return (
     <>
-      <RadioGroup
-        value={selection.intent}
-        aria-invalid={invalid ? true : undefined}
-        onValueChange={(intent) => update({ intent: intent as MunkiPrimaryAction })}
-      >
-        {MUNKI_PRIMARY_ACTION_VALUES.map((action) => {
+      <div className="grid gap-3" role="group" aria-invalid={invalid ? true : undefined}>
+        {MUNKI_ASSIGNMENT_ACTION_VALUES.map((action) => {
           const id = `munki-target-action-${action}`;
+          const checked = value.includes(action);
+          const isExclusiveAction =
+            action === "managed_installs" || action === "managed_uninstalls";
+          const disabled =
+            !checked &&
+            (hasExclusiveAction || (isExclusiveAction && selectedAssignmentActions.length > 0));
           return (
-            <Field key={action} orientation="horizontal">
-              <RadioGroupItem id={id} value={action} />
+            <Field
+              key={action}
+              orientation="horizontal"
+              className={disabled ? "opacity-60" : undefined}
+            >
+              <Checkbox
+                id={id}
+                checked={checked}
+                disabled={disabled}
+                onCheckedChange={(state) => updateAction(action, state)}
+              />
               <FieldContent>
                 <FieldLabel htmlFor={id}>{MUNKI_SOFTWARE_ACTIONS[action].name}</FieldLabel>
                 <FieldDescription>{MUNKI_SOFTWARE_ACTIONS[action].description}</FieldDescription>
@@ -426,29 +433,22 @@ function TargetActionsField({
             </Field>
           );
         })}
-      </RadioGroup>
-      {selection.intent === "optional_installs" ? (
+      </div>
+      {value.includes("optional_installs") ? (
         <div className="grid gap-3 pl-6">
-          {MUNKI_OPTIONAL_MODIFIER_VALUES.map((modifier) => {
-            const id = `munki-target-action-${modifier}`;
-            const checked =
-              modifier === "featured_items" ? selection.featured : selection.preselect;
+          {MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES.map((action) => {
+            const id = `munki-target-action-${action}`;
+            const checked = value.includes(action);
             return (
-              <Field key={modifier} orientation="horizontal">
+              <Field key={action} orientation="horizontal">
                 <Checkbox
                   id={id}
                   checked={checked}
-                  onCheckedChange={(state) =>
-                    update(
-                      modifier === "featured_items" ? { featured: state } : { preselect: state },
-                    )
-                  }
+                  onCheckedChange={(state) => updateAction(action, state)}
                 />
                 <FieldContent>
-                  <FieldLabel htmlFor={id}>{MUNKI_SOFTWARE_ACTIONS[modifier].name}</FieldLabel>
-                  <FieldDescription>
-                    {MUNKI_SOFTWARE_ACTIONS[modifier].description}
-                  </FieldDescription>
+                  <FieldLabel htmlFor={id}>{MUNKI_SOFTWARE_ACTIONS[action].name}</FieldLabel>
+                  <FieldDescription>{MUNKI_SOFTWARE_ACTIONS[action].description}</FieldDescription>
                 </FieldContent>
               </Field>
             );

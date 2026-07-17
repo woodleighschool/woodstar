@@ -31,15 +31,16 @@ Catalog, package, icon, and `site_default.zip` routes use the bearer secret but 
 
 ## How a manifest comes together
 
-Manifest rendering starts from the host's effective package set, which is whatever the applicable deployments work out to. Each package lands in the Munki key its deployment chose:
+Manifest rendering starts from the host's effective package set, which is whatever the applicable targets work out to. Each package lands in every Munki key selected by its effective include:
 
 - `managed_installs`
 - `managed_uninstalls`
 - `managed_updates`
 - `optional_installs`
+- `default_installs`
 - `featured_items`
 
-The manifest always references the `woodstar` catalog. When a deployment asks for the latest release, the manifest references the bare Munki name; when it pins a release, the manifest references Munki's `name--version` syntax.
+The manifest always references the `woodstar` catalog. When an include asks for the latest release, the manifest references the bare Munki name; when it pins a release, the manifest references Munki's `name--version` syntax.
 
 The catalog is shared across hosts and contains every persisted package. `pkg` and `copy_from_dmg` packages always have a finalized installer, so their pkginfo always carries `installer_item_location`, `installer_item_size`, and the whole-file SHA-256 in `installer_item_hash`. `nopkg` omits those fields. There is no package eligibility switch or installer-availability filter. If stored package and object state ever break that invariant, catalog rendering fails instead of emitting an incomplete pkginfo.
 
