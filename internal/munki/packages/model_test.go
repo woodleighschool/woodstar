@@ -94,6 +94,15 @@ func TestPackageMutationValidateAccepts(t *testing.T) {
 	}
 }
 
+func TestPackageMutationValidateAllowsDisabledUninstallWithConfiguredMethod(t *testing.T) {
+	t.Parallel()
+	m := validPackageMutation()
+	m.UninstallMethod = UninstallMethodUninstallScript
+	if err := m.validate(); err != nil {
+		t.Fatalf("Validate() = %v, want disabled uninstall policy to retain its method", err)
+	}
+}
+
 func TestPackageMutationValidateRejects(t *testing.T) {
 	t.Parallel()
 	cases := map[string]func(*PackageMutation){
@@ -110,17 +119,21 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 			m.Receipts = []PackageReceipt{{PackageID: "com.example.foo", InstalledSize: -1}}
 		},
 		"remove copied items without items": func(m *PackageMutation) {
+			m.Uninstallable = true
 			m.UninstallMethod = UninstallMethodRemoveCopiedItems
 		},
 		"copy from dmg without items": func(m *PackageMutation) {
 			m.InstallerType = InstallerTypeCopyFromDMG
 		},
 		"remove packages without receipts": func(m *PackageMutation) {
+			m.Uninstallable = true
 			m.UninstallMethod = UninstallMethodRemovePackages
 		},
 		"uninstall script without script": func(m *PackageMutation) {
+			m.Uninstallable = true
 			m.UninstallMethod = UninstallMethodUninstallScript
 		},
+		"uninstallable without method": func(m *PackageMutation) { m.Uninstallable = true },
 		"env without name": func(m *PackageMutation) {
 			m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Value: "C"}}
 		},

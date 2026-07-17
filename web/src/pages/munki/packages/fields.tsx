@@ -95,43 +95,26 @@ export function PackageEditorTabs({
 }) {
   return (
     <ScrollableTabs value={activeTab} onValueChange={onActiveTabChange} className="max-w-3xl">
-      <form.Subscribe selector={(state) => state.values.uninstallable}>
-        {(uninstallable) => {
-          const visibleTabs = uninstallable
-            ? packageFormTabs
-            : packageFormTabs.filter((tab) => tab.value !== "uninstall");
-
-          return (
-            <>
-              <ScrollableTabsList>
-                {visibleTabs.map((tab) => (
-                  <FormTabTrigger key={tab.value} form={form} tab={tab}>
-                    {tab.label}
-                  </FormTabTrigger>
-                ))}
-              </ScrollableTabsList>
-              {visibleTabs.map((tab) => (
-                <TabsContent
-                  key={tab.value}
-                  value={tab.value}
-                  keepMounted
-                  className="data-inactive:hidden"
-                >
-                  <PackageEditorTabContent
-                    tab={tab.value}
-                    form={form}
-                    softwareInfo={softwareInfo}
-                    softwareOptions={softwareOptions}
-                    softwareLoading={softwareLoading}
-                    packageOptions={packageOptions}
-                    installerMetadata={installerMetadata}
-                  />
-                </TabsContent>
-              ))}
-            </>
-          );
-        }}
-      </form.Subscribe>
+      <ScrollableTabsList>
+        {packageFormTabs.map((tab) => (
+          <FormTabTrigger key={tab.value} form={form} tab={tab}>
+            {tab.label}
+          </FormTabTrigger>
+        ))}
+      </ScrollableTabsList>
+      {packageFormTabs.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value} keepMounted className="data-inactive:hidden">
+          <PackageEditorTabContent
+            tab={tab.value}
+            form={form}
+            softwareInfo={softwareInfo}
+            softwareOptions={softwareOptions}
+            softwareLoading={softwareLoading}
+            packageOptions={packageOptions}
+            installerMetadata={installerMetadata}
+          />
+        </TabsContent>
+      ))}
     </ScrollableTabs>
   );
 }

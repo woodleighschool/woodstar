@@ -127,6 +127,53 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	}
 }
 
+func TestPackageUninstallPolicyRoundTripsIndependently(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Removal Policy App"})
+	if err != nil {
+		t.Fatalf("create software: %v", err)
+	}
+	pkg, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: title.ID,
+		PackageMutation: packages.PackageMutation{
+			Version:         "1.0",
+			InstallerType:   packages.InstallerTypeNoPkg,
+			UninstallMethod: packages.UninstallMethodRemovePackages,
+			Receipts:        []packages.PackageReceipt{{PackageID: "com.example.removal-policy"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if pkg.Uninstallable || pkg.UninstallMethod != packages.UninstallMethodRemovePackages {
+		t.Fatalf(
+			"created uninstall policy = %t/%q, want disabled with configured method",
+			pkg.Uninstallable,
+			pkg.UninstallMethod,
+		)
+	}
+
+	pkg, err = stores.packages.Update(ctx, pkg.ID, packages.PackageMutation{
+		Version:         pkg.Version,
+		InstallerType:   packages.InstallerTypeNoPkg,
+		Uninstallable:   true,
+		UninstallMethod: packages.UninstallMethodRemovePackages,
+		Receipts:        []packages.PackageReceipt{{PackageID: "com.example.removal-policy"}},
+	})
+	if err != nil {
+		t.Fatalf("enable uninstall policy: %v", err)
+	}
+	if !pkg.Uninstallable || pkg.UninstallMethod != packages.UninstallMethodRemovePackages {
+		t.Fatalf(
+			"updated uninstall policy = %t/%q, want enabled with configured method",
+			pkg.Uninstallable,
+			pkg.UninstallMethod,
+		)
+	}
+}
+
 func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)

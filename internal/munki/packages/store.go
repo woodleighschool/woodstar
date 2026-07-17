@@ -59,6 +59,7 @@ INSERT INTO munki_packages (
 	software_id,
 	version,
 	installer_type,
+	uninstallable,
 	uninstall_method,
 	restart_action,
 	minimum_munki_version,
@@ -110,6 +111,7 @@ VALUES (
 	@software_id,
 	@version,
 	@installer_type,
+	@uninstallable,
 	@uninstall_method,
 	@restart_action,
 	@minimum_munki_version,
@@ -195,6 +197,7 @@ UPDATE munki_packages
 SET
 	version = @version,
 	installer_type = @installer_type,
+	uninstallable = @uninstallable,
 	uninstall_method = @uninstall_method,
 	restart_action = @restart_action,
 	minimum_munki_version = @minimum_munki_version,
@@ -564,6 +567,7 @@ func packageFromRow(row packageRow) Package {
 		InstallerType:            InstallerType(row.InstallerType),
 		UnattendedInstall:        row.UnattendedInstall,
 		UnattendedUninstall:      row.UnattendedUninstall,
+		Uninstallable:            row.Uninstallable,
 		UninstallMethod:          UninstallMethod(row.UninstallMethod),
 		RestartAction:            RestartAction(row.RestartAction),
 		MinimumMunkiVersion:      row.MinimumMunkiVersion,
@@ -654,6 +658,7 @@ type packageRow struct {
 	SoftwareDeveloper            string
 	Version                      string
 	InstallerType                string
+	Uninstallable                bool
 	UninstallMethod              string
 	RestartAction                string
 	MinimumMunkiVersion          string
@@ -760,6 +765,7 @@ type packageWrite struct {
 	SoftwareID                   int64                       `db:"software_id"`
 	Version                      string                      `db:"version"`
 	InstallerType                string                      `db:"installer_type"`
+	Uninstallable                bool                        `db:"uninstallable"`
 	UninstallMethod              string                      `db:"uninstall_method"`
 	RestartAction                string                      `db:"restart_action"`
 	MinimumMunkiVersion          string                      `db:"minimum_munki_version"`
@@ -813,6 +819,7 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		SoftwareID:                   softwareID,
 		Version:                      params.Version,
 		InstallerType:                string(params.InstallerType),
+		Uninstallable:                params.Uninstallable,
 		UninstallMethod:              string(params.UninstallMethod),
 		RestartAction:                string(params.RestartAction),
 		MinimumMunkiVersion:          params.MinimumMunkiVersion,
@@ -874,6 +881,7 @@ func packageColumnsSQL() string {
 	s.icon_object_id AS software_icon_object_id,
 	p.version,
 	p.installer_type,
+	p.uninstallable,
 	p.uninstall_method,
 	p.restart_action,
 	p.minimum_munki_version,

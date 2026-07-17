@@ -166,12 +166,14 @@ export function FormSelectField<
   id,
   label,
   options,
+  placeholder,
 }: {
   form: PackageEditorForm;
   name: Name;
   id: string;
   label: string;
   options: Array<{ value: T; label: string }>;
+  placeholder?: string;
 }) {
   return (
     <form.Field name={name}>
@@ -180,13 +182,13 @@ export function FormSelectField<
           {() => (
             <Select
               items={options}
-              value={field.state.value as unknown as T}
+              value={field.state.value === "" ? null : (field.state.value as unknown as T)}
               onValueChange={(next) =>
                 field.handleChange(next as unknown as Parameters<typeof field.handleChange>[0])
               }
             >
               <SelectTrigger id={id} className="w-full">
-                <SelectValue />
+                <SelectValue placeholder={placeholder} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>

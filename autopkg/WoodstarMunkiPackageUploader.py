@@ -47,6 +47,7 @@ PACKAGE_DEFAULTS = {
     "installer_type": "pkg",
     "unattended_install": False,
     "unattended_uninstall": False,
+    "uninstallable": False,
     "uninstall_method": "",
     "restart_action": "",
     "minimum_munki_version": "",
@@ -294,6 +295,7 @@ class WoodstarMunkiPackageUploader(Processor):
         body = default_package_mutation()
         body["version"] = version
         body["installer_type"] = self.installer_type(pkginfo)
+        body["uninstallable"] = self.uninstallable(pkginfo)
         uninstall_method = self.uninstall_method(pkginfo)
         if uninstall_method:
             body["uninstall_method"] = uninstall_method
@@ -395,6 +397,13 @@ class WoodstarMunkiPackageUploader(Processor):
         value = pkginfo.get("uninstall_method", "")
         if not isinstance(value, str):
             raise ProcessorError("pkginfo uninstall_method must be a string")
+        return value
+
+    @staticmethod
+    def uninstallable(pkginfo):
+        value = pkginfo.get("uninstallable", False)
+        if not isinstance(value, bool):
+            raise ProcessorError("pkginfo uninstallable must be a boolean")
         return value
 
     @staticmethod

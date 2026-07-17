@@ -517,6 +517,7 @@ export type MunkiPackage = {
     unattended_uninstall: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script: string;
+    uninstallable: boolean;
     uninstallcheck_script: string;
     update_for: Array<MunkiPackageReference>;
     updated_at: string;
@@ -572,6 +573,7 @@ export type MunkiPackageCreateMutation = {
     unattended_uninstall?: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
+    uninstallable?: boolean;
     uninstallcheck_script?: string;
     update_for?: Array<MunkiPackageReferenceMutation>;
     version: string;
@@ -651,6 +653,7 @@ export type MunkiPackageMutation = {
     unattended_uninstall?: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
     uninstall_script?: string;
+    uninstallable?: boolean;
     uninstallcheck_script?: string;
     update_for?: Array<MunkiPackageReferenceMutation>;
     version: string;

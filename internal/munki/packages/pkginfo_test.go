@@ -206,6 +206,37 @@ func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
 	}
 }
 
+func TestPkginfoPreservesUninstallablePolicyIndependently(t *testing.T) {
+	base := Package{
+		ID:              12,
+		SoftwareID:      7,
+		SoftwareName:    "Example App",
+		Version:         "1.2.3",
+		InstallerType:   InstallerTypeNoPkg,
+		UninstallMethod: UninstallMethodUninstallScript,
+		UninstallScript: "#!/bin/sh\nexit 0\n",
+	}
+
+	disabled := plistMap(t, mustPkginfo(t, base, PkginfoObjects{}))
+	if disabled["uninstall_method"] != string(UninstallMethodUninstallScript) {
+		t.Fatalf("uninstall_method = %#v, want configured method", disabled["uninstall_method"])
+	}
+	if _, ok := disabled["uninstallable"]; ok {
+		t.Fatalf("uninstallable = %#v, want false policy omitted", disabled["uninstallable"])
+	}
+
+	base.Uninstallable = true
+	enabled := plistMap(t, mustPkginfo(t, base, PkginfoObjects{}))
+	if enabled["uninstall_method"] != string(UninstallMethodUninstallScript) ||
+		enabled["uninstallable"] != true {
+		t.Fatalf(
+			"uninstall policy = %#v/%#v, want configured and enabled",
+			enabled["uninstall_method"],
+			enabled["uninstallable"],
+		)
+	}
+}
+
 func TestParseInstallerItemLocation(t *testing.T) {
 	id, ok := ParseInstallerItemLocation("packages/12/installer/Example.pkg")
 	if !ok || id != 12 {

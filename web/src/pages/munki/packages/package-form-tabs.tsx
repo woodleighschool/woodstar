@@ -485,36 +485,35 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
 function UninstallTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldGroup>
-      <form.Subscribe selector={(state) => state.values}>
-        {(values) =>
-          values.uninstallable ? (
-            <>
-              <div className="max-w-sm">
-                <FormSelectField
-                  form={form}
-                  name="uninstall_method"
-                  id="munki-package-uninstall-method"
-                  label="Uninstall Method"
-                  options={MUNKI_UNINSTALL_METHOD_OPTIONS}
-                />
-              </div>
-              {values.uninstall_method === "uninstall_script" ? (
-                <form.Field
-                  name="uninstall_script"
-                  children={(field) => (
-                    <FormField field={field} label="Uninstall Script">
-                      {(control) => (
-                        <div {...control} tabIndex={-1}>
-                          <ScriptField value={field.state.value} onChange={field.handleChange} />
-                        </div>
-                      )}
-                    </FormField>
-                  )}
-                />
-              ) : null}
-            </>
-          ) : null
-        }
+      <form.Subscribe selector={(state) => state.values.uninstall_method}>
+        {(uninstallMethod) => (
+          <>
+            <div className="max-w-sm">
+              <FormSelectField
+                form={form}
+                name="uninstall_method"
+                id="munki-package-uninstall-method"
+                label="Uninstall Method"
+                options={MUNKI_UNINSTALL_METHOD_OPTIONS}
+                placeholder="Select a method"
+              />
+            </div>
+            {uninstallMethod === "uninstall_script" ? (
+              <form.Field
+                name="uninstall_script"
+                children={(field) => (
+                  <FormField field={field} label="Uninstall Script">
+                    {(control) => (
+                      <div {...control} tabIndex={-1}>
+                        <ScriptField value={field.state.value} onChange={field.handleChange} />
+                      </div>
+                    )}
+                  </FormField>
+                )}
+              />
+            ) : null}
+          </>
+        )}
       </form.Subscribe>
     </FieldGroup>
   );

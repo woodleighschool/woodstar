@@ -54,7 +54,7 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 }
 
 // UninstallMethod describes the Munki uninstall modes Woodstar exposes.
-// Absence means the package is not uninstallable.
+// Absence means no uninstall mechanism is configured.
 type UninstallMethod string
 
 const (
@@ -174,6 +174,7 @@ type PackageMutation struct {
 	InstallerType            InstallerType                         `json:"installer_type,omitempty"                                       validate:"omitempty,oneof=pkg nopkg copy_from_dmg"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
+	Uninstallable            bool                                  `json:"uninstallable,omitempty"`
 	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script"`
 	RestartAction            RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown"`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version,omitempty"`
@@ -242,6 +243,7 @@ type Package struct {
 	InstallerType            InstallerType                         `json:"installer_type"`
 	UnattendedInstall        bool                                  `json:"unattended_install"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall"`
+	Uninstallable            bool                                  `json:"uninstallable"`
 	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"`
 	RestartAction            RestartAction                         `json:"restart_action,omitempty"`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version"`
@@ -334,18 +336,23 @@ func (m *PackageMutation) validateRelations() error {
 	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
 		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", dbutil.ErrInvalidInput)
 	}
-	switch m.UninstallMethod {
-	case UninstallMethodRemovePackages:
-		if len(m.Receipts) == 0 {
-			return fmt.Errorf("%w: removepackages requires receipts", dbutil.ErrInvalidInput)
+	if m.Uninstallable {
+		if m.UninstallMethod == "" {
+			return fmt.Errorf("%w: uninstallable requires uninstall_method", dbutil.ErrInvalidInput)
 		}
-	case UninstallMethodRemoveCopiedItems:
-		if len(m.ItemsToCopy) == 0 {
-			return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
-		}
-	case UninstallMethodUninstallScript:
-		if strings.TrimSpace(m.UninstallScript) == "" {
-			return fmt.Errorf("%w: uninstall_script requires uninstall_script", dbutil.ErrInvalidInput)
+		switch m.UninstallMethod {
+		case UninstallMethodRemovePackages:
+			if len(m.Receipts) == 0 {
+				return fmt.Errorf("%w: removepackages requires receipts", dbutil.ErrInvalidInput)
+			}
+		case UninstallMethodRemoveCopiedItems:
+			if len(m.ItemsToCopy) == 0 {
+				return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
+			}
+		case UninstallMethodUninstallScript:
+			if strings.TrimSpace(m.UninstallScript) == "" {
+				return fmt.Errorf("%w: uninstall_script requires uninstall_script", dbutil.ErrInvalidInput)
+			}
 		}
 	}
 

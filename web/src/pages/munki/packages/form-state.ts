@@ -67,7 +67,7 @@ export interface PackageFormState {
   installer_object_id: number | null;
   installer_file: File | null;
   uninstallable: boolean;
-  uninstall_method: MunkiUninstallMethod;
+  uninstall_method: MunkiUninstallMethod | "";
   restart_required: boolean;
   restart_action: MunkiRestartAction;
   minimum_munki_version: string;
@@ -186,7 +186,7 @@ const packageFormShape = z.object({
   installer_object_id: z.number().int().positive().nullable(),
   installer_file: z.custom<File | null>((value) => value === null || value instanceof File),
   uninstallable: z.boolean(),
-  uninstall_method: z.enum(["removepackages", "remove_copied_items", "uninstall_script"]),
+  uninstall_method: z.enum(["", "removepackages", "remove_copied_items", "uninstall_script"]),
   restart_required: z.boolean(),
   restart_action: z.enum([
     "RequireLogout",
@@ -235,6 +235,13 @@ const packageFormShape = z.object({
 
 export function packageFormSchema() {
   return packageFormShape.superRefine((form, ctx) => {
+    if (form.uninstallable && form.uninstall_method === "") {
+      ctx.addIssue({
+        code: "custom",
+        message: "Uninstallable packages require an uninstall method.",
+        path: ["uninstall_method"],
+      });
+    }
     if (
       form.installer_type !== "nopkg" &&
       form.installer_object_id === null &&
@@ -407,15 +414,15 @@ export function packageMutationFromForm(
   const uninstallMethod = form.uninstall_method;
   const usesInstallerOptions = installerType !== "nopkg";
   const usesItemsToCopy =
-    installerType === "copy_from_dmg" ||
-    (form.uninstallable && uninstallMethod === "remove_copied_items");
+    installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
   const blockingApplications = cleanStringRows(form.blocking_applications);
 
   return {
     version: form.version,
     installer_type: installerType,
     installer_object_id: installerType === "nopkg" ? undefined : installerObjectID,
-    uninstall_method: form.uninstallable ? uninstallMethod : undefined,
+    uninstallable: form.uninstallable,
+    uninstall_method: uninstallMethod || undefined,
     restart_action: form.restart_required ? form.restart_action : undefined,
     minimum_munki_version: nonEmpty(form.minimum_munki_version),
     minimum_os_version: nonEmpty(form.minimum_os_version),
@@ -455,9 +462,7 @@ export function packageMutationFromForm(
     preuninstall_script: nonEmpty(form.preuninstall_script),
     postuninstall_script: nonEmpty(form.postuninstall_script),
     uninstall_script:
-      form.uninstallable && uninstallMethod === "uninstall_script"
-        ? nonEmpty(form.uninstall_script)
-        : undefined,
+      uninstallMethod === "uninstall_script" ? nonEmpty(form.uninstall_script) : undefined,
     version_script: nonEmpty(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
@@ -472,7 +477,7 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormS
     installer_object_id: null,
     installer_file: null,
     uninstallable: false,
-    uninstall_method: "removepackages",
+    uninstall_method: "",
     restart_required: false,
     restart_action: "RequireRestart",
     minimum_munki_version: "",
@@ -522,8 +527,8 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     installer_type: pkg.installer_type,
     installer_object_id: pkg.installer_object_id ?? null,
     installer_file: null,
-    uninstallable: pkg.uninstall_method !== undefined,
-    uninstall_method: pkg.uninstall_method ?? "removepackages",
+    uninstallable: pkg.uninstallable,
+    uninstall_method: pkg.uninstall_method ?? "",
     restart_required: pkg.restart_action !== undefined,
     restart_action: pkg.restart_action ?? "RequireRestart",
     minimum_munki_version: pkg.minimum_munki_version,

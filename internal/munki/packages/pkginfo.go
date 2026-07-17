@@ -161,6 +161,7 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 		UpdateFor:                munkiReferenceNames(pkg.UpdateFor),
 		UnattendedInstall:        pkg.UnattendedInstall,
 		UnattendedUninstall:      pkg.UnattendedUninstall,
+		Uninstallable:            pkg.Uninstallable,
 		OnDemand:                 pkg.OnDemand,
 		Precache:                 pkg.Precache,
 		Autoremove:               pkg.Autoremove,
@@ -201,7 +202,6 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	}
 	if pkg.UninstallMethod != "" {
 		item.UninstallMethod = pkg.UninstallMethod
-		item.Uninstallable = true
 	}
 	if pkg.RestartAction != "" {
 		item.RestartAction = pkg.RestartAction
