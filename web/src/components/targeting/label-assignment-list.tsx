@@ -227,7 +227,7 @@ function LabelAssignmentRowActions({ title, onRemove }: { title: string; onRemov
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
           <DropdownMenuGroup>
-            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+            <DropdownMenuItem variant="destructive" onClick={onRemove}>
               Delete
             </DropdownMenuItem>
           </DropdownMenuGroup>

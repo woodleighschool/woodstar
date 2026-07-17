@@ -1,4 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
@@ -12,6 +13,7 @@ import { useSetup } from "@/hooks/use-auth";
 import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { emailAddress, requiredString } from "@/lib/form-validation";
 export function SetupPage() {
+  const navigate = useNavigate();
   const setup = useSetup();
   const initial = { email: "", name: "", password: "" };
   const form = useForm({
@@ -24,13 +26,14 @@ export function SetupPage() {
         password: z.string().min(12, "Password must be at least 12 characters."),
       }),
     },
-    onSubmit: async ({ value }) => {
+    onSubmit: async ({ value, formApi }) => {
       await setup.mutateAsync({
         email: value.email.trim(),
         name: value.name.trim(),
         password: value.password,
       });
-      form.reset(value);
+      formApi.reset(value);
+      await navigate({ to: "/hosts" });
     },
   });
   const exitGuard = useFormExitGuard({ form, onDiscard: () => form.reset(initial) });

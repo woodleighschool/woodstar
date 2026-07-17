@@ -248,7 +248,7 @@ function UserRowActions({
             Edit
           </DropdownMenuItem>
           {!isSelf ? (
-            <DropdownMenuItem variant="destructive" onSelect={() => onDelete(user)}>
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(user)}>
               Delete
             </DropdownMenuItem>
           ) : null}

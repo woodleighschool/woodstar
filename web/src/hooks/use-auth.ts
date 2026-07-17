@@ -64,13 +64,11 @@ export function useLogin() {
 
 export function useSetup() {
   const queryClient = useQueryClient();
-  const router = useRouter();
   return useMutation<User, ApiError, SetupInputBody>({
     mutationFn: (body) => unwrap(completeSetup({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
-      await router.navigate({ to: "/hosts" });
     },
   });
 }

@@ -365,8 +365,8 @@ function MunkiIncludeRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+            <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={onRemove}>
               Delete
             </DropdownMenuItem>
           </DropdownMenuGroup>

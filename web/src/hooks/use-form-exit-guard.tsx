@@ -1,6 +1,5 @@
 import type { AnyFormApi } from "@tanstack/react-form";
 import { useBlocker } from "@tanstack/react-router";
-import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -16,12 +15,16 @@ export function useFormExitGuard({
 }) {
   const [discardRequested, setDiscardRequested] = useState(false);
   const allowExit = useRef(false);
-  const isDefaultValue = useSelector(form.store, (state) => state.isDefaultValue);
-  const shouldBlock = !isDefaultValue;
+  // Router blockers run outside render, so read the form store when the exit is attempted.
+  const hasUnsavedChanges = useCallback(() => !form.state.isDefaultValue, [form]);
+  const shouldBlockNavigation = useCallback(
+    () => hasUnsavedChanges() && !allowExit.current,
+    [hasUnsavedChanges],
+  );
 
   const blocker = useBlocker({
-    shouldBlockFn: () => shouldBlock && !allowExit.current,
-    enableBeforeUnload: shouldBlock,
+    shouldBlockFn: shouldBlockNavigation,
+    enableBeforeUnload: shouldBlockNavigation,
     withResolver: true,
     disabled: !blockNavigation,
   });
@@ -35,12 +38,12 @@ export function useFormExitGuard({
   }, []);
 
   const requestDiscard = useCallback(() => {
-    if (shouldBlock) {
+    if (hasUnsavedChanges()) {
       setDiscardRequested(true);
       return;
     }
     onDiscard();
-  }, [onDiscard, shouldBlock]);
+  }, [hasUnsavedChanges, onDiscard]);
 
   const navigationBlocked = blocker.status === "blocked";
   const dialog = (

@@ -284,11 +284,11 @@ function EditableLinks({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onSelect={() => setDialogIndex(index)}>
+                      <DropdownMenuItem onClick={() => setDialogIndex(index)}>
                         <Pencil />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem variant="destructive" onSelect={() => onRemove(index)}>
+                      <DropdownMenuItem variant="destructive" onClick={() => onRemove(index)}>
                         <Trash2 />
                         Remove
                       </DropdownMenuItem>

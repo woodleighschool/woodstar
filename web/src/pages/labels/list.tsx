@@ -187,7 +187,7 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
           >
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => onDelete(label)}>
+          <DropdownMenuItem variant="destructive" onClick={() => onDelete(label)}>
             Delete
           </DropdownMenuItem>
         </DropdownMenuGroup>
