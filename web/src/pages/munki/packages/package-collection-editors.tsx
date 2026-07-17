@@ -39,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -191,16 +190,8 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                       <form.Field
                         name="blocking_applications_none"
                         children={(noneField) => (
-                          <Field orientation="horizontal" className="max-w-xl">
-                            <FieldContent>
-                              <FieldLabel htmlFor="munki-package-blocking-applications-none">
-                                No blocking applications
-                              </FieldLabel>
-                              <FieldDescription>
-                                Install without checking for open applications.
-                              </FieldDescription>
-                            </FieldContent>
-                            <Switch
+                          <Field orientation="horizontal">
+                            <Checkbox
                               id="munki-package-blocking-applications-none"
                               checked={noneField.state.value}
                               onCheckedChange={(checked) => {
@@ -210,6 +201,14 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                                 }
                               }}
                             />
+                            <FieldContent>
+                              <FieldLabel htmlFor="munki-package-blocking-applications-none">
+                                No blocking applications
+                              </FieldLabel>
+                              <FieldDescription>
+                                Install without checking for open applications.
+                              </FieldDescription>
+                            </FieldContent>
                           </Field>
                         )}
                       />

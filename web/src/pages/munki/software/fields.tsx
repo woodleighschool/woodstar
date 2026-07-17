@@ -12,9 +12,9 @@ import { requiredString } from "@/lib/form-validation";
 
 import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";
 
-const munkiName = requiredString("Munki name")
-  .refine((value) => !value.includes("/"), "Munki name cannot contain a slash")
-  .refine((value) => !/-\d[^-]*$/.test(value), "Munki name cannot end with a version suffix");
+const munkiName = requiredString("Name")
+  .refine((value) => !value.includes("/"), "Name cannot contain a slash")
+  .refine((value) => !/-\d[^-]*$/.test(value), "Name cannot end with a version suffix");
 
 export const munkiSoftwareSchema = z.object({
   name: munkiName,
@@ -136,48 +136,39 @@ export function MunkiSoftwareOptionsFields({
           />
         )}
       </form.Subscribe>
-      <form.Field name="name">
-        {(field) => (
-          <FormField
-            field={field}
-            label="Munki name"
-            htmlFor="munki-software-name"
-            description="Canonical name used by Munki in manifests and package relationships."
-            required
-          >
-            {(control) => (
-              <Input
-                {...control}
-                name={field.name}
-                value={field.state.value}
-                readOnly={nameReadOnly}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-              />
-            )}
-          </FormField>
-        )}
-      </form.Field>
-      <form.Field name="display_name">
-        {(field) => (
-          <FormField
-            field={field}
-            label="Display name"
-            htmlFor="munki-software-display-name"
-            description="Optional label shown in Managed Software Center."
-          >
-            {(control) => (
-              <Input
-                {...control}
-                name={field.name}
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-              />
-            )}
-          </FormField>
-        )}
-      </form.Field>
+      <div className="grid gap-4 md:grid-cols-2">
+        <form.Field name="name">
+          {(field) => (
+            <FormField field={field} label="Name" htmlFor="munki-software-name" required>
+              {(control) => (
+                <Input
+                  {...control}
+                  name={field.name}
+                  value={field.state.value}
+                  readOnly={nameReadOnly}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+              )}
+            </FormField>
+          )}
+        </form.Field>
+        <form.Field name="display_name">
+          {(field) => (
+            <FormField field={field} label="Display Name" htmlFor="munki-software-display-name">
+              {(control) => (
+                <Input
+                  {...control}
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+              )}
+            </FormField>
+          )}
+        </form.Field>
+      </div>
       <form.Field name="description">
         {(field) => (
           <FormField field={field} htmlFor="munki-software-description" label="Description">
@@ -193,44 +184,46 @@ export function MunkiSoftwareOptionsFields({
           </FormField>
         )}
       </form.Field>
-      <form.Field name="category">
-        {(field) => (
-          <FormField field={field} label="Category" htmlFor="munki-software-category">
-            {(control) => (
-              <FreeTextCombobox
-                id={control.id}
-                name={field.name}
-                value={field.state.value}
-                items={categoryOptions}
-                itemToStringValue={(option) => option}
-                freeTextItem={freeTextOption}
-                invalid={control["aria-invalid"]}
-                onBlur={field.handleBlur}
-                onChange={field.handleChange}
-              />
-            )}
-          </FormField>
-        )}
-      </form.Field>
-      <form.Field name="developer">
-        {(field) => (
-          <FormField field={field} label="Developer" htmlFor="munki-software-developer">
-            {(control) => (
-              <FreeTextCombobox
-                id={control.id}
-                name={field.name}
-                value={field.state.value}
-                items={developerOptions}
-                itemToStringValue={(option) => option}
-                freeTextItem={freeTextOption}
-                invalid={control["aria-invalid"]}
-                onBlur={field.handleBlur}
-                onChange={field.handleChange}
-              />
-            )}
-          </FormField>
-        )}
-      </form.Field>
+      <div className="grid gap-4 md:grid-cols-2">
+        <form.Field name="category">
+          {(field) => (
+            <FormField field={field} label="Category" htmlFor="munki-software-category">
+              {(control) => (
+                <FreeTextCombobox
+                  id={control.id}
+                  name={field.name}
+                  value={field.state.value}
+                  items={categoryOptions}
+                  itemToStringValue={(option) => option}
+                  freeTextItem={freeTextOption}
+                  invalid={control["aria-invalid"]}
+                  onBlur={field.handleBlur}
+                  onChange={field.handleChange}
+                />
+              )}
+            </FormField>
+          )}
+        </form.Field>
+        <form.Field name="developer">
+          {(field) => (
+            <FormField field={field} label="Developer" htmlFor="munki-software-developer">
+              {(control) => (
+                <FreeTextCombobox
+                  id={control.id}
+                  name={field.name}
+                  value={field.state.value}
+                  items={developerOptions}
+                  itemToStringValue={(option) => option}
+                  freeTextItem={freeTextOption}
+                  invalid={control["aria-invalid"]}
+                  onBlur={field.handleBlur}
+                  onChange={field.handleChange}
+                />
+              )}
+            </FormField>
+          )}
+        </form.Field>
+      </div>
     </FieldGroup>
   );
 }

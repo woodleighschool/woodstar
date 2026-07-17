@@ -71,6 +71,7 @@ export const packageFormTabs = [
       "unattended_uninstall",
       "on_demand",
       "autoremove",
+      "uninstallable",
     ],
   },
   { value: "contents", label: "Contents", fields: ["installs", "receipts"] },
@@ -102,7 +103,7 @@ export const packageFormTabs = [
   {
     value: "uninstall",
     label: "Uninstall",
-    fields: ["uninstallable", "uninstall_method", "uninstall_script"],
+    fields: ["uninstall_method", "uninstall_script"],
   },
   {
     value: "scripts",
@@ -195,13 +196,23 @@ function BasicInfoTab({
       ) : null}
 
       <VersionField form={form} />
-      <FormSelectField
-        form={form}
-        name="installer_type"
-        id="munki-package-installer-type"
-        label="Installer Type"
-        options={MUNKI_INSTALLER_TYPE_OPTIONS}
-      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormSelectField
+          form={form}
+          name="installer_type"
+          id="munki-package-installer-type"
+          label="Installer Type"
+          options={MUNKI_INSTALLER_TYPE_OPTIONS}
+        />
+        <div className="flex items-end pb-2">
+          <FormCheckboxField
+            form={form}
+            name="on_demand"
+            id="munki-package-on-demand"
+            label="On demand"
+          />
+        </div>
+      </div>
       <form.Subscribe selector={(state) => state.values.installer_type}>
         {(installerType) =>
           installerType === "nopkg" ? null : (
@@ -254,15 +265,15 @@ function BasicInfoTab({
           />
           <FormCheckboxField
             form={form}
-            name="on_demand"
-            id="munki-package-on-demand"
-            label="On demand"
-          />
-          <FormCheckboxField
-            form={form}
             name="autoremove"
             id="munki-package-autoremove"
             label="Autoremove"
+          />
+          <FormCheckboxField
+            form={form}
+            name="uninstallable"
+            id="munki-package-uninstallable"
+            label="Uninstallable"
           />
         </FieldGroup>
       </FieldSet>
@@ -424,7 +435,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
       <FieldSet>
         <FieldLegend>Blocking Application Handling</FieldLegend>
         <FieldGroup>
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="blocking_applications_manual_quit_only"
             id="munki-package-blocking-applications-manual-quit-only"
@@ -473,48 +484,39 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
 
 function UninstallTab({ form }: { form: PackageEditorForm }) {
   return (
-    <FieldSet>
-      <FieldLegend>Uninstall</FieldLegend>
-      <FieldGroup>
-        <FormSwitchField
-          form={form}
-          name="uninstallable"
-          id="munki-package-uninstallable"
-          label="Uninstallable"
-        />
-        <form.Subscribe selector={(state) => state.values}>
-          {(values) =>
-            values.uninstallable ? (
-              <>
-                <div className="max-w-sm">
-                  <FormSelectField
-                    form={form}
-                    name="uninstall_method"
-                    id="munki-package-uninstall-method"
-                    label="Uninstall Method"
-                    options={MUNKI_UNINSTALL_METHOD_OPTIONS}
-                  />
-                </div>
-                {values.uninstall_method === "uninstall_script" ? (
-                  <form.Field
-                    name="uninstall_script"
-                    children={(field) => (
-                      <FormField field={field} label="Uninstall Script">
-                        {(control) => (
-                          <div {...control} tabIndex={-1}>
-                            <ScriptField value={field.state.value} onChange={field.handleChange} />
-                          </div>
-                        )}
-                      </FormField>
-                    )}
-                  />
-                ) : null}
-              </>
-            ) : null
-          }
-        </form.Subscribe>
-      </FieldGroup>
-    </FieldSet>
+    <FieldGroup>
+      <form.Subscribe selector={(state) => state.values}>
+        {(values) =>
+          values.uninstallable ? (
+            <>
+              <div className="max-w-sm">
+                <FormSelectField
+                  form={form}
+                  name="uninstall_method"
+                  id="munki-package-uninstall-method"
+                  label="Uninstall Method"
+                  options={MUNKI_UNINSTALL_METHOD_OPTIONS}
+                />
+              </div>
+              {values.uninstall_method === "uninstall_script" ? (
+                <form.Field
+                  name="uninstall_script"
+                  children={(field) => (
+                    <FormField field={field} label="Uninstall Script">
+                      {(control) => (
+                        <div {...control} tabIndex={-1}>
+                          <ScriptField value={field.state.value} onChange={field.handleChange} />
+                        </div>
+                      )}
+                    </FormField>
+                  )}
+                />
+              ) : null}
+            </>
+          ) : null
+        }
+      </form.Subscribe>
+    </FieldGroup>
   );
 }
 
@@ -638,20 +640,20 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
 
       <FieldSet>
         <FieldLegend>Flags</FieldLegend>
-        <FieldGroup>
-          <FormSwitchField
+        <FieldGroup data-slot="checkbox-group">
+          <FormCheckboxField
             form={form}
             name="precache"
             id="munki-package-precache"
             label="Precache"
           />
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="apple_item"
             id="munki-package-apple-item"
             label="Apple item"
           />
-          <FormSwitchField
+          <FormCheckboxField
             form={form}
             name="suppress_bundle_relocation"
             id="munki-package-suppress-bundle-relocation"
