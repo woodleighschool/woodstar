@@ -1,16 +1,19 @@
-#!/usr/local/autopkg/python
-
 import os.path
-import plistlib
-import sys
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import ProcessorError
 
-sys.path.insert(0, os.path.dirname(__file__))
+from WoodstarLib.Client import find_exact, list_items, needs_object
 
-from WoodstarLib.Client import client_from_env, list_items, needs_object, truthy  # noqa: E402
+UNSET = object()
 
-__all__ = ["WoodstarMunkiPackageUploader"]
+SUPPORTED_TARGET_ACTIONS = {
+    "managed_installs",
+    "managed_uninstalls",
+    "managed_updates",
+    "optional_installs",
+    "featured_items",
+    "default_installs",
+}
 
 PACKAGE_DIRECT_KEYS = (
     "unattended_install",
@@ -88,191 +91,185 @@ PACKAGE_DEFAULTS = {
 }
 
 
-class WoodstarMunkiPackageUploader(Processor):
-    description = "Uploads Munki package artifacts and creates or updates a Woodstar package."
+class SoftwareManager:
+    def __init__(self, client, output=None):
+        self.client = client
+        self.output = output or (lambda _message: None)
 
-    input_variables = {
-        "WOODSTAR_URL": {
-            "required": True,
-            "description": "Woodstar HTTPS origin, for example https://woodstar.example.",
-        },
-        "WOODSTAR_API_KEY": {
-            "required": True,
-            "description": "Woodstar admin API key.",
-        },
-        "WOODSTAR_CA_FILE": {
-            "required": False,
-            "description": "PEM CA file for a private Woodstar certificate chain.",
-        },
-        "MUNKI_REPO": {
-            "required": True,
-            "description": "Munki repo path containing MunkiImporter output.",
-        },
-        "pkginfo_repo_path": {
-            "required": False,
-            "description": "MunkiImporter pkginfo output path. Empty when MunkiImporter reuses an existing item.",
-        },
-        "pkg_repo_path": {
-            "required": False,
-            "description": "MunkiImporter package artifact path. Required for package-bearing pkginfo.",
-        },
-        "software_id": {
-            "required": False,
-            "description": "Existing Woodstar Munki software ID. Defaults to woodstar_software_id.",
-        },
-        "force": {
-            "required": False,
-            "description": "Upload package artifacts even when Woodstar already has the same file.",
-            "default": False,
-        },
-    }
-    output_variables = {
-        "woodstar_package": {"description": "Woodstar package response."},
-        "woodstar_package_id": {"description": "Woodstar package ID."},
-        "woodstarmunkipackageuploader_summary_result": {
-            "description": "Summary of Woodstar package upload.",
-        },
-    }
+    @staticmethod
+    def software_name(pkginfo, name=UNSET):
+        value = pkginfo.get("name") if name is UNSET else name
+        if not isinstance(value, str) or not value.strip():
+            raise ProcessorError("name is required")
+        return value.strip()
 
-    def main(self):
-        self.env.pop("woodstarmunkipackageuploader_summary_result", None)
-        client = client_from_env(self.env)
-        pkginfo = self.pkginfo()
-        software_id = self.software_id()
-        installer_path = self.installer_artifact_path(pkginfo)
-        force = truthy(self.env.get("force", False))
+    @staticmethod
+    def software_metadata(pkginfo, name, overrides=None):
+        overrides = overrides or {}
+        body = {}
+        for key in ("display_name", "description", "category", "developer"):
+            value = overrides[key] if key in overrides else pkginfo.get(key, "")
+            if not isinstance(value, str):
+                raise ProcessorError(f"{key} must be a string")
+            body[key] = value
+        if body["display_name"].strip() == name:
+            body["display_name"] = ""
+        return body
 
-        resolver = PackageReferenceResolver.from_client(client)
-        body = self.package_body(pkginfo, software_id, resolver)
-        package, action, package_changed, installer_uploaded = self.save_package(
-            client,
-            software_id,
-            body,
-            installer_path,
-            force,
+    def prepare(self, pkginfo, name=UNSET, metadata=None, targets=UNSET):
+        resolved_name = self.software_name(pkginfo, name)
+        existing = find_exact(
+            self.client,
+            "/api/munki/software",
+            "name",
+            resolved_name,
+        )
+        if existing:
+            existing = self.client.get(f"/api/munki/software/{existing['id']}")
+
+        body = self.software_metadata(pkginfo, resolved_name, metadata)
+        if existing and existing.get("icon_object_id") is not None:
+            body["icon_object_id"] = existing["icon_object_id"]
+        body["targets"] = self.target_body(targets, existing)
+        return resolved_name, existing, body
+
+    def save(self, name, existing, body):
+        if existing and self.software_matches(existing, body):
+            return existing, "Skipped", False
+        if existing:
+            self.output(f"Updating Woodstar Munki software: {name}")
+            saved = self.client.put(f"/api/munki/software/{existing['id']}", body)
+            return saved, "Updated", True
+        self.output(f"Creating Woodstar Munki software: {name}")
+        saved = self.client.post("/api/munki/software", {"name": name, **body})
+        return saved, "Created", True
+
+    def attach_icon(self, software, icon_path, force=False):
+        if not icon_path or not needs_object(software, "icon", icon_path, force):
+            return software, False
+        self.client.attach_object(
+            f"/api/munki/software/{software['id']}/icon",
+            icon_path,
+        )
+        return self.client.get(f"/api/munki/software/{software['id']}"), True
+
+    @staticmethod
+    def software_matches(existing, body):
+        return all(
+            normalized(existing.get(key)) == normalized(value)
+            for key, value in body.items()
         )
 
-        self.env["woodstar_package"] = package
-        self.env["woodstar_package_id"] = package["id"]
-        if package_changed or installer_uploaded:
-            self.env["woodstarmunkipackageuploader_summary_result"] = {
-                "summary_text": "Woodstar Munki package updated",
-                "report_fields": [
-                    "id",
-                    "software",
-                    "version",
-                    "action",
-                    "package_uploaded",
-                ],
-                "data": {
-                    "id": str(package["id"]),
-                    "software": package.get("software_name", ""),
-                    "version": package["version"],
-                    "action": action,
-                    "package_uploaded": str(installer_uploaded),
-                },
-            }
-        self.output(
-            f"{action} Woodstar package {package['id']}: {package.get('software_name', '')} {package['version']}")
+    def target_body(self, target_config=UNSET, existing=None):
+        if target_config is UNSET:
+            return existing["targets"] if existing else empty_targets()
+        if not isinstance(target_config, dict):
+            raise ProcessorError("targets must be a dictionary")
+        include_inputs = target_config.get("include", [])
+        if not isinstance(include_inputs, list):
+            raise ProcessorError("targets.include must be a list")
+        exclude_inputs = target_config.get("exclude", [])
+        if not isinstance(exclude_inputs, list):
+            raise ProcessorError("targets.exclude must be a list")
+        return {
+            "include": [self.include_body(target) for target in include_inputs],
+            "exclude": self.exclude_body(exclude_inputs),
+        }
 
-    def software_id(self):
-        software_id = self.env.get("software_id") or self.env.get("woodstar_software_id")
-        if not software_id:
-            raise ProcessorError("software_id or woodstar_software_id is required")
-        try:
-            return int(software_id)
-        except (TypeError, ValueError) as err:
-            raise ProcessorError("software_id or woodstar_software_id must be an integer") from err
-
-    def load_pkginfo(self, path):
-        with open(path, "rb") as handle:
-            return plistlib.load(handle)
-
-    def repo_pkginfo_path(self):
-        path = self.repo_path(self.env.get("pkginfo_repo_path"))
-        if not path:
-            return None
-        if not os.path.isfile(path):
-            raise ProcessorError(f"MunkiImporter pkginfo not found: {path}")
-        return path
-
-    def pkginfo(self):
-        pkginfo_path = self.repo_pkginfo_path()
-        if not pkginfo_path:
-            pkginfo_path = self.existing_repo_pkginfo_path()
-            self.output(f"Using existing Munki pkginfo: {pkginfo_path}")
-        else:
-            self.output(f"Using MunkiImporter pkginfo: {pkginfo_path}")
-        try:
-            return self.load_pkginfo(pkginfo_path)
-        except (OSError, plistlib.InvalidFileException, ValueError) as err:
-            raise ProcessorError(f"failed to read Munki pkginfo {pkginfo_path}: {err}") from err
-
-    def existing_repo_pkginfo_path(self):
-        installer_location = self.installer_item_location()
-        pkginfos_dir = os.path.join(str(self.env.get("MUNKI_REPO") or ""), "pkgsinfo")
-        if not os.path.isdir(pkginfos_dir):
-            raise ProcessorError("MUNKI_REPO pkgsinfo directory was not found")
-        matches = []
-        for root, _dirs, filenames in os.walk(pkginfos_dir):
-            for filename in filenames:
-                path = os.path.join(root, filename)
-                if self.pkginfo_installer_location(path) == installer_location:
-                    matches.append(path)
-        if not matches:
+    def include_body(self, target):
+        if not isinstance(target, dict):
+            raise ProcessorError("targets.include entries must be dictionaries")
+        if "priority" in target:
             raise ProcessorError(
-                "pkginfo_repo_path was empty from MunkiImporter and no existing "
-                f"pkginfo matched installer_item_location {installer_location}"
+                "targets.include priority is not supported; order the include list instead"
             )
-        return sorted(matches)[0]
+        return {
+            "label_id": int(self.label_id(target, "targets.include entry")),
+            "package": self.package_selector(target),
+            "actions": self.actions(target),
+        }
 
-    def pkginfo_installer_location(self, path):
-        try:
-            pkginfo = self.load_pkginfo(path)
-        except (OSError, plistlib.InvalidFileException, ValueError):
+    @staticmethod
+    def actions(target):
+        actions = target.get("actions", ["managed_installs"])
+        if not isinstance(actions, list) or not actions:
+            raise ProcessorError("targets.include actions must be a non-empty list")
+        for action in actions:
+            if action not in SUPPORTED_TARGET_ACTIONS:
+                raise ProcessorError(
+                    f"targets.include action {action!r} is not supported"
+                )
+        return actions
+
+    @staticmethod
+    def package_selector(target):
+        package = target.get("package", {"strategy": "latest"})
+        if not isinstance(package, dict):
+            raise ProcessorError("targets.include package must be a dictionary")
+        strategy = package.get("strategy", "latest")
+        if strategy not in {"latest", "specific"}:
+            raise ProcessorError(
+                "targets.include package.strategy must be latest or specific"
+            )
+        if strategy == "latest":
+            if package.get("package_id"):
+                raise ProcessorError(
+                    "targets.include latest package must not set package_id"
+                )
+            return {"strategy": "latest"}
+        package_id = package.get("package_id")
+        if not package_id:
+            raise ProcessorError(
+                "targets.include specific package requires package_id"
+            )
+        return {"strategy": "specific", "package_id": int(package_id)}
+
+    def exclude_body(self, inputs):
+        values = [
+            self.label_ref(target, "targets.exclude entry") for target in inputs
+        ]
+        label_ids = [target["label_id"] for target in values]
+        if len(label_ids) != len(set(label_ids)):
+            raise ProcessorError("targets.exclude contains duplicate labels")
+        return values
+
+    def label_ref(self, target, context):
+        if isinstance(target, (int, str)):
+            return {"label_id": int(target)}
+        if not isinstance(target, dict):
+            raise ProcessorError(f"{context} must be a dictionary")
+        return {"label_id": int(self.label_id(target, context))}
+
+    def label_id(self, target, context):
+        label_id = target.get("label_id")
+        if label_id:
+            return label_id
+        label_name = target.get("label_name")
+        if not label_name:
+            raise ProcessorError(f"{context} requires label_id or label_name")
+        label = find_exact(self.client, "/api/labels", "name", label_name)
+        if not label:
+            raise ProcessorError(f"Woodstar label not found: {label_name}")
+        return label["id"]
+
+
+class PackageManager:
+    def __init__(self, client, output=None):
+        self.client = client
+        self.output = output or (lambda _message: None)
+
+    def installer_artifact_path(self, pkginfo, pkg_path):
+        if not self.needs_installer_artifact(pkginfo):
             return None
-        return pkginfo.get("installer_item_location")
+        if not pkg_path or not os.path.isfile(pkg_path):
+            raise ProcessorError(
+                "package-bearing pkginfo requires an installer artifact"
+            )
+        return os.path.abspath(pkg_path)
 
-    def installer_item_location(self):
-        package_path = self.repo_path(self.env.get("pkg_repo_path"))
-        if not package_path:
-            raise ProcessorError("pkg_repo_path is required when pkginfo_repo_path is empty")
-        munki_repo = self.env.get("MUNKI_REPO")
-        if not munki_repo:
-            raise ProcessorError("MUNKI_REPO is required when pkginfo_repo_path is empty")
-        package_path = os.path.abspath(package_path)
-        pkgs_dir = os.path.abspath(os.path.join(str(munki_repo), "pkgs"))
-        try:
-            if os.path.commonpath([pkgs_dir, package_path]) != pkgs_dir:
-                raise ValueError
-            return os.path.relpath(package_path, pkgs_dir)
-        except ValueError as err:
-            raise ProcessorError(f"pkg_repo_path is not inside MUNKI_REPO pkgs: {package_path}") from err
-
-    def package_path(self):
-        path = self.repo_path(self.env.get("pkg_repo_path"))
-        if path and os.path.isfile(path):
-            return path
-        raise ProcessorError("pkg_repo_path is required for package-bearing MunkiImporter pkginfo")
-
-    def installer_artifact_path(self, pkginfo):
-        if self.needs_installer_artifact(pkginfo):
-            return self.package_path()
-        return None
-
-    def repo_path(self, value):
-        if not value:
-            return None
-        value = str(value)
-        if os.path.isabs(value):
-            return value
-        munki_repo = self.env.get("MUNKI_REPO")
-        if munki_repo:
-            return os.path.join(munki_repo, value)
-        return value
-
-    def needs_installer_artifact(self, pkginfo):
-        return self.installer_type(pkginfo) != "nopkg"
+    @classmethod
+    def needs_installer_artifact(cls, pkginfo):
+        return cls.installer_type(pkginfo) != "nopkg"
 
     def base_package_body(self, pkginfo, software_id):
         body = self.package_mutation_from_pkginfo(pkginfo)
@@ -282,7 +279,10 @@ class WoodstarMunkiPackageUploader(Processor):
     def package_body(self, pkginfo, software_id, resolver):
         body = self.base_package_body(pkginfo, software_id)
         body["requires"] = resolver.resolve(pkginfo.get("requires", []), "requires")
-        body["update_for"] = resolver.resolve(pkginfo.get("update_for", []), "update_for")
+        body["update_for"] = resolver.resolve(
+            pkginfo.get("update_for", []),
+            "update_for",
+        )
         return body
 
     def package_mutation_from_pkginfo(self, pkginfo):
@@ -303,7 +303,9 @@ class WoodstarMunkiPackageUploader(Processor):
             if key in pkginfo:
                 body[key] = pkginfo[key]
         if "blocking_applications" in pkginfo:
-            body["blocking_applications_none"] = len(pkginfo["blocking_applications"]) == 0
+            body["blocking_applications_none"] = (
+                len(pkginfo["blocking_applications"]) == 0
+            )
         force_date = body.get("force_install_after_date")
         if hasattr(force_date, "isoformat"):
             body["force_install_after_date"] = force_date.isoformat()
@@ -312,9 +314,13 @@ class WoodstarMunkiPackageUploader(Processor):
         if "OnDemand" in pkginfo:
             body["on_demand"] = pkginfo["OnDemand"]
         if "installer_environment" in pkginfo:
-            body["installer_environment"] = self.installer_environment(pkginfo["installer_environment"])
+            body["installer_environment"] = self.installer_environment(
+                pkginfo["installer_environment"]
+            )
         if "installer_choices_xml" in pkginfo:
-            body["installer_choices_xml"] = self.installer_choices_xml(pkginfo["installer_choices_xml"])
+            body["installer_choices_xml"] = self.installer_choices_xml(
+                pkginfo["installer_choices_xml"]
+            )
         if "installs" in pkginfo:
             body["installs"] = self.install_items(pkginfo["installs"])
         if "receipts" in pkginfo:
@@ -327,17 +333,24 @@ class WoodstarMunkiPackageUploader(Processor):
                 body[woodstar_key] = self.alert(pkginfo[munki_key], munki_key)
         return body
 
-    def save_package(self, client, software_id, body, installer_path, force=False):
-        existing = self.existing_package(client, software_id, body["version"])
+    def save_package(self, software_id, body, installer_path, force=False):
+        existing = self.existing_package(software_id, body["version"])
         if existing:
-            existing = client.get(f"/api/munki/packages/{existing['id']}")
+            existing = self.client.get(f"/api/munki/packages/{existing['id']}")
         installer_object_id = None
         installer_uploaded = False
         if body["installer_type"] != "nopkg":
             if not installer_path:
-                raise ProcessorError("package-bearing pkginfo requires an installer artifact")
-            if not existing or needs_object(existing, "installer", installer_path, force):
-                installer = client.upload_package_installer(installer_path)
+                raise ProcessorError(
+                    "package-bearing pkginfo requires an installer artifact"
+                )
+            if not existing or needs_object(
+                existing,
+                "installer",
+                installer_path,
+                force,
+            ):
+                installer = self.client.upload_package_installer(installer_path)
                 installer_object_id = installer["id"]
                 installer_uploaded = True
             else:
@@ -351,22 +364,29 @@ class WoodstarMunkiPackageUploader(Processor):
             if existing:
                 update_body = mutation_request_body(body)
                 del update_body["software_id"]
-                saved = client.put(f"/api/munki/packages/{existing['id']}", update_body)
+                saved = self.client.put(
+                    f"/api/munki/packages/{existing['id']}",
+                    update_body,
+                )
                 return saved, "Updated", True, installer_uploaded
-            saved = client.post("/api/munki/packages", mutation_request_body(body))
+            saved = self.client.post(
+                "/api/munki/packages",
+                mutation_request_body(body),
+            )
             return saved, "Created", True, installer_uploaded
         except ProcessorError:
             if installer_uploaded:
                 try:
-                    client.delete(f"/api/munki/package-installers/{installer_object_id}")
+                    self.client.delete(
+                        f"/api/munki/package-installers/{installer_object_id}"
+                    )
                 except ProcessorError:
                     pass
             raise
 
-    @staticmethod
-    def existing_package(client, software_id, version):
+    def existing_package(self, software_id, version):
         for item in list_items(
-            client,
+            self.client,
             "/api/munki/packages",
             {"software_id": software_id, "q": version, "per_page": 1000},
         ):
@@ -409,7 +429,9 @@ class WoodstarMunkiPackageUploader(Processor):
     @staticmethod
     def installer_environment(value):
         if not isinstance(value, dict):
-            raise ProcessorError("pkginfo installer_environment must be a dictionary")
+            raise ProcessorError(
+                "pkginfo installer_environment must be a dictionary"
+            )
         return [{"name": name, "value": value[name]} for name in sorted(value)]
 
     @staticmethod
@@ -419,7 +441,9 @@ class WoodstarMunkiPackageUploader(Processor):
         choices = []
         for value in values:
             if not isinstance(value, dict):
-                raise ProcessorError("pkginfo installer_choices_xml entries must be dictionaries")
+                raise ProcessorError(
+                    "pkginfo installer_choices_xml entries must be dictionaries"
+                )
             choice_identifier = value.get("choiceIdentifier")
             if not isinstance(choice_identifier, str) or not choice_identifier.strip():
                 raise ProcessorError(
@@ -437,7 +461,9 @@ class WoodstarMunkiPackageUploader(Processor):
             try:
                 attribute_setting = int(value["attributeSetting"])
             except (TypeError, ValueError) as err:
-                raise ProcessorError("pkginfo installer_choices_xml attributeSetting must be an integer") from err
+                raise ProcessorError(
+                    "pkginfo installer_choices_xml attributeSetting must be an integer"
+                ) from err
             choices.append(
                 {
                     "choice_identifier": choice_identifier,
@@ -506,9 +532,19 @@ class WoodstarMunkiPackageUploader(Processor):
         return alert
 
 
+def empty_targets():
+    return {"include": [], "exclude": []}
+
+
 def default_package_mutation():
     return {
-        key: [*value] if isinstance(value, list) else dict(value) if isinstance(value, dict) else value
+        key: (
+            [*value]
+            if isinstance(value, list)
+            else dict(value)
+            if isinstance(value, dict)
+            else value
+        )
         for key, value in PACKAGE_DEFAULTS.items()
     }
 
@@ -525,7 +561,11 @@ def normalized(value):
     if value is None:
         return ""
     if isinstance(value, dict):
-        return {key: normalized(item) for key, item in sorted(value.items()) if item is not None}
+        return {
+            key: normalized(item)
+            for key, item in sorted(value.items())
+            if item is not None
+        }
     if isinstance(value, list):
         return [normalized(item) for item in value]
     if hasattr(value, "isoformat"):
@@ -594,10 +634,14 @@ class PackageReferenceResolver:
                 for software in self.software.get(name, [])
             ]
         if not candidates:
-            raise ProcessorError(f"pkginfo {key} item {value!r} was not found in Woodstar")
+            raise ProcessorError(
+                f"pkginfo {key} item {value!r} was not found in Woodstar"
+            )
         unique = {tuple(sorted(candidate.items())) for candidate in candidates}
         if len(unique) != 1:
-            raise ProcessorError(f"pkginfo {key} item {value!r} is ambiguous in Woodstar")
+            raise ProcessorError(
+                f"pkginfo {key} item {value!r} is ambiguous in Woodstar"
+            )
         return candidates[0]
 
 
@@ -617,8 +661,3 @@ def munki_version(value):
     while len(parts) > 2 and parts[-1] == "0":
         parts.pop()
     return ".".join(parts)
-
-
-if __name__ == "__main__":
-    PROCESSOR = WoodstarMunkiPackageUploader()
-    PROCESSOR.execute_shell()
