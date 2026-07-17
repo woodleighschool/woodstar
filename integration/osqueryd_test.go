@@ -3,7 +3,6 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -151,26 +150,9 @@ func TestOsqueryd(t *testing.T) {
 func requireOsquerydProvider(t *testing.T) {
 	t.Helper()
 
-	provider, err := testcontainers.ProviderDocker.GetProvider()
-	if err != nil {
-		osquerydPrerequisiteUnavailablef(t, "Docker provider: %v", err)
+	if os.Getenv("CI") == "" {
+		testcontainers.SkipIfProviderIsNotHealthy(t)
 	}
-	healthCtx, healthCancel := context.WithTimeout(t.Context(), osquerydProviderTimeout)
-	healthErr := provider.Health(healthCtx)
-	healthCancel()
-	closeErr := provider.Close()
-	if err := errors.Join(healthErr, closeErr); err != nil {
-		osquerydPrerequisiteUnavailablef(t, "Docker provider health: %v", err)
-	}
-}
-
-func osquerydPrerequisiteUnavailablef(t *testing.T, format string, args ...any) {
-	t.Helper()
-
-	if integrationRequired("osquery") {
-		t.Fatalf("osqueryd integration prerequisite unavailable: "+format, args...)
-	}
-	t.Skipf("osqueryd integration prerequisite unavailable: "+format, args...)
 }
 
 func osquerydFlags() string {

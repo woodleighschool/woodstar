@@ -116,10 +116,10 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 """
 
 [tasks.test-integration-storage]
-description = "Run the file and Garage-backed S3 storage lifecycles"
+description = "Run file and Garage-backed S3 backend conformance"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestStorage$' .
+  go -C integration test -race -count=1 -v -run '^TestStorageBackends$' ./storage
 """
 
 [tasks.test-integration-mdp]
@@ -130,10 +130,10 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 """
 
 [tasks.test-integration]
-description = "Run all integration lifecycles"
+description = "Run all integration lifecycles and backend conformance"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v .
+  go -C integration test -race -count=1 -v ./...
 """
 
 [tasks.openapi]

@@ -1,4 +1,4 @@
-package integration
+package storageintegration
 
 import (
 	"bytes"
@@ -27,14 +27,13 @@ const (
 	garageBucket                = "woodstar-integration"
 	garageAccessKey             = "GK0123456789abcdef0123456789abcdef"
 	garageSecretKey             = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	storageProviderTimeout      = 5 * time.Second
 	storageContainerTimeout     = 2 * time.Minute
 	storageCleanupTimeout       = 20 * time.Second
 	storageContainerStopTimeout = time.Second
 	storageRequestTimeout       = 30 * time.Second
 )
 
-func TestStorage(t *testing.T) {
+func TestStorageBackends(t *testing.T) {
 	t.Run("file", func(t *testing.T) {
 		backend, err := storage.New(t.Context(), storage.Config{
 			Kind:          storage.KindFile,
@@ -514,25 +513,7 @@ root_domain = ".s3.garage.localhost"
 func requireStorageProvider(t *testing.T) {
 	t.Helper()
 
-	provider, err := testcontainers.ProviderDocker.GetProvider()
-	if err != nil {
-		storagePrerequisiteUnavailablef(t, "Docker provider: %v", err)
+	if os.Getenv("CI") == "" {
+		testcontainers.SkipIfProviderIsNotHealthy(t)
 	}
-	healthCtx, healthCancel := context.WithTimeout(t.Context(), storageProviderTimeout)
-	healthErr := provider.Health(healthCtx)
-	healthCancel()
-	closeErr := provider.Close()
-	if err := errors.Join(healthErr, closeErr); err != nil {
-		storagePrerequisiteUnavailablef(t, "Docker provider health: %v", err)
-	}
-}
-
-func storagePrerequisiteUnavailablef(t *testing.T, format string, args ...any) {
-	t.Helper()
-
-	message := fmt.Sprintf(format, args...)
-	if integrationRequired("storage") {
-		t.Fatalf("storage integration prerequisite unavailable: %s", message)
-	}
-	t.Skipf("storage integration prerequisite unavailable: %s", message)
 }
