@@ -74,7 +74,7 @@
     "oxlint-tsgolint": "^0.24.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "vite": "^8.1.4"
+    "vite": "^8.1.5"
   },
   "packageManager": "pnpm@11.13.1"
 }
