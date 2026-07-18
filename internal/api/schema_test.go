@@ -1,13 +1,12 @@
 package api
 
 import (
-	"log/slog"
 	"reflect"
 	"testing"
 )
 
 func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
-	api := BuildSchemaAPI("test", &Dependencies{Logger: slog.New(slog.DiscardHandler)})
+	api := BuildSchemaAPI("test")
 	doc := api.OpenAPI()
 
 	if doc.Components.SecuritySchemes["cookieAuth"] == nil {

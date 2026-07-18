@@ -62,16 +62,8 @@ func init() {
 
 // Server owns the listener and router.
 type Server struct {
-	httpServer        *http.Server
-	config            config.Config
-	logger            *slog.Logger
-	version           string
-	orbit             *orbitprotocol.Server
-	osquery           *osqueryprotocol.Server
-	munki             *munkiprotocol.Server
-	munkiPackages     *munki.PackageService
-	munkiDistribution *mdpprotocol.Server
-	santa             *santaprotocol.Server
+	httpServer *http.Server
+	deps       *Dependencies
 }
 
 // Dependencies is everything the HTTP server needs. Package main constructs
@@ -144,44 +136,19 @@ type MunkiProtocolDependencies struct {
 
 // NewServer returns an HTTP server.
 func NewServer(deps *Dependencies) (*Server, error) {
-	server := &Server{
-		config:  deps.Config,
-		logger:  deps.Logger.With("component", "server"),
-		version: deps.Version,
-		orbit: orbitprotocol.NewServer(
-			deps.Protocols.Orbit,
-			deps.Logger.With("component", "orbit"),
-		),
-		osquery: osqueryprotocol.NewServer(
-			deps.Protocols.Osquery,
-			deps.Logger.With("component", "osquery"),
-		),
-		munki: munkiprotocol.NewServer(
-			deps.Protocols.AgentAuth,
-			deps.Protocols.Munki.Repository,
-			deps.Protocols.Munki.Distribution,
-			deps.Protocols.Munki.Delivery,
-			deps.Logger.With("component", "munki"),
-		),
-		munkiPackages:     deps.App.MunkiPackages,
-		munkiDistribution: deps.Protocols.Munki.DistributionProtocol,
-		santa: santaprotocol.NewServer(
-			deps.Protocols.AgentAuth,
-			deps.Protocols.Santa,
-			deps.Logger.With("component", "santa"),
-		),
-	}
-	handler, err := server.routes(deps)
+	handler, err := routes(deps)
 	if err != nil {
 		return nil, err
 	}
-	server.httpServer = &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
-		Handler:           handler,
-		ReadHeaderTimeout: 15 * time.Second,
-		IdleTimeout:       180 * time.Second,
-	}
-	return server, nil
+	return &Server{
+		deps: deps,
+		httpServer: &http.Server{
+			Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
+			Handler:           handler,
+			ReadHeaderTimeout: 15 * time.Second,
+			IdleTimeout:       180 * time.Second,
+		},
+	}, nil
 }
 
 // Addr returns the configured HTTP listen address.
@@ -191,22 +158,23 @@ func (s *Server) Addr() string {
 
 // Serve starts the server on listener and blocks until shutdown or failure.
 func (s *Server) Serve(listener net.Listener) error {
-	defer s.munkiDistribution.Close()
+	defer s.deps.Protocols.Munki.DistributionProtocol.Close()
+	cfg := s.deps.Config
 	transport := "http"
 	serve := func() error { return s.httpServer.Serve(listener) }
-	if s.config.TLSConfigured() {
+	if cfg.TLSConfigured() {
 		transport = "https"
 		serve = func() error {
-			return s.httpServer.ServeTLS(listener, s.config.TLSCertFile, s.config.TLSKeyFile)
+			return s.httpServer.ServeTLS(listener, cfg.TLSCertFile, cfg.TLSKeyFile)
 		}
 	}
-	s.logger.Info(
+	s.deps.Logger.With("component", "server").Info(
 		"starting woodstar",
 		"operation", "start",
 		"addr", s.httpServer.Addr,
-		"server_url", s.config.ServerURL,
+		"server_url", cfg.ServerURL,
 		"transport", transport,
-		"version", s.version,
+		"version", s.deps.Version,
 	)
 	if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -216,12 +184,16 @@ func (s *Server) Serve(listener net.Listener) error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.InfoContext(ctx, "stopping woodstar", "operation", "shutdown")
-	s.munkiDistribution.Close()
+	s.deps.Logger.With("component", "server").InfoContext(
+		ctx,
+		"stopping woodstar",
+		"operation", "shutdown",
+	)
+	s.deps.Protocols.Munki.DistributionProtocol.Close()
 	return s.httpServer.Shutdown(ctx)
 }
 
-func (s *Server) routes(deps *Dependencies) (http.Handler, error) {
+func routes(deps *Dependencies) (http.Handler, error) {
 	compression, err := compressionMiddleware()
 	if err != nil {
 		return nil, fmt.Errorf("create HTTP compression adapter: %w", err)
@@ -246,10 +218,10 @@ func (s *Server) routes(deps *Dependencies) (http.Handler, error) {
 	})
 
 	r.Group(func(r chi.Router) {
-		s.protocolRoutes(r, deps)
+		protocolRoutes(r, deps)
 	})
 	r.Group(func(r chi.Router) {
-		s.browserRoutes(r, deps)
+		browserRoutes(r, deps)
 	})
 
 	return r, nil
@@ -257,16 +229,32 @@ func (s *Server) routes(deps *Dependencies) (http.Handler, error) {
 
 // protocolRoutes mounts every agent-facing protocol endpoint. They are wire
 // protocols that live beside the app API on the same HTTP server.
-func (s *Server) protocolRoutes(r chi.Router, deps *Dependencies) {
+func protocolRoutes(r chi.Router, deps *Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
-	s.orbit.RegisterRoutes(r)
-	s.osquery.RegisterRoutes(r)
-	s.munki.RegisterRoutes(r)
-	s.munkiDistribution.RegisterRoutes(r)
-	s.santa.RegisterRoutes(r)
+	orbitprotocol.NewServer(
+		deps.Protocols.Orbit,
+		deps.Logger.With("component", "orbit"),
+	).RegisterRoutes(r)
+	osqueryprotocol.NewServer(
+		deps.Protocols.Osquery,
+		deps.Logger.With("component", "osquery"),
+	).RegisterRoutes(r)
+	munkiprotocol.NewServer(
+		deps.Protocols.AgentAuth,
+		deps.Protocols.Munki.Repository,
+		deps.Protocols.Munki.Distribution,
+		deps.Protocols.Munki.Delivery,
+		deps.Logger.With("component", "munki"),
+	).RegisterRoutes(r)
+	deps.Protocols.Munki.DistributionProtocol.RegisterRoutes(r)
+	santaprotocol.NewServer(
+		deps.Protocols.AgentAuth,
+		deps.Protocols.Santa,
+		deps.Logger.With("component", "santa"),
+	).RegisterRoutes(r)
 }
 
-func (s *Server) browserRoutes(r chi.Router, deps *Dependencies) {
+func browserRoutes(r chi.Router, deps *Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
 	r.Group(func(r chi.Router) {
 		storage.RegisterTransferRoutes(
@@ -279,21 +267,20 @@ func (s *Server) browserRoutes(r chi.Router, deps *Dependencies) {
 	r.Group(func(r chi.Router) {
 		r.Use(deps.SessionManager.LoadAndSave)
 		r.Use(middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins))
-		s.mount(r, deps)
+		mount(r, deps)
 		deps.WebHandler.RegisterRoutes(r)
 	})
 }
 
-func (s *Server) mount(r chi.Router, deps *Dependencies) {
+func mount(r chi.Router, deps *Dependencies) {
 	humaAPI := humachi.New(r, humaConfig(deps.Version))
-	registerAppRoutes(r, humaAPI, deps, s.munkiPackages)
+	registerAppRoutes(r, humaAPI, deps)
 }
 
 func registerAppRoutes(
 	r chi.Router,
 	humaAPI huma.API,
 	deps *Dependencies,
-	munkiPackages *munki.PackageService,
 ) {
 	session := huma.NewGroup(humaAPI)
 	session.UseMiddleware(middleware.OptionalHumaAuth(humaAPI, deps.App.AuthService))
@@ -342,7 +329,7 @@ func registerAppRoutes(
 		HostState:       deps.App.MunkiHostState,
 		Software:        deps.App.MunkiSoftware,
 		DeleteSoftware:  deps.App.MunkiSoftwareDeletions,
-		Packages:        munkiPackages,
+		Packages:        deps.App.MunkiPackages,
 		ClientResources: deps.App.MunkiClientResources,
 		Objects:         deps.App.StorageObjects,
 		Ingestor:        deps.App.StorageIngestor,
@@ -396,10 +383,12 @@ func humaConfig(version string) huma.Config {
 // BuildSchemaAPI builds the app API for OpenAPI schema generation only. Route
 // registration binds handlers but never invokes them, so nil stores and
 // services are valid here.
-func BuildSchemaAPI(version string, deps *Dependencies) huma.API {
+func BuildSchemaAPI(version string) huma.API {
 	r := chi.NewRouter()
 	humaAPI := humachi.New(r, humaConfig(version))
-	registerAppRoutes(r, humaAPI, deps, nil)
+	registerAppRoutes(r, humaAPI, &Dependencies{
+		Logger: slog.New(slog.DiscardHandler),
+	})
 	return humaAPI
 }
 

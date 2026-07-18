@@ -164,11 +164,19 @@ func serve(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("init storage: %w", err)
 	}
 
-	wiring, err := buildWiring(ctx, cfg, db, sessions, logger, storageBackend, storageCapabilityKey)
+	deps, starters, err := buildDependencies(
+		ctx,
+		cfg,
+		db,
+		sessions,
+		logger,
+		storageBackend,
+		storageCapabilityKey,
+	)
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
 	}
-	server, err := api.NewServer(wiring.apiDependencies())
+	server, err := api.NewServer(deps)
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)
 	}
@@ -178,7 +186,7 @@ func serve(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("listen %s: %w", server.Addr(), err)
 	}
 
-	stopJobs := start(ctx, wiring.starters()...)
+	stopJobs := start(ctx, starters...)
 	defer stopJobs()
 
 	return runServer(ctx, server, listener)
@@ -218,56 +226,7 @@ func runServer(
 	}
 }
 
-// wiring holds every constructed store and service. It is the dependency glass:
-// buildWiring fills it from config and the database, while its zero value drives
-// OpenAPI schema generation, which registers routes without touching a store.
-type wiring struct {
-	cfg             config.Config
-	logger          *slog.Logger
-	db              *database.DB
-	sessions        *scs.SessionManager
-	storageBackend  storage.Backend
-	storageDelivery *storage.Delivery
-	storageKey      []byte
-
-	auth         *auth.Service
-	users        *directory.UserService
-	directory    *directory.Store
-	hosts        *hosts.Store
-	primaryUsers *hosts.PrimaryUserService
-	secrets      *agentauth.Store
-	software     *inventory.Store
-	labels       *labels.Store
-
-	reports      *reports.Store
-	checks       *checks.Store
-	liveQueries  *livequery.Manager
-	osqueryAgent *osquery.AgentService
-
-	orbitAgent *orbit.EnrollmentService
-
-	storageObjects         *storage.ObjectStore
-	storageIngestor        *storage.Ingestor
-	munkiClientResources   *clientresources.Store
-	munkiClientResourceSvc *clientresources.Service
-	munkiPackages          *packages.Store
-	munkiPackageSvc        *munki.PackageService
-	munkiSoftware          *munkisoftware.Store
-	munkiSoftwareDeletions *munki.SoftwareDeletionService
-	munkiHostState         *munki.Store
-	munkiRepo              *munki.RepositoryService
-	munkiDistribution      *mdp.Store
-	munkiMDPProtocol       *mdpprotocol.Server
-
-	configurations *configurations.Store
-	events         *events.Store
-	rules          *rules.Store
-	references     *references.Store
-	santaSync      *santa.SyncService
-	santaState     *santa.HostStateService
-}
-
-func buildWiring(
+func buildDependencies(
 	ctx context.Context,
 	cfg config.Config,
 	db *database.DB,
@@ -275,185 +234,172 @@ func buildWiring(
 	logger *slog.Logger,
 	storageBackend storage.Backend,
 	storageCapabilityKey []byte,
-) (*wiring, error) {
-	w := &wiring{
-		cfg:             cfg,
-		logger:          logger,
-		db:              db,
-		sessions:        sessions,
-		storageBackend:  storageBackend,
-		storageDelivery: storage.NewDelivery(storageBackend),
-		storageKey:      slices.Clone(storageCapabilityKey),
-	}
+) (*api.Dependencies, []starter, error) {
+	storageDelivery := storage.NewDelivery(storageBackend)
 
 	// Core stores.
-	w.directory = directory.NewStore(db)
-	w.hosts = hosts.NewStore(db)
-	w.secrets = agentauth.NewStore(db)
-	w.software = inventory.NewStore(db)
-	w.labels = labels.NewStore(db)
-	w.primaryUsers = hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(db), w.labels)
+	directoryStore := directory.NewStore(db)
+	hostStore := hosts.NewStore(db)
+	secretStore := agentauth.NewStore(db)
+	inventoryStore := inventory.NewStore(db)
+	labelStore := labels.NewStore(db)
+	primaryUsers := hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(db), labelStore)
 
 	// Osquery stores.
-	w.reports = reports.NewStore(db)
-	w.checks = checks.NewStore(db)
-	w.liveQueries = livequery.NewManager()
+	reportStore := reports.NewStore(db)
+	checkStore := checks.NewStore(db)
+	liveQueries := livequery.NewManager()
 
 	// Munki stores.
-	w.storageObjects = storage.NewObjectStore(db, storageBackend)
-	w.storageIngestor = storage.NewIngestor(w.storageObjects, storageBackend)
-	w.munkiClientResources = clientresources.NewStore(db, w.storageObjects)
-	w.munkiClientResourceSvc = clientresources.NewService(
-		w.munkiClientResources,
-		w.storageObjects,
-		w.storageIngestor,
+	objectStore := storage.NewObjectStore(db, storageBackend)
+	storageIngestor := storage.NewIngestor(objectStore, storageBackend)
+	clientResourceStore := clientresources.NewStore(db, objectStore)
+	clientResourceService := clientresources.NewService(
+		clientResourceStore,
+		objectStore,
+		storageIngestor,
 		storageBackend,
 	)
-	w.munkiPackages = packages.NewStore(
+	packageStore := packages.NewStore(
 		db,
-		w.storageObjects,
+		objectStore,
 		logger.With("component", "munki_packages"),
 	)
-	w.munkiSoftware = munkisoftware.NewStore(db, w.storageObjects, w.munkiPackages)
-	w.munkiHostState = munki.NewStore(db)
+	munkiSoftwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
+	munkiHostState := munki.NewStore(db)
 
 	// Santa stores.
 	santaHostStore := santa.NewStore(db)
-	w.configurations = configurations.NewStore(db)
-	w.events = events.NewStore(db)
-	w.rules = rules.NewStore(db)
-	w.references = references.NewStore(db)
+	configurationStore := configurations.NewStore(db)
+	eventStore := events.NewStore(db)
+	ruleStore := rules.NewStore(db)
+	referenceStore := references.NewStore(db)
 	syncStore := syncstate.NewStore(db)
 
-	w.users = directory.NewUserService(w.directory, w.labels)
-	authService, err := newAuth(ctx, cfg, w.users, sessions)
+	userService := directory.NewUserService(directoryStore, labelStore)
+	authService, err := newAuth(ctx, cfg, userService, sessions)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	w.auth = authService
-	w.orbitAgent = orbit.NewEnrollmentService(w.hosts, w.secrets, w.primaryUsers)
+	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers)
 
-	inventoryProjector := ingest.NewProjector(w.hosts, w.software, logger.With("component", "inventory"))
-	munkiIngestor := munki.NewDetailIngestor(w.munkiHostState)
+	inventoryProjector := ingest.NewProjector(
+		hostStore,
+		inventoryStore,
+		logger.With("component", "inventory"),
+	)
+	munkiIngestor := munki.NewDetailIngestor(munkiHostState)
 	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
 	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
-	labelEvaluator := ingest.NewLabelEvaluator(w.labels, logger.With("component", "labels"))
-	w.osqueryAgent = osquery.NewAgentService(osquery.Dependencies{
-		HostStore:          w.hosts,
+	labelEvaluator := ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels"))
+	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
+		HostStore:          hostStore,
 		InventoryProjector: inventoryProjector,
 		LabelEvaluator:     labelEvaluator,
-		ReportStore:        w.reports,
-		CheckStore:         w.checks,
-		LiveQueries:        w.liveQueries,
-		SecretStore:        w.secrets,
+		ReportStore:        reportStore,
+		CheckStore:         checkStore,
+		LiveQueries:        liveQueries,
+		SecretStore:        secretStore,
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	w.munkiRepo = munki.NewRepositoryService(munki.Dependencies{
-		Hosts:           w.hosts,
-		Software:        w.munkiSoftware,
-		Packages:        w.munkiPackages,
-		Objects:         w.storageObjects,
-		ClientResources: w.munkiClientResources,
+	munkiRepository := munki.NewRepositoryService(munki.Dependencies{
+		Hosts:           hostStore,
+		Software:        munkiSoftwareStore,
+		Packages:        packageStore,
+		Objects:         objectStore,
+		ClientResources: clientResourceStore,
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
-	w.munkiDistribution = mdp.NewStore(db, munkiDistributionLogger)
-	w.munkiMDPProtocol = mdpprotocol.NewServer(
+	munkiDistribution := mdp.NewStore(db, munkiDistributionLogger)
+	munkiDistributionProtocol := mdpprotocol.NewServer(
 		ctx,
-		w.munkiDistribution,
-		w.storageDelivery,
+		munkiDistribution,
+		storageDelivery,
 		munkiDistributionLogger,
 	)
-	w.munkiPackageSvc = munki.NewPackageService(munki.PackageServiceDependencies{
-		Packages:               w.munkiPackages,
-		DesiredPackagesChanged: w.munkiMDPProtocol.RefreshDesiredPackages,
+	munkiPackageService := munki.NewPackageService(munki.PackageServiceDependencies{
+		Packages:               packageStore,
+		DesiredPackagesChanged: munkiDistributionProtocol.RefreshDesiredPackages,
 	})
-	w.munkiSoftwareDeletions = munki.NewSoftwareDeletionService(
-		w.munkiSoftware,
-		w.munkiMDPProtocol.RefreshDesiredPackages,
+	munkiSoftwareDeletions := munki.NewSoftwareDeletionService(
+		munkiSoftwareStore,
+		munkiDistributionProtocol.RefreshDesiredPackages,
 	)
 
-	w.santaSync = santa.NewSyncService(santa.Dependencies{
+	santaSync := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
-		Configurations: w.configurations,
-		Events:         w.events,
-		Rules:          w.rules,
+		Configurations: configurationStore,
+		Events:         eventStore,
+		Rules:          ruleStore,
 		Sync:           syncStore,
 	})
-	w.santaState = santa.NewHostStateService(santaHostStore, w.configurations)
+	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
-	return w, nil
-}
-
-// apiDependencies projects the constructed stores and services into the HTTP
-// server. The API package owns route topology; main owns construction order.
-func (w *wiring) apiDependencies() *api.Dependencies {
-	return &api.Dependencies{
-		Config:         w.cfg,
-		DB:             w.db,
+	deps := &api.Dependencies{
+		Config:         cfg,
+		DB:             db,
 		Version:        buildinfo.Version,
-		Logger:         w.logger,
-		SessionManager: w.sessions,
+		Logger:         logger,
+		SessionManager: sessions,
 		WebHandler: webui.NewHandler(webui.HandlerOptions{
 			FS:        webdist.DistDirFS,
 			Version:   buildinfo.Version,
-			ServerURL: w.cfg.ServerURL,
-			Logger:    w.logger.With("component", "web"),
+			ServerURL: cfg.ServerURL,
+			Logger:    logger.With("component", "web"),
 		}),
 		App: api.AppDependencies{
-			AuthService: w.auth,
-			Users:       w.users,
-			Directory:   w.directory,
-			Hosts:       w.hosts,
-			PrimaryUser: w.primaryUsers,
-			Secrets:     w.secrets,
-			Software:    w.software,
-			Labels:      w.labels,
+			AuthService: authService,
+			Users:       userService,
+			Directory:   directoryStore,
+			Hosts:       hostStore,
+			PrimaryUser: primaryUsers,
+			Secrets:     secretStore,
+			Software:    inventoryStore,
+			Labels:      labelStore,
 
-			Reports:     w.reports,
-			Checks:      w.checks,
-			LiveQueries: w.liveQueries,
+			Reports:     reportStore,
+			Checks:      checkStore,
+			LiveQueries: liveQueries,
 
-			StorageBackend:  w.storageBackend,
-			StorageDelivery: w.storageDelivery,
-			StorageKey:      slices.Clone(w.storageKey),
-			StorageObjects:  w.storageObjects,
-			StorageIngestor: w.storageIngestor,
+			StorageBackend:  storageBackend,
+			StorageDelivery: storageDelivery,
+			StorageKey:      slices.Clone(storageCapabilityKey),
+			StorageObjects:  objectStore,
+			StorageIngestor: storageIngestor,
 
-			MunkiPackages:          w.munkiPackageSvc,
-			MunkiClientResources:   w.munkiClientResourceSvc,
-			MunkiSoftware:          w.munkiSoftware,
-			MunkiSoftwareDeletions: w.munkiSoftwareDeletions,
-			MunkiHostState:         w.munkiHostState,
-			MunkiDistribution:      w.munkiDistribution,
+			MunkiPackages:          munkiPackageService,
+			MunkiClientResources:   clientResourceService,
+			MunkiSoftware:          munkiSoftwareStore,
+			MunkiSoftwareDeletions: munkiSoftwareDeletions,
+			MunkiHostState:         munkiHostState,
+			MunkiDistribution:      munkiDistribution,
 
-			SantaConfigurations: w.configurations,
-			SantaEvents:         w.events,
-			SantaRules:          w.rules,
-			SantaReferences:     w.references,
-			SantaState:          w.santaState,
+			SantaConfigurations: configurationStore,
+			SantaEvents:         eventStore,
+			SantaRules:          ruleStore,
+			SantaReferences:     referenceStore,
+			SantaState:          santaState,
 		},
 		Protocols: api.ProtocolDependencies{
-			AgentAuth: w.secrets,
-			Orbit:     w.orbitAgent,
-			Osquery:   w.osqueryAgent,
+			AgentAuth: secretStore,
+			Orbit:     orbitAgent,
+			Osquery:   osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
-				Repository:           w.munkiRepo,
-				Distribution:         w.munkiDistribution,
-				DistributionProtocol: w.munkiMDPProtocol,
-				Delivery:             w.storageDelivery,
+				Repository:           munkiRepository,
+				Distribution:         munkiDistribution,
+				DistributionProtocol: munkiDistributionProtocol,
+				Delivery:             storageDelivery,
 			},
-			Santa: w.santaSync,
+			Santa: santaSync,
 		},
 	}
-}
-
-// starters returns the background lifecycle jobs the server runs alongside HTTP.
-func (w *wiring) starters() []starter {
-	return []starter{
-		santaCleanupStarter(w.cfg, w.events, w.logger),
-		entraSyncStarter(w.cfg, w.directory, w.labels, w.logger),
+	starters := []starter{
+		santaCleanupStarter(cfg, eventStore, logger),
+		entraSyncStarter(cfg, directoryStore, labelStore, logger),
 	}
+
+	return deps, starters, nil
 }
 
 func newAuth(
