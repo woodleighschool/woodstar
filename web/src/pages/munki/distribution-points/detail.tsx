@@ -7,9 +7,9 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { MunkiIcon } from "@/components/munki/munki-icon";
 import { PendingButton } from "@/components/pending-button";
 import { QueryGate } from "@/components/query-gate";
+import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -184,7 +184,7 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
                   <TableRow key={pkg.package_id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <MunkiIcon iconUrl={pkg.software_icon_url} />
+                        <SoftwareArtwork src={pkg.software_icon_url} />
                         <Link
                           to="/munki/packages/$packageId/edit"
                           params={{ packageId: String(pkg.package_id) }}

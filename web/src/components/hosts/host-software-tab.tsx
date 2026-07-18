@@ -14,7 +14,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
-import { SoftwareIcon } from "@/components/software/software-icon";
+import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,7 +51,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
         params={{ softwareId: String(row.original.id) }}
         className="inline-flex items-center gap-2 truncate font-medium hover:underline"
       >
-        <SoftwareIcon source={row.original.source} />
+        <SoftwareIcon {...softwareIconProps(row.original.source)} />
         <span className="truncate">{row.original.name}</span>
       </Link>
     ),

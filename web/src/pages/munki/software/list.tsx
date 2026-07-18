@@ -10,8 +10,8 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
+import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -48,12 +48,12 @@ export function MunkiSoftwareListPage() {
               params={{ softwareId: String(row.original.id) }}
               className="flex min-w-0 items-center gap-2 font-medium hover:underline"
             >
-              <MunkiIcon iconUrl={row.original.icon_url} />
+              <SoftwareArtwork src={row.original.icon_url} />
               <span className="truncate">{row.original.name}</span>
             </Link>
           ) : (
             <span className="flex min-w-0 items-center gap-2 font-medium">
-              <MunkiIcon iconUrl={row.original.icon_url} />
+              <SoftwareArtwork src={row.original.icon_url} />
               <span className="truncate">{row.original.name}</span>
             </span>
           ),

@@ -39,14 +39,14 @@ export function MunkiSoftwareCreatePage() {
       const data = munkiSoftwareSchema.parse(value);
       const title = await create.mutateAsync({
         ...data,
-        icon_object_id: value.icon_object_id ?? undefined,
+        icon_object_id: value.icon.kind === "stored" ? value.icon.objectID : undefined,
         targets: {
           include: value.targets.include.map(munkiSoftwareInclude),
           exclude: value.targets.exclude,
         },
       });
-      if (value.icon_file) {
-        await iconUpload.upload({ softwareId: title.id, file: value.icon_file });
+      if (value.icon.kind === "upload") {
+        await iconUpload.upload({ softwareId: title.id, file: value.icon.file });
       }
       return title.id;
     },

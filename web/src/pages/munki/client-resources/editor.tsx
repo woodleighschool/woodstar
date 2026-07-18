@@ -14,7 +14,7 @@ import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/form-field";
-import { MunkiIcon } from "@/components/munki/munki-icon";
+import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -361,7 +361,7 @@ function MunkiCategories() {
 function SoftwareItem({ item }: { item: (typeof sampleSoftware)[number] }) {
   return (
     <div className="flex min-w-0 gap-4 border-b py-4">
-      <MunkiIcon size="lg" className="size-16 rounded-xl" />
+      <SoftwareArtwork size="lg" className="size-16" />
       <div className="flex min-w-0 flex-1 flex-col items-start">
         <p className="truncate text-sm font-medium">{item.name}</p>
         <p className="truncate text-xs text-muted-foreground">{item.detail}</p>

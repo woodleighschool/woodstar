@@ -3,7 +3,10 @@ import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
 import { FreeTextCombobox } from "@/components/free-text-combobox";
-import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
+import {
+  EditableMunkiIcon,
+  type MunkiSoftwareIconValue,
+} from "@/components/munki/editable-munki-icon";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,9 +33,7 @@ export interface MunkiSoftwareFormState {
   description: string;
   category: string;
   developer: string;
-  icon_file: File | null;
-  icon_object_id: number | null;
-  icon_url: string;
+  icon: MunkiSoftwareIconValue;
   targets: {
     include: MunkiSoftwareTargetMutation[];
     exclude: { label_id: number }[];
@@ -46,9 +47,7 @@ export function emptyMunkiSoftwareForm(): MunkiSoftwareFormState {
     description: "",
     category: "",
     developer: "",
-    icon_file: null,
-    icon_object_id: null,
-    icon_url: "",
+    icon: { kind: "none" },
     targets: { include: [], exclude: [] },
   };
 }
@@ -60,9 +59,15 @@ export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): Munki
     description: title.description,
     category: title.category,
     developer: title.developer,
-    icon_file: null,
-    icon_object_id: title.icon_object_id ?? null,
-    icon_url: title.icon_url ?? "",
+    icon:
+      title.icon_object_id && title.icon_file && title.icon_url
+        ? {
+            kind: "stored",
+            objectID: title.icon_object_id,
+            filename: title.icon_file.filename,
+            url: title.icon_url,
+          }
+        : { kind: "none" },
     targets: {
       include: title.targets.include.map((include, index) => ({
         ...include,
@@ -107,35 +112,9 @@ export function MunkiSoftwareOptionsFields({
 }) {
   return (
     <FieldGroup className="max-w-3xl">
-      <form.Subscribe
-        selector={(state) =>
-          [state.values.icon_url, state.values.icon_file, state.values.icon_object_id] as const
-        }
-      >
-        {([iconUrl, iconFile, iconObjectID]) => (
-          <EditableMunkiIcon
-            title="software icon"
-            iconUrl={iconUrl || undefined}
-            file={iconFile}
-            clearable={!!iconFile || iconObjectID !== null}
-            onFileChange={(file) => {
-              form.setFieldValue("icon_file", file);
-              form.setFieldValue("icon_object_id", null);
-              if (file) form.setFieldValue("icon_url", "");
-            }}
-            onPickExisting={(object) => {
-              form.setFieldValue("icon_file", null);
-              form.setFieldValue("icon_object_id", object.id);
-              form.setFieldValue("icon_url", object.url);
-            }}
-            onClear={() => {
-              form.setFieldValue("icon_file", null);
-              form.setFieldValue("icon_object_id", null);
-              form.setFieldValue("icon_url", "");
-            }}
-          />
-        )}
-      </form.Subscribe>
+      <form.Field name="icon">
+        {(field) => <EditableMunkiIcon value={field.state.value} onChange={field.handleChange} />}
+      </form.Field>
       <div className="grid gap-4 md:grid-cols-2">
         <form.Field name="name">
           {(field) => (
@@ -260,9 +239,19 @@ export const munkiSoftwareTargetSchema = z
 
 export function munkiSoftwareFormSchema() {
   return munkiSoftwareSchema.extend({
-    icon_file: z.custom<File | null>((value) => value === null || value instanceof File),
-    icon_object_id: z.number().int().positive().nullable(),
-    icon_url: z.string(),
+    icon: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("none") }),
+      z.object({
+        kind: z.literal("stored"),
+        objectID: z.number().int().positive(),
+        filename: z.string().min(1),
+        url: z.string().min(1),
+      }),
+      z.object({
+        kind: z.literal("upload"),
+        file: z.custom<File>((value) => value instanceof File),
+      }),
+    ]),
     targets: z.object({
       include: z.array(munkiSoftwareTargetSchema),
       exclude: z.array(

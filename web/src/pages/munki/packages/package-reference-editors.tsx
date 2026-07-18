@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { FormField } from "@/components/form-field";
-import { MunkiIcon } from "@/components/munki/munki-icon";
+import { SoftwareArtwork } from "@/components/software/software-icon";
 import {
   Attachment,
   AttachmentContent,
@@ -39,8 +39,8 @@ export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
     <Field>
       <FieldLabel>Software</FieldLabel>
       <Attachment className="w-full">
-        <AttachmentMedia variant="image">
-          <MunkiIcon iconUrl={software.iconUrl} size="md" />
+        <AttachmentMedia className="overflow-visible rounded-none bg-transparent">
+          <SoftwareArtwork src={software.iconUrl} size="md" />
         </AttachmentMedia>
         <AttachmentContent>
           <AttachmentTitle>{software.name}</AttachmentTitle>

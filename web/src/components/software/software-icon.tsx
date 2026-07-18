@@ -1,27 +1,23 @@
 import { Package, Puzzle } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ElementType } from "react";
+import { useEffect, useState } from "react";
+import { siApple, siGooglechrome, type SimpleIcon as SimpleIconData } from "simple-icons";
 
 import { cn } from "@/lib/utils";
 
-interface IconPath {
-  path: string;
-}
-type SourceIconKind = "apple" | "chrome" | "package" | "puzzle";
-
-interface SourceDefinition {
-  icon: SourceIconKind;
-  tint?: string;
+interface SoftwareIconDefinition {
+  icon: ElementType<{ className?: string }>;
+  color?: string;
 }
 
-interface SourceStyle {
+interface SoftwareIconStyle {
   box?: CSSProperties;
   iconClassName: string;
 }
 
 // Intentional brand/source colors, not theme tokens.
-const SOURCE_TINTS = {
+const SOURCE_COLORS = {
   atom: "#78716c",
-  chrome: "#4285f4",
   firefox: "#f59e0b",
   go: "#06b6d4",
   homebrew: "#d97706",
@@ -32,77 +28,75 @@ const SOURCE_TINTS = {
   vscode: "#0ea5e9",
 } as const;
 
-const SOURCE_DEFINITIONS: Record<string, SourceDefinition> = {
+const SOURCE_ICONS: Record<string, SoftwareIconDefinition> = {
   apps: {
-    icon: "apple",
+    icon: AppleIcon,
   },
   homebrew_packages: {
-    icon: "package",
-    tint: SOURCE_TINTS.homebrew,
+    icon: Package,
+    color: SOURCE_COLORS.homebrew,
   },
   npm_packages: {
-    icon: "package",
-    tint: SOURCE_TINTS.npm,
+    icon: Package,
+    color: SOURCE_COLORS.npm,
   },
   python_packages: {
-    icon: "package",
-    tint: SOURCE_TINTS.python,
+    icon: Package,
+    color: SOURCE_COLORS.python,
   },
   go_binaries: {
-    icon: "package",
-    tint: SOURCE_TINTS.go,
+    icon: Package,
+    color: SOURCE_COLORS.go,
   },
   pkg_packages: {
-    icon: "package",
-    tint: SOURCE_TINTS.pkg,
+    icon: Package,
+    color: SOURCE_COLORS.pkg,
   },
   chrome_extensions: {
-    icon: "chrome",
-    tint: SOURCE_TINTS.chrome,
+    icon: ChromeIcon,
+    color: `#${siGooglechrome.hex}`,
   },
   firefox_addons: {
-    icon: "puzzle",
-    tint: SOURCE_TINTS.firefox,
+    icon: Puzzle,
+    color: SOURCE_COLORS.firefox,
   },
   safari_extensions: {
-    icon: "apple",
+    icon: AppleIcon,
   },
   vscode_extensions: {
-    icon: "puzzle",
-    tint: SOURCE_TINTS.vscode,
+    icon: Puzzle,
+    color: SOURCE_COLORS.vscode,
   },
   jetbrains_plugins: {
-    icon: "puzzle",
-    tint: SOURCE_TINTS.jetbrains,
+    icon: Puzzle,
+    color: SOURCE_COLORS.jetbrains,
   },
   atom_packages: {
-    icon: "puzzle",
-    tint: SOURCE_TINTS.atom,
+    icon: Puzzle,
+    color: SOURCE_COLORS.atom,
   },
 };
 
-const DEFAULT_SOURCE: SourceDefinition = {
-  icon: "package",
+const DEFAULT_ICON: SoftwareIconDefinition = {
+  icon: Package,
 };
 
 const SIZE_CLASS = {
-  sm: { box: "size-6 rounded-sm", icon: "size-4" },
-  md: { box: "size-9 rounded-md", icon: "size-5" },
-  lg: { box: "size-20 rounded-lg", icon: "size-8" },
+  sm: { box: "size-6 rounded-sm", icon: "size-4", image: "size-6" },
+  md: { box: "size-9 rounded-md", icon: "size-5", image: "size-9" },
+  lg: { box: "size-20 rounded-lg", icon: "size-8", image: "size-20" },
 } as const;
 
 export type SoftwareIconSize = keyof typeof SIZE_CLASS;
 
-interface SoftwareIconProps {
-  source?: string;
+interface SoftwareIconProps extends SoftwareIconDefinition {
   size?: SoftwareIconSize;
   className?: string;
 }
 
-export function SoftwareIcon({ source = "", size = "sm", className }: SoftwareIconProps) {
-  const definition = SOURCE_DEFINITIONS[source] ?? DEFAULT_SOURCE;
+export function SoftwareIcon({ icon: Icon, color, size = "sm", className }: SoftwareIconProps) {
   const sizes = SIZE_CLASS[size];
-  const style = sourceStyle(definition.tint);
+  const style = softwareIconStyle(color);
 
   return (
     <span
@@ -113,41 +107,66 @@ export function SoftwareIcon({ source = "", size = "sm", className }: SoftwareIc
       )}
       style={style.box}
     >
-      {renderSourceIcon(definition.icon, cn(style.iconClassName, sizes.icon))}
+      <Icon className={cn(style.iconClassName, sizes.icon)} />
     </span>
   );
 }
 
-function renderSourceIcon(kind: SourceIconKind, className: string) {
-  switch (kind) {
-    case "apple":
-    case "chrome":
-      return <SimpleIconGlyph icon={SOFTWARE_BRAND_ICONS[kind]} className={className} />;
-    case "package":
-      return <Package className={className} />;
-    case "puzzle":
-      return <Puzzle className={className} />;
-  }
+interface SoftwareArtworkProps {
+  src?: string;
+  size?: SoftwareIconSize;
+  className?: string;
+  loading?: "eager" | "lazy";
 }
 
-const SOFTWARE_BRAND_ICONS = {
-  apple: {
-    path: "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701",
-  },
-  chrome: {
-    path: "M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.413.016.621.016 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728Z",
-  },
-} as const;
+export function SoftwareArtwork({
+  src,
+  size = "sm",
+  className,
+  loading = "lazy",
+}: SoftwareArtworkProps) {
+  const [failedSrc, setFailedSrc] = useState<string>();
 
-function SimpleIconGlyph({ icon, className }: { icon: IconPath; className: string }) {
+  useEffect(() => {
+    setFailedSrc(undefined);
+  }, [src]);
+
+  if (!src || failedSrc === src) {
+    return <SoftwareIcon {...DEFAULT_ICON} size={size} className={className} />;
+  }
+
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-4", className)}>
+    <img
+      src={src}
+      alt=""
+      className={cn("block shrink-0 object-fill", SIZE_CLASS[size].image, className)}
+      loading={loading}
+      onError={() => setFailedSrc(src)}
+    />
+  );
+}
+
+export function softwareIconProps(source?: string): SoftwareIconDefinition {
+  return SOURCE_ICONS[source ?? ""] ?? DEFAULT_ICON;
+}
+
+function AppleIcon({ className }: { className?: string }) {
+  return <SimpleIcon icon={siApple} className={className} />;
+}
+
+function ChromeIcon({ className }: { className?: string }) {
+  return <SimpleIcon icon={siGooglechrome} className={className} />;
+}
+
+function SimpleIcon({ icon, className }: { icon: SimpleIconData; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <path d={icon.path} />
     </svg>
   );
 }
 
-function sourceStyle(color?: string): SourceStyle {
+function softwareIconStyle(color?: string): SoftwareIconStyle {
   if (!color) {
     return { iconClassName: "text-muted-foreground" };
   }

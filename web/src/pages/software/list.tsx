@@ -10,7 +10,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
-import { SoftwareIcon } from "@/components/software/software-icon";
+import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useSoftware } from "@/hooks/use-software";
@@ -114,7 +114,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
         params={{ softwareId: String(row.original.id) }}
         className="inline-flex items-center gap-2 truncate font-medium hover:underline"
       >
-        <SoftwareIcon source={row.original.source} />
+        <SoftwareIcon {...softwareIconProps(row.original.source)} />
         <span className="truncate">{row.original.name}</span>
       </Link>
     ),

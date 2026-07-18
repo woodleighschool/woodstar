@@ -14,8 +14,8 @@ import {
 } from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryGate } from "@/components/query-gate";
+import { SoftwareArtwork } from "@/components/software/software-icon";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -45,15 +45,7 @@ import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targ
 const softwareFormTabs = [
   {
     value: "options",
-    fields: [
-      "name",
-      "display_name",
-      "description",
-      "category",
-      "developer",
-      "icon_file",
-      "icon_object_id",
-    ],
+    fields: ["name", "display_name", "description", "category", "developer", "icon"],
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
@@ -109,17 +101,20 @@ function MunkiSoftwareDetailForm({
           description: data.description,
           category: data.category,
           developer: data.developer,
-          icon_object_id: value.icon_file
-            ? (software.icon_object_id ?? undefined)
-            : (value.icon_object_id ?? undefined),
+          icon_object_id:
+            value.icon.kind === "stored"
+              ? value.icon.objectID
+              : value.icon.kind === "upload"
+                ? (software.icon_object_id ?? undefined)
+                : undefined,
           targets: {
             include: value.targets.include.map(munkiSoftwareInclude),
             exclude: value.targets.exclude,
           },
         },
       });
-      if (value.icon_file) {
-        await iconUpload.upload({ softwareId: software.id, file: value.icon_file });
+      if (value.icon.kind === "upload") {
+        await iconUpload.upload({ softwareId: software.id, file: value.icon.file });
       }
       return software.id;
     },
@@ -167,7 +162,7 @@ function MunkiSoftwareDetailForm({
           params={{ packageId: String(row.original.id) }}
           className="flex min-w-0 items-center gap-3 hover:underline"
         >
-          <MunkiIcon iconUrl={software.icon_url} size="md" />
+          <SoftwareArtwork src={software.icon_url} size="md" />
           <span className="truncate font-medium">{row.original.version}</span>
         </Link>
       ),

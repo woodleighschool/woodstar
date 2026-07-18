@@ -7,7 +7,7 @@ import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { QueryGate } from "@/components/query-gate";
-import { SoftwareIcon } from "@/components/software/software-icon";
+import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +63,7 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-center gap-4">
-        <SoftwareIcon source={title.source} size="lg" />
+        <SoftwareIcon {...softwareIconProps(title.source)} size="lg" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-xl font-semibold text-foreground" title={title.name}>
