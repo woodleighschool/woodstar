@@ -53,11 +53,10 @@ func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+				TargetID: 10,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
 	})
@@ -92,18 +91,16 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
+				TargetID: 10,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
 			},
 			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, "GoogleChrome", "149.0.0.1"),
+				TargetID: 10,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(21, "GoogleChrome", "149.0.0.1"),
 			},
 		}),
 	)
@@ -153,25 +150,22 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(20, "OverlapApp", "1.0"),
+				TargetID: 10,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(20, "OverlapApp", "1.0"),
 			},
 			{
-				TargetID:   11,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(21, "OverlapApp", "1.1"),
+				TargetID: 11,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(21, "OverlapApp", "1.1"),
 			},
 			{
-				TargetID:   12,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:    staticMunkiPackage(22, "OverlapApp", "1.2"),
+				TargetID: 12,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
+				Package:  staticMunkiPackage(22, "OverlapApp", "1.2"),
 			},
 		}),
 	)
@@ -205,11 +199,10 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
-				TargetID:   10,
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector:   munkisoftware.PackageSelector{Strategy: munkisoftware.PackageSpecific},
-				Package:    staticMunkiPackage(20, "PinnedApp", "1.0"),
+				TargetID: 10,
+				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageSpecific},
+				Package:  staticMunkiPackage(20, "PinnedApp", "1.0"),
 			},
 		}),
 	)
@@ -561,10 +554,10 @@ func (r staticPackageResolver) ListRepositoryIconObjectIDs(context.Context) ([]i
 	ids := make([]int64, 0, len(r.packages))
 	seen := make(map[int64]struct{}, len(r.packages))
 	for _, pkg := range r.packages {
-		if pkg.Package.SoftwareIconObjectID == nil {
+		if pkg.Package.Software.IconObjectID == nil {
 			continue
 		}
-		id := *pkg.Package.SoftwareIconObjectID
+		id := *pkg.Package.Software.IconObjectID
 		if _, ok := seen[id]; ok {
 			continue
 		}
@@ -596,7 +589,7 @@ func (r staticPackageResolver) RepositoryPackagesByIconObjectID(
 ) ([]packages.Package, error) {
 	pkgs := make([]packages.Package, 0, len(r.packages))
 	for _, pkg := range r.packages {
-		if pkg.Package.SoftwareIconObjectID != nil && *pkg.Package.SoftwareIconObjectID == iconObjectID {
+		if pkg.Package.Software.IconObjectID != nil && *pkg.Package.Software.IconObjectID == iconObjectID {
 			pkgs = append(pkgs, pkg.Package)
 		}
 	}
@@ -621,8 +614,7 @@ func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string
 func staticMunkiPackage(id int64, name string, version string) packages.Package {
 	return packages.Package{
 		ID:            id,
-		SoftwareID:    1,
-		SoftwareName:  name,
+		Software:      packages.PackageSoftware{ID: 1, Name: name},
 		Version:       version,
 		InstallerType: packages.InstallerTypeNoPkg,
 		OnDemand:      true,

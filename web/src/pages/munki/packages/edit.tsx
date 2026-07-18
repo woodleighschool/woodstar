@@ -53,11 +53,15 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   const installerUpload = useUploadMunkiInstaller();
   const cancelled = useRef(false);
   const packageMutationAbort = useRef<AbortController | null>(null);
-  const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const packages = useMunkiPackages({
+    per_page: MAX_PAGE_SIZE,
+    sort: encodeSort("software_name"),
+  });
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const softwareInfo: SoftwareInfo = {
-    id: pkg.software_id,
-    name: pkg.software_name,
+    id: pkg.software.id,
+    name: pkg.software.name,
+    iconUrl: pkg.software.icon_url,
   };
   const form = usePackageEditorForm(
     initial,
@@ -101,7 +105,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   return (
     <PackageForm
       form={form}
-      title={`${pkg.software_name} ${pkg.version}`}
+      title={`${pkg.software.name} ${pkg.version}`}
       submitLabel="Save"
       softwareInfo={softwareInfo}
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}

@@ -6,15 +6,16 @@ func ResolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
 	selectedTarget := make(map[int64]int64, len(packages))
 	seen := make(map[softwarePackage]bool, len(packages))
 	for _, pkg := range packages {
-		if pkg.SoftwareID <= 0 {
+		softwareID := pkg.Package.Software.ID
+		if softwareID <= 0 {
 			continue
 		}
-		targetID, exists := selectedTarget[pkg.SoftwareID]
+		targetID, exists := selectedTarget[softwareID]
 		if exists && targetID != pkg.TargetID {
 			continue
 		}
-		selectedTarget[pkg.SoftwareID] = pkg.TargetID
-		key := softwarePackage{softwareID: pkg.SoftwareID, packageID: pkg.Package.ID}
+		selectedTarget[softwareID] = pkg.TargetID
+		key := softwarePackage{softwareID: softwareID, packageID: pkg.Package.ID}
 		if seen[key] {
 			continue
 		}

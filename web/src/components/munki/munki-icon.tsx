@@ -55,8 +55,4 @@ export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }:
   );
 }
 
-export function munkiSoftwareIconURL(softwareId: number) {
-  return `/api/munki/software/${softwareId}/icon`;
-}
-
 export type { SoftwareIconSize as MunkiIconSize };

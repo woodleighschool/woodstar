@@ -556,13 +556,16 @@ func packagesFromRows(rows []packageRow) []Package {
 // packageFromRow assembles a Package domain value from a scanned packageRow.
 func packageFromRow(row packageRow) Package {
 	return Package{
-		ID:                       row.ID,
-		SoftwareID:               row.SoftwareID,
-		SoftwareName:             row.SoftwareName,
-		SoftwareDisplayName:      row.SoftwareDisplayName,
-		SoftwareDescription:      row.SoftwareDescription,
-		SoftwareCategory:         row.SoftwareCategory,
-		SoftwareDeveloper:        row.SoftwareDeveloper,
+		ID: row.ID,
+		Software: PackageSoftware{
+			ID:           row.SoftwareID,
+			Name:         row.SoftwareName,
+			DisplayName:  row.SoftwareDisplayName,
+			Description:  row.SoftwareDescription,
+			Category:     row.SoftwareCategory,
+			Developer:    row.SoftwareDeveloper,
+			IconObjectID: row.SoftwareIconObjectID,
+		},
 		Version:                  row.Version,
 		InstallerType:            InstallerType(row.InstallerType),
 		UnattendedInstall:        row.UnattendedInstall,
@@ -607,7 +610,6 @@ func packageFromRow(row packageRow) Package {
 		PreinstallAlert:          row.PreinstallAlert(),
 		PreuninstallAlert:        row.PreuninstallAlert(),
 		InstallerObjectID:        row.InstallerObjectID,
-		SoftwareIconObjectID:     row.SoftwareIconObjectID,
 		CreatedAt:                row.CreatedAt,
 		UpdatedAt:                row.UpdatedAt,
 	}

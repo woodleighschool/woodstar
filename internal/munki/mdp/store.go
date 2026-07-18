@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -514,17 +514,10 @@ func packageStateFromRow(row packageStateRow) PackageState {
 		SoftwareID:      row.SoftwareID,
 		Name:            row.Name,
 		Version:         row.Version,
-		SoftwareIconURL: softwareIconURL(row.SoftwareID, row.SoftwareIconObjectID),
+		SoftwareIconURL: munkisoftware.IconURL(row.SoftwareID, row.SoftwareIconObjectID),
 		Status:          PackageStatus(row.Status),
 		Error:           row.Error,
 	}
-}
-
-func softwareIconURL(softwareID int64, objectID *int64) string {
-	if objectID == nil {
-		return ""
-	}
-	return "/api/munki/software/" + strconv.FormatInt(softwareID, 10) + "/icon"
 }
 
 func reportedSHA256(sha256 string) *string {

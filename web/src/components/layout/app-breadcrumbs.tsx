@@ -274,7 +274,7 @@ function MunkiPackageCrumb({ id }: { id: string }) {
     if (isError) return <span>{id}</span>;
     return <CrumbSkeleton />;
   }
-  return <span>{`${data.software_name} ${data.version}`}</span>;
+  return <span>{`${data.software.name} ${data.version}`}</span>;
 }
 function CrumbSkeleton() {
   return <Skeleton className="inline-block h-4 w-24 align-middle" />;

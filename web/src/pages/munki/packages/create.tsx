@@ -20,7 +20,10 @@ export function MunkiPackageCreatePage() {
   const installerUpload = useUploadMunkiInstaller();
   const cancelled = useRef(false);
   const packageMutationAbort = useRef<AbortController | null>(null);
-  const packages = useMunkiPackages({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const packages = useMunkiPackages({
+    per_page: MAX_PAGE_SIZE,
+    sort: encodeSort("software_name"),
+  });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const form = usePackageEditorForm(
     emptyPackageForm(initialSoftwareID),

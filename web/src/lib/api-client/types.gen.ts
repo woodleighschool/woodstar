@@ -505,12 +505,7 @@ export type MunkiPackage = {
     receipts: Array<MunkiPackageReceipt>;
     requires: Array<MunkiPackageReference>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_category: string;
-    software_description: string;
-    software_developer: string;
-    software_display_name?: string;
-    software_id: number;
-    software_name: string;
+    software: MunkiPackageSoftware;
     supported_architectures: Array<string>;
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
@@ -683,6 +678,16 @@ export type MunkiPackageReferenceMutation = {
 export type MunkiPackageSelector = {
     package_id?: number;
     strategy: 'latest' | 'specific';
+};
+
+export type MunkiPackageSoftware = {
+    category: string;
+    description: string;
+    developer: string;
+    display_name?: string;
+    icon_url?: string;
+    id: number;
+    name: string;
 };
 
 export type MunkiPackageState = {
@@ -949,14 +954,9 @@ export type PageMunkiObjectView = {
     items: Array<MunkiObjectView>;
 };
 
-export type PageMunkiPackage = {
+export type PagePackage = {
     count: number;
     items: Array<MunkiPackage>;
-};
-
-export type PageMunkiSoftware = {
-    count: number;
-    items: Array<MunkiSoftware>;
 };
 
 export type PageReport = {
@@ -972,6 +972,11 @@ export type PageRule = {
 export type PageRuleStatus = {
     count: number;
     items: Array<SantaRuleStatus>;
+};
+
+export type PageSoftware = {
+    count: number;
+    items: Array<MunkiSoftware>;
 };
 
 export type PageSoftwareTitle = {
@@ -3678,7 +3683,7 @@ export type ListMunkiPackagesResponses = {
     /**
      * OK
      */
-    200: PageMunkiPackage;
+    200: PagePackage;
 };
 
 export type ListMunkiPackagesResponse = ListMunkiPackagesResponses[keyof ListMunkiPackagesResponses];
@@ -3943,7 +3948,7 @@ export type ListMunkiSoftwareResponses = {
     /**
      * OK
      */
-    200: PageMunkiSoftware;
+    200: PageSoftware;
 };
 
 export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];

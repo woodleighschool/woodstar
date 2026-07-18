@@ -295,9 +295,9 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 
 func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	if pkg.Selector.Strategy == munkisoftware.PackageSpecific {
-		return packages.MunkiVersionedSoftwareName(pkg.Package.SoftwareName, pkg.Package.Version)
+		return packages.MunkiVersionedSoftwareName(pkg.Package.Software.Name, pkg.Package.Version)
 	}
-	return pkg.Package.SoftwareName
+	return pkg.Package.Software.Name
 }
 
 func (s *RepositoryService) catalogItems(
@@ -326,7 +326,7 @@ func (s *RepositoryService) objectsForPackages(
 	ids := make([]int64, 0, len(pkgs)*2)
 	for _, pkg := range pkgs {
 		ids = appendObjectID(ids, pkg.InstallerObjectID)
-		ids = appendObjectID(ids, pkg.SoftwareIconObjectID)
+		ids = appendObjectID(ids, pkg.Software.IconObjectID)
 	}
 	if len(ids) == 0 {
 		return map[int64]storage.Object{}, nil
@@ -340,7 +340,7 @@ func packageObjects(
 ) packages.PkginfoObjects {
 	return packages.PkginfoObjects{
 		Installer: objectByID(objects, pkg.InstallerObjectID),
-		Icon:      objectByID(objects, pkg.SoftwareIconObjectID),
+		Icon:      objectByID(objects, pkg.Software.IconObjectID),
 	}
 }
 

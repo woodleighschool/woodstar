@@ -409,6 +409,7 @@ func softwareFromRow(row softwareRow) Software {
 		Category:     row.Category,
 		Developer:    row.Developer,
 		IconObjectID: row.IconObjectID,
+		IconURL:      IconURL(row.ID, row.IconObjectID),
 		CreatedAt:    row.CreatedAt,
 		UpdatedAt:    row.UpdatedAt,
 	}

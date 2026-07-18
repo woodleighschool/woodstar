@@ -100,12 +100,12 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.SoftwareName != "com.vendor.app" || pkg.SoftwareDisplayName == nil ||
-		*pkg.SoftwareDisplayName != "Vendor App" {
+	if pkg.Software.Name != "com.vendor.app" || pkg.Software.DisplayName == nil ||
+		*pkg.Software.DisplayName != "Vendor App" {
 		t.Fatalf(
 			"package software identity = %q/%v, want canonical and presentation names",
-			pkg.SoftwareName,
-			pkg.SoftwareDisplayName,
+			pkg.Software.Name,
+			pkg.Software.DisplayName,
 		)
 	}
 	packageRows, count, err := stores.packages.List(ctx, packages.PackageListParams{
@@ -232,7 +232,7 @@ func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve host before exclusion: %v", err)
 	}
-	if len(effective) != 1 || effective[0].Package.SoftwareName != "GoogleChrome" {
+	if len(effective) != 1 || effective[0].Package.Software.Name != "GoogleChrome" {
 		t.Fatalf("effective packages before exclusion = %+v, want GoogleChrome", effective)
 	}
 
@@ -415,7 +415,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	if len(effective) != 2 {
 		t.Fatalf("effective packages = %+v, want two latest candidates", effective)
 	}
-	if effective[0].Package.SoftwareName != "LatestApp" || effective[1].Package.SoftwareName != "LatestApp" {
+	if effective[0].Package.Software.Name != "LatestApp" || effective[1].Package.Software.Name != "LatestApp" {
 		t.Fatalf("effective packages = %+v, want LatestApp candidates", effective)
 	}
 }
@@ -475,8 +475,8 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.SoftwareIconObjectID == nil || *pkg.SoftwareIconObjectID != icon.ID {
-		t.Fatalf("package software icon object id = %v, want %d", pkg.SoftwareIconObjectID, icon.ID)
+	if pkg.Software.IconObjectID == nil || *pkg.Software.IconObjectID != icon.ID {
+		t.Fatalf("package software icon object id = %v, want %d", pkg.Software.IconObjectID, icon.ID)
 	}
 }
 
@@ -521,8 +521,8 @@ func TestRepositoryPackagesByIconObjectIDIncludesEveryPackage(t *testing.T) {
 	if len(pkgs) != 2 || pkgs[0].Version != "1.0" || pkgs[1].Version != "2.0" {
 		t.Fatalf("icon packages = %+v, want both package versions", pkgs)
 	}
-	if pkgs[0].SoftwareIconObjectID == nil || *pkgs[0].SoftwareIconObjectID != icon.ID {
-		t.Fatalf("software icon object id = %v, want %d", pkgs[0].SoftwareIconObjectID, icon.ID)
+	if pkgs[0].Software.IconObjectID == nil || *pkgs[0].Software.IconObjectID != icon.ID {
+		t.Fatalf("software icon object id = %v, want %d", pkgs[0].Software.IconObjectID, icon.ID)
 	}
 	iconIDs, err := stores.packages.ListRepositoryIconObjectIDs(ctx)
 	if err != nil {
@@ -584,7 +584,7 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 		effective[0].Actions,
 		[]munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
 	) ||
-		effective[0].Package.SoftwareName != "SchoolApp" {
+		effective[0].Package.Software.Name != "SchoolApp" {
 		t.Fatalf("effective pkg = %+v, want SAC removal of SchoolApp", effective[0])
 	}
 }

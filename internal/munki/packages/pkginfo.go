@@ -143,12 +143,12 @@ type munkiPkginfoAlert struct {
 
 func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 	item := munkiPkginfo{
-		Name:                     pkg.SoftwareName,
+		Name:                     pkg.Software.Name,
 		Version:                  pkg.Version,
-		DisplayName:              pkg.SoftwareDisplayName,
-		Description:              pkg.SoftwareDescription,
-		Category:                 pkg.SoftwareCategory,
-		Developer:                pkg.SoftwareDeveloper,
+		DisplayName:              pkg.Software.DisplayName,
+		Description:              pkg.Software.Description,
+		Category:                 pkg.Software.Category,
+		Developer:                pkg.Software.Developer,
 		MinimumMunkiVersion:      pkg.MinimumMunkiVersion,
 		MinimumOSVersion:         pkg.MinimumOSVersion,
 		MaximumOSVersion:         pkg.MaximumOSVersion,

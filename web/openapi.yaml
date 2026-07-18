@@ -1350,19 +1350,8 @@ components:
             - RequireRestart
             - RequireShutdown
           type: string
-        software_category:
-          type: string
-        software_description:
-          type: string
-        software_developer:
-          type: string
-        software_display_name:
-          type: string
-        software_id:
-          format: int64
-          type: integer
-        software_name:
-          type: string
+        software:
+          $ref: "#/components/schemas/MunkiPackageSoftware"
         supported_architectures:
           items:
             type: string
@@ -1398,11 +1387,7 @@ components:
           type: string
       required:
         - id
-        - software_id
-        - software_name
-        - software_description
-        - software_category
-        - software_developer
+        - software
         - version
         - installer_type
         - unattended_install
@@ -1872,6 +1857,31 @@ components:
           type: string
       required:
         - strategy
+      type: object
+    MunkiPackageSoftware:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        developer:
+          type: string
+        display_name:
+          type: string
+        icon_url:
+          type: string
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - category
+        - developer
       type: object
     MunkiPackageState:
       additionalProperties: false
@@ -2595,7 +2605,7 @@ components:
         - items
         - count
       type: object
-    PageMunkiPackage:
+    PagePackage:
       additionalProperties: false
       properties:
         count:
@@ -2604,20 +2614,6 @@ components:
         items:
           items:
             $ref: "#/components/schemas/MunkiPackage"
-          type: array
-      required:
-        - items
-        - count
-      type: object
-    PageMunkiSoftware:
-      additionalProperties: false
-      properties:
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/MunkiSoftware"
           type: array
       required:
         - items
@@ -2660,6 +2656,20 @@ components:
         items:
           items:
             $ref: "#/components/schemas/SantaRuleStatus"
+          type: array
+      required:
+        - items
+        - count
+      type: object
+    PageSoftware:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiSoftware"
           type: array
       required:
         - items
@@ -6778,7 +6788,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageMunkiPackage"
+                $ref: "#/components/schemas/PagePackage"
           description: OK
         "401":
           content:
@@ -7120,7 +7130,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageMunkiSoftware"
+                $ref: "#/components/schemas/PageSoftware"
           description: OK
         "401":
           content:

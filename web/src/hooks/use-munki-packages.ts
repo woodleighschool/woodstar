@@ -6,7 +6,7 @@ import type {
   MunkiPackage,
   MunkiPackageCreateMutation,
   MunkiPackageMutation,
-  PageMunkiPackage,
+  PagePackage,
 } from "@/lib/api";
 import {
   bulkDeleteMunkiPackages,
@@ -33,7 +33,7 @@ function packageQueryParams(params: MunkiPackageListParams) {
 
 export function useMunkiPackages(params: MunkiPackageListParams = {}) {
   const query = packageQueryParams(params);
-  return useQuery<PageMunkiPackage, ApiError>({
+  return useQuery<PagePackage, ApiError>({
     queryKey: queryKeys.munkiPackages(query),
     queryFn: ({ signal }) => unwrap(listMunkiPackages({ query, signal })),
     placeholderData: keepPreviousData,
@@ -61,7 +61,7 @@ export function useCreateMunkiPackage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
         queryClient.invalidateQueries({
-          queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
+          queryKey: queryKeys.munkiSoftwareDetail(pkg.software.id),
         }),
       ]);
     },
@@ -83,7 +83,7 @@ export function useUpdateMunkiPackage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) }),
         queryClient.invalidateQueries({
-          queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id),
+          queryKey: queryKeys.munkiSoftwareDetail(pkg.software.id),
         }),
       ]);
     },

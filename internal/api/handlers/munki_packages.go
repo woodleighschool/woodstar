@@ -48,15 +48,11 @@ type munkiPackageBulkDeleteInput struct {
 }
 
 type munkiPackageListOutput struct {
-	Body Page[munkiPackage]
+	Body Page[packages.Package]
 }
 
 type munkiPackageOutput struct {
-	Body munkiPackage
-}
-
-type munkiPackage struct {
-	packages.Package
+	Body packages.Package
 }
 
 func (input munkiPackageListInput) params() packages.PackageListParams {
@@ -104,8 +100,8 @@ func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger
 			return nil, resourceError(ctx, logger, "list-munki-packages", munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: Page[munkiPackage]{
-				Items: munkiPackagesFromPackages(rows),
+			Body: Page[packages.Package]{
+				Items: rows,
 				Count: count,
 			},
 		}, nil
@@ -130,7 +126,7 @@ func registerCreateMunkiPackage(api huma.API, store *munki.PackageService, logge
 		if err != nil {
 			return nil, resourceError(ctx, logger, "create-munki-package", munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+		return &munkiPackageOutput{Body: *pkg}, nil
 	})
 }
 
@@ -155,7 +151,7 @@ func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *
 				input.ID,
 			)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+		return &munkiPackageOutput{Body: *pkg}, nil
 	})
 }
 
@@ -184,7 +180,7 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 				input.ID,
 			)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromPackage(*pkg)}, nil
+		return &munkiPackageOutput{Body: *pkg}, nil
 	})
 }
 
@@ -234,16 +230,4 @@ func registerBulkDeleteMunkiPackages(
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func munkiPackageFromPackage(pkg packages.Package) munkiPackage {
-	return munkiPackage{Package: pkg}
-}
-
-func munkiPackagesFromPackages(rows []packages.Package) []munkiPackage {
-	items := make([]munkiPackage, len(rows))
-	for i, row := range rows {
-		items[i] = munkiPackageFromPackage(row)
-	}
-	return items
 }

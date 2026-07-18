@@ -11,7 +11,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { MunkiIcon, munkiSoftwareIconURL } from "@/components/munki/munki-icon";
+import { MunkiIcon } from "@/components/munki/munki-icon";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,7 +45,7 @@ export function MunkiPackageListPage() {
       selectColumn<MunkiPackage>(),
       {
         id: "software_name",
-        accessorKey: "software_name",
+        accessorFn: (row) => row.software.name,
         header: "Software",
         cell: ({ row }) =>
           isAdmin ? (
@@ -54,13 +54,13 @@ export function MunkiPackageListPage() {
               params={{ packageId: String(row.original.id) }}
               className="flex min-w-0 items-center gap-2 font-medium hover:underline"
             >
-              <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
-              <span className="truncate">{row.original.software_name}</span>
+              <MunkiIcon iconUrl={row.original.software.icon_url} />
+              <span className="truncate">{row.original.software.name}</span>
             </Link>
           ) : (
             <span className="flex min-w-0 items-center gap-2 font-medium">
-              <MunkiIcon iconUrl={munkiSoftwareIconURL(row.original.software_id)} />
-              <span className="truncate">{row.original.software_name}</span>
+              <MunkiIcon iconUrl={row.original.software.icon_url} />
+              <span className="truncate">{row.original.software.name}</span>
             </span>
           ),
         enableHiding: false,

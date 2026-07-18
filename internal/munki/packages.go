@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 type packageStore interface {
@@ -36,7 +37,14 @@ func (s *PackageService) List(
 	ctx context.Context,
 	params packages.PackageListParams,
 ) ([]packages.Package, int, error) {
-	return s.deps.Packages.List(ctx, params)
+	rows, count, err := s.deps.Packages.List(ctx, params)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range rows {
+		attachPackageSoftware(&rows[i])
+	}
+	return rows, count, nil
 }
 
 func (s *PackageService) Create(
@@ -45,11 +53,18 @@ func (s *PackageService) Create(
 ) (*packages.Package, error) {
 	pkg, err := s.deps.Packages.Create(ctx, mutation)
 	s.notifyDesiredPackages(err)
+	if pkg != nil {
+		attachPackageSoftware(pkg)
+	}
 	return pkg, err
 }
 
 func (s *PackageService) GetByID(ctx context.Context, id int64) (*packages.Package, error) {
-	return s.deps.Packages.GetByID(ctx, id)
+	pkg, err := s.deps.Packages.GetByID(ctx, id)
+	if pkg != nil {
+		attachPackageSoftware(pkg)
+	}
+	return pkg, err
 }
 
 func (s *PackageService) Update(
@@ -59,6 +74,9 @@ func (s *PackageService) Update(
 ) (*packages.Package, error) {
 	pkg, err := s.deps.Packages.Update(ctx, id, mutation)
 	s.notifyDesiredPackages(err)
+	if pkg != nil {
+		attachPackageSoftware(pkg)
+	}
 	return pkg, err
 }
 
@@ -80,4 +98,8 @@ func (s *PackageService) notifyDesiredPackages(err error) {
 	if err == nil {
 		s.deps.DesiredPackagesChanged()
 	}
+}
+
+func attachPackageSoftware(pkg *packages.Package) {
+	pkg.Software.IconURL = munkisoftware.IconURL(pkg.Software.ID, pkg.Software.IconObjectID)
 }

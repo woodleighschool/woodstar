@@ -38,9 +38,13 @@ type mdpInstallerFile struct {
 }
 
 type mdpPackage struct {
-	ID            int64             `json:"id"`
-	SoftwareID    int64             `json:"software_id"`
-	InstallerFile *mdpInstallerFile `json:"installer_file"`
+	ID            int64              `json:"id"`
+	Software      mdpPackageSoftware `json:"software"`
+	InstallerFile *mdpInstallerFile  `json:"installer_file"`
+}
+
+type mdpPackageSoftware struct {
+	ID int64 `json:"id"`
 }
 
 type mdpPackageState struct {
@@ -407,7 +411,7 @@ func createMDPPackage(
 		http.StatusCreated,
 		&pkg,
 	)
-	if pkg.ID <= 0 || pkg.SoftwareID != softwareID || pkg.InstallerFile == nil ||
+	if pkg.ID <= 0 || pkg.Software.ID != softwareID || pkg.InstallerFile == nil ||
 		pkg.InstallerFile.Filename != installer.Filename ||
 		pkg.InstallerFile.InstallerItemLocation == "" {
 		t.Fatalf("created package = %+v, want finalized installer", pkg)

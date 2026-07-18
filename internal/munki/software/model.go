@@ -3,6 +3,7 @@ package software
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,6 +13,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
+
+// IconURL returns the icon resource URL when software has an attached icon.
+func IconURL(softwareID int64, iconObjectID *int64) string {
+	if softwareID <= 0 || iconObjectID == nil {
+		return ""
+	}
+	return "/api/munki/software/" + strconv.FormatInt(softwareID, 10) + "/icon"
+}
 
 // CreateMutation is the input shape for creating Munki software.
 type CreateMutation struct {
@@ -99,6 +108,7 @@ type Software struct {
 	Developer    string    `json:"developer"`
 	IconObjectID *int64    `json:"icon_object_id,omitempty"`
 	IconFile     *IconFile `json:"icon_file,omitempty"`
+	IconURL      string    `json:"icon_url,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

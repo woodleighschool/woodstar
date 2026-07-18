@@ -47,12 +47,16 @@ type munkiTestInstallerFile struct {
 }
 
 type munkiTestPackage struct {
-	ID                int64                   `json:"id"`
-	SoftwareID        int64                   `json:"software_id"`
-	Version           string                  `json:"version"`
-	InstallerType     string                  `json:"installer_type"`
-	InstallerObjectID *int64                  `json:"installer_object_id"`
-	InstallerFile     *munkiTestInstallerFile `json:"installer_file"`
+	ID                int64                    `json:"id"`
+	Software          munkiTestPackageSoftware `json:"software"`
+	Version           string                   `json:"version"`
+	InstallerType     string                   `json:"installer_type"`
+	InstallerObjectID *int64                   `json:"installer_object_id"`
+	InstallerFile     *munkiTestInstallerFile  `json:"installer_file"`
+}
+
+type munkiTestPackageSoftware struct {
+	ID int64 `json:"id"`
 }
 
 type munkiTestPackageSelector struct {
@@ -329,7 +333,7 @@ func TestMunki(t *testing.T) {
 		pkg.ID,
 		installer.Filename,
 	)
-	if pkg.SoftwareID != software.ID || pkg.Version != "1.0" || pkg.InstallerType != "pkg" ||
+	if pkg.Software.ID != software.ID || pkg.Version != "1.0" || pkg.InstallerType != "pkg" ||
 		pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installer.ID ||
 		pkg.InstallerFile == nil || pkg.InstallerFile.Filename != installer.Filename ||
 		pkg.InstallerFile.InstallerItemLocation != installerItemLocation ||

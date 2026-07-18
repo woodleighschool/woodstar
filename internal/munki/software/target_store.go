@@ -85,7 +85,7 @@ func (s *Store) validatePackageSelectors(
 		if err != nil {
 			return err
 		}
-		if pkg.SoftwareID != softwareID {
+		if pkg.Software.ID != softwareID {
 			return fmt.Errorf("%w: package.package_id must belong to software", dbutil.ErrInvalidInput)
 		}
 	}
@@ -259,12 +259,10 @@ ORDER BY a.software_id, a.position, p.id`,
 			continue
 		}
 		effective = append(effective, EffectivePackage{
-			TargetID:             row.TargetID,
-			SoftwareID:           row.TargetSoftwareID,
-			Actions:              actionsFromStorage(row.Actions),
-			Package:              pkg,
-			SoftwareIconObjectID: pkg.SoftwareIconObjectID,
-			Selector:             packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
+			TargetID: row.TargetID,
+			Actions:  actionsFromStorage(row.Actions),
+			Package:  pkg,
+			Selector: packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}
 	return ResolveEffectivePackages(effective), nil

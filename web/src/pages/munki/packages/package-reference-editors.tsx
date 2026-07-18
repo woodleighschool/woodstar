@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { FormField } from "@/components/form-field";
-import { MunkiIcon, munkiSoftwareIconURL } from "@/components/munki/munki-icon";
+import { MunkiIcon } from "@/components/munki/munki-icon";
 import {
   Attachment,
   AttachmentContent,
@@ -31,6 +31,7 @@ import { packageLabel, type PackageReferenceRow } from "./form-state";
 export type SoftwareInfo = {
   id: number;
   name: string;
+  iconUrl?: string;
 };
 
 export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
@@ -39,7 +40,7 @@ export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
       <FieldLabel>Software</FieldLabel>
       <Attachment className="w-full">
         <AttachmentMedia variant="image">
-          <MunkiIcon iconUrl={munkiSoftwareIconURL(software.id)} size="md" />
+          <MunkiIcon iconUrl={software.iconUrl} size="md" />
         </AttachmentMedia>
         <AttachmentContent>
           <AttachmentTitle>{software.name}</AttachmentTitle>
@@ -302,8 +303,8 @@ function packageReferenceSelection(
   return {
     label: packageLabel(pkg),
     reference: {
-      software_id: pkg.software_id,
-      software_name: pkg.software_name,
+      software_id: pkg.software.id,
+      software_name: pkg.software.name,
       package_id: pkg.id,
       package_version: pkg.version,
     },
@@ -316,13 +317,13 @@ function packageReferenceGroups(packages: MunkiPackage[]) {
     { softwareID: number; softwareTitle: string; packages: MunkiPackage[] }
   >();
   for (const pkg of packages) {
-    const group = groups.get(pkg.software_id) ?? {
-      softwareID: pkg.software_id,
-      softwareTitle: pkg.software_name,
+    const group = groups.get(pkg.software.id) ?? {
+      softwareID: pkg.software.id,
+      softwareTitle: pkg.software.name,
       packages: [],
     };
     group.packages.push(pkg);
-    groups.set(pkg.software_id, group);
+    groups.set(pkg.software.id, group);
   }
   return [...groups.values()];
 }

@@ -6,7 +6,7 @@ import type {
   MunkiCreateMutation,
   MunkiSoftwareDetail,
   MunkiUpdateMutation,
-  PageMunkiSoftware,
+  PageSoftware,
 } from "@/lib/api";
 import {
   bulkDeleteMunkiSoftware,
@@ -26,7 +26,7 @@ type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
 
 export function useMunkiSoftware(params: MunkiListParams = {}) {
   const query = baseListParams(params);
-  return useQuery<PageMunkiSoftware, ApiError>({
+  return useQuery<PageSoftware, ApiError>({
     queryKey: queryKeys.munkiSoftware(query),
     queryFn: ({ signal }) => unwrap(listMunkiSoftware({ query, signal })),
     placeholderData: keepPreviousData,

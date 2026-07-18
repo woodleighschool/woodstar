@@ -522,7 +522,7 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormS
 
 export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
   return {
-    software_id: pkg.software_id,
+    software_id: pkg.software.id,
     version: pkg.version,
     installer_type: pkg.installer_type,
     installer_object_id: pkg.installer_object_id ?? null,
@@ -791,7 +791,7 @@ export function toggleArray<T>(values: T[], value: T, enabled: boolean) {
 }
 
 export function packageLabel(pkg: MunkiPackage) {
-  return `${pkg.software_name} ${pkg.version}`;
+  return `${pkg.software.name} ${pkg.version}`;
 }
 
 function isArchitecture(value: string): value is Architecture {

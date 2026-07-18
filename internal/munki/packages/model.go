@@ -230,15 +230,22 @@ type InstallerFile struct {
 	SHA256                string `json:"sha256"`
 }
 
+// PackageSoftware is the parent software attached to a package version.
+type PackageSoftware struct {
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	DisplayName  *string `json:"display_name,omitempty"`
+	Description  string  `json:"description"`
+	Category     string  `json:"category"`
+	Developer    string  `json:"developer"`
+	IconObjectID *int64  `json:"-"`
+	IconURL      string  `json:"icon_url,omitempty"`
+}
+
 // Package is one Woodstar-authored Munki package version available for targeting.
 type Package struct {
 	ID                       int64                                 `json:"id"`
-	SoftwareID               int64                                 `json:"software_id"`
-	SoftwareName             string                                `json:"software_name"`
-	SoftwareDisplayName      *string                               `json:"software_display_name,omitempty"`
-	SoftwareDescription      string                                `json:"software_description"`
-	SoftwareCategory         string                                `json:"software_category"`
-	SoftwareDeveloper        string                                `json:"software_developer"`
+	Software                 PackageSoftware                       `json:"software"`
 	Version                  string                                `json:"version"`
 	InstallerType            InstallerType                         `json:"installer_type"`
 	UnattendedInstall        bool                                  `json:"unattended_install"`
@@ -283,7 +290,6 @@ type Package struct {
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert"`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
-	SoftwareIconObjectID     *int64                                `json:"-"`
 	CreatedAt                time.Time                             `json:"created_at"`
 	UpdatedAt                time.Time                             `json:"updated_at"`
 }

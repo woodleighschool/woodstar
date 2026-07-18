@@ -26,7 +26,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	store := servicePackageStore{
 		packagesByID: map[int64]packages.Package{10: {
 			ID:                10,
-			SoftwareName:      "GoogleChrome",
+			Software:          packages.PackageSoftware{Name: "GoogleChrome"},
 			InstallerType:     packages.InstallerTypePkg,
 			InstallerObjectID: &installerID,
 		}},
@@ -70,10 +70,9 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	availableAt := time.Now()
 	store := servicePackageStore{
 		packagesByIconObjectID: map[int64][]packages.Package{iconID: {{
-			ID:                   10,
-			SoftwareName:         "GoogleChrome",
-			InstallerType:        packages.InstallerTypeNoPkg,
-			SoftwareIconObjectID: &iconID,
+			ID:            10,
+			Software:      packages.PackageSoftware{Name: "GoogleChrome", IconObjectID: &iconID},
+			InstallerType: packages.InstallerTypeNoPkg,
 		}}},
 		listRepositoryErr: errors.New("full repository scan should not be used"),
 	}
@@ -159,14 +158,18 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 		Hosts: serviceHostStore{host: &hosts.Host{ID: 1, Hardware: hosts.HostHardware{Serial: "C02MUNKI"}}},
 		Software: servicePackageStore{packages: []munkisoftware.EffectivePackage{
 			{
-				SoftwareID: 1,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionDefaultInstalls},
-				Package:    packages.Package{SoftwareID: 1, SoftwareName: "DefaultApp", Version: "1.0"},
+				Actions: []munkisoftware.Action{munkisoftware.ActionDefaultInstalls},
+				Package: packages.Package{
+					Software: packages.PackageSoftware{ID: 1, Name: "DefaultApp"},
+					Version:  "1.0",
+				},
 			},
 			{
-				SoftwareID: 2,
-				Actions:    []munkisoftware.Action{munkisoftware.ActionFeaturedItems},
-				Package:    packages.Package{SoftwareID: 2, SoftwareName: "FeaturedApp", Version: "1.0"},
+				Actions: []munkisoftware.Action{munkisoftware.ActionFeaturedItems},
+				Package: packages.Package{
+					Software: packages.PackageSoftware{ID: 2, Name: "FeaturedApp"},
+					Version:  "1.0",
+				},
 			},
 		}},
 	})

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -18,7 +17,7 @@ import (
 
 const (
 	munkiSoftwarePath   = "/api/munki/software"
-	munkiSoftwareIDPath = "/api/munki/software/{id}"
+	munkiSoftwareIDPath = munkiSoftwarePath + "/{id}"
 	munkiSoftwareLabel  = "Munki software"
 )
 
@@ -48,7 +47,7 @@ type munkiSoftwareBulkDeleteInput struct {
 }
 
 type munkiSoftwareListOutput struct {
-	Body Page[munkiSoftware]
+	Body Page[munkisoftware.Software]
 }
 
 type munkiSoftwareDetailOutput struct {
@@ -58,15 +57,8 @@ type munkiSoftwareDetailOutput struct {
 type munkiSoftwareDetail struct {
 	munkisoftware.Software
 
-	IconURL  string                `json:"icon_url,omitempty"`
-	Packages []munkiPackage        `json:"packages"`
+	Packages []packages.Package    `json:"packages"`
 	Targets  munkisoftware.Targets `json:"targets"`
-}
-
-type munkiSoftware struct {
-	munkisoftware.Software
-
-	IconURL string `json:"icon_url,omitempty"`
 }
 
 func (input munkiSoftwareListInput) params() dbutil.ListParams {
@@ -103,15 +95,8 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger 
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-munki-software", munkiSoftwareLabel, err)
 		}
-		items := make([]munkiSoftware, len(rows))
-		for i, row := range rows {
-			items[i] = munkiSoftware{
-				Software: row,
-				IconURL:  munkiSoftwareIconURL(row),
-			}
-		}
 		return &munkiSoftwareListOutput{
-			Body: Page[munkiSoftware]{Items: items, Count: count},
+			Body: Page[munkisoftware.Software]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -269,16 +254,8 @@ func loadMunkiSoftwareDetail(
 	return &munkiSoftwareDetailOutput{
 		Body: munkiSoftwareDetail{
 			Software: *title,
-			IconURL:  munkiSoftwareIconURL(*title),
-			Packages: munkiPackagesFromPackages(packageRows),
+			Packages: packageRows,
 			Targets:  targets,
 		},
 	}, nil
-}
-
-func munkiSoftwareIconURL(title munkisoftware.Software) string {
-	if title.IconObjectID == nil {
-		return ""
-	}
-	return munkiSoftwarePath + "/" + strconv.FormatInt(title.ID, 10) + "/icon"
 }

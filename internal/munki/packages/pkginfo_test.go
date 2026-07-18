@@ -20,13 +20,15 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	installerID := int64(50)
 	availableAt := time.Now()
 	got := plistMap(t, mustPkginfo(t, Package{
-		ID:                     12,
-		SoftwareID:             7,
-		SoftwareName:           "com.example.app",
-		SoftwareDisplayName:    &displayName,
-		SoftwareDescription:    "Managed by Woodstar",
-		SoftwareCategory:       "Utilities",
-		SoftwareDeveloper:      "Example Co",
+		ID: 12,
+		Software: PackageSoftware{
+			ID:          7,
+			Name:        "com.example.app",
+			DisplayName: &displayName,
+			Description: "Managed by Woodstar",
+			Category:    "Utilities",
+			Developer:   "Example Co",
+		},
 		Version:                "1.2.3",
 		InstallerType:          InstallerTypePkg,
 		MinimumMunkiVersion:    "6.0",
@@ -142,8 +144,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 	got := plistMap(t, mustPkginfo(t, Package{
 		ID:            12,
-		SoftwareID:    7,
-		SoftwareName:  "Example App",
+		Software:      PackageSoftware{ID: 7, Name: "Example App"},
 		Version:       "1.2.3",
 		InstallerType: InstallerTypePkg,
 	}, pkginfoObjects()))
@@ -166,8 +167,7 @@ func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
 	got := plistMap(t, mustPkginfo(t, Package{
 		ID:              12,
-		SoftwareID:      7,
-		SoftwareName:    "Example App",
+		Software:        PackageSoftware{ID: 7, Name: "Example App"},
 		Version:         "1.2.3",
 		InstallerType:   InstallerTypeCopyFromDMG,
 		UninstallMethod: UninstallMethodRemoveCopiedItems,
@@ -209,8 +209,7 @@ func TestPkginfoDerivesItemsToRemoveFromItemsToCopy(t *testing.T) {
 func TestPkginfoPreservesUninstallablePolicyIndependently(t *testing.T) {
 	base := Package{
 		ID:              12,
-		SoftwareID:      7,
-		SoftwareName:    "Example App",
+		Software:        PackageSoftware{ID: 7, Name: "Example App"},
 		Version:         "1.2.3",
 		InstallerType:   InstallerTypeNoPkg,
 		UninstallMethod: UninstallMethodUninstallScript,
@@ -277,8 +276,7 @@ func TestParseIconName(t *testing.T) {
 func TestPkginfoRendersBlockingApplicationsFromExplicitNoneSwitch(t *testing.T) {
 	base := Package{
 		ID:            12,
-		SoftwareID:    7,
-		SoftwareName:  "Example App",
+		Software:      PackageSoftware{ID: 7, Name: "Example App"},
 		Version:       "1.2.3",
 		InstallerType: InstallerTypePkg,
 	}
