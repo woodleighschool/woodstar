@@ -19,7 +19,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { OsqueryCheck, OsqueryCheckMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
@@ -100,7 +100,7 @@ export function CheckForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {

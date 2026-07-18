@@ -36,7 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { SantaConfiguration, SantaConfigurationMutation } from "@/lib/api";
 import { firstErrorMessage, integerRange, requiredString } from "@/lib/form-validation";
 import {
@@ -221,7 +221,7 @@ export function ConfigurationForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   return (
     <PageShell
       render={

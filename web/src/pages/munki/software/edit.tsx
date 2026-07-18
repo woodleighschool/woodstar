@@ -21,13 +21,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import {
   useMunkiSoftware,
   useMunkiSoftwareDetail,
   useUpdateMunkiSoftware,
 } from "@/hooks/use-munki-software";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiPackage, MunkiSoftwareDetail } from "@/lib/api";
 import { uniqueOptions } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
@@ -152,7 +152,10 @@ function MunkiSoftwareDetailForm({
     iconUpload.reset();
     softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
   }
-  const exitGuard = useFormExitGuard({ form: softwareOptionsForm, onDiscard: resetTargetPage });
+  const exitGuard = usePageFormExitGuard({
+    form: softwareOptionsForm,
+    onDiscard: resetTargetPage,
+  });
   const packageColumns: ColumnDef<MunkiPackage>[] = [
     {
       id: "version",

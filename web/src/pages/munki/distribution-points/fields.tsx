@@ -24,7 +24,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiDistributionPointDetail, MunkiDistributionPointMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 interface StringRow {
@@ -88,7 +88,7 @@ export function DistributionPointForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({
+  const exitGuard = usePageFormExitGuard({
     form,
     onDiscard: onCancel ?? (() => form.reset(initial)),
   });

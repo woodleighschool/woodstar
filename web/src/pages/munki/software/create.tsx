@@ -6,9 +6,9 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useCreateMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-software";
 import { useUploadMunkiIcon } from "@/hooks/use-munki-uploads";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { uniqueOptions } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
@@ -54,7 +54,7 @@ export function MunkiSoftwareCreatePage() {
       void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(id) } }),
   );
   const cancel = () => void navigate({ to: "/munki/software" });
-  const exitGuard = useFormExitGuard({ form, onDiscard: cancel });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: cancel });
   const tabs = [
     {
       value: "options",

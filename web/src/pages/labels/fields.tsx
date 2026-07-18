@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { Label, LabelMutation } from "@/lib/api";
 import { requiredString, selectedIDArray } from "@/lib/form-validation";
@@ -143,7 +143,7 @@ export function LabelForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({
+  const exitGuard = usePageFormExitGuard({
     form,
     onDiscard: onCancel ?? (() => form.reset(initial)),
   });

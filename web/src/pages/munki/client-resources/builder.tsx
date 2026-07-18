@@ -6,13 +6,13 @@ import { FormActions } from "@/components/form-actions";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryGate } from "@/components/query-gate";
 import { Button } from "@/components/ui/button";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import {
   useDeleteMunkiClientResources,
   useMunkiClientResources,
   useSaveMunkiClientResources,
   useUploadAndSaveMunkiClientResourcesBanner,
 } from "@/hooks/use-munki-client-resources";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiClientResources } from "@/lib/api";
 
 import {
@@ -45,7 +45,7 @@ function ClientResourcesBuilder({ resource }: { resource: MunkiClientResources |
   const uploadAndSave = useUploadAndSaveMunkiClientResourcesBanner();
   const deleteResource = useDeleteMunkiClientResources();
   const form = useClientResourcesForm(initialDraft, save);
-  const exitGuard = useFormExitGuard({ form, onDiscard: cancel });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: cancel });
   async function save(draft: typeof initialDraft) {
     const banner = draft.banner.asset;
     if (!banner) throw new Error("Validated client resources are missing a banner.");

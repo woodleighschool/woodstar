@@ -33,7 +33,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-hosts";
 import type { Host, HostDetail } from "@/lib/api";
 import { emailAddress } from "@/lib/form-validation";
@@ -228,104 +227,96 @@ function HostPrimaryUserDialog({
       onOpenChange(false);
     },
   });
-  const exitGuard = useFormExitGuard({
-    form,
-    onDiscard: () => onOpenChange(false),
-    blockNavigation: false,
-  });
   function requestClose() {
     if (pending || form.state.isSubmitting) return;
-    exitGuard.requestDiscard();
+    onOpenChange(false);
   }
   async function handleClear() {
     await clearPrimaryUser.mutateAsync(host.id);
     onOpenChange(false);
   }
   return (
-    <>
-      <Dialog
-        open
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) requestClose();
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
-            <DialogDescription>
-              Set the email or UPN Woodstar should prefer for this host.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            noValidate
-            className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void form.handleSubmit();
-            }}
-          >
-            <FieldGroup className="gap-4">
-              <form.Field name="email">
-                {(field) => (
-                  <FormField field={field} label="Email / UPN" htmlFor="host-user-email" required>
-                    {(control) => (
-                      <Input
-                        {...control}
-                        type="email"
-                        autoComplete="off"
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                      />
-                    )}
-                  </FormField>
-                )}
-              </form.Field>
-            </FieldGroup>
-
-            <DialogFooter className="pt-2">
-              {manual ? (
-                <Pending
-                  isPending={pending}
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void handleClear()}
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) requestClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
+          <DialogDescription>
+            Set the email or UPN Woodstar should prefer for this host.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          <FieldGroup className="gap-4">
+            <form.Field name="email">
+              {(field) => (
+                <FormField field={field} label="Email / UPN" htmlFor="host-user-email" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="email"
+                      autoComplete="off"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
                     />
-                  }
-                >
-                  <Trash2 />
-                  {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
-                </Pending>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={pending}
-                onClick={requestClose}
+                  )}
+                </FormField>
+              )}
+            </form.Field>
+          </FieldGroup>
+
+          <DialogFooter className="pt-2">
+            {manual ? (
+              <Pending
+                isPending={pending}
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleClear()}
+                  />
+                }
               >
-                Cancel
-              </Button>
-              <form.Subscribe selector={(state) => state.isSubmitting}>
-                {(isSubmitting) => (
-                  <Pending
-                    isPending={pending || isSubmitting}
-                    render={<Button type="submit" size="sm" />}
-                  >
-                    {isSubmitting ? "Saving…" : "Save"}
-                  </Pending>
-                )}
-              </form.Subscribe>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      {exitGuard.dialog}
-    </>
+                <Trash2 />
+                {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
+              </Pending>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={requestClose}
+            >
+              Cancel
+            </Button>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(isSubmitting) => (
+                <Pending
+                  isPending={pending || isSubmitting}
+                  render={<Button type="submit" size="sm" />}
+                >
+                  {isSubmitting ? "Saving…" : "Save"}
+                </Pending>
+              )}
+            </form.Subscribe>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 export function HostCertificatesCard({ host }: { host: HostDetail }) {

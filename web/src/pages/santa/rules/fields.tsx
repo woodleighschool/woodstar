@@ -24,7 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { SantaRuleMutation } from "@/lib/api";
 import { RULE_TYPE_OPTIONS, type SantaRuleType } from "@/lib/santa-rules";
 
@@ -70,7 +70,7 @@ export function RuleForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   return (
     <PageShell
       render={

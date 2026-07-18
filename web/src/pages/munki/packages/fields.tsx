@@ -5,7 +5,7 @@ import { FormTabTrigger, revealFirstInvalidFormTab } from "@/components/form-tab
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { TabsContent } from "@/components/ui/tabs";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
 import type { PackageEditorForm } from "./editor-form";
@@ -37,7 +37,7 @@ export function PackageForm({
   canCancelWhileSubmitting,
 }: PackageFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
-  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel });
   return (
     <PageShell
       render={

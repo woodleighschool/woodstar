@@ -27,7 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useLabels } from "@/hooks/use-labels";
 import type { LabelRef } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
@@ -151,16 +150,11 @@ function LabelAssignmentDialog({
       onSave(assignment.label_id);
     },
   });
-  const exitGuard = useFormExitGuard({
-    form,
-    onDiscard: onClose,
-    blockNavigation: false,
-  });
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) exitGuard.requestDiscard();
+        if (!open) onClose();
       }}
     >
       <DialogContent>
@@ -197,14 +191,8 @@ function LabelAssignmentDialog({
               </FormField>
             )}
           </form.Field>
-          <FormActions
-            form={form}
-            submitLabel="Add"
-            onCancel={exitGuard.requestDiscard}
-            className="justify-end"
-          />
+          <FormActions form={form} submitLabel="Add" onCancel={onClose} className="justify-end" />
         </form>
-        {exitGuard.dialog}
       </DialogContent>
     </Dialog>
   );

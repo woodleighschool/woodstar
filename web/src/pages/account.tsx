@@ -20,7 +20,7 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useAccount, useUpdateAccount } from "@/hooks/use-account";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { Account } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
@@ -77,7 +77,7 @@ function AccountProfileCard({ account }: { account: Account }) {
       toast.success("Account saved");
     },
   });
-  const exitGuard = useFormExitGuard({
+  const exitGuard = usePageFormExitGuard({
     form,
     onDiscard: () => form.reset(initial),
   });

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { OsqueryReport, OsqueryReportMutation } from "@/lib/api";
@@ -143,7 +143,7 @@ export function ReportForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {

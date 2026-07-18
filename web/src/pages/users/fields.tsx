@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { User, UserMutation } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import {
@@ -83,7 +83,7 @@ export function UserForm({
       onSuccess?.(id);
     },
   });
-  const exitGuard = useFormExitGuard({
+  const exitGuard = usePageFormExitGuard({
     form,
     onDiscard: () => form.reset(initial),
   });

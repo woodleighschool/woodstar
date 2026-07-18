@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useSetup } from "@/hooks/use-auth";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
+import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { emailAddress, requiredString } from "@/lib/form-validation";
 export function SetupPage() {
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ export function SetupPage() {
       await navigate({ to: "/hosts" });
     },
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: () => form.reset(initial) });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: () => form.reset(initial) });
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
       <Card className="w-full max-w-md">

@@ -4,14 +4,12 @@ import { useCallback, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
-export function useFormExitGuard({
+export function usePageFormExitGuard({
   form,
   onDiscard,
-  blockNavigation = true,
 }: {
   form: AnyFormApi;
   onDiscard: () => void;
-  blockNavigation?: boolean;
 }) {
   const [discardRequested, setDiscardRequested] = useState(false);
   const allowExit = useRef(false);
@@ -26,7 +24,6 @@ export function useFormExitGuard({
     shouldBlockFn: shouldBlockNavigation,
     enableBeforeUnload: shouldBlockNavigation,
     withResolver: true,
-    disabled: !blockNavigation,
   });
 
   const leave = useCallback((callback: () => void) => {

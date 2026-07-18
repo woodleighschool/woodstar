@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 
 import {
   type ClientResourceLink,
@@ -61,13 +60,11 @@ function LinkDialogForm({
     validators: { onDynamic: clientResourceLinkSchema },
     onSubmit: ({ value }) => onSave(clientResourceLinkSchema.parse(value)),
   });
-  const exitGuard = useFormExitGuard({ form, onDiscard: onClose, blockNavigation: false });
-
   return (
     <Dialog
       open
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) exitGuard.requestDiscard();
+        if (!nextOpen) onClose();
       }}
     >
       <DialogContent className="max-w-xl">
@@ -152,11 +149,10 @@ function LinkDialogForm({
           <FormActions
             form={form}
             submitLabel={link ? "Save" : "Add"}
-            onCancel={exitGuard.requestDiscard}
+            onCancel={onClose}
             className="justify-end"
           />
         </form>
-        {exitGuard.dialog}
       </DialogContent>
     </Dialog>
   );

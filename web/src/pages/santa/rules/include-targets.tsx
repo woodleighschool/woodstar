@@ -36,7 +36,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { encodeSort } from "@/hooks/use-data-table-search";
-import { useFormExitGuard } from "@/hooks/use-form-exit-guard";
 import { useLabels } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { POLICY_OPTIONS, type SantaRulePolicy } from "@/lib/santa-rules";
@@ -182,16 +181,11 @@ function SantaIncludeDialog({
     validators: { onDynamic: santaRuleIncludeSchema },
     onSubmit: ({ value }) => onSave(santaRuleIncludeSchema.parse(value)),
   });
-  const exitGuard = useFormExitGuard({
-    form,
-    onDiscard: onClose,
-    blockNavigation: false,
-  });
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) exitGuard.requestDiscard();
+        if (!open) onClose();
       }}
     >
       <DialogContent className="sm:max-w-xl">
@@ -296,11 +290,10 @@ function SantaIncludeDialog({
           <FormActions
             form={form}
             submitLabel={mode === "edit" ? "Save" : "Add"}
-            onCancel={exitGuard.requestDiscard}
+            onCancel={onClose}
             className="justify-end"
           />
         </form>
-        {exitGuard.dialog}
       </DialogContent>
     </Dialog>
   );
