@@ -45,10 +45,6 @@ func (i hostListInput) params() hosts.HostListParams {
 	}
 }
 
-type hostBulkDeleteInput struct {
-	Body BulkIDsBody
-}
-
 type hostPrimaryUserPutBody struct {
 	Email string `json:"email" format:"email" minLength:"3"`
 }
@@ -196,14 +192,15 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store, logger *slog.Logge
 
 func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-hosts",
-		Method:      http.MethodPost,
-		Path:        "/api/hosts/bulk-delete",
-		Tags:        []string{hostsTag},
-		Summary:     "Delete enrolled hosts",
-		Errors:      []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
-		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
+		OperationID:   "bulk-delete-hosts",
+		Method:        http.MethodDelete,
+		Path:          "/api/hosts",
+		Tags:          []string{hostsTag},
+		Summary:       "Delete enrolled hosts",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest},
+	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
+		if _, err := hostStore.DeleteMany(ctx, input.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-hosts", err)
 		}
 		return &struct{}{}, nil

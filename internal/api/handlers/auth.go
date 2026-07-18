@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	authTag    = "Auth"
-	setupTag   = "Setup"
-	accountTag = "Account"
+	authTag     = "Auth"
+	setupTag    = "Setup"
+	accountTag  = "Account"
+	sessionPath = "/api/session"
 )
 
 type sessionOutput struct {
@@ -42,7 +43,7 @@ type setupInput struct {
 	}
 }
 
-type loginInput struct {
+type sessionCreateInput struct {
 	Body struct {
 		Email    string `json:"email"    format:"email"`
 		Password string `json:"password" minLength:"1"`
@@ -60,12 +61,12 @@ type AuthHandlerDeps struct {
 	Logger      *slog.Logger
 }
 
-// RegisterAuth mounts setup, session, login, logout, and account endpoints.
+// RegisterAuth mounts setup, session, account, and OIDC endpoints.
 func RegisterAuth(deps AuthHandlerDeps) {
 	registerSetup(deps.Public, deps.AuthService, deps.Logger)
-	registerSession(deps.Session, deps.AuthService, deps.Logger)
-	registerLogin(deps.Public, deps.AuthService, deps.Logger)
-	registerLogout(deps.Protected, deps.AuthService, deps.Logger)
+	registerGetSession(deps.Session, deps.AuthService, deps.Logger)
+	registerCreateSession(deps.Public, deps.AuthService, deps.Logger)
+	registerDeleteSession(deps.Protected, deps.AuthService, deps.Logger)
 
 	registerGetAccount(deps.Protected, deps.AuthService, deps.Logger)
 	registerPutAccount(deps.Protected, deps.Users, deps.Logger)
@@ -96,11 +97,11 @@ func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger)
 	})
 }
 
-func registerSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
+func registerGetSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-session",
 		Method:      http.MethodGet,
-		Path:        "/api/auth/session",
+		Path:        sessionPath,
 		Tags:        []string{authTag},
 		Summary:     "Get setup state and the current signed-in user, if any",
 	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
@@ -119,15 +120,15 @@ func registerSession(api huma.API, authService *auth.Service, logger *slog.Logge
 	})
 }
 
-func registerLogin(api huma.API, authService *auth.Service, logger *slog.Logger) {
+func registerCreateSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "create-session",
 		Method:      http.MethodPost,
-		Path:        "/api/auth/login",
+		Path:        sessionPath,
 		Tags:        []string{authTag},
 		Summary:     "Create a local admin session",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
-	}, func(ctx context.Context, input *loginInput) (*authUserOutput, error) {
+	}, func(ctx context.Context, input *sessionCreateInput) (*authUserOutput, error) {
 		user, err := authService.Login(ctx, input.Body.Email, input.Body.Password)
 		if err != nil {
 			return nil, handlerError(ctx, logger, "create-session", authError(err))
@@ -136,13 +137,14 @@ func registerLogin(api huma.API, authService *auth.Service, logger *slog.Logger)
 	})
 }
 
-func registerLogout(api huma.API, authService *auth.Service, logger *slog.Logger) {
+func registerDeleteSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-session",
-		Method:      http.MethodPost,
-		Path:        "/api/auth/logout",
-		Tags:        []string{authTag},
-		Summary:     "Revoke the current session",
+		OperationID:   "delete-session",
+		Method:        http.MethodDelete,
+		Path:          sessionPath,
+		Tags:          []string{authTag},
+		Summary:       "Revoke the current session",
+		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 		if err := authService.Logout(ctx); err != nil {
 			return nil, handlerError(ctx, logger, "delete-session", err)

@@ -122,7 +122,7 @@ export function useDeleteCheck() {
 export function useBulkDeleteChecks() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteOsqueryChecks({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteOsqueryChecks({ query: { ids } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.checksAll });
     },

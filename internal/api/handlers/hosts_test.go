@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,10 +17,62 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
+
+func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := hosts.NewStore(database)
+	seeded := make([]*hosts.Host, 0, 3)
+	for _, name := range []string{"delete-host-a", "delete-host-b", "keep-host"} {
+		host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+			Hardware:     hosts.HostHardware{UUID: name},
+			OrbitNodeKey: name + "-node-key",
+		})
+		if err != nil {
+			t.Fatalf("enroll %s: %v", name, err)
+		}
+		seeded = append(seeded, host)
+	}
+
+	router := hostTestRouter(t, func(api huma.API) {
+		RegisterHosts(api, store, nil, discardLogger())
+	})
+	for _, path := range []string{"/api/hosts", "/api/hosts?ids="} {
+		rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf(
+				"DELETE %s status = %d, want %d; body = %q",
+				path,
+				rec.Code,
+				http.StatusUnprocessableEntity,
+				rec.Body.String(),
+			)
+		}
+		for _, host := range seeded {
+			if _, err := store.GetByID(ctx, host.ID); err != nil {
+				t.Fatalf("host %d after rejected DELETE: %v", host.ID, err)
+			}
+		}
+	}
+
+	path := fmt.Sprintf("/api/hosts?ids=%d,%d", seeded[0].ID, seeded[1].ID)
+	rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("DELETE status = %d, want %d; body = %q", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+	for _, host := range seeded[:2] {
+		if _, err := store.GetByID(ctx, host.ID); !errors.Is(err, dbutil.ErrNotFound) {
+			t.Fatalf("deleted host %d error = %v, want ErrNotFound", host.ID, err)
+		}
+	}
+	if _, err := store.GetByID(ctx, seeded[2].ID); err != nil {
+		t.Fatalf("unselected host %d: %v", seeded[2].ID, err)
+	}
+}
 
 func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 	db, ctx := dbtest.Open(t)

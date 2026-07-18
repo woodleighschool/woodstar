@@ -44,10 +44,6 @@ type reportDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-type reportBulkDeleteInput struct {
-	Body BulkIDsBody
-}
-
 type reportListOutput struct {
 	Body Page[reports.Report]
 }
@@ -183,14 +179,15 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store, logger *slog
 
 func registerBulkDeleteReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-osquery-reports",
-		Method:      http.MethodPost,
-		Path:        "/api/osquery/reports/bulk-delete",
-		Tags:        []string{reportsTag},
-		Summary:     "Delete reports",
-		Errors:      []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *reportBulkDeleteInput) (*struct{}, error) {
-		if _, err := reportStore.DeleteMany(ctx, input.Body.IDs); err != nil {
+		OperationID:   "bulk-delete-osquery-reports",
+		Method:        http.MethodDelete,
+		Path:          "/api/osquery/reports",
+		Tags:          []string{reportsTag},
+		Summary:       "Delete reports",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest},
+	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
+		if _, err := reportStore.DeleteMany(ctx, input.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-osquery-reports", err)
 		}
 		return &struct{}{}, nil

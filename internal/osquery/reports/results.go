@@ -123,59 +123,6 @@ func (s *Store) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport
 	return results, nil
 }
 
-// HostResults returns all stored rows for one host and report.
-func (s *Store) HostResults(
-	ctx context.Context,
-	hostID int64,
-	reportID int64,
-) ([]ReportResult, *time.Time, error) {
-	type resultRow struct {
-		ReportID    int64     `db:"report_id"`
-		Name        string    `db:"name"`
-		HostID      int64     `db:"host_id"`
-		DisplayName string    `db:"display_name"`
-		Data        []byte    `db:"data"`
-		LastFetched time.Time `db:"last_fetched"`
-	}
-	qrows, err := s.db.Pool().Query(ctx, `
-		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
-		FROM report_results rr
-		JOIN reports r ON r.id = rr.report_id
-		JOIN hosts h ON h.id = rr.host_id
-		WHERE rr.report_id = $1 AND rr.host_id = $2
-		ORDER BY rr.last_fetched DESC, rr.id`, reportID, hostID)
-	if err != nil {
-		return nil, nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resultRow])
-	if err != nil {
-		return nil, nil, err
-	}
-
-	results := make([]ReportResult, 0, len(rows))
-	var lastFetched *time.Time
-	for _, row := range rows {
-		result, hasData, err := reportResultFromNullableFields(
-			row.ReportID,
-			row.Name,
-			row.HostID,
-			row.DisplayName,
-			row.Data,
-			row.LastFetched,
-		)
-		if err != nil {
-			return nil, nil, err
-		}
-		if lastFetched == nil {
-			lastFetched = new(result.LastFetched)
-		}
-		if hasData {
-			results = append(results, result)
-		}
-	}
-	return results, lastFetched, nil
-}
-
 func copyFromSnapshotRows(reportID int64, hostID int64, rows []snapshotResultRow) [][]any {
 	out := make([][]any, 0, len(rows))
 	for _, row := range rows {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -23,23 +22,6 @@ type hostOsqueryReportsInput struct {
 
 type hostReportsOutput struct {
 	Body []reports.HostReport
-}
-
-type hostReportResultsInput struct {
-	ID       int64 `path:"id"`
-	ReportID int64 `path:"report_id"`
-}
-
-type hostReportResultsOutput struct {
-	Body hostReportResultsBody
-}
-
-type hostReportResultsBody struct {
-	ReportID    int64                  `json:"report_id"`
-	ID          int64                  `json:"host_id"`
-	HostName    string                 `json:"host_name"`
-	LastFetched *time.Time             `json:"last_fetched,omitempty"`
-	Items       []reports.ReportResult `json:"items"`
 }
 
 func registerHostOsqueryChecks(
@@ -78,7 +60,6 @@ func registerHostOsqueryReports(
 	logger *slog.Logger,
 ) {
 	registerHostReports(api, reportStore, hostStore, logger)
-	registerHostReportResults(api, reportStore, hostStore, logger)
 }
 
 func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store, logger *slog.Logger) {
@@ -122,51 +103,4 @@ func listHostOsqueryRows[T any](
 		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
 	}
 	return rows, nil
-}
-
-func registerHostReportResults(
-	api huma.API,
-	reportStore *reports.Store,
-	hostStore *hosts.Store,
-	logger *slog.Logger,
-) {
-	huma.Register(api, huma.Operation{
-		OperationID: "list-host-osquery-report-results",
-		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/osquery/reports/{report_id}",
-		Tags:        []string{reportsTag, hostsTag},
-		Summary:     "List report rows for one host",
-		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *hostReportResultsInput) (*hostReportResultsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
-		if err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"list-host-osquery-report-results",
-				hostResource,
-				err,
-				"host_id",
-				input.ID,
-			)
-		}
-		rows, lastFetched, err := reportStore.HostResults(ctx, input.ID, input.ReportID)
-		if err != nil {
-			return nil, handlerError(
-				ctx,
-				logger,
-				"list-host-osquery-report-results",
-				err,
-				"host_id", input.ID,
-				"report_id", input.ReportID,
-			)
-		}
-		return &hostReportResultsOutput{Body: hostReportResultsBody{
-			ReportID:    input.ReportID,
-			ID:          input.ID,
-			HostName:    host.DisplayName,
-			LastFetched: lastFetched,
-			Items:       rows,
-		}}, nil
-	})
 }

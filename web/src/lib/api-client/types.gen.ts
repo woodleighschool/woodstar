@@ -31,10 +31,6 @@ export type AgentSecretMutation = {
     value: string;
 };
 
-export type BulkIdsBody = {
-    ids: Array<number>;
-};
-
 export type CertificateName = {
     common_name: string;
     country: string;
@@ -246,14 +242,6 @@ export type HostPrimaryUserSource = {
     source: 'manual' | 'orbit_profile';
 };
 
-export type HostReportResultsBody = {
-    host_id: number;
-    host_name: string;
-    items: Array<OsqueryReportResult>;
-    last_fetched?: string;
-    report_id: number;
-};
-
 export type HostSoftware = {
     extension_for: string;
     id: number;
@@ -317,11 +305,6 @@ export type LabelMutation = {
 
 export type LabelRef = {
     label_id: number;
-};
-
-export type LoginInputBody = {
-    email: string;
-    password: string;
 };
 
 export type MunkiClientResources = {
@@ -1302,6 +1285,11 @@ export type SessionBody = {
     user?: User;
 };
 
+export type SessionCreateInputBody = {
+    email: string;
+    password: string;
+};
+
 export type SetupInputBody = {
     email: string;
     name?: string;
@@ -1694,101 +1682,6 @@ export type UpdateAgentSecretResponses = {
 
 export type UpdateAgentSecretResponse = UpdateAgentSecretResponses[keyof UpdateAgentSecretResponses];
 
-export type CreateSessionData = {
-    body: LoginInputBody;
-    path?: never;
-    query?: never;
-    url: '/api/auth/login';
-};
-
-export type CreateSessionErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
-
-export type CreateSessionResponses = {
-    /**
-     * OK
-     */
-    200: User;
-};
-
-export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
-
-export type DeleteSessionData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/auth/logout';
-};
-
-export type DeleteSessionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Error
-     */
-    default: ErrorModel;
-};
-
-export type DeleteSessionError = DeleteSessionErrors[keyof DeleteSessionErrors];
-
-export type DeleteSessionResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteSessionResponse = DeleteSessionResponses[keyof DeleteSessionResponses];
-
-export type GetSessionData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/auth/session';
-};
-
-export type GetSessionErrors = {
-    /**
-     * Error
-     */
-    default: ErrorModel;
-};
-
-export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
-
-export type GetSessionResponses = {
-    /**
-     * OK
-     */
-    200: SessionBody;
-};
-
-export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
-
 export type ListGroupsData = {
     body?: never;
     path?: never;
@@ -1863,6 +1756,49 @@ export type GetGroupResponses = {
 
 export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
 
+export type BulkDeleteHostsData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/hosts';
+};
+
+export type BulkDeleteHostsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteHostsError = BulkDeleteHostsErrors[keyof BulkDeleteHostsErrors];
+
+export type BulkDeleteHostsResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteHostsResponse = BulkDeleteHostsResponses[keyof BulkDeleteHostsResponses];
+
 export type ListHostsData = {
     body?: never;
     path?: never;
@@ -1901,47 +1837,6 @@ export type ListHostsResponses = {
 };
 
 export type ListHostsResponse = ListHostsResponses[keyof ListHostsResponses];
-
-export type BulkDeleteHostsData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/hosts/bulk-delete';
-};
-
-export type BulkDeleteHostsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteHostsError = BulkDeleteHostsErrors[keyof BulkDeleteHostsErrors];
-
-export type BulkDeleteHostsResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteHostsResponse = BulkDeleteHostsResponses[keyof BulkDeleteHostsResponses];
 
 export type DeleteHostData = {
     body?: never;
@@ -2141,46 +2036,6 @@ export type ListHostOsqueryReportsResponses = {
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
-
-export type ListHostOsqueryReportResultsData = {
-    body?: never;
-    path: {
-        id: number;
-        report_id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/osquery/reports/{report_id}';
-};
-
-export type ListHostOsqueryReportResultsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostOsqueryReportResultsError = ListHostOsqueryReportResultsErrors[keyof ListHostOsqueryReportResultsErrors];
-
-export type ListHostOsqueryReportResultsResponses = {
-    /**
-     * OK
-     */
-    200: HostReportResultsBody;
-};
-
-export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
 
 export type ClearHostPrimaryUserData = {
     body?: never;
@@ -2704,16 +2559,16 @@ export type CountLiveQueryTargetsResponses = {
 
 export type CountLiveQueryTargetsResponse = CountLiveQueryTargetsResponses[keyof CountLiveQueryTargetsResponses];
 
-export type StopLiveQueryData = {
+export type DeleteLiveQueryData = {
     body?: never;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/live-queries/{id}/stop';
+    url: '/api/live-queries/{id}';
 };
 
-export type StopLiveQueryErrors = {
+export type DeleteLiveQueryErrors = {
     /**
      * Unauthorized
      */
@@ -2736,16 +2591,16 @@ export type StopLiveQueryErrors = {
     500: ErrorModel;
 };
 
-export type StopLiveQueryError = StopLiveQueryErrors[keyof StopLiveQueryErrors];
+export type DeleteLiveQueryError = DeleteLiveQueryErrors[keyof DeleteLiveQueryErrors];
 
-export type StopLiveQueryResponses = {
+export type DeleteLiveQueryResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type StopLiveQueryResponse = StopLiveQueryResponses[keyof StopLiveQueryResponses];
+export type DeleteLiveQueryResponse = DeleteLiveQueryResponses[keyof DeleteLiveQueryResponses];
 
 export type StreamLiveQueryData = {
     body?: never;
@@ -3652,6 +3507,53 @@ export type SignMunkiPackageInstallerPartResponses = {
 
 export type SignMunkiPackageInstallerPartResponse = SignMunkiPackageInstallerPartResponses[keyof SignMunkiPackageInstallerPartResponses];
 
+export type BulkDeleteMunkiPackagesData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/munki/packages';
+};
+
+export type BulkDeleteMunkiPackagesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteMunkiPackagesError = BulkDeleteMunkiPackagesErrors[keyof BulkDeleteMunkiPackagesErrors];
+
+export type BulkDeleteMunkiPackagesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteMunkiPackagesResponse = BulkDeleteMunkiPackagesResponses[keyof BulkDeleteMunkiPackagesResponses];
+
 export type ListMunkiPackagesData = {
     body?: never;
     path?: never;
@@ -3736,51 +3638,6 @@ export type CreateMunkiPackageResponses = {
 };
 
 export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
-
-export type BulkDeleteMunkiPackagesData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/munki/packages/bulk-delete';
-};
-
-export type BulkDeleteMunkiPackagesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteMunkiPackagesError = BulkDeleteMunkiPackagesErrors[keyof BulkDeleteMunkiPackagesErrors];
-
-export type BulkDeleteMunkiPackagesResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteMunkiPackagesResponse = BulkDeleteMunkiPackagesResponses[keyof BulkDeleteMunkiPackagesResponses];
 
 export type DeleteMunkiPackageData = {
     body?: never;
@@ -3919,6 +3776,49 @@ export type UpdateMunkiPackageResponses = {
 
 export type UpdateMunkiPackageResponse = UpdateMunkiPackageResponses[keyof UpdateMunkiPackageResponses];
 
+export type BulkDeleteMunkiSoftwareData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/munki/software';
+};
+
+export type BulkDeleteMunkiSoftwareErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteMunkiSoftwareError = BulkDeleteMunkiSoftwareErrors[keyof BulkDeleteMunkiSoftwareErrors];
+
+export type BulkDeleteMunkiSoftwareResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteMunkiSoftwareResponse = BulkDeleteMunkiSoftwareResponses[keyof BulkDeleteMunkiSoftwareResponses];
+
 export type ListMunkiSoftwareData = {
     body?: never;
     path?: never;
@@ -4001,47 +3901,6 @@ export type CreateMunkiSoftwareResponses = {
 };
 
 export type CreateMunkiSoftwareResponse = CreateMunkiSoftwareResponses[keyof CreateMunkiSoftwareResponses];
-
-export type BulkDeleteMunkiSoftwareData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/munki/software/bulk-delete';
-};
-
-export type BulkDeleteMunkiSoftwareErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteMunkiSoftwareError = BulkDeleteMunkiSoftwareErrors[keyof BulkDeleteMunkiSoftwareErrors];
-
-export type BulkDeleteMunkiSoftwareResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteMunkiSoftwareResponse = BulkDeleteMunkiSoftwareResponses[keyof BulkDeleteMunkiSoftwareResponses];
 
 export type DeleteMunkiSoftwareData = {
     body?: never;
@@ -4270,6 +4129,49 @@ export type SetMunkiSoftwareIconResponses = {
 
 export type SetMunkiSoftwareIconResponse = SetMunkiSoftwareIconResponses[keyof SetMunkiSoftwareIconResponses];
 
+export type BulkDeleteOsqueryChecksData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/osquery/checks';
+};
+
+export type BulkDeleteOsqueryChecksErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteOsqueryChecksError = BulkDeleteOsqueryChecksErrors[keyof BulkDeleteOsqueryChecksErrors];
+
+export type BulkDeleteOsqueryChecksResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteOsqueryChecksResponse = BulkDeleteOsqueryChecksResponses[keyof BulkDeleteOsqueryChecksResponses];
+
 export type ListOsqueryChecksData = {
     body?: never;
     path?: never;
@@ -4352,47 +4254,6 @@ export type CreateOsqueryCheckResponses = {
 };
 
 export type CreateOsqueryCheckResponse = CreateOsqueryCheckResponses[keyof CreateOsqueryCheckResponses];
-
-export type BulkDeleteOsqueryChecksData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/osquery/checks/bulk-delete';
-};
-
-export type BulkDeleteOsqueryChecksErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteOsqueryChecksError = BulkDeleteOsqueryChecksErrors[keyof BulkDeleteOsqueryChecksErrors];
-
-export type BulkDeleteOsqueryChecksResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteOsqueryChecksResponse = BulkDeleteOsqueryChecksResponses[keyof BulkDeleteOsqueryChecksResponses];
 
 export type DeleteOsqueryCheckData = {
     body?: never;
@@ -4568,6 +4429,49 @@ export type ListOsqueryCheckResultsResponses = {
 
 export type ListOsqueryCheckResultsResponse = ListOsqueryCheckResultsResponses[keyof ListOsqueryCheckResultsResponses];
 
+export type BulkDeleteOsqueryReportsData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/osquery/reports';
+};
+
+export type BulkDeleteOsqueryReportsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteOsqueryReportsError = BulkDeleteOsqueryReportsErrors[keyof BulkDeleteOsqueryReportsErrors];
+
+export type BulkDeleteOsqueryReportsResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteOsqueryReportsResponse = BulkDeleteOsqueryReportsResponses[keyof BulkDeleteOsqueryReportsResponses];
+
 export type ListOsqueryReportsData = {
     body?: never;
     path?: never;
@@ -4650,47 +4554,6 @@ export type CreateOsqueryReportResponses = {
 };
 
 export type CreateOsqueryReportResponse = CreateOsqueryReportResponses[keyof CreateOsqueryReportResponses];
-
-export type BulkDeleteOsqueryReportsData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/osquery/reports/bulk-delete';
-};
-
-export type BulkDeleteOsqueryReportsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteOsqueryReportsError = BulkDeleteOsqueryReportsErrors[keyof BulkDeleteOsqueryReportsErrors];
-
-export type BulkDeleteOsqueryReportsResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteOsqueryReportsResponse = BulkDeleteOsqueryReportsResponses[keyof BulkDeleteOsqueryReportsResponses];
 
 export type DeleteOsqueryReportData = {
     body?: never;
@@ -4864,6 +4727,49 @@ export type ListOsqueryReportResultsResponses = {
 
 export type ListOsqueryReportResultsResponse = ListOsqueryReportResultsResponses[keyof ListOsqueryReportResultsResponses];
 
+export type BulkDeleteSantaConfigurationsData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/santa/configurations';
+};
+
+export type BulkDeleteSantaConfigurationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteSantaConfigurationsError = BulkDeleteSantaConfigurationsErrors[keyof BulkDeleteSantaConfigurationsErrors];
+
+export type BulkDeleteSantaConfigurationsResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteSantaConfigurationsResponse = BulkDeleteSantaConfigurationsResponses[keyof BulkDeleteSantaConfigurationsResponses];
+
 export type ListSantaConfigurationsData = {
     body?: never;
     path?: never;
@@ -4946,47 +4852,6 @@ export type CreateSantaConfigurationResponses = {
 };
 
 export type CreateSantaConfigurationResponse = CreateSantaConfigurationResponses[keyof CreateSantaConfigurationResponses];
-
-export type BulkDeleteSantaConfigurationsData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/santa/configurations/bulk-delete';
-};
-
-export type BulkDeleteSantaConfigurationsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteSantaConfigurationsError = BulkDeleteSantaConfigurationsErrors[keyof BulkDeleteSantaConfigurationsErrors];
-
-export type BulkDeleteSantaConfigurationsResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteSantaConfigurationsResponse = BulkDeleteSantaConfigurationsResponses[keyof BulkDeleteSantaConfigurationsResponses];
 
 export type ReorderSantaConfigurationsData = {
     body: SantaConfigurationReorderBody;
@@ -5339,6 +5204,49 @@ export type GetSantaFileAccessEventResponses = {
 
 export type GetSantaFileAccessEventResponse = GetSantaFileAccessEventResponses[keyof GetSantaFileAccessEventResponses];
 
+export type BulkDeleteSantaRulesData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/santa/rules';
+};
+
+export type BulkDeleteSantaRulesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteSantaRulesError = BulkDeleteSantaRulesErrors[keyof BulkDeleteSantaRulesErrors];
+
+export type BulkDeleteSantaRulesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteSantaRulesResponse = BulkDeleteSantaRulesResponses[keyof BulkDeleteSantaRulesResponses];
+
 export type ListSantaRulesData = {
     body?: never;
     path?: never;
@@ -5430,47 +5338,6 @@ export type CreateSantaRuleResponses = {
 };
 
 export type CreateSantaRuleResponse = CreateSantaRuleResponses[keyof CreateSantaRuleResponses];
-
-export type BulkDeleteSantaRulesData = {
-    body: BulkIdsBody;
-    path?: never;
-    query?: never;
-    url: '/api/santa/rules/bulk-delete';
-};
-
-export type BulkDeleteSantaRulesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteSantaRulesError = BulkDeleteSantaRulesErrors[keyof BulkDeleteSantaRulesErrors];
-
-export type BulkDeleteSantaRulesResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteSantaRulesResponse = BulkDeleteSantaRulesResponses[keyof BulkDeleteSantaRulesResponses];
 
 export type DeleteSantaRuleData = {
     body?: never;
@@ -5604,6 +5471,101 @@ export type UpdateSantaRuleResponses = {
 };
 
 export type UpdateSantaRuleResponse = UpdateSantaRuleResponses[keyof UpdateSantaRuleResponses];
+
+export type DeleteSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/session';
+};
+
+export type DeleteSessionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteSessionError = DeleteSessionErrors[keyof DeleteSessionErrors];
+
+export type DeleteSessionResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteSessionResponse = DeleteSessionResponses[keyof DeleteSessionResponses];
+
+export type GetSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/session';
+};
+
+export type GetSessionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * OK
+     */
+    200: SessionBody;
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type CreateSessionData = {
+    body: SessionCreateInputBody;
+    path?: never;
+    query?: never;
+    url: '/api/session';
+};
+
+export type CreateSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
+
+export type CreateSessionResponses = {
+    /**
+     * OK
+     */
+    200: User;
+};
+
+export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
 
 export type CompleteSetupData = {
     body: SetupInputBody;

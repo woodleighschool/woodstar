@@ -45,7 +45,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 
 	body := strings.NewReader(`{"email":"admin@example.test","password":"wrong-password"}`)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", body)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, sessionPath, body)
 	req.Header.Set("Content-Type", "application/json")
 
 	router.ServeHTTP(rec, req)

@@ -9,7 +9,7 @@ import type {
   OsqueryLiveQueryTargetCountBody,
   OsqueryLiveQueryTargetCountOutputBody,
 } from "@/lib/api";
-import { countLiveQueryTargets, createLiveQuery, stopLiveQuery, unwrap } from "@/lib/api";
+import { countLiveQueryTargets, createLiveQuery, deleteLiveQuery, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 const LIVE_QUERY_TARGET_REFRESH_MS = 30_000;
@@ -69,7 +69,7 @@ export function useCreateLiveQuery() {
 export function useStopLiveQuery() {
   return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
-      await unwrap(stopLiveQuery({ path: { id } }));
+      await unwrap(deleteLiveQuery({ path: { id } }));
     },
   });
 }

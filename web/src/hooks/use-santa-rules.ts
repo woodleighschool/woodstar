@@ -86,7 +86,7 @@ export function useDeleteSantaRule() {
 export function useBulkDeleteSantaRules() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteSantaRules({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteSantaRules({ query: { ids } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.santaRulesAll });
     },

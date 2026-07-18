@@ -16,7 +16,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
-const liveQueriesTag = "Live Queries"
+const (
+	liveQueriesTag  = "Live Queries"
+	liveQueriesPath = "/api/live-queries"
+)
 
 type OsqueryLiveQueryCreateBody struct {
 	ReportID *int64                       `json:"report_id,omitempty"`
@@ -56,15 +59,9 @@ type liveQueryTargetCountOutput struct {
 	Body OsqueryLiveQueryTargetCountOutputBody
 }
 
-type liveQueryStreamInput struct {
+type liveQueryInput struct {
 	ID int64 `path:"id"`
 }
-
-type liveQueryStopInput struct {
-	ID int64 `path:"id"`
-}
-
-type liveQueryStopOutput struct{}
 
 type liveQueryPingStatus string
 
@@ -134,7 +131,7 @@ func registerLiveQueries(
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-live-query",
 		Method:        http.MethodPost,
-		Path:          "/api/live-queries",
+		Path:          liveQueriesPath,
 		Tags:          []string{liveQueriesTag},
 		Summary:       "Start a live run against online hosts",
 		DefaultStatus: http.StatusCreated,
@@ -150,7 +147,7 @@ func registerLiveQueries(
 	huma.Register(api, huma.Operation{
 		OperationID: "count-live-query-targets",
 		Method:      http.MethodPost,
-		Path:        "/api/live-queries/targets/count",
+		Path:        liveQueriesPath + "/targets/count",
 		Tags:        []string{liveQueriesTag},
 		Summary:     "Count live query targets",
 		Errors:      []int{http.StatusBadRequest},
@@ -167,24 +164,24 @@ func registerLiveQueries(
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID:   "stop-live-query",
-		Method:        http.MethodPost,
-		Path:          "/api/live-queries/{id}/stop",
+		OperationID:   "delete-live-query",
+		Method:        http.MethodDelete,
+		Path:          liveQueriesPath + "/{id}",
 		Tags:          []string{liveQueriesTag},
 		Summary:       "Stop a running live query",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusNotFound},
-	}, func(_ context.Context, input *liveQueryStopInput) (*liveQueryStopOutput, error) {
+	}, func(_ context.Context, input *liveQueryInput) (*struct{}, error) {
 		if err := manager.Stop(input.ID); err != nil {
 			return nil, huma.Error404NotFound("live query not found")
 		}
-		return &liveQueryStopOutput{}, nil
+		return &struct{}{}, nil
 	})
 
 	sse.Register(streamingAPI, huma.Operation{
 		OperationID: "stream-live-query",
 		Method:      http.MethodGet,
-		Path:        "/api/live-queries/{id}/stream",
+		Path:        liveQueriesPath + "/{id}/stream",
 		Tags:        []string{liveQueriesTag},
 		Summary:     "Stream live query results",
 		Errors:      []int{http.StatusNotFound},
@@ -193,7 +190,7 @@ func registerLiveQueries(
 		"ping":      OsqueryLiveQueryPingEvent{},
 		"result":    OsqueryLiveQueryResultEvent{},
 		"completed": OsqueryLiveQueryCompletedEvent{},
-	}, func(ctx context.Context, _ *liveQueryStreamInput, send sse.Sender) {
+	}, func(ctx context.Context, _ *liveQueryInput, send sse.Sender) {
 		events, ok := ctx.Value(liveQuerySubscriptionKey{}).(<-chan livequery.Event)
 		if !ok {
 			return

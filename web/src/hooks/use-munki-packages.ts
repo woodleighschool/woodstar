@@ -93,7 +93,7 @@ export function useUpdateMunkiPackage() {
 export function useBulkDeleteMunkiPackages() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteMunkiPackages({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteMunkiPackages({ query: { ids } })),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),

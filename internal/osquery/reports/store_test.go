@@ -314,30 +314,24 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 		t.Fatalf("overwrite second snapshot: %v", err)
 	}
 
-	got, lastFetched, err := store.HostResults(ctx, host.ID, report.ID)
+	got, err := store.Results(ctx, report.ID)
 	if err != nil {
-		t.Fatalf("host results: %v", err)
+		t.Fatalf("report results: %v", err)
 	}
 	if len(got) != 1 || got[0].Columns["name"] != "Charlie" {
-		t.Fatalf("HostResults = %+v, want only replacement row", got)
-	}
-	if lastFetched == nil || !lastFetched.Equal(secondFetchedAt) {
-		t.Fatalf("last fetched = %v, want %s", lastFetched, secondFetchedAt)
+		t.Fatalf("Results = %+v, want only replacement row", got)
 	}
 
 	emptyFetchedAt := secondFetchedAt.Add(time.Hour)
 	if err := store.OverwriteResults(ctx, report.ID, host.ID, nil, emptyFetchedAt); err != nil {
 		t.Fatalf("overwrite empty snapshot: %v", err)
 	}
-	got, lastFetched, err = store.HostResults(ctx, host.ID, report.ID)
+	got, err = store.Results(ctx, report.ID)
 	if err != nil {
-		t.Fatalf("host results after empty snapshot: %v", err)
+		t.Fatalf("report results after empty snapshot: %v", err)
 	}
 	if len(got) != 0 {
-		t.Fatalf("HostResults after empty snapshot = %+v, want no data rows", got)
-	}
-	if lastFetched == nil || !lastFetched.Equal(emptyFetchedAt) {
-		t.Fatalf("empty last fetched = %v, want %s", lastFetched, emptyFetchedAt)
+		t.Fatalf("Results after empty snapshot = %+v, want no data rows", got)
 	}
 }
 

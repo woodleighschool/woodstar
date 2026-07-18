@@ -49,10 +49,6 @@ type checkDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-type checkBulkDeleteInput struct {
-	Body BulkIDsBody
-}
-
 type checkListOutput struct {
 	Body Page[checks.Check]
 }
@@ -180,14 +176,15 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store, logger *slog.Lo
 
 func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-osquery-checks",
-		Method:      http.MethodPost,
-		Path:        "/api/osquery/checks/bulk-delete",
-		Tags:        []string{checksTag},
-		Summary:     "Delete checks",
-		Errors:      []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *checkBulkDeleteInput) (*struct{}, error) {
-		if _, err := checkStore.DeleteMany(ctx, input.Body.IDs); err != nil {
+		OperationID:   "bulk-delete-osquery-checks",
+		Method:        http.MethodDelete,
+		Path:          "/api/osquery/checks",
+		Tags:          []string{checksTag},
+		Summary:       "Delete checks",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest},
+	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
+		if _, err := checkStore.DeleteMany(ctx, input.IDs); err != nil {
 			return nil, handlerError(ctx, logger, "bulk-delete-osquery-checks", err)
 		}
 		return &struct{}{}, nil

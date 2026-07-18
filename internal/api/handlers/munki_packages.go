@@ -42,10 +42,6 @@ type munkiPackageDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-type munkiPackageBulkDeleteInput struct {
-	Body BulkIDsBody
-}
-
 type munkiPackageListOutput struct {
 	Body Page[packages.Package]
 }
@@ -217,14 +213,15 @@ func registerBulkDeleteMunkiPackages(
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-munki-packages",
-		Method:      http.MethodPost,
-		Path:        munkiPackagePath + "/bulk-delete",
-		Tags:        []string{munkiTag},
-		Summary:     "Delete Munki packages",
-		Errors:      []int{http.StatusBadRequest, http.StatusConflict},
-	}, func(ctx context.Context, input *munkiPackageBulkDeleteInput) (*struct{}, error) {
-		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
+		OperationID:   "bulk-delete-munki-packages",
+		Method:        http.MethodDelete,
+		Path:          munkiPackagePath,
+		Tags:          []string{munkiTag},
+		Summary:       "Delete Munki packages",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest, http.StatusConflict},
+	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
+		if _, err := store.DeleteMany(ctx, input.IDs); err != nil {
 			return nil, resourceError(ctx, logger, "bulk-delete-munki-packages", munkiPackageLabel, err)
 		}
 		return &struct{}{}, nil

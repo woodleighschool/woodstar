@@ -65,9 +65,8 @@ func resourceMutationError(resource string, err error) error {
 	}
 }
 
-// BulkIDsBody is the shared request body for bulk-delete operations.
-type BulkIDsBody struct {
-	IDs []int64 `json:"ids"`
+type deleteManyInput struct {
+	IDs []int64 `query:"ids" required:"true" minItems:"1"`
 }
 
 type Page[T any] struct {

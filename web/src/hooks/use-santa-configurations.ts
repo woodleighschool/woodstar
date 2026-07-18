@@ -113,7 +113,7 @@ export function useDeleteSantaConfiguration() {
 export function useBulkDeleteSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteSantaConfigurations({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteSantaConfigurations({ query: { ids } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.santaConfigurationsAll });
     },

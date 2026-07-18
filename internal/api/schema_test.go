@@ -3,6 +3,8 @@ package api
 import (
 	"reflect"
 	"testing"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
@@ -25,7 +27,7 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 	if hosts.Responses["401"] == nil {
 		t.Fatal("protected operation does not declare a 401 response")
 	}
-	if doc.Paths["/api/hosts/bulk-delete"].Post.Responses["403"] == nil {
+	if doc.Paths["/api/hosts"].Delete.Responses["403"] == nil {
 		t.Fatal("ordinary mutation does not declare a 403 response")
 	}
 	if doc.Paths["/api/agent-secrets"].Get.Responses["403"] == nil {
@@ -35,8 +37,83 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 	if setup := doc.Paths["/api/setup"].Post; len(setup.Security) != 0 {
 		t.Fatalf("setup security = %#v, want public operation", setup.Security)
 	}
-	if session := doc.Paths["/api/auth/session"].Get; len(session.Security) != 0 {
-		t.Fatalf("session security = %#v, want optional authentication", session.Security)
+	session := doc.Paths["/api/session"]
+	if len(session.Get.Security) != 0 {
+		t.Fatalf("GET session security = %#v, want optional authentication", session.Get.Security)
+	}
+	if len(session.Post.Security) != 0 {
+		t.Fatalf("POST session security = %#v, want public operation", session.Post.Security)
+	}
+	if !reflect.DeepEqual(session.Delete.Security, want) {
+		t.Fatalf("DELETE session security = %#v, want %#v", session.Delete.Security, want)
+	}
+}
+
+func TestAdminRoutesUseResourceMethods(t *testing.T) {
+	t.Parallel()
+	doc := BuildSchemaAPI("test").OpenAPI()
+
+	session := doc.Paths["/api/session"]
+	if session == nil || session.Get == nil || session.Post == nil || session.Delete == nil {
+		t.Fatalf("session methods = %#v, want GET, POST, and DELETE", session)
+	}
+	for _, oldPath := range []string{
+		"/api/auth/session",
+		"/api/auth/login",
+		"/api/auth/logout",
+	} {
+		if doc.Paths[oldPath] != nil {
+			t.Errorf("legacy session path %q is still registered", oldPath)
+		}
+	}
+
+	liveQuery := doc.Paths["/api/live-queries/{id}"]
+	if liveQuery == nil || liveQuery.Delete == nil {
+		t.Fatalf("live query methods = %#v, want DELETE", liveQuery)
+	}
+	if doc.Paths["/api/live-queries/{id}/stop"] != nil {
+		t.Error("live query stop action path is still registered")
+	}
+
+	for _, collectionPath := range []string{
+		"/api/hosts",
+		"/api/munki/packages",
+		"/api/munki/software",
+		"/api/osquery/checks",
+		"/api/osquery/reports",
+		"/api/santa/configurations",
+		"/api/santa/rules",
+	} {
+		collection := doc.Paths[collectionPath]
+		if collection == nil || collection.Delete == nil {
+			t.Errorf("collection %q has no DELETE operation", collectionPath)
+			continue
+		}
+		if collection.Delete.RequestBody != nil {
+			t.Errorf("collection %q DELETE has a request body", collectionPath)
+		}
+		var idsParameter *huma.Param
+		for _, parameter := range collection.Delete.Parameters {
+			if parameter.In == "query" && parameter.Name == "ids" {
+				idsParameter = parameter
+				break
+			}
+		}
+		if idsParameter == nil || !idsParameter.Required || idsParameter.Schema == nil ||
+			idsParameter.Schema.MinItems == nil || *idsParameter.Schema.MinItems != 1 {
+			t.Errorf(
+				"collection %q DELETE ids parameter = %#v, want required non-empty query array",
+				collectionPath,
+				idsParameter,
+			)
+		}
+		if doc.Paths[collectionPath+"/bulk-delete"] != nil {
+			t.Errorf("collection %q still has a bulk-delete action path", collectionPath)
+		}
+	}
+
+	if doc.Paths["/api/hosts/{id}/osquery/reports/{report_id}"] != nil {
+		t.Error("unused host report results path is still registered")
 	}
 }
 

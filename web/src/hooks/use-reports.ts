@@ -112,7 +112,7 @@ export function useDeleteReport() {
 export function useBulkDeleteReports() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteOsqueryReports({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteOsqueryReports({ query: { ids } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.reportsAll });
     },

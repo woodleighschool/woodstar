@@ -36,10 +36,6 @@ type santaConfigurationDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-type santaConfigurationBulkDeleteInput struct {
-	Body BulkIDsBody
-}
-
 type santaConfigurationReorderInput struct {
 	Body santaConfigurationReorderBody
 }
@@ -196,14 +192,15 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store,
 
 func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-santa-configurations",
-		Method:      http.MethodPost,
-		Path:        "/api/santa/configurations/bulk-delete",
-		Tags:        []string{santaTag},
-		Summary:     "Delete Santa configurations",
-		Errors:      []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *santaConfigurationBulkDeleteInput) (*struct{}, error) {
-		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
+		OperationID:   "bulk-delete-santa-configurations",
+		Method:        http.MethodDelete,
+		Path:          "/api/santa/configurations",
+		Tags:          []string{santaTag},
+		Summary:       "Delete Santa configurations",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusBadRequest},
+	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
+		if _, err := store.DeleteMany(ctx, input.IDs); err != nil {
 			return nil, handlerError(
 				ctx,
 				logger,

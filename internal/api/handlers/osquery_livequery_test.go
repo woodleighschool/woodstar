@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,35 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
+
+func TestDeleteLiveQueryStopsRun(t *testing.T) {
+	manager := livequery.NewManager()
+	handle := manager.Start("select 1", []int64{42})
+	router := chi.NewRouter()
+	api := humachi.New(router, testHumaConfig())
+	registerLiveQueries(api, api, manager, nil, discardLogger())
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/live-queries/%d", handle.ID), nil),
+	)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNoContent, recorder.Body.String())
+	}
+	if pending := manager.PendingForHost(42); len(pending) != 0 {
+		t.Fatalf("pending work after DELETE = %+v, want none", pending)
+	}
+
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodDelete, "/api/live-queries/999999", nil),
+	)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("missing status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+}
 
 func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
 	t.Parallel()
@@ -33,6 +63,7 @@ func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
 		wantSurface string
 	}{
 		{name: "create", method: http.MethodPost, path: "/api/live-queries", wantSurface: "ordinary"},
+		{name: "delete", method: http.MethodDelete, path: "/api/live-queries/1", wantSurface: "ordinary"},
 		{name: "stream", method: http.MethodGet, path: "/api/live-queries/1/stream", wantSurface: "streaming"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

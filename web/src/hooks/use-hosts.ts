@@ -118,7 +118,7 @@ export function useDeleteHost() {
 export function useBulkDeleteHosts() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(bulkDeleteHosts({ body: { ids } })),
+    mutationFn: (ids) => unwrap(bulkDeleteHosts({ query: { ids } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.hostsAll });
     },
