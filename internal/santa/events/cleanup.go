@@ -67,3 +67,34 @@ func sweep(ctx context.Context, store CleanupStore, retentionDays int, logger *s
 		logger.WarnContext(ctx, "santa event cleanup failed", "operation", "sweep", "err", err)
 	}
 }
+
+// SweepEventsBefore deletes Santa events that occurred before cutoff.
+func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error) {
+	var deleted int
+	err := s.db.Pool().QueryRow(ctx, `
+WITH deleted_execution AS (
+	DELETE FROM santa_execution_events
+	WHERE santa_execution_events.occurred_at < $1
+	RETURNING 1
+),
+deleted_file_access AS (
+	DELETE FROM santa_file_access_events
+	WHERE santa_file_access_events.occurred_at < $1
+	RETURNING 1
+),
+deleted_standalone_rules AS (
+	DELETE FROM santa_standalone_rule_creation_events
+	WHERE santa_standalone_rule_creation_events.occurred_at < $1
+	RETURNING 1
+)
+SELECT
+	(SELECT count(*) FROM deleted_execution)::integer
+	+ (SELECT count(*) FROM deleted_file_access)::integer
+	+ (SELECT count(*) FROM deleted_standalone_rules)::integer AS deleted_count`,
+		cutoff,
+	).Scan(&deleted)
+	if err != nil {
+		return 0, err
+	}
+	return deleted, nil
+}

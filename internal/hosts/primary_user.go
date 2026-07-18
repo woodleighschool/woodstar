@@ -214,6 +214,73 @@ type hostPrimaryUser struct {
 	Sources []HostPrimaryUserSource
 }
 
+func (s *Store) attachPrimaryUser(ctx context.Context, hosts []Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+	hostIDs := make([]int64, len(hosts))
+	for i := range hosts {
+		hostIDs[i] = hosts[i].ID
+	}
+	primaryUsers, err := s.loadPrimaryUser(ctx, hostIDs)
+	if err != nil {
+		return err
+	}
+	for i := range hosts {
+		primaryUser := primaryUsers[hosts[i].ID]
+		hosts[i].PrimaryUser = primaryUser.Primary
+		hosts[i].PrimaryUserSources = primaryUser.Sources
+	}
+	return nil
+}
+
+func (s *Store) loadPrimaryUser(ctx context.Context, hostIDs []int64) (map[int64]hostPrimaryUser, error) {
+	primaryUsers := make(map[int64]hostPrimaryUser, len(hostIDs))
+	for _, hostID := range hostIDs {
+		primaryUsers[hostID] = hostPrimaryUser{Sources: []HostPrimaryUserSource{}}
+	}
+	if len(hostIDs) == 0 {
+		return primaryUsers, nil
+	}
+
+	sourceRows, err := s.db.Pool().Query(ctx, listHostPrimaryUserSourcesForHostsSQL, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	sources, err := pgx.CollectRows(sourceRows, pgx.RowToStructByName[hostPrimaryUserSourceRow])
+	if err != nil {
+		return nil, err
+	}
+	grouped := groupHostPrimaryUserSources(sources)
+
+	primaryRows, err := s.db.Pool().Query(ctx, listHostPrimaryUsersSQL, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	primaries, err := pgx.CollectRows(primaryRows, pgx.RowToStructByName[hostPrimaryUserRow])
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range primaries {
+		primaryUser := primaryUsers[row.HostID]
+		primaryUser.Primary = &HostPrimaryUser{
+			Email:      row.Email,
+			Username:   row.Username,
+			Name:       row.Name,
+			Department: row.Department,
+			Groups:     row.Groups,
+			Source:     PrimaryUserSource(row.Source),
+		}
+		primaryUsers[row.HostID] = primaryUser
+	}
+	for hostID, sources := range grouped {
+		primaryUser := primaryUsers[hostID]
+		primaryUser.Sources = sources
+		primaryUsers[hostID] = primaryUser
+	}
+	return primaryUsers, nil
+}
+
 const primaryUserSourceOrderSQL = `CASE source
 	WHEN 'manual' THEN 0
 	WHEN 'orbit_profile' THEN 1
