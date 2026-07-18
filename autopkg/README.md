@@ -21,24 +21,24 @@ Then replace the usual `MunkiImporter` and Woodstar uploader chain with one proc
 
 ```yaml
 Process:
-  - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
-    Arguments:
-      pkg_path: "%pkg_path%"
-      icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
-      pkginfo:
-        name: "%NAME%"
-        display_name: "%NAME%"
-        catalogs:
-          - testing
-      targets:
-        include:
-          - label_name: Optional Apps
-            package:
-              strategy: latest
-            actions:
-              - optional_installs
-              - managed_updates
-        exclude: []
+    - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
+      Arguments:
+          pkg_path: "%pkg_path%"
+          icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
+          pkginfo:
+              name: "%NAME%"
+              display_name: "%NAME%"
+              catalogs:
+                  - testing
+          targets:
+              include:
+                  - label_name: Optional Apps
+                    package:
+                        strategy: latest
+                    actions:
+                        - optional_installs
+                        - managed_updates
+              exclude: []
 ```
 
 `pkg_path` is inspected with Munki's installed `/usr/local/munki/makepkginfo` and uploaded from its existing local path. `icon_path` is optional and must point to an already prepared image. The processor also accepts `munkiimport_pkgname`, `munkiimport_appname`, `additional_makepkginfo_options`, `version_comparison_key`, and `metadata_additions` with the same generation meaning as AutoPkg's core importer.

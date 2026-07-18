@@ -1,4 +1,3 @@
-
 # This file is licensed under the terms of the MIT license https://opensource.org/license/mit
 # Copyright (c) 2021-2025 Marat Reimers
 
@@ -493,7 +492,7 @@ linters:
         linters: [revive]
       - path: 'types_db\.go'
         linters: [recvcheck]
-      - path: '^integration/'
+      - path: "^integration/"
         linters: [gocognit, gocyclo]
       - path: 'internal/labels/store_test\.go'
         linters: [unqueryvet]
