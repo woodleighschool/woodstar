@@ -21,10 +21,15 @@ import (
 const mdpLifecycleTimeout = 30 * time.Second
 
 type mdpUploadTarget struct {
-	ObjectID  int64             `json:"object_id"`
-	UploadURL string            `json:"upload_url"`
-	Method    string            `json:"method"`
-	Headers   map[string]string `json:"headers"`
+	ObjectID int64           `json:"object_id"`
+	Upload   mdpUploadAction `json:"upload"`
+}
+
+type mdpUploadAction struct {
+	Strategy string            `json:"strategy"`
+	URL      string            `json:"url"`
+	Method   string            `json:"method"`
+	Headers  map[string]string `json:"headers"`
 }
 
 type mdpObject struct {
@@ -303,25 +308,27 @@ func createMDPInstaller(
 		http.StatusCreated,
 		&target,
 	)
-	if target.ObjectID <= 0 || target.UploadURL == "" || target.Method != http.MethodPut {
+	if target.ObjectID <= 0 || target.Upload.URL == "" || target.Upload.Method != http.MethodPut ||
+		target.Upload.Strategy != "direct-put" {
 		t.Fatalf(
-			"installer upload target object/method/has URL = %d/%q/%t, want positive object and PUT URL",
+			"installer upload target object/method/strategy/has URL = %d/%q/%q/%t, want positive object, PUT, direct-put, and URL",
 			target.ObjectID,
-			target.Method,
-			target.UploadURL != "",
+			target.Upload.Method,
+			target.Upload.Strategy,
+			target.Upload.URL != "",
 		)
 	}
 
 	uploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		target.Method,
-		target.UploadURL,
+		target.Upload.Method,
+		target.Upload.URL,
 		bytes.NewReader(contents),
 	)
 	if err != nil {
 		t.Fatalf("create installer upload request: %v", redactedRequestError(err))
 	}
-	for name, value := range target.Headers {
+	for name, value := range target.Upload.Headers {
 		uploadRequest.Header.Set(name, value)
 	}
 	uploadResponse, err := verifyingClient(t, server.CACertificate).Do(uploadRequest)

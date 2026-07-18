@@ -24,19 +24,70 @@ type Ingestor struct {
 	backend Backend
 }
 
-// MultipartUpload is the provider state Uppy needs to start uploading parts.
+// MultipartUpload is the provider state a client needs to start uploading parts.
 type MultipartUpload struct {
 	UploadID string
 	Key      string
 }
+
+// UploadAction is the backend-selected action for landing an object's bytes.
+type UploadAction interface {
+	isUploadAction()
+}
+
+// DirectUploadAction uploads the complete object to one target.
+type DirectUploadAction struct {
+	Target UploadTarget
+}
+
+func (DirectUploadAction) isUploadAction() {}
+
+// MultipartUploadAction uploads the object through the multipart API.
+type MultipartUploadAction struct{}
+
+func (MultipartUploadAction) isUploadAction() {}
 
 // NewIngestor returns an object ingestion service for backend.
 func NewIngestor(objects *ObjectStore, backend Backend) *Ingestor {
 	return &Ingestor{objects: objects, backend: backend}
 }
 
-// Begin reserves an object and returns a direct target for its temporary bytes.
+// Begin reserves an object and selects the configured backend's upload action.
 func (s *Ingestor) Begin(
+	ctx context.Context,
+	prefix string,
+	filename string,
+) (*Object, UploadAction, error) {
+	object, err := s.objects.CreatePending(ctx, prefix, filename)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch s.backend.uploadMode() {
+	case uploadModeDirect:
+		target, err := s.backend.PresignPut(ctx, uploadKey(object.ID), 0)
+		if err != nil {
+			return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
+		}
+		return object, DirectUploadAction{Target: target}, nil
+	case uploadModeMultipart:
+		if _, ok := s.backend.(MultipartBackend); !ok {
+			return nil, nil, errors.Join(
+				errors.New("storage backend declares multipart uploads without implementing them"),
+				s.Delete(ctx, object.ID, prefix),
+			)
+		}
+		return object, MultipartUploadAction{}, nil
+	default:
+		return nil, nil, errors.Join(
+			errors.New("storage backend returned an unknown upload mode"),
+			s.Delete(ctx, object.ID, prefix),
+		)
+	}
+}
+
+// BeginDirect reserves an object and returns a direct target for its temporary bytes.
+func (s *Ingestor) BeginDirect(
 	ctx context.Context,
 	prefix string,
 	filename string,

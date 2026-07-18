@@ -23,11 +23,15 @@ import (
 const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
 type munkiTestUploadTarget struct {
-	ObjectID        int64             `json:"object_id"`
-	UploadURL       string            `json:"upload_url"`
-	Method          string            `json:"method"`
-	UploadTransport string            `json:"upload_transport"`
-	Headers         map[string]string `json:"headers"`
+	ObjectID int64                 `json:"object_id"`
+	Upload   munkiTestUploadAction `json:"upload"`
+}
+
+type munkiTestUploadAction struct {
+	Strategy string            `json:"strategy"`
+	URL      string            `json:"url"`
+	Method   string            `json:"method"`
+	Headers  map[string]string `json:"headers"`
 }
 
 type munkiTestObject struct {
@@ -225,25 +229,25 @@ func TestMunki(t *testing.T) {
 		http.StatusCreated,
 		&installerTarget,
 	)
-	if installerTarget.ObjectID <= 0 || installerTarget.Method != http.MethodPut ||
-		installerTarget.UploadTransport != "woodstar" {
+	if installerTarget.ObjectID <= 0 || installerTarget.Upload.Method != http.MethodPut ||
+		installerTarget.Upload.Strategy != "direct-put" {
 		t.Fatalf(
-			"installer upload target id/method/transport = %d/%q/%q, want positive/PUT/woodstar",
+			"installer upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
 			installerTarget.ObjectID,
-			installerTarget.Method,
-			installerTarget.UploadTransport,
+			installerTarget.Upload.Method,
+			installerTarget.Upload.Strategy,
 		)
 	}
 	installerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		installerTarget.Method,
-		installerTarget.UploadURL,
+		installerTarget.Upload.Method,
+		installerTarget.Upload.URL,
 		bytes.NewReader(installerBytes),
 	)
 	if err != nil {
 		t.Fatal("create installer upload capability request")
 	}
-	for name, value := range installerTarget.Headers {
+	for name, value := range installerTarget.Upload.Headers {
 		installerUpload.Header.Set(name, value)
 	}
 	installerUploadResponse, err := transferClient.Do(installerUpload)
@@ -397,25 +401,25 @@ func TestMunki(t *testing.T) {
 		http.StatusCreated,
 		&bannerTarget,
 	)
-	if bannerTarget.ObjectID <= 0 || bannerTarget.Method != http.MethodPut ||
-		bannerTarget.UploadTransport != "woodstar" {
+	if bannerTarget.ObjectID <= 0 || bannerTarget.Upload.Method != http.MethodPut ||
+		bannerTarget.Upload.Strategy != "direct-put" {
 		t.Fatalf(
-			"banner upload target id/method/transport = %d/%q/%q, want positive/PUT/woodstar",
+			"banner upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
 			bannerTarget.ObjectID,
-			bannerTarget.Method,
-			bannerTarget.UploadTransport,
+			bannerTarget.Upload.Method,
+			bannerTarget.Upload.Strategy,
 		)
 	}
 	bannerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		bannerTarget.Method,
-		bannerTarget.UploadURL,
+		bannerTarget.Upload.Method,
+		bannerTarget.Upload.URL,
 		bytes.NewReader(bannerBytes),
 	)
 	if err != nil {
 		t.Fatal("create banner upload capability request")
 	}
-	for name, value := range bannerTarget.Headers {
+	for name, value := range bannerTarget.Upload.Headers {
 		bannerUpload.Header.Set(name, value)
 	}
 	bannerUploadResponse, err := transferClient.Do(bannerUpload)

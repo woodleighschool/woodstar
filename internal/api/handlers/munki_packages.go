@@ -38,10 +38,6 @@ type munkiPackagePutInput struct {
 	Body packages.PackageMutation
 }
 
-type munkiPackageDeleteInput struct {
-	ID int64 `path:"id"`
-}
-
 type munkiPackageListOutput struct {
 	Body Page[packages.Package]
 }
@@ -77,7 +73,6 @@ func registerMunkiPackages(
 	registerCreateMunkiPackage(api, store, logger)
 	registerGetMunkiPackage(api, store, logger)
 	registerPutMunkiPackage(api, store, logger)
-	registerDeleteMunkiPackage(api, store, logger)
 	registerBulkDeleteMunkiPackages(api, store, logger)
 	registerPackageInstallerRoutes(api, longRunningAPI, ingestor, logger)
 }
@@ -176,34 +171,6 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 			)
 		}
 		return &munkiPackageOutput{Body: *pkg}, nil
-	})
-}
-
-func registerDeleteMunkiPackage(
-	api huma.API,
-	store *munki.PackageService,
-	logger *slog.Logger,
-) {
-	huma.Register(api, huma.Operation{
-		OperationID: "delete-munki-package",
-		Method:      http.MethodDelete,
-		Path:        munkiPackageIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Delete a Munki package",
-		Errors:      []int{http.StatusNotFound, http.StatusConflict},
-	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.ID); err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"delete-munki-package",
-				munkiPackageLabel,
-				err,
-				"package_id",
-				input.ID,
-			)
-		}
-		return &struct{}{}, nil
 	})
 }
 

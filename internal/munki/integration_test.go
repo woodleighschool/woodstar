@@ -805,44 +805,6 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 	}
 }
 
-func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "DeletePackageApp"})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
-	dependentPackage, err := stores.packages.Create(
-		ctx,
-		packages.PackageCreateMutation{SoftwareID: title.ID, PackageMutation: packages.PackageMutation{
-			Version:       "2.0",
-			InstallerType: packages.InstallerTypeNoPkg,
-			OnDemand:      true,
-			Requires: []packages.PackageReferenceMutation{
-				{SoftwareID: title.ID, PackageID: targetPackage.ID},
-			},
-		}},
-	)
-	if err != nil {
-		t.Fatalf("create dependent package: %v", err)
-	}
-
-	if err := stores.packages.Delete(ctx, targetPackage.ID); !errors.Is(err, dbutil.ErrConflict) {
-		t.Fatalf("delete referenced package error = %v, want ErrConflict", err)
-	}
-	if err := stores.packages.Delete(ctx, dependentPackage.ID); err != nil {
-		t.Fatalf("delete dependent package: %v", err)
-	}
-	if _, err := stores.packages.GetByID(ctx, dependentPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("dependent package after delete error = %v, want ErrNotFound", err)
-	}
-	if err := stores.packages.Delete(ctx, targetPackage.ID); err != nil {
-		t.Fatalf("delete unreferenced package: %v", err)
-	}
-}
-
 func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -945,8 +907,8 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 			t.Fatalf("delete referenced %s object error = %v, want ErrConflict", ref.name, err)
 		}
 	}
-	if err := stores.packages.Delete(ctx, pkg.ID); err != nil {
-		t.Fatalf("delete package: %v", err)
+	if _, err := stores.packages.DeleteMany(ctx, []int64{pkg.ID}); err != nil {
+		t.Fatalf("delete package collection: %v", err)
 	}
 	for _, ref := range references {
 		if _, err := stores.objects.GetByID(ctx, ref.id); !errors.Is(err, dbutil.ErrNotFound) {

@@ -10,6 +10,7 @@ from autopkglib import ProcessorError
 
 API_TIMEOUT = (10, 60)
 UPLOAD_TIMEOUT = (10, 3600)
+MULTIPART_PART_SIZE = 64 * 1024 * 1024
 
 
 class WoodstarClient:
@@ -73,7 +74,7 @@ class WoodstarClient:
             raise ProcessorError(f"upload file does not exist: {file_path}")
         filename = display_name or os.path.basename(file_path)
         target = self.post(attach_path, {"filename": filename})
-        self.upload_bytes(target, file_path)
+        self.upload_direct_file(target, file_path)
         return self.request(
             "PUT",
             attach_path,
@@ -90,7 +91,14 @@ class WoodstarClient:
         target = self.post("/api/munki/package-installers", {"filename": filename})
         object_id = target["object_id"]
         try:
-            self.upload_bytes(target, file_path)
+            action = target["upload"]
+            strategy = action["strategy"]
+            if strategy == "direct-put":
+                self.upload_direct_file(target, file_path)
+            elif strategy == "multipart":
+                self.upload_package_installer_parts(object_id, file_path)
+            else:
+                raise ProcessorError(f"unsupported upload strategy: {strategy}")
             return self.request(
                 "PUT",
                 f"/api/munki/package-installers/{object_id}",
@@ -103,34 +111,72 @@ class WoodstarClient:
                 pass
             raise
 
-    def upload_bytes(self, target, file_path):
-        url = target["upload_url"]
+    def upload_direct_file(self, target, file_path):
+        action = target["upload"]
+        strategy = action["strategy"]
+        if strategy != "direct-put":
+            raise ProcessorError(f"unsupported upload strategy: {strategy}")
+        size = os.path.getsize(file_path)
+        with open(file_path, "rb") as handle:
+            self.upload_to_target(action, handle, size)
+
+    def upload_package_installer_parts(self, object_id, file_path):
+        self.post(f"/api/munki/package-installers/{object_id}/multipart")
+        parts = []
+        with open(file_path, "rb") as handle:
+            for part_number, chunk in enumerate(
+                iter(lambda: handle.read(MULTIPART_PART_SIZE), b""), start=1
+            ):
+                target = self.post(
+                    f"/api/munki/package-installers/{object_id}/multipart/parts/{part_number}"
+                )
+                response = self.upload_to_target(
+                    {
+                        "url": target["upload_url"],
+                        "method": target["method"],
+                        "headers": target.get("headers"),
+                    },
+                    chunk,
+                    len(chunk),
+                )
+                etag = response.headers.get("ETag")
+                if not etag:
+                    raise ProcessorError(
+                        f"multipart part {part_number} did not return an ETag"
+                    )
+                parts.append({"part_number": part_number, "etag": etag})
+        self.request(
+            "POST",
+            f"/api/munki/package-installers/{object_id}/multipart/complete",
+            {"parts": parts},
+            timeout=UPLOAD_TIMEOUT,
+        )
+
+    def upload_to_target(self, target, body, size):
+        url = target["url"]
         method = target["method"].upper()
-        transport = target["upload_transport"]
-        if transport not in ("woodstar", "s3"):
-            raise ProcessorError(f"unsupported upload transport: {transport}")
         parsed_url = urlsplit(url)
         if parsed_url.scheme != "https" or not parsed_url.netloc:
             raise ProcessorError(f"upload URL must use HTTPS: {safe_url(url)}")
         headers = dict(target.get("headers") or {})
-        headers.setdefault("Content-Length", str(os.path.getsize(file_path)))
-        with open(file_path, "rb") as handle:
-            try:
-                response = self.upload_session.request(
-                    method,
-                    url,
-                    data=handle,
-                    headers=headers,
-                    timeout=UPLOAD_TIMEOUT,
-                )
-            except requests.RequestException as err:
-                raise ProcessorError(
-                    f"upload to {safe_url(url)} failed: {type(err).__name__}"
-                ) from err
+        headers.setdefault("Content-Length", str(size))
+        try:
+            response = self.upload_session.request(
+                method,
+                url,
+                data=body,
+                headers=headers,
+                timeout=UPLOAD_TIMEOUT,
+            )
+        except requests.RequestException as err:
+            raise ProcessorError(
+                f"upload to {safe_url(url)} failed: {type(err).__name__}"
+            ) from err
         if response.status_code < 200 or response.status_code >= 300:
             raise ProcessorError(
                 f"upload to {safe_url(url)} failed: HTTP {response.status_code}"
             )
+        return response
 
 
 def safe_url(value):

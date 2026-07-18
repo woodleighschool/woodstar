@@ -16,14 +16,11 @@ export interface UploadProgress {
 
 type UploadMeta = Meta;
 type UploadBody = Body;
-type UploadMethod = "PUT";
 
-export type UploadTransport = "uppy-s3" | "xhr";
+export type MultipartUploadResult = UploadResult;
 
-export type DirectMultipartUploadResult = UploadResult;
-
-export interface DirectMultipartUploadRequest {
-  createMultipartUpload: (file: File) => Promise<DirectMultipartUploadResult>;
+export interface MultipartUploadRequest {
+  createMultipartUpload: (file: File) => Promise<MultipartUploadResult>;
   listParts?: (file: File, upload: UploadResultWithSignal) => Promise<AwsS3Part[]>;
   signPart: (
     file: File,
@@ -36,23 +33,32 @@ export interface DirectMultipartUploadRequest {
   abortMultipartUpload: (file: File, upload: UploadResultWithSignal) => Promise<void>;
 }
 
-export interface DirectUploadRequest {
-  url: string;
+export type UploadRequest =
+  | {
+      strategy: "direct-put";
+      url: string;
+      method?: string;
+      headers?: Record<string, string>;
+    }
+  | {
+      strategy: "multipart";
+      multipart: MultipartUploadRequest;
+    };
+
+type UploadContext = {
   file: File;
-  transport: UploadTransport;
-  method?: string;
-  headers?: Record<string, string>;
-  multipart?: DirectMultipartUploadRequest;
   signal?: AbortSignal;
   onProgress?: (progress: UploadProgress) => void;
-}
+};
 
-export function uploadWithProgress(request: DirectUploadRequest) {
-  switch (request.transport) {
-    case "xhr":
+export type UploadExecution = UploadRequest & UploadContext;
+
+export function uploadWithProgress(request: UploadExecution) {
+  switch (request.strategy) {
+    case "direct-put":
       return uploadWithXHRProgress(request);
-    case "uppy-s3":
-      return uploadWithUppyS3(request);
+    case "multipart":
+      return uploadWithMultipartProgress(request);
   }
 }
 
@@ -63,7 +69,7 @@ function uploadWithXHRProgress({
   headers = {},
   signal,
   onProgress,
-}: DirectUploadRequest) {
+}: Extract<UploadExecution, { strategy: "direct-put" }>) {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
       reject(new Error("Upload cancelled."));
@@ -111,7 +117,9 @@ function uploadWithXHRProgress({
   });
 }
 
-async function uploadWithUppyS3(request: DirectUploadRequest) {
+async function uploadWithMultipartProgress(
+  request: Extract<UploadExecution, { strategy: "multipart" }>,
+) {
   const { file, signal, onProgress } = request;
 
   if (signal?.aborted) {
@@ -158,29 +166,12 @@ async function uploadWithUppyS3(request: DirectUploadRequest) {
 }
 
 function awsS3Options({
-  url,
-  method = "PUT",
-  headers = {},
   multipart,
   file,
-}: DirectUploadRequest): AwsS3Options<UploadMeta, UploadBody> {
-  const getUploadParameters = (): AwsS3UploadParameters => ({
-    method: uploadMethod(method),
-    url,
-    headers,
-  });
-
-  if (!multipart) {
-    return {
-      allowedMetaFields: false,
-      shouldUseMultipart: false,
-      getUploadParameters,
-    };
-  }
-
+}: Extract<UploadExecution, { strategy: "multipart" }>): AwsS3Options<UploadMeta, UploadBody> {
   return {
     allowedMetaFields: false,
-    getUploadParameters,
+    shouldUseMultipart: true,
     createMultipartUpload: () => multipart.createMultipartUpload(file),
     listParts: (_uppyFile, upload) => multipart.listParts?.(file, upload) ?? [],
     signPart: (_uppyFile, part) => multipart.signPart(file, part),
@@ -197,14 +188,6 @@ function uploadProgress(file: File, loaded: number, total: number | null): Uploa
     total: safeTotal,
     percent: safeTotal > 0 ? Math.round((loaded / safeTotal) * 100) : 0,
   };
-}
-
-function uploadMethod(method: string): UploadMethod {
-  const normalized = method.toUpperCase();
-  if (normalized === "PUT") {
-    return normalized;
-  }
-  throw new Error(`Upload method ${method} is not supported.`);
 }
 
 function cancelledError() {

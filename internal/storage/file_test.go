@@ -97,7 +97,7 @@ func TestFileStorePresignGetProducesBlobCapability(t *testing.T) {
 	}
 }
 
-func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
+func TestFileStorePresignPutProducesUploadTarget(t *testing.T) {
 	t.Parallel()
 	store := newTestFileStore(t)
 	now := time.Now()
@@ -112,9 +112,6 @@ func TestFileStorePresignPutProducesWoodstarUploadTarget(t *testing.T) {
 	}
 	if target.Method != http.MethodPut {
 		t.Fatalf("method = %q, want PUT", target.Method)
-	}
-	if target.Transport != UploadTransportWoodstar {
-		t.Fatalf("transport = %q, want woodstar", target.Transport)
 	}
 	parsed, err := url.Parse(target.URL)
 	if err != nil {

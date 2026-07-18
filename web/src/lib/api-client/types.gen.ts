@@ -327,6 +327,15 @@ export type MunkiCreateMutation = {
     targets: MunkiTargets;
 };
 
+export type MunkiDirectUploadAction = {
+    headers?: {
+        [key: string]: string;
+    };
+    method: string;
+    strategy: 'direct-put';
+    url: string;
+};
+
 export type MunkiDistributionPoint = {
     client_base_url: string;
     client_cidrs: Array<string>;
@@ -429,6 +438,10 @@ export type MunkiMultipartPartTarget = {
 export type MunkiMultipartUpload = {
     key: string;
     upload_id: string;
+};
+
+export type MunkiMultipartUploadAction = {
+    strategy: 'multipart';
 };
 
 export type MunkiMutation = {
@@ -745,13 +758,12 @@ export type MunkiUploadRequest = {
 };
 
 export type MunkiUploadTarget = {
-    headers?: {
-        [key: string]: string;
-    };
-    method: string;
     object_id: number;
-    upload_transport: 'woodstar' | 's3';
-    upload_url: string;
+    upload: ({
+        strategy: 'direct-put';
+    } & MunkiDirectUploadAction) | ({
+        strategy: 'multipart';
+    } & MunkiMultipartUploadAction);
 };
 
 export type OsqueryCheck = {
@@ -807,7 +819,7 @@ export type OsqueryHostReport = {
 };
 
 export type OsqueryLiveQueryCompletedEvent = {
-    status: 'completed';
+    type: 'completed';
 };
 
 export type OsqueryLiveQueryCreateBody = {
@@ -817,7 +829,7 @@ export type OsqueryLiveQueryCreateBody = {
 };
 
 export type OsqueryLiveQueryPingEvent = {
-    status: 'ok';
+    type: 'ping';
 };
 
 export type OsqueryLiveQueryResultEvent = {
@@ -826,6 +838,7 @@ export type OsqueryLiveQueryResultEvent = {
     host_id?: number;
     host_name?: string;
     status: 'success' | 'error' | 'stopped' | 'overflow';
+    type: 'result';
 };
 
 export type OsqueryLiveQuerySelectedBody = {
@@ -2638,53 +2651,11 @@ export type StreamLiveQueryError = StreamLiveQueryErrors[keyof StreamLiveQueryEr
 
 export type StreamLiveQueryResponses = {
     /**
-     * Server Sent Events
+     * Live query events
      *
-     * Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
+     * One decoded live-query payload per server-sent event.
      */
-    200: Array<{
-        data: OsqueryLiveQueryCompletedEvent;
-        /**
-         * The event name.
-         */
-        event: 'completed';
-        /**
-         * The event ID.
-         */
-        id?: number;
-        /**
-         * The retry time in milliseconds.
-         */
-        retry?: number;
-    } | {
-        data: OsqueryLiveQueryPingEvent;
-        /**
-         * The event name.
-         */
-        event: 'ping';
-        /**
-         * The event ID.
-         */
-        id?: number;
-        /**
-         * The retry time in milliseconds.
-         */
-        retry?: number;
-    } | {
-        data: OsqueryLiveQueryResultEvent;
-        /**
-         * The event name.
-         */
-        event: 'result';
-        /**
-         * The event ID.
-         */
-        id?: number;
-        /**
-         * The retry time in milliseconds.
-         */
-        retry?: number;
-    }>;
+    200: OsqueryLiveQueryPingEvent | OsqueryLiveQueryResultEvent | OsqueryLiveQueryCompletedEvent;
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
@@ -3638,53 +3609,6 @@ export type CreateMunkiPackageResponses = {
 };
 
 export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
-
-export type DeleteMunkiPackageData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/packages/{id}';
-};
-
-export type DeleteMunkiPackageErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type DeleteMunkiPackageError = DeleteMunkiPackageErrors[keyof DeleteMunkiPackageErrors];
-
-export type DeleteMunkiPackageResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteMunkiPackageResponse = DeleteMunkiPackageResponses[keyof DeleteMunkiPackageResponses];
 
 export type GetMunkiPackageData = {
     body?: never;

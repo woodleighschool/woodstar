@@ -12,7 +12,6 @@ type packageStore interface {
 	Create(ctx context.Context, mutation packages.PackageCreateMutation) (*packages.Package, error)
 	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
 	Update(ctx context.Context, packageID int64, mutation packages.PackageMutation) (*packages.Package, error)
-	Delete(ctx context.Context, packageID int64) error
 	DeleteMany(ctx context.Context, packageIDs []int64) (int, error)
 }
 
@@ -78,12 +77,6 @@ func (s *PackageService) Update(
 		attachPackageSoftware(pkg)
 	}
 	return pkg, err
-}
-
-func (s *PackageService) Delete(ctx context.Context, id int64) error {
-	err := s.deps.Packages.Delete(ctx, id)
-	s.notifyDesiredPackages(err)
-	return err
 }
 
 func (s *PackageService) DeleteMany(ctx context.Context, ids []int64) (int, error) {

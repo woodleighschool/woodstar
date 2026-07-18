@@ -24,6 +24,10 @@ type fileStore struct {
 	ttl           time.Duration
 }
 
+func (*fileStore) uploadMode() uploadMode {
+	return uploadModeDirect
+}
+
 func newFileStore(root, baseURL string, capabilityKey []byte, ttl time.Duration) (*fileStore, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
@@ -185,9 +189,8 @@ func (s *fileStore) PresignPut(
 		return UploadTarget{}, err
 	}
 	return UploadTarget{
-		URL:       url,
-		Method:    http.MethodPut,
-		Transport: UploadTransportWoodstar,
+		URL:    url,
+		Method: http.MethodPut,
 	}, nil
 }
 

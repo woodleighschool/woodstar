@@ -244,29 +244,6 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 	return pkg, nil
 }
 
-func (s *Store) Delete(ctx context.Context, id int64) error {
-	var objectIDs []int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var err error
-		objectIDs, err = s.packageObjectIDs(ctx, tx, []int64{id})
-		if err != nil {
-			return err
-		}
-		tag, err := tx.Exec(ctx, `DELETE FROM munki_packages WHERE id = $1`, id)
-		if err != nil {
-			return dbutil.DeleteConflict(err, "Munki package is still referenced")
-		}
-		if tag.RowsAffected() == 0 {
-			return dbutil.ErrNotFound
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return deleteObjects(ctx, s.objects, objectIDs...)
-}
-
 // DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
 func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {

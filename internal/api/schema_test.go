@@ -115,6 +115,10 @@ func TestAdminRoutesUseResourceMethods(t *testing.T) {
 	if doc.Paths["/api/hosts/{id}/osquery/reports/{report_id}"] != nil {
 		t.Error("unused host report results path is still registered")
 	}
+	if packageItem := doc.Paths["/api/munki/packages/{id}"]; packageItem == nil ||
+		packageItem.Get == nil || packageItem.Put == nil || packageItem.Delete != nil {
+		t.Fatalf("package item methods = %#v, want GET and PUT only", packageItem)
+	}
 }
 
 func TestTransportSpecificRoutesShareTheAppSchema(t *testing.T) {
@@ -125,6 +129,10 @@ func TestTransportSpecificRoutesShareTheAppSchema(t *testing.T) {
 	if liveQueryStream == nil || liveQueryStream.Get == nil {
 		t.Fatal("live query stream is missing")
 	}
+	streamSchema := liveQueryStream.Get.Responses["200"].Content["text/event-stream"].Schema
+	if streamSchema == nil || streamSchema.Type == huma.TypeArray || len(streamSchema.OneOf) != 3 {
+		t.Fatalf("live query stream schema = %#v, want three yielded payload variants", streamSchema)
+	}
 	packageInstaller := doc.Paths["/api/munki/package-installers/{id}"]
 	if packageInstaller == nil || packageInstaller.Put == nil {
 		t.Fatal("package installer finalization is missing")
@@ -132,5 +140,36 @@ func TestTransportSpecificRoutesShareTheAppSchema(t *testing.T) {
 	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart/complete"]
 	if multipartComplete == nil || multipartComplete.Post == nil {
 		t.Fatal("multipart completion is missing")
+	}
+
+	uploadTarget := doc.Components.Schemas.Map()["MunkiUploadTarget"]
+	if uploadTarget == nil {
+		t.Fatal("MunkiUploadTarget schema is missing")
+	}
+	if uploadTarget.Properties["upload_transport"] != nil {
+		t.Fatal("MunkiUploadTarget still exposes storage transport")
+	}
+	if uploadTarget.Properties["upload_strategy"] != nil || uploadTarget.Properties["upload_url"] != nil {
+		t.Fatal("MunkiUploadTarget still exposes flat upload fields")
+	}
+	upload := uploadTarget.Properties["upload"]
+	if upload == nil || len(upload.OneOf) != 2 || upload.Discriminator == nil ||
+		upload.Discriminator.PropertyName != "strategy" ||
+		!reflect.DeepEqual(upload.Discriminator.Mapping, map[string]string{
+			"direct-put": "#/components/schemas/MunkiDirectUploadAction",
+			"multipart":  "#/components/schemas/MunkiMultipartUploadAction",
+		}) {
+		t.Fatalf("upload action = %#v, want a strategy-discriminated two-variant union", upload)
+	}
+
+	direct := doc.Components.Schemas.Map()["MunkiDirectUploadAction"]
+	if direct == nil || !reflect.DeepEqual(direct.Properties["strategy"].Enum, []any{"direct-put"}) ||
+		direct.Properties["url"] == nil || direct.Properties["method"] == nil {
+		t.Fatalf("direct upload action = %#v, want strategy, URL, and method", direct)
+	}
+	multipart := doc.Components.Schemas.Map()["MunkiMultipartUploadAction"]
+	if multipart == nil || !reflect.DeepEqual(multipart.Properties["strategy"].Enum, []any{"multipart"}) ||
+		multipart.Properties["url"] != nil || multipart.Properties["method"] != nil {
+		t.Fatalf("multipart upload action = %#v, want only the multipart strategy", multipart)
 	}
 }

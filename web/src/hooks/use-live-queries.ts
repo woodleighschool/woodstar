@@ -9,7 +9,13 @@ import type {
   OsqueryLiveQueryTargetCountBody,
   OsqueryLiveQueryTargetCountOutputBody,
 } from "@/lib/api";
-import { countLiveQueryTargets, createLiveQuery, deleteLiveQuery, unwrap } from "@/lib/api";
+import {
+  countLiveQueryTargets,
+  createLiveQuery,
+  deleteLiveQuery,
+  streamLiveQuery,
+  unwrap,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 const LIVE_QUERY_TARGET_REFRESH_MS = 30_000;
@@ -83,8 +89,8 @@ export function useLiveQueryTargetCount(body: OsqueryLiveQueryTargetCountBody, e
   });
 }
 
-// useLiveQueryStream opens an EventSource against /api/live-queries/{id}/stream
-// and accumulates result events until the server publishes `completed`.
+// useLiveQueryStream accumulates generated stream events until the server
+// publishes `completed`.
 export function useLiveQueryStream(liveQueryId: number | null) {
   const [state, dispatch] = useReducer(streamReducer, { results: [], nextSeq: 0, status: "idle" });
 
@@ -93,33 +99,52 @@ export function useLiveQueryStream(liveQueryId: number | null) {
     dispatch({ type: "reset" });
     dispatch({ type: "running" });
 
-    const source = new EventSource(`/api/live-queries/${encodeURIComponent(liveQueryId)}/stream`);
-    let completed = false;
-    source.addEventListener("open", () => dispatch({ type: "running" }));
-    source.addEventListener("result", (event: MessageEvent<string>) => {
-      try {
-        const parsed = JSON.parse(event.data) as LiveQueryResult;
-        dispatch({ type: "result", result: parsed });
-      } catch {
-        // server controls the schema; drop malformed payloads silently
-      }
-    });
-    source.addEventListener("completed", () => {
-      completed = true;
-      dispatch({ type: "completed" });
-      source.close();
-    });
-    source.addEventListener("ping", () => {
-      // heartbeat
-    });
-    source.onerror = () => {
-      if (completed) return;
-      source.close();
+    const abortController = new AbortController();
+    let terminal = false;
+
+    const fail = () => {
+      if (terminal || abortController.signal.aborted) return;
+      terminal = true;
       dispatch({ type: "error", message: "stream interrupted" });
     };
 
-    return () => source.close();
+    const consume = async () => {
+      const { stream } = await streamLiveQuery({
+        path: { id: liveQueryId },
+        headers: { Accept: "text/event-stream" },
+        signal: abortController.signal,
+        sseMaxRetryAttempts: 1,
+        onSseError: fail,
+      });
+
+      for await (const event of stream) {
+        if (abortController.signal.aborted) return;
+        switch (event.type) {
+          case "ping":
+            break;
+          case "result":
+            dispatch({ type: "result", result: event });
+            break;
+          case "completed":
+            terminal = true;
+            dispatch({ type: "completed" });
+            abortController.abort();
+            return;
+          default:
+            assertNever(event);
+        }
+      }
+
+      fail();
+    };
+
+    void consume().catch(fail);
+    return () => abortController.abort();
   }, [liveQueryId]);
 
   return state;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected live query event: ${JSON.stringify(value)}`);
 }

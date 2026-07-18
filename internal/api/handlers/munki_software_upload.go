@@ -72,7 +72,11 @@ func registerCreateSoftwareIconRoute(
 				input.ID,
 			)
 		}
-		obj, target, err := ingestor.Begin(ctx, munkisoftware.IconObjectPrefix, input.Body.Filename)
+		obj, target, err := ingestor.BeginDirect(
+			ctx,
+			munkisoftware.IconObjectPrefix,
+			input.Body.Filename,
+		)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -84,7 +88,7 @@ func registerCreateSoftwareIconRoute(
 				input.ID,
 			)
 		}
-		return munkiUploadOutputFromTarget(obj, target), nil
+		return newMunkiDirectUploadOutput(obj, target), nil
 	})
 }
 

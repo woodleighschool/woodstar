@@ -27,14 +27,11 @@ func TestPackageServiceSignalsDesiredPackagesAfterSuccessfulMutations(t *testing
 	if _, err := service.Update(ctx, 1, packages.PackageMutation{}); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if err := service.Delete(ctx, 1); err != nil {
-		t.Fatalf("Delete() error = %v", err)
-	}
 	if _, err := service.DeleteMany(ctx, []int64{1}); err != nil {
 		t.Fatalf("DeleteMany() error = %v", err)
 	}
-	if changes != 4 {
-		t.Fatalf("desired package changes = %d, want 4", changes)
+	if changes != 3 {
+		t.Fatalf("desired package changes = %d, want 3", changes)
 	}
 }
 
@@ -56,9 +53,6 @@ func TestPackageServiceDoesNotSignalDesiredPackagesAfterFailedMutation(t *testin
 	}
 	if _, err := service.Update(ctx, 1, packages.PackageMutation{}); err == nil {
 		t.Fatal("Update() error = nil, want error")
-	}
-	if err := service.Delete(ctx, 1); err == nil {
-		t.Fatal("Delete() error = nil, want error")
 	}
 	if _, err := service.DeleteMany(ctx, []int64{1}); err == nil {
 		t.Fatal("DeleteMany() error = nil, want error")
@@ -96,10 +90,6 @@ func (s *packageServiceTestStore) Update(
 	packages.PackageMutation,
 ) (*packages.Package, error) {
 	return &packages.Package{}, s.err
-}
-
-func (s *packageServiceTestStore) Delete(context.Context, int64) error {
-	return s.err
 }
 
 func (s *packageServiceTestStore) DeleteMany(context.Context, []int64) (int, error) {

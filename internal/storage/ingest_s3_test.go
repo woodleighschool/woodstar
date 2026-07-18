@@ -77,9 +77,12 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 	}
 	objects := storage.NewObjectStore(db, backend)
 	uploads := storage.NewIngestor(objects, backend)
-	object, err := objects.CreatePending(ctx, packages.ObjectPrefix, "Installer.pkg")
+	object, action, err := uploads.Begin(ctx, packages.ObjectPrefix, "Installer.pkg")
 	if err != nil {
-		t.Fatalf("create pending object: %v", err)
+		t.Fatalf("begin S3 upload: %v", err)
+	}
+	if _, ok := action.(storage.MultipartUploadAction); !ok {
+		t.Fatalf("S3 upload action = %T, want storage.MultipartUploadAction", action)
 	}
 
 	first, err := uploads.CreateMultipart(ctx, object.ID, packages.ObjectPrefix)

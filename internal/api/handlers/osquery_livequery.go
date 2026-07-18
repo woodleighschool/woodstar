@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/sse"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
@@ -63,62 +63,23 @@ type liveQueryInput struct {
 	ID int64 `path:"id"`
 }
 
-type liveQueryPingStatus string
-
-const liveQueryPingStatusOK liveQueryPingStatus = "ok"
-
-var liveQueryPingStatusValues = []liveQueryPingStatus{liveQueryPingStatusOK}
-
 type OsqueryLiveQueryPingEvent struct {
-	Status liveQueryPingStatus `json:"status"`
+	Type string `json:"type" enum:"ping"`
 }
-
-type liveQueryCompletedStatus string
-
-const liveQueryCompletedStatusCompleted liveQueryCompletedStatus = "completed"
-
-var liveQueryCompletedStatusValues = []liveQueryCompletedStatus{liveQueryCompletedStatusCompleted}
 
 type OsqueryLiveQueryCompletedEvent struct {
-	Status liveQueryCompletedStatus `json:"status"`
-}
-
-type liveQueryResultStatus string
-
-const (
-	liveQueryResultStatusSuccess  liveQueryResultStatus = "success"
-	liveQueryResultStatusError    liveQueryResultStatus = "error"
-	liveQueryResultStatusStopped  liveQueryResultStatus = "stopped"
-	liveQueryResultStatusOverflow liveQueryResultStatus = "overflow"
-)
-
-var liveQueryResultStatusValues = []liveQueryResultStatus{
-	liveQueryResultStatusSuccess,
-	liveQueryResultStatusError,
-	liveQueryResultStatusStopped,
-	liveQueryResultStatusOverflow,
+	Type string `json:"type" enum:"completed"`
 }
 
 type liveQuerySubscriptionKey struct{}
 
 type OsqueryLiveQueryResultEvent struct {
-	HostID   int64                 `json:"host_id,omitempty"`
-	HostName string                `json:"host_name,omitempty"`
-	Status   liveQueryResultStatus `json:"status"`
-	Data     json.RawMessage       `json:"data,omitempty"`
-	Error    string                `json:"error,omitempty"`
-}
-
-func (liveQueryPingStatus) Schema(_ huma.Registry) *huma.Schema {
-	return openapischema.StringEnum(liveQueryPingStatusValues...)
-}
-
-func (liveQueryCompletedStatus) Schema(_ huma.Registry) *huma.Schema {
-	return openapischema.StringEnum(liveQueryCompletedStatusValues...)
-}
-
-func (liveQueryResultStatus) Schema(_ huma.Registry) *huma.Schema {
-	return openapischema.StringEnum(liveQueryResultStatusValues...)
+	Type     string          `json:"type"                enum:"result"`
+	HostID   int64           `json:"host_id,omitempty"`
+	HostName string          `json:"host_name,omitempty"`
+	Status   string          `json:"status"              enum:"success,error,stopped,overflow"`
+	Data     json.RawMessage `json:"data,omitempty"`
+	Error    string          `json:"error,omitempty"`
 }
 
 func registerLiveQueries(
@@ -197,6 +158,35 @@ func registerLiveQueries(
 		}
 		streamLiveQuery(ctx, events, send)
 	})
+	setLiveQueryStreamResponseSchema(streamingAPI)
+}
+
+// setLiveQueryStreamResponseSchema describes what the generated fetch client
+// actually yields: each decoded SSE data payload, not Huma's documentation-only
+// array of event envelopes.
+func setLiveQueryStreamResponseSchema(api huma.API) {
+	operation := api.OpenAPI().Paths[liveQueriesPath+"/{id}/stream"].Get
+	operation.Responses["200"].Content["text/event-stream"].Schema = &huma.Schema{
+		Title:       "Live query events",
+		Description: "One decoded live-query payload per server-sent event.",
+		OneOf: []*huma.Schema{
+			api.OpenAPI().Components.Schemas.Schema(
+				reflect.TypeFor[OsqueryLiveQueryPingEvent](),
+				true,
+				"ping",
+			),
+			api.OpenAPI().Components.Schemas.Schema(
+				reflect.TypeFor[OsqueryLiveQueryResultEvent](),
+				true,
+				"result",
+			),
+			api.OpenAPI().Components.Schemas.Schema(
+				reflect.TypeFor[OsqueryLiveQueryCompletedEvent](),
+				true,
+				"completed",
+			),
+		},
+	}
 }
 
 func subscribeLiveQuery(api huma.API, manager *livequery.Manager) func(huma.Context, func(huma.Context)) {
@@ -247,12 +237,12 @@ func streamLiveQuery(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := send.Data(OsqueryLiveQueryPingEvent{Status: liveQueryPingStatusOK}); err != nil {
+			if err := send.Data(OsqueryLiveQueryPingEvent{Type: "ping"}); err != nil {
 				return
 			}
 		case event, ok := <-events:
 			if !ok {
-				_ = send.Data(OsqueryLiveQueryCompletedEvent{Status: liveQueryCompletedStatusCompleted})
+				_ = send.Data(OsqueryLiveQueryCompletedEvent{Type: "completed"})
 				return
 			}
 			if err := send.Data(OsqueryLiveQueryResultEventFromDomain(event)); err != nil {
@@ -264,9 +254,10 @@ func streamLiveQuery(
 
 func OsqueryLiveQueryResultEventFromDomain(event livequery.Event) OsqueryLiveQueryResultEvent {
 	return OsqueryLiveQueryResultEvent{
+		Type:     "result",
 		HostID:   event.HostID,
 		HostName: event.HostName,
-		Status:   liveQueryResultStatus(event.Status),
+		Status:   string(event.Status),
 		Data:     event.Data,
 		Error:    event.Error,
 	}

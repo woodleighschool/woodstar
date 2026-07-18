@@ -149,7 +149,7 @@ func registerCreateClientResourcesBannerUpload(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
-		object, target, err := ingestor.Begin(
+		object, target, err := ingestor.BeginDirect(
 			ctx,
 			clientresources.BannerObjectPrefix,
 			input.Body.Filename,
@@ -163,7 +163,7 @@ func registerCreateClientResourcesBannerUpload(
 				err,
 			)
 		}
-		return munkiUploadOutputFromTarget(object, target), nil
+		return newMunkiDirectUploadOutput(object, target), nil
 	})
 }
 

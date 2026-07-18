@@ -381,9 +381,6 @@ func assertS3UploadTarget(t *testing.T, target storage.UploadTarget, endpoint st
 	if target.Method != http.MethodPut {
 		t.Fatalf("upload method = %q, want PUT", target.Method)
 	}
-	if target.Transport != storage.UploadTransportS3 {
-		t.Fatalf("upload transport = %q, want %q", target.Transport, storage.UploadTransportS3)
-	}
 	assertPresignedEndpoint(t, target.URL, endpoint)
 }
 

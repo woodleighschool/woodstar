@@ -25,6 +25,10 @@ type s3Store struct {
 	presigner *s3.PresignClient
 }
 
+func (*s3Store) uploadMode() uploadMode {
+	return uploadModeMultipart
+}
+
 func newS3Store(ctx context.Context, cfg S3Config) (*s3Store, error) {
 	awsCfg, err := awsconfig.LoadDefaultConfig(
 		ctx,
@@ -275,10 +279,9 @@ func (s *s3Store) PresignPut(
 		return UploadTarget{}, fmt.Errorf("presign put %q: %w", key, err)
 	}
 	return UploadTarget{
-		URL:       output.URL,
-		Method:    http.MethodPut,
-		Transport: UploadTransportS3,
-		Headers:   singleValueHeaders(output.SignedHeader),
+		URL:     output.URL,
+		Method:  http.MethodPut,
+		Headers: singleValueHeaders(output.SignedHeader),
 	}, nil
 }
 
@@ -314,10 +317,9 @@ func (s *s3Store) PresignMultipartPart(
 		return UploadTarget{}, fmt.Errorf("presign multipart part %d for %q: %w", partNumber, key, err)
 	}
 	return UploadTarget{
-		URL:       output.URL,
-		Method:    http.MethodPut,
-		Transport: UploadTransportS3,
-		Headers:   singleValueHeaders(output.SignedHeader),
+		URL:     output.URL,
+		Method:  http.MethodPut,
+		Headers: singleValueHeaders(output.SignedHeader),
 	}, nil
 }
 

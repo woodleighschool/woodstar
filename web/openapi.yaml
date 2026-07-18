@@ -838,6 +838,26 @@ components:
         - name
         - targets
       type: object
+    MunkiDirectUploadAction:
+      additionalProperties: false
+      properties:
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        method:
+          type: string
+        strategy:
+          enum:
+            - direct-put
+          type: string
+        url:
+          type: string
+      required:
+        - strategy
+        - url
+        - method
+      type: object
     MunkiDistributionPoint:
       additionalProperties: false
       properties:
@@ -1136,6 +1156,16 @@ components:
       required:
         - upload_id
         - key
+      type: object
+    MunkiMultipartUploadAction:
+      additionalProperties: false
+      properties:
+        strategy:
+          enum:
+            - multipart
+          type: string
+      required:
+        - strategy
       type: object
     MunkiMutation:
       additionalProperties: false
@@ -2037,27 +2067,21 @@ components:
     MunkiUploadTarget:
       additionalProperties: false
       properties:
-        headers:
-          additionalProperties:
-            type: string
-          type: object
-        method:
-          type: string
         object_id:
           format: int64
           type: integer
-        upload_transport:
-          enum:
-            - woodstar
-            - s3
-          type: string
-        upload_url:
-          type: string
+        upload:
+          discriminator:
+            mapping:
+              direct-put: "#/components/schemas/MunkiDirectUploadAction"
+              multipart: "#/components/schemas/MunkiMultipartUploadAction"
+            propertyName: strategy
+          oneOf:
+            - $ref: "#/components/schemas/MunkiDirectUploadAction"
+            - $ref: "#/components/schemas/MunkiMultipartUploadAction"
       required:
         - object_id
-        - upload_url
-        - method
-        - upload_transport
+        - upload
       type: object
     OsqueryCheck:
       additionalProperties: false
@@ -2209,12 +2233,12 @@ components:
     OsqueryLiveQueryCompletedEvent:
       additionalProperties: false
       properties:
-        status:
+        type:
           enum:
             - completed
           type: string
       required:
-        - status
+        - type
       type: object
     OsqueryLiveQueryCreateBody:
       additionalProperties: false
@@ -2232,12 +2256,12 @@ components:
     OsqueryLiveQueryPingEvent:
       additionalProperties: false
       properties:
-        status:
+        type:
           enum:
-            - ok
+            - ping
           type: string
       required:
-        - status
+        - type
       type: object
     OsqueryLiveQueryResultEvent:
       additionalProperties: false
@@ -2257,7 +2281,12 @@ components:
             - stopped
             - overflow
           type: string
+        type:
+          enum:
+            - result
+          type: string
       required:
+        - type
         - status
       type: object
     OsqueryLiveQuerySelectedBody:
@@ -5436,65 +5465,12 @@ paths:
           content:
             text/event-stream:
               schema:
-                description: Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
-                items:
-                  oneOf:
-                    - properties:
-                        data:
-                          $ref: "#/components/schemas/OsqueryLiveQueryCompletedEvent"
-                        event:
-                          const: completed
-                          description: The event name.
-                          type: string
-                        id:
-                          description: The event ID.
-                          type: integer
-                        retry:
-                          description: The retry time in milliseconds.
-                          type: integer
-                      required:
-                        - data
-                        - event
-                      title: Event completed
-                      type: object
-                    - properties:
-                        data:
-                          $ref: "#/components/schemas/OsqueryLiveQueryPingEvent"
-                        event:
-                          const: ping
-                          description: The event name.
-                          type: string
-                        id:
-                          description: The event ID.
-                          type: integer
-                        retry:
-                          description: The retry time in milliseconds.
-                          type: integer
-                      required:
-                        - data
-                        - event
-                      title: Event ping
-                      type: object
-                    - properties:
-                        data:
-                          $ref: "#/components/schemas/OsqueryLiveQueryResultEvent"
-                        event:
-                          const: result
-                          description: The event name.
-                          type: string
-                        id:
-                          description: The event ID.
-                          type: integer
-                        retry:
-                          description: The retry time in milliseconds.
-                          type: integer
-                      required:
-                        - data
-                        - event
-                      title: Event result
-                      type: object
-                title: Server Sent Events
-                type: array
+                description: One decoded live-query payload per server-sent event.
+                oneOf:
+                  - $ref: "#/components/schemas/OsqueryLiveQueryPingEvent"
+                  - $ref: "#/components/schemas/OsqueryLiveQueryResultEvent"
+                  - $ref: "#/components/schemas/OsqueryLiveQueryCompletedEvent"
+                title: Live query events
           description: OK
         "401":
           content:
@@ -6753,60 +6729,6 @@ paths:
       tags:
         - Munki
   /api/munki/packages/{id}:
-    delete:
-      operationId: delete-munki-package
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "204":
-          description: No Content
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Delete a Munki package
-      tags:
-        - Munki
     get:
       operationId: get-munki-package
       parameters:

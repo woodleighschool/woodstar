@@ -9,7 +9,9 @@ client.setConfig({
   querySerializer: { array: { style: "form", explode: false } },
 });
 client.interceptors.request.use((request) => {
-  request.headers.set("Accept", "application/json");
+  if (!request.headers.has("Accept")) {
+    request.headers.set("Accept", "application/json");
+  }
   return request;
 });
 

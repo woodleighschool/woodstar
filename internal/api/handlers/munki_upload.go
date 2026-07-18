@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -42,23 +42,48 @@ type MunkiMultipartCompleteRequest struct {
 	Parts []MunkiMultipartCompletedPart `json:"parts" minItems:"1"`
 }
 
-type MunkiUploadTransport storage.UploadTransport
+const (
+	munkiUploadStrategyDirectPut = "direct-put"
+	munkiUploadStrategyMultipart = "multipart"
+)
 
-var munkiUploadTransportValues = []MunkiUploadTransport{
-	MunkiUploadTransport(storage.UploadTransportWoodstar),
-	MunkiUploadTransport(storage.UploadTransportS3),
+type MunkiDirectUploadAction struct {
+	Strategy string            `json:"strategy"          enum:"direct-put"`
+	URL      string            `json:"url"`
+	Method   string            `json:"method"`
+	Headers  map[string]string `json:"headers,omitempty"`
 }
 
-func (MunkiUploadTransport) Schema(_ huma.Registry) *huma.Schema {
-	return openapischema.StringEnum(munkiUploadTransportValues...)
+type MunkiMultipartUploadAction struct {
+	Strategy string `json:"strategy" enum:"multipart"`
+}
+
+type MunkiUploadAction struct {
+	Strategy string            `json:"strategy"`
+	URL      string            `json:"url,omitempty"`
+	Method   string            `json:"method,omitempty"`
+	Headers  map[string]string `json:"headers,omitempty"`
+}
+
+func (MunkiUploadAction) Schema(registry huma.Registry) *huma.Schema {
+	return &huma.Schema{
+		OneOf: []*huma.Schema{
+			registry.Schema(reflect.TypeFor[MunkiDirectUploadAction](), true, "direct-put"),
+			registry.Schema(reflect.TypeFor[MunkiMultipartUploadAction](), true, "multipart"),
+		},
+		Discriminator: &huma.Discriminator{
+			PropertyName: "strategy",
+			Mapping: map[string]string{
+				munkiUploadStrategyDirectPut: "#/components/schemas/MunkiDirectUploadAction",
+				munkiUploadStrategyMultipart: "#/components/schemas/MunkiMultipartUploadAction",
+			},
+		},
+	}
 }
 
 type MunkiUploadTarget struct {
-	ObjectID        int64                `json:"object_id"`
-	UploadURL       string               `json:"upload_url"`
-	Method          string               `json:"method"`
-	UploadTransport MunkiUploadTransport `json:"upload_transport"`
-	Headers         map[string]string    `json:"headers,omitempty"`
+	ObjectID int64             `json:"object_id"`
+	Upload   MunkiUploadAction `json:"upload"`
 }
 
 type MunkiObjectView struct {
@@ -78,13 +103,27 @@ type munkiObjectOutput struct {
 	Body MunkiObjectView
 }
 
-func munkiUploadOutputFromTarget(obj *storage.Object, target storage.UploadTarget) *munkiUploadOutput {
+func newMunkiDirectUploadOutput(
+	obj *storage.Object,
+	target storage.UploadTarget,
+) *munkiUploadOutput {
 	return &munkiUploadOutput{Body: MunkiUploadTarget{
-		ObjectID:        obj.ID,
-		UploadURL:       target.URL,
-		Method:          target.Method,
-		UploadTransport: MunkiUploadTransport(target.Transport),
-		Headers:         target.Headers,
+		ObjectID: obj.ID,
+		Upload: MunkiUploadAction{
+			Strategy: munkiUploadStrategyDirectPut,
+			URL:      target.URL,
+			Method:   target.Method,
+			Headers:  target.Headers,
+		},
+	}}
+}
+
+func newMunkiMultipartUploadOutput(obj *storage.Object) *munkiUploadOutput {
+	return &munkiUploadOutput{Body: MunkiUploadTarget{
+		ObjectID: obj.ID,
+		Upload: MunkiUploadAction{
+			Strategy: munkiUploadStrategyMultipart,
+		},
 	}}
 }
 

@@ -233,18 +233,21 @@ func (f munkiUploadFixture) beginUpload(t *testing.T, path, filename string) Mun
 	assertStatus(t, rec, http.StatusCreated, "begin upload")
 	var target MunkiUploadTarget
 	decodeJSON(t, rec, &target)
+	if target.Upload.Strategy != munkiUploadStrategyDirectPut {
+		t.Fatalf("upload strategy = %q, want direct-put", target.Upload.Strategy)
+	}
 	return target
 }
 
 func (f munkiUploadFixture) upload(t *testing.T, target MunkiUploadTarget, body []byte) {
 	t.Helper()
-	uploadURL, err := url.Parse(target.UploadURL)
+	uploadURL, err := url.Parse(target.Upload.URL)
 	if err != nil {
 		t.Fatalf("parse upload URL: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(target.Method, uploadURL.RequestURI(), bytes.NewReader(body))
-	for name, value := range target.Headers {
+	req := httptest.NewRequest(target.Upload.Method, uploadURL.RequestURI(), bytes.NewReader(body))
+	for name, value := range target.Upload.Headers {
 		req.Header.Set(name, value)
 	}
 	f.router.ServeHTTP(rec, req)

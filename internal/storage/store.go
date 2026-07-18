@@ -37,9 +37,10 @@ type Backend interface {
 	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 	deliveryMode() deliveryMode
+	uploadMode() uploadMode
 }
 
-// MultipartBackend is the optional S3 multipart transfer capability.
+// MultipartBackend is the multipart transfer contract implemented by S3 storage.
 type MultipartBackend interface {
 	CreateMultipartUpload(ctx context.Context, key string) (string, error)
 	PresignMultipartPart(
@@ -73,21 +74,19 @@ type GetOptions struct {
 	CacheControl string
 }
 
-// UploadTransport tells clients which upload implementation should send bytes.
-type UploadTransport string
+// UploadTarget identifies where and how to put an object's bytes.
+type UploadTarget struct {
+	URL     string
+	Method  string
+	Headers map[string]string
+}
+
+type uploadMode uint8
 
 const (
-	UploadTransportWoodstar UploadTransport = "woodstar"
-	UploadTransportS3       UploadTransport = "s3"
+	uploadModeDirect uploadMode = iota
+	uploadModeMultipart
 )
-
-// UploadTarget tells a client where and how to upload an object's bytes.
-type UploadTarget struct {
-	URL       string
-	Method    string
-	Transport UploadTransport
-	Headers   map[string]string
-}
 
 // CompletedPart identifies one uploaded S3 multipart part.
 type CompletedPart struct {

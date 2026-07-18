@@ -2,28 +2,15 @@ import { type MutationKey, useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  type DirectMultipartUploadRequest,
-  type UploadProgress,
-  type UploadTransport,
-  uploadWithProgress,
-} from "@/lib/direct-upload";
+import { type UploadProgress, type UploadRequest, uploadWithProgress } from "@/lib/upload";
 
 type UploadText = string | ((file: File) => string);
 type UploadErrorSurface = "toast" | "inline";
 
-interface DirectUploadIntentRequest {
-  url: string;
-  transport: UploadTransport;
-  method?: string;
-  headers?: Record<string, string>;
-  multipart?: DirectMultipartUploadRequest;
-}
-
-interface DirectUploadOptions<TIntent, TResult, TVars extends { file: File }> {
+interface UploadOptions<TIntent, TResult, TVars extends { file: File }> {
   mutationKey: MutationKey;
   createIntent: (vars: TVars) => Promise<TIntent>;
-  uploadRequest: (intent: TIntent, vars: TVars) => DirectUploadIntentRequest;
+  uploadRequest: (intent: TIntent, vars: TVars) => UploadRequest;
   completeUpload: (intent: TIntent, vars: TVars, signal: AbortSignal) => Promise<TResult>;
   cleanupIntent?: (intent: TIntent, vars: TVars) => Promise<void>;
   loadingText?: UploadText;
@@ -32,7 +19,7 @@ interface DirectUploadOptions<TIntent, TResult, TVars extends { file: File }> {
   errorSurface?: UploadErrorSurface;
 }
 
-export function useDirectUpload<TIntent, TResult, TVars extends { file: File } = { file: File }>({
+export function useUpload<TIntent, TResult, TVars extends { file: File } = { file: File }>({
   mutationKey,
   createIntent,
   uploadRequest,
@@ -42,7 +29,7 @@ export function useDirectUpload<TIntent, TResult, TVars extends { file: File } =
   successText,
   errorText,
   errorSurface = "toast",
-}: DirectUploadOptions<TIntent, TResult, TVars>) {
+}: UploadOptions<TIntent, TResult, TVars>) {
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const lastToastPercent = useRef<number | null>(null);
   const uploadAbort = useRef<AbortController | null>(null);

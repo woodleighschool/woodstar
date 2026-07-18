@@ -16,7 +16,7 @@ func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 	backend := newTestBackend(t)
 	objects := NewObjectStore(db, backend)
 	uploads := NewIngestor(objects, backend)
-	object, target, err := uploads.Begin(ctx, "munki/packages", "Installer.pkg")
+	object, target, err := uploads.BeginDirect(ctx, "munki/packages", "Installer.pkg")
 	if err != nil {
 		t.Fatalf("begin upload: %v", err)
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -67,13 +68,27 @@ func registerCreatePackageInstallerRoute(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *munkiPackageInstallerCreateInput) (*munkiUploadOutput, error) {
-		object, target, err := ingestor.Begin(ctx, packages.ObjectPrefix, input.Body.Filename)
+		object, action, err := ingestor.Begin(
+			ctx,
+			packages.ObjectPrefix,
+			input.Body.Filename,
+		)
 		if err != nil {
 			return nil, resourceError(
 				ctx, logger, "create-munki-package-installer", munkiUploadLabel, err,
 			)
 		}
-		return munkiUploadOutputFromTarget(object, target), nil
+		switch action := action.(type) {
+		case storage.DirectUploadAction:
+			return newMunkiDirectUploadOutput(object, action.Target), nil
+		case storage.MultipartUploadAction:
+			return newMunkiMultipartUploadOutput(object), nil
+		default:
+			return nil, resourceError(
+				ctx, logger, "create-munki-package-installer", munkiUploadLabel,
+				fmt.Errorf("storage returned unsupported upload action %T", action),
+			)
+		}
 	})
 }
 
