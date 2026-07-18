@@ -2,7 +2,7 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
-import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -179,9 +179,9 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
-                  {isSubmitting ? "Creating…" : "Create"}
-                </Pending>
+                <PendingButton isPending={isSubmitting} type="submit" size="sm">
+                  Create
+                </PendingButton>
               )}
             </form.Subscribe>
           </DialogFooter>

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { EmptyPanel } from "@/components/empty-panel";
 import { FormField } from "@/components/form-field";
 import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useAgentSecrets,
@@ -428,12 +430,9 @@ function SecretValueDialog({
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending
-                  isPending={pending || isSubmitting}
-                  render={<Button type="submit" size="sm" />}
-                >
-                  {isSubmitting ? `${saveLabel}…` : saveLabel}
-                </Pending>
+                <PendingButton isPending={pending || isSubmitting} type="submit" size="sm">
+                  {saveLabel}
+                </PendingButton>
               )}
             </form.Subscribe>
           </DialogFooter>
@@ -472,13 +471,13 @@ function SecretDeleteDialog({
           >
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction
+          <Pending
+            isPending={pending}
             render={
-              <Button
+              <AlertDialogAction
                 type="button"
                 variant="destructive"
                 size="sm"
-                disabled={pending}
                 onClick={(event) => {
                   event.preventDefault();
                   void onConfirm();
@@ -486,8 +485,9 @@ function SecretDeleteDialog({
               />
             }
           >
+            {pending ? <Spinner data-icon="inline-start" /> : null}
             Delete
-          </AlertDialogAction>
+          </Pending>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

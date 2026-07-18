@@ -2,6 +2,7 @@ import type { AnyFormApi } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
 
 import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
@@ -23,9 +24,9 @@ export function FormActions({
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
   return (
     <Field orientation="horizontal" className={cn("justify-start", className)}>
-      <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
-        {isSubmitting ? `${submitLabel}…` : submitLabel}
-      </Pending>
+      <PendingButton isPending={isSubmitting} type="submit" size="sm">
+        {submitLabel}
+      </PendingButton>
       {onCancel ? (
         <Pending
           isPending={isSubmitting && !canCancelWhileSubmitting}

@@ -10,7 +10,7 @@ import { manualPrimaryUserSource } from "@/components/hosts/primary-user";
 import { primaryUserSourceLabel } from "@/components/hosts/primary-user-source-labels";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { LabelChips } from "@/components/labels/label-chips";
-import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -279,20 +279,16 @@ function HostPrimaryUserDialog({
 
           <DialogFooter className="pt-2">
             {manual ? (
-              <Pending
+              <PendingButton
                 isPending={pending}
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void handleClear()}
-                  />
-                }
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleClear()}
+                icon={<Trash2 data-icon="inline-start" />}
               >
-                <Trash2 />
-                {clearPrimaryUser.isPending ? "Clearing…" : "Clear"}
-              </Pending>
+                Clear
+              </PendingButton>
             ) : null}
             <Button
               type="button"
@@ -305,12 +301,9 @@ function HostPrimaryUserDialog({
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending
-                  isPending={pending || isSubmitting}
-                  render={<Button type="submit" size="sm" />}
-                >
-                  {isSubmitting ? "Saving…" : "Save"}
-                </Pending>
+                <PendingButton isPending={pending || isSubmitting} type="submit" size="sm">
+                  Save
+                </PendingButton>
               )}
             </form.Subscribe>
           </DialogFooter>

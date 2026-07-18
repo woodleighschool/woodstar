@@ -15,6 +15,7 @@ import {
   DraggableTableRows,
 } from "@/components/data-table/draggable-table-rows";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -240,14 +241,15 @@ function DistributionPointReorder({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
-        <Button
+        <PendingButton
           type="button"
           size="sm"
-          disabled={reorder.isPending || truncated}
+          isPending={reorder.isPending}
+          disabled={truncated}
           onClick={saveOrder}
         >
           Save
-        </Button>
+        </PendingButton>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>
           Cancel
         </Button>

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
-import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
@@ -88,9 +88,9 @@ export function LoginPage() {
               <Field>
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
-                    <Pending isPending={isSubmitting} render={<Button type="submit" />}>
-                      {isSubmitting ? "Logging in…" : "Login"}
-                    </Pending>
+                    <PendingButton isPending={isSubmitting} type="submit">
+                      Login
+                    </PendingButton>
                   )}
                 </form.Subscribe>
 

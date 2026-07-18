@@ -6,9 +6,8 @@ import { APIKeyCard } from "@/components/account/api-key-card";
 import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
 import { PageShell } from "@/components/layout/page-layout";
-import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -163,9 +162,9 @@ function AccountProfileCard({ account }: { account: Account }) {
             </p>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
-                  {isSubmitting ? "Saving…" : "Save"}
-                </Pending>
+                <PendingButton isPending={isSubmitting} type="submit" size="sm">
+                  Save
+                </PendingButton>
               )}
             </form.Subscribe>
           </CardFooter>

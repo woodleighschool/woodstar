@@ -19,6 +19,7 @@ import { selectColumn } from "@/components/data-table/select-column";
 import { EnumStatus } from "@/components/enum-status";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
 import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Button } from "@/components/ui/button";
@@ -272,14 +273,15 @@ function ConfigurationReorder({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-end gap-2">
-        <Button
+        <PendingButton
           type="button"
           size="sm"
-          disabled={reorder.isPending || truncated}
+          isPending={reorder.isPending}
+          disabled={truncated}
           onClick={saveOrder}
         >
           Save
-        </Button>
+        </PendingButton>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>
           Cancel
         </Button>

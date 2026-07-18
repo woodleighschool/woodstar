@@ -9,7 +9,7 @@ import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
-import { Pending } from "@/components/pending";
+import { PendingButton } from "@/components/pending-button";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,13 +216,14 @@ function TargetRunPanel({
         />
       </div>
       <div className="rounded-md border p-4">
-        <Pending
+        <PendingButton
           isPending={isStarting}
-          render={<Button onClick={onRun} disabled={!canRun && !isStarting} />}
+          onClick={onRun}
+          disabled={!canRun && !isStarting}
+          icon={<Play data-icon="inline-start" />}
         >
-          <Play data-icon="inline-start" />
-          {isStarting ? "Starting…" : "Run"}
-        </Pending>
+          Run
+        </PendingButton>
       </div>
     </div>
   );
@@ -308,13 +309,15 @@ function RunResults({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
-            <Pending
+            <PendingButton
               isPending={isStopping}
-              render={<Button size="sm" variant="destructive" onClick={() => setStopOpen(true)} />}
+              size="sm"
+              variant="destructive"
+              onClick={() => setStopOpen(true)}
+              icon={<Square data-icon="inline-start" />}
             >
-              <Square data-icon="inline-start" />
-              {isStopping ? "Stopping…" : "Stop"}
-            </Pending>
+              Stop
+            </PendingButton>
           ) : (
             <Button size="sm" onClick={onRunAgain}>
               <Play data-icon="inline-start" />

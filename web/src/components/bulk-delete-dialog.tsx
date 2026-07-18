@@ -1,3 +1,4 @@
+import { Pending } from "@/components/pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface BulkDeleteDialogProps {
   open: boolean;
@@ -46,17 +48,24 @@ export function BulkDeleteDialog({
           <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={pending || count === 0}
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
+          <Pending
+            isPending={pending}
+            disabled={count === 0}
+            render={
+              <AlertDialogAction
+                variant="destructive"
+                size="sm"
+                disabled={count === 0}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onConfirm();
+                }}
+              />
+            }
           >
+            {pending ? <Spinner data-icon="inline-start" /> : null}
             Delete
-          </AlertDialogAction>
+          </Pending>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -4,6 +4,7 @@ import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-r
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
+import { Pending } from "@/components/pending";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -31,6 +32,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
 import { userRoleLabel } from "@/lib/users";
@@ -187,10 +189,13 @@ function SidebarUserMenu() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => logout.mutate()} disabled={logout.isPending}>
-                <LogOut />
+              <Pending
+                isPending={logout.isPending}
+                render={<DropdownMenuItem onClick={() => logout.mutate()} />}
+              >
+                {logout.isPending ? <Spinner /> : <LogOut />}
                 Sign out
-              </DropdownMenuItem>
+              </Pending>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -61,9 +61,14 @@ export function APIKeyCard() {
         <CardDescription>For CLI and automation access.</CardDescription>
         {!isLoading && !apiKey ? (
           <CardAction>
-            <Button type="button" size="sm" disabled={pending} onClick={() => void handleRotate()}>
+            <PendingButton
+              type="button"
+              size="sm"
+              isPending={rotate.isPending}
+              onClick={() => void handleRotate()}
+            >
               Generate
-            </Button>
+            </PendingButton>
           </CardAction>
         ) : null}
       </CardHeader>

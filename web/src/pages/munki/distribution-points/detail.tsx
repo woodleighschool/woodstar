@@ -8,6 +8,7 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
+import { PendingButton } from "@/components/pending-button";
 import { QueryGate } from "@/components/query-gate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,16 +90,16 @@ export function DistributionPointDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button
+              <PendingButton
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={rotate.isPending}
+                isPending={rotate.isPending}
                 onClick={() => void rotateKey()}
+                icon={<KeyRound data-icon="inline-start" />}
               >
-                <KeyRound data-icon="inline-start" />
                 Rotate Key
-              </Button>
+              </PendingButton>
               <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 data-icon="inline-start" />
                 Delete

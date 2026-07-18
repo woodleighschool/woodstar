@@ -4,8 +4,7 @@ import { z } from "zod";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
-import { Pending } from "@/components/pending";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -125,9 +124,9 @@ export function SetupPage() {
               <Field>
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
-                    <Pending isPending={isSubmitting} render={<Button type="submit" />}>
-                      {isSubmitting ? "Creating account…" : "Create Account"}
-                    </Pending>
+                    <PendingButton isPending={isSubmitting} type="submit">
+                      Create Account
+                    </PendingButton>
                   )}
                 </form.Subscribe>
                 {setup.error ? <FieldError>{setup.error.message}</FieldError> : null}

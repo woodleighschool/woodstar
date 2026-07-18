@@ -3,8 +3,7 @@ import { z } from "zod";
 
 import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
-import { Pending } from "@/components/pending";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 import {
   Card,
   CardContent,
@@ -195,9 +194,9 @@ export function UserForm({
             </p>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Pending isPending={isSubmitting} render={<Button type="submit" size="sm" />}>
-                  {isSubmitting ? "Saving…" : "Save"}
-                </Pending>
+                <PendingButton isPending={isSubmitting} type="submit" size="sm">
+                  Save
+                </PendingButton>
               )}
             </form.Subscribe>
           </CardFooter>

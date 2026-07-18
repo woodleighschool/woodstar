@@ -1,5 +1,6 @@
 import type { VariantProps } from "class-variance-authority";
 
+import { Pending } from "@/components/pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -44,17 +46,22 @@ export function ConfirmDialog({
           <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction
-            variant={variant}
-            size="sm"
-            disabled={pending}
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
+          <Pending
+            isPending={pending}
+            render={
+              <AlertDialogAction
+                variant={variant}
+                size="sm"
+                onClick={(event) => {
+                  event.preventDefault();
+                  onConfirm();
+                }}
+              />
+            }
           >
+            {pending ? <Spinner data-icon="inline-start" /> : null}
             {confirmLabel}
-          </AlertDialogAction>
+          </Pending>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
