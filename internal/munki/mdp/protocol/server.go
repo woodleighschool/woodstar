@@ -69,11 +69,12 @@ func NewServer(
 	}
 }
 
-// RegisterRoutes mounts the MDP worker-facing endpoints.
-func (s *Server) RegisterRoutes(r chi.Router) {
+// RegisterRoutes mounts the download endpoint on ordinary and the worker
+// WebSocket endpoint on websocket.
+func (s *Server) RegisterRoutes(ordinary chi.Router, websocket chi.Router) {
 	h := workerHandler{store: s.store, hub: s.hub, delivery: s.delivery, logger: s.logger}
-	r.Get("/api/munki/distribution/connect", h.connect)
-	r.Get("/api/munki/distribution/packages/{id}/download-url", h.downloadURL)
+	websocket.Get("/api/munki/distribution/connect", h.connect)
+	ordinary.Get("/api/munki/distribution/packages/{id}/download-url", h.downloadURL)
 }
 
 // RefreshDesiredPackages pushes the current desired package set to connected

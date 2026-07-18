@@ -19,7 +19,8 @@ import (
 // admin handlers.
 type MunkiHandlerDeps struct {
 	API             huma.API
-	Router          chi.Router
+	LongRunningAPI  huma.API
+	TransferRouter  chi.Router
 	AuthService     *auth.Service
 	HostState       *munki.Store
 	Software        *munkisoftware.Store
@@ -52,13 +53,19 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 		deps.Logger,
 	)
 	registerMunkiContentRoutes(
-		deps.Router.With(middleware.RequireHTTPAuth(deps.AuthService)),
+		deps.TransferRouter.With(middleware.RequireHTTPAuth(deps.AuthService)),
 		deps.Software,
 		deps.Objects,
 		deps.Delivery,
 		deps.Logger,
 	)
-	registerMunkiPackages(deps.API, deps.Packages, deps.Ingestor, deps.Logger)
+	registerMunkiPackages(
+		deps.API,
+		deps.LongRunningAPI,
+		deps.Packages,
+		deps.Ingestor,
+		deps.Logger,
+	)
 	registerMunkiClientResources(
 		deps.API,
 		deps.ClientResources,

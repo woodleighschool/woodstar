@@ -48,6 +48,41 @@ func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 	}
 }
 
+func TestRegisterRoutesSelectsTransferSurface(t *testing.T) {
+	t.Parallel()
+	router := chi.NewRouter()
+	ordinary := router.With(testRouteSurface("ordinary"))
+	transfers := router.With(testRouteSurface("transfer"))
+	NewServer(nil, nil, nil, nil, testLogger()).RegisterRoutes(ordinary, transfers)
+
+	for _, tc := range []struct {
+		path        string
+		wantSurface string
+	}{
+		{path: "/munki/manifests/site_default", wantSurface: "ordinary"},
+		{path: "/munki/catalogs/production", wantSurface: "ordinary"},
+		{path: "/munki/icons/_icon_hashes.plist", wantSurface: "ordinary"},
+		{path: "/munki/pkgs/Installer.pkg", wantSurface: "transfer"},
+		{path: "/munki/icons/App.png", wantSurface: "transfer"},
+		{path: "/munki/client_resources/site.zip", wantSurface: "transfer"},
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+		if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
+			t.Errorf("%s route surface = %q, want %q", tc.path, got, tc.wantSurface)
+		}
+	}
+}
+
+func testRouteSurface(surface string) func(http.Handler) http.Handler {
+	return func(_ http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("X-Route-Surface", surface)
+			w.WriteHeader(http.StatusNoContent)
+		})
+	}
+}
+
 func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
@@ -313,7 +348,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 		selector,
 		delivery,
 		testLogger(),
-	).RegisterRoutes(router)
+	).RegisterRoutes(router, router)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
@@ -396,7 +431,7 @@ func newMunkiContractRouter(
 		d = delivery[0]
 	}
 	r := chi.NewRouter()
-	NewServer(verifier, repository, &fakeSelector{}, d, testLogger()).RegisterRoutes(r)
+	NewServer(verifier, repository, &fakeSelector{}, d, testLogger()).RegisterRoutes(r, r)
 	return r
 }
 

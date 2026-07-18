@@ -41,15 +41,16 @@ type munkiMultipartPartOutput struct {
 
 func registerPackageInstallerRoutes(
 	api huma.API,
+	longRunningAPI huma.API,
 	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	registerCreatePackageInstallerRoute(api, ingestor, logger)
-	registerFinalizePackageInstallerRoute(api, ingestor, logger)
+	registerFinalizePackageInstallerRoute(longRunningAPI, ingestor, logger)
 	registerDeletePackageInstallerRoute(api, ingestor, logger)
 	registerCreatePackageInstallerMultipartRoute(api, ingestor, logger)
 	registerSignPackageInstallerPartRoute(api, ingestor, logger)
-	registerCompletePackageInstallerMultipartRoute(api, ingestor, logger)
+	registerCompletePackageInstallerMultipartRoute(longRunningAPI, ingestor, logger)
 }
 
 func registerCreatePackageInstallerRoute(

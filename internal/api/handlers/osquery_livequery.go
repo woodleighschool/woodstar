@@ -126,6 +126,7 @@ func (liveQueryResultStatus) Schema(_ huma.Registry) *huma.Schema {
 
 func registerLiveQueries(
 	api huma.API,
+	streamingAPI huma.API,
 	manager *livequery.Manager,
 	hostStore *hosts.Store,
 	logger *slog.Logger,
@@ -180,14 +181,14 @@ func registerLiveQueries(
 		return &liveQueryStopOutput{}, nil
 	})
 
-	sse.Register(api, huma.Operation{
+	sse.Register(streamingAPI, huma.Operation{
 		OperationID: "stream-live-query",
 		Method:      http.MethodGet,
 		Path:        "/api/live-queries/{id}/stream",
 		Tags:        []string{liveQueriesTag},
 		Summary:     "Stream live query results",
 		Errors:      []int{http.StatusNotFound},
-		Middlewares: huma.Middlewares{subscribeLiveQuery(api, manager)},
+		Middlewares: huma.Middlewares{subscribeLiveQuery(streamingAPI, manager)},
 	}, map[string]any{
 		"ping":      OsqueryLiveQueryPingEvent{},
 		"result":    OsqueryLiveQueryResultEvent{},

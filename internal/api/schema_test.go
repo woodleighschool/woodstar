@@ -39,3 +39,21 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 		t.Fatalf("session security = %#v, want optional authentication", session.Security)
 	}
 }
+
+func TestTransportSpecificRoutesShareTheAppSchema(t *testing.T) {
+	t.Parallel()
+	doc := BuildSchemaAPI("test").OpenAPI()
+
+	liveQueryStream := doc.Paths["/api/live-queries/{id}/stream"]
+	if liveQueryStream == nil || liveQueryStream.Get == nil {
+		t.Fatal("live query stream is missing")
+	}
+	packageInstaller := doc.Paths["/api/munki/package-installers/{id}"]
+	if packageInstaller == nil || packageInstaller.Put == nil {
+		t.Fatal("package installer finalization is missing")
+	}
+	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart/complete"]
+	if multipartComplete == nil || multipartComplete.Post == nil {
+		t.Fatal("multipart completion is missing")
+	}
+}

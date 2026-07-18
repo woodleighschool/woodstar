@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	pathpkg "path"
-	"strings"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
@@ -202,14 +200,13 @@ func routes(deps *Dependencies) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(clientIPMiddleware(deps.Config))
 	r.Use(chimiddleware.RequestID)
-	r.Use(requestTimeoutMiddleware(120 * time.Second))
-	r.Use(compression)
 	r.Use(corsMiddleware(deps.Config))
 
-	r.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression)
+	ordinary.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("alive\n"))
 	})
-	r.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
+	ordinary.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
 		if err := deps.DB.Ping(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
@@ -218,10 +215,10 @@ func routes(deps *Dependencies) (http.Handler, error) {
 	})
 
 	r.Group(func(r chi.Router) {
-		protocolRoutes(r, deps)
+		protocolRoutes(r, compression, deps)
 	})
 	r.Group(func(r chi.Router) {
-		browserRoutes(r, deps)
+		browserRoutes(r, compression, deps)
 	})
 
 	return r, nil
@@ -229,81 +226,134 @@ func routes(deps *Dependencies) (http.Handler, error) {
 
 // protocolRoutes mounts every agent-facing protocol endpoint. They are wire
 // protocols that live beside the app API on the same HTTP server.
-func protocolRoutes(r chi.Router, deps *Dependencies) {
-	r.Use(middleware.RequestLogger(deps.Logger))
+func protocolRoutes(
+	r chi.Router,
+	compression func(http.Handler) http.Handler,
+	deps *Dependencies,
+) {
+	requestLogger := middleware.RequestLogger(deps.Logger)
+	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression, requestLogger)
+	transfers := r.With(requestLogger)
+	websockets := r.With(requestLogger)
+
 	orbitprotocol.NewServer(
 		deps.Protocols.Orbit,
 		deps.Logger.With("component", "orbit"),
-	).RegisterRoutes(r)
+	).RegisterRoutes(ordinary)
 	osqueryprotocol.NewServer(
 		deps.Protocols.Osquery,
 		deps.Logger.With("component", "osquery"),
-	).RegisterRoutes(r)
-	munkiprotocol.NewServer(
+	).RegisterRoutes(ordinary)
+	munkiServer := munkiprotocol.NewServer(
 		deps.Protocols.AgentAuth,
 		deps.Protocols.Munki.Repository,
 		deps.Protocols.Munki.Distribution,
 		deps.Protocols.Munki.Delivery,
 		deps.Logger.With("component", "munki"),
-	).RegisterRoutes(r)
-	deps.Protocols.Munki.DistributionProtocol.RegisterRoutes(r)
+	)
+	munkiServer.RegisterRoutes(ordinary, transfers)
+	deps.Protocols.Munki.DistributionProtocol.RegisterRoutes(ordinary, websockets)
 	santaprotocol.NewServer(
 		deps.Protocols.AgentAuth,
 		deps.Protocols.Santa,
 		deps.Logger.With("component", "santa"),
-	).RegisterRoutes(r)
+	).RegisterRoutes(ordinary)
 }
 
-func browserRoutes(r chi.Router, deps *Dependencies) {
-	r.Use(middleware.RequestLogger(deps.Logger))
-	r.Group(func(r chi.Router) {
-		storage.RegisterTransferRoutes(
-			r,
-			deps.App.StorageBackend,
-			deps.App.StorageKey,
-			deps.Logger.With("component", "storage"),
-		)
-	})
-	r.Group(func(r chi.Router) {
-		r.Use(deps.SessionManager.LoadAndSave)
-		r.Use(middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins))
-		mount(r, deps)
-		deps.WebHandler.RegisterRoutes(r)
-	})
+func browserRoutes(
+	r chi.Router,
+	compression func(http.Handler) http.Handler,
+	deps *Dependencies,
+) {
+	requestLogger := middleware.RequestLogger(deps.Logger)
+	storage.RegisterTransferRoutes(
+		r.With(requestLogger),
+		deps.App.StorageBackend,
+		deps.App.StorageKey,
+		deps.Logger.With("component", "storage"),
+	)
+
+	sessionMiddleware := deps.SessionManager.LoadAndSave
+	crossOriginProtection := middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins)
+	transfers := r.With(requestLogger, sessionMiddleware, crossOriginProtection)
+	streaming := r.With(requestLogger, sessionMiddleware, crossOriginProtection)
+	ordinary := r.With(
+		requestTimeoutMiddleware(defaultRequestTimeout),
+		compression,
+		requestLogger,
+		sessionMiddleware,
+		crossOriginProtection,
+	)
+	longRunning := r.With(
+		requestTimeoutMiddleware(longRunningRequestTimeout),
+		compression,
+		requestLogger,
+		sessionMiddleware,
+		crossOriginProtection,
+	)
+	mount(ordinary, transfers, streaming, longRunning, deps)
+	deps.WebHandler.RegisterRoutes(ordinary)
 }
 
-func mount(r chi.Router, deps *Dependencies) {
-	humaAPI := humachi.New(r, humaConfig(deps.Version))
-	registerAppRoutes(r, humaAPI, deps)
+type appAPIs struct {
+	ordinary    huma.API
+	streaming   huma.API
+	longRunning huma.API
+}
+
+func newAppAPIs(
+	ordinary chi.Router,
+	streaming chi.Router,
+	longRunning chi.Router,
+	version string,
+) appAPIs {
+	cfg := humaConfig(version)
+	return appAPIs{
+		ordinary:    humachi.New(ordinary, cfg),
+		streaming:   humachi.New(streaming, cfg),
+		longRunning: humachi.New(longRunning, cfg),
+	}
+}
+
+func mount(
+	ordinary chi.Router,
+	transfers chi.Router,
+	streaming chi.Router,
+	longRunning chi.Router,
+	deps *Dependencies,
+) {
+	apis := newAppAPIs(ordinary, streaming, longRunning, deps.Version)
+	registerAppRoutes(ordinary, transfers, apis, deps)
 }
 
 func registerAppRoutes(
-	r chi.Router,
-	humaAPI huma.API,
+	ordinaryRouter chi.Router,
+	transferRouter chi.Router,
+	apis appAPIs,
 	deps *Dependencies,
 ) {
-	session := huma.NewGroup(humaAPI)
-	session.UseMiddleware(middleware.OptionalHumaAuth(humaAPI, deps.App.AuthService))
+	session := huma.NewGroup(apis.ordinary)
+	session.UseMiddleware(middleware.OptionalHumaAuth(apis.ordinary, deps.App.AuthService))
 
-	protected := huma.NewGroup(humaAPI)
-	protected.UseMiddleware(middleware.RequireHumaAuth(humaAPI, deps.App.AuthService))
-	protected.UseModifier(middleware.ProtectedOperation(humaAPI))
+	protected := newProtectedGroup(apis.ordinary, deps.App.AuthService)
+	ordinary := newOrdinaryGroup(protected)
+	sensitive := newSensitiveGroup(protected)
 
-	// Authn is request-time middleware; admin posture is an operation modifier
-	// so generated schemas advertise 403 on the routes that can return it.
-	ordinary := huma.NewGroup(protected)
-	ordinary.UseModifier(middleware.RequireAdminForMutations(humaAPI))
-	sensitive := huma.NewGroup(protected)
-	sensitive.UseModifier(middleware.RequireAdminForAll(humaAPI))
+	streamingSensitive := newSensitiveGroup(
+		newProtectedGroup(apis.streaming, deps.App.AuthService),
+	)
+	longRunningOrdinary := newOrdinaryGroup(
+		newProtectedGroup(apis.longRunning, deps.App.AuthService),
+	)
 
 	apiLogger := deps.Logger.With("component", "api")
 
 	// Create handlers
 	handlers.RegisterAuth(handlers.AuthHandlerDeps{
-		Public:      humaAPI,
+		Public:      apis.ordinary,
 		Session:     session,
 		Protected:   protected,
-		Router:      r,
+		Router:      ordinaryRouter,
 		AuthService: deps.App.AuthService,
 		Users:       deps.App.Users,
 		Logger:      apiLogger,
@@ -316,6 +366,7 @@ func registerAppRoutes(
 	handlers.RegisterOsquery(
 		ordinary,
 		sensitive,
+		streamingSensitive,
 		deps.App.Reports,
 		deps.App.Checks,
 		deps.App.LiveQueries,
@@ -324,7 +375,8 @@ func registerAppRoutes(
 	)
 	handlers.RegisterMunki(handlers.MunkiHandlerDeps{
 		API:             ordinary,
-		Router:          r,
+		LongRunningAPI:  longRunningOrdinary,
+		TransferRouter:  transferRouter,
 		AuthService:     deps.App.AuthService,
 		HostState:       deps.App.MunkiHostState,
 		Software:        deps.App.MunkiSoftware,
@@ -347,6 +399,25 @@ func registerAppRoutes(
 		deps.App.SantaReferences,
 		apiLogger,
 	)
+}
+
+func newProtectedGroup(api huma.API, authService *auth.Service) *huma.Group {
+	protected := huma.NewGroup(api)
+	protected.UseMiddleware(middleware.RequireHumaAuth(api, authService))
+	protected.UseModifier(middleware.ProtectedOperation(api))
+	return protected
+}
+
+func newOrdinaryGroup(protected huma.API) *huma.Group {
+	ordinary := huma.NewGroup(protected)
+	ordinary.UseModifier(middleware.RequireAdminForMutations(protected))
+	return ordinary
+}
+
+func newSensitiveGroup(protected huma.API) *huma.Group {
+	sensitive := huma.NewGroup(protected)
+	sensitive.UseModifier(middleware.RequireAdminForAll(protected))
+	return sensitive
 }
 
 // humaConfig returns the Huma config shared by serve and openapi.
@@ -385,11 +456,11 @@ func humaConfig(version string) huma.Config {
 // services are valid here.
 func BuildSchemaAPI(version string) huma.API {
 	r := chi.NewRouter()
-	humaAPI := humachi.New(r, humaConfig(version))
-	registerAppRoutes(r, humaAPI, &Dependencies{
+	apis := newAppAPIs(r, r, r, version)
+	registerAppRoutes(r, r, apis, &Dependencies{
 		Logger: slog.New(slog.DiscardHandler),
 	})
-	return humaAPI
+	return apis.ordinary
 }
 
 // clientIPMiddleware maps the configured client-IP source to its chi middleware.
@@ -411,101 +482,31 @@ func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 }
 
 func compressionMiddleware() (func(http.Handler) http.Handler, error) {
-	compressor, err := httpcompression.DefaultAdapter(
+	return httpcompression.DefaultAdapter(
 		httpcompression.MinSize(1024),
 		httpcompression.GzipCompressionLevel(2),
 		httpcompression.Prefer(httpcompression.PreferServer),
 	)
-	if err != nil {
-		return nil, err
-	}
-	return func(next http.Handler) http.Handler {
-		compressed := compressor(next)
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if isStorageIO(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
-				next.ServeHTTP(w, req)
-				return
-			}
-			compressed.ServeHTTP(w, req)
-		})
-	}, nil
 }
 
 func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {
 	withTimeout := chimiddleware.Timeout(timeout)
-	withPackageInstallerTimeout := chimiddleware.Timeout(packageInstallerTimeout)
 	return func(next http.Handler) http.Handler {
 		timed := withTimeout(next)
-		packageInstallerTimed := withPackageInstallerTimeout(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if isStorageIO(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
-				next.ServeHTTP(w, req)
-				return
-			}
-			requestTimeout := timeout
-			requestHandler := timed
-			if isPackageInstallerMutation(req) {
-				requestTimeout = packageInstallerTimeout
-				requestHandler = packageInstallerTimed
-			}
-			deadline := time.Now().Add(requestTimeout)
+			deadline := time.Now().Add(timeout)
 			controller := http.NewResponseController(w)
 			_ = controller.SetReadDeadline(deadline)
 			_ = controller.SetWriteDeadline(deadline)
-			requestHandler.ServeHTTP(w, req)
+			timed.ServeHTTP(w, req)
 		})
 	}
 }
 
-const packageInstallerTimeout = time.Hour
-
-func isStorageIO(req *http.Request) bool {
-	if strings.HasPrefix(req.URL.Path, "/storage/") {
-		return true
-	}
-	if req.Method != http.MethodGet && req.Method != http.MethodHead {
-		return false
-	}
-	if strings.HasPrefix(req.URL.Path, "/munki/pkgs/") ||
-		strings.HasPrefix(req.URL.Path, "/munki/icons/") ||
-		strings.HasPrefix(req.URL.Path, "/munki/client_resources/") {
-		return true
-	}
-	for _, pattern := range []string{
-		"/api/munki/software/*/icon",
-		"/api/munki/icons/*/content",
-		"/api/munki/package-installers/*/content",
-		"/api/munki/client-resources/banner/*/content",
-	} {
-		if matched, _ := pathpkg.Match(pattern, req.URL.Path); matched {
-			return true
-		}
-	}
-	return false
-}
-
-func isLiveQueryStream(req *http.Request) bool {
-	matched, _ := pathpkg.Match("/api/live-queries/*/stream", req.URL.Path)
-	return req.Method == http.MethodGet && matched
-}
-
-func isDistributionWebSocket(req *http.Request) bool {
-	return req.Method == http.MethodGet &&
-		req.URL.Path == "/api/munki/distribution/connect" &&
-		strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
-}
-
-func isPackageInstallerMutation(req *http.Request) bool {
-	if req.Method == http.MethodPut {
-		matched, _ := pathpkg.Match("/api/munki/package-installers/*", req.URL.Path)
-		return matched
-	}
-	if req.Method == http.MethodPost {
-		matched, _ := pathpkg.Match("/api/munki/package-installers/*/multipart/complete", req.URL.Path)
-		return matched
-	}
-	return false
-}
+const (
+	defaultRequestTimeout     = 120 * time.Second
+	longRunningRequestTimeout = time.Hour
+)
 
 func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	if len(cfg.CORSAllowedOrigins) == 0 {

@@ -71,8 +71,9 @@ func NewServer(
 	}
 }
 
-// RegisterRoutes mounts Munki client repository endpoints.
-func (s *Server) RegisterRoutes(r chi.Router) {
+// RegisterRoutes mounts Munki metadata endpoints on ordinary and byte-transfer
+// endpoints on transfers.
+func (s *Server) RegisterRoutes(ordinary chi.Router, transfers chi.Router) {
 	h := handler{
 		secretVerifier: s.secretVerifier,
 		repository:     s.repository,
@@ -80,12 +81,12 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 		delivery:       s.delivery,
 		logger:         s.logger,
 	}
-	r.Get("/munki/manifests/{name}", h.manifest)
-	r.Get("/munki/catalogs/{name}", h.catalog)
-	r.Get("/munki/pkgs/*", h.packageFile)
-	r.Get("/munki/icons/_icon_hashes.plist", h.iconHashes)
-	r.Get("/munki/icons/*", h.iconFile)
-	r.Get("/munki/client_resources/*", h.clientResources)
+	ordinary.Get("/munki/manifests/{name}", h.manifest)
+	ordinary.Get("/munki/catalogs/{name}", h.catalog)
+	ordinary.Get("/munki/icons/_icon_hashes.plist", h.iconHashes)
+	transfers.Get("/munki/pkgs/*", h.packageFile)
+	transfers.Get("/munki/icons/*", h.iconFile)
+	transfers.Get("/munki/client_resources/*", h.clientResources)
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {

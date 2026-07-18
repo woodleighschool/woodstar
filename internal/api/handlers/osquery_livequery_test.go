@@ -6,16 +6,66 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
+func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
+	t.Parallel()
+	router := chi.NewRouter()
+	ordinary := humachi.New(
+		router.With(routeSurfaceMiddleware("ordinary")),
+		testHumaConfigWithoutUtilityRoutes(),
+	)
+	streaming := humachi.New(
+		router.With(routeSurfaceMiddleware("streaming")),
+		testHumaConfigWithoutUtilityRoutes(),
+	)
+	registerLiveQueries(ordinary, streaming, nil, nil, discardLogger())
+
+	for _, tc := range []struct {
+		name        string
+		method      string
+		path        string
+		wantSurface string
+	}{
+		{name: "create", method: http.MethodPost, path: "/api/live-queries", wantSurface: "ordinary"},
+		{name: "stream", method: http.MethodGet, path: "/api/live-queries/1/stream", wantSurface: "streaming"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
+				t.Fatalf("route surface = %q, want %q", got, tc.wantSurface)
+			}
+		})
+	}
+}
+
+func routeSurfaceMiddleware(surface string) func(http.Handler) http.Handler {
+	return func(_ http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("X-Route-Surface", surface)
+			w.WriteHeader(http.StatusNoContent)
+		})
+	}
+}
+
+func testHumaConfigWithoutUtilityRoutes() huma.Config {
+	cfg := testHumaConfig()
+	cfg.OpenAPIPath = ""
+	cfg.DocsPath = ""
+	cfg.SchemasPath = ""
+	return cfg
+}
+
 func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, livequery.NewManager(), nil, discardLogger())
+	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/live-queries/404/stream", nil)
@@ -41,7 +91,7 @@ func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
 	})
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, manager, nil, discardLogger())
+	registerLiveQueries(api, api, manager, nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/live-queries/1/stream", nil)

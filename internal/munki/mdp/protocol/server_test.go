@@ -54,7 +54,7 @@ func agentRouter(
 	server := mdpprotocol.NewServer(t.Context(), store, delivery, discardLogger())
 	t.Cleanup(server.Close)
 	r := chi.NewRouter()
-	server.RegisterRoutes(r)
+	server.RegisterRoutes(r, r)
 	return r
 }
 
@@ -172,7 +172,7 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	protocol := mdpprotocol.NewServer(t.Context(), store, fakeDelivery{}, discardLogger())
 	t.Cleanup(protocol.Close)
 	router := chi.NewRouter()
-	protocol.RegisterRoutes(router)
+	protocol.RegisterRoutes(router, router)
 	httpServer := httptest.NewServer(router)
 	defer httpServer.Close()
 

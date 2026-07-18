@@ -15,6 +15,7 @@ import (
 func RegisterOsquery(
 	ordinary huma.API,
 	sensitive huma.API,
+	streamingSensitive huma.API,
 	reportStore *reports.Store,
 	checkStore *checks.Store,
 	liveQueries *livequery.Manager,
@@ -25,5 +26,5 @@ func RegisterOsquery(
 	registerHostOsqueryReports(ordinary, reportStore, hostStore, logger)
 	registerOsqueryChecks(ordinary, checkStore, logger)
 	registerHostOsqueryChecks(ordinary, checkStore, hostStore, logger)
-	registerLiveQueries(sensitive, liveQueries, hostStore, logger)
+	registerLiveQueries(sensitive, streamingSensitive, liveQueries, hostStore, logger)
 }

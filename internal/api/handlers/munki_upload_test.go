@@ -96,6 +96,45 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	})
 }
 
+func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
+	t.Parallel()
+	router := chi.NewRouter()
+	ordinary := humachi.New(
+		router.With(routeSurfaceMiddleware("ordinary")),
+		testHumaConfigWithoutUtilityRoutes(),
+	)
+	longRunning := humachi.New(
+		router.With(routeSurfaceMiddleware("long-running")),
+		testHumaConfigWithoutUtilityRoutes(),
+	)
+	registerPackageInstallerRoutes(ordinary, longRunning, nil, discardLogger())
+
+	for _, tc := range []struct {
+		name        string
+		method      string
+		path        string
+		wantSurface string
+	}{
+		{name: "create", method: http.MethodPost, path: munkiPackageInstallerPath, wantSurface: "ordinary"},
+		{name: "finalize", method: http.MethodPut, path: munkiPackageInstallerPath + "/1", wantSurface: "long-running"},
+		{name: "delete", method: http.MethodDelete, path: munkiPackageInstallerPath + "/1", wantSurface: "ordinary"},
+		{
+			name:        "complete multipart",
+			method:      http.MethodPost,
+			path:        munkiPackageInstallerPath + "/1/multipart/complete",
+			wantSurface: "long-running",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
+				t.Fatalf("route surface = %q, want %q", got, tc.wantSurface)
+			}
+		})
+	}
+}
+
 func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
 	path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
@@ -170,7 +209,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerPackageInstallerRoutes(api, uploads, discardLogger())
+	registerPackageInstallerRoutes(api, api, uploads, discardLogger())
 	registerCreateMunkiPackage(api, munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               packageStore,
 		DesiredPackagesChanged: func() {},
