@@ -3,6 +3,14 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { FormField } from "@/components/form-field";
+import { MunkiIcon, munkiSoftwareIconURL } from "@/components/munki/munki-icon";
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -14,14 +22,7 @@ import {
   ComboboxLabel,
   ComboboxList,
 } from "@/components/ui/combobox";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
 import type { PackageEditorForm } from "./editor-form";
@@ -36,14 +37,21 @@ export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
   return (
     <Field>
       <FieldLabel>Software</FieldLabel>
-      <Link
-        to="/munki/software/$softwareId"
-        params={{ softwareId: String(software.id) }}
-        className="w-fit text-sm underline underline-offset-4"
-      >
-        {software.name}
-      </Link>
-      <FieldDescription>The parent software cannot be changed.</FieldDescription>
+      <Attachment className="w-full">
+        <AttachmentMedia variant="image">
+          <MunkiIcon iconUrl={munkiSoftwareIconURL(software.id)} size="md" />
+        </AttachmentMedia>
+        <AttachmentContent>
+          <AttachmentTitle>{software.name}</AttachmentTitle>
+          <AttachmentDescription>Parent software</AttachmentDescription>
+        </AttachmentContent>
+        <Link
+          to="/munki/software/$softwareId"
+          params={{ softwareId: String(software.id) }}
+          aria-label={`Open ${software.name}`}
+          className="absolute inset-0 z-10 outline-none"
+        />
+      </Attachment>
     </Field>
   );
 }

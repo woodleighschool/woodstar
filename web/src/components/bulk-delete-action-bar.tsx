@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { BulkDeleteDialog } from "@/components/bulk-delete-dialog";
-import { Button } from "@/components/ui/button";
+import {
+  ActionBar,
+  ActionBarGroup,
+  ActionBarItem,
+  ActionBarSelection,
+  ActionBarSeparator,
+} from "@/components/ui/action-bar";
 
 interface BulkDeleteMutation {
   mutate: (ids: number[], options?: { onSuccess?: () => void }) => void;
@@ -43,17 +49,29 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-md border bg-background p-1 pl-3 shadow-sm">
-      <span className="text-sm text-muted-foreground">{ids.length} selected</span>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => setOpen(true)}
-        disabled={bulkDelete.isPending}
+    <>
+      <ActionBar
+        open={ids.length > 0}
+        onOpenChange={(next) => {
+          if (!next) table.toggleAllRowsSelected(false);
+        }}
       >
-        <Trash2 />
-        Delete
-      </Button>
+        <ActionBarSelection>{ids.length} selected</ActionBarSelection>
+        <ActionBarSeparator />
+        <ActionBarGroup>
+          <ActionBarItem
+            variant="destructive"
+            onSelect={(event) => {
+              event.preventDefault();
+              setOpen(true);
+            }}
+            disabled={bulkDelete.isPending}
+          >
+            <Trash2 data-icon="inline-start" />
+            Delete
+          </ActionBarItem>
+        </ActionBarGroup>
+      </ActionBar>
       <BulkDeleteDialog
         open={open}
         onOpenChange={(next) => {
@@ -67,6 +85,6 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
         pending={bulkDelete.isPending}
         onConfirm={onConfirm}
       />
-    </div>
+    </>
   );
 }

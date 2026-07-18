@@ -1,4 +1,4 @@
-import { FileArchive, Trash2 } from "lucide-react";
+import { Disc3, FileArchive, Package, Trash2 } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 
 import { FormField } from "@/components/form-field";
@@ -79,7 +79,7 @@ export function InstallerFileField({
       {(field) => (
         <FormField
           field={field}
-          label={metadata ? "Replacement installer" : "Installer file"}
+          label="Installer file"
           htmlFor="munki-package-installer-file"
           required={!metadata}
         >
@@ -107,7 +107,7 @@ export function InstallerFileField({
                   className="w-full"
                 >
                   <AttachmentMedia>
-                    <FileArchive />
+                    <InstallerFileIcon filename={filename} />
                   </AttachmentMedia>
                   <AttachmentContent>
                     <AttachmentTitle>{filename}</AttachmentTitle>
@@ -126,16 +126,11 @@ export function InstallerFileField({
                   ) : null}
                   <AttachmentTrigger
                     id="munki-package-installer-file"
-                    aria-label={metadata ? "Select replacement installer" : "Select installer"}
+                    aria-label="Select installer"
                     aria-invalid={control["aria-invalid"]}
                     onClick={() => inputRef.current?.click()}
                   />
                 </Attachment>
-                {metadata && !file ? (
-                  <p className="mt-2 font-mono text-xs break-all text-muted-foreground">
-                    SHA-256 {metadata.sha256}
-                  </p>
-                ) : null}
               </div>
             );
           }}
@@ -143,6 +138,13 @@ export function InstallerFileField({
       )}
     </form.Field>
   );
+}
+
+function InstallerFileIcon({ filename }: { filename: string }) {
+  const lowerFilename = filename.toLowerCase();
+  if (lowerFilename.endsWith(".dmg")) return <Disc3 />;
+  if (lowerFilename.endsWith(".pkg")) return <Package />;
+  return <FileArchive />;
 }
 
 export function ArchitectureEditor({

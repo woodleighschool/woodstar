@@ -140,6 +140,7 @@ export function UserListPage() {
     data: users,
     columns,
     pageCount,
+    rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });

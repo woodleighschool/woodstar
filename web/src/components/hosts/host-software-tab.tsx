@@ -152,6 +152,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     manualFiltering: true,
     enableMultiSort: false,
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
+    rowCount: totalCount,
     state: { pagination, sorting, columnFilters },
     onPaginationChange: setPagination,
     onSortingChange: (updater) => {

@@ -40,7 +40,7 @@ export function MunkiSoftwareListPage() {
       {
         id: "name",
         accessorKey: "name",
-        header: "Software",
+        header: "Name",
         cell: ({ row }) =>
           isAdmin ? (
             <Link
@@ -58,7 +58,7 @@ export function MunkiSoftwareListPage() {
             </span>
           ),
         enableHiding: false,
-        meta: { label: "Software" },
+        meta: { label: "Name" },
       },
       {
         id: "category",
@@ -89,6 +89,7 @@ export function MunkiSoftwareListPage() {
     data: software,
     columns,
     pageCount,
+    rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,

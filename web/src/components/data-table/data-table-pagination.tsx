@@ -23,6 +23,12 @@ export function DataTablePagination<TData>({
   className,
   ...props
 }: DataTablePaginationProps<TData>) {
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const pageRowCount = table.getRowModel().rows.length;
+  const rowCount = table.getRowCount();
+  const firstRow = pageRowCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const lastRow = pageRowCount === 0 ? 0 : Math.min(rowCount, firstRow + pageRowCount - 1);
+
   return (
     <div
       className={cn(
@@ -32,7 +38,7 @@ export function DataTablePagination<TData>({
       {...props}
     >
       <div className="flex-1 text-sm whitespace-nowrap text-muted-foreground">
-        {table.getFilteredSelectedRowModel().rows.length} row(s) selected.
+        {firstRow}-{lastRow} of {rowCount}
       </div>
       <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         <div className="flex items-center gap-2">
