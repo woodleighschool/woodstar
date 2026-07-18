@@ -54,7 +54,7 @@ mise run test-integration
 mise run test-openapi
 ```
 
-`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. Most integration tasks run compiled-server lifecycles; the storage task runs backend conformance directly. `mise run test-integration` runs the full integration module. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
+`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. Most integration tasks run compiled-server lifecycles; the storage task runs backend conformance directly. `mise run test-integration` runs every suite under `tests/`. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
 
 Munki, Santa, MDP, and the deterministic osquery protocol lifecycle fail when their prerequisites or assertions fail. The osquery task also starts an official osquery container. The storage task runs the same contract against local files and S3, using an ephemeral Garage testcontainer as the S3 server. The real osqueryd lifecycle and Garage-backed storage checks may skip locally only when Docker is absent; CI requires Docker for both. Garage is test infrastructure, not a persistent Compose service.
 

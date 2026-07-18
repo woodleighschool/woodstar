@@ -26,14 +26,11 @@ config_roots = ["web", "docs"]
 postinstall = "lefthook install"
 
 [tasks.go-deps]
-description = "Download backend and integration Go dependencies"
-run = """
-go mod download
-go -C integration mod download
-"""
+description = "Download Go dependencies"
+run = "go mod download"
 
 [tasks.deps]
-description = "Install backend, integration, and web dependencies"
+description = "Install backend and web dependencies"
 run = """
 mise run go-deps
 mise //web:deps
@@ -80,60 +77,59 @@ description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.tidy]
-description = "Check both Go modules are tidy"
+description = "Check the Go module is tidy"
 run = """
 go mod tidy
-go -C integration mod tidy
-git diff --exit-code go.mod go.sum integration/go.mod integration/go.sum
+git diff --exit-code go.mod go.sum
 """
 
 [tasks.test]
 description = "Run the focused PostgreSQL-backed Go suite"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./...
+  go test -race -count=1 -v ./cmd/... ./internal/...
 """
 
 [tasks.test-integration-munki]
 description = "Run the compiled Munki repository lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestMunki$' .
+  go test -race -count=1 -v -run '^TestMunki$' ./tests
 """
 
 [tasks.test-integration-osquery]
 description = "Run the osquery protocol and real osqueryd lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestOsquery(d)?$' .
+  go test -race -count=1 -v -run '^TestOsquery(d)?$' ./tests
 """
 
 [tasks.test-integration-santa]
 description = "Run the compiled Santa protobuf lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestSanta$' .
+  go test -race -count=1 -v -run '^TestSanta$' ./tests
 """
 
 [tasks.test-integration-storage]
 description = "Run file and Garage-backed S3 backend conformance"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestStorageBackends$' ./storage
+  go test -race -count=1 -v -run '^TestStorageBackends$' ./tests/storage
 """
 
 [tasks.test-integration-mdp]
 description = "Run the compiled MDP package mirroring lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v -run '^TestMDP$' .
+  go test -race -count=1 -v -run '^TestMDP$' ./tests
 """
 
 [tasks.test-integration]
 description = "Run all integration lifecycles and backend conformance"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go -C integration test -race -count=1 -v ./...
+  go test -race -count=1 -v ./tests/...
 """
 
 [tasks.openapi]
@@ -175,14 +171,8 @@ description = "Regenerate checked-in generated artifacts"
 run = "mise run openapi-types"
 
 [tasks.go-lint]
-description = "Run Go linters for both modules"
-run = """
-golangci-lint run --config .golangci.yml
-(
-  cd integration
-  golangci-lint run --config ../.golangci.yml
-)
-"""
+description = "Run Go linters"
+run = "golangci-lint run --config .golangci.yml"
 
 [tasks.lint]
 description = "Run backend and web linters"
@@ -192,14 +182,8 @@ mise //web:lint
 """
 
 [tasks.go-format]
-description = "Format Go code in both modules"
-run = """
-golangci-lint fmt
-(
-  cd integration
-  golangci-lint fmt --config ../.golangci.yml
-)
-"""
+description = "Format Go code"
+run = "golangci-lint fmt"
 
 [tasks.format]
 description = "Format backend and web code"

@@ -9,8 +9,6 @@ on:
     paths:
       - go.mod
       - go.sum
-      - integration/go.mod
-      - integration/go.sum
   schedule:
     - cron: "0 0 * * 0"
   workflow_dispatch:
@@ -40,7 +38,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum', 'integration/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
       - name: Download Go modules

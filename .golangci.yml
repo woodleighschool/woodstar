@@ -466,7 +466,6 @@ linters:
   exclusions:
     # Log a warning if an exclusion rule is unused.
     # Default: false
-    # This config is run once per Go module, so module-specific rules are unused in the other run.
     warn-unused: false
     # Predefined exclusion rules.
     # Default: []
@@ -492,7 +491,7 @@ linters:
         linters: [revive]
       - path: 'types_db\.go'
         linters: [recvcheck]
-      - path: "^integration/"
+      - path: "^tests/"
         linters: [gocognit, gocyclo]
       - path: 'internal/labels/store_test\.go'
         linters: [unqueryvet]

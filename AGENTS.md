@@ -15,6 +15,7 @@ Repo rules for AI agents working on Woodstar.
 - App/browser API wiring: `internal/api/server.go`; app handlers: `internal/api/handlers`
 - Agent protocols: `internal/{orbit,osquery,munki,santa}/protocol`
 - Database: `internal/database`, migrations, and `internal/database/dbtest`
+- Cross-system tests: `tests/`
 - Frontend: `web/`; read `web/AGENTS.md` before changing it
 - Docs: `docs/`; keep `README.md` concise
 
@@ -66,7 +67,7 @@ Use mise tasks as the repo contract.
 - Keep Go `gofmt` clean. Exports use PascalCase; locals use camelCase.
 - Prefer structs, small local interfaces, and explicit errors over vague `any` or `map[string]interface{}`.
 - Do not add `tt := tt` in Go 1.22+ parallel subtests.
-- Tests live beside code as `*_test.go`; protocol tests should exercise real request/response behavior.
+- Package tests live beside code as `*_test.go`; cross-system suites live under `tests/`. Protocol tests should exercise real request/response behavior.
 - Use `os.WriteFile(..., 0o600)` in tests unless broader permissions are required.
 - Keep secrets, local DBs, logs, and generated private material out of version control. Do not log credentials, tokens, enroll secrets, node keys, or raw authorization headers.
 
