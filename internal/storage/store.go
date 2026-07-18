@@ -36,6 +36,7 @@ type Backend interface {
 	Presigner
 	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
+	deliveryMode() deliveryMode
 }
 
 // MultipartBackend is the optional S3 multipart transfer capability.
@@ -68,7 +69,8 @@ type PutOptions struct {
 
 // GetOptions carries optional hints for a presigned read.
 type GetOptions struct {
-	ContentType string
+	ContentType  string
+	CacheControl string
 }
 
 // UploadTransport tells clients which upload implementation should send bytes.

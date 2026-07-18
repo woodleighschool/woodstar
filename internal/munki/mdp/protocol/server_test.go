@@ -21,13 +21,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-type fakePresigner struct{}
+type fakeDelivery struct{}
 
-func (fakePresigner) PresignGet(
+func (fakeDelivery) DownloadURL(
 	_ context.Context,
-	_ string,
+	_ storage.Object,
 	_ time.Duration,
-	_ storage.GetOptions,
+	_ storage.DeliveryOptions,
 ) (string, error) {
 	return "", nil
 }
@@ -41,10 +41,17 @@ func discardLogger() *slog.Logger {
 func agentRouter(
 	t *testing.T,
 	store *mdp.Store,
-	presigner storage.Presigner,
+	delivery interface {
+		DownloadURL(
+			context.Context,
+			storage.Object,
+			time.Duration,
+			storage.DeliveryOptions,
+		) (string, error)
+	},
 ) chi.Router {
 	t.Helper()
-	server := mdpprotocol.NewServer(t.Context(), store, presigner, discardLogger())
+	server := mdpprotocol.NewServer(t.Context(), store, delivery, discardLogger())
 	t.Cleanup(server.Close)
 	r := chi.NewRouter()
 	server.RegisterRoutes(r)
@@ -102,7 +109,7 @@ func seedAvailablePackage(
 func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	db, _ := dbtest.Open(t)
 	store, _ := newStore(db)
-	router := agentRouter(t, store, fakePresigner{})
+	router := agentRouter(t, store, fakeDelivery{})
 
 	cases := []struct {
 		name   string
@@ -134,7 +141,7 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	router := agentRouter(t, store, fakePresigner{})
+	router := agentRouter(t, store, fakeDelivery{})
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -162,7 +169,7 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	protocol := mdpprotocol.NewServer(t.Context(), store, fakePresigner{}, discardLogger())
+	protocol := mdpprotocol.NewServer(t.Context(), store, fakeDelivery{}, discardLogger())
 	t.Cleanup(protocol.Close)
 	router := chi.NewRouter()
 	protocol.RegisterRoutes(router)
@@ -197,7 +204,7 @@ func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	if _, err := store.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	router := agentRouter(t, store, fakePresigner{})
+	router := agentRouter(t, store, fakeDelivery{})
 
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
 

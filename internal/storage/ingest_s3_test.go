@@ -1,4 +1,4 @@
-package objectupload_test
+package storage_test
 
 import (
 	"crypto/sha256"
@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -77,7 +76,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 		t.Fatalf("create S3 backend: %v", err)
 	}
 	objects := storage.NewObjectStore(db, backend)
-	uploads := objectupload.NewService(objects, backend)
+	uploads := storage.NewIngestor(objects, backend)
 	object, err := objects.CreatePending(ctx, packages.ObjectPrefix, "Installer.pkg")
 	if err != nil {
 		t.Fatalf("create pending object: %v", err)

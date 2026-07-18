@@ -141,22 +141,11 @@ func (s *RepositoryService) IconHashes(ctx context.Context) ([]byte, error) {
 	return encodePlist(hashes)
 }
 
-// PackageInstaller is a resolved package installer: the stable package id, the
-// Munki repository path, the storage key to serve, and the integrity a
-// distribution grant binds to.
+// PackageInstaller is a package identity and its canonical stored installer.
 type PackageInstaller struct {
 	PackageID             int64
 	InstallerItemLocation string
-	Key                   string
-	ContentType           string
-	SHA256                string
-	SizeBytes             int64
-}
-
-// RepositoryFile is canonical stored content exposed through the Munki repository.
-type RepositoryFile struct {
-	Key         string
-	ContentType string
+	Object                storage.Object
 }
 
 // ResolvePackageFile resolves a package installer Munki path to the package
@@ -198,10 +187,7 @@ func (s *RepositoryService) ResolvePackageFile(
 	return PackageInstaller{
 		PackageID:             pkg.ID,
 		InstallerItemLocation: key,
-		Key:                   obj.Key(),
-		ContentType:           obj.ContentType,
-		SHA256:                obj.SHA256Value(),
-		SizeBytes:             obj.SizeBytesValue(),
+		Object:                *obj,
 	}, nil
 }
 
@@ -210,60 +196,60 @@ func (s *RepositoryService) ResolvePackageFile(
 func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
 	key string,
-) (RepositoryFile, error) {
+) (storage.Object, error) {
 	if key == "" {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
 	iconObjectID, ok := packages.ParseIconName(key)
 	if !ok {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
 	pkgs, err := s.deps.Packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
 	if err != nil {
-		return RepositoryFile{}, err
+		return storage.Object{}, err
 	}
 	if len(pkgs) == 0 {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{iconObjectID})
 	if err != nil {
-		return RepositoryFile{}, err
+		return storage.Object{}, err
 	}
 	obj, ok := objects[iconObjectID]
 	if !ok || !obj.Available() || packages.IconName(obj) != key {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
-	return RepositoryFile{Key: obj.Key(), ContentType: obj.ContentType}, nil
+	return obj, nil
 }
 
 // ResolveClientResources resolves a configured archive for Munki's host-specific
 // request or its site_default.zip fallback.
-func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (RepositoryFile, error) {
+func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (storage.Object, error) {
 	if name != "site_default.zip" {
 		serial, ok := strings.CutSuffix(name, ".zip")
 		if !ok || serial == "" || strings.Contains(serial, "/") {
-			return RepositoryFile{}, ErrNotFound
+			return storage.Object{}, ErrNotFound
 		}
 		if _, err := s.resolveManifestHostID(ctx, serial); err != nil {
-			return RepositoryFile{}, err
+			return storage.Object{}, err
 		}
 	}
 	resource, err := s.deps.ClientResources.Get(ctx)
 	if errors.Is(err, dbutil.ErrNotFound) {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
 	if err != nil {
-		return RepositoryFile{}, err
+		return storage.Object{}, err
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{resource.ArchiveObjectID})
 	if err != nil {
-		return RepositoryFile{}, err
+		return storage.Object{}, err
 	}
 	archive, ok := objects[resource.ArchiveObjectID]
 	if !ok || archive.Prefix != clientresources.ArchiveObjectPrefix || !archive.Available() {
-		return RepositoryFile{}, ErrNotFound
+		return storage.Object{}, ErrNotFound
 	}
-	return RepositoryFile{Key: archive.Key(), ContentType: archive.ContentType}, nil
+	return archive, nil
 }
 
 func (s *RepositoryService) effectivePackages(

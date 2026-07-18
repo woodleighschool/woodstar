@@ -8,7 +8,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -89,41 +88,28 @@ func munkiUploadOutputFromTarget(obj *storage.Object, target storage.UploadTarge
 	}}
 }
 
-func munkiObjectView(o storage.Object) MunkiObjectView {
+func munkiObjectView(o storage.Object, contentURL string) MunkiObjectView {
 	return MunkiObjectView{
 		ID:          o.ID,
 		Filename:    o.Filename,
 		ContentType: o.ContentType,
 		SizeBytes:   o.SizeBytes,
 		SHA256:      o.SHA256,
+		ContentURL:  contentURL,
 	}
-}
-
-func munkiObjectViewWithContentURL(
-	ctx context.Context,
-	objects *storage.ObjectStore,
-	o storage.Object,
-) (MunkiObjectView, error) {
-	view := munkiObjectView(o)
-	contentURL, err := objects.ContentURL(ctx, o)
-	if err != nil {
-		return MunkiObjectView{}, err
-	}
-	view.ContentURL = contentURL
-	return view, nil
 }
 
 func finalizeMunkiUpload(
 	ctx context.Context,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	prefix string,
 	objectID int64,
 ) (*storage.Object, error) {
-	object, err := uploads.Finalize(ctx, objectID, prefix)
+	object, err := ingestor.Finalize(ctx, objectID, prefix)
 	if errors.Is(err, storage.ErrObjectNotFound) {
 		return nil, errors.Join(
 			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
-			cleanupMunkiUpload(ctx, uploads, objectID, prefix),
+			cleanupMunkiUpload(ctx, ingestor, objectID, prefix),
 		)
 	}
 	return object, err
@@ -131,29 +117,28 @@ func finalizeMunkiUpload(
 
 func setMunkiObject(
 	ctx context.Context,
-	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	prefix string,
 	objectID int64,
 	set func(int64) error,
-) (MunkiObjectView, error) {
-	object, err := finalizeMunkiUpload(ctx, uploads, prefix, objectID)
+) (*storage.Object, error) {
+	object, err := finalizeMunkiUpload(ctx, ingestor, prefix, objectID)
 	if err != nil {
-		return MunkiObjectView{}, err
+		return nil, err
 	}
 	if err := set(object.ID); err != nil {
-		return MunkiObjectView{}, errors.Join(err, cleanupMunkiUpload(ctx, uploads, object.ID, prefix))
+		return nil, errors.Join(err, cleanupMunkiUpload(ctx, ingestor, object.ID, prefix))
 	}
-	return munkiObjectViewWithContentURL(ctx, objects, *object)
+	return object, nil
 }
 
 func cleanupMunkiUpload(
 	ctx context.Context,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	objectID int64,
 	prefix string,
 ) error {
-	err := uploads.Delete(ctx, objectID, prefix)
+	err := ingestor.Delete(ctx, objectID, prefix)
 	if errors.Is(err, dbutil.ErrConflict) || errors.Is(err, dbutil.ErrNotFound) {
 		return nil
 	}

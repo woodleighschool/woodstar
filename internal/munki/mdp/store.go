@@ -400,47 +400,32 @@ ORDER BY p.id`)
 	return packages, nil
 }
 
-// InstallerContent identifies the canonical bytes and content type for a package.
-type InstallerContent struct {
-	Key         string
-	ContentType string
-}
-
 // InstallerObject returns the stored content for a package's installer.
-func (s *Store) InstallerObject(ctx context.Context, packageID int64) (InstallerContent, error) {
-	type installerObjectRow struct {
-		Prefix      string     `db:"prefix"`
-		ID          int64      `db:"object_id"`
-		Filename    string     `db:"filename"`
-		ContentType string     `db:"content_type"`
-		SizeBytes   *int64     `db:"size_bytes"`
-		SHA256      *string    `db:"sha256"`
-		AvailableAt *time.Time `db:"available_at"`
-	}
-	row, err := dbutil.GetOne[installerObjectRow](ctx, s.db.Pool(), `
+func (s *Store) InstallerObject(ctx context.Context, packageID int64) (storage.Object, error) {
+	object, err := dbutil.GetOne[storage.Object](ctx, s.db.Pool(), `
 SELECT
+	o.id,
 	o.prefix,
-	o.id AS object_id,
 	o.filename,
 	o.content_type,
 	o.size_bytes,
 	o.sha256,
-	o.available_at
+	o.available_at,
+	o.multipart_upload_id,
+	o.created_at,
+	o.updated_at
 FROM munki_packages p
 JOIN storage_objects o ON o.id = p.installer_object_id
 WHERE p.id = $1`,
 		packageID,
 	)
 	if err != nil {
-		return InstallerContent{}, err
+		return storage.Object{}, err
 	}
-	if row.AvailableAt == nil || row.SizeBytes == nil || row.SHA256 == nil {
-		return InstallerContent{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
+	if !object.Available() || object.SizeBytes == nil || object.SHA256 == nil {
+		return storage.Object{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
 	}
-	return InstallerContent{
-		Key:         storage.Key(row.Prefix, row.ID, row.Filename),
-		ContentType: row.ContentType,
-	}, nil
+	return object, nil
 }
 
 // RecordPackageState upserts one package's mirror state for a distribution

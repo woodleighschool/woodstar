@@ -83,7 +83,6 @@ type ObjectStore struct {
 
 type objectBackend interface {
 	Delete(ctx context.Context, key string) error
-	PresignGet(ctx context.Context, key string, ttl time.Duration, opts GetOptions) (string, error)
 }
 
 // NewObjectStore returns a registry backed by db.
@@ -208,14 +207,6 @@ WHERE id = $1
 	return fmt.Errorf("%w: multipart upload ID changed", dbutil.ErrConflict)
 }
 
-// ContentURL returns a direct read URL with the registry's content type.
-func (s *ObjectStore) ContentURL(ctx context.Context, object Object) (string, error) {
-	if s.backend == nil {
-		return "", errors.New("storage backend is not configured")
-	}
-	return s.backend.PresignGet(ctx, object.Key(), 0, GetOptions{ContentType: object.ContentType})
-}
-
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), objectSelectSQL+"\nWHERE id = $1", id)
@@ -223,6 +214,14 @@ func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 		return nil, dbutil.GetError(err)
 	}
 	return &obj, nil
+}
+
+// ETag returns the canonical HTTP entity tag for an available object.
+func (o Object) ETag() string {
+	if o.SHA256 == nil || *o.SHA256 == "" {
+		return ""
+	}
+	return `"` + *o.SHA256 + `"`
 }
 
 // ListByIDs returns objects keyed by id. Missing IDs are ignored.

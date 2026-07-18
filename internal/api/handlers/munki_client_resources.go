@@ -10,13 +10,13 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
-	clientResourcesPath  = "/api/munki/client-resources"
-	clientResourcesLabel = "Munki client resources"
+	clientResourcesPath       = "/api/munki/client-resources"
+	clientResourcesBannerPath = clientResourcesPath + "/banner"
+	clientResourcesLabel      = "Munki client resources"
 )
 
 type clientResourcesUploadInput struct {
@@ -45,14 +45,14 @@ func registerMunkiClientResources(
 	api huma.API,
 	service *clientresources.Service,
 	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	registerGetMunkiClientResources(api, service, objects, logger)
 	registerSaveMunkiClientResources(api, service, objects, logger)
 	registerDeleteMunkiClientResources(api, service, logger)
-	registerCreateClientResourcesBannerUpload(api, uploads, logger)
-	registerDeleteClientResourcesBannerUpload(api, uploads, logger)
+	registerCreateClientResourcesBannerUpload(api, ingestor, logger)
+	registerDeleteClientResourcesBannerUpload(api, ingestor, logger)
 }
 
 type clientResourcesBannerUploadInput struct {
@@ -137,19 +137,19 @@ func registerDeleteMunkiClientResources(
 
 func registerCreateClientResourcesBannerUpload(
 	api huma.API,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-client-resources-banner-upload",
 		Method:        http.MethodPost,
-		Path:          clientResourcesPath + "/banner",
+		Path:          clientResourcesBannerPath,
 		Tags:          []string{munkiTag},
 		Summary:       "Create a banner upload for Munki client resources",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
-		object, target, err := uploads.Begin(
+		object, target, err := ingestor.Begin(
 			ctx,
 			clientresources.BannerObjectPrefix,
 			input.Body.Filename,
@@ -169,19 +169,19 @@ func registerCreateClientResourcesBannerUpload(
 
 func registerDeleteClientResourcesBannerUpload(
 	api huma.API,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "delete-munki-client-resources-banner-upload",
 		Method:        http.MethodDelete,
-		Path:          clientResourcesPath + "/banner/{id}",
+		Path:          clientResourcesBannerPath + "/{id}",
 		Tags:          []string{munkiTag},
 		Summary:       "Delete an unclaimed Munki client resources banner",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *clientResourcesBannerUploadInput) (*struct{}, error) {
-		if err := uploads.Delete(ctx, input.ID, clientresources.BannerObjectPrefix); err != nil {
+		if err := ingestor.Delete(ctx, input.ID, clientresources.BannerObjectPrefix); err != nil {
 			return nil, resourceError(
 				ctx,
 				logger,
@@ -208,10 +208,7 @@ func clientResourcesResponse(
 	if bannerObject.Prefix != clientresources.BannerObjectPrefix || !bannerObject.Available() {
 		return nil, errors.New("configured client resources reference an invalid banner object")
 	}
-	banner, err := munkiObjectViewWithContentURL(ctx, objects, *bannerObject)
-	if err != nil {
-		return nil, err
-	}
+	banner := munkiObjectView(*bannerObject, clientResourcesBannerContentURL(bannerObject.ID))
 	return &clientResourcesOutput{Body: MunkiClientResources{
 		Banner:          banner,
 		BannerAlignment: resource.BannerAlignment,

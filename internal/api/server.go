@@ -34,7 +34,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -104,10 +103,11 @@ type AppDependencies struct {
 	Checks      *checks.Store
 	LiveQueries *livequery.Manager
 
-	StorageBackend storage.Backend
-	StorageKey     []byte
-	StorageObjects *storage.ObjectStore
-	MunkiUploads   *munkiupload.Service
+	StorageBackend  storage.Backend
+	StorageDelivery *storage.Delivery
+	StorageKey      []byte
+	StorageObjects  *storage.ObjectStore
+	StorageIngestor *storage.Ingestor
 
 	MunkiPackages          *munki.PackageService
 	MunkiClientResources   *clientresources.Service
@@ -139,7 +139,7 @@ type MunkiProtocolDependencies struct {
 	Repository           *munki.RepositoryService
 	Distribution         *mdp.Store
 	DistributionProtocol *mdpprotocol.Server
-	Storage              storage.Backend
+	Delivery             storage.Deliverer
 }
 
 // NewServer returns an HTTP server.
@@ -160,7 +160,7 @@ func NewServer(deps *Dependencies) (*Server, error) {
 			deps.Protocols.AgentAuth,
 			deps.Protocols.Munki.Repository,
 			deps.Protocols.Munki.Distribution,
-			deps.Protocols.Munki.Storage,
+			deps.Protocols.Munki.Delivery,
 			deps.Logger.With("component", "munki"),
 		),
 		munkiPackages:     deps.App.MunkiPackages,
@@ -269,7 +269,7 @@ func (s *Server) protocolRoutes(r chi.Router, deps *Dependencies) {
 func (s *Server) browserRoutes(r chi.Router, deps *Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Logger))
 	r.Group(func(r chi.Router) {
-		handlers.RegisterBlobStorage(
+		storage.RegisterTransferRoutes(
 			r,
 			deps.App.StorageBackend,
 			deps.App.StorageKey,
@@ -345,8 +345,8 @@ func registerAppRoutes(
 		Packages:        munkiPackages,
 		ClientResources: deps.App.MunkiClientResources,
 		Objects:         deps.App.StorageObjects,
-		Uploads:         deps.App.MunkiUploads,
-		Storage:         deps.App.StorageBackend,
+		Ingestor:        deps.App.StorageIngestor,
+		Delivery:        deps.App.StorageDelivery,
 		Distribution:    deps.App.MunkiDistribution,
 		Connections:     deps.Protocols.Munki.DistributionProtocol,
 		Logger:          apiLogger,
@@ -433,7 +433,7 @@ func compressionMiddleware() (func(http.Handler) http.Handler, error) {
 	return func(next http.Handler) http.Handler {
 		compressed := compressor(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if isStorageTransfer(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
+			if isStorageIO(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
 				next.ServeHTTP(w, req)
 				return
 			}
@@ -449,7 +449,7 @@ func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Han
 		timed := withTimeout(next)
 		packageInstallerTimed := withPackageInstallerTimeout(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if isStorageTransfer(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
+			if isStorageIO(req) || isLiveQueryStream(req) || isDistributionWebSocket(req) {
 				next.ServeHTTP(w, req)
 				return
 			}
@@ -470,8 +470,29 @@ func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Han
 
 const packageInstallerTimeout = time.Hour
 
-func isStorageTransfer(req *http.Request) bool {
-	return strings.HasPrefix(req.URL.Path, "/storage/")
+func isStorageIO(req *http.Request) bool {
+	if strings.HasPrefix(req.URL.Path, "/storage/") {
+		return true
+	}
+	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+		return false
+	}
+	if strings.HasPrefix(req.URL.Path, "/munki/pkgs/") ||
+		strings.HasPrefix(req.URL.Path, "/munki/icons/") ||
+		strings.HasPrefix(req.URL.Path, "/munki/client_resources/") {
+		return true
+	}
+	for _, pattern := range []string{
+		"/api/munki/software/*/icon",
+		"/api/munki/icons/*/content",
+		"/api/munki/package-installers/*/content",
+		"/api/munki/client-resources/banner/*/content",
+	} {
+		if matched, _ := pathpkg.Match(pattern, req.URL.Path); matched {
+			return true
+		}
+	}
+	return false
 }
 
 func isLiveQueryStream(req *http.Request) bool {

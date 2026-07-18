@@ -49,14 +49,14 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolvePackageFile allowed package: %v", err)
 	}
-	if installer.Key != "munki/packages/42/GoogleChrome.pkg" {
-		t.Fatalf("key = %q, want the installer key", installer.Key)
+	if installer.Object.Key() != "munki/packages/42/GoogleChrome.pkg" {
+		t.Fatalf("object key = %q, want the installer key", installer.Object.Key())
 	}
 	if installer.PackageID != 10 {
 		t.Fatalf("package id = %d, want 10", installer.PackageID)
 	}
-	if installer.ContentType != "application/octet-stream" {
-		t.Fatalf("content type = %q, want application/octet-stream", installer.ContentType)
+	if installer.Object.ContentType != "application/octet-stream" {
+		t.Fatalf("content type = %q, want application/octet-stream", installer.Object.ContentType)
 	}
 
 	_, err = service.ResolvePackageFile(context.Background(), "munki/packages/99/Blocked.pkg")
@@ -91,7 +91,7 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveIconFile allowed icon: %v", err)
 	}
-	if file.Key != "munki/icons/42/GoogleChrome.png" || file.ContentType != "image/png" {
+	if file.Key() != "munki/icons/42/GoogleChrome.png" || file.ContentType != "image/png" {
 		t.Fatalf("file = %+v, want canonical icon storage metadata", file)
 	}
 
@@ -127,7 +127,7 @@ func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ResolveClientResources(%q): %v", name, err)
 		}
-		if file.Key != "munki/clientresources/archives/9/site_default.zip" || file.ContentType != "application/zip" {
+		if file.Key() != "munki/clientresources/archives/9/site_default.zip" || file.ContentType != "application/zip" {
 			t.Fatalf("ResolveClientResources(%q) file = %+v", name, file)
 		}
 	}

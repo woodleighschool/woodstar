@@ -55,7 +55,7 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 	}
 }
 
-func TestCompressionMiddlewareBypassesStorage(t *testing.T) {
+func TestCompressionMiddlewareBypassesStorageIO(t *testing.T) {
 	t.Parallel()
 	compression, err := compressionMiddleware()
 	if err != nil {
@@ -67,13 +67,24 @@ func TestCompressionMiddlewareBypassesStorage(t *testing.T) {
 		}),
 	)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
-	req.Header.Set("Accept-Encoding", "gzip")
-	handler.ServeHTTP(rec, req)
+	for _, path := range []string{
+		"/storage/.uploads/1",
+		"/munki/pkgs/Installer.pkg",
+		"/munki/icons/app.png",
+		"/munki/client_resources/serial.zip",
+		"/api/munki/software/1/icon",
+		"/api/munki/icons/1/content",
+		"/api/munki/package-installers/1/content",
+		"/api/munki/client-resources/banner/1/content",
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Accept-Encoding", "gzip")
+		handler.ServeHTTP(rec, req)
 
-	if got := rec.Header().Get("Content-Encoding"); got != "" {
-		t.Fatalf("Content-Encoding = %q, want empty for storage response", got)
+		if got := rec.Header().Get("Content-Encoding"); got != "" {
+			t.Fatalf("%s Content-Encoding = %q, want empty for storage response", path, got)
+		}
 	}
 }
 
@@ -140,6 +151,8 @@ func TestRequestTimeoutMiddlewareExemptsLongLivedResponses(t *testing.T) {
 		{name: "spoofed SSE", method: http.MethodPost, path: "/api/hosts", headers: map[string]string{"Accept": "text/event-stream"}, wantExpiry: true, wantTimeout: time.Minute},
 		{name: "spoofed WebSocket", method: http.MethodPost, path: "/api/hosts", headers: map[string]string{"Upgrade": "websocket"}, wantExpiry: true, wantTimeout: time.Minute},
 		{name: "storage", path: "/storage/munki/packages/1/Installer.pkg"},
+		{name: "Munki package", path: "/munki/pkgs/Installer.pkg"},
+		{name: "admin content", path: "/api/munki/package-installers/1/content"},
 		{name: "SSE", method: http.MethodGet, path: "/api/live-queries/1/stream"},
 		{name: "WebSocket", method: http.MethodGet, path: "/api/munki/distribution/connect", headers: map[string]string{"Upgrade": "websocket"}},
 		{name: "package installer finalization", method: http.MethodPut, path: "/api/munki/package-installers/1", wantExpiry: true, wantTimeout: packageInstallerTimeout},

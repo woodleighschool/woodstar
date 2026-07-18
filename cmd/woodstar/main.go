@@ -35,7 +35,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -223,12 +222,13 @@ func runServer(
 // buildWiring fills it from config and the database, while its zero value drives
 // OpenAPI schema generation, which registers routes without touching a store.
 type wiring struct {
-	cfg            config.Config
-	logger         *slog.Logger
-	db             *database.DB
-	sessions       *scs.SessionManager
-	storageBackend storage.Backend
-	storageKey     []byte
+	cfg             config.Config
+	logger          *slog.Logger
+	db              *database.DB
+	sessions        *scs.SessionManager
+	storageBackend  storage.Backend
+	storageDelivery *storage.Delivery
+	storageKey      []byte
 
 	auth         *auth.Service
 	users        *directory.UserService
@@ -247,7 +247,7 @@ type wiring struct {
 	orbitAgent *orbit.EnrollmentService
 
 	storageObjects         *storage.ObjectStore
-	munkiUploads           *munkiupload.Service
+	storageIngestor        *storage.Ingestor
 	munkiClientResources   *clientresources.Store
 	munkiClientResourceSvc *clientresources.Service
 	munkiPackages          *packages.Store
@@ -277,12 +277,13 @@ func buildWiring(
 	storageCapabilityKey []byte,
 ) (*wiring, error) {
 	w := &wiring{
-		cfg:            cfg,
-		logger:         logger,
-		db:             db,
-		sessions:       sessions,
-		storageBackend: storageBackend,
-		storageKey:     slices.Clone(storageCapabilityKey),
+		cfg:             cfg,
+		logger:          logger,
+		db:              db,
+		sessions:        sessions,
+		storageBackend:  storageBackend,
+		storageDelivery: storage.NewDelivery(storageBackend),
+		storageKey:      slices.Clone(storageCapabilityKey),
 	}
 
 	// Core stores.
@@ -300,12 +301,12 @@ func buildWiring(
 
 	// Munki stores.
 	w.storageObjects = storage.NewObjectStore(db, storageBackend)
-	w.munkiUploads = munkiupload.NewService(w.storageObjects, storageBackend)
+	w.storageIngestor = storage.NewIngestor(w.storageObjects, storageBackend)
 	w.munkiClientResources = clientresources.NewStore(db, w.storageObjects)
 	w.munkiClientResourceSvc = clientresources.NewService(
 		w.munkiClientResources,
 		w.storageObjects,
-		w.munkiUploads,
+		w.storageIngestor,
 		storageBackend,
 	)
 	w.munkiPackages = packages.NewStore(
@@ -360,7 +361,7 @@ func buildWiring(
 	w.munkiMDPProtocol = mdpprotocol.NewServer(
 		ctx,
 		w.munkiDistribution,
-		storageBackend,
+		w.storageDelivery,
 		munkiDistributionLogger,
 	)
 	w.munkiPackageSvc = munki.NewPackageService(munki.PackageServiceDependencies{
@@ -413,10 +414,11 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 			Checks:      w.checks,
 			LiveQueries: w.liveQueries,
 
-			StorageBackend: w.storageBackend,
-			StorageKey:     slices.Clone(w.storageKey),
-			StorageObjects: w.storageObjects,
-			MunkiUploads:   w.munkiUploads,
+			StorageBackend:  w.storageBackend,
+			StorageDelivery: w.storageDelivery,
+			StorageKey:      slices.Clone(w.storageKey),
+			StorageObjects:  w.storageObjects,
+			StorageIngestor: w.storageIngestor,
 
 			MunkiPackages:          w.munkiPackageSvc,
 			MunkiClientResources:   w.munkiClientResourceSvc,
@@ -439,7 +441,7 @@ func (w *wiring) apiDependencies() *api.Dependencies {
 				Repository:           w.munkiRepo,
 				Distribution:         w.munkiDistribution,
 				DistributionProtocol: w.munkiMDPProtocol,
-				Storage:              w.storageBackend,
+				Delivery:             w.storageDelivery,
 			},
 			Santa: w.santaSync,
 		},

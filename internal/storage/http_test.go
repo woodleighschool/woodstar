@@ -1,4 +1,4 @@
-package handlers
+package storage_test
 
 import (
 	"bytes"
@@ -181,7 +181,7 @@ func TestBlobGetLogsOpenFailures(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	router := chi.NewRouter()
-	RegisterBlobStorage(router, failingOpenStore{}, testCapabilityKey, logger)
+	storage.RegisterTransferRoutes(router, failingOpenStore{}, testCapabilityKey, logger)
 	token := signBlobCapability(t, storage.BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/packages/1/Installer.pkg",
@@ -211,7 +211,7 @@ func TestBlobGetLogsOpenFailures(t *testing.T) {
 
 func newBlobTestRouter(store storage.Store) chi.Router {
 	r := chi.NewRouter()
-	RegisterBlobStorage(r, store, testCapabilityKey, discardLogger())
+	storage.RegisterTransferRoutes(r, store, testCapabilityKey, slog.New(slog.DiscardHandler))
 	return r
 }
 

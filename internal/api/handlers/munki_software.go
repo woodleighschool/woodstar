@@ -9,7 +9,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -71,7 +70,7 @@ func registerMunkiSoftware(
 	deletions *munki.SoftwareDeletionService,
 	packageService *munki.PackageService,
 	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	registerListMunkiSoftware(api, store, logger)
@@ -80,7 +79,7 @@ func registerMunkiSoftware(
 	registerPutMunkiSoftware(api, store, packageService, logger)
 	registerDeleteMunkiSoftware(api, deletions, logger)
 	registerBulkDeleteMunkiSoftware(api, deletions, logger)
-	registerIconRoutes(api, store, objects, uploads, logger)
+	registerIconRoutes(api, store, objects, ingestor, logger)
 }
 
 func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger *slog.Logger) {

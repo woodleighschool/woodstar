@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -16,6 +15,8 @@ type munkiSoftwareUploadInput struct {
 	ID   int64 `path:"id"`
 	Body MunkiUploadRequest
 }
+
+const munkiIconPath = "/api/munki/icons"
 
 type munkiSoftwareIconPutInput struct {
 	ID   int64 `path:"id"`
@@ -34,18 +35,18 @@ func registerIconRoutes(
 	api huma.API,
 	software *munkisoftware.Store,
 	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
-	registerCreateSoftwareIconRoute(api, software, uploads, logger)
-	registerSetSoftwareIconRoute(api, software, objects, uploads, logger)
+	registerCreateSoftwareIconRoute(api, software, ingestor, logger)
+	registerSetSoftwareIconRoute(api, software, ingestor, logger)
 	registerListMunkiIconsRoute(api, objects, logger)
 }
 
 func registerCreateSoftwareIconRoute(
 	api huma.API,
 	software *munkisoftware.Store,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -71,7 +72,7 @@ func registerCreateSoftwareIconRoute(
 				input.ID,
 			)
 		}
-		obj, target, err := uploads.Begin(ctx, munkisoftware.IconObjectPrefix, input.Body.Filename)
+		obj, target, err := ingestor.Begin(ctx, munkisoftware.IconObjectPrefix, input.Body.Filename)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -90,8 +91,7 @@ func registerCreateSoftwareIconRoute(
 func registerSetSoftwareIconRoute(
 	api huma.API,
 	software *munkisoftware.Store,
-	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -106,10 +106,9 @@ func registerSetSoftwareIconRoute(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareIconPutInput) (*munkiObjectOutput, error) {
-		view, err := setMunkiObject(
+		object, err := setMunkiObject(
 			ctx,
-			objects,
-			uploads,
+			ingestor,
 			munkisoftware.IconObjectPrefix,
 			input.Body.ObjectID,
 			func(objectID int64) error {
@@ -127,7 +126,10 @@ func registerSetSoftwareIconRoute(
 				"object_id", input.Body.ObjectID,
 			)
 		}
-		return &munkiObjectOutput{Body: view}, nil
+		return &munkiObjectOutput{Body: munkiObjectView(
+			*object,
+			munkisoftware.IconURL(input.ID, &object.ID),
+		)}, nil
 	})
 }
 
@@ -139,7 +141,7 @@ func registerListMunkiIconsRoute(
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-icons",
 		Method:      http.MethodGet,
-		Path:        "/api/munki/icons",
+		Path:        munkiIconPath,
 		Tags:        []string{munkiTag},
 		Summary:     "List uploaded Munki icons",
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
@@ -149,11 +151,7 @@ func registerListMunkiIconsRoute(
 		}
 		views := make([]MunkiObjectView, len(rows))
 		for i, row := range rows {
-			view, err := munkiObjectViewWithContentURL(ctx, objects, row)
-			if err != nil {
-				return nil, resourceError(ctx, logger, "list-munki-icons", "Munki icon", err, "object_id", row.ID)
-			}
-			views[i] = view
+			views[i] = munkiObjectView(row, munkiIconContentURL(row.ID))
 		}
 		return &munkiIconObjectsOutput{Body: Page[MunkiObjectView]{
 			Items: views,

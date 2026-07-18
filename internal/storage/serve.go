@@ -8,16 +8,15 @@ import (
 	"time"
 )
 
-// ServeOptions carries HTTP metadata for a caller-authorized object read.
-type ServeOptions struct {
+// serveOptions carries HTTP metadata for a caller-authorized key read.
+type serveOptions struct {
 	ContentType  string
 	Filename     string
 	CacheControl string
 	ETag         string
 }
 
-// ServeObject streams an already-authorized object key from store.
-func ServeObject(w http.ResponseWriter, r *http.Request, store Store, key string, opts ServeOptions) error {
+func serveKey(w http.ResponseWriter, r *http.Request, store Store, key string, opts serveOptions) error {
 	reader, _, err := store.Open(r.Context(), key)
 	if errors.Is(err, ErrObjectNotFound) {
 		w.WriteHeader(http.StatusNotFound)

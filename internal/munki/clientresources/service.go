@@ -23,7 +23,7 @@ type registry interface {
 	GetByID(ctx context.Context, objectID int64) (*storage.Object, error)
 }
 
-type uploader interface {
+type objectIngestor interface {
 	Finalize(ctx context.Context, objectID int64, prefix string) (*storage.Object, error)
 	Write(ctx context.Context, prefix, filename, contentType string, body []byte) (*storage.Object, error)
 	Delete(ctx context.Context, objectID int64, prefix string) error
@@ -39,17 +39,17 @@ type resourceStore interface {
 type Service struct {
 	resources resourceStore
 	objects   registry
-	uploads   uploader
-	storage   storage.Store
+	ingestor  objectIngestor
+	backend   storage.Store
 }
 
 func NewService(
 	resources resourceStore,
 	objects registry,
-	uploads uploader,
-	storage storage.Store,
+	ingestor objectIngestor,
+	backend storage.Store,
 ) *Service {
-	return &Service{resources: resources, objects: objects, uploads: uploads, storage: storage}
+	return &Service{resources: resources, objects: objects, ingestor: ingestor, backend: backend}
 }
 
 func (s *Service) Get(ctx context.Context) (*ClientResources, error) {
@@ -68,7 +68,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	}
 	cleanupBanner := func() error {
 		if wasPending {
-			return cleanupUploads(ctx, s.uploads, BannerObjectPrefix, banner.ID)
+			return cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, banner.ID)
 		}
 		return nil
 	}
@@ -94,7 +94,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	if err != nil {
 		return nil, errors.Join(
 			err,
-			cleanupUploads(ctx, s.uploads, ArchiveObjectPrefix, archive.ID),
+			cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID),
 			cleanupBanner(),
 		)
 	}
@@ -118,23 +118,23 @@ func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.O
 	}
 	wasPending := !banner.Available()
 	if wasPending {
-		banner, err = s.uploads.Finalize(ctx, objectID, BannerObjectPrefix)
+		banner, err = s.ingestor.Finalize(ctx, objectID, BannerObjectPrefix)
 		if errors.Is(err, storage.ErrObjectNotFound) {
 			return nil, true, errors.Join(
 				fmt.Errorf("%w: uploaded banner does not exist", dbutil.ErrInvalidInput),
-				cleanupUploads(ctx, s.uploads, BannerObjectPrefix, objectID),
+				cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, objectID),
 			)
 		}
 		if err != nil {
 			return nil, true, errors.Join(
 				err,
-				cleanupUploads(ctx, s.uploads, BannerObjectPrefix, objectID),
+				cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, objectID),
 			)
 		}
 	}
 	if err := validateBanner(banner.ContentType, banner.SizeBytesValue()); err != nil {
 		if wasPending {
-			err = errors.Join(err, cleanupUploads(ctx, s.uploads, BannerObjectPrefix, banner.ID))
+			err = errors.Join(err, cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, banner.ID))
 		}
 		return nil, wasPending, err
 	}
@@ -142,7 +142,7 @@ func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.O
 }
 
 func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte, error) {
-	reader, _, err := s.storage.Open(ctx, banner.Key())
+	reader, _, err := s.backend.Open(ctx, banner.Key())
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte
 }
 
 func (s *Service) storeArchive(ctx context.Context, body []byte) (*storage.Object, error) {
-	return s.uploads.Write(ctx, ArchiveObjectPrefix, archiveFilename, archiveContentType, body)
+	return s.ingestor.Write(ctx, ArchiveObjectPrefix, archiveFilename, archiveContentType, body)
 }
 
 func validateBannerBody(contentType string, body []byte) error {

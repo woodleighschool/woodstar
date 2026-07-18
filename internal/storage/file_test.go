@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,43 @@ func TestFileStoreRejectsTraversal(t *testing.T) {
 	store := newTestFileStore(t)
 	if err := store.Put(context.Background(), "../escape", bytes.NewReader([]byte("x")), PutOptions{}); err == nil {
 		t.Fatal("Put with traversal key returned nil error, want rejection")
+	}
+}
+
+func TestFileStoreDeliversCanonicalObjectDirectly(t *testing.T) {
+	t.Parallel()
+	store := newTestFileStore(t)
+	sha256sum := strings.Repeat("a", 64)
+	object := Object{
+		ID:          7,
+		Prefix:      "munki/icons",
+		Filename:    "App.png",
+		ContentType: "image/png",
+		SHA256:      &sha256sum,
+	}
+	if err := store.Put(t.Context(), object.Key(), strings.NewReader("icon bytes"), PutOptions{}); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/munki/icons/7/content", nil)
+	if err := NewDelivery(store).Deliver(rec, req, object, DeliveryOptions{
+		CacheControl: "private, max-age=86400",
+	}); err != nil {
+		t.Fatalf("Deliver: %v", err)
+	}
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "icon bytes" {
+		t.Fatalf("delivery status/body = %d/%q, want 200/icon bytes", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != object.ContentType {
+		t.Fatalf("Content-Type = %q, want %q", got, object.ContentType)
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "private, max-age=86400" {
+		t.Fatalf("Cache-Control = %q, want private max-age", got)
+	}
+	if got := rec.Header().Get("ETag"); got != object.ETag() {
+		t.Fatalf("ETag = %q, want %q", got, object.ETag())
 	}
 }
 

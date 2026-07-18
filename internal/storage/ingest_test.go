@@ -1,4 +1,4 @@
-package objectupload
+package storage
 
 import (
 	"bytes"
@@ -9,14 +9,13 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	backend := newTestBackend(t)
-	objects := storage.NewObjectStore(db, backend)
-	uploads := NewService(objects, backend)
+	objects := NewObjectStore(db, backend)
+	uploads := NewIngestor(objects, backend)
 	object, target, err := uploads.Begin(ctx, "munki/packages", "Installer.pkg")
 	if err != nil {
 		t.Fatalf("begin upload: %v", err)
@@ -26,7 +25,7 @@ func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 		ctx,
 		uploadKey(object.ID),
 		bytes.NewReader(initial),
-		storage.PutOptions{},
+		PutOptions{},
 	); err != nil {
 		t.Fatalf("put upload bytes: %v", err)
 	}
@@ -38,7 +37,7 @@ func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 		ctx,
 		uploadKey(object.ID),
 		bytes.NewReader([]byte("late replacement")),
-		storage.PutOptions{},
+		PutOptions{},
 	); err != nil {
 		t.Fatalf("write through stale upload target %q: %v", target.URL, err)
 	}
@@ -62,8 +61,8 @@ func TestFinalizeRejectsBytesChangedDuringPromotion(t *testing.T) {
 		Backend:     newTestBackend(t),
 		replacement: []byte("replacement bytes"),
 	}
-	objects := storage.NewObjectStore(db, backend)
-	uploads := NewService(objects, backend)
+	objects := NewObjectStore(db, backend)
+	uploads := NewIngestor(objects, backend)
 	object, err := objects.CreatePending(ctx, "munki/icons", "icon.png")
 	if err != nil {
 		t.Fatalf("create pending object: %v", err)
@@ -72,7 +71,7 @@ func TestFinalizeRejectsBytesChangedDuringPromotion(t *testing.T) {
 		ctx,
 		uploadKey(object.ID),
 		bytes.NewReader([]byte("initial bytes")),
-		storage.PutOptions{},
+		PutOptions{},
 	); err != nil {
 		t.Fatalf("put upload bytes: %v", err)
 	}
@@ -88,14 +87,14 @@ func TestFinalizeRejectsBytesChangedDuringPromotion(t *testing.T) {
 
 func TestValidateCompletedPartsRequiresStrictAscendingNonemptyParts(t *testing.T) {
 	t.Parallel()
-	valid := []storage.CompletedPart{
+	valid := []CompletedPart{
 		{PartNumber: 1, ETag: `"first"`},
 		{PartNumber: 10_000, ETag: `"last"`},
 	}
 	if err := validateCompletedParts(valid); err != nil {
 		t.Fatalf("validate ascending parts: %v", err)
 	}
-	for name, parts := range map[string][]storage.CompletedPart{
+	for name, parts := range map[string][]CompletedPart{
 		"empty":      nil,
 		"zero":       {{PartNumber: 0, ETag: `"etag"`}},
 		"too large":  {{PartNumber: 10_001, ETag: `"etag"`}},
@@ -112,7 +111,7 @@ func TestValidateCompletedPartsRequiresStrictAscendingNonemptyParts(t *testing.T
 }
 
 type overwritingMoveBackend struct {
-	storage.Backend
+	Backend
 
 	replacement []byte
 }
@@ -121,18 +120,18 @@ func (b *overwritingMoveBackend) Move(
 	ctx context.Context,
 	sourceKey string,
 	destinationKey string,
-	options storage.PutOptions,
+	options PutOptions,
 ) error {
-	if err := b.Put(ctx, sourceKey, bytes.NewReader(b.replacement), storage.PutOptions{}); err != nil {
+	if err := b.Put(ctx, sourceKey, bytes.NewReader(b.replacement), PutOptions{}); err != nil {
 		return err
 	}
 	return b.Backend.Move(ctx, sourceKey, destinationKey, options)
 }
 
-func newTestBackend(t *testing.T) storage.Backend {
+func newTestBackend(t *testing.T) Backend {
 	t.Helper()
-	backend, err := storage.New(t.Context(), storage.Config{
-		Kind:          storage.KindFile,
+	backend, err := New(t.Context(), Config{
+		Kind:          KindFile,
 		FileRoot:      t.TempDir(),
 		BaseURL:       "https://woodstar.example",
 		CapabilityKey: []byte("object upload test capability key"),

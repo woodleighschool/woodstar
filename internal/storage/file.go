@@ -153,6 +153,10 @@ func (s *fileStore) Delete(_ context.Context, key string) error {
 	return nil
 }
 
+func (*fileStore) deliveryMode() deliveryMode {
+	return deliveryStream
+}
+
 func (s *fileStore) PresignGet(
 	_ context.Context,
 	key string,

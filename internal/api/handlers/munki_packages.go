@@ -8,7 +8,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -74,8 +73,7 @@ func installerTypeFilterValues(types []packages.InstallerType) []string {
 func registerMunkiPackages(
 	api huma.API,
 	store *munki.PackageService,
-	objects *storage.ObjectStore,
-	uploads *munkiupload.Service,
+	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	registerListMunkiPackages(api, store, logger)
@@ -84,7 +82,7 @@ func registerMunkiPackages(
 	registerPutMunkiPackage(api, store, logger)
 	registerDeleteMunkiPackage(api, store, logger)
 	registerBulkDeleteMunkiPackages(api, store, logger)
-	registerPackageInstallerRoutes(api, objects, uploads, logger)
+	registerPackageInstallerRoutes(api, ingestor, logger)
 }
 
 func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger *slog.Logger) {

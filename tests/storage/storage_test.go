@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -135,23 +134,20 @@ func assertStorageRange(
 ) {
 	t.Helper()
 
-	request := httptest.NewRequest(http.MethodGet, "/storage/object", nil)
-	request.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
-	response := httptest.NewRecorder()
-	if err := storage.ServeObject(response, request, backend, key, storage.ServeOptions{
-		ContentType: "application/octet-stream",
-	}); err != nil {
-		t.Fatalf("serve %q range: %v", key, err)
+	reader, _, err := backend.Open(t.Context(), key)
+	if err != nil {
+		t.Fatalf("open %q for range: %v", key, err)
 	}
-	if response.Code != http.StatusPartialContent {
-		t.Fatalf("serve %q range status = %d, want %d", key, response.Code, http.StatusPartialContent)
+	defer reader.Close()
+	if _, err := reader.Seek(int64(start), io.SeekStart); err != nil {
+		t.Fatalf("seek %q range: %v", key, err)
 	}
-	if got := response.Body.Bytes(); !bytes.Equal(got, want[start:end+1]) {
-		t.Fatalf("serve %q range bytes = %q, want %q", key, got, want[start:end+1])
+	got := make([]byte, end-start+1)
+	if _, err := io.ReadFull(reader, got); err != nil {
+		t.Fatalf("read %q range: %v", key, err)
 	}
-	wantContentRange := fmt.Sprintf("bytes %d-%d/%d", start, end, len(want))
-	if got := response.Header().Get("Content-Range"); got != wantContentRange {
-		t.Fatalf("serve %q content range = %q, want %q", key, got, wantContentRange)
+	if !bytes.Equal(got, want[start:end+1]) {
+		t.Fatalf("read %q range bytes = %q, want %q", key, got, want[start:end+1])
 	}
 }
 
@@ -202,7 +198,13 @@ func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint st
 		downloadContentType = "application/x-woodstar-download"
 	)
 	client := &http.Client{Timeout: storageRequestTimeout}
-	key := "presigned/direct object with spaces.bin"
+	object := storage.Object{
+		ID:          42,
+		Prefix:      "presigned",
+		Filename:    "direct object with spaces.bin",
+		ContentType: downloadContentType,
+	}
+	key := object.Key()
 	want := []byte("bytes uploaded through an actual presigned S3 request")
 	target, err := backend.PresignPut(t.Context(), key, time.Minute)
 	if err != nil {
@@ -231,6 +233,29 @@ func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint st
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("presigned get bytes = %q, want %q", got, want)
+	}
+
+	deliveryResponse := httptest.NewRecorder()
+	deliveryRequest := httptest.NewRequest(http.MethodGet, "/api/content", nil)
+	if err := storage.NewDelivery(backend).Deliver(deliveryResponse, deliveryRequest, object, storage.DeliveryOptions{
+		CacheControl: "private, max-age=86400",
+	}); err != nil {
+		t.Fatalf("deliver S3 object: %v", err)
+	}
+	if deliveryResponse.Code != http.StatusFound {
+		t.Fatalf("S3 delivery status = %d, want 302", deliveryResponse.Code)
+	}
+	deliveryURL := deliveryResponse.Header().Get("Location")
+	assertPresignedEndpoint(t, deliveryURL, endpoint)
+	parsedDeliveryURL, err := url.Parse(deliveryURL)
+	if err != nil {
+		t.Fatalf("parse S3 delivery URL: %v", err)
+	}
+	if got := parsedDeliveryURL.Query().Get("response-content-type"); got != downloadContentType {
+		t.Fatalf("S3 delivery content type = %q, want %q", got, downloadContentType)
+	}
+	if got := parsedDeliveryURL.Query().Get("response-cache-control"); got != "private, max-age=86400" {
+		t.Fatalf("S3 delivery cache control = %q, want private max-age", got)
 	}
 
 	getURL, err = backend.PresignGet(t.Context(), key, time.Minute, storage.GetOptions{

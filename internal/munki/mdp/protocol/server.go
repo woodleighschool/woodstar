@@ -26,19 +26,28 @@ const workerDownloadTTL = 15 * time.Minute
 
 // Server owns the worker-facing MDP protocol routes and live connection hub.
 type Server struct {
-	store     *mdp.Store
-	hub       *Hub
-	presigner storage.Presigner
-	logger    *slog.Logger
+	store    *mdp.Store
+	hub      *Hub
+	delivery objectDelivery
+	logger   *slog.Logger
 }
 
 // workerHandler is the MDP-facing server side: the WebSocket control endpoint a
 // worker connects to, plus the per-job download-URL endpoint it pulls from.
 type workerHandler struct {
-	store     *mdp.Store
-	hub       *Hub
-	presigner storage.Presigner
-	logger    *slog.Logger
+	store    *mdp.Store
+	hub      *Hub
+	delivery objectDelivery
+	logger   *slog.Logger
+}
+
+type objectDelivery interface {
+	DownloadURL(
+		ctx context.Context,
+		object storage.Object,
+		ttl time.Duration,
+		opts storage.DeliveryOptions,
+	) (string, error)
 }
 
 type downloadURLResponse struct {
@@ -49,20 +58,20 @@ type downloadURLResponse struct {
 func NewServer(
 	ctx context.Context,
 	store *mdp.Store,
-	presigner storage.Presigner,
+	delivery objectDelivery,
 	logger *slog.Logger,
 ) *Server {
 	return &Server{
-		store:     store,
-		hub:       newHub(ctx, store, store.Presence(), logger),
-		presigner: presigner,
-		logger:    logger,
+		store:    store,
+		hub:      newHub(ctx, store, store.Presence(), logger),
+		delivery: delivery,
+		logger:   logger,
 	}
 }
 
 // RegisterRoutes mounts the MDP worker-facing endpoints.
 func (s *Server) RegisterRoutes(r chi.Router) {
-	h := workerHandler{store: s.store, hub: s.hub, presigner: s.presigner, logger: s.logger}
+	h := workerHandler{store: s.store, hub: s.hub, delivery: s.delivery, logger: s.logger}
 	r.Get("/api/munki/distribution/connect", h.connect)
 	r.Get("/api/munki/distribution/packages/{id}/download-url", h.downloadURL)
 }
@@ -124,11 +133,11 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	url, err := h.presigner.PresignGet(
+	url, err := h.delivery.DownloadURL(
 		r.Context(),
-		object.Key,
+		object,
 		workerDownloadTTL,
-		storage.GetOptions{ContentType: object.ContentType},
+		storage.DeliveryOptions{},
 	)
 	if err != nil {
 		h.log(r, "download-url", err)

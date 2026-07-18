@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -18,7 +19,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
-	munkiupload "github.com/woodleighschool/woodstar/internal/munki/objectupload"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -148,9 +148,19 @@ type munkiUploadFixture struct {
 func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	t.Helper()
 	db, ctx := dbtest.Open(t)
-	backend := newTestFileStore(t)
+	capabilityKey := []byte("Munki upload test capability key")
+	backend, err := storage.New(ctx, storage.Config{
+		Kind:          storage.KindFile,
+		FileRoot:      t.TempDir(),
+		BaseURL:       "https://woodstar.example",
+		CapabilityKey: capabilityKey,
+		PresignTTL:    time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("create storage backend: %v", err)
+	}
 	objects := storage.NewObjectStore(db, backend)
-	uploads := munkiupload.NewService(objects, backend)
+	uploads := storage.NewIngestor(objects, backend)
 	packageStore := packages.NewStore(db, objects, discardLogger())
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "Upload Test"})
@@ -160,7 +170,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerPackageInstallerRoutes(api, objects, uploads, discardLogger())
+	registerPackageInstallerRoutes(api, uploads, discardLogger())
 	registerCreateMunkiPackage(api, munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               packageStore,
 		DesiredPackagesChanged: func() {},
@@ -168,7 +178,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
 	registerCreateClientResourcesBannerUpload(api, uploads, discardLogger())
 	registerDeleteClientResourcesBannerUpload(api, uploads, discardLogger())
-	RegisterBlobStorage(router, backend, testCapabilityKey, discardLogger())
+	storage.RegisterTransferRoutes(router, backend, capabilityKey, discardLogger())
 
 	return munkiUploadFixture{
 		router:     router,

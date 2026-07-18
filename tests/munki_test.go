@@ -268,8 +268,40 @@ func TestMunki(t *testing.T) {
 	if installer.ID != installerTarget.ObjectID || installer.Filename != "WoodstarIntegration.pkg" ||
 		installer.ContentType != "application/octet-stream" || installer.SizeBytes == nil ||
 		*installer.SizeBytes != int64(len(installerBytes)) || installer.SHA256 == nil ||
-		*installer.SHA256 != installerSHA256 || installer.ContentURL == "" {
+		*installer.SHA256 != installerSHA256 ||
+		installer.ContentURL != "/api/munki/package-installers/"+
+			strconv.FormatInt(installer.ID, 10)+"/content" {
 		t.Fatal("finalized installer did not contain the expected server-derived metadata")
+	}
+	installerContentResponse, err := server.Client.Get(server.BaseURL + installer.ContentURL)
+	if err != nil {
+		t.Fatalf("fetch installer through admin content route: %v", err)
+	}
+	if got := readAndClose(t, installerContentResponse); installerContentResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, installerBytes) {
+		t.Fatalf(
+			"admin installer content status/body = %d/%d, want 200/exact",
+			installerContentResponse.StatusCode,
+			len(got),
+		)
+	}
+	agentOnAdminRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+installer.ContentURL,
+		nil,
+	)
+	if err != nil {
+		t.Fatal("create agent request for admin content route")
+	}
+	agentOnAdminRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	agentOnAdminResponse, err := transferClient.Do(agentOnAdminRequest)
+	if err != nil {
+		t.Fatalf("request admin content with agent secret: %v", err)
+	}
+	drainAndClose(t, agentOnAdminResponse)
+	if agentOnAdminResponse.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("agent secret on admin content status = %d, want 401", agentOnAdminResponse.StatusCode)
 	}
 
 	targets := munkiTestTargets{
@@ -466,11 +498,23 @@ func TestMunki(t *testing.T) {
 		&rereadClientResources,
 	)
 	if rereadClientResources.Banner.ID != bannerTarget.ObjectID ||
+		rereadClientResources.Banner.ContentURL != "/api/munki/client-resources/banner/"+
+			strconv.FormatInt(bannerTarget.ObjectID, 10)+"/content" ||
 		rereadClientResources.BannerAlignment != "center" ||
 		len(rereadClientResources.Links) != 1 || rereadClientResources.Links[0] != links[0] ||
 		len(rereadClientResources.FooterLinks) != 1 ||
 		rereadClientResources.FooterLinks[0] != footerLinks[0] {
 		t.Fatal("re-read client resources did not match the saved public state")
+	}
+	bannerContentResponse, err := server.Client.Get(
+		server.BaseURL + rereadClientResources.Banner.ContentURL,
+	)
+	if err != nil {
+		t.Fatalf("fetch banner through admin content route: %v", err)
+	}
+	if got := readAndClose(t, bannerContentResponse); bannerContentResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, bannerBytes) {
+		t.Fatalf("admin banner content status/body = %d/%d, want 200/exact", bannerContentResponse.StatusCode, len(got))
 	}
 
 	munkiClient := verifyingClient(t, server.CACertificate)
@@ -587,24 +631,26 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("create package request: %v", err)
 	}
 	packageRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
-	packageRedirect, err := munkiClient.Do(packageRequest)
-	if err != nil {
-		t.Fatalf("fetch package redirect: %v", err)
-	}
-	drainAndClose(t, packageRedirect)
-	packageCapabilityURL := requireCapabilityRedirect(t, packageRedirect, baseURL)
-	packageCapabilityRequest, err := http.NewRequestWithContext(
+	sessionOnlyPackageRequest, err := http.NewRequestWithContext(
 		t.Context(),
 		http.MethodGet,
-		packageCapabilityURL,
+		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
 		nil,
 	)
 	if err != nil {
-		t.Fatal("create package capability request")
+		t.Fatal("create session-only package request")
 	}
-	packageResponse, err := transferClient.Do(packageCapabilityRequest)
+	sessionOnlyPackageResponse, err := server.Client.Do(sessionOnlyPackageRequest)
 	if err != nil {
-		t.Fatal("follow package capability")
+		t.Fatalf("request agent package with admin session: %v", err)
+	}
+	drainAndClose(t, sessionOnlyPackageResponse)
+	if sessionOnlyPackageResponse.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("admin session on agent package status = %d, want 401", sessionOnlyPackageResponse.StatusCode)
+	}
+	packageResponse, err := munkiClient.Do(packageRequest)
+	if err != nil {
+		t.Fatalf("fetch package: %v", err)
 	}
 	deliveredInstaller := readAndClose(t, packageResponse)
 	if packageResponse.StatusCode != http.StatusOK || !bytes.Equal(deliveredInstaller, installerBytes) ||
@@ -631,24 +677,9 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("create client resources request: %v", err)
 	}
 	resourcesRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
-	resourcesRedirect, err := munkiClient.Do(resourcesRequest)
+	resourcesResponse, err := munkiClient.Do(resourcesRequest)
 	if err != nil {
-		t.Fatalf("fetch client resources redirect: %v", err)
-	}
-	drainAndClose(t, resourcesRedirect)
-	resourcesCapabilityURL := requireCapabilityRedirect(t, resourcesRedirect, baseURL)
-	resourcesCapabilityRequest, err := http.NewRequestWithContext(
-		t.Context(),
-		http.MethodGet,
-		resourcesCapabilityURL,
-		nil,
-	)
-	if err != nil {
-		t.Fatal("create client resources capability request")
-	}
-	resourcesResponse, err := transferClient.Do(resourcesCapabilityRequest)
-	if err != nil {
-		t.Fatal("follow client resources capability")
+		t.Fatalf("fetch client resources: %v", err)
 	}
 	archiveBody := readAndClose(t, resourcesResponse)
 	if resourcesResponse.StatusCode != http.StatusOK ||
@@ -692,22 +723,4 @@ func TestMunki(t *testing.T) {
 	if !ok || !strings.Contains(string(showcase), "custom/resources/banner.png") {
 		t.Fatalf("client resources ZIP showcase template = %q, want banner reference", showcase)
 	}
-}
-
-func requireCapabilityRedirect(t *testing.T, response *http.Response, baseURL *url.URL) string {
-	t.Helper()
-
-	if response.StatusCode != http.StatusFound {
-		t.Fatalf("redirect status = %d, want %d", response.StatusCode, http.StatusFound)
-	}
-	location := response.Header.Get("Location")
-	capabilityURL, err := url.Parse(location)
-	if err != nil {
-		t.Fatal("parse storage capability redirect")
-	}
-	if capabilityURL.Scheme != "https" || capabilityURL.Host != baseURL.Host ||
-		!strings.HasPrefix(capabilityURL.Path, "/storage/") || capabilityURL.Query().Get("cap") == "" {
-		t.Fatal("redirect did not contain a test-server storage capability")
-	}
-	return location
 }

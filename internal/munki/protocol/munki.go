@@ -28,8 +28,8 @@ type Repository interface {
 	Catalog(ctx context.Context, name string) ([]byte, error)
 	IconHashes(ctx context.Context) ([]byte, error)
 	ResolvePackageFile(ctx context.Context, name string) (munki.PackageInstaller, error)
-	ResolveIconFile(ctx context.Context, name string) (munki.RepositoryFile, error)
-	ResolveClientResources(ctx context.Context, name string) (munki.RepositoryFile, error)
+	ResolveIconFile(ctx context.Context, name string) (storage.Object, error)
+	ResolveClientResources(ctx context.Context, name string) (storage.Object, error)
 }
 
 // Selector redirects a package download to a matching distribution point.
@@ -41,7 +41,7 @@ type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
 	selector       Selector
-	storage        storage.Presigner
+	delivery       storage.Deliverer
 	logger         *slog.Logger
 }
 
@@ -50,7 +50,7 @@ type Server struct {
 	secretVerifier agentauth.SecretVerifier
 	repository     Repository
 	selector       Selector
-	storage        storage.Presigner
+	delivery       storage.Deliverer
 	logger         *slog.Logger
 }
 
@@ -59,14 +59,14 @@ func NewServer(
 	secretVerifier agentauth.SecretVerifier,
 	repository Repository,
 	selector Selector,
-	storage storage.Presigner,
+	delivery storage.Deliverer,
 	logger *slog.Logger,
 ) *Server {
 	return &Server{
 		secretVerifier: secretVerifier,
 		repository:     repository,
 		selector:       selector,
-		storage:        storage,
+		delivery:       delivery,
 		logger:         logger,
 	}
 }
@@ -77,7 +77,7 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 		secretVerifier: s.secretVerifier,
 		repository:     s.repository,
 		selector:       s.selector,
-		storage:        s.storage,
+		delivery:       s.delivery,
 		logger:         s.logger,
 	}
 	r.Get("/munki/manifests/{name}", h.manifest)
@@ -124,7 +124,7 @@ func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, http.StatusFound) //nolint:gosec // Server-minted distribution URL.
 		return
 	}
-	h.deliver(w, r, munki.RepositoryFile{Key: installer.Key, ContentType: installer.ContentType})
+	h.deliver(w, r, installer.Object)
 }
 
 func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
@@ -184,26 +184,16 @@ func (h handler) redirectToDistributionPoint(
 		ClientIP:              chimiddleware.GetClientIP(r.Context()),
 		PackageID:             installer.PackageID,
 		InstallerItemLocation: installer.InstallerItemLocation,
-		SHA256:                installer.SHA256,
-		SizeBytes:             installer.SizeBytes,
+		SHA256:                installer.Object.SHA256Value(),
+		SizeBytes:             installer.Object.SizeBytesValue(),
 	})
 }
 
-// deliver serves the blob Woodstar-direct through a short-lived transfer URL.
-func (h handler) deliver(w http.ResponseWriter, r *http.Request, file munki.RepositoryFile) {
-	url, err := h.storage.PresignGet(
-		r.Context(),
-		file.Key,
-		0,
-		storage.GetOptions{ContentType: file.ContentType},
-	)
-	if err != nil {
+// deliver hands the resolved object to storage for backend-appropriate delivery.
+func (h handler) deliver(w http.ResponseWriter, r *http.Request, object storage.Object) {
+	if err := h.delivery.Deliver(w, r, object, storage.DeliveryOptions{}); err != nil {
 		h.log(r, "file", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
-	// Target is a storage-backend presigned URL, not client input.
-	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h handler) writePlist(

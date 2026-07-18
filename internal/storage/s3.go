@@ -234,6 +234,10 @@ func (s *s3Store) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (*s3Store) deliveryMode() deliveryMode {
+	return deliveryRedirect
+}
+
 func (s *s3Store) PresignGet(
 	ctx context.Context,
 	key string,
@@ -246,6 +250,9 @@ func (s *s3Store) PresignGet(
 	}
 	if opts.ContentType != "" {
 		input.ResponseContentType = aws.String(opts.ContentType)
+	}
+	if opts.CacheControl != "" {
+		input.ResponseCacheControl = aws.String(opts.CacheControl)
 	}
 	output, err := s.presigner.PresignGetObject(ctx, input, s.expires(ttl))
 	if err != nil {
