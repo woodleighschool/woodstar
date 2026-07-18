@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260716230937-b90c682e2e73.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/testcontainers/testcontainers-go v0.43.0
-	github.com/woodleighschool/woodstar v0.0.0
+	github.com/woodleighschool/woodstar v0.1.8
 	google.golang.org/protobuf v1.36.11
 	howett.net/plist v1.0.1
 )
@@ -79,7 +79,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pressly/goose/v3 v3.27.2 // indirect
-	github.com/sethvargo/go-retry v0.3.0 // indirect
+	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
