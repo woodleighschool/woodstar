@@ -135,6 +135,9 @@ func TestFileStorePresignPutProducesUploadTarget(t *testing.T) {
 	if claims.Key != "munki/packages/42/Installer.pkg" {
 		t.Fatalf("key = %q, want object key", claims.Key)
 	}
+	if got := store.TransferOrigin(); got != "https://woodstar.example" {
+		t.Fatalf("transfer origin = %q, want https://woodstar.example", got)
+	}
 }
 
 func TestNewRejectsUnknownKind(t *testing.T) {

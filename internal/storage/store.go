@@ -5,7 +5,9 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net/url"
 	"time"
 )
 
@@ -36,6 +38,7 @@ type Backend interface {
 	Presigner
 	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
+	TransferOrigin() string
 	deliveryMode() deliveryMode
 	uploadMode() uploadMode
 }
@@ -79,6 +82,14 @@ type UploadTarget struct {
 	URL     string
 	Method  string
 	Headers map[string]string
+}
+
+func transferOrigin(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("invalid storage transfer URL %q", rawURL)
+	}
+	return parsed.Scheme + "://" + parsed.Host, nil
 }
 
 type uploadMode uint8

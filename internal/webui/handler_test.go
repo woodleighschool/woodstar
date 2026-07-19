@@ -93,14 +93,42 @@ func TestHandlerServesSPAIndex(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(
-		body,
-		"window.__WOODSTAR__={\"version\":\"test\",\"server_url\":\"https://woodstar.example\"};",
-	) {
+	if !strings.Contains(body, `<meta name="woodstar-version" content="test">`) ||
+		!strings.Contains(
+			body,
+			`<meta name="woodstar-server-url" content="https://woodstar.example">`,
+		) {
 		t.Fatalf("body did not include runtime config: %q", body)
+	}
+	if strings.Contains(body, "window.__WOODSTAR__") {
+		t.Fatalf("body included executable runtime config: %q", body)
 	}
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("cache control = %q, want no-store", got)
+	}
+}
+
+func TestHandlerEscapesRuntimeMetadata(t *testing.T) {
+	t.Parallel()
+
+	router := chi.NewRouter()
+	NewHandler(HandlerOptions{
+		FS: fstest.MapFS{
+			"index.html": {Data: []byte("<!doctype html><html><head></head><body></body></html>")},
+		},
+		Version:   `\"><script>alert("version")</script>`,
+		ServerURL: `https://woodstar.example/?value=\"><script>alert("url")</script>`,
+		Logger:    slog.New(slog.DiscardHandler),
+	}).RegisterRoutes(router)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := recorder.Body.String()
+	if strings.Contains(body, `<script>alert`) {
+		t.Fatalf("body included executable runtime metadata: %q", body)
+	}
+	if !strings.Contains(body, `&lt;script&gt;`) {
+		t.Fatalf("body did not HTML-escape runtime metadata: %q", body)
 	}
 }
 

@@ -200,6 +200,7 @@ func routes(deps *Dependencies) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(clientIPMiddleware(deps.Config))
 	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.SecurityHeaders(deps.App.StorageBackend.TransferOrigin()))
 	r.Use(corsMiddleware(deps.Config))
 
 	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression)

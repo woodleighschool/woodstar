@@ -19,10 +19,11 @@ import (
 )
 
 type s3Store struct {
-	bucket    string
-	ttl       time.Duration
-	client    *s3.Client
-	presigner *s3.PresignClient
+	bucket         string
+	transferOrigin string
+	ttl            time.Duration
+	client         *s3.Client
+	presigner      *s3.PresignClient
 }
 
 func (*s3Store) uploadMode() uploadMode {
@@ -48,11 +49,17 @@ func newS3Store(ctx context.Context, cfg S3Config) (*s3Store, error) {
 		presignEndpoint = cfg.Endpoint
 	}
 	presignClient := newS3Client(awsCfg, presignEndpoint, cfg.PathStyle)
+	presigner := s3.NewPresignClient(presignClient)
+	origin, err := presignedTransferOrigin(ctx, presigner, cfg.Bucket)
+	if err != nil {
+		return nil, err
+	}
 	return &s3Store{
-		bucket:    cfg.Bucket,
-		ttl:       cfg.PresignTTL,
-		client:    client,
-		presigner: s3.NewPresignClient(presignClient),
+		bucket:         cfg.Bucket,
+		transferOrigin: origin,
+		ttl:            cfg.PresignTTL,
+		client:         client,
+		presigner:      presigner,
 	}, nil
 }
 
@@ -63,6 +70,37 @@ func newS3Client(cfg aws.Config, endpoint string, pathStyle bool) *s3.Client {
 			options.BaseEndpoint = aws.String(endpoint)
 		}
 	})
+}
+
+func presignedTransferOrigin(
+	ctx context.Context,
+	presigner *s3.PresignClient,
+	bucket string,
+) (string, error) {
+	output, err := presigner.PresignUploadPart(
+		ctx,
+		&s3.UploadPartInput{
+			Bucket:     aws.String(bucket),
+			Key:        aws.String("woodstar-transfer-origin"),
+			UploadId:   aws.String("woodstar-transfer-origin"),
+			PartNumber: aws.Int32(1),
+		},
+		func(options *s3.PresignOptions) {
+			options.Expires = time.Minute
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve storage transfer origin: %w", err)
+	}
+	origin, err := transferOrigin(output.URL)
+	if err != nil {
+		return "", fmt.Errorf("resolve storage transfer origin: %w", err)
+	}
+	return origin, nil
+}
+
+func (s *s3Store) TransferOrigin() string {
+	return s.transferOrigin
 }
 
 func (s *s3Store) Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error) {

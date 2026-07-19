@@ -1,13 +1,8 @@
-declare global {
-  interface Window {
-    __WOODSTAR__?: {
-      version?: string;
-      server_url?: string;
-    };
-  }
+function metadata(name: string): string | undefined {
+  return document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content || undefined;
 }
 
 export const runtime = {
-  version: window.__WOODSTAR__?.version ?? "0.0.0-dev",
-  serverURL: window.__WOODSTAR__?.server_url,
+  version: metadata("woodstar-version") ?? "0.0.0-dev",
+  serverURL: metadata("woodstar-server-url"),
 };

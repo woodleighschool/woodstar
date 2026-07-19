@@ -3,8 +3,8 @@ package webui
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -17,8 +17,8 @@ import (
 )
 
 type runtimeConfig struct {
-	Version   string `json:"version"`
-	ServerURL string `json:"server_url"`
+	Version   string
+	ServerURL string
 }
 
 // HandlerOptions configures the embedded web UI handler.
@@ -200,23 +200,25 @@ func renderIndex(fsys fs.FS, version, serverURL string) ([]byte, error) {
 		return nil, err
 	}
 
-	data, err := json.Marshal(runtimeConfig{
-		Version:   version,
-		ServerURL: serverURL,
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	headClose := []byte("</head>")
 	index := bytes.LastIndex(content, headClose)
 	if index < 0 {
 		return content, nil
 	}
 
-	out := make([]byte, 0, len(content)+len(data)+len(`<script>window.__WOODSTAR__=;</script>`))
+	config := runtimeConfig{
+		Version:   version,
+		ServerURL: serverURL,
+	}
+	metadata := fmt.Appendf(
+		nil,
+		`<meta name="woodstar-version" content="%s"><meta name="woodstar-server-url" content="%s">`,
+		html.EscapeString(config.Version),
+		html.EscapeString(config.ServerURL),
+	)
+	out := make([]byte, 0, len(content)+len(metadata))
 	out = append(out, content[:index]...)
-	out = fmt.Appendf(out, `<script>window.__WOODSTAR__=%s;</script>`, data)
+	out = append(out, metadata...)
 	out = append(out, content[index:]...)
 	return out, nil
 }

@@ -18,10 +18,11 @@ import (
 
 // fileStore keeps blobs under a local directory. Keys map to paths beneath root.
 type fileStore struct {
-	root          string
-	baseURL       string
-	capabilityKey []byte
-	ttl           time.Duration
+	root           string
+	baseURL        string
+	transferOrigin string
+	capabilityKey  []byte
+	ttl            time.Duration
 }
 
 func (*fileStore) uploadMode() uploadMode {
@@ -33,6 +34,10 @@ func newFileStore(root, baseURL string, capabilityKey []byte, ttl time.Duration)
 	if root == "" {
 		return nil, errors.New("storage file root is empty")
 	}
+	origin, err := transferOrigin(baseURL)
+	if err != nil {
+		return nil, err
+	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("resolve storage file root: %w", err)
@@ -41,11 +46,16 @@ func newFileStore(root, baseURL string, capabilityKey []byte, ttl time.Duration)
 		return nil, fmt.Errorf("create storage file root: %w", err)
 	}
 	return &fileStore{
-		root:          abs,
-		baseURL:       baseURL,
-		capabilityKey: slices.Clone(capabilityKey),
-		ttl:           ttl,
+		root:           abs,
+		baseURL:        baseURL,
+		transferOrigin: origin,
+		capabilityKey:  slices.Clone(capabilityKey),
+		ttl:            ttl,
 	}, nil
+}
+
+func (s *fileStore) TransferOrigin() string {
+	return s.transferOrigin
 }
 
 // resolve maps a storage key to a path under root, rejecting traversal.

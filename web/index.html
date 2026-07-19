@@ -8,28 +8,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Woodstar</title>
-    <script>
-      /* Apply the system theme before first paint and keep it in sync. */
-      (function () {
-        try {
-          const root = document.documentElement;
-          const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-          const applySystemTheme = (isDark) => {
-            root.classList.toggle("dark", isDark);
-            root.style.backgroundColor = isDark ? "oklch(0.2 0.006 80)" : "#e9e3dc";
-          };
-
-          applySystemTheme(media.matches);
-          media.addEventListener("change", (event) => applySystemTheme(event.matches));
-        } catch (_err) {
-          // Fall back to the light tokens if the system preference is unavailable.
-          const root = document.documentElement;
-          root.classList.remove("dark");
-          root.style.backgroundColor = "#e9e3dc";
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
