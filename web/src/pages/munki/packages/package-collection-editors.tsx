@@ -52,17 +52,15 @@ import { formatBytes } from "@/lib/utils";
 
 import { MUNKI_INSTALL_ITEM_TYPE_OPTIONS } from "../software/munki-software";
 import type { PackageEditorForm } from "./fields";
+import { emptyStringRow } from "./form-adapter";
 import {
   type Architecture,
-  emptyStringRow,
   type InstallerEnvironmentRow,
   type InstallItemRow,
   type ItemToCopyRow,
-  numberOrUndefined,
   type ReceiptRow,
   type StringRow,
-  toggleArray,
-} from "./form-state";
+} from "./form-schema";
 import { CheckboxControl } from "./package-form-controls";
 
 export function InstallerFileField({
@@ -708,4 +706,15 @@ function IconButton({
       {children}
     </Button>
   );
+}
+
+function numberOrUndefined(value: string) {
+  if (value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function toggleArray<T>(values: T[], value: T, enabled: boolean) {
+  if (enabled) return Array.from(new Set([...values, value]));
+  return values.filter((item) => item !== value);
 }

@@ -32,7 +32,7 @@ import {
 } from "@/pages/munki/software/munki-software";
 
 import type { PackageEditorForm } from "./fields";
-import type { PackageFormInput } from "./form-state";
+import type { PackageFormInput } from "./form-schema";
 
 const shellExtensions = [StreamLanguage.define(shell)];
 

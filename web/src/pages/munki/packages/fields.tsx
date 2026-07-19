@@ -9,17 +9,12 @@ import { TabsContent } from "@/components/ui/tabs";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
-import {
-  type PackageFormInput,
-  type PackageFormMutation,
-  type PackageFormOutput,
-  packageFormSchema,
-  packageMutationFromForm,
-} from "./form-state";
+import { type PackageFormMutation, packageMutationFromForm } from "./form-adapter";
+import { type PackageFormInput, type PackageFormOutput, packageFormSchema } from "./form-schema";
 import { PackageEditorTabContent, packageFormTabs } from "./package-form-tabs";
 import type { SoftwareInfo } from "./package-reference-editors";
 export type { SoftwareInfo } from "./package-reference-editors";
-export { emptyPackageForm, packageFormFromPackage } from "./form-state";
+export { emptyPackageForm, packageFormFromPackage } from "./form-adapter";
 
 const schema = packageFormSchema();
 

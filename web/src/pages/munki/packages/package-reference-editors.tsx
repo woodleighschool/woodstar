@@ -26,7 +26,7 @@ import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/componen
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
 import type { PackageEditorForm } from "./fields";
-import { packageLabel, type PackageReferenceRow } from "./form-state";
+import type { PackageReferenceRow } from "./form-schema";
 
 export type SoftwareInfo = {
   id: number;
@@ -326,4 +326,8 @@ function packageReferenceGroups(packages: MunkiPackage[]) {
     groups.set(pkg.software.id, group);
   }
   return [...groups.values()];
+}
+
+function packageLabel(pkg: MunkiPackage) {
+  return `${pkg.software.name} ${pkg.version}`;
 }

@@ -16,10 +16,8 @@ import {
   emptyItemToCopyRow,
   emptyPackageReferenceRow,
   emptyReceiptRow,
-  type PackageFormInput,
-  scriptFields,
-  type ScriptKey,
-} from "./form-state";
+} from "./form-adapter";
+import { type PackageFormInput, scriptFields, type ScriptKey } from "./form-schema";
 import {
   ArchitectureEditor,
   BlockingApplicationsEditor,
