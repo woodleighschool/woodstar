@@ -6,28 +6,25 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**.md"
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "**.md"
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
+env:
+  MISE_NO_HOOKS: "1"
+
 jobs:
-  test:
+  go-test:
     name: Go Tests
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
     services:
       postgres:
         image: postgres:18
@@ -52,7 +49,7 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked go
 
       - name: Cache Go modules and build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -63,49 +60,15 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
-      - name: Check go.mod tidiness
-        run: mise run tidy
+      - name: Check Go module tidiness
+        run: mise run tidy-check
 
-      - name: Build backend
-        run: mise run backend
-
-      - name: Run Go tests
+      - name: Run focused Go tests
         run: mise run test
 
-      - name: Check OpenAPI is current
-        run: mise run test-openapi
-
-      - name: Ensure generated files are committed
-        run: git diff --exit-code
-
-  integration:
-    name: Integration (${{ matrix.target }})
+  build:
+    name: Build and Generated Contracts
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - munki
-          - osquery
-          - santa
-          - storage
-          - mdp
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: woodstar
-          POSTGRES_PASSWORD: woodstar
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U woodstar -d postgres"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,7 +79,7 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked go node pnpm
 
       - name: Cache Go modules and build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -127,14 +90,38 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
-      - name: Run ${{ matrix.target }} integration
-        run: mise run test-integration-${{ matrix.target }}
+      - name: Resolve pnpm store
+        id: pnpm
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-  web:
-    name: Web Build
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Regenerate API contracts
+        run: mise run generate
+
+      - name: Check generated contracts are committed
+        run: |
+          generated_status=$(git status --short --untracked-files=all -- \
+            web/openapi.yaml \
+            web/src/lib/api-client \
+            test/e2e/adminapi/client.gen.go)
+          test -z "$generated_status" || {
+            printf '%s\n' "$generated_status"
+            git diff -- web/openapi.yaml web/src/lib/api-client test/e2e/adminapi/client.gen.go
+            exit 1
+          }
+
+      - name: Build application
+        run: mise run build
+
+  storage-integration:
+    name: Storage Integration
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -145,7 +132,16 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked go
 
-      - name: Build web
-        run: mise //web:build
+      - name: Cache Go modules and build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Run storage integration
+        run: mise run test-integration-storage

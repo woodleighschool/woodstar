@@ -6,28 +6,25 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**.md"
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "**.md"
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
+env:
+  MISE_NO_HOOKS: "1"
+
 jobs:
-  golangci-lint:
-    name: Go Lint
+  fmt-check:
+    name: Format Check
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,7 +35,25 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked go node oxfmt
+
+      - name: Check formatting
+        run: mise run fmt-check
+
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          experimental: true
+          install_args: --locked go golangci-lint
 
       - name: Cache Go modules and build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -56,14 +71,12 @@ jobs:
           key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go.sum', '.golangci.yml') }}
           restore-keys: ${{ runner.os }}-golangci-lint-
 
-      - name: Run linter
+      - name: Run Go lint
         run: mise run go-lint
 
   web-lint:
     name: Web Lint
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,19 +87,25 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked node pnpm oxlint
 
-      - name: Install web dependencies
-        run: mise //web:deps
+      - name: Resolve pnpm store
+        id: pnpm
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-      - name: Run linter
-        run: mise //web:lint
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Run web lint and typecheck
+        run: mise run //web:lint
 
   workflow-lint:
     name: Workflow Lint
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,10 +116,7 @@ jobs:
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         with:
           experimental: true
-          install_args: --locked
+          install_args: --locked zizmor
 
-      - name: Run actionlint
-        run: mise exec -- actionlint .github/workflows/*.yaml
-
-      - name: Run zizmor
-        run: mise exec -- zizmor --offline --no-ignores .github/workflows
+      - name: Run workflow lint
+        run: mise run workflow-lint

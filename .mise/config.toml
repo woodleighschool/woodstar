@@ -7,7 +7,6 @@ pnpm = "11.13.1"
 golangci-lint = "2.12.2"
 air = "1.65.3"
 lefthook = "2.1.10"
-actionlint = "1.7.12"
 cosign = "3.1.1"
 zizmor = "1.27.0"
 oxfmt = "0.59.0"
@@ -22,24 +21,18 @@ lockfile = true
 [monorepo]
 config_roots = ["web", "docs"]
 
-[hooks]
-postinstall = "lefthook install"
-
 [tasks.go-deps]
 description = "Download Go dependencies"
 run = "go mod download"
 
 [tasks.deps]
 description = "Install backend and web dependencies"
-run = """
-mise run go-deps
-mise //web:deps
-"""
+depends = ["go-deps", "//web:deps"]
 
 [tasks.dev]
 description = "Run backend and web development servers"
 depends = ["//web:build"]
-run = "mise run dev-backend ::: //web:dev"
+run = { tasks = ["dev-backend", "//web:dev"] }
 
 [tasks.dev-tls]
 description = "Generate repo-local development TLS files"
@@ -67,142 +60,118 @@ air -c .air.toml
 
 [tasks.build]
 description = "Build web bundle and backend binary"
-run = """
-mise //web:build
-go build -o woodstar ./cmd/woodstar
-"""
+depends = ["//web:build"]
+run = { task = "backend" }
 
 [tasks.backend]
 description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.tidy]
+description = "Tidy the Go module"
+run = "go mod tidy"
+
+[tasks.tidy-check]
 description = "Check the Go module is tidy"
-run = """
-go mod tidy
-git diff --exit-code go.mod go.sum
-"""
+run = "go mod tidy -diff"
 
 [tasks.test]
 description = "Run the focused PostgreSQL-backed Go suite"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./cmd/... ./internal/...
+  go test -race -count=1 ./cmd/... ./internal/...
 """
 
-[tasks.test-integration-munki]
-description = "Run the compiled Munki repository lifecycle"
+[tasks.test-e2e-munki]
+description = "Run the Munki end-to-end lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestMunki$' ./tests
+  go test -race -count=1 -v -run '^TestMunki$' ./test/e2e
 """
 
-[tasks.test-integration-osquery]
-description = "Run the osquery protocol and real osqueryd lifecycles"
+[tasks.test-e2e-osquery]
+description = "Run the osquery end-to-end lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestOsquery(d)?$' ./tests
+  go test -race -count=1 -v -run '^TestOsquery(d)?$' ./test/e2e
 """
 
-[tasks.test-integration-santa]
-description = "Run the compiled Santa protobuf lifecycle"
+[tasks.test-e2e-santa]
+description = "Run the Santa end-to-end protobuf lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestSanta$' ./tests
+  go test -race -count=1 -v -run '^TestSanta$' ./test/e2e
 """
 
 [tasks.test-integration-storage]
 description = "Run file and Garage-backed S3 backend conformance"
+run = "go test -race -count=1 -v -run '^TestStorageBackends$' ./test/integration/storage"
+
+[tasks.test-e2e-mdp]
+description = "Run the MDP end-to-end mirroring lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestStorageBackends$' ./tests/storage
+  go test -race -count=1 -v -run '^TestMDP$' ./test/e2e
 """
 
-[tasks.test-integration-mdp]
-description = "Run the compiled MDP package mirroring lifecycle"
+[tasks.test-e2e]
+description = "Run all end-to-end lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestMDP$' ./tests
+  go test -race -count=1 -v ./test/e2e
 """
 
 [tasks.test-integration]
-description = "Run all integration lifecycles and backend conformance"
-run = """
-WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./tests/...
-"""
+description = "Run integration suites"
+run = "go test -race -count=1 -v ./test/integration/..."
 
 [tasks.openapi]
 description = "Generate OpenAPI schema"
 run = "go run ./cmd/woodstar openapi --output web/openapi.yaml"
 
 [tasks.openapi-types]
-description = "Generate OpenAPI schema and web types"
-run = """
-mise run openapi
-mise run //web:openapi-types
-"""
-
-[tasks.test-openapi]
-description = "Check OpenAPI schema and generated web client are current"
-run = """
-tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir"' EXIT
-schema="$tmpdir/openapi.yaml"
-client="$tmpdir/api-client"
-
-go run ./cmd/woodstar openapi --output "$schema"
-if ! diff -q web/openapi.yaml "$schema" >/dev/null; then
-  echo "ERROR: web/openapi.yaml is out of date. Run 'mise run openapi-types' and commit the result."
-  diff -u web/openapi.yaml "$schema"
-  exit 1
-fi
-
-pnpm --dir web exec openapi-ts -i "$schema" -o "$client" -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk
-if ! diff -qr web/src/lib/api-client "$client" >/dev/null; then
-  echo "ERROR: web/src/lib/api-client is out of date. Run 'mise run openapi-types' and commit the result."
-  diff -ru web/src/lib/api-client "$client"
-  exit 1
-fi
-"""
+description = "Generate OpenAPI schema and clients"
+run = [
+  { task = "openapi" },
+  { task = "//web:openapi-types" },
+  "go tool oapi-codegen -config test/e2e/adminapi/oapi-codegen.yaml -o test/e2e/adminapi/client.gen.go web/openapi.yaml",
+]
 
 [tasks.generate]
 description = "Regenerate checked-in generated artifacts"
-run = "mise run openapi-types"
+run = { task = "openapi-types" }
 
 [tasks.go-lint]
 description = "Run Go linters"
-run = "golangci-lint run --config .golangci.yml"
+run = "golangci-lint run"
+
+[tasks.go-lint-fix]
+description = "Run Go linters and apply fixes"
+run = "golangci-lint run --fix"
 
 [tasks.lint]
 description = "Run backend and web linters"
-run = """
-mise run go-lint
-mise //web:lint
-"""
+depends = ["go-lint", "//web:lint"]
 
 [tasks.go-format]
 description = "Format Go code"
-run = "golangci-lint fmt"
+run = "go fmt ./..."
+
+[tasks.go-fmt-check]
+description = "Check Go formatting"
+run = "test -z \"$(gofmt -l .)\" || { gofmt -l .; exit 1; }"
 
 [tasks.format]
 description = "Format backend and web code"
-run = """
-mise run go-format
-mise //web:format
-"""
+depends = ["go-format", "//web:format"]
 
-[tasks.precommit]
-description = "Run the full local gate"
-run = """
-mise run format
-mise run lint
-mise run tidy
-mise run build
-mise run test
-mise run test-integration
-mise run test-openapi
-"""
+[tasks.fmt-check]
+description = "Check backend and web formatting"
+depends = ["go-fmt-check", "//web:fmt-check"]
+
+[tasks.workflow-lint]
+description = "Lint GitHub Actions workflows"
+run = "zizmor --offline --no-ignores .github/workflows"
 
 [tasks.clean]
 description = "Remove local build outputs"
@@ -211,3 +180,6 @@ run = "rm -rf woodstar build tmp web/dist"
 [tasks.schema-sync]
 description = "Refresh the osquery schema snapshot"
 run = "./schema/sync.sh"
+
+[hooks]
+postinstall = "lefthook install"

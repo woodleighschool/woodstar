@@ -1,4 +1,4 @@
-package integration
+package e2e
 
 import (
 	"context"
@@ -29,6 +29,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const (
@@ -46,6 +48,8 @@ const (
 type testServer struct {
 	BaseURL              string
 	Client               *http.Client
+	Admin                *adminapi.ClientWithResponses
+	AdminHTTP            *http.Client
 	DatabaseURL          string
 	StorageRoot          string
 	StorageCapabilityKey string
@@ -94,7 +98,7 @@ func startTestServer(t *testing.T) *testServer {
 
 	baseDatabaseURL := strings.TrimSpace(os.Getenv(testDatabaseEnvironment))
 	if baseDatabaseURL == "" {
-		t.Fatalf("%s is required for integration server tests", testDatabaseEnvironment)
+		t.Fatalf("%s is required for end-to-end server tests", testDatabaseEnvironment)
 	}
 
 	binaryPath := testBinary(t)
@@ -192,7 +196,7 @@ func (cache *binaryCache) resolve() {
 		cache.err = err
 		return
 	}
-	cache.buildRoot, err = os.MkdirTemp("", "woodstar-integration-binary-")
+	cache.buildRoot, err = os.MkdirTemp("", "woodstar-e2e-binary-")
 	if err != nil {
 		cache.err = fmt.Errorf("create binary build directory: %w", err)
 		return
@@ -233,7 +237,7 @@ func findRepositoryRoot() (string, error) {
 	if !ok {
 		return "", errors.New("locate integration test source")
 	}
-	repositoryRoot := filepath.Dir(filepath.Dir(sourceFile))
+	repositoryRoot := filepath.Dir(filepath.Dir(filepath.Dir(sourceFile)))
 	if _, err := os.Stat(filepath.Join(repositoryRoot, "go.mod")); err != nil {
 		return "", fmt.Errorf("locate repository go.mod: %w", err)
 	}

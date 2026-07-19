@@ -1,12 +1,10 @@
-package integration
+package e2e
 
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,61 +14,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const mdpLifecycleTimeout = 30 * time.Second
-
-type mdpUploadTarget struct {
-	ObjectID int64           `json:"object_id"`
-	Upload   mdpUploadAction `json:"upload"`
-}
-
-type mdpUploadAction struct {
-	Strategy string            `json:"strategy"`
-	URL      string            `json:"url"`
-	Method   string            `json:"method"`
-	Headers  map[string]string `json:"headers"`
-}
-
-type mdpObject struct {
-	ID       int64  `json:"id"`
-	Filename string `json:"filename"`
-}
-
-type mdpInstallerFile struct {
-	Filename              string `json:"filename"`
-	InstallerItemLocation string `json:"installer_item_location"`
-}
-
-type mdpPackage struct {
-	ID            int64              `json:"id"`
-	Software      mdpPackageSoftware `json:"software"`
-	InstallerFile *mdpInstallerFile  `json:"installer_file"`
-}
-
-type mdpPackageSoftware struct {
-	ID int64 `json:"id"`
-}
-
-type mdpPackageState struct {
-	PackageID int64  `json:"package_id"`
-	Status    string `json:"status"`
-}
-
-type mdpDistributionPoint struct {
-	ID            int64             `json:"id"`
-	Name          string            `json:"name"`
-	Enabled       bool              `json:"enabled"`
-	ClientBaseURL string            `json:"client_base_url"`
-	Online        bool              `json:"online"`
-	Key           string            `json:"key"`
-	Packages      []mdpPackageState `json:"packages"`
-}
-
-type mdpEmptyTargets struct {
-	Include []struct{} `json:"include"`
-	Exclude []struct{} `json:"exclude"`
-}
 
 func TestMDP(t *testing.T) {
 	const (
@@ -141,8 +89,8 @@ func TestMDP(t *testing.T) {
 	detail, err := waitForMDPCurrent(
 		t.Context(),
 		server,
-		point.ID,
-		pkg.ID,
+		point.Id,
+		pkg.Id,
 		workerProcess,
 	)
 	if err != nil {
@@ -153,17 +101,17 @@ func TestMDP(t *testing.T) {
 		)
 	}
 	if !detail.Enabled || detail.Name != "Local integration MDP" ||
-		detail.ClientBaseURL != workerBaseURL {
+		detail.ClientBaseUrl != workerBaseURL {
 		t.Fatalf(
 			"distribution point detail id/name/enabled/client URL = %d/%q/%t/%q, want enabled local integration MDP",
-			detail.ID,
+			detail.Id,
 			detail.Name,
 			detail.Enabled,
-			detail.ClientBaseURL,
+			detail.ClientBaseUrl,
 		)
 	}
 
-	mirroredPath := filepath.Join(workerDataDir, fmt.Sprintf("%d-%s", pkg.ID, installerFilename))
+	mirroredPath := filepath.Join(workerDataDir, fmt.Sprintf("%d-%s", pkg.Id, installerFilename))
 	mirroredBytes, err := os.ReadFile(mirroredPath)
 	if err != nil {
 		t.Fatalf("read mirrored installer: %v", err)
@@ -246,46 +194,19 @@ func TestMDP(t *testing.T) {
 func setupMDPAdmin(t *testing.T, server *testServer) {
 	t.Helper()
 
-	var admin struct {
-		ID int64 `json:"id"`
-	}
-	requestJSON(
+	setupAdmin(
 		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/setup",
-		struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}{
-			Email:    "mdp-admin@woodstar.test",
-			Name:     "MDP Integration Administrator",
-			Password: "mdp-integration-admin-password",
-		},
-		http.StatusCreated,
-		&admin,
+		server,
+		"mdp-admin@woodstar.test",
+		"MDP Integration Administrator",
+		"mdp-integration-admin-password",
 	)
-	if admin.ID <= 0 {
-		t.Fatalf("setup admin id = %d, want positive", admin.ID)
-	}
 }
 
 func createMDPMunkiSecret(t *testing.T, server *testServer, secret string) {
 	t.Helper()
 
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/agent-secrets",
-		struct {
-			Agent string `json:"agent"`
-			Value string `json:"value"`
-		}{Agent: "munki", Value: secret},
-		http.StatusCreated,
-		nil,
-	)
+	createAgentSecret(t, server, adminapi.AgentSecretCreateAgentMunki, secret)
 }
 
 func createMDPInstaller(
@@ -293,43 +214,39 @@ func createMDPInstaller(
 	server *testServer,
 	filename string,
 	contents []byte,
-) mdpObject {
+) adminapi.MunkiObjectView {
 	t.Helper()
 
-	var target mdpUploadTarget
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/package-installers",
-		struct {
-			Filename string `json:"filename"`
-		}{Filename: filename},
-		http.StatusCreated,
-		&target,
+	created, err := server.Admin.CreateMunkiPackageInstallerWithResponse(
+		t.Context(),
+		adminapi.MunkiUploadRequest{Filename: filename},
 	)
-	if target.ObjectID <= 0 || target.Upload.URL == "" || target.Upload.Method != http.MethodPut ||
-		target.Upload.Strategy != "direct-put" {
+	created = requireAPIResponse(t, "create package installer", http.StatusCreated, created, err)
+	upload := directUpload(t, created.JSON201)
+	if created.JSON201.ObjectId <= 0 || upload.Url == "" || upload.Method != http.MethodPut ||
+		upload.Strategy != "direct-put" {
 		t.Fatalf(
 			"installer upload target object/method/strategy/has URL = %d/%q/%q/%t, want positive object, PUT, direct-put, and URL",
-			target.ObjectID,
-			target.Upload.Method,
-			target.Upload.Strategy,
-			target.Upload.URL != "",
+			created.JSON201.ObjectId,
+			upload.Method,
+			upload.Strategy,
+			upload.Url != "",
 		)
 	}
 
 	uploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		target.Upload.Method,
-		target.Upload.URL,
+		upload.Method,
+		upload.Url,
 		bytes.NewReader(contents),
 	)
 	if err != nil {
 		t.Fatalf("create installer upload request: %v", redactedRequestError(err))
 	}
-	for name, value := range target.Upload.Headers {
-		uploadRequest.Header.Set(name, value)
+	if upload.Headers != nil {
+		for name, value := range *upload.Headers {
+			uploadRequest.Header.Set(name, value)
+		}
 	}
 	uploadResponse, err := verifyingClient(t, server.CACertificate).Do(uploadRequest)
 	if err != nil {
@@ -340,85 +257,63 @@ func createMDPInstaller(
 		t.Fatalf("installer upload status = %d, want %d", uploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	var object mdpObject
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPut,
-		server.BaseURL+"/api/munki/package-installers/"+strconv.FormatInt(target.ObjectID, 10),
-		nil,
-		http.StatusOK,
-		&object,
+	finalized, err := server.Admin.FinalizeMunkiPackageInstallerWithResponse(
+		t.Context(),
+		created.JSON201.ObjectId,
 	)
-	if object.ID != target.ObjectID || object.Filename != filename {
-		t.Fatalf("finalized installer = %+v, want uploaded object", object)
+	finalized = requireAPIResponse(t, "finalize package installer", http.StatusOK, finalized, err)
+	if finalized.JSON200 == nil || finalized.JSON200.Id != created.JSON201.ObjectId ||
+		finalized.JSON200.Filename != filename {
+		t.Fatalf("finalized installer = %+v, want uploaded object", finalized.JSON200)
 	}
-	return object
+	return *finalized.JSON200
 }
 
 func createMDPSoftware(t *testing.T, server *testServer) int64 {
 	t.Helper()
 
-	var software struct {
-		ID int64 `json:"id"`
-	}
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/software",
-		struct {
-			Name        string          `json:"name"`
-			DisplayName string          `json:"display_name"`
-			Description string          `json:"description"`
-			Targets     mdpEmptyTargets `json:"targets"`
-		}{
+	created, err := server.Admin.CreateMunkiSoftwareWithResponse(
+		t.Context(),
+		adminapi.MunkiCreateMutation{
 			Name:        "WoodstarMDPIntegration",
-			DisplayName: "Woodstar MDP Integration",
-			Description: "Compiled distribution point lifecycle fixture.",
-			Targets: mdpEmptyTargets{
-				Include: []struct{}{},
-				Exclude: []struct{}{},
+			DisplayName: new("Woodstar MDP Integration"),
+			Description: new("Compiled distribution point lifecycle fixture."),
+			Targets: adminapi.MunkiTargets{
+				Include: []adminapi.MunkiInclude{},
+				Exclude: []adminapi.LabelRef{},
 			},
 		},
-		http.StatusCreated,
-		&software,
 	)
-	if software.ID <= 0 {
-		t.Fatalf("created software id = %d, want positive", software.ID)
+	created = requireAPIResponse(t, "create software", http.StatusCreated, created, err)
+	if created.JSON201 == nil || created.JSON201.Id <= 0 {
+		t.Fatalf("created software = %+v, want positive ID", created.JSON201)
 	}
-	return software.ID
+	return created.JSON201.Id
 }
 
 func createMDPPackage(
 	t *testing.T,
 	server *testServer,
 	softwareID int64,
-	installer mdpObject,
-) mdpPackage {
+	installer adminapi.MunkiObjectView,
+) adminapi.MunkiPackage {
 	t.Helper()
 
-	var pkg mdpPackage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/packages",
-		struct {
-			SoftwareID        int64  `json:"software_id"`
-			Version           string `json:"version"`
-			InstallerType     string `json:"installer_type"`
-			InstallerObjectID int64  `json:"installer_object_id"`
-		}{
-			SoftwareID:        softwareID,
+	created, err := server.Admin.CreateMunkiPackageWithResponse(
+		t.Context(),
+		adminapi.MunkiPackageCreateMutation{
+			SoftwareId:        softwareID,
 			Version:           "1.0",
-			InstallerType:     "pkg",
-			InstallerObjectID: installer.ID,
+			InstallerType:     new(adminapi.MunkiPackageCreateMutationInstallerType("pkg")),
+			InstallerObjectId: new(installer.Id),
 		},
-		http.StatusCreated,
-		&pkg,
 	)
-	if pkg.ID <= 0 || pkg.Software.ID != softwareID || pkg.InstallerFile == nil ||
+	created = requireAPIResponse(t, "create package", http.StatusCreated, created, err)
+	if created.JSON201 == nil {
+		t.Fatal("create package returned no JSON body")
+	}
+	pkg := *created.JSON201
+	if pkg.Id <= 0 || pkg.Software.Id != softwareID || pkg.InstallerFile == nil ||
 		pkg.InstallerFile.Filename != installer.Filename ||
 		pkg.InstallerFile.InstallerItemLocation == "" {
 		t.Fatalf("created package = %+v, want finalized installer", pkg)
@@ -430,35 +325,29 @@ func createMDPDistributionPoint(
 	t *testing.T,
 	server *testServer,
 	workerBaseURL string,
-) mdpDistributionPoint {
+) adminapi.MunkiRevealedDistributionPoint {
 	t.Helper()
 
-	var point mdpDistributionPoint
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/distribution-points",
-		struct {
-			Name          string   `json:"name"`
-			Enabled       bool     `json:"enabled"`
-			ClientCIDRs   []string `json:"client_cidrs"`
-			ClientBaseURL string   `json:"client_base_url"`
-		}{
+	created, err := server.Admin.CreateMunkiDistributionPointWithResponse(
+		t.Context(),
+		adminapi.MunkiDistributionPointMutation{
 			Name:          "Local integration MDP",
 			Enabled:       true,
-			ClientCIDRs:   []string{"127.0.0.0/8"},
-			ClientBaseURL: workerBaseURL,
+			ClientCidrs:   []string{"127.0.0.0/8"},
+			ClientBaseUrl: workerBaseURL,
 		},
-		http.StatusCreated,
-		&point,
 	)
-	if point.ID <= 0 || !point.Enabled || point.ClientBaseURL != workerBaseURL {
+	created = requireAPIResponse(t, "create distribution point", http.StatusCreated, created, err)
+	if created.JSON201 == nil {
+		t.Fatal("create distribution point returned no JSON body")
+	}
+	point := *created.JSON201
+	if point.Id <= 0 || !point.Enabled || point.ClientBaseUrl != workerBaseURL {
 		t.Fatalf(
 			"created distribution point id/enabled/client URL = %d/%t/%q, want enabled loopback point",
-			point.ID,
+			point.Id,
 			point.Enabled,
-			point.ClientBaseURL,
+			point.ClientBaseUrl,
 		)
 	}
 	return point
@@ -470,14 +359,13 @@ func waitForMDPCurrent(
 	pointID int64,
 	packageID int64,
 	process *serverProcess,
-) (mdpDistributionPoint, error) {
+) (adminapi.MunkiDistributionPointDetail, error) {
 	ctx, cancel := context.WithTimeout(parent, mdpLifecycleTimeout)
 	defer cancel()
 
-	endpoint := server.BaseURL + "/api/munki/distribution-points/" + strconv.FormatInt(pointID, 10)
 	backoff := 10 * time.Millisecond
 	for {
-		point, lastState, ready := observeMDPState(ctx, server.Client, endpoint, packageID)
+		point, lastState, ready := observeMDPState(ctx, server.Admin, pointID, packageID)
 		if ready {
 			return point, nil
 		}
@@ -487,15 +375,19 @@ func waitForMDPCurrent(
 		case <-process.done:
 			timer.Stop()
 			if process.waitErr == nil {
-				return mdpDistributionPoint{}, errors.New("MDP worker exited before mirroring package")
+				return adminapi.MunkiDistributionPointDetail{}, errors.New("MDP worker exited before mirroring package")
 			}
-			return mdpDistributionPoint{}, fmt.Errorf(
+			return adminapi.MunkiDistributionPointDetail{}, fmt.Errorf(
 				"MDP worker exited before mirroring package: %w",
 				process.waitErr,
 			)
 		case <-ctx.Done():
 			timer.Stop()
-			return mdpDistributionPoint{}, fmt.Errorf("deadline: %w (last state: %s)", ctx.Err(), lastState)
+			return adminapi.MunkiDistributionPointDetail{}, fmt.Errorf(
+				"deadline: %w (last state: %s)",
+				ctx.Err(),
+				lastState,
+			)
 		case <-timer.C:
 		}
 		backoff = min(backoff*2, 250*time.Millisecond)
@@ -504,52 +396,38 @@ func waitForMDPCurrent(
 
 func observeMDPState(
 	ctx context.Context,
-	client *http.Client,
-	endpoint string,
+	client *adminapi.ClientWithResponses,
+	pointID int64,
 	packageID int64,
-) (mdpDistributionPoint, string, bool) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+) (adminapi.MunkiDistributionPointDetail, string, bool) {
+	response, err := client.GetMunkiDistributionPointWithResponse(ctx, pointID)
 	if err != nil {
-		return mdpDistributionPoint{}, "create distribution point request: " + err.Error(), false
+		return adminapi.MunkiDistributionPointDetail{}, "request detail: " + err.Error(), false
 	}
-	response, err := client.Do(request)
-	if err != nil {
-		return mdpDistributionPoint{}, "request detail: " + err.Error(), false
-	}
-	body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-	closeErr := response.Body.Close()
-	switch {
-	case readErr != nil:
-		return mdpDistributionPoint{}, "read detail: " + readErr.Error(), false
-	case closeErr != nil:
-		return mdpDistributionPoint{}, "close detail: " + closeErr.Error(), false
-	case response.StatusCode != http.StatusOK:
-		return mdpDistributionPoint{}, "detail status " + response.Status, false
+	if response.StatusCode() != http.StatusOK || response.JSON200 == nil {
+		return adminapi.MunkiDistributionPointDetail{}, fmt.Sprintf("detail status %d", response.StatusCode()), false
 	}
 
-	var point mdpDistributionPoint
-	if err := json.Unmarshal(body, &point); err != nil {
-		return mdpDistributionPoint{}, "decode detail: " + err.Error(), false
-	}
+	point := *response.JSON200
 	state := mdpStateSummary(point, packageID)
 	ready := point.Online && mdpPackageIsCurrent(point.Packages, packageID)
 	return point, state, ready
 }
 
-func mdpPackageIsCurrent(states []mdpPackageState, packageID int64) bool {
+func mdpPackageIsCurrent(states []adminapi.MunkiPackageState, packageID int64) bool {
 	for _, state := range states {
-		if state.PackageID == packageID && state.Status == "current" {
+		if state.PackageId == packageID && state.Status == "current" {
 			return true
 		}
 	}
 	return false
 }
 
-func mdpStateSummary(point mdpDistributionPoint, packageID int64) string {
+func mdpStateSummary(point adminapi.MunkiDistributionPointDetail, packageID int64) string {
 	status := "missing"
 	for _, state := range point.Packages {
-		if state.PackageID == packageID {
-			status = state.Status
+		if state.PackageId == packageID {
+			status = string(state.Status)
 			break
 		}
 	}

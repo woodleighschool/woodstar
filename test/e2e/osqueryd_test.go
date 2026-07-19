@@ -1,10 +1,9 @@
-package integration
+package e2e
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
+
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const (
@@ -25,70 +26,21 @@ const (
 	osquerydStopTimeout           = 10 * time.Second
 )
 
-type osquerydTestHost struct {
-	Enrollment struct {
-		Agent string `json:"agent"`
-	} `json:"enrollment"`
-	Hardware struct {
-		UUID string `json:"uuid"`
-	} `json:"hardware"`
-	Agents struct {
-		Osquery struct {
-			Version string `json:"version"`
-		} `json:"osquery"`
-	} `json:"agents"`
-}
-
-type osquerydTestHostList struct {
-	Items []osquerydTestHost `json:"items"`
-	Count int                `json:"count"`
-}
-
 func TestOsqueryd(t *testing.T) {
 	requireOsquerydProvider(t)
 	server := startTestServer(t)
 
-	var setupUser struct {
-		Email string `json:"email"`
-	}
-	requestJSON(
+	setupAdmin(
 		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/setup",
-		struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}{
-			Email:    "admin@woodstar.test",
-			Name:     "Integration Administrator",
-			Password: "integration-admin-password",
-		},
-		http.StatusCreated,
-		&setupUser,
+		server,
+		"admin@woodstar.test",
+		"Integration Administrator",
+		"integration-admin-password",
 	)
-	if setupUser.Email != "admin@woodstar.test" {
-		t.Fatalf("setup email = %q, want admin@woodstar.test", setupUser.Email)
-	}
 
 	enrollSecret := randomHex(t, 32)
 	server.redact(enrollSecret)
-	var createdSecret struct {
-		Agent string `json:"agent"`
-	}
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/agent-secrets",
-		struct {
-			Agent string `json:"agent"`
-			Value string `json:"value"`
-		}{Agent: "orbit", Value: enrollSecret},
-		http.StatusCreated,
-		&createdSecret,
-	)
+	createdSecret := createAgentSecret(t, server, adminapi.AgentSecretCreateAgentOrbit, enrollSecret)
 	if createdSecret.Agent != "orbit" {
 		t.Fatalf("created agent secret = %q, want orbit", createdSecret.Agent)
 	}
@@ -187,7 +139,7 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 	lastResponse := "(no public response yet)"
 
 	for {
-		hosts, summary, err := fetchOsquerydHosts(ctx, server.Client, server.BaseURL+"/api/hosts")
+		hosts, summary, err := fetchOsquerydHosts(ctx, server.Admin)
 		if summary != "" {
 			lastResponse = summary
 		}
@@ -240,36 +192,32 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 
 func fetchOsquerydHosts(
 	ctx context.Context,
-	client *http.Client,
-	hostsURL string,
-) (osquerydTestHostList, string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, hostsURL, nil)
+	client *adminapi.ClientWithResponses,
+) (adminapi.PageHost, string, error) {
+	response, err := client.ListHostsWithResponse(ctx, nil)
 	if err != nil {
-		return osquerydTestHostList{}, "", err
+		return adminapi.PageHost{}, "", err
 	}
-	response, err := client.Do(request)
-	if err != nil {
-		return osquerydTestHostList{}, "", err
+	if response == nil {
+		return adminapi.PageHost{}, "", errors.New("list hosts returned no response")
 	}
-	defer func() { _ = response.Body.Close() }()
-
-	var hosts osquerydTestHostList
-	if err := json.NewDecoder(response.Body).Decode(&hosts); err != nil {
-		return osquerydTestHostList{}, "status=" + response.Status, err
+	if response.JSON200 == nil {
+		return adminapi.PageHost{}, "status=" + response.Status(), fmt.Errorf(
+			"public hosts returned %s: %s",
+			response.Status(),
+			response.Body,
+		)
 	}
-	summary := fmt.Sprintf("status=%s count=%d", response.Status, hosts.Count)
-	if response.StatusCode != http.StatusOK {
-		return hosts, summary, fmt.Errorf("public hosts returned %s", response.Status)
-	}
-	return hosts, summary, nil
+	hosts := *response.JSON200
+	return hosts, fmt.Sprintf("status=%s count=%d", response.Status(), hosts.Count), nil
 }
 
-func osquerydHostReady(hosts osquerydTestHostList) bool {
+func osquerydHostReady(hosts adminapi.PageHost) bool {
 	if hosts.Count != 1 || len(hosts.Items) != 1 {
 		return false
 	}
 	host := hosts.Items[0]
-	return host.Hardware.UUID != "" &&
+	return host.Hardware.Uuid != "" &&
 		host.Enrollment.Agent == "osquery" &&
 		host.Agents.Osquery.Version == osquerydExpectedVersion
 }

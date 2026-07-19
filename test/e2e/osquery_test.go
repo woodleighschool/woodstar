@@ -1,44 +1,14 @@
-package integration
+package e2e
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
-
-type osqueryTestLabelList struct {
-	Items []struct {
-		ID         int64  `json:"id"`
-		BuiltinKey string `json:"builtin_key"`
-	} `json:"items"`
-	Count int `json:"count"`
-}
-
-type osqueryTestLabelRef struct {
-	LabelID int64 `json:"label_id"`
-}
-
-type osqueryTestReportMutation struct {
-	Name              string  `json:"name"`
-	Description       string  `json:"description"`
-	Query             string  `json:"query"`
-	MinOsqueryVersion *string `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int32   `json:"schedule_interval"`
-	Targets           struct {
-		Include []osqueryTestLabelRef `json:"include"`
-		Exclude []osqueryTestLabelRef `json:"exclude"`
-	} `json:"targets"`
-}
-
-type osqueryTestReport struct {
-	ID               int64  `json:"id"`
-	Name             string `json:"name"`
-	Query            string `json:"query"`
-	ScheduleInterval int32  `json:"schedule_interval"`
-}
 
 type osqueryTestEnrollRequest struct {
 	EnrollSecret   string                       `json:"enroll_secret"`
@@ -91,119 +61,6 @@ type osqueryTestLogRequest struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-type osqueryTestHost struct {
-	ID           int64  `json:"id"`
-	DisplayName  string `json:"display_name"`
-	Status       string `json:"status"`
-	Hostname     string `json:"hostname"`
-	ComputerName string `json:"computer_name"`
-	Enrollment   struct {
-		Agent string `json:"agent"`
-	} `json:"enrollment"`
-	Hardware struct {
-		UUID            string `json:"uuid"`
-		Serial          string `json:"serial"`
-		Vendor          string `json:"vendor"`
-		ModelIdentifier string `json:"model_identifier"`
-		MemoryBytes     int64  `json:"memory_bytes"`
-		CPU             struct {
-			Architecture  string `json:"architecture"`
-			Brand         string `json:"brand"`
-			PhysicalCores int32  `json:"physical_cores"`
-			LogicalCores  int32  `json:"logical_cores"`
-		} `json:"cpu"`
-	} `json:"hardware"`
-	OS struct {
-		Platform      string `json:"platform"`
-		Name          string `json:"name"`
-		Version       string `json:"version"`
-		Build         string `json:"build"`
-		KernelVersion string `json:"kernel_version"`
-	} `json:"os"`
-	Storage struct {
-		BootVolume struct {
-			AvailableBytes *int64 `json:"available_bytes"`
-			TotalBytes     *int64 `json:"total_bytes"`
-		} `json:"boot_volume"`
-	} `json:"storage"`
-	Network struct {
-		PrimaryIP  *string `json:"primary_ip"`
-		PrimaryMAC string  `json:"primary_mac"`
-	} `json:"network"`
-	Agents struct {
-		Osquery struct {
-			Version                    string `json:"version"`
-			DistributedIntervalSeconds *int32 `json:"distributed_interval_seconds"`
-			ConfigRefreshSeconds       *int32 `json:"config_refresh_seconds"`
-		} `json:"osquery"`
-		Orbit struct {
-			Version string `json:"version"`
-		} `json:"orbit"`
-	} `json:"agents"`
-	Timestamps struct {
-		LastSeenAt         *time.Time `json:"last_seen_at"`
-		InventoryUpdatedAt *time.Time `json:"inventory_updated_at"`
-		LastRestartedAt    *time.Time `json:"last_restarted_at"`
-	} `json:"timestamps"`
-}
-
-type osqueryTestHostList struct {
-	Items []osqueryTestHost `json:"items"`
-	Count int               `json:"count"`
-}
-
-type osqueryTestHostDetail struct {
-	osqueryTestHost
-
-	Users []struct {
-		UID         string `json:"uid"`
-		Username    string `json:"username"`
-		Type        string `json:"type"`
-		Description string `json:"description"`
-		Directory   string `json:"directory"`
-		Shell       string `json:"shell"`
-	} `json:"users"`
-}
-
-type osqueryTestSoftwareList struct {
-	Items []struct {
-		Name              string `json:"name"`
-		Source            string `json:"source"`
-		InstalledVersions []struct {
-			Version          string   `json:"version"`
-			BundleIdentifier string   `json:"bundle_identifier"`
-			InstalledPaths   []string `json:"installed_paths"`
-			Signatures       []struct {
-				InstalledPath    string `json:"installed_path"`
-				TeamIdentifier   string `json:"team_identifier"`
-				CDHashSHA256     string `json:"hash_sha256"`
-				ExecutableSHA256 string `json:"executable_sha256"`
-			} `json:"signature_information"`
-		} `json:"installed_versions"`
-	} `json:"items"`
-	Count int `json:"count"`
-}
-
-type osqueryTestMunkiState struct {
-	Version         string   `json:"version"`
-	ManifestName    string   `json:"manifest_name"`
-	Errors          []string `json:"errors"`
-	Warnings        []string `json:"warnings"`
-	ProblemInstalls []string `json:"problem_installs"`
-	Items           []struct {
-		Name             string `json:"name"`
-		Installed        bool   `json:"installed"`
-		InstalledVersion string `json:"installed_version"`
-	} `json:"items"`
-}
-
-type osqueryTestReportResult struct {
-	ReportName  string            `json:"report_name"`
-	HostName    string            `json:"host_name"`
-	Columns     map[string]string `json:"columns"`
-	LastFetched time.Time         `json:"last_fetched"`
-}
-
 func TestOsquery(t *testing.T) {
 	const (
 		enrollSecret   = "osquery-integration-secret-0123456789abcdef"
@@ -218,63 +75,32 @@ func TestOsquery(t *testing.T) {
 	server.redact(enrollSecret)
 	agentClient := verifyingClient(t, server.CACertificate)
 
-	var setupUser struct {
-		Email string `json:"email"`
-	}
-	requestJSON(
+	setupAdmin(
 		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/setup",
-		struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}{
-			Email:    "admin@woodstar.test",
-			Name:     "Integration Administrator",
-			Password: "integration-admin-password",
-		},
-		http.StatusCreated,
-		&setupUser,
+		server,
+		"admin@woodstar.test",
+		"Integration Administrator",
+		"integration-admin-password",
 	)
-	if setupUser.Email != "admin@woodstar.test" {
-		t.Fatalf("setup email = %q, want admin@woodstar.test", setupUser.Email)
-	}
 
-	var createdSecret struct {
-		Agent string `json:"agent"`
-	}
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/agent-secrets",
-		struct {
-			Agent string `json:"agent"`
-			Value string `json:"value"`
-		}{Agent: "orbit", Value: enrollSecret},
-		http.StatusCreated,
-		&createdSecret,
-	)
+	createdSecret := createAgentSecret(t, server, adminapi.AgentSecretCreateAgentOrbit, enrollSecret)
 	if createdSecret.Agent != "orbit" {
 		t.Fatalf("created agent = %q, want orbit", createdSecret.Agent)
 	}
 
-	var labels osqueryTestLabelList
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/labels?label_type=builtin",
-		nil,
-		http.StatusOK,
-		&labels,
+	labelsResponse, err := server.Admin.ListLabelsWithResponse(
+		t.Context(),
+		&adminapi.ListLabelsParams{LabelType: new(adminapi.ListLabelsParamsLabelType("builtin"))},
 	)
+	labelsResponse = requireAPIResponse(t, "list builtin labels", http.StatusOK, labelsResponse, err)
+	if labelsResponse.JSON200 == nil {
+		t.Fatal("list builtin labels returned no JSON body")
+	}
+	labels := *labelsResponse.JSON200
 	var allHostsLabelID int64
 	for _, label := range labels.Items {
-		if label.BuiltinKey == "all-hosts" {
-			allHostsLabelID = label.ID
+		if label.BuiltinKey != nil && *label.BuiltinKey == "all-hosts" {
+			allHostsLabelID = label.Id
 			break
 		}
 	}
@@ -283,35 +109,32 @@ func TestOsquery(t *testing.T) {
 	}
 
 	minOsqueryVersion := "5.12.0"
-	reportMutation := osqueryTestReportMutation{
+	reportMutation := adminapi.OsqueryReportMutation{
 		Name:              "Installed applications",
-		Description:       "Visible integration snapshot",
+		Description:       new("Visible integration snapshot"),
 		Query:             "SELECT name, version FROM apps;",
 		MinOsqueryVersion: &minOsqueryVersion,
-		ScheduleInterval:  300,
+		ScheduleInterval:  new(int32(300)),
+		Targets: adminapi.OsqueryReportTargets{
+			Include: []adminapi.LabelRef{{LabelId: allHostsLabelID}},
+			Exclude: []adminapi.LabelRef{},
+		},
 	}
-	reportMutation.Targets.Include = []osqueryTestLabelRef{{LabelID: allHostsLabelID}}
-	reportMutation.Targets.Exclude = []osqueryTestLabelRef{}
-	var report osqueryTestReport
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/osquery/reports",
-		reportMutation,
-		http.StatusCreated,
-		&report,
-	)
+	reportResponse, err := server.Admin.CreateOsqueryReportWithResponse(t.Context(), reportMutation)
+	reportResponse = requireAPIResponse(t, "create osquery report", http.StatusCreated, reportResponse, err)
+	if reportResponse.JSON201 == nil {
+		t.Fatal("create osquery report returned no JSON body")
+	}
+	report := *reportResponse.JSON201
 	if report.Name != reportMutation.Name || report.Query != reportMutation.Query ||
-		report.ScheduleInterval != reportMutation.ScheduleInterval {
+		report.ScheduleInterval != *reportMutation.ScheduleInterval {
 		t.Fatalf("created report = %+v, want requested scheduled report", report)
 	}
 
 	var enroll osqueryTestEnrollResponse
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/enroll",
 		osqueryTestEnrollRequest{
 			EnrollSecret:   enrollSecret,
@@ -341,7 +164,6 @@ func TestOsquery(t *testing.T) {
 				"platform_info": {"extra": "Darwin Kernel Version 25.5.0"},
 			},
 		},
-		http.StatusOK,
 		&enroll,
 	)
 	if enroll.NodeKey == "" || enroll.NodeInvalid {
@@ -354,13 +176,11 @@ func TestOsquery(t *testing.T) {
 	server.redact(enroll.NodeKey)
 
 	var config osqueryTestConfigResponse
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/config",
 		osqueryTestNodeRequest{NodeKey: enroll.NodeKey},
-		http.StatusOK,
 		&config,
 	)
 	if config.NodeInvalid {
@@ -371,7 +191,7 @@ func TestOsquery(t *testing.T) {
 		if entry.Query != reportMutation.Query {
 			continue
 		}
-		if entry.Interval != reportMutation.ScheduleInterval || !entry.Snapshot ||
+		if entry.Interval != *reportMutation.ScheduleInterval || !entry.Snapshot ||
 			entry.Version != minOsqueryVersion {
 			t.Fatalf("schedule entry = %+v, want requested interval, snapshot, and minimum version", entry)
 		}
@@ -392,13 +212,11 @@ func TestOsquery(t *testing.T) {
 	}
 
 	var distributed osqueryTestDistributedReadResponse
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/distributed/read",
 		osqueryTestNodeRequest{NodeKey: enroll.NodeKey},
-		http.StatusOK,
 		&distributed,
 	)
 	if distributed.NodeInvalid || len(distributed.Queries) == 0 {
@@ -501,15 +319,13 @@ func TestOsquery(t *testing.T) {
 	}
 
 	var writeAck osqueryTestAcknowledgement
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/distributed/write",
 		osqueryTestDistributedWriteRequest{
 			NodeKey: enroll.NodeKey, Queries: queryRows, Statuses: statuses, Messages: map[string]string{},
 		},
-		http.StatusOK,
 		&writeAck,
 	)
 	if writeAck.NodeInvalid {
@@ -517,13 +333,11 @@ func TestOsquery(t *testing.T) {
 	}
 
 	var secondRead osqueryTestDistributedReadResponse
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/distributed/read",
 		osqueryTestNodeRequest{NodeKey: enroll.NodeKey},
-		http.StatusOK,
 		&secondRead,
 	)
 	if secondRead.NodeInvalid || len(secondRead.Queries) != 0 {
@@ -535,17 +349,15 @@ func TestOsquery(t *testing.T) {
 	}
 
 	var statusAck osqueryTestAcknowledgement
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/log",
 		osqueryTestLogRequest{
 			NodeKey: enroll.NodeKey,
 			LogType: "status",
 			Data:    json.RawMessage(`[{"severity":0,"filename":"init.cpp","line":1,"message":"osquery initialized"}]`),
 		},
-		http.StatusOK,
 		&statusAck,
 	)
 	if statusAck.NodeInvalid {
@@ -570,67 +382,57 @@ func TestOsquery(t *testing.T) {
 		t.Fatalf("encode report snapshot: %v", err)
 	}
 	var resultAck osqueryTestAcknowledgement
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/log",
 		osqueryTestLogRequest{NodeKey: enroll.NodeKey, LogType: "result", Data: snapshotData},
-		http.StatusOK,
 		&resultAck,
 	)
 	if resultAck.NodeInvalid {
 		t.Fatal("result log returned node_invalid")
 	}
 
-	var hostList osqueryTestHostList
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts",
-		nil,
-		http.StatusOK,
-		&hostList,
-	)
+	hostListResponse, err := server.Admin.ListHostsWithResponse(t.Context(), nil)
+	hostListResponse = requireAPIResponse(t, "list hosts", http.StatusOK, hostListResponse, err)
+	if hostListResponse.JSON200 == nil {
+		t.Fatal("list hosts returned no JSON body")
+	}
+	hostList := *hostListResponse.JSON200
 	if hostList.Count != 1 || len(hostList.Items) != 1 {
 		t.Fatalf("host list count/items = %d/%d, want 1/1", hostList.Count, len(hostList.Items))
 	}
 	host := hostList.Items[0]
-	if host.Hardware.UUID != hardwareUUID || host.Enrollment.Agent != "osquery" ||
+	if host.Hardware.Uuid != hardwareUUID || host.Enrollment.Agent != "osquery" ||
 		host.DisplayName != "Osquery Integration Mac" || host.Status != "online" {
 		t.Fatalf("host identity/enrollment = %+v, want enrolled online osquery Mac", host)
 	}
 
-	var hostDetail osqueryTestHostDetail
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		fmt.Sprintf("%s/api/hosts/%d", server.BaseURL, host.ID),
-		nil,
-		http.StatusOK,
-		&hostDetail,
-	)
+	hostDetailResponse, err := server.Admin.GetHostWithResponse(t.Context(), host.Id)
+	hostDetailResponse = requireAPIResponse(t, "get host", http.StatusOK, hostDetailResponse, err)
+	if hostDetailResponse.JSON200 == nil {
+		t.Fatal("get host returned no JSON body")
+	}
+	hostDetail := *hostDetailResponse.JSON200
 	if hostDetail.Hostname != "osquery-mac.woodstar.test" ||
 		hostDetail.ComputerName != "Osquery Integration Mac" ||
 		hostDetail.Hardware.Serial != "C02OSQUERYTEST" ||
 		hostDetail.Hardware.Vendor != "Apple Inc." ||
 		hostDetail.Hardware.ModelIdentifier != "Mac15,8" ||
 		hostDetail.Hardware.MemoryBytes != 68719476736 ||
-		hostDetail.Hardware.CPU.Architecture != "arm64" ||
-		hostDetail.Hardware.CPU.Brand != "Apple M4" ||
-		hostDetail.Hardware.CPU.PhysicalCores != 10 ||
-		hostDetail.Hardware.CPU.LogicalCores != 10 {
-		t.Fatalf("host hardware/detail = %+v, want projected macOS source rows", hostDetail.osqueryTestHost)
+		hostDetail.Hardware.Cpu.Architecture != "arm64" ||
+		hostDetail.Hardware.Cpu.Brand != "Apple M4" ||
+		hostDetail.Hardware.Cpu.PhysicalCores != 10 ||
+		hostDetail.Hardware.Cpu.LogicalCores != 10 {
+		t.Fatalf("host hardware/detail = %+v, want projected macOS source rows", hostDetail)
 	}
-	if hostDetail.OS.Platform != "darwin" || hostDetail.OS.Name != "macOS" ||
-		hostDetail.OS.Version != "26.5" || hostDetail.OS.Build != "25F5068a" ||
-		hostDetail.OS.KernelVersion != "Darwin Kernel Version 25.5.0" {
-		t.Fatalf("host OS = %+v, want projected macOS 26.5", hostDetail.OS)
+	if hostDetail.Os.Platform != "darwin" || hostDetail.Os.Name != "macOS" ||
+		hostDetail.Os.Version != "26.5" || hostDetail.Os.Build != "25F5068a" ||
+		hostDetail.Os.KernelVersion != "Darwin Kernel Version 25.5.0" {
+		t.Fatalf("host OS = %+v, want projected macOS 26.5", hostDetail.Os)
 	}
-	if hostDetail.Network.PrimaryIP == nil || *hostDetail.Network.PrimaryIP != "192.0.2.10" ||
-		hostDetail.Network.PrimaryMAC != "aa:bb:cc:dd:ee:ff" {
+	if hostDetail.Network.PrimaryIp == nil || *hostDetail.Network.PrimaryIp != "192.0.2.10" ||
+		hostDetail.Network.PrimaryMac != "aa:bb:cc:dd:ee:ff" {
 		t.Fatalf("host network = %+v, want projected primary interface", hostDetail.Network)
 	}
 	if hostDetail.Storage.BootVolume.AvailableBytes == nil ||
@@ -653,22 +455,18 @@ func TestOsquery(t *testing.T) {
 			hostDetail.Timestamps,
 		)
 	}
-	if len(hostDetail.Users) != 1 || hostDetail.Users[0].UID != "501" ||
+	if len(hostDetail.Users) != 1 || hostDetail.Users[0].Uid != "501" ||
 		hostDetail.Users[0].Username != "integration" || hostDetail.Users[0].Type != "local" ||
 		hostDetail.Users[0].Directory != "/Users/integration" || hostDetail.Users[0].Shell != "/bin/zsh" {
 		t.Fatalf("host users = %+v, want projected integration account", hostDetail.Users)
 	}
 
-	var software osqueryTestSoftwareList
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		fmt.Sprintf("%s/api/hosts/%d/software", server.BaseURL, host.ID),
-		nil,
-		http.StatusOK,
-		&software,
-	)
+	softwareResponse, err := server.Admin.ListHostSoftwareWithResponse(t.Context(), host.Id, nil)
+	softwareResponse = requireAPIResponse(t, "list host software", http.StatusOK, softwareResponse, err)
+	if softwareResponse.JSON200 == nil {
+		t.Fatal("list host software returned no JSON body")
+	}
+	software := *softwareResponse.JSON200
 	if software.Count != 1 || len(software.Items) != 1 || software.Items[0].Name != softwareName ||
 		software.Items[0].Source != "apps" || len(software.Items[0].InstalledVersions) != 1 {
 		t.Fatalf("host software = %+v, want projected integration app", software)
@@ -678,22 +476,19 @@ func TestOsquery(t *testing.T) {
 		len(
 			installed.InstalledPaths,
 		) != 1 || installed.InstalledPaths[0] != "/Applications/Woodstar Integration App.app" ||
-		len(installed.Signatures) != 1 || installed.Signatures[0].TeamIdentifier != "WOODSTAR01" ||
-		installed.Signatures[0].CDHashSHA256 != "cdhash" ||
-		installed.Signatures[0].ExecutableSHA256 != "executable-hash" {
+		len(installed.SignatureInformation) != 1 ||
+		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
+		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
+		installed.SignatureInformation[0].ExecutableSha256 != "executable-hash" {
 		t.Fatalf("installed software = %+v, want version, path, and signature projection", installed)
 	}
 
-	var munki osqueryTestMunkiState
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		fmt.Sprintf("%s/api/hosts/%d/munki", server.BaseURL, host.ID),
-		nil,
-		http.StatusOK,
-		&munki,
-	)
+	munkiResponse, err := server.Admin.GetHostMunkiStateWithResponse(t.Context(), host.Id)
+	munkiResponse = requireAPIResponse(t, "get host munki state", http.StatusOK, munkiResponse, err)
+	if munkiResponse.JSON200 == nil {
+		t.Fatal("get host munki state returned no JSON body")
+	}
+	munki := *munkiResponse.JSON200
 	if munki.Version != "7.1.2.5700" || munki.ManifestName != "site_default" ||
 		len(munki.Errors) != 2 || munki.Errors[0] != "first error" || munki.Errors[1] != "second error" ||
 		len(munki.Warnings) != 1 || munki.Warnings[0] != "first warning" ||
@@ -703,23 +498,19 @@ func TestOsquery(t *testing.T) {
 		t.Fatalf("host Munki state = %+v, want projected osquery Munki rows", munki)
 	}
 
-	var results []osqueryTestReportResult
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		fmt.Sprintf("%s/api/osquery/reports/%d/results", server.BaseURL, report.ID),
-		nil,
-		http.StatusOK,
-		&results,
-	)
+	resultsResponse, err := server.Admin.ListOsqueryReportResultsWithResponse(t.Context(), report.Id)
+	resultsResponse = requireAPIResponse(t, "list osquery report results", http.StatusOK, resultsResponse, err)
+	if resultsResponse.JSON200 == nil {
+		t.Fatal("list osquery report results returned no JSON body")
+	}
+	results := *resultsResponse.JSON200
 	if len(results) != 2 {
 		t.Fatalf("report results = %+v, want two visible snapshot rows", results)
 	}
 	resultVersions := make(map[string]string, len(results))
 	for _, result := range results {
 		if result.ReportName != reportMutation.Name || result.HostName != "Osquery Integration Mac" ||
-			!result.LastFetched.Equal(time.Unix(reportUnixTime, 0).UTC()) {
+			result.LastFetched == nil || !result.LastFetched.Equal(time.Unix(reportUnixTime, 0).UTC()) {
 			t.Fatalf("report result metadata = %+v, want report, host, and submitted time", result)
 		}
 		resultVersions[result.Columns["name"]] = result.Columns["version"]
@@ -731,28 +522,28 @@ func TestOsquery(t *testing.T) {
 	unknownNodeKey := "unknown-osquery-node-key"
 	server.redact(unknownNodeKey)
 	var unknownConfig osqueryTestConfigResponse
-	requestJSON(
+	postJSON(
 		t,
 		agentClient,
-		http.MethodPost,
 		server.BaseURL+"/api/v1/osquery/config",
 		osqueryTestNodeRequest{NodeKey: unknownNodeKey},
-		http.StatusOK,
 		&unknownConfig,
 	)
 	if !unknownConfig.NodeInvalid {
 		t.Fatal("config with unknown node key did not return node_invalid")
 	}
-	var hostsAfterUnknown osqueryTestHostList
-	requestJSON(
+	hostsAfterUnknownResponse, err := server.Admin.ListHostsWithResponse(t.Context(), nil)
+	hostsAfterUnknownResponse = requireAPIResponse(
 		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts",
-		nil,
+		"list hosts after unknown node key",
 		http.StatusOK,
-		&hostsAfterUnknown,
+		hostsAfterUnknownResponse,
+		err,
 	)
+	if hostsAfterUnknownResponse.JSON200 == nil {
+		t.Fatal("list hosts after unknown node key returned no JSON body")
+	}
+	hostsAfterUnknown := *hostsAfterUnknownResponse.JSON200
 	if hostsAfterUnknown.Count != hostList.Count || len(hostsAfterUnknown.Items) != len(hostList.Items) {
 		t.Fatalf(
 			"host count/items after unknown key = %d/%d, want unchanged %d/%d",

@@ -1,4 +1,4 @@
-package integration
+package e2e
 
 import (
 	"archive/zip"
@@ -22,90 +22,10 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
-
-type munkiTestUploadTarget struct {
-	ObjectID int64                 `json:"object_id"`
-	Upload   munkiTestUploadAction `json:"upload"`
-}
-
-type munkiTestUploadAction struct {
-	Strategy string            `json:"strategy"`
-	URL      string            `json:"url"`
-	Method   string            `json:"method"`
-	Headers  map[string]string `json:"headers"`
-}
-
-type munkiTestObject struct {
-	ID          int64   `json:"id"`
-	Filename    string  `json:"filename"`
-	ContentType string  `json:"content_type"`
-	SizeBytes   *int64  `json:"size_bytes"`
-	SHA256      *string `json:"sha256"`
-	ContentURL  string  `json:"content_url"`
-}
-
-type munkiTestInstallerFile struct {
-	Filename              string `json:"filename"`
-	InstallerItemLocation string `json:"installer_item_location"`
-	SizeBytes             int64  `json:"size_bytes"`
-	SHA256                string `json:"sha256"`
-}
-
-type munkiTestPackage struct {
-	ID                int64                    `json:"id"`
-	Software          munkiTestPackageSoftware `json:"software"`
-	Version           string                   `json:"version"`
-	InstallerType     string                   `json:"installer_type"`
-	InstallerObjectID *int64                   `json:"installer_object_id"`
-	InstallerFile     *munkiTestInstallerFile  `json:"installer_file"`
-}
-
-type munkiTestPackageSoftware struct {
-	ID int64 `json:"id"`
-}
-
-type munkiTestPackageSelector struct {
-	Strategy string `json:"strategy"`
-}
-
-type munkiTestInclude struct {
-	LabelID int64                    `json:"label_id"`
-	Package munkiTestPackageSelector `json:"package"`
-	Actions []string                 `json:"actions"`
-}
-
-type munkiTestLabelRef struct {
-	LabelID int64 `json:"label_id"`
-}
-
-type munkiTestTargets struct {
-	Include []munkiTestInclude  `json:"include"`
-	Exclude []munkiTestLabelRef `json:"exclude"`
-}
-
-type munkiTestSoftware struct {
-	ID       int64              `json:"id"`
-	Name     string             `json:"name"`
-	Packages []munkiTestPackage `json:"packages"`
-	Targets  munkiTestTargets   `json:"targets"`
-}
-
-type munkiTestLink struct {
-	Label         string `json:"label"`
-	Target        string `json:"target"`
-	OpenInBrowser bool   `json:"open_in_browser"`
-}
-
-type munkiTestClientResources struct {
-	Banner          munkiTestObject `json:"banner"`
-	BannerAlignment string          `json:"banner_alignment"`
-	Links           []munkiTestLink `json:"links"`
-	FooterText      string          `json:"footer_text"`
-	FooterLinks     []munkiTestLink `json:"footer_links"`
-}
 
 func TestMunki(t *testing.T) {
 	const (
@@ -118,37 +38,13 @@ func TestMunki(t *testing.T) {
 	server.redact(munkiSecret)
 	transferClient := verifyingClient(t, server.CACertificate)
 
-	var setupUser struct {
-		ID    int64  `json:"id"`
-		Email string `json:"email"`
-	}
-	setupResponse := requestJSON(
+	setupAdmin(
 		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/setup",
-		struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}{
-			Email:    "admin@woodstar.test",
-			Name:     "Integration Administrator",
-			Password: "integration-admin-password",
-		},
-		http.StatusCreated,
-		&setupUser,
+		server,
+		"admin@woodstar.test",
+		"Integration Administrator",
+		"integration-admin-password",
 	)
-	if setupUser.ID <= 0 || setupUser.Email != "admin@woodstar.test" {
-		t.Fatalf("setup user = %+v, want created integration administrator", setupUser)
-	}
-	secureCookie := false
-	for _, cookie := range setupResponse.Cookies() {
-		secureCookie = secureCookie || cookie.Secure
-	}
-	if !secureCookie {
-		t.Fatal("setup response did not issue a secure session cookie")
-	}
 	baseURL, err := url.Parse(server.BaseURL)
 	if err != nil {
 		t.Fatalf("parse test server URL: %v", err)
@@ -218,55 +114,41 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("seed all-hosts membership: %v", err)
 	}
 
-	var createdSecret struct {
-		ID    int64  `json:"id"`
-		Agent string `json:"agent"`
-	}
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/agent-secrets",
-		struct {
-			Agent string `json:"agent"`
-			Value string `json:"value"`
-		}{Agent: "munki", Value: munkiSecret},
-		http.StatusCreated,
-		&createdSecret,
-	)
-	if createdSecret.ID <= 0 || createdSecret.Agent != "munki" {
+	createdSecret := createAgentSecret(t, server, adminapi.AgentSecretCreateAgentMunki, munkiSecret)
+	if createdSecret.Id <= 0 || createdSecret.Agent != "munki" {
 		t.Fatalf("created agent secret = %+v, want active Munki secret", createdSecret)
 	}
 
 	installerBytes := bytes.Repeat([]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}, 200)
 	installerSum := sha256.Sum256(installerBytes)
 	installerSHA256 := hex.EncodeToString(installerSum[:])
-	var installerTarget munkiTestUploadTarget
 	capabilityIssuedAfter := time.Now()
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/package-installers",
-		struct {
-			Filename string `json:"filename"`
-		}{Filename: "WoodstarIntegration.pkg"},
-		http.StatusCreated,
-		&installerTarget,
+	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerWithResponse(
+		t.Context(),
+		adminapi.MunkiUploadRequest{Filename: "WoodstarIntegration.pkg"},
 	)
 	capabilityIssuedBefore := time.Now()
-	if installerTarget.ObjectID <= 0 || installerTarget.Upload.Method != http.MethodPut ||
-		installerTarget.Upload.Strategy != "direct-put" {
+	createdInstaller = requireAPIResponse(
+		t,
+		"create package installer",
+		http.StatusCreated,
+		createdInstaller,
+		err,
+	)
+	installerTarget := createdInstaller.JSON201
+	installerUploadAction := directUpload(t, installerTarget)
+	if installerTarget.ObjectId <= 0 || installerUploadAction.Method != http.MethodPut ||
+		installerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
 			"installer upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
-			installerTarget.ObjectID,
-			installerTarget.Upload.Method,
-			installerTarget.Upload.Strategy,
+			installerTarget.ObjectId,
+			installerUploadAction.Method,
+			installerUploadAction.Strategy,
 		)
 	}
 	assertStorageCapabilityTTL(
 		t,
-		installerTarget.Upload.URL,
+		installerUploadAction.Url,
 		server.StorageCapabilityKey,
 		capability.OpPut,
 		capabilityIssuedAfter,
@@ -274,15 +156,17 @@ func TestMunki(t *testing.T) {
 	)
 	installerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		installerTarget.Upload.Method,
-		installerTarget.Upload.URL,
+		installerUploadAction.Method,
+		installerUploadAction.Url,
 		bytes.NewReader(installerBytes),
 	)
 	if err != nil {
 		t.Fatal("create installer upload capability request")
 	}
-	for name, value := range installerTarget.Upload.Headers {
-		installerUpload.Header.Set(name, value)
+	if installerUploadAction.Headers != nil {
+		for name, value := range *installerUploadAction.Headers {
+			installerUpload.Header.Set(name, value)
+		}
 	}
 	installerUploadResponse, err := transferClient.Do(installerUpload)
 	if err != nil {
@@ -293,25 +177,30 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("installer upload status = %d, want %d", installerUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	var installer munkiTestObject
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPut,
-		server.BaseURL+"/api/munki/package-installers/"+strconv.FormatInt(installerTarget.ObjectID, 10),
-		nil,
-		http.StatusOK,
-		&installer,
+	finalizedInstaller, err := server.Admin.FinalizeMunkiPackageInstallerWithResponse(
+		t.Context(),
+		installerTarget.ObjectId,
 	)
-	if installer.ID != installerTarget.ObjectID || installer.Filename != "WoodstarIntegration.pkg" ||
+	finalizedInstaller = requireAPIResponse(
+		t,
+		"finalize package installer",
+		http.StatusOK,
+		finalizedInstaller,
+		err,
+	)
+	if finalizedInstaller.JSON200 == nil {
+		t.Fatal("finalize package installer returned no JSON body")
+	}
+	installer := *finalizedInstaller.JSON200
+	if installer.Id != installerTarget.ObjectId || installer.Filename != "WoodstarIntegration.pkg" ||
 		installer.ContentType != "application/octet-stream" || installer.SizeBytes == nil ||
-		*installer.SizeBytes != int64(len(installerBytes)) || installer.SHA256 == nil ||
-		*installer.SHA256 != installerSHA256 ||
-		installer.ContentURL != "/api/munki/package-installers/"+
-			strconv.FormatInt(installer.ID, 10)+"/content" {
+		*installer.SizeBytes != int64(len(installerBytes)) || installer.Sha256 == nil ||
+		*installer.Sha256 != installerSHA256 ||
+		installer.ContentUrl != "/api/munki/package-installers/"+
+			strconv.FormatInt(installer.Id, 10)+"/content" {
 		t.Fatal("finalized installer did not contain the expected server-derived metadata")
 	}
-	installerContentResponse, err := server.Client.Get(server.BaseURL + installer.ContentURL)
+	installerContentResponse, err := server.AdminHTTP.Get(server.BaseURL + installer.ContentUrl)
 	if err != nil {
 		t.Fatalf("fetch installer through admin content route: %v", err)
 	}
@@ -326,7 +215,7 @@ func TestMunki(t *testing.T) {
 	agentOnAdminRequest, err := http.NewRequestWithContext(
 		t.Context(),
 		http.MethodGet,
-		server.BaseURL+installer.ContentURL,
+		server.BaseURL+installer.ContentUrl,
 		nil,
 	)
 	if err != nil {
@@ -342,73 +231,57 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("agent secret on admin content status = %d, want 401", agentOnAdminResponse.StatusCode)
 	}
 
-	targets := munkiTestTargets{
-		Include: []munkiTestInclude{{
-			LabelID: allHostsLabelID,
-			Package: munkiTestPackageSelector{Strategy: "latest"},
-			Actions: []string{"managed_installs"},
+	targets := adminapi.MunkiTargets{
+		Include: []adminapi.MunkiInclude{{
+			LabelId: allHostsLabelID,
+			Package: adminapi.MunkiPackageSelector{Strategy: "latest"},
+			Actions: []adminapi.MunkiIncludeActions{"managed_installs"},
 		}},
-		Exclude: []munkiTestLabelRef{},
+		Exclude: []adminapi.LabelRef{},
 	}
-	var software munkiTestSoftware
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/software",
-		struct {
-			Name        string           `json:"name"`
-			DisplayName string           `json:"display_name"`
-			Description string           `json:"description"`
-			Category    string           `json:"category"`
-			Developer   string           `json:"developer"`
-			Targets     munkiTestTargets `json:"targets"`
-		}{
+	createdSoftware, err := server.Admin.CreateMunkiSoftwareWithResponse(
+		t.Context(),
+		adminapi.MunkiCreateMutation{
 			Name:        softwareName,
-			DisplayName: "Woodstar Integration App",
-			Description: "Compiled Munki repository lifecycle fixture.",
-			Category:    "Testing",
-			Developer:   "Woodleigh School",
+			DisplayName: new("Woodstar Integration App"),
+			Description: new("Compiled Munki repository lifecycle fixture."),
+			Category:    new("Testing"),
+			Developer:   new("Woodleigh School"),
 			Targets:     targets,
 		},
-		http.StatusCreated,
-		&software,
 	)
-	if software.ID <= 0 || software.Name != softwareName {
-		t.Fatalf("created software = %+v, want %s", software, softwareName)
+	createdSoftware = requireAPIResponse(t, "create software", http.StatusCreated, createdSoftware, err)
+	if createdSoftware.JSON201 == nil || createdSoftware.JSON201.Id <= 0 ||
+		createdSoftware.JSON201.Name != softwareName {
+		t.Fatalf("created software = %+v, want %s", createdSoftware.JSON201, softwareName)
 	}
+	software := *createdSoftware.JSON201
 
-	var pkg munkiTestPackage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/packages",
-		struct {
-			SoftwareID        int64  `json:"software_id"`
-			Version           string `json:"version"`
-			InstallerType     string `json:"installer_type"`
-			InstallerObjectID int64  `json:"installer_object_id"`
-		}{
-			SoftwareID:        software.ID,
+	createdPackage, err := server.Admin.CreateMunkiPackageWithResponse(
+		t.Context(),
+		adminapi.MunkiPackageCreateMutation{
+			SoftwareId:        software.Id,
 			Version:           "1.0",
-			InstallerType:     "pkg",
-			InstallerObjectID: installer.ID,
+			InstallerType:     new(adminapi.MunkiPackageCreateMutationInstallerType("pkg")),
+			InstallerObjectId: new(installer.Id),
 		},
-		http.StatusCreated,
-		&pkg,
 	)
+	createdPackage = requireAPIResponse(t, "create package", http.StatusCreated, createdPackage, err)
+	if createdPackage.JSON201 == nil {
+		t.Fatal("create package returned no JSON body")
+	}
+	pkg := *createdPackage.JSON201
 	installerItemLocation := fmt.Sprintf(
 		"packages/%d/installer/%s",
-		pkg.ID,
+		pkg.Id,
 		installer.Filename,
 	)
-	if pkg.Software.ID != software.ID || pkg.Version != "1.0" || pkg.InstallerType != "pkg" ||
-		pkg.InstallerObjectID == nil || *pkg.InstallerObjectID != installer.ID ||
+	if pkg.Software.Id != software.Id || pkg.Version != "1.0" || pkg.InstallerType != "pkg" ||
+		pkg.InstallerObjectId == nil || *pkg.InstallerObjectId != installer.Id ||
 		pkg.InstallerFile == nil || pkg.InstallerFile.Filename != installer.Filename ||
 		pkg.InstallerFile.InstallerItemLocation != installerItemLocation ||
 		pkg.InstallerFile.SizeBytes != int64(len(installerBytes)) ||
-		pkg.InstallerFile.SHA256 != installerSHA256 {
+		pkg.InstallerFile.Sha256 != installerSHA256 {
 		t.Fatalf("created package = %+v, want finalized installer version", pkg)
 	}
 
@@ -423,38 +296,35 @@ func TestMunki(t *testing.T) {
 	if bannerConfig.Width != 1 || bannerConfig.Height != 1 {
 		t.Fatalf("tiny PNG dimensions = %dx%d, want 1x1", bannerConfig.Width, bannerConfig.Height)
 	}
-	var bannerTarget munkiTestUploadTarget
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/munki/client-resources/banner",
-		struct {
-			Filename string `json:"filename"`
-		}{Filename: "banner.png"},
-		http.StatusCreated,
-		&bannerTarget,
+	createdBanner, err := server.Admin.CreateMunkiClientResourcesBannerUploadWithResponse(
+		t.Context(),
+		adminapi.MunkiUploadRequest{Filename: "banner.png"},
 	)
-	if bannerTarget.ObjectID <= 0 || bannerTarget.Upload.Method != http.MethodPut ||
-		bannerTarget.Upload.Strategy != "direct-put" {
+	createdBanner = requireAPIResponse(t, "create banner upload", http.StatusCreated, createdBanner, err)
+	bannerTarget := createdBanner.JSON201
+	bannerUploadAction := directUpload(t, bannerTarget)
+	if bannerTarget.ObjectId <= 0 || bannerUploadAction.Method != http.MethodPut ||
+		bannerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
 			"banner upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
-			bannerTarget.ObjectID,
-			bannerTarget.Upload.Method,
-			bannerTarget.Upload.Strategy,
+			bannerTarget.ObjectId,
+			bannerUploadAction.Method,
+			bannerUploadAction.Strategy,
 		)
 	}
 	bannerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		bannerTarget.Upload.Method,
-		bannerTarget.Upload.URL,
+		bannerUploadAction.Method,
+		bannerUploadAction.Url,
 		bytes.NewReader(bannerBytes),
 	)
 	if err != nil {
 		t.Fatal("create banner upload capability request")
 	}
-	for name, value := range bannerTarget.Upload.Headers {
-		bannerUpload.Header.Set(name, value)
+	if bannerUploadAction.Headers != nil {
+		for name, value := range *bannerUploadAction.Headers {
+			bannerUpload.Header.Set(name, value)
+		}
 	}
 	bannerUploadResponse, err := transferClient.Do(bannerUpload)
 	if err != nil {
@@ -465,87 +335,84 @@ func TestMunki(t *testing.T) {
 		t.Fatalf("banner upload status = %d, want %d", bannerUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	links := []munkiTestLink{{
+	links := []adminapi.MunkiLink{{
 		Label:         "Support",
 		Target:        "https://support.woodstar.test/",
 		OpenInBrowser: true,
 	}}
-	footerLinks := []munkiTestLink{{
+	footerLinks := []adminapi.MunkiLink{{
 		Label:  "Updates",
 		Target: "munki://updates",
 	}}
-	var clientResources munkiTestClientResources
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPut,
-		server.BaseURL+"/api/munki/client-resources",
-		struct {
-			BannerObjectID  int64           `json:"banner_object_id"`
-			BannerAlignment string          `json:"banner_alignment"`
-			Links           []munkiTestLink `json:"links"`
-			FooterText      string          `json:"footer_text"`
-			FooterLinks     []munkiTestLink `json:"footer_links"`
-		}{
-			BannerObjectID:  bannerTarget.ObjectID,
+	savedResources, err := server.Admin.SaveMunkiClientResourcesWithResponse(
+		t.Context(),
+		adminapi.MunkiMutation{
+			BannerObjectId:  bannerTarget.ObjectId,
 			BannerAlignment: "center",
 			Links:           links,
 			FooterText:      "Managed by Woodstar",
 			FooterLinks:     footerLinks,
 		},
-		http.StatusOK,
-		&clientResources,
 	)
+	savedResources = requireAPIResponse(t, "save client resources", http.StatusOK, savedResources, err)
+	if savedResources.JSON200 == nil {
+		t.Fatal("save client resources returned no JSON body")
+	}
+	clientResources := *savedResources.JSON200
 	bannerSum := sha256.Sum256(bannerBytes)
 	bannerSHA256 := hex.EncodeToString(bannerSum[:])
-	if clientResources.Banner.ID != bannerTarget.ObjectID ||
+	if clientResources.Banner.Id != bannerTarget.ObjectId ||
 		clientResources.Banner.ContentType != "image/png" ||
 		clientResources.Banner.SizeBytes == nil ||
 		*clientResources.Banner.SizeBytes != int64(len(bannerBytes)) ||
-		clientResources.Banner.SHA256 == nil || *clientResources.Banner.SHA256 != bannerSHA256 ||
+		clientResources.Banner.Sha256 == nil || *clientResources.Banner.Sha256 != bannerSHA256 ||
 		clientResources.BannerAlignment != "center" || clientResources.FooterText != "Managed by Woodstar" {
 		t.Fatal("saved client resources did not contain the expected compiled banner state")
 	}
 
-	var rereadSoftware munkiTestSoftware
-	requestJSON(
+	rereadSoftwareResponse, err := server.Admin.GetMunkiSoftwareWithResponse(t.Context(), software.Id)
+	rereadSoftwareResponse = requireAPIResponse(
 		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/munki/software/"+strconv.FormatInt(software.ID, 10),
-		nil,
+		"get software",
 		http.StatusOK,
-		&rereadSoftware,
+		rereadSoftwareResponse,
+		err,
 	)
-	if rereadSoftware.ID != software.ID || len(rereadSoftware.Packages) != 1 ||
-		rereadSoftware.Packages[0].ID != pkg.ID || len(rereadSoftware.Targets.Include) != 1 ||
-		rereadSoftware.Targets.Include[0].LabelID != allHostsLabelID ||
+	if rereadSoftwareResponse.JSON200 == nil {
+		t.Fatal("get software returned no JSON body")
+	}
+	rereadSoftware := *rereadSoftwareResponse.JSON200
+	if rereadSoftware.Id != software.Id || len(rereadSoftware.Packages) != 1 ||
+		rereadSoftware.Packages[0].Id != pkg.Id || len(rereadSoftware.Targets.Include) != 1 ||
+		rereadSoftware.Targets.Include[0].LabelId != allHostsLabelID ||
 		rereadSoftware.Targets.Include[0].Package.Strategy != "latest" ||
 		len(rereadSoftware.Targets.Include[0].Actions) != 1 ||
 		rereadSoftware.Targets.Include[0].Actions[0] != "managed_installs" {
 		t.Fatalf("re-read software = %+v, want saved package and all-hosts target", rereadSoftware)
 	}
-	var rereadClientResources munkiTestClientResources
-	requestJSON(
+	rereadResourcesResponse, err := server.Admin.GetMunkiClientResourcesWithResponse(t.Context())
+	rereadResourcesResponse = requireAPIResponse(
 		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/munki/client-resources",
-		nil,
+		"get client resources",
 		http.StatusOK,
-		&rereadClientResources,
+		rereadResourcesResponse,
+		err,
 	)
-	if rereadClientResources.Banner.ID != bannerTarget.ObjectID ||
-		rereadClientResources.Banner.ContentURL != "/api/munki/client-resources/banner/"+
-			strconv.FormatInt(bannerTarget.ObjectID, 10)+"/content" ||
+	if rereadResourcesResponse.JSON200 == nil {
+		t.Fatal("get client resources returned no JSON body")
+	}
+	rereadClientResources := *rereadResourcesResponse.JSON200
+	if rereadClientResources.Banner.Id != bannerTarget.ObjectId ||
+		rereadClientResources.Banner.ContentUrl != "/api/munki/client-resources/banner/"+
+			strconv.FormatInt(bannerTarget.ObjectId, 10)+"/content" ||
 		rereadClientResources.BannerAlignment != "center" ||
 		len(rereadClientResources.Links) != 1 || rereadClientResources.Links[0] != links[0] ||
 		len(rereadClientResources.FooterLinks) != 1 ||
 		rereadClientResources.FooterLinks[0] != footerLinks[0] {
 		t.Fatal("re-read client resources did not match the saved public state")
 	}
-	bannerContentResponse, err := server.Client.Get(
-		server.BaseURL + rereadClientResources.Banner.ContentURL,
+	bannerContentResponse, err := server.AdminHTTP.Get(
+		server.BaseURL + rereadClientResources.Banner.ContentUrl,
 	)
 	if err != nil {
 		t.Fatalf("fetch banner through admin content route: %v", err)

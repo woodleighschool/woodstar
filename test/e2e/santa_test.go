@@ -1,4 +1,4 @@
-package integration
+package e2e
 
 import (
 	"bytes"
@@ -8,9 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,112 +16,11 @@ import (
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const santaProtobufContentType = "application/x-protobuf"
-
-type santaTestLabelRef struct {
-	LabelID int64 `json:"label_id"`
-}
-
-type santaTestRuleInclude struct {
-	Policy  string `json:"policy"`
-	LabelID int64  `json:"label_id"`
-}
-
-type santaTestConfigurationTargets struct {
-	Include []santaTestLabelRef `json:"include"`
-	Exclude []santaTestLabelRef `json:"exclude"`
-}
-
-type santaTestRuleTargets struct {
-	Include []santaTestRuleInclude `json:"include"`
-	Exclude []santaTestLabelRef    `json:"exclude"`
-}
-
-type santaTestLabel struct {
-	ID                  int64   `json:"id"`
-	Name                string  `json:"name"`
-	HostIDs             []int64 `json:"host_ids"`
-	LabelMembershipType string  `json:"label_membership_type"`
-}
-
-type santaTestConfiguration struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-type santaTestRule struct {
-	ID         int64  `json:"id"`
-	Identifier string `json:"identifier"`
-}
-
-type santaTestHostPage struct {
-	Items []struct {
-		ID          int64  `json:"id"`
-		DisplayName string `json:"display_name"`
-		Hardware    struct {
-			UUID   string `json:"uuid"`
-			Serial string `json:"serial"`
-		} `json:"hardware"`
-	} `json:"items"`
-	Count int `json:"count"`
-}
-
-type santaTestHostState struct {
-	Version            string `json:"version"`
-	ClientModeReported string `json:"client_mode_reported"`
-	Configuration      *struct {
-		ID              int64  `json:"id"`
-		Name            string `json:"name"`
-		MatchedViaLabel *struct {
-			ID   int64  `json:"id"`
-			Name string `json:"name"`
-		} `json:"matched_via_label"`
-	} `json:"configuration"`
-	RuleSync struct {
-		DesiredCount    int32      `json:"desired_count"`
-		AppliedCount    int32      `json:"applied_count"`
-		PendingCount    int32      `json:"pending_count"`
-		LastCleanSyncAt *time.Time `json:"last_clean_sync_at"`
-	} `json:"rule_sync"`
-}
-
-type santaTestHostRulePage struct {
-	Items []struct {
-		RuleID        int64  `json:"rule_id"`
-		RuleType      string `json:"rule_type"`
-		Identifier    string `json:"identifier"`
-		Policy        string `json:"policy"`
-		CustomMessage string `json:"custom_message"`
-		CustomURL     string `json:"custom_url"`
-		Applied       bool   `json:"applied"`
-	} `json:"items"`
-	Count int `json:"count"`
-}
-
-type santaTestEventPage struct {
-	Items []struct {
-		HostID        int64     `json:"host_id"`
-		FilePath      string    `json:"file_path"`
-		ExecutingUser string    `json:"executing_user"`
-		PID           int32     `json:"pid"`
-		PPID          int32     `json:"ppid"`
-		ParentName    string    `json:"parent_name"`
-		Decision      string    `json:"decision"`
-		StaticRule    bool      `json:"static_rule"`
-		OccurredAt    time.Time `json:"occurred_at"`
-		Executable    struct {
-			SHA256        string `json:"sha256"`
-			FileName      string `json:"file_name"`
-			SigningID     string `json:"signing_id"`
-			TeamID        string `json:"team_id"`
-			CDHash        string `json:"cdhash"`
-			SigningStatus string `json:"signing_status"`
-		} `json:"executable"`
-	} `json:"items"`
-	Count int `json:"count"`
-}
 
 type santaSyncCheckpoint struct {
 	RulesReceived       int32
@@ -166,44 +63,13 @@ func TestSanta(t *testing.T) {
 	server := startTestServer(t)
 	server.redact(santaSecret)
 
-	var setupUser struct {
-		ID    int64  `json:"id"`
-		Email string `json:"email"`
-	}
-	setupResponse := requestJSON(
+	setupAdmin(
 		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/setup",
-		struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Password string `json:"password"`
-		}{
-			Email:    "admin@santa.integration.test",
-			Name:     "Santa Integration Admin",
-			Password: "santa-integration-password",
-		},
-		http.StatusCreated,
-		&setupUser,
+		server,
+		"admin@santa.integration.test",
+		"Santa Integration Admin",
+		"santa-integration-password",
 	)
-	if setupUser.ID <= 0 || setupUser.Email != "admin@santa.integration.test" {
-		t.Fatalf("setup user = %+v, want created Santa integration administrator", setupUser)
-	}
-	secureSession := false
-	for _, cookie := range setupResponse.Cookies() {
-		secureSession = secureSession || cookie.Secure
-	}
-	if !secureSession {
-		t.Fatal("setup response did not issue a secure session cookie")
-	}
-	baseURL, err := url.Parse(server.BaseURL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	if len(server.Client.Jar.Cookies(baseURL)) == 0 {
-		t.Fatal("admin client did not retain the setup session cookie")
-	}
 
 	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
 	if err != nil {
@@ -246,71 +112,33 @@ RETURNING id`,
 		t.Fatalf("seed canonical Santa host: %v", err)
 	}
 
-	var label santaTestLabel
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/labels",
-		struct {
-			Name                string  `json:"name"`
-			LabelMembershipType string  `json:"label_membership_type"`
-			HostIDs             []int64 `json:"host_ids"`
-		}{
+	labelResponse, err := server.Admin.CreateLabelWithResponse(
+		t.Context(),
+		adminapi.LabelMutation{
 			Name:                "Santa Integration Hosts",
-			LabelMembershipType: "manual",
-			HostIDs:             []int64{hostID},
+			LabelMembershipType: new(adminapi.LabelMutationLabelMembershipType("manual")),
+			HostIds:             new([]int64{hostID}),
 		},
-		http.StatusCreated,
-		&label,
 	)
-	if label.ID <= 0 || label.Name != "Santa Integration Hosts" ||
-		label.LabelMembershipType != "manual" || !slices.Equal(label.HostIDs, []int64{hostID}) {
+	labelResponse = requireAPIResponse(t, "create label", http.StatusCreated, labelResponse, err)
+	if labelResponse.JSON201 == nil {
+		t.Fatal("create label returned no JSON body")
+	}
+	label := *labelResponse.JSON201
+	if label.Id <= 0 || label.Name != "Santa Integration Hosts" ||
+		label.LabelMembershipType != "manual" || label.HostIds == nil ||
+		!slices.Equal(*label.HostIds, []int64{hostID}) {
 		t.Fatalf("created label = %+v, want manual Santa integration label for host %d", label, hostID)
 	}
 
-	var createdSecret struct {
-		ID    int64  `json:"id"`
-		Agent string `json:"agent"`
-	}
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/agent-secrets",
-		struct {
-			Agent string `json:"agent"`
-			Value string `json:"value"`
-		}{Agent: "santa", Value: santaSecret},
-		http.StatusCreated,
-		&createdSecret,
-	)
-	if createdSecret.ID <= 0 || createdSecret.Agent != "santa" {
+	createdSecret := createAgentSecret(t, server, adminapi.AgentSecretCreateAgentSanta, santaSecret)
+	if createdSecret.Id <= 0 || createdSecret.Agent != "santa" {
 		t.Fatalf("created agent secret = %+v, want active Santa secret", createdSecret)
 	}
 
-	var configuration santaTestConfiguration
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/santa/configurations",
-		struct {
-			Name                      string                        `json:"name"`
-			ClientMode                string                        `json:"client_mode"`
-			EnableBundles             bool                          `json:"enable_bundles"`
-			EnableTransitiveRules     bool                          `json:"enable_transitive_rules"`
-			EnableAllEventUpload      bool                          `json:"enable_all_event_upload"`
-			DisableUnknownEventUpload bool                          `json:"disable_unknown_event_upload"`
-			OverrideFileAccessAction  string                        `json:"override_file_access_action"`
-			FullSyncIntervalSeconds   int32                         `json:"full_sync_interval_seconds"`
-			BatchSize                 int32                         `json:"batch_size"`
-			AllowedPathRegex          string                        `json:"allowed_path_regex"`
-			BlockedPathRegex          string                        `json:"blocked_path_regex"`
-			EventDetailURL            string                        `json:"event_detail_url"`
-			EventDetailText           string                        `json:"event_detail_text"`
-			Targets                   santaTestConfigurationTargets `json:"targets"`
-		}{
+	configurationResponse, err := server.Admin.CreateSantaConfigurationWithResponse(
+		t.Context(),
+		adminapi.SantaConfigurationMutation{
 			Name:                      "Santa Integration Configuration",
 			ClientMode:                "lockdown",
 			EnableBundles:             true,
@@ -320,63 +148,63 @@ RETURNING id`,
 			OverrideFileAccessAction:  "audit_only",
 			FullSyncIntervalSeconds:   600,
 			BatchSize:                 50,
-			AllowedPathRegex:          `^/Applications/`,
-			BlockedPathRegex:          `^/tmp/`,
-			EventDetailURL:            ruleURL,
-			EventDetailText:           "More information",
-			Targets: santaTestConfigurationTargets{
-				Include: []santaTestLabelRef{{LabelID: label.ID}},
-				Exclude: []santaTestLabelRef{},
+			AllowedPathRegex:          new(`^/Applications/`),
+			BlockedPathRegex:          new(`^/tmp/`),
+			EventDetailUrl:            new(ruleURL),
+			EventDetailText:           new("More information"),
+			Targets: adminapi.SantaConfigurationTargets{
+				Include: []adminapi.LabelRef{{LabelId: label.Id}},
+				Exclude: []adminapi.LabelRef{},
 			},
 		},
-		http.StatusCreated,
-		&configuration,
 	)
-	if configuration.ID <= 0 || configuration.Name != "Santa Integration Configuration" {
+	configurationResponse = requireAPIResponse(
+		t,
+		"create Santa configuration",
+		http.StatusCreated,
+		configurationResponse,
+		err,
+	)
+	if configurationResponse.JSON201 == nil {
+		t.Fatal("create Santa configuration returned no JSON body")
+	}
+	configuration := *configurationResponse.JSON201
+	if configuration.Id <= 0 || configuration.Name != "Santa Integration Configuration" {
 		t.Fatalf("created configuration = %+v, want Santa integration configuration", configuration)
 	}
 
-	var createdRule santaTestRule
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodPost,
-		server.BaseURL+"/api/santa/rules",
-		struct {
-			RuleType      string               `json:"rule_type"`
-			Identifier    string               `json:"identifier"`
-			Name          string               `json:"name"`
-			CustomMessage string               `json:"custom_message"`
-			CustomURL     string               `json:"custom_url"`
-			Targets       santaTestRuleTargets `json:"targets"`
-		}{
+	ruleResponse, err := server.Admin.CreateSantaRuleWithResponse(
+		t.Context(),
+		adminapi.SantaRuleMutation{
 			RuleType:      "binary",
 			Identifier:    ruleIdentifier,
 			Name:          "Santa Integration Rule",
-			CustomMessage: ruleMessage,
-			CustomURL:     ruleURL,
-			Targets: santaTestRuleTargets{
-				Include: []santaTestRuleInclude{{Policy: "blocklist", LabelID: label.ID}},
-				Exclude: []santaTestLabelRef{},
+			CustomMessage: new(ruleMessage),
+			CustomUrl:     new(ruleURL),
+			Targets: adminapi.SantaRuleTargets{
+				Include: []adminapi.SantaRuleInclude{{Policy: "blocklist", LabelId: label.Id}},
+				Exclude: []adminapi.LabelRef{},
 			},
 		},
-		http.StatusCreated,
-		&createdRule,
 	)
-	if createdRule.ID <= 0 || createdRule.Identifier != ruleIdentifier {
+	ruleResponse = requireAPIResponse(t, "create Santa rule", http.StatusCreated, ruleResponse, err)
+	if ruleResponse.JSON201 == nil {
+		t.Fatal("create Santa rule returned no JSON body")
+	}
+	createdRule := *ruleResponse.JSON201
+	if createdRule.Id <= 0 || createdRule.Identifier != ruleIdentifier {
 		t.Fatalf("created rule = %+v, want public Santa integration rule", createdRule)
 	}
 
-	var hostsBefore santaTestHostPage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts?per_page=1000",
-		nil,
-		http.StatusOK,
-		&hostsBefore,
+	hostsBeforeResponse, err := server.Admin.ListHostsWithResponse(
+		t.Context(),
+		&adminapi.ListHostsParams{PerPage: new(int32(1000))},
 	)
+	hostsBeforeResponse = requireAPIResponse(t, "list hosts", http.StatusOK, hostsBeforeResponse, err)
+	if hostsBeforeResponse.JSON200 == nil {
+		t.Fatal("list hosts returned no JSON body")
+	}
+	hostsBefore := *hostsBeforeResponse.JSON200
 	requireOnlySantaHost(t, hostsBefore, hostID, machineID, serial)
 
 	client := santaProtoClient{
@@ -472,66 +300,62 @@ RETURNING id`,
 		t.Fatalf("second sync checkpoint = %+v, want empty normal acknowledgement", secondCheckpoint)
 	}
 
-	var hostState santaTestHostState
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts/"+strconv.FormatInt(hostID, 10)+"/santa",
-		nil,
-		http.StatusOK,
-		&hostState,
-	)
+	hostStateResponse, err := server.Admin.GetHostSantaStateWithResponse(t.Context(), hostID)
+	hostStateResponse = requireAPIResponse(t, "get host Santa state", http.StatusOK, hostStateResponse, err)
+	if hostStateResponse.JSON200 == nil {
+		t.Fatal("get host Santa state returned no JSON body")
+	}
+	hostState := *hostStateResponse.JSON200
 	if hostState.Version != "2026.7" || hostState.ClientModeReported != "monitor" ||
-		hostState.Configuration == nil || hostState.Configuration.ID != configuration.ID ||
+		hostState.Configuration == nil || hostState.Configuration.Id != configuration.Id ||
 		hostState.Configuration.Name != configuration.Name || hostState.Configuration.MatchedViaLabel == nil ||
-		hostState.Configuration.MatchedViaLabel.ID != label.ID ||
+		hostState.Configuration.MatchedViaLabel.Id != label.Id ||
 		hostState.Configuration.MatchedViaLabel.Name != label.Name ||
 		hostState.RuleSync.DesiredCount != 1 || hostState.RuleSync.AppliedCount != 1 ||
 		hostState.RuleSync.PendingCount != 0 || hostState.RuleSync.LastCleanSyncAt == nil {
 		t.Fatalf("public Santa host state = %+v, want matched applied configuration", hostState)
 	}
 
-	var hostRules santaTestHostRulePage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts/"+strconv.FormatInt(hostID, 10)+"/santa/rules?per_page=1000",
-		nil,
-		http.StatusOK,
-		&hostRules,
+	hostRulesResponse, err := server.Admin.ListHostSantaRulesWithResponse(
+		t.Context(),
+		hostID,
+		&adminapi.ListHostSantaRulesParams{PerPage: new(int32(1000))},
 	)
+	hostRulesResponse = requireAPIResponse(t, "list host Santa rules", http.StatusOK, hostRulesResponse, err)
+	if hostRulesResponse.JSON200 == nil {
+		t.Fatal("list host Santa rules returned no JSON body")
+	}
+	hostRules := *hostRulesResponse.JSON200
 	if hostRules.Count != 1 || len(hostRules.Items) != 1 {
 		t.Fatalf("public Santa host rules = %+v, want one", hostRules)
 	}
 	hostRule := hostRules.Items[0]
-	if hostRule.RuleID != createdRule.ID || hostRule.RuleType != "binary" ||
+	if hostRule.RuleId != createdRule.Id || hostRule.RuleType != "binary" ||
 		hostRule.Identifier != ruleIdentifier || hostRule.Policy != "blocklist" ||
-		hostRule.CustomMessage != ruleMessage || hostRule.CustomURL != ruleURL || !hostRule.Applied {
+		hostRule.CustomMessage == nil || *hostRule.CustomMessage != ruleMessage ||
+		hostRule.CustomUrl == nil || *hostRule.CustomUrl != ruleURL || !hostRule.Applied {
 		t.Fatalf("public Santa host rule = %+v, want applied integration rule", hostRule)
 	}
 
-	var events santaTestEventPage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/santa/events?host_id="+strconv.FormatInt(hostID, 10)+"&per_page=10",
-		nil,
-		http.StatusOK,
-		&events,
+	eventsResponse, err := server.Admin.ListSantaEventsWithResponse(
+		t.Context(),
+		&adminapi.ListSantaEventsParams{HostId: new(hostID), PerPage: new(int32(10))},
 	)
+	eventsResponse = requireAPIResponse(t, "list Santa events", http.StatusOK, eventsResponse, err)
+	if eventsResponse.JSON200 == nil {
+		t.Fatal("list Santa events returned no JSON body")
+	}
+	events := *eventsResponse.JSON200
 	if events.Count != 1 || len(events.Items) != 1 {
 		t.Fatalf("public Santa events = %+v, want one", events)
 	}
 	event := events.Items[0]
-	if event.HostID != hostID || event.FilePath != eventPath || event.ExecutingUser != "alice" ||
-		event.PID != 4242 || event.PPID != 1 || event.ParentName != "launchd" ||
+	if event.HostId != hostID || event.FilePath != eventPath || event.ExecutingUser != "alice" ||
+		event.Pid != 4242 || event.Ppid != 1 || event.ParentName != "launchd" ||
 		event.Decision != "block_binary" || !event.StaticRule || !event.OccurredAt.Equal(eventTime) ||
-		event.Executable.SHA256 != eventSHA256 || event.Executable.FileName != "Woodstar Santa Test" ||
-		event.Executable.SigningID != "ABCDE12345:au.edu.woodleigh.woodstar.santa-test" ||
-		event.Executable.TeamID != "ABCDE12345" || event.Executable.CDHash != eventCDHash ||
+		event.Executable.Sha256 != eventSHA256 || event.Executable.FileName != "Woodstar Santa Test" ||
+		event.Executable.SigningId != "ABCDE12345:au.edu.woodleigh.woodstar.santa-test" ||
+		event.Executable.TeamId != "ABCDE12345" || event.Executable.Cdhash != eventCDHash ||
 		event.Executable.SigningStatus != "production" {
 		t.Fatalf("public Santa event = %+v, want uploaded execution evidence", event)
 	}
@@ -587,16 +411,21 @@ WHERE host_id = $1`, hostID).Scan(
 		http.StatusNotFound,
 	)
 
-	var hostsAfter santaTestHostPage
-	requestJSON(
-		t,
-		server.Client,
-		http.MethodGet,
-		server.BaseURL+"/api/hosts?per_page=1000",
-		nil,
-		http.StatusOK,
-		&hostsAfter,
+	hostsAfterResponse, err := server.Admin.ListHostsWithResponse(
+		t.Context(),
+		&adminapi.ListHostsParams{PerPage: new(int32(1000))},
 	)
+	hostsAfterResponse = requireAPIResponse(
+		t,
+		"list hosts after unknown preflight",
+		http.StatusOK,
+		hostsAfterResponse,
+		err,
+	)
+	if hostsAfterResponse.JSON200 == nil {
+		t.Fatal("list hosts after unknown preflight returned no JSON body")
+	}
+	hostsAfter := *hostsAfterResponse.JSON200
 	requireOnlySantaHost(t, hostsAfter, hostID, machineID, serial)
 	if hostsAfter.Count != hostsBefore.Count {
 		t.Fatalf("host count after unknown preflight = %d, want unchanged %d", hostsAfter.Count, hostsBefore.Count)
@@ -817,7 +646,7 @@ func requireSantaPreflightConfiguration(t *testing.T, response *syncv1.Preflight
 
 func requireOnlySantaHost(
 	t *testing.T,
-	page santaTestHostPage,
+	page adminapi.PageHost,
 	hostID int64,
 	machineID string,
 	serial string,
@@ -828,8 +657,8 @@ func requireOnlySantaHost(
 		t.Fatalf("public hosts = %+v, want only seeded Santa host", page)
 	}
 	host := page.Items[0]
-	if host.ID != hostID || host.DisplayName != "Santa Integration Mac" ||
-		host.Hardware.UUID != machineID || host.Hardware.Serial != serial {
+	if host.Id != hostID || host.DisplayName != "Santa Integration Mac" ||
+		host.Hardware.Uuid != machineID || host.Hardware.Serial != serial {
 		t.Fatalf("public host = %+v, want seeded Santa host", host)
 	}
 }

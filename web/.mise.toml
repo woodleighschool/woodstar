@@ -1,19 +1,18 @@
 [tasks.deps]
 description = "Install web dependencies"
-run = "pnpm install"
+run = "pnpm install --frozen-lockfile"
 
 [tasks.dev]
 description = "Run web development server"
+depends = [":deps"]
 run = """
 NODE_EXTRA_CA_CERTS="../tmp/tls/ca/rootCA.pem" pnpm run dev
 """
 
 [tasks.build]
 description = "Build web bundle"
-run = """
-pnpm install
-pnpm run build
-"""
+depends = [":deps"]
+run = "pnpm run build"
 
 [tasks.serve]
 description = "Serve the built web bundle"
@@ -21,18 +20,25 @@ run = "pnpm run preview"
 
 [tasks.lint]
 description = "Run web lint and typecheck"
+depends = [":deps"]
 run = "pnpm run lint"
 
 [tasks.typecheck]
 description = "Run web typecheck"
+depends = [":deps"]
 run = "pnpm run typecheck"
 
 [tasks.format]
 description = "Format web code"
 run = "pnpm run format"
 
+[tasks.fmt-check]
+description = "Check web formatting"
+run = "oxfmt --check"
+
 [tasks.openapi-types]
 description = "Generate web OpenAPI client types"
+depends = [":deps"]
 run = "pnpm run openapi:types"
 
 [tasks.clean]

@@ -6,7 +6,7 @@ Frontend rules for work under `web/`.
 
 - React 19, Vite, TypeScript, Tailwind v4, TanStack Router/Form/Query/Table, shadcn-style primitives, lucide icons.
 - Source: `web/src`; static assets: `web/public`; production bundle: `web/dist`.
-- From repo root: `mise //web:dev`, `mise //web:build`, `mise //web:lint`, `mise //web:format`, `mise run openapi-types`, `mise run test-openapi`.
+- From repo root: `mise run //web:dev`, `mise run //web:build`, `mise run //web:lint`, `mise run //web:format`, `mise run openapi-types`.
 - Inside `web/`: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm format`, `pnpm openapi:types`.
 - `web/openapi.yaml` and `web/src/lib/api-client/` are generated. Do not edit generated client files by hand.
 
@@ -45,6 +45,6 @@ Frontend rules for work under `web/`.
 
 ## Checks
 
-- Frontend-only changes usually need `mise //web:format`, `mise //web:lint`, and `mise //web:build`.
-- API contract changes also need `mise run openapi-types` and `mise run test-openapi`.
+- Frontend-only changes usually need `mise run //web:format`, `mise run //web:lint`, and `mise run //web:build`.
+- API contract changes also need `mise run openapi-types`.
 - Browser-visible UI changes should be checked in the in-app Browser when a dev server is available or starting one is in scope.

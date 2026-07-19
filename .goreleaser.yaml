@@ -3,8 +3,8 @@ version: 2
 
 before:
   hooks:
-    - mise run tidy
-    - mise //web:build
+    - mise run tidy-check
+    - mise run //web:build
 
 builds:
   - id: woodstar

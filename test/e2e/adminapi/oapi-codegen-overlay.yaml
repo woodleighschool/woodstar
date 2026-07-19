@@ -1,0 +1,8 @@
+overlay: 1.0.0
+info:
+  title: Test client Go names
+  version: 0.0.0
+actions:
+  - target: $.components.schemas.HostPrimaryUserSource
+    update:
+      x-go-name: HostPrimaryUserObservation

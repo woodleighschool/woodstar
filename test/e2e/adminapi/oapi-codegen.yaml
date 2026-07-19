@@ -1,0 +1,36 @@
+package: adminapi
+generate:
+  models: true
+  client: true
+output-options:
+  resolve-type-name-collisions: true
+  include-operation-ids:
+    - complete-setup
+    - rotate-account-api-key
+    - get-account
+    - create-agent-secret
+    - list-hosts
+    - get-host
+    - list-host-software
+    - get-host-munki-state
+    - list-labels
+    - create-label
+    - create-munki-client-resources-banner-upload
+    - get-munki-client-resources
+    - save-munki-client-resources
+    - create-munki-distribution-point
+    - get-munki-distribution-point
+    - create-munki-package-installer
+    - finalize-munki-package-installer
+    - create-munki-package
+    - create-munki-software
+    - get-munki-software
+    - create-osquery-report
+    - list-osquery-report-results
+    - create-santa-configuration
+    - create-santa-rule
+    - list-santa-events
+    - get-host-santa-state
+    - list-host-santa-rules
+  overlay:
+    path: test/e2e/adminapi/oapi-codegen-overlay.yaml
