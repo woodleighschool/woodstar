@@ -301,57 +301,57 @@ func applyDefaults(params PackageMutation) PackageMutation {
 }
 
 type packageWrite struct {
-	ID                           int64                       `db:"id"`
-	SoftwareID                   int64                       `db:"software_id"`
-	Version                      string                      `db:"version"`
-	InstallerType                string                      `db:"installer_type"`
-	Uninstallable                bool                        `db:"uninstallable"`
-	UninstallMethod              string                      `db:"uninstall_method"`
-	RestartAction                string                      `db:"restart_action"`
-	MinimumMunkiVersion          string                      `db:"minimum_munki_version"`
-	MinimumOSVersion             string                      `db:"minimum_os_version"`
-	MaximumOSVersion             string                      `db:"maximum_os_version"`
-	SupportedArchitectures       []string                    `db:"supported_architectures"`
-	BlockingApplications         []string                    `db:"blocking_applications"`
-	BlockingApplicationsNone     bool                        `db:"blocking_applications_none"`
-	InstallableCondition         string                      `db:"installable_condition"`
-	BlockingAppsManualQuit       bool                        `db:"blocking_applications_manual_quit_only"`
-	BlockingAppsQuitScript       string                      `db:"blocking_applications_quit_script"`
-	UnattendedInstall            bool                        `db:"unattended_install"`
-	UnattendedUninstall          bool                        `db:"unattended_uninstall"`
-	OnDemand                     bool                        `db:"on_demand"`
-	Precache                     bool                        `db:"precache"`
-	Autoremove                   bool                        `db:"autoremove"`
-	AppleItem                    bool                        `db:"apple_item"`
-	SuppressBundleRelocation     bool                        `db:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time                  `db:"force_install_after_date"`
-	InstalledSize                int64                       `db:"installed_size"`
-	PackagePath                  string                      `db:"package_path"`
-	InstallerChoicesXML          packageInstallerChoices     `db:"installer_choices_xml"`
-	InstallerEnvironment         packageInstallerEnvironment `db:"installer_environment"`
-	Installs                     packageInstallItems         `db:"installs"`
-	Receipts                     packageReceipts             `db:"receipts"`
-	ItemsToCopy                  packageItemsToCopy          `db:"items_to_copy"`
-	Notes                        string                      `db:"notes"`
-	InstallcheckScript           string                      `db:"installcheck_script"`
-	UninstallcheckScript         string                      `db:"uninstallcheck_script"`
-	PreinstallScript             string                      `db:"preinstall_script"`
-	PostinstallScript            string                      `db:"postinstall_script"`
-	PreuninstallScript           string                      `db:"preuninstall_script"`
-	PostuninstallScript          string                      `db:"postuninstall_script"`
-	UninstallScript              string                      `db:"uninstall_script"`
-	VersionScript                string                      `db:"version_script"`
-	PreinstallAlertEnabled       bool                        `db:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string                      `db:"preinstall_alert_title"`
-	PreinstallAlertDetail        string                      `db:"preinstall_alert_detail"`
-	PreinstallAlertOKLabel       string                      `db:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string                      `db:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool                        `db:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string                      `db:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string                      `db:"preuninstall_alert_detail"`
-	PreuninstallAlertOKLabel     string                      `db:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string                      `db:"preuninstall_alert_cancel_label"`
-	InstallerObjectID            *int64                      `db:"installer_object_id"`
+	ID                           int64                                                 `db:"id"`
+	SoftwareID                   int64                                                 `db:"software_id"`
+	Version                      string                                                `db:"version"`
+	InstallerType                string                                                `db:"installer_type"`
+	Uninstallable                bool                                                  `db:"uninstallable"`
+	UninstallMethod              string                                                `db:"uninstall_method"`
+	RestartAction                string                                                `db:"restart_action"`
+	MinimumMunkiVersion          string                                                `db:"minimum_munki_version"`
+	MinimumOSVersion             string                                                `db:"minimum_os_version"`
+	MaximumOSVersion             string                                                `db:"maximum_os_version"`
+	SupportedArchitectures       []string                                              `db:"supported_architectures"`
+	BlockingApplications         []string                                              `db:"blocking_applications"`
+	BlockingApplicationsNone     bool                                                  `db:"blocking_applications_none"`
+	InstallableCondition         string                                                `db:"installable_condition"`
+	BlockingAppsManualQuit       bool                                                  `db:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript       string                                                `db:"blocking_applications_quit_script"`
+	UnattendedInstall            bool                                                  `db:"unattended_install"`
+	UnattendedUninstall          bool                                                  `db:"unattended_uninstall"`
+	OnDemand                     bool                                                  `db:"on_demand"`
+	Precache                     bool                                                  `db:"precache"`
+	Autoremove                   bool                                                  `db:"autoremove"`
+	AppleItem                    bool                                                  `db:"apple_item"`
+	SuppressBundleRelocation     bool                                                  `db:"suppress_bundle_relocation"`
+	ForceInstallAfterDate        *time.Time                                            `db:"force_install_after_date"`
+	InstalledSize                int64                                                 `db:"installed_size"`
+	PackagePath                  string                                                `db:"package_path"`
+	InstallerChoicesXML          dbutil.JSONSlice[PackageInstallerChoice]              `db:"installer_choices_xml"`
+	InstallerEnvironment         dbutil.JSONSlice[PackageInstallerEnvironmentVariable] `db:"installer_environment"`
+	Installs                     dbutil.JSONSlice[PackageInstallItem]                  `db:"installs"`
+	Receipts                     dbutil.JSONSlice[PackageReceipt]                      `db:"receipts"`
+	ItemsToCopy                  dbutil.JSONSlice[PackageItemToCopy]                   `db:"items_to_copy"`
+	Notes                        string                                                `db:"notes"`
+	InstallcheckScript           string                                                `db:"installcheck_script"`
+	UninstallcheckScript         string                                                `db:"uninstallcheck_script"`
+	PreinstallScript             string                                                `db:"preinstall_script"`
+	PostinstallScript            string                                                `db:"postinstall_script"`
+	PreuninstallScript           string                                                `db:"preuninstall_script"`
+	PostuninstallScript          string                                                `db:"postuninstall_script"`
+	UninstallScript              string                                                `db:"uninstall_script"`
+	VersionScript                string                                                `db:"version_script"`
+	PreinstallAlertEnabled       bool                                                  `db:"preinstall_alert_enabled"`
+	PreinstallAlertTitle         string                                                `db:"preinstall_alert_title"`
+	PreinstallAlertDetail        string                                                `db:"preinstall_alert_detail"`
+	PreinstallAlertOKLabel       string                                                `db:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel   string                                                `db:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled     bool                                                  `db:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle       string                                                `db:"preuninstall_alert_title"`
+	PreuninstallAlertDetail      string                                                `db:"preuninstall_alert_detail"`
+	PreuninstallAlertOKLabel     string                                                `db:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel string                                                `db:"preuninstall_alert_cancel_label"`
+	InstallerObjectID            *int64                                                `db:"installer_object_id"`
 }
 
 func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
@@ -381,11 +381,11 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		ForceInstallAfterDate:        params.ForceInstallAfterDate,
 		InstalledSize:                params.InstalledSize,
 		PackagePath:                  params.PackagePath,
-		InstallerChoicesXML:          packageInstallerChoices(params.InstallerChoicesXML),
-		InstallerEnvironment:         packageInstallerEnvironment(params.InstallerEnvironment),
-		Installs:                     packageInstallItems(params.Installs),
-		Receipts:                     packageReceipts(params.Receipts),
-		ItemsToCopy:                  packageItemsToCopy(params.ItemsToCopy),
+		InstallerChoicesXML:          params.InstallerChoicesXML,
+		InstallerEnvironment:         params.InstallerEnvironment,
+		Installs:                     params.Installs,
+		Receipts:                     params.Receipts,
+		ItemsToCopy:                  params.ItemsToCopy,
 		Notes:                        params.Notes,
 		InstallcheckScript:           params.InstallcheckScript,
 		UninstallcheckScript:         params.UninstallcheckScript,

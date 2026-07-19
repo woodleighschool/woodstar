@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event FileAccessEventInput) error {
-	chain := processChainColumn(processEntries(event.ProcessChain))
+	chain := dbutil.JSONSlice[Process](processEntries(event.ProcessChain))
 	primary := primaryProcess(event.ProcessChain)
 	write := fileAccessEventWrite{
 		HostID:                  hostID,
@@ -92,17 +94,17 @@ func fileNameFromPath(path string) string {
 }
 
 type fileAccessEventWrite struct {
-	HostID                  int64              `db:"host_id"`
-	RuleVersion             string             `db:"rule_version"`
-	RuleName                string             `db:"rule_name"`
-	Target                  string             `db:"target"`
-	Decision                string             `db:"decision"`
-	PrimaryProcessSHA256    string             `db:"primary_process_sha256"`
-	PrimaryProcessPath      string             `db:"primary_process_path"`
-	PrimaryProcessSigningID string             `db:"primary_process_signing_id"`
-	PrimaryProcessTeamID    string             `db:"primary_process_team_id"`
-	PrimaryProcessCDHash    string             `db:"primary_process_cdhash"`
-	PrimaryProcessPID       int32              `db:"primary_process_pid"`
-	ProcessChain            processChainColumn `db:"process_chain"`
-	OccurredAt              time.Time          `db:"occurred_at"`
+	HostID                  int64                     `db:"host_id"`
+	RuleVersion             string                    `db:"rule_version"`
+	RuleName                string                    `db:"rule_name"`
+	Target                  string                    `db:"target"`
+	Decision                string                    `db:"decision"`
+	PrimaryProcessSHA256    string                    `db:"primary_process_sha256"`
+	PrimaryProcessPath      string                    `db:"primary_process_path"`
+	PrimaryProcessSigningID string                    `db:"primary_process_signing_id"`
+	PrimaryProcessTeamID    string                    `db:"primary_process_team_id"`
+	PrimaryProcessCDHash    string                    `db:"primary_process_cdhash"`
+	PrimaryProcessPID       int32                     `db:"primary_process_pid"`
+	ProcessChain            dbutil.JSONSlice[Process] `db:"process_chain"`
+	OccurredAt              time.Time                 `db:"occurred_at"`
 }

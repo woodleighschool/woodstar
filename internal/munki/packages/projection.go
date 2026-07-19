@@ -55,11 +55,11 @@ func packageFromRow(row packageRow) Package {
 		InstalledSize:            row.InstalledSize,
 		InstallerFile:            row.InstallerFile(),
 		PackagePath:              row.PackagePath,
-		InstallerChoicesXML:      []PackageInstallerChoice(row.InstallerChoicesXML),
-		InstallerEnvironment:     []PackageInstallerEnvironmentVariable(row.InstallerEnvironment),
-		Installs:                 []PackageInstallItem(row.Installs),
-		Receipts:                 []PackageReceipt(row.Receipts),
-		ItemsToCopy:              []PackageItemToCopy(row.ItemsToCopy),
+		InstallerChoicesXML:      row.InstallerChoicesXML,
+		InstallerEnvironment:     row.InstallerEnvironment,
+		Installs:                 row.Installs,
+		Receipts:                 row.Receipts,
+		ItemsToCopy:              row.ItemsToCopy,
 		Notes:                    row.Notes,
 		InstallcheckScript:       row.InstallcheckScript,
 		UninstallcheckScript:     row.UninstallcheckScript,
@@ -113,11 +113,11 @@ type packageRow struct {
 	InstallerSizeBytes           *int64
 	InstallerSHA256              *string `db:"installer_sha256"`
 	PackagePath                  string
-	InstallerChoicesXML          packageInstallerChoices `db:"installer_choices_xml"`
-	InstallerEnvironment         packageInstallerEnvironment
-	Installs                     packageInstallItems
-	Receipts                     packageReceipts
-	ItemsToCopy                  packageItemsToCopy
+	InstallerChoicesXML          dbutil.JSONSlice[PackageInstallerChoice] `db:"installer_choices_xml"`
+	InstallerEnvironment         dbutil.JSONSlice[PackageInstallerEnvironmentVariable]
+	Installs                     dbutil.JSONSlice[PackageInstallItem]
+	Receipts                     dbutil.JSONSlice[PackageReceipt]
+	ItemsToCopy                  dbutil.JSONSlice[PackageItemToCopy]
 	Notes                        string
 	InstallcheckScript           string
 	UninstallcheckScript         string

@@ -113,23 +113,23 @@ func fileAccessEventOrderKeys() map[string]dbutil.OrderExpr {
 
 // fileAccessEventRow is the canonical scan target for the file-access-event projection.
 type fileAccessEventRow struct {
-	ID                      int64              `db:"id"`
-	HostID                  int64              `db:"host_id"`
-	DisplayName             string             `db:"display_name"`
-	Hostname                string             `db:"hostname"`
-	ComputerName            string             `db:"computer_name"`
-	HardwareSerial          string             `db:"hardware_serial"`
-	HardwareModelIdentifier string             `db:"hardware_model_identifier"`
-	SantaMachineID          string             `db:"santa_machine_id"`
-	SantaVersion            string             `db:"santa_version"`
-	SantaClientMode         string             `db:"santa_client_mode"`
-	RuleVersion             string             `db:"rule_version"`
-	RuleName                string             `db:"rule_name"`
-	Target                  string             `db:"target"`
-	Decision                string             `db:"decision"`
-	ProcessChain            processChainColumn `db:"process_chain"`
-	OccurredAt              time.Time          `db:"occurred_at"`
-	IngestedAt              time.Time          `db:"ingested_at"`
+	ID                      int64                     `db:"id"`
+	HostID                  int64                     `db:"host_id"`
+	DisplayName             string                    `db:"display_name"`
+	Hostname                string                    `db:"hostname"`
+	ComputerName            string                    `db:"computer_name"`
+	HardwareSerial          string                    `db:"hardware_serial"`
+	HardwareModelIdentifier string                    `db:"hardware_model_identifier"`
+	SantaMachineID          string                    `db:"santa_machine_id"`
+	SantaVersion            string                    `db:"santa_version"`
+	SantaClientMode         string                    `db:"santa_client_mode"`
+	RuleVersion             string                    `db:"rule_version"`
+	RuleName                string                    `db:"rule_name"`
+	Target                  string                    `db:"target"`
+	Decision                string                    `db:"decision"`
+	ProcessChain            dbutil.JSONSlice[Process] `db:"process_chain"`
+	OccurredAt              time.Time                 `db:"occurred_at"`
+	IngestedAt              time.Time                 `db:"ingested_at"`
 }
 
 func (row fileAccessEventRow) host() HostSummary {

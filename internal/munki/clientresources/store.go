@@ -22,14 +22,14 @@ func NewStore(db *database.DB, objects *storage.ObjectStore) *Store {
 }
 
 type clientResourcesRow struct {
-	BannerObjectID  int64           `db:"banner_object_id"`
-	ArchiveObjectID int64           `db:"archive_object_id"`
-	BannerAlignment BannerAlignment `db:"banner_alignment"`
-	Links           linksValue      `db:"links"`
-	FooterText      string          `db:"footer_text"`
-	FooterLinks     linksValue      `db:"footer_links"`
-	CreatedAt       time.Time       `db:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at"`
+	BannerObjectID  int64                  `db:"banner_object_id"`
+	ArchiveObjectID int64                  `db:"archive_object_id"`
+	BannerAlignment BannerAlignment        `db:"banner_alignment"`
+	Links           dbutil.JSONSlice[Link] `db:"links"`
+	FooterText      string                 `db:"footer_text"`
+	FooterLinks     dbutil.JSONSlice[Link] `db:"footer_links"`
+	CreatedAt       time.Time              `db:"created_at"`
+	UpdatedAt       time.Time              `db:"updated_at"`
 }
 
 const clientResourcesSelectSQL = `SELECT
@@ -101,9 +101,9 @@ ON CONFLICT (singleton) DO UPDATE SET
 			"banner_object_id":  mutation.BannerObjectID,
 			"archive_object_id": mutation.ArchiveObjectID,
 			"banner_alignment":  mutation.BannerAlignment,
-			"links":             linksValue(mutation.Links),
+			"links":             dbutil.JSONSlice[Link](mutation.Links),
 			"footer_text":       mutation.FooterText,
-			"footer_links":      linksValue(mutation.FooterLinks),
+			"footer_links":      dbutil.JSONSlice[Link](mutation.FooterLinks),
 		})
 		if err != nil {
 			return dbutil.MutationError(err)
@@ -165,9 +165,9 @@ func clientResourcesFromRow(row clientResourcesRow) ClientResources {
 		Mutation: Mutation{
 			BannerObjectID:  row.BannerObjectID,
 			BannerAlignment: row.BannerAlignment,
-			Links:           []Link(row.Links),
+			Links:           row.Links,
 			FooterText:      row.FooterText,
-			FooterLinks:     []Link(row.FooterLinks),
+			FooterLinks:     row.FooterLinks,
 		},
 		ArchiveObjectID: row.ArchiveObjectID,
 		CreatedAt:       row.CreatedAt,
