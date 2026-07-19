@@ -12,31 +12,39 @@ function rawEnumOptions<T extends string>(values: readonly T[]) {
   return values.map((value) => ({ value, label: value }));
 }
 
-export const MUNKI_INSTALLER_TYPE_OPTIONS = rawEnumOptions<MunkiInstallerType>([
+export const MUNKI_INSTALLER_TYPE_VALUES = [
   "pkg",
   "nopkg",
   "copy_from_dmg",
-]);
+] as const satisfies readonly MunkiInstallerType[];
 
-export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions<MunkiRestartAction>([
+export const MUNKI_INSTALLER_TYPE_OPTIONS = rawEnumOptions(MUNKI_INSTALLER_TYPE_VALUES);
+
+export const MUNKI_RESTART_ACTION_VALUES = [
   "RequireLogout",
   "RecommendRestart",
   "RequireRestart",
   "RequireShutdown",
-]);
+] as const satisfies readonly MunkiRestartAction[];
 
-export const MUNKI_UNINSTALL_METHOD_OPTIONS = rawEnumOptions<MunkiUninstallMethod>([
+export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions(MUNKI_RESTART_ACTION_VALUES);
+
+export const MUNKI_UNINSTALL_METHOD_VALUES = [
   "removepackages",
   "remove_copied_items",
   "uninstall_script",
-]);
+] as const satisfies readonly MunkiUninstallMethod[];
 
-export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = rawEnumOptions<MunkiInstallItemType>([
+export const MUNKI_UNINSTALL_METHOD_OPTIONS = rawEnumOptions(MUNKI_UNINSTALL_METHOD_VALUES);
+
+export const MUNKI_INSTALL_ITEM_TYPE_VALUES = [
   "application",
   "bundle",
   "plist",
   "file",
-]);
+] as const satisfies readonly MunkiInstallItemType[];
+
+export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = rawEnumOptions(MUNKI_INSTALL_ITEM_TYPE_VALUES);
 
 export const MUNKI_SOFTWARE_ACTION_VALUES = [
   "managed_installs",

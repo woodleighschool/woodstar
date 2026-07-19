@@ -8,19 +8,14 @@ import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
-import {
-  MUNKI_INSTALLER_TYPE_OPTIONS,
-  MUNKI_RESTART_ACTION_OPTIONS,
-  MUNKI_UNINSTALL_METHOD_OPTIONS,
-} from "../software/munki-software";
-import type { PackageEditorForm } from "./editor-form";
+import type { PackageEditorForm } from "./fields";
 import {
   emptyInstallerEnvironmentRow,
   emptyInstallItemRow,
   emptyItemToCopyRow,
   emptyPackageReferenceRow,
   emptyReceiptRow,
-  type PackageFormState,
+  type PackageFormInput,
   scriptFields,
   type ScriptKey,
 } from "./form-state";
@@ -37,11 +32,13 @@ import {
   AlertEditor,
   FormCheckboxField,
   FormCodeField,
-  FormSelectField,
   FormSwitchField,
   FormTextareaField,
   FormTextField,
+  InstallerTypeField,
+  RestartActionField,
   ScriptField,
+  UninstallMethodField,
   VersionField,
 } from "./package-form-controls";
 import {
@@ -197,13 +194,7 @@ function BasicInfoTab({
 
       <VersionField form={form} />
       <div className="grid gap-4 md:grid-cols-2">
-        <FormSelectField
-          form={form}
-          name="installer_type"
-          id="munki-package-installer-type"
-          label="Installer Type"
-          options={MUNKI_INSTALLER_TYPE_OPTIONS}
-        />
+        <InstallerTypeField form={form} />
         <div className="flex items-end pb-2">
           <FormCheckboxField
             form={form}
@@ -227,17 +218,7 @@ function BasicInfoTab({
         label="Restart required"
       />
       <form.Subscribe selector={(state) => state.values.restart_required}>
-        {(restartRequired) =>
-          restartRequired ? (
-            <FormSelectField
-              form={form}
-              name="restart_action"
-              id="munki-package-restart-action"
-              label="Restart Action"
-              options={MUNKI_RESTART_ACTION_OPTIONS}
-            />
-          ) : null
-        }
+        {(restartRequired) => (restartRequired ? <RestartActionField form={form} /> : null)}
       </form.Subscribe>
       <FormTextField
         form={form}
@@ -489,14 +470,7 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
         {(uninstallMethod) => (
           <>
             <div className="max-w-sm">
-              <FormSelectField
-                form={form}
-                name="uninstall_method"
-                id="munki-package-uninstall-method"
-                label="Uninstall Method"
-                options={MUNKI_UNINSTALL_METHOD_OPTIONS}
-                placeholder="Select a method"
-              />
+              <UninstallMethodField form={form} />
             </div>
             {uninstallMethod === "uninstall_script" ? (
               <form.Field
@@ -534,7 +508,7 @@ function ScriptsEditor({
   values,
   onChange,
 }: {
-  values: Pick<PackageFormState, ScriptKey>;
+  values: Pick<PackageFormInput, ScriptKey>;
   onChange: (key: ScriptKey, value: string) => void;
 }) {
   const [active, setActive] = useState<ScriptKey>(generalScriptFields[0].key);
@@ -542,7 +516,9 @@ function ScriptsEditor({
   return (
     <Tabs
       value={active}
-      onValueChange={(value) => setActive(value as ScriptKey)}
+      onValueChange={(value) => {
+        if (typeof value === "string" && isGeneralScriptKey(value)) setActive(value);
+      }}
       className="max-w-3xl gap-4"
     >
       <ScrollableTabsList variant="default">
@@ -565,6 +541,10 @@ function ScriptsEditor({
       ))}
     </Tabs>
   );
+}
+
+function isGeneralScriptKey(value: string): value is ScriptKey {
+  return generalScriptFields.some((script) => script.key === value);
 }
 
 function AlertsTab({ form }: { form: PackageEditorForm }) {

@@ -7,9 +7,7 @@ import { useMunkiSoftware } from "@/hooks/use-munki-software";
 import { deleteUnclaimedMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-import { usePackageEditorForm } from "./editor-form";
-import { PackageForm } from "./fields";
-import { emptyPackageForm, packageMutationFromForm } from "./form-state";
+import { emptyPackageForm, PackageForm } from "./fields";
 
 export function MunkiPackageCreatePage() {
   const navigate = useNavigate();
@@ -25,49 +23,12 @@ export function MunkiPackageCreatePage() {
     sort: encodeSort("software_name"),
   });
   const software = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
-  const form = usePackageEditorForm(
-    emptyPackageForm(initialSoftwareID),
-    async (value) => {
-      cancelled.current = false;
-      if (value.software_id === null) throw new Error("Validated package is missing software.");
-      let installerObjectID: number | undefined;
-      if (value.installer_type !== "nopkg") {
-        if (!value.installer_file) throw new Error("Validated package is missing its installer.");
-        installerObjectID = (await installerUpload.upload({ file: value.installer_file })).id;
-        if (cancelled.current) {
-          await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
-          return false;
-        }
-      }
-      const abortController = new AbortController();
-      packageMutationAbort.current = abortController;
-      try {
-        await create.mutateAsync({
-          body: {
-            software_id: value.software_id,
-            ...packageMutationFromForm(value, installerObjectID),
-          },
-          signal: abortController.signal,
-        });
-      } catch (error) {
-        if (installerObjectID !== undefined) {
-          await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
-        }
-        throw error;
-      } finally {
-        if (packageMutationAbort.current === abortController) {
-          packageMutationAbort.current = null;
-        }
-      }
-      return true;
-    },
-    () => void navigate({ to: "/munki/packages" }),
-  );
+  const initial = emptyPackageForm(initialSoftwareID);
   const softwareRows = software.data?.items ?? [];
 
   return (
     <PackageForm
-      form={form}
+      initial={initial}
       title="New Package"
       submitLabel="Create"
       softwareInfo={null}
@@ -76,6 +37,41 @@ export function MunkiPackageCreatePage() {
       packageOptions={packages.data?.items ?? []}
       installerMetadata={undefined}
       canCancelWhileSubmitting={installerUpload.isUploading}
+      onSubmit={async ({ softwareID, installerFile, mutation }) => {
+        cancelled.current = false;
+        let installerObjectID: number | undefined;
+        if (mutation.installer_type !== "nopkg") {
+          if (!installerFile) throw new Error("Validated package is missing its installer.");
+          installerObjectID = (await installerUpload.upload({ file: installerFile })).id;
+          if (cancelled.current) {
+            await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
+            return false;
+          }
+        }
+        const abortController = new AbortController();
+        packageMutationAbort.current = abortController;
+        try {
+          await create.mutateAsync({
+            body: {
+              software_id: softwareID,
+              ...mutation,
+              installer_object_id: installerObjectID,
+            },
+            signal: abortController.signal,
+          });
+        } catch (error) {
+          if (installerObjectID !== undefined) {
+            await deleteUnclaimedMunkiInstaller(installerObjectID).catch(() => undefined);
+          }
+          throw error;
+        } finally {
+          if (packageMutationAbort.current === abortController) {
+            packageMutationAbort.current = null;
+          }
+        }
+        return true;
+      }}
+      onSuccess={() => void navigate({ to: "/munki/packages" })}
       onCancel={() => {
         cancelled.current = true;
         installerUpload.cancel();

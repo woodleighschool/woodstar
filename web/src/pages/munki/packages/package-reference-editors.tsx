@@ -25,7 +25,7 @@ import {
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
-import type { PackageEditorForm } from "./editor-form";
+import type { PackageEditorForm } from "./fields";
 import { packageLabel, type PackageReferenceRow } from "./form-state";
 
 export type SoftwareInfo = {

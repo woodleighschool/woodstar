@@ -51,7 +51,7 @@ import type { MunkiPackage } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 
 import { MUNKI_INSTALL_ITEM_TYPE_OPTIONS } from "../software/munki-software";
-import type { PackageEditorForm } from "./editor-form";
+import type { PackageEditorForm } from "./fields";
 import {
   type Architecture,
   emptyStringRow,
@@ -373,13 +373,11 @@ export function InstallsTable({
                   </TableCell>
                   <TableCell className="p-0">
                     <Select
+                      items={MUNKI_INSTALL_ITEM_TYPE_OPTIONS}
                       value={row.type}
-                      onValueChange={(next) =>
-                        onReplace(index, {
-                          ...row,
-                          type: next as InstallItemRow["type"],
-                        })
-                      }
+                      onValueChange={(next) => {
+                        if (next !== null) onReplace(index, { ...row, type: next });
+                      }}
                     >
                       <SelectTrigger
                         aria-label="Type"

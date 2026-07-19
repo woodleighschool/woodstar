@@ -1,3 +1,4 @@
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
 import { FormActions } from "@/components/form-actions";
@@ -8,12 +9,53 @@ import { TabsContent } from "@/components/ui/tabs";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
-import type { PackageEditorForm } from "./editor-form";
+import {
+  type PackageFormInput,
+  type PackageFormMutation,
+  type PackageFormOutput,
+  packageFormSchema,
+  packageMutationFromForm,
+} from "./form-state";
 import { PackageEditorTabContent, packageFormTabs } from "./package-form-tabs";
 import type { SoftwareInfo } from "./package-reference-editors";
 export type { SoftwareInfo } from "./package-reference-editors";
+export { emptyPackageForm, packageFormFromPackage } from "./form-state";
+
+const schema = packageFormSchema();
+
+export type PackageFormSubmission = {
+  softwareID: PackageFormOutput["software_id"];
+  installerFile: PackageFormOutput["installer_file"];
+  mutation: PackageFormMutation;
+};
+
+function usePackageEditorForm(
+  initial: PackageFormInput,
+  onSubmit: (submission: PackageFormSubmission) => Promise<boolean>,
+  onSuccess: () => void,
+) {
+  return useForm({
+    defaultValues: initial,
+    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validators: { onDynamic: schema },
+    onSubmit: async ({ value, formApi }) => {
+      const parsed = schema.parse(value);
+      const saved = await onSubmit({
+        softwareID: parsed.software_id,
+        installerFile: parsed.installer_file,
+        mutation: packageMutationFromForm(parsed),
+      });
+      if (!saved) return;
+      formApi.reset(value);
+      onSuccess();
+    },
+  });
+}
+
+export type PackageEditorForm = ReturnType<typeof usePackageEditorForm>;
+
 type PackageFormProps = {
-  form: PackageEditorForm;
+  initial: PackageFormInput;
   title: string;
   submitLabel: string;
   softwareInfo: SoftwareInfo | null;
@@ -21,11 +63,13 @@ type PackageFormProps = {
   softwareLoading?: boolean;
   packageOptions: MunkiPackage[];
   installerMetadata?: MunkiPackage["installer_file"];
+  onSubmit: (submission: PackageFormSubmission) => Promise<boolean>;
+  onSuccess: () => void;
   onCancel: () => void;
   canCancelWhileSubmitting?: boolean;
 };
 export function PackageForm({
-  form,
+  initial,
   title,
   submitLabel,
   softwareInfo,
@@ -33,10 +77,13 @@ export function PackageForm({
   softwareLoading,
   packageOptions,
   installerMetadata,
+  onSubmit,
+  onSuccess,
   onCancel,
   canCancelWhileSubmitting,
 }: PackageFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  const form = usePackageEditorForm(initial, onSubmit, onSuccess);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel });
   return (
     <PageShell

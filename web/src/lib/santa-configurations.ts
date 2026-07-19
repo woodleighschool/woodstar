@@ -49,11 +49,10 @@ export const CLIENT_MODES = {
   },
 } satisfies StatusMetadataMap<SantaClientMode>;
 
-export const CLIENT_MODE_OPTIONS = enumOptions(CLIENT_MODES).filter((option) =>
-  CLIENT_MODE_VALUES.includes(
-    option.value as NonNullable<SantaConfigurationMutation["client_mode"]>,
-  ),
-);
+export const CLIENT_MODE_OPTIONS = CLIENT_MODE_VALUES.map((value) => ({
+  value,
+  label: CLIENT_MODES[value].name,
+}));
 
 export const MEDIA_ACTION_VALUES = [
   "none",
@@ -102,6 +101,17 @@ export const REMOUNT_FLAG_OPTIONS = REMOUNT_FLAG_VALUES.map((value) => ({
   label: value,
   value,
 }));
+
+const mediaActionSet: ReadonlySet<string> = new Set(MEDIA_ACTION_VALUES);
+const remountFlagSet: ReadonlySet<string> = new Set(REMOUNT_FLAG_VALUES);
+
+export function isSantaMediaAction(value: string): value is SantaMediaAction {
+  return mediaActionSet.has(value);
+}
+
+export function isSantaRemountFlag(value: string): value is SantaRemountFlag {
+  return remountFlagSet.has(value);
+}
 
 export function clientModeLabel(mode: SantaClientMode) {
   return enumLabel(CLIENT_MODES, mode);

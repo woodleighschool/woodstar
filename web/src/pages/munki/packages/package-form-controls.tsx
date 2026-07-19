@@ -25,15 +25,20 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiPackageAlert } from "@/lib/api";
+import {
+  MUNKI_INSTALLER_TYPE_OPTIONS,
+  MUNKI_RESTART_ACTION_OPTIONS,
+  MUNKI_UNINSTALL_METHOD_OPTIONS,
+} from "@/pages/munki/software/munki-software";
 
-import type { PackageEditorForm } from "./editor-form";
-import type { PackageFormState } from "./form-state";
+import type { PackageEditorForm } from "./fields";
+import type { PackageFormInput } from "./form-state";
 
 const shellExtensions = [StreamLanguage.define(shell)];
 
 type PackageFieldNameByValue<T> = {
-  [K in keyof PackageFormState]: PackageFormState[K] extends T ? K : never;
-}[keyof PackageFormState];
+  [K in keyof PackageFormInput]: PackageFormInput[K] extends T ? K : never;
+}[keyof PackageFormInput];
 type StringPackageFieldName = PackageFieldNameByValue<string>;
 type BooleanPackageFieldName = PackageFieldNameByValue<boolean>;
 
@@ -157,42 +162,94 @@ export function FormCodeField({
   );
 }
 
-export function FormSelectField<
-  Name extends StringPackageFieldName,
-  T extends PackageFormState[Name] & string,
->({
-  form,
-  name,
-  id,
-  label,
-  options,
-  placeholder,
-}: {
-  form: PackageEditorForm;
-  name: Name;
-  id: string;
-  label: string;
-  options: Array<{ value: T; label: string }>;
-  placeholder?: string;
-}) {
+export function InstallerTypeField({ form }: { form: PackageEditorForm }) {
   return (
-    <form.Field name={name}>
+    <form.Field name="installer_type">
       {(field) => (
-        <FormField field={field} label={label} htmlFor={id}>
+        <FormField field={field} label="Installer Type" htmlFor="munki-package-installer-type">
           {() => (
             <Select
-              items={options}
-              value={field.state.value === "" ? null : (field.state.value as unknown as T)}
-              onValueChange={(next) =>
-                field.handleChange(next as unknown as Parameters<typeof field.handleChange>[0])
-              }
+              items={MUNKI_INSTALLER_TYPE_OPTIONS}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) field.handleChange(value);
+              }}
             >
-              <SelectTrigger id={id} className="w-full">
-                <SelectValue placeholder={placeholder} />
+              <SelectTrigger id="munki-package-installer-type" className="w-full">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {options.map((option) => (
+                  {MUNKI_INSTALLER_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+      )}
+    </form.Field>
+  );
+}
+
+export function RestartActionField({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Field name="restart_action">
+      {(field) => (
+        <FormField field={field} label="Restart Action" htmlFor="munki-package-restart-action">
+          {() => (
+            <Select
+              items={MUNKI_RESTART_ACTION_OPTIONS}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) field.handleChange(value);
+              }}
+            >
+              <SelectTrigger id="munki-package-restart-action" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {MUNKI_RESTART_ACTION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+      )}
+    </form.Field>
+  );
+}
+
+const uninstallMethodItems = [
+  { value: null, label: "Select a method" },
+  ...MUNKI_UNINSTALL_METHOD_OPTIONS,
+];
+
+export function UninstallMethodField({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Field name="uninstall_method">
+      {(field) => (
+        <FormField field={field} label="Uninstall Method" htmlFor="munki-package-uninstall-method">
+          {() => (
+            <Select
+              items={uninstallMethodItems}
+              value={field.state.value || null}
+              onValueChange={(value) => field.handleChange(value ?? "")}
+            >
+              <SelectTrigger id="munki-package-uninstall-method" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {MUNKI_UNINSTALL_METHOD_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

@@ -14,102 +14,20 @@ import type {
 } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
 import { nonEmpty } from "@/lib/utils";
-import type {
-  MunkiInstallerType,
-  MunkiRestartAction,
-  MunkiUninstallMethod,
+import {
+  MUNKI_INSTALL_ITEM_TYPE_VALUES,
+  MUNKI_INSTALLER_TYPE_VALUES,
+  MUNKI_RESTART_ACTION_VALUES,
+  MUNKI_UNINSTALL_METHOD_VALUES,
 } from "@/pages/munki/software/munki-software";
 
-export type Architecture = "arm64" | "x86_64";
-export type ScriptKey =
-  | "installcheck_script"
-  | "uninstallcheck_script"
-  | "preinstall_script"
-  | "postinstall_script"
-  | "preuninstall_script"
-  | "postuninstall_script"
-  | "uninstall_script"
-  | "version_script";
+const ARCHITECTURE_VALUES = ["arm64", "x86_64"] as const;
+const architectureSet: ReadonlySet<string> = new Set(ARCHITECTURE_VALUES);
+const PACKAGE_UNINSTALL_METHOD_VALUES = ["", ...MUNKI_UNINSTALL_METHOD_VALUES] as const;
 
-export interface PackageReferenceRow {
-  software_id?: number;
-  package_id?: number;
-  software_name?: string;
-  package_version?: string;
-  rowID: string;
-}
+export type Architecture = (typeof ARCHITECTURE_VALUES)[number];
 
-export interface StringRow {
-  rowID: string;
-  value: string;
-}
-
-export interface InstallerEnvironmentRow extends MunkiPackageInstallerEnvironmentVariable {
-  rowID: string;
-}
-
-export interface InstallItemRow extends MunkiPackageInstallItem {
-  rowID: string;
-}
-
-export interface ReceiptRow extends MunkiPackageReceipt {
-  rowID: string;
-}
-
-export interface ItemToCopyRow extends MunkiPackageItemToCopy {
-  rowID: string;
-}
-
-export interface PackageFormState {
-  software_id: number | null;
-  version: string;
-  installer_type: MunkiInstallerType;
-  installer_object_id: number | null;
-  installer_file: File | null;
-  uninstallable: boolean;
-  uninstall_method: MunkiUninstallMethod | "";
-  restart_required: boolean;
-  restart_action: MunkiRestartAction;
-  minimum_munki_version: string;
-  minimum_os_version: string;
-  maximum_os_version: string;
-  supported_architectures: Architecture[];
-  blocking_applications_none: boolean;
-  blocking_applications: StringRow[];
-  installable_condition: string;
-  blocking_applications_manual_quit_only: boolean;
-  blocking_applications_quit_script: string;
-  requires: PackageReferenceRow[];
-  update_for: PackageReferenceRow[];
-  unattended_install: boolean;
-  unattended_uninstall: boolean;
-  on_demand: boolean;
-  precache: boolean;
-  autoremove: boolean;
-  apple_item: boolean;
-  suppress_bundle_relocation: boolean;
-  force_install_after_date: string;
-  installed_size: string;
-  package_path: string;
-  installer_choices_xml: string;
-  installer_environment: InstallerEnvironmentRow[];
-  installs: InstallItemRow[];
-  receipts: ReceiptRow[];
-  items_to_copy: ItemToCopyRow[];
-  notes: string;
-  installcheck_script: string;
-  uninstallcheck_script: string;
-  preinstall_script: string;
-  postinstall_script: string;
-  preuninstall_script: string;
-  postuninstall_script: string;
-  uninstall_script: string;
-  version_script: string;
-  preinstall_alert: MunkiPackageAlert;
-  preuninstall_alert: MunkiPackageAlert;
-}
-
-export const scriptFields: { key: ScriptKey; label: string }[] = [
+export const scriptFields = [
   { key: "preinstall_script", label: "Pre-install" },
   { key: "postinstall_script", label: "Post-install" },
   { key: "uninstall_script", label: "Uninstall" },
@@ -118,7 +36,9 @@ export const scriptFields: { key: ScriptKey; label: string }[] = [
   { key: "version_script", label: "Version" },
   { key: "installcheck_script", label: "Install Check" },
   { key: "uninstallcheck_script", label: "Uninstall Check" },
-];
+] as const;
+
+export type ScriptKey = (typeof scriptFields)[number]["key"];
 
 const optionalString = z.string().optional();
 const rowIDSchema = z.string().min(1);
@@ -138,7 +58,7 @@ const installerEnvironmentRowSchema = z.object({
 const installItemRowSchema = z.object({
   rowID: rowIDSchema,
   path: z.string(),
-  type: z.enum(["application", "bundle", "plist", "file"]),
+  type: z.enum(MUNKI_INSTALL_ITEM_TYPE_VALUES),
   bundle_identifier: optionalString,
   bundle_name: optionalString,
   bundle_short_version: optionalString,
@@ -174,30 +94,36 @@ const alertSchema = z.object({
   title: optionalString,
 });
 
+export type PackageReferenceRow = z.input<typeof packageReferenceRowSchema>;
+export type StringRow = z.input<typeof stringRowSchema>;
+export type InstallerEnvironmentRow = z.input<typeof installerEnvironmentRowSchema>;
+export type InstallItemRow = z.input<typeof installItemRowSchema>;
+export type ReceiptRow = z.input<typeof receiptRowSchema>;
+export type ItemToCopyRow = z.input<typeof itemToCopyRowSchema>;
+
 const packageFormShape = z.object({
   software_id: z
     .number()
     .int()
     .positive()
     .nullable()
-    .refine((value) => value !== null, "Software is required."),
+    .transform((value, ctx) => {
+      if (value !== null) return value;
+      ctx.addIssue({ code: "custom", message: "Software is required." });
+      return z.NEVER;
+    }),
   version: requiredString("Version"),
-  installer_type: z.enum(["pkg", "nopkg", "copy_from_dmg"]),
+  installer_type: z.enum(MUNKI_INSTALLER_TYPE_VALUES),
   installer_object_id: z.number().int().positive().nullable(),
   installer_file: z.custom<File | null>((value) => value === null || value instanceof File),
   uninstallable: z.boolean(),
-  uninstall_method: z.enum(["", "removepackages", "remove_copied_items", "uninstall_script"]),
+  uninstall_method: z.enum(PACKAGE_UNINSTALL_METHOD_VALUES),
   restart_required: z.boolean(),
-  restart_action: z.enum([
-    "RequireLogout",
-    "RecommendRestart",
-    "RequireRestart",
-    "RequireShutdown",
-  ]),
+  restart_action: z.enum(MUNKI_RESTART_ACTION_VALUES),
   minimum_munki_version: z.string(),
   minimum_os_version: z.string(),
   maximum_os_version: z.string(),
-  supported_architectures: z.array(z.enum(["arm64", "x86_64"])),
+  supported_architectures: z.array(z.enum(ARCHITECTURE_VALUES)),
   blocking_applications_none: z.boolean(),
   blocking_applications: z.array(stringRowSchema),
   installable_condition: z.string(),
@@ -406,10 +332,16 @@ export function packageFormSchema() {
   });
 }
 
+export type PackageFormInput = z.input<ReturnType<typeof packageFormSchema>>;
+export type PackageFormOutput = z.output<ReturnType<typeof packageFormSchema>>;
+export type PackageFormMutation = MunkiPackageMutation & {
+  installer_type: PackageFormOutput["installer_type"];
+};
+
 export function packageMutationFromForm(
-  form: PackageFormState,
+  form: PackageFormOutput,
   installerObjectID = form.installer_object_id ?? undefined,
-): MunkiPackageMutation {
+): PackageFormMutation {
   const installerType = form.installer_type;
   const uninstallMethod = form.uninstall_method;
   const usesInstallerOptions = installerType !== "nopkg";
@@ -417,7 +349,7 @@ export function packageMutationFromForm(
     installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
   const blockingApplications = cleanStringRows(form.blocking_applications);
 
-  return {
+  const mutation = {
     version: form.version,
     installer_type: installerType,
     installer_object_id: installerType === "nopkg" ? undefined : installerObjectID,
@@ -466,10 +398,12 @@ export function packageMutationFromForm(
     version_script: nonEmpty(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
-  };
+  } satisfies Record<keyof MunkiPackageMutation, unknown>;
+
+  return mutation;
 }
 
-export function emptyPackageForm(softwareID: number | null = null): PackageFormState {
+export function emptyPackageForm(softwareID: number | null = null): PackageFormInput {
   return {
     software_id: softwareID,
     version: "",
@@ -520,7 +454,7 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormS
   };
 }
 
-export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
+export function packageFormFromPackage(pkg: MunkiPackage): PackageFormInput {
   return {
     software_id: pkg.software.id,
     version: pkg.version,
@@ -795,7 +729,7 @@ export function packageLabel(pkg: MunkiPackage) {
 }
 
 function isArchitecture(value: string): value is Architecture {
-  return value === "arm64" || value === "x86_64";
+  return architectureSet.has(value);
 }
 
 function rowID() {

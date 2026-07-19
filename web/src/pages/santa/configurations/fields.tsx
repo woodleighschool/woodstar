@@ -44,37 +44,18 @@ import {
   CLIENT_MODE_VALUES,
   FILE_ACCESS_ACTION_OPTIONS,
   FILE_ACCESS_ACTION_VALUES,
+  isSantaMediaAction,
+  isSantaRemountFlag,
   MEDIA_ACTION_OPTIONS,
   MEDIA_ACTION_VALUES,
   REMOUNT_FLAG_OPTIONS,
   REMOUNT_FLAG_VALUES,
-  type SantaFileAccessAction,
   type SantaMediaAction,
   type SantaRemountFlag,
 } from "@/lib/santa-configurations";
 import { emptyLabelTargetSet, labelTargetSetSchema } from "@/lib/targeting";
 import { nonEmpty } from "@/lib/utils";
-interface ConfigurationFormState {
-  name: string;
-  description: string;
-  client_mode: SantaConfigurationMutation["client_mode"];
-  targets: NonNullable<SantaConfigurationMutation["targets"]>;
-  enable_bundles: boolean;
-  enable_transitive_rules: boolean;
-  enable_all_event_upload: boolean;
-  disable_unknown_event_upload: boolean;
-  override_file_access_action: SantaFileAccessAction;
-  full_sync_interval_seconds: number;
-  batch_size: number;
-  allowed_path_regex: string;
-  blocked_path_regex: string;
-  removable_media_action: SantaMediaAction;
-  removable_media_remount_flags: SantaRemountFlag[];
-  encrypted_removable_media_action: SantaMediaAction;
-  encrypted_removable_media_remount_flags: SantaRemountFlag[];
-  event_detail_url: string;
-  event_detail_text: string;
-}
+
 const configurationFormSchema = z
   .object({
     name: requiredString("Name"),
@@ -145,6 +126,10 @@ const configurationFormSchema = z
       });
     }
   });
+
+type ConfigurationFormInput = z.input<typeof configurationFormSchema>;
+type ConfigurationFormOutput = z.output<typeof configurationFormSchema>;
+
 const configurationFormTabs = [
   {
     value: "options",
@@ -174,7 +159,7 @@ const configurationFormTabs = [
 const noOp = () => undefined;
 // Santa client defaults sourced from upstream Santa. The form pre-fills these
 // so the backend never substitutes hidden defaults.
-export const emptyConfigurationForm: ConfigurationFormState = {
+export const emptyConfigurationForm = {
   name: "",
   description: "",
   client_mode: "monitor",
@@ -194,7 +179,7 @@ export const emptyConfigurationForm: ConfigurationFormState = {
   encrypted_removable_media_remount_flags: [],
   event_detail_url: "",
   event_detail_text: "",
-};
+} satisfies ConfigurationFormInput;
 export function ConfigurationForm({
   initial,
   title,
@@ -203,7 +188,7 @@ export function ConfigurationForm({
   onSuccess,
   onCancel,
 }: {
-  initial: ConfigurationFormState;
+  initial: ConfigurationFormInput;
   title?: string;
   submitLabel: string;
   onSubmit: (body: SantaConfigurationMutation) => Promise<number | undefined>;
@@ -290,10 +275,11 @@ export function ConfigurationForm({
                 <FormField field={field} label="Client Mode" htmlFor="santa-client-mode">
                   {(control) => (
                     <Select
+                      items={CLIENT_MODE_OPTIONS}
                       value={field.state.value}
-                      onValueChange={(clientMode) =>
-                        field.handleChange(clientMode as SantaConfigurationMutation["client_mode"])
-                      }
+                      onValueChange={(value) => {
+                        if (value !== null) field.handleChange(value);
+                      }}
                     >
                       <SelectTrigger {...control} className="w-full">
                         <SelectValue />
@@ -366,8 +352,11 @@ export function ConfigurationForm({
                 >
                   {(control) => (
                     <Select
+                      items={FILE_ACCESS_ACTION_OPTIONS}
                       value={field.state.value}
-                      onValueChange={(value) => field.handleChange(value as SantaFileAccessAction)}
+                      onValueChange={(value) => {
+                        if (value !== null) field.handleChange(value);
+                      }}
                     >
                       <SelectTrigger {...control} className="w-full">
                         <SelectValue />
@@ -623,8 +612,8 @@ function MediaActionField({
         variant="outline"
         className="flex-wrap"
         onValueChange={(value) => {
-          const action = value[0] as SantaMediaAction | undefined;
-          if (action) onActionChange(action);
+          const action = value[0];
+          if (action && isSantaMediaAction(action)) onActionChange(action);
         }}
       >
         {MEDIA_ACTION_OPTIONS.map((option) => (
@@ -659,7 +648,7 @@ function MediaActionField({
     </Field>
   );
 }
-export function formFromConfiguration(configuration: SantaConfiguration): ConfigurationFormState {
+export function formFromConfiguration(configuration: SantaConfiguration): ConfigurationFormInput {
   return {
     name: configuration.name,
     description: configuration.description,
@@ -687,8 +676,8 @@ export function formFromConfiguration(configuration: SantaConfiguration): Config
     event_detail_text: configuration.event_detail_text ?? "",
   };
 }
-function configurationBody(form: ConfigurationFormState): SantaConfigurationMutation {
-  return {
+function configurationBody(form: ConfigurationFormOutput): SantaConfigurationMutation {
+  const mutation = {
     name: form.name.trim(),
     description: nonEmpty(form.description),
     client_mode: form.client_mode,
@@ -712,7 +701,9 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     ),
     event_detail_url: nonEmpty(form.event_detail_url),
     event_detail_text: nonEmpty(form.event_detail_text),
-  };
+  } satisfies Record<keyof SantaConfigurationMutation, unknown>;
+
+  return mutation;
 }
 function removableMediaPolicyBody(action: SantaMediaAction, flags: SantaRemountFlag[]) {
   if (action === "none") return undefined;
@@ -733,7 +724,5 @@ function toggleRemountFlag(flags: SantaRemountFlag[], flag: SantaRemountFlag, ch
   return flags.filter((value) => value !== flag);
 }
 function filterRemountFlags(flags: string[]) {
-  return flags.filter((flag): flag is SantaRemountFlag =>
-    (REMOUNT_FLAG_VALUES as readonly string[]).includes(flag),
-  );
+  return flags.filter(isSantaRemountFlag);
 }
