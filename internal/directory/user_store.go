@@ -129,44 +129,11 @@ func derefString(value *string) string {
 	return *value
 }
 
-const activeAdministratorExistsSQL = `
-SELECT EXISTS (
-    SELECT 1
-    FROM users
-    WHERE role = 'admin'
-      AND deleted_at IS NULL
-)`
-
-// ActiveAdministratorExists reports whether a non-deleted administrator exists.
-func (s *Store) ActiveAdministratorExists(ctx context.Context) (bool, error) {
-	var exists bool
-	err := s.db.Pool().QueryRow(ctx, activeAdministratorExistsSQL).Scan(&exists)
-	return exists, err
-}
-
-const setupCompleteSQL = `
-SELECT completed_at IS NOT NULL
-FROM setup_state
-WHERE singleton`
-
-// SetupComplete reports whether initial setup has completed.
-func (s *Store) SetupComplete(ctx context.Context) (bool, error) {
-	var complete bool
-	err := s.db.Pool().QueryRow(ctx, setupCompleteSQL).Scan(&complete)
-	return complete, err
-}
-
 type userCreateRecord struct {
 	Email        string
 	Name         string
 	PasswordHash string
 	Role         Role
-}
-
-type initialAdministratorRecord struct {
-	Email        string
-	Name         string
-	PasswordHash string
 }
 
 func (s *Store) createUser(
@@ -189,58 +156,6 @@ RETURNING `+userColumnsSQL(""),
 			return dbutil.MutationError(err)
 		}
 		user = userFromRow(row)
-		return s.labels.RefreshDerivedTx(ctx, tx)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (s *Store) createInitialAdministrator(
-	ctx context.Context,
-	params initialAdministratorRecord,
-) (*User, error) {
-	var user User
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		// Serialize setup with user administration so the initial account and
-		// derived label state are committed as one directory change.
-		if err := lockUserAdministration(ctx, tx); err != nil {
-			return err
-		}
-
-		var complete bool
-		if err := tx.QueryRow(ctx, `
-SELECT completed_at IS NOT NULL
-FROM setup_state
-WHERE singleton
-FOR UPDATE`).Scan(&complete); err != nil {
-			return err
-		}
-		if complete {
-			return ErrSetupComplete
-		}
-
-		qrows, err := tx.Query(ctx, `
-INSERT INTO users (email, name, password_hash, role, source)
-VALUES ($1, $2, $3, 'admin', 'local')
-RETURNING `+userColumnsSQL(""),
-			strings.ToLower(params.Email), params.Name, params.PasswordHash,
-		)
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		user = userFromRow(row)
-		if _, err := tx.Exec(ctx, `
-UPDATE setup_state
-SET completed_at = now()
-WHERE singleton`); err != nil {
-			return err
-		}
 		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 	if err != nil {
@@ -337,12 +252,7 @@ func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecor
 		v := string(*params.Role)
 		roleStr = &v
 	}
-	var user User
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := lockUserAdministration(ctx, tx); err != nil {
-			return err
-		}
-		qrows, err := tx.Query(ctx, `
+	qrows, err := s.db.Pool().Query(ctx, `
 UPDATE users
 SET
     name = CASE WHEN source = 'local' THEN $1 ELSE name END,
@@ -355,20 +265,15 @@ SET
 WHERE id = $4
   AND deleted_at IS NULL
 RETURNING `+userColumnsSQL(""),
-			params.Name, roleStr, params.PasswordHash, id)
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
-		if err != nil {
-			return dbutil.MutationError(err)
-		}
-		user = userFromRow(row)
-		return requireActiveAdministrator(ctx, tx)
-	})
+		params.Name, roleStr, params.PasswordHash, id)
 	if err != nil {
-		return nil, err
+		return nil, dbutil.MutationError(err)
 	}
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	user := userFromRow(row)
 	return &user, nil
 }
 
@@ -401,10 +306,6 @@ func (s *Store) deleteUser(
 	id int64,
 ) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := lockUserAdministration(ctx, tx); err != nil {
-			return err
-		}
-
 		var source Source
 		if err := tx.QueryRow(ctx, `
 SELECT source::text
@@ -434,27 +335,8 @@ RETURNING id`, id).Scan(&deletedID); err != nil {
 				return dbutil.MutationError(err)
 			}
 		}
-		if err := requireActiveAdministrator(ctx, tx); err != nil {
-			return err
-		}
 		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
-}
-
-func lockUserAdministration(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE`)
-	return err
-}
-
-func requireActiveAdministrator(ctx context.Context, tx pgx.Tx) error {
-	var exists bool
-	if err := tx.QueryRow(ctx, activeAdministratorExistsSQL).Scan(&exists); err != nil {
-		return err
-	}
-	if !exists {
-		return ErrLastAdministrator
-	}
-	return nil
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {

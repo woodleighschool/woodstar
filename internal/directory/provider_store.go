@@ -20,9 +20,6 @@ func (s *Store) ApplyProviderSnapshot(
 		return errors.New("directory: local source cannot apply provider snapshot")
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := lockUserAdministration(ctx, tx); err != nil {
-			return err
-		}
 		if err := applyGroupSnapshot(ctx, tx, source, snapshot.Groups); err != nil {
 			return err
 		}

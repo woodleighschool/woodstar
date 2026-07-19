@@ -38,7 +38,7 @@ func TestMunki(t *testing.T) {
 	server.redact(munkiSecret)
 	transferClient := verifyingClient(t, server.CACertificate)
 
-	setupAdmin(
+	provisionAdmin(
 		t,
 		server,
 		"admin@woodstar.test",
@@ -51,7 +51,7 @@ func TestMunki(t *testing.T) {
 	}
 	cookies := server.Client.Jar.Cookies(baseURL)
 	if len(cookies) == 0 {
-		t.Fatal("admin client did not retain the setup session cookie")
+		t.Fatal("admin client did not retain the login session cookie")
 	}
 
 	database, err := pgx.Connect(t.Context(), server.DatabaseURL)

@@ -25,9 +25,18 @@ export function useUpdateAccount() {
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
       queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
-      queryClient.setQueryData(sessionQueryOptions.queryKey, (session: SessionBody | undefined) =>
-        session ? { ...session, user: account.user } : session,
-      );
+      queryClient.setQueryData(sessionQueryOptions.queryKey, (session: SessionBody | undefined) => {
+        if (!session || !account.user.role) return session;
+        return {
+          ...session,
+          user: {
+            id: account.user.id,
+            email: account.user.email,
+            name: account.user.name,
+            role: account.user.role,
+          },
+        };
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });
     },
   });

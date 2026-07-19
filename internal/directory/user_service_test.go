@@ -1,16 +1,14 @@
 package directory
 
 import (
-	"context"
 	"errors"
-	"sync"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func TestUserMutationsPreserveLastAdministrator(t *testing.T) {
+func TestUserMutationsAllowZeroPersistedAdministrators(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	service := newTestUserService(NewStore(database))
 	admin, err := service.Create(ctx, UserCreate{
@@ -24,86 +22,19 @@ func TestUserMutationsPreserveLastAdministrator(t *testing.T) {
 	}
 
 	viewer := RoleViewer
-	if _, err := service.Update(
+	updated, err := service.Update(
 		ctx,
 		admin.ID,
 		UserMutation{Name: admin.Name, Role: &viewer},
-	); !errors.Is(
-		err,
-		ErrLastAdministrator,
-	) {
-		t.Fatalf("demote last admin error = %v, want %v", err, ErrLastAdministrator)
-	}
-	if err := service.Delete(ctx, admin.ID); !errors.Is(err, ErrLastAdministrator) {
-		t.Fatalf("delete last admin error = %v, want %v", err, ErrLastAdministrator)
-	}
-
-	persisted, err := service.Get(ctx, admin.ID)
+	)
 	if err != nil {
-		t.Fatalf("get preserved admin: %v", err)
+		t.Fatalf("demote final persisted administrator: %v", err)
 	}
-	if persisted.Role == nil || *persisted.Role != RoleAdmin {
-		t.Fatalf("preserved role = %v, want admin", persisted.Role)
+	if updated.Role == nil || *updated.Role != RoleViewer {
+		t.Fatalf("updated role = %v, want viewer", updated.Role)
 	}
-}
-
-func TestConcurrentDemotionsPreserveOneAdministrator(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	service := newTestUserService(NewStore(database))
-	admins := make([]*User, 2)
-	for i, email := range []string{"first-admin@example.test", "second-admin@example.test"} {
-		admin, err := service.Create(ctx, UserCreate{
-			Email:    email,
-			Name:     email,
-			Role:     RoleAdmin,
-			Password: "correct-password",
-		})
-		if err != nil {
-			t.Fatalf("create admin %d: %v", i, err)
-		}
-		admins[i] = admin
-	}
-
-	viewer := RoleViewer
-	start := make(chan struct{})
-	errs := make(chan error, len(admins))
-	var ready sync.WaitGroup
-	ready.Add(len(admins))
-	for _, admin := range admins {
-		go func() {
-			ready.Done()
-			<-start
-			_, err := service.Update(context.Background(), admin.ID, UserMutation{
-				Name: admin.Name,
-				Role: &viewer,
-			})
-			errs <- err
-		}()
-	}
-	ready.Wait()
-	close(start)
-
-	var updated, rejected int
-	for range admins {
-		switch err := <-errs; {
-		case err == nil:
-			updated++
-		case errors.Is(err, ErrLastAdministrator):
-			rejected++
-		default:
-			t.Fatalf("concurrent demotion error: %v", err)
-		}
-	}
-	if updated != 1 || rejected != 1 {
-		t.Fatalf("demotion results: updated=%d rejected=%d, want 1 each", updated, rejected)
-	}
-
-	exists, err := service.ActiveAdministratorExists(ctx)
-	if err != nil {
-		t.Fatalf("check active administrator: %v", err)
-	}
-	if !exists {
-		t.Fatal("concurrent demotions removed every administrator")
+	if err := service.Delete(ctx, admin.ID); err != nil {
+		t.Fatalf("delete final persisted administrator: %v", err)
 	}
 }
 
@@ -133,27 +64,6 @@ func TestCreateHashesPassword(t *testing.T) {
 	}
 	if !valid {
 		t.Fatal("password hash does not verify original password")
-	}
-}
-
-func TestCreateInitialAdministratorRejectsCompletedSetup(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	service := newTestUserService(NewStore(database))
-	if _, err := service.CreateInitialAdministrator(ctx, UserCreate{
-		Email:    "admin@example.test",
-		Name:     "Admin",
-		Password: "correct-password",
-	}); err != nil {
-		t.Fatalf("create initial administrator: %v", err)
-	}
-
-	_, err := service.CreateInitialAdministrator(ctx, UserCreate{
-		Email:    "other@example.test",
-		Name:     "Other",
-		Password: "correct-password",
-	})
-	if !errors.Is(err, ErrSetupComplete) {
-		t.Fatalf("CreateInitialAdministrator error = %v, want %v", err, ErrSetupComplete)
 	}
 }
 

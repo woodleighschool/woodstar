@@ -523,6 +523,24 @@ func (e MunkiPackageStateStatus) Valid() bool {
 	}
 }
 
+// Defines values for PrincipalRole.
+const (
+	PrincipalRoleAdmin  PrincipalRole = "admin"
+	PrincipalRoleViewer PrincipalRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the PrincipalRole enum.
+func (e PrincipalRole) Valid() bool {
+	switch e {
+	case PrincipalRoleAdmin:
+		return true
+	case PrincipalRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SantaConfigurationClientMode.
 const (
 	SantaConfigurationClientModeLockdown   SantaConfigurationClientMode = "lockdown"
@@ -972,16 +990,16 @@ func (e SantaRuleStatusRuleType) Valid() bool {
 
 // Defines values for UserRole.
 const (
-	Admin  UserRole = "admin"
-	Viewer UserRole = "viewer"
+	UserRoleAdmin  UserRole = "admin"
+	UserRoleViewer UserRole = "viewer"
 )
 
 // Valid indicates whether the value is a known member of the UserRole enum.
 func (e UserRole) Valid() bool {
 	switch e {
-	case Admin:
+	case UserRoleAdmin:
 		return true
-	case Viewer:
+	case UserRoleViewer:
 		return true
 	default:
 		return false
@@ -1000,6 +1018,24 @@ func (e UserSource) Valid() bool {
 	case Entra:
 		return true
 	case Local:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserCreateRole.
+const (
+	UserCreateRoleAdmin  UserCreateRole = "admin"
+	UserCreateRoleViewer UserCreateRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the UserCreateRole enum.
+func (e UserCreateRole) Valid() bool {
+	switch e {
+	case UserCreateRoleAdmin:
+		return true
+	case UserCreateRoleViewer:
 		return true
 	default:
 		return false
@@ -1968,6 +2004,17 @@ type PathSignatureInformation struct {
 	TeamIdentifier   string `json:"team_identifier"`
 }
 
+// Principal defines model for Principal.
+type Principal struct {
+	Email openapi_types.Email `json:"email"`
+	Id    *int64              `json:"id,omitempty"`
+	Name  string              `json:"name"`
+	Role  PrincipalRole       `json:"role"`
+}
+
+// PrincipalRole defines model for Principal.Role.
+type PrincipalRole string
+
 // SantaConfiguration defines model for SantaConfiguration.
 type SantaConfiguration struct {
 	AllowedPathRegex              *string                                    `json:"allowed_path_regex,omitempty"`
@@ -2250,10 +2297,9 @@ type SantaSigningChainEntry struct {
 	ValidUntil         *time.Time `json:"valid_until,omitempty"`
 }
 
-// SetupInputBody defines model for SetupInputBody.
-type SetupInputBody struct {
+// SessionCreateInputBody defines model for SessionCreateInputBody.
+type SessionCreateInputBody struct {
 	Email    openapi_types.Email `json:"email"`
-	Name     *string             `json:"name,omitempty"`
 	Password string              `json:"password"`
 }
 
@@ -2281,6 +2327,17 @@ type UserRole string
 
 // UserSource defines model for User.Source.
 type UserSource string
+
+// UserCreate defines model for UserCreate.
+type UserCreate struct {
+	Email    openapi_types.Email `json:"email"`
+	Name     *string             `json:"name,omitempty"`
+	Password string              `json:"password"`
+	Role     UserCreateRole      `json:"role"`
+}
+
+// UserCreateRole defines model for UserCreate.Role.
+type UserCreateRole string
 
 // ListHostsParams defines parameters for ListHosts.
 type ListHostsParams struct {
@@ -2379,8 +2436,11 @@ type CreateSantaConfigurationJSONRequestBody = SantaConfigurationMutation
 // CreateSantaRuleJSONRequestBody defines body for CreateSantaRule for application/json ContentType.
 type CreateSantaRuleJSONRequestBody = SantaRuleMutation
 
-// CompleteSetupJSONRequestBody defines body for CompleteSetup for application/json ContentType.
-type CompleteSetupJSONRequestBody = SetupInputBody
+// CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
+type CreateSessionJSONRequestBody = SessionCreateInputBody
+
+// CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
+type CreateUserJSONRequestBody = UserCreate
 
 // AsMunkiDirectUploadAction returns the union data inside the MunkiUploadTarget_Upload as a MunkiDirectUploadAction
 func (t MunkiUploadTarget_Upload) AsMunkiDirectUploadAction() (MunkiDirectUploadAction, error) {
@@ -2786,19 +2846,33 @@ type ClientInterface interface {
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CompleteSetupWithBody Create the first administrator account
+	// CreateSessionWithBody Create a local admin session
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-	CompleteSetupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /api/session (the `CreateSession` operationId).
+	CreateSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CompleteSetup Create the first administrator account
+	// CreateSession Create a local admin session
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-	CompleteSetup(ctx context.Context, body CompleteSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /api/session (the `CreateSession` operationId).
+	CreateSession(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateUserWithBody Create a Woodstar user
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /api/users (the `CreateUser` operationId).
+	CreateUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateUser Create a Woodstar user
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /api/users (the `CreateUser` operationId).
+	CreateUser(ctx context.Context, body CreateUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // GetAccount Get the signed-in user's account, including any API key
@@ -3400,13 +3474,13 @@ func (c *Client) CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRe
 	return c.Client.Do(req)
 }
 
-// CompleteSetupWithBody Create the first administrator account
+// CreateSessionWithBody Create a local admin session
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-func (c *Client) CompleteSetupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCompleteSetupRequestWithBody(c.Server, contentType, body)
+// Corresponds with POST /api/session (the `CreateSession` operationId).
+func (c *Client) CreateSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSessionRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3417,13 +3491,47 @@ func (c *Client) CompleteSetupWithBody(ctx context.Context, contentType string, 
 	return c.Client.Do(req)
 }
 
-// CompleteSetup Create the first administrator account
+// CreateSession Create a local admin session
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-func (c *Client) CompleteSetup(ctx context.Context, body CompleteSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCompleteSetupRequest(c.Server, body)
+// Corresponds with POST /api/session (the `CreateSession` operationId).
+func (c *Client) CreateSession(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateUserWithBody Create a Woodstar user
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /api/users (the `CreateUser` operationId).
+func (c *Client) CreateUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateUserRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateUser Create a Woodstar user
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /api/users (the `CreateUser` operationId).
+func (c *Client) CreateUser(ctx context.Context, body CreateUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateUserRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4801,19 +4909,19 @@ func NewCreateSantaRuleRequestWithBody(server string, contentType string, body i
 	return req, nil
 }
 
-// NewCompleteSetupRequest calls the generic CompleteSetup builder with application/json body
-func NewCompleteSetupRequest(server string, body CompleteSetupJSONRequestBody) (*http.Request, error) {
+// NewCreateSessionRequest calls the generic CreateSession builder with application/json body
+func NewCreateSessionRequest(server string, body CreateSessionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCompleteSetupRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateSessionRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewCompleteSetupRequestWithBody constructs an http.Request for the CompleteSetup method, with any body, and a specified content type
-func NewCompleteSetupRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewCreateSessionRequestWithBody constructs an http.Request for the CreateSession method, with any body, and a specified content type
+func NewCreateSessionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4821,7 +4929,47 @@ func NewCompleteSetupRequestWithBody(server string, contentType string, body io.
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/setup")
+	operationPath := fmt.Sprintf("/api/session")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateUserRequest calls the generic CreateUser builder with application/json body
+func NewCreateUserRequest(server string, body CreateUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateUserRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateUserRequestWithBody constructs an http.Request for the CreateUser method, with any body, and a specified content type
+func NewCreateUserRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/users")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5144,19 +5292,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRuleWithResponse(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSantaRuleResponse, error)
 
-	// CompleteSetupWithBodyWithResponse Create the first administrator account
+	// CreateSessionWithBodyWithResponse Create a local admin session
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-	CompleteSetupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteSetupResponse, error)
+	// Corresponds with POST /api/session (the `CreateSession` operationId).
+	CreateSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
 
-	// CompleteSetupWithResponse Create the first administrator account
+	// CreateSessionWithResponse Create a local admin session
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-	CompleteSetupWithResponse(ctx context.Context, body CompleteSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteSetupResponse, error)
+	// Corresponds with POST /api/session (the `CreateSession` operationId).
+	CreateSessionWithResponse(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
+
+	// CreateUserWithBodyWithResponse Create a Woodstar user
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/users (the `CreateUser` operationId).
+	CreateUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateUserResponse, error)
+
+	// CreateUserWithResponse Create a Woodstar user
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/users (the `CreateUser` operationId).
+	CreateUserWithResponse(ctx context.Context, body CreateUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateUserResponse, error)
 }
 
 type GetAccountResponse struct {
@@ -5166,8 +5328,10 @@ type GetAccountResponse struct {
 	JSON200 *Account
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
 	ApplicationproblemJSON401 *ErrorModel
-	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
-	ApplicationproblemJSONDefault *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5180,9 +5344,14 @@ func (r GetAccountResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
-// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
-func (r GetAccountResponse) GetApplicationproblemJSONDefault() *ErrorModel {
-	return r.ApplicationproblemJSONDefault
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r GetAccountResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r GetAccountResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
@@ -5221,8 +5390,10 @@ type RotateAccountApiKeyResponse struct {
 	JSON201 *Account
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
 	ApplicationproblemJSON401 *ErrorModel
-	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
-	ApplicationproblemJSONDefault *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -5235,9 +5406,14 @@ func (r RotateAccountApiKeyResponse) GetApplicationproblemJSON401() *ErrorModel 
 	return r.ApplicationproblemJSON401
 }
 
-// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
-func (r RotateAccountApiKeyResponse) GetApplicationproblemJSONDefault() *ErrorModel {
-	return r.ApplicationproblemJSONDefault
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r RotateAccountApiKeyResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r RotateAccountApiKeyResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
@@ -7086,13 +7262,93 @@ func (r CreateSantaRuleResponse) ContentType() string {
 	return ""
 }
 
-type CompleteSetupResponse struct {
+type CreateSessionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Principal
+	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
+	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON429 the response for an HTTP 429 `application/problem+json` response
+	ApplicationproblemJSON429 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateSessionResponse) GetJSON200() *Principal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
+func (r CreateSessionResponse) GetApplicationproblemJSON400() *ErrorModel {
+	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r CreateSessionResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r CreateSessionResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON429 returns the response for an HTTP 429 `application/problem+json` response
+func (r CreateSessionResponse) GetApplicationproblemJSON429() *ErrorModel {
+	return r.ApplicationproblemJSON429
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r CreateSessionResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateSessionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSessionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSessionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateSessionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateUserResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *User
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *ErrorModel
 	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
@@ -7102,37 +7358,47 @@ type CompleteSetupResponse struct {
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CompleteSetupResponse) GetJSON201() *User {
+func (r CreateUserResponse) GetJSON201() *User {
 	return r.JSON201
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
-func (r CompleteSetupResponse) GetApplicationproblemJSON400() *ErrorModel {
+func (r CreateUserResponse) GetApplicationproblemJSON400() *ErrorModel {
 	return r.ApplicationproblemJSON400
 }
 
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r CreateUserResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r CreateUserResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
-func (r CompleteSetupResponse) GetApplicationproblemJSON409() *ErrorModel {
+func (r CreateUserResponse) GetApplicationproblemJSON409() *ErrorModel {
 	return r.ApplicationproblemJSON409
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r CompleteSetupResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r CreateUserResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r CompleteSetupResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r CreateUserResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r CompleteSetupResponse) GetBody() []byte {
+func (r CreateUserResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r CompleteSetupResponse) Status() string {
+func (r CreateUserResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -7140,7 +7406,7 @@ func (r CompleteSetupResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CompleteSetupResponse) StatusCode() int {
+func (r CreateUserResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -7148,7 +7414,7 @@ func (r CompleteSetupResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r CompleteSetupResponse) ContentType() string {
+func (r CreateUserResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7636,30 +7902,56 @@ func (c *ClientWithResponses) CreateSantaRuleWithResponse(ctx context.Context, b
 	return ParseCreateSantaRuleResponse(rsp)
 }
 
-// CompleteSetupWithBodyWithResponse Create the first administrator account
+// CreateSessionWithBodyWithResponse Create a local admin session
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-func (c *ClientWithResponses) CompleteSetupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteSetupResponse, error) {
-	rsp, err := c.CompleteSetupWithBody(ctx, contentType, body, reqEditors...)
+// Corresponds with POST /api/session (the `CreateSession` operationId).
+func (c *ClientWithResponses) CreateSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error) {
+	rsp, err := c.CreateSessionWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCompleteSetupResponse(rsp)
+	return ParseCreateSessionResponse(rsp)
 }
 
-// CompleteSetupWithResponse Create the first administrator account
+// CreateSessionWithResponse Create a local admin session
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/setup (the `CompleteSetup` operationId).
-func (c *ClientWithResponses) CompleteSetupWithResponse(ctx context.Context, body CompleteSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteSetupResponse, error) {
-	rsp, err := c.CompleteSetup(ctx, body, reqEditors...)
+// Corresponds with POST /api/session (the `CreateSession` operationId).
+func (c *ClientWithResponses) CreateSessionWithResponse(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error) {
+	rsp, err := c.CreateSession(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCompleteSetupResponse(rsp)
+	return ParseCreateSessionResponse(rsp)
+}
+
+// CreateUserWithBodyWithResponse Create a Woodstar user
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/users (the `CreateUser` operationId).
+func (c *ClientWithResponses) CreateUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateUserResponse, error) {
+	rsp, err := c.CreateUserWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateUserResponse(rsp)
+}
+
+// CreateUserWithResponse Create a Woodstar user
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/users (the `CreateUser` operationId).
+func (c *ClientWithResponses) CreateUserWithResponse(ctx context.Context, body CreateUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateUserResponse, error) {
+	rsp, err := c.CreateUser(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateUserResponse(rsp)
 }
 
 // ParseGetAccountResponse parses an HTTP response from a GetAccountWithResponse call
@@ -7690,12 +7982,19 @@ func ParseGetAccountResponse(rsp *http.Response) (*GetAccountResponse, error) {
 		}
 		response.ApplicationproblemJSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest ErrorModel
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.ApplicationproblemJSONDefault = &dest
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
 
 	}
 
@@ -7730,12 +8029,19 @@ func ParseRotateAccountApiKeyResponse(rsp *http.Response) (*RotateAccountApiKeyR
 		}
 		response.ApplicationproblemJSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest ErrorModel
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.ApplicationproblemJSONDefault = &dest
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
 
 	}
 
@@ -9199,15 +9505,76 @@ func ParseCreateSantaRuleResponse(rsp *http.Response) (*CreateSantaRuleResponse,
 	return response, nil
 }
 
-// ParseCompleteSetupResponse parses an HTTP response from a CompleteSetupWithResponse call
-func ParseCompleteSetupResponse(rsp *http.Response) (*CompleteSetupResponse, error) {
+// ParseCreateSessionResponse parses an HTTP response from a CreateSessionWithResponse call
+func ParseCreateSessionResponse(rsp *http.Response) (*CreateSessionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CompleteSetupResponse{
+	response := &CreateSessionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Principal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateUserResponse parses an HTTP response from a CreateUserWithResponse call
+func ParseCreateUserResponse(rsp *http.Response) (*CreateUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateUserResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -9226,6 +9593,20 @@ func ParseCompleteSetupResponse(rsp *http.Response) (*CompleteSetupResponse, err
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest ErrorModel

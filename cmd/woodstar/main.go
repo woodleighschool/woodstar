@@ -411,12 +411,18 @@ func newAuth(
 	users *directory.UserService,
 	sessions *scs.SessionManager,
 ) (*auth.Service, error) {
-	service := auth.NewService(users, sessions)
+	service, err := auth.NewService(users, sessions, auth.InitialAdminConfig{
+		Email:    cfg.InitialAdminEmail,
+		Password: cfg.InitialAdminPassword,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("configure initial administrator: %w", err)
+	}
 	if !cfg.OIDCEnabled() {
 		return service, nil
 	}
 
-	err := service.ConfigureOIDC(ctx, auth.OIDCConfig{
+	err = service.ConfigureOIDC(ctx, auth.OIDCConfig{
 		IssuerURL:    cfg.OIDCIssuerURL,
 		ClientID:     cfg.OIDCClientID,
 		ClientSecret: cfg.OIDCClientSecret,

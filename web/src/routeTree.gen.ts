@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedDirectoryRouteImport } from './routes/_authenticated/directory'
 import { Route as AuthenticatedEnrollmentsRouteImport } from './routes/_authenticated/enrollments'
@@ -96,11 +95,6 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SetupRoute = SetupRouteImport.update({
-  id: '/setup',
-  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
@@ -517,7 +511,6 @@ const AuthenticatedSantaEventsFileAccessEventIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/setup': typeof SetupRoute
   '/account': typeof AuthenticatedAccountRoute
   '/directory': typeof AuthenticatedDirectoryRouteWithChildren
   '/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
@@ -592,7 +585,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/setup': typeof SetupRoute
   '/account': typeof AuthenticatedAccountRoute
   '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
@@ -648,7 +640,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
-  '/setup': typeof SetupRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/directory': typeof AuthenticatedDirectoryRouteWithChildren
   '/_authenticated/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
@@ -725,7 +716,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/setup'
     | '/account'
     | '/directory'
     | '/enrollments'
@@ -800,7 +790,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/setup'
     | '/account'
     | '/enrollments/munki'
     | '/enrollments/orbit'
@@ -855,7 +844,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
-    | '/setup'
     | '/_authenticated/account'
     | '/_authenticated/directory'
     | '/_authenticated/enrollments'
@@ -932,7 +920,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
-  SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -956,13 +943,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/setup': {
-      id: '/setup'
-      path: '/setup'
-      fullPath: '/setup'
-      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/account': {
@@ -1890,7 +1870,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
-  SetupRoute: SetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

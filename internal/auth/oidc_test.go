@@ -26,3 +26,16 @@ func TestCompleteSSORejectsMissingSessionNonce(t *testing.T) {
 		t.Fatalf("CompleteSSO error = %v, want %v", err, ErrSSONonceMismatch)
 	}
 }
+
+func TestSSORejectsInitialAdminEmailWithoutDirectoryLookup(t *testing.T) {
+	sessions := testSessionManager()
+	service := testAuthService(t, nil, sessions, InitialAdminConfig{
+		Email:    "admin@example.test",
+		Password: "configured-password",
+	})
+	ctx := loadTestSession(t, sessions, context.Background())
+
+	if _, err := service.completeSSOLogin(ctx, "admin@example.test"); !errors.Is(err, ErrSSOUnknownUser) {
+		t.Fatalf("completeSSOLogin error = %v, want %v", err, ErrSSOUnknownUser)
+	}
+}

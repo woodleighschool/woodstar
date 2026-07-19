@@ -28,7 +28,7 @@ func TestMDP(t *testing.T) {
 
 	server := startTestServer(t)
 	server.redact(munkiSecret)
-	setupMDPAdmin(t, server)
+	provisionMDPAdmin(t, server)
 	createMDPMunkiSecret(t, server, munkiSecret)
 
 	installerBytes := bytes.Repeat(
@@ -191,10 +191,10 @@ func TestMDP(t *testing.T) {
 	}
 }
 
-func setupMDPAdmin(t *testing.T, server *testServer) {
+func provisionMDPAdmin(t *testing.T, server *testServer) {
 	t.Helper()
 
-	setupAdmin(
+	provisionAdmin(
 		t,
 		server,
 		"mdp-admin@woodstar.test",

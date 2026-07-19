@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -16,7 +17,6 @@ import (
 
 const (
 	authTag     = "Auth"
-	setupTag    = "Setup"
 	accountTag  = "Account"
 	sessionPath = "/api/session"
 )
@@ -26,21 +26,12 @@ type sessionOutput struct {
 }
 
 type sessionBody struct {
-	SetupComplete bool            `json:"setup_complete"`
-	SSOEnabled    bool            `json:"sso_enabled"`
-	User          *directory.User `json:"user,omitempty"`
+	SSOEnabled bool            `json:"sso_enabled"`
+	User       *auth.Principal `json:"user,omitempty"`
 }
 
-type authUserOutput struct {
-	Body directory.User
-}
-
-type setupInput struct {
-	Body struct {
-		Email    string `json:"email"    format:"email"`
-		Name     string `json:"name,omitempty"`
-		Password string `json:"password" minLength:"12"`
-	}
+type principalOutput struct {
+	Body auth.Principal
 }
 
 type sessionCreateInput struct {
@@ -61,10 +52,9 @@ type AuthHandlerDeps struct {
 	Logger      *slog.Logger
 }
 
-// RegisterAuth mounts setup, session, account, and OIDC endpoints.
+// RegisterAuth mounts session, account, and OIDC endpoints.
 func RegisterAuth(deps AuthHandlerDeps) {
-	registerSetup(deps.Public, deps.AuthService, deps.Logger)
-	registerGetSession(deps.Session, deps.AuthService, deps.Logger)
+	registerGetSession(deps.Session, deps.AuthService)
 	registerCreateSession(deps.Public, deps.AuthService, deps.Logger)
 	registerDeleteSession(deps.Protected, deps.AuthService, deps.Logger)
 
@@ -75,46 +65,19 @@ func RegisterAuth(deps AuthHandlerDeps) {
 	registerOIDC(deps.Router, deps.AuthService, deps.Logger)
 }
 
-func registerSetup(api huma.API, authService *auth.Service, logger *slog.Logger) {
-	huma.Register(api, huma.Operation{
-		OperationID:   "complete-setup",
-		Method:        http.MethodPost,
-		Path:          "/api/setup",
-		Tags:          []string{setupTag},
-		Summary:       "Create the first administrator account",
-		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusConflict},
-	}, func(ctx context.Context, input *setupInput) (*authUserOutput, error) {
-		user, err := authService.Setup(ctx, auth.SetupParams{
-			Email:    input.Body.Email,
-			Name:     input.Body.Name,
-			Password: input.Body.Password,
-		})
-		if err != nil {
-			return nil, handlerError(ctx, logger, "complete-setup", authError(err))
-		}
-		return &authUserOutput{Body: *user}, nil
-	})
-}
-
-func registerGetSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
+func registerGetSession(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-session",
 		Method:      http.MethodGet,
 		Path:        sessionPath,
 		Tags:        []string{authTag},
-		Summary:     "Get setup state and the current signed-in user, if any",
+		Summary:     "Get the current signed-in principal, if any",
 	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
-		complete, err := authService.SetupComplete(ctx)
-		if err != nil {
-			return nil, handlerError(ctx, logger, "get-session", err)
-		}
 		out := &sessionOutput{Body: sessionBody{
-			SetupComplete: complete,
-			SSOEnabled:    authService.SSOEnabled(),
+			SSOEnabled: authService.SSOEnabled(),
 		}}
-		if user, ok := ctxkeys.User(ctx); ok {
-			out.Body.User = user
+		if principal, ok := ctxkeys.Principal(ctx); ok {
+			out.Body.User = principal
 		}
 		return out, nil
 	})
@@ -127,13 +90,17 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 		Path:        sessionPath,
 		Tags:        []string{authTag},
 		Summary:     "Create a local admin session",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
-	}, func(ctx context.Context, input *sessionCreateInput) (*authUserOutput, error) {
-		user, err := authService.Login(ctx, input.Body.Email, input.Body.Password)
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusTooManyRequests},
+	}, func(ctx context.Context, input *sessionCreateInput) (*principalOutput, error) {
+		principal, err := authService.Login(ctx, auth.LoginParams{
+			ClientIP: chimiddleware.GetClientIP(ctx),
+			Email:    input.Body.Email,
+			Password: input.Body.Password,
+		})
 		if err != nil {
 			return nil, handlerError(ctx, logger, "create-session", authError(err))
 		}
-		return &authUserOutput{Body: *user}, nil
+		return &principalOutput{Body: *principal}, nil
 	})
 }
 
@@ -159,10 +126,8 @@ func authError(err error) error {
 		return huma.Error401Unauthorized("invalid email or password")
 	case errors.Is(err, auth.ErrNotAuthenticated):
 		return huma.Error401Unauthorized("not authenticated")
-	case errors.Is(err, auth.ErrNotSetup):
-		return huma.Error409Conflict("setup required")
-	case errors.Is(err, auth.ErrAlreadySetup):
-		return huma.Error409Conflict("woodstar is already set up")
+	case errors.Is(err, auth.ErrTooManyAttempts):
+		return huma.Error429TooManyRequests("too many login attempts; try again shortly")
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:

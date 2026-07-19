@@ -63,7 +63,7 @@ func TestSanta(t *testing.T) {
 	server := startTestServer(t)
 	server.redact(santaSecret)
 
-	setupAdmin(
+	provisionAdmin(
 		t,
 		server,
 		"admin@santa.integration.test",

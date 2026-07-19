@@ -5,7 +5,8 @@ generate:
 output-options:
   resolve-type-name-collisions: true
   include-operation-ids:
-    - complete-setup
+    - create-session
+    - create-user
     - rotate-account-api-key
     - get-account
     - create-agent-secret

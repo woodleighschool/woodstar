@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
+	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
@@ -195,9 +196,12 @@ func hostTestRouter(t *testing.T, register func(huma.API)) *chi.Mux {
 	api := humachi.New(router, cfg)
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
-		adminRole := directory.RoleAdmin
-		user := &directory.User{ID: 1, Email: "host-admin@example.test", Role: &adminRole}
-		next(huma.WithContext(ctx, ctxkeys.WithUser(ctx.Context(), user)))
+		userID := int64(1)
+		next(huma.WithContext(ctx, ctxkeys.WithPrincipal(ctx.Context(), &auth.Principal{
+			UserID: &userID,
+			Email:  "host-admin@example.test",
+			Role:   directory.RoleAdmin,
+		})))
 	})
 	register(protected)
 	return router

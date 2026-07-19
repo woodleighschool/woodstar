@@ -14,20 +14,24 @@ Several features stay off until you configure them. OIDC and Entra directory syn
 
 ## Server
 
-| Variable                         | Default   | Notes                                                                                                 |
-| -------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| `WOODSTAR_HOST`                  | `0.0.0.0` | Listen host.                                                                                          |
-| `WOODSTAR_PORT`                  | `8080`    | Listen port.                                                                                          |
-| `WOODSTAR_URL`                   | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
-| `WOODSTAR_TLS_CERT_FILE`         | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
-| `WOODSTAR_TLS_KEY_FILE`          | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
-| `WOODSTAR_SESSION_COOKIE_SECURE` | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
-| `WOODSTAR_DATABASE_URL`          | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
-| `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
+| Variable                          | Default   | Notes                                                                                                 |
+| --------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| `WOODSTAR_HOST`                   | `0.0.0.0` | Listen host.                                                                                          |
+| `WOODSTAR_PORT`                   | `8080`    | Listen port.                                                                                          |
+| `WOODSTAR_URL`                    | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
+| `WOODSTAR_TLS_CERT_FILE`          | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
+| `WOODSTAR_TLS_KEY_FILE`           | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
+| `WOODSTAR_SESSION_COOKIE_SECURE`  | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
+| `WOODSTAR_DATABASE_URL`           | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
+| `WOODSTAR_LOG_LEVEL`              | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
+| `WOODSTAR_INITIAL_ADMIN_EMAIL`    | unset     | Email for the optional initial administrator. Set with its password.                                  |
+| `WOODSTAR_INITIAL_ADMIN_PASSWORD` | unset     | Password for the optional initial administrator. Minimum 12 characters.                               |
 
 `WOODSTAR_URL` has its trailing slash trimmed and rejects HTTP, sub-paths, credentials, query strings, and fragments. If you need to serve Woodstar under a path, put a reverse proxy in front; the app expects to own the root of its host.
 
 Certificate files are optional because the normal container deployment terminates TLS at a reverse proxy. Set neither file for that private HTTP hop. Set both files when the Woodstar process listens directly on HTTPS. A partial pair is a startup error, and Woodstar does not fall back to HTTP when a configured certificate cannot be loaded.
+
+Set both initial-administrator variables or neither. Empty values, a partial pair, or a password shorter than 12 characters stop startup. The password is used exactly as supplied.
 
 ## Client IP
 
@@ -133,6 +137,8 @@ WOODSTAR_URL=https://localhost:8443
 WOODSTAR_TLS_CERT_FILE=./tmp/tls/woodstar.pem
 WOODSTAR_TLS_KEY_FILE=./tmp/tls/woodstar-key.pem
 WOODSTAR_DATABASE_URL=postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable
+WOODSTAR_INITIAL_ADMIN_EMAIL=admin@example.com
+WOODSTAR_INITIAL_ADMIN_PASSWORD=replace-with-a-long-password
 WOODSTAR_STORAGE_CAPABILITY_KEY=paste_64_character_hex_here
 WOODSTAR_LOG_LEVEL=debug
 ```

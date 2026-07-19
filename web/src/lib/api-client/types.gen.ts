@@ -993,6 +993,13 @@ export type PathSignatureInformation = {
     team_identifier: string;
 };
 
+export type Principal = {
+    email: string;
+    id?: number;
+    name: string;
+    role: 'admin' | 'viewer';
+};
+
 export type SantaBundleReference = {
     binary_count: number;
     bundle_id: string;
@@ -1293,19 +1300,12 @@ export type SantaSoftwareReference = {
 };
 
 export type SessionBody = {
-    setup_complete: boolean;
     sso_enabled: boolean;
-    user?: User;
+    user?: Principal;
 };
 
 export type SessionCreateInputBody = {
     email: string;
-    password: string;
-};
-
-export type SetupInputBody = {
-    email: string;
-    name?: string;
     password: string;
 };
 
@@ -1412,9 +1412,13 @@ export type GetAccountErrors = {
      */
     401: ErrorModel;
     /**
-     * Error
+     * Not Found
      */
-    default: ErrorModel;
+    404: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
 };
 
 export type GetAccountError = GetAccountErrors[keyof GetAccountErrors];
@@ -1444,6 +1448,10 @@ export type UpdateAccountErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Conflict
      */
@@ -1482,9 +1490,13 @@ export type RevokeAccountApiKeyErrors = {
      */
     401: ErrorModel;
     /**
-     * Error
+     * Not Found
      */
-    default: ErrorModel;
+    404: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
 };
 
 export type RevokeAccountApiKeyError = RevokeAccountApiKeyErrors[keyof RevokeAccountApiKeyErrors];
@@ -1511,9 +1523,13 @@ export type RotateAccountApiKeyErrors = {
      */
     401: ErrorModel;
     /**
-     * Error
+     * Not Found
      */
-    default: ErrorModel;
+    404: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
 };
 
 export type RotateAccountApiKeyError = RotateAccountApiKeyErrors[keyof RotateAccountApiKeyErrors];
@@ -5467,13 +5483,13 @@ export type CreateSessionErrors = {
      */
     401: ErrorModel;
     /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
+    /**
+     * Too Many Requests
+     */
+    429: ErrorModel;
     /**
      * Internal Server Error
      */
@@ -5486,47 +5502,10 @@ export type CreateSessionResponses = {
     /**
      * OK
      */
-    200: User;
+    200: Principal;
 };
 
 export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
-
-export type CompleteSetupData = {
-    body: SetupInputBody;
-    path?: never;
-    query?: never;
-    url: '/api/setup';
-};
-
-export type CompleteSetupErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CompleteSetupError = CompleteSetupErrors[keyof CompleteSetupErrors];
-
-export type CompleteSetupResponses = {
-    /**
-     * Created
-     */
-    201: User;
-};
-
-export type CompleteSetupResponse = CompleteSetupResponses[keyof CompleteSetupResponses];
 
 export type ListSoftwareData = {
     body?: never;

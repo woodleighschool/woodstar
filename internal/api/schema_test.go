@@ -34,8 +34,8 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 		t.Fatal("sensitive read does not declare a 403 response")
 	}
 
-	if setup := doc.Paths["/api/setup"].Post; len(setup.Security) != 0 {
-		t.Fatalf("setup security = %#v, want public operation", setup.Security)
+	if doc.Paths["/api/setup"] != nil {
+		t.Fatal("removed setup endpoint is still registered")
 	}
 	session := doc.Paths["/api/session"]
 	if len(session.Get.Security) != 0 {
@@ -43,6 +43,9 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 	}
 	if len(session.Post.Security) != 0 {
 		t.Fatalf("POST session security = %#v, want public operation", session.Post.Security)
+	}
+	if session.Post.Responses["429"] == nil {
+		t.Fatal("password login does not declare rate limiting")
 	}
 	if !reflect.DeepEqual(session.Delete.Security, want) {
 		t.Fatalf("DELETE session security = %#v, want %#v", session.Delete.Security, want)

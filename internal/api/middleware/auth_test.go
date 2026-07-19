@@ -30,20 +30,21 @@ type postureProbeOutput struct {
 	}
 }
 
-func roleUser(role directory.Role) *directory.User {
-	return &directory.User{ID: 1, Role: &role}
+func rolePrincipal(role directory.Role) *auth.Principal {
+	userID := int64(1)
+	return &auth.Principal{UserID: &userID, Role: role}
 }
 
 // postureHandler mounts an ordinary (admin-for-mutations) and a sensitive
 // (admin-for-all) group carrying the real modifiers, with a middleware that
 // stands in for RequireAuth by injecting user into the context.
-func postureHandler(user *directory.User) http.Handler {
+func postureHandler(principal *auth.Principal) http.Handler {
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
 
 	inject := func(ctx huma.Context, next func(huma.Context)) {
-		if user != nil {
-			ctx = huma.WithContext(ctx, ctxkeys.WithUser(ctx.Context(), user))
+		if principal != nil {
+			ctx = huma.WithContext(ctx, ctxkeys.WithPrincipal(ctx.Context(), principal))
 		}
 		next(ctx)
 	}
@@ -75,15 +76,15 @@ func postureHandler(user *directory.User) http.Handler {
 }
 
 func TestAdminModifiersGateByRoleAndMethod(t *testing.T) {
-	admin := roleUser(directory.RoleAdmin)
-	viewer := roleUser(directory.RoleViewer)
+	admin := rolePrincipal(directory.RoleAdmin)
+	viewer := rolePrincipal(directory.RoleViewer)
 
 	for _, tc := range []struct {
-		name   string
-		user   *directory.User
-		method string
-		path   string
-		want   int
+		name      string
+		principal *auth.Principal
+		method    string
+		path      string
+		want      int
 	}{
 		// Ordinary group: only mutations require admin.
 		{"admin mutates ordinary", admin, http.MethodPost, "/probe", http.StatusCreated},
@@ -98,7 +99,7 @@ func TestAdminModifiersGateByRoleAndMethod(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequestWithContext(context.Background(), tc.method, tc.path, nil)
-			postureHandler(tc.user).ServeHTTP(rec, req)
+			postureHandler(tc.principal).ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("%s %s = %d, want %d; body = %q", tc.method, tc.path, rec.Code, tc.want, rec.Body.String())
 			}
@@ -107,29 +108,32 @@ func TestAdminModifiersGateByRoleAndMethod(t *testing.T) {
 }
 
 type fakeAuthenticator struct {
-	user *directory.User
-	err  error
-	got  string
+	principal *auth.Principal
+	err       error
+	got       string
 }
 
-func (f *fakeAuthenticator) Authenticate(_ context.Context, authHeader string) (*directory.User, error) {
+func (f *fakeAuthenticator) Authenticate(_ context.Context, authHeader string) (*auth.Principal, error) {
 	f.got = authHeader
 	if f.err != nil {
 		return nil, f.err
 	}
-	return f.user, nil
+	return f.principal, nil
 }
 
-func TestRequireHTTPAuthAttachesUser(t *testing.T) {
-	role := directory.RoleAdmin
-	authenticator := &fakeAuthenticator{user: &directory.User{ID: 42, Role: &role}}
+func TestRequireHTTPAuthAttachesPrincipal(t *testing.T) {
+	userID := int64(42)
+	authenticator := &fakeAuthenticator{principal: &auth.Principal{
+		UserID: &userID,
+		Role:   directory.RoleAdmin,
+	}}
 	handler := RequireHTTPAuth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		user, ok := ctxkeys.User(req.Context())
+		principal, ok := ctxkeys.Principal(req.Context())
 		if !ok {
-			t.Fatal("missing user in context")
+			t.Fatal("missing principal in context")
 		}
-		if user.ID != 42 {
-			t.Fatalf("user id = %d, want 42", user.ID)
+		if principal.UserID == nil || *principal.UserID != 42 {
+			t.Fatalf("principal = %+v, want user ID 42", principal)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -177,8 +181,8 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 			OperationID: "optional-auth", Method: http.MethodGet, Path: "/session",
 		}, func(ctx context.Context, _ *struct{}) (*output, error) {
 			out := &output{}
-			if user, ok := ctxkeys.User(ctx); ok {
-				out.Body.UserID = user.ID
+			if principal, ok := ctxkeys.Principal(ctx); ok && principal.UserID != nil {
+				out.Body.UserID = *principal.UserID
 			}
 			return out, nil
 		})
@@ -197,10 +201,13 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 			wantStatus:    http.StatusOK,
 		},
 		{
-			name:          "user attached",
-			authenticator: &fakeAuthenticator{user: &directory.User{ID: 7}},
-			wantStatus:    http.StatusOK,
-			wantUserID:    7,
+			name: "user attached",
+			authenticator: func() *fakeAuthenticator {
+				userID := int64(7)
+				return &fakeAuthenticator{principal: &auth.Principal{UserID: &userID}}
+			}(),
+			wantStatus: http.StatusOK,
+			wantUserID: 7,
 		},
 		{
 			name:          "broken auth lookup fails",

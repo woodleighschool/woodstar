@@ -10,58 +10,50 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// SetupParams contains the first administrator account fields.
-type SetupParams struct {
+// LoginParams contains a local-login attempt and its resolved client address.
+type LoginParams struct {
+	ClientIP string
 	Email    string
-	Name     string
 	Password string
 }
 
-// SetupComplete reports whether initial setup has completed.
-func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
-	return s.users.SetupComplete(ctx)
-}
-
-// Setup creates the first administrator account and starts a session.
-func (s *Service) Setup(ctx context.Context, params SetupParams) (*directory.User, error) {
-	user, err := s.users.CreateInitialAdministrator(ctx, directory.UserCreate{
-		Email:    params.Email,
-		Name:     params.Name,
-		Password: params.Password,
-	})
-	if errors.Is(err, directory.ErrSetupComplete) {
-		return nil, ErrAlreadySetup
-	}
-	if err != nil {
-		return nil, fmt.Errorf("create setup user: %w", err)
+// Login checks local credentials and starts a session. The configured initial
+// administrator owns its email on this login path and never falls through to a
+// directory account with the same email.
+func (s *Service) Login(ctx context.Context, params LoginParams) (*Principal, error) {
+	email := strings.ToLower(strings.TrimSpace(params.Email))
+	key := loginAttemptKey{clientIP: params.ClientIP, email: email}
+	if !s.loginLimiter.allow(key) {
+		return nil, ErrTooManyAttempts
 	}
 
-	if err := s.startSession(ctx, user.ID); err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
-// Login checks local credentials and starts a session.
-func (s *Service) Login(ctx context.Context, email string, password string) (*directory.User, error) {
-	email = strings.TrimSpace(email)
-	complete, err := s.users.SetupComplete(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("check setup state: %w", err)
-	}
-	if !complete {
-		return nil, ErrNotSetup
+	if s.initialAdmin != nil && email == s.initialAdmin.email {
+		valid, err := directory.VerifyPassword(params.Password, s.initialAdmin.passwordHash)
+		if err != nil {
+			return nil, fmt.Errorf("verify initial admin password: %w", err)
+		}
+		if !valid {
+			return nil, ErrInvalidCredentials
+		}
+		if err := s.startInitialAdminSession(ctx); err != nil {
+			return nil, err
+		}
+		s.loginLimiter.reset(key)
+		return s.initialAdmin.principal(), nil
 	}
 
 	user, err := s.users.GetLoginByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
+		if _, verifyErr := directory.VerifyPassword(params.Password, s.dummyHash); verifyErr != nil {
+			return nil, fmt.Errorf("verify dummy password: %w", verifyErr)
+		}
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	valid, err := directory.VerifyPassword(password, user.PasswordHash)
+	valid, err := directory.VerifyPassword(params.Password, user.PasswordHash)
 	if err != nil {
 		return nil, fmt.Errorf("verify password: %w", err)
 	}
@@ -69,8 +61,9 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*di
 		return nil, ErrInvalidCredentials
 	}
 
-	if err := s.startSession(ctx, user.ID); err != nil {
+	if err := s.startPersistedSession(ctx, user.ID); err != nil {
 		return nil, err
 	}
-	return user, nil
+	s.loginLimiter.reset(key)
+	return principalFromUser(user), nil
 }

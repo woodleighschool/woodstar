@@ -24,7 +24,7 @@ func (transport bearerTransport) RoundTrip(request *http.Request) (*http.Respons
 	return transport.base.RoundTrip(request)
 }
 
-func setupAdmin(
+func provisionAdmin(
 	t *testing.T,
 	server *testServer,
 	email string,
@@ -34,24 +34,45 @@ func setupAdmin(
 	t.Helper()
 
 	sessionClient := newAdminAPIClient(t, server.BaseURL, server.Client)
-	setup, err := sessionClient.CompleteSetupWithResponse(
+	initialLogin, err := sessionClient.CreateSessionWithResponse(
 		t.Context(),
-		adminapi.CompleteSetupJSONRequestBody{
-			Email:    openapi_types.Email(email),
-			Name:     new(name),
-			Password: password,
+		adminapi.CreateSessionJSONRequestBody{
+			Email:    openapi_types.Email(testInitialAdminEmail),
+			Password: testInitialAdminPassword,
 		},
 	)
-	setup = requireAPIResponse(t, "complete setup", http.StatusCreated, setup, err)
-	if setup.JSON201 == nil || setup.JSON201.Id <= 0 || string(setup.JSON201.Email) != email {
-		t.Fatalf("setup user = %+v, want created administrator %q", setup.JSON201, email)
+	initialLogin = requireAPIResponse(t, "log in as initial administrator", http.StatusOK, initialLogin, err)
+	if initialLogin.JSON200 == nil || initialLogin.JSON200.Id != nil ||
+		string(initialLogin.JSON200.Email) != testInitialAdminEmail {
+		t.Fatalf("initial administrator = %+v, want non-persisted principal", initialLogin.JSON200)
 	}
+
+	created, err := sessionClient.CreateUserWithResponse(t.Context(), adminapi.CreateUserJSONRequestBody{
+		Email:    openapi_types.Email(email),
+		Name:     new(name),
+		Password: password,
+		Role:     adminapi.UserCreateRoleAdmin,
+	})
+	created = requireAPIResponse(t, "create persisted administrator", http.StatusCreated, created, err)
+	if created.JSON201 == nil || created.JSON201.Id <= 0 || string(created.JSON201.Email) != email {
+		t.Fatalf("created user = %+v, want persisted administrator %q", created.JSON201, email)
+	}
+
+	login, err := sessionClient.CreateSessionWithResponse(t.Context(), adminapi.CreateSessionJSONRequestBody{
+		Email:    openapi_types.Email(email),
+		Password: password,
+	})
+	login = requireAPIResponse(t, "log in as persisted administrator", http.StatusOK, login, err)
+	if login.JSON200 == nil || login.JSON200.Id == nil || *login.JSON200.Id != created.JSON201.Id {
+		t.Fatalf("persisted principal = %+v, want user %d", login.JSON200, created.JSON201.Id)
+	}
+
 	secureSession := false
-	for _, cookie := range setup.HTTPResponse.Cookies() {
+	for _, cookie := range login.HTTPResponse.Cookies() {
 		secureSession = secureSession || cookie.Name == "woodstar_session" && cookie.Secure
 	}
 	if !secureSession {
-		t.Fatal("setup response did not issue a secure session cookie")
+		t.Fatal("login response did not issue a secure session cookie")
 	}
 
 	rotated, err := sessionClient.RotateAccountApiKeyWithResponse(t.Context())
@@ -71,8 +92,8 @@ func setupAdmin(
 
 	account, err := server.Admin.GetAccountWithResponse(t.Context())
 	account = requireAPIResponse(t, "get account with administrator API key", http.StatusOK, account, err)
-	if account.JSON200 == nil || account.JSON200.User.Id != setup.JSON201.Id {
-		t.Fatalf("API-key account = %+v, want setup user %d", account.JSON200, setup.JSON201.Id)
+	if account.JSON200 == nil || account.JSON200.User.Id != created.JSON201.Id {
+		t.Fatalf("API-key account = %+v, want persisted user %d", account.JSON200, created.JSON201.Id)
 	}
 }
 

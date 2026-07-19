@@ -75,7 +75,7 @@ func TestOsquery(t *testing.T) {
 	server.redact(enrollSecret)
 	agentClient := verifyingClient(t, server.CACertificate)
 
-	setupAdmin(
+	provisionAdmin(
 		t,
 		server,
 		"admin@woodstar.test",

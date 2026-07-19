@@ -210,8 +210,6 @@ func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, directory.ErrLastAdministrator):
-		return huma.Error409Conflict(directory.ErrLastAdministrator.Error())
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:

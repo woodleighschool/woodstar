@@ -56,6 +56,8 @@ WOODSTAR_PORT=8443 \
 WOODSTAR_URL='https://woodstar:8443' \
 WOODSTAR_TLS_CERT_FILE='./tmp/tls/woodstar.pem' \
 WOODSTAR_TLS_KEY_FILE='./tmp/tls/woodstar-key.pem' \
+WOODSTAR_INITIAL_ADMIN_EMAIL='admin@example.com' \
+WOODSTAR_INITIAL_ADMIN_PASSWORD='woodstar-development' \
 WOODSTAR_STORAGE_CAPABILITY_KEY="$(openssl rand -hex 32)" \
   mise exec -- go run ./cmd/woodstar serve
 ```
@@ -100,6 +102,6 @@ Munki and Santa use macOS trust evaluation. Deliver the CA as a trusted certific
 
 System trust remains opt-in. `mise run dev-tls-trust` trusts the CA only on the development machine where the command runs; it does not change a test VM.
 
-## First admin account
+## Initial administrator
 
-On a fresh database there are no accounts yet. Start the backend, open the app, and the setup flow walks you through creating the first local admin. From there, sign-in works as described in [Authentication](../configuration/authentication).
+The checked-in `.env.example` contains local initial-administrator credentials. Start the backend and sign in with those values; change them before exposing the server beyond your machine.

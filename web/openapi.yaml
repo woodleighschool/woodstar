@@ -2704,6 +2704,27 @@ components:
         - executable_sha256
         - executable_path
       type: object
+    Principal:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          type: string
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        role:
+          enum:
+            - admin
+            - viewer
+          type: string
+      required:
+        - email
+        - name
+        - role
+      type: object
     SantaBundleReference:
       additionalProperties: false
       properties:
@@ -3649,14 +3670,11 @@ components:
     SessionBody:
       additionalProperties: false
       properties:
-        setup_complete:
-          type: boolean
         sso_enabled:
           type: boolean
         user:
-          $ref: "#/components/schemas/User"
+          $ref: "#/components/schemas/Principal"
       required:
-        - setup_complete
         - sso_enabled
       type: object
     SessionCreateInputBody:
@@ -3667,21 +3685,6 @@ components:
           type: string
         password:
           minLength: 1
-          type: string
-      required:
-        - email
-        - password
-      type: object
-    SetupInputBody:
-      additionalProperties: false
-      properties:
-        email:
-          format: email
-          type: string
-        name:
-          type: string
-        password:
-          minLength: 12
           type: string
       required:
         - email
@@ -3863,12 +3866,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
-        default:
+        "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
-          description: Error
+          description: Not Found
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
       security:
         - cookieAuth: []
         - bearerAuth: []
@@ -3902,6 +3911,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
         "409":
           content:
             application/problem+json:
@@ -3942,12 +3957,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
-        default:
+        "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
-          description: Error
+          description: Not Found
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
       security:
         - cookieAuth: []
         - bearerAuth: []
@@ -3969,12 +3990,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
-        default:
+        "404":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
-          description: Error
+          description: Not Found
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
       security:
         - cookieAuth: []
         - bearerAuth: []
@@ -9168,7 +9195,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Get setup state and the current signed-in user, if any
+      summary: Get the current signed-in principal, if any
       tags:
         - Auth
     post:
@@ -9184,7 +9211,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/Principal"
           description: OK
         "400":
           content:
@@ -9198,18 +9225,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Too Many Requests
         "500":
           content:
             application/problem+json:
@@ -9219,49 +9246,6 @@ paths:
       summary: Create a local admin session
       tags:
         - Auth
-  /api/setup:
-    post:
-      operationId: complete-setup
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SetupInputBody"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Create the first administrator account
-      tags:
-        - Setup
   /api/software:
     get:
       operationId: list-software

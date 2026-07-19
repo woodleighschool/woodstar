@@ -12,7 +12,7 @@ import { router } from "@/router";
 
 declare module "@tanstack/react-query" {
   // Typed mutation meta. inlineError renders a mutation's error on the form
-  // instead of the global toast (the pre-auth login/setup forms).
+  // instead of the global toast (the pre-auth login form).
   interface Register {
     mutationMeta: { inlineError?: boolean };
   }

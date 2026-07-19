@@ -1,14 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 
-import type {
-  ApiError,
-  SessionBody,
-  SessionCreateInputBody,
-  SetupInputBody,
-  User,
-} from "@/lib/api";
-import { completeSetup, createSession, deleteSession, unwrap } from "@/lib/api";
+import type { ApiError, Principal, SessionBody, SessionCreateInputBody } from "@/lib/api";
+import { createSession, deleteSession, unwrap } from "@/lib/api";
 import { type CurrentUser, sessionQueryOptions } from "@/lib/session";
 
 export type { CurrentUser };
@@ -39,23 +33,12 @@ export function useLogout() {
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  return useMutation<User, ApiError, SessionCreateInputBody>({
+  return useMutation<Principal, ApiError, SessionCreateInputBody>({
     mutationFn: (body) => unwrap(createSession({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
       await router.navigate({ to: "/hosts" });
-    },
-  });
-}
-
-export function useSetup() {
-  const queryClient = useQueryClient();
-  return useMutation<User, ApiError, SetupInputBody>({
-    mutationFn: (body) => unwrap(completeSetup({ body })),
-    meta: { inlineError: true },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
     },
   });
 }

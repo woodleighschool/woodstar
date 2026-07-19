@@ -184,7 +184,7 @@ export function UserListPage() {
               icon={<Users />}
               filtered={hasFilters}
               title="No users"
-              description="Users appear after setup or sync."
+              description="Create a local user or configure directory sync."
               filteredDescription="No users matched the current filters."
             />
           }

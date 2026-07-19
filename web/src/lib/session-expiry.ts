@@ -7,7 +7,7 @@ export function expireSession(
   path: string,
   navigateToLogin: () => Promise<void>,
 ): void {
-  if (path === "/login" || path === "/setup" || redirecting) return;
+  if (path === "/login" || redirecting) return;
 
   redirecting = true;
   queryClient.clear();

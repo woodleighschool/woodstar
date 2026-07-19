@@ -30,7 +30,7 @@ func TestOsqueryd(t *testing.T) {
 	requireOsquerydProvider(t)
 	server := startTestServer(t)
 
-	setupAdmin(
+	provisionAdmin(
 		t,
 		server,
 		"admin@woodstar.test",

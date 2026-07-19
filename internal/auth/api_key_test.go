@@ -25,7 +25,10 @@ func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 	}
 	sessions := scs.New()
 	sessions.Store = memstore.New()
-	service := NewService(userService, sessions)
+	service := testAuthService(t, userService, sessions, InitialAdminConfig{
+		Email:    user.Email,
+		Password: "configured-password",
+	})
 
 	first, err := service.RotateAPIKey(ctx, user.ID)
 	if err != nil {
@@ -46,14 +49,14 @@ func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 		t.Fatal("second rotated api key did not replace the first")
 	}
 
-	got, err := service.userByAPIKey(ctx, second.APIKey)
+	got, err := service.principalByAPIKey(ctx, second.APIKey)
 	if err != nil {
 		t.Fatalf("authenticate with second api key: %v", err)
 	}
-	if got.ID != user.ID {
-		t.Fatalf("api key user id = %d, want %d", got.ID, user.ID)
+	if got.UserID == nil || *got.UserID != user.ID {
+		t.Fatalf("api key principal = %+v, want user %d", got, user.ID)
 	}
-	if _, err := service.userByAPIKey(ctx, first.APIKey); !errors.Is(err, ErrNotAuthenticated) {
+	if _, err := service.principalByAPIKey(ctx, first.APIKey); !errors.Is(err, ErrNotAuthenticated) {
 		t.Fatalf("authenticate with first api key error = %v, want %v", err, ErrNotAuthenticated)
 	}
 }

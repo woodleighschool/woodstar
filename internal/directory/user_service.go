@@ -2,14 +2,6 @@ package directory
 
 import (
 	"context"
-	"errors"
-)
-
-var (
-	// ErrSetupComplete is returned when initial setup has already completed.
-	ErrSetupComplete = errors.New("initial setup is complete")
-	// ErrLastAdministrator is returned when a mutation would remove the final active administrator.
-	ErrLastAdministrator = errors.New("at least one active administrator is required")
 )
 
 // UserService owns user management and app-access policy.
@@ -20,16 +12,6 @@ type UserService struct {
 // NewUserService returns the user-management service.
 func NewUserService(store *Store) *UserService {
 	return &UserService{store: store}
-}
-
-// ActiveAdministratorExists reports whether a current user has the administrator role.
-func (s *UserService) ActiveAdministratorExists(ctx context.Context) (bool, error) {
-	return s.store.ActiveAdministratorExists(ctx)
-}
-
-// SetupComplete reports whether initial setup has completed.
-func (s *UserService) SetupComplete(ctx context.Context) (bool, error) {
-	return s.store.SetupComplete(ctx)
 }
 
 func (s *UserService) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
@@ -74,31 +56,6 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         params.Role,
-	})
-}
-
-// CreateInitialAdministrator completes setup with a local administrator.
-func (s *UserService) CreateInitialAdministrator(ctx context.Context, params UserCreate) (*User, error) {
-	params.Role = RoleAdmin
-	params.normalize()
-	if err := params.validate(); err != nil {
-		return nil, err
-	}
-	complete, err := s.store.SetupComplete(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if complete {
-		return nil, ErrSetupComplete
-	}
-	hash, err := HashPassword(params.Password)
-	if err != nil {
-		return nil, err
-	}
-	return s.store.createInitialAdministrator(ctx, initialAdministratorRecord{
-		Email:        params.Email,
-		Name:         params.Name,
-		PasswordHash: hash,
 	})
 }
 

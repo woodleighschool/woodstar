@@ -43,6 +43,8 @@ const (
 	serverLogTailLimit                = 64 << 10
 	testStorageCapabilityKeyByteCount = 32
 	testStorageTransferTTL            = 7 * time.Minute
+	testInitialAdminEmail             = "initial-admin@woodstar.test"
+	testInitialAdminPassword          = "initial-admin-password"
 )
 
 type testServer struct {
@@ -131,7 +133,7 @@ func startTestServer(t *testing.T) *testServer {
 		CACertificatePath:    tlsMaterial.caPath,
 		logPath:              logPath,
 	}
-	server.redact(storageCapabilityKey, databaseURL)
+	server.redact(storageCapabilityKey, databaseURL, testInitialAdminPassword)
 	if parsedDatabaseURL, parseErr := url.Parse(databaseURL); parseErr == nil && parsedDatabaseURL.User != nil {
 		if password, ok := parsedDatabaseURL.User.Password(); ok {
 			server.redact(password)
@@ -471,6 +473,8 @@ func woodstarCommand(
 		"WOODSTAR_STORAGE_KIND=file",
 		"WOODSTAR_STORAGE_FILE_ROOT="+storageRoot,
 		"WOODSTAR_STORAGE_TRANSFER_TTL="+testStorageTransferTTL.String(),
+		"WOODSTAR_INITIAL_ADMIN_EMAIL="+testInitialAdminEmail,
+		"WOODSTAR_INITIAL_ADMIN_PASSWORD="+testInitialAdminPassword,
 	)
 	command.Stdout = logFile
 	command.Stderr = logFile

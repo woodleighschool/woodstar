@@ -12,7 +12,11 @@ import (
 
 func TestOIDCStartReturnsNotFoundWhenDisabled(t *testing.T) {
 	router := chi.NewRouter()
-	registerOIDC(router, auth.NewService(nil, nil), discardLogger())
+	service, err := auth.NewService(nil, testSessionManager(), auth.InitialAdminConfig{})
+	if err != nil {
+		t.Fatalf("create auth service: %v", err)
+	}
+	registerOIDC(router, service, discardLogger())
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/auth/sso/start", nil)
