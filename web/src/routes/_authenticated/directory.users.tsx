@@ -1,3 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/directory/users")({});
+export const Route = createFileRoute("/_authenticated/directory/users")({
+  staticData: { breadcrumb: "Users" },
+});

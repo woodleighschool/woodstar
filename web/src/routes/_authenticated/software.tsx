@@ -1,3 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/software")({});
+export const Route = createFileRoute("/_authenticated/software")({
+  staticData: { breadcrumb: "Software" },
+});

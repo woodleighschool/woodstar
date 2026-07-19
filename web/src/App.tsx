@@ -1,12 +1,13 @@
-import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { toast, Toaster } from "sonner";
+import { Toaster } from "sonner";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setUnauthorizedHandler } from "@/lib/api";
 import { expireSession } from "@/lib/session-expiry";
+import { queryClient } from "@/query-client";
 import { router } from "@/router";
 
 declare module "@tanstack/react-query" {
@@ -16,28 +17,6 @@ declare module "@tanstack/react-query" {
     mutationMeta: { inlineError?: boolean };
   }
 }
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-      retry: false,
-      retryOnMount: false,
-    },
-  },
-  // Mutation errors surface as a toast unless the mutation handles them itself:
-  // an explicit onError, or meta.inlineError for the auth forms that render the
-  // error in place.
-  mutationCache: new MutationCache({
-    onError: (error, _variables, _context, mutation) => {
-      if (mutation.meta?.inlineError || mutation.options.onError) return;
-      toast.error(error instanceof Error ? error.message : "Request failed");
-    },
-  }),
-});
 
 setUnauthorizedHandler(() =>
   expireSession(queryClient, router.state.location.pathname, () =>

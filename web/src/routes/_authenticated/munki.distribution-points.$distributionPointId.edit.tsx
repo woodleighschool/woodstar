@@ -5,5 +5,6 @@ import { DistributionPointEditPage } from "@/pages/munki/distribution-points/edi
 export const Route = createFileRoute(
   "/_authenticated/munki/distribution-points/$distributionPointId/edit",
 )({
+  staticData: { breadcrumb: "Edit" },
   component: DistributionPointEditPage,
 });

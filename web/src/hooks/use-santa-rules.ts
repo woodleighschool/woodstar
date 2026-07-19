@@ -6,15 +6,14 @@ import {
   bulkDeleteSantaRules,
   createSantaRule,
   deleteSantaRule,
-  getSantaRule,
   listSantaRules,
   unwrap,
   updateSantaRule,
 } from "@/lib/api";
 import type { ListSantaRulesData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { santaRuleQueryOptions } from "@/lib/queries/santa";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
 
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
 
@@ -32,17 +31,7 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
 }
 
 export function useSantaRule(id: number | null) {
-  return useQuery<SantaRule, ApiError>({
-    queryKey: queryKeys.santaRule(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getSantaRule({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(santaRuleQueryOptions(id));
 }
 
 export function useCreateSantaRule() {

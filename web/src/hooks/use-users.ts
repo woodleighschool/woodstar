@@ -5,7 +5,6 @@ import type { ApiError, PageDepartment, PageUser, User, UserCreate, UserMutation
 import {
   createUser,
   deleteUser,
-  getUser,
   listUserDepartments,
   listUsers,
   unwrap,
@@ -13,8 +12,9 @@ import {
 } from "@/lib/api";
 import type { ListUserDepartmentsData, ListUsersData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { userQueryOptions } from "@/lib/queries/users";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
+import { sessionQueryOptions } from "@/lib/session";
 
 export type UserListParams = NonNullable<ListUsersData["query"]>;
 export type DepartmentListParams = NonNullable<ListUserDepartmentsData["query"]>;
@@ -73,20 +73,6 @@ export function useUserDepartments(params: DepartmentListParams = {}) {
   });
 }
 
-export function useUser(id: number | null) {
-  return useQuery<User, ApiError>({
-    queryKey: queryKeys.user(id),
-    enabled: id !== null,
-    queryFn: async ({ signal }) =>
-      unwrap(
-        getUser({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-  });
-}
-
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreate>({
@@ -96,6 +82,10 @@ export function useCreateUser() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });
     },
   });
+}
+
+export function useUser(id: number | null) {
+  return useQuery(userQueryOptions(id));
 }
 
 export function useUpdateUser() {
@@ -114,7 +104,7 @@ export function useUpdateUser() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.usersAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.groupsAll }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.session }),
+        queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey }),
       ]);
     },
   });

@@ -2,9 +2,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import type { ApiError, Label, LabelMutation, PageLabel } from "@/lib/api";
-import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@/lib/api";
+import { createLabel, deleteLabel, listLabels, unwrap, updateLabel } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { labelQueryOptions } from "@/lib/queries/labels";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
@@ -34,17 +35,7 @@ export function useLabels(params: LabelListParams = {}, options: RefetchOptions 
 }
 
 export function useLabel(id: number | null) {
-  return useQuery<Label, ApiError>({
-    queryKey: queryKeys.label(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getLabel({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(labelQueryOptions(id));
 }
 
 export function useCreateLabel() {

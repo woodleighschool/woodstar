@@ -1,3 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/osquery/checks")({});
+export const Route = createFileRoute("/_authenticated/osquery/checks")({
+  staticData: { breadcrumb: "Checks" },
+});

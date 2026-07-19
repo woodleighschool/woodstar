@@ -11,15 +11,14 @@ import type {
 import {
   bulkDeleteMunkiPackages,
   createMunkiPackage,
-  getMunkiPackage,
   listMunkiPackages,
   unwrap,
   updateMunkiPackage,
 } from "@/lib/api";
 import type { ListMunkiPackagesData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { munkiPackageQueryOptions } from "@/lib/queries/munki";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
 
 type MunkiPackageListParams = NonNullable<ListMunkiPackagesData["query"]>;
 
@@ -41,11 +40,7 @@ export function useMunkiPackages(params: MunkiPackageListParams = {}) {
 }
 
 export function useMunkiPackage(id: number | null) {
-  return useQuery<MunkiPackage, ApiError>({
-    queryKey: queryKeys.munkiPackage(id),
-    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: detailPath(id), signal })),
-    enabled: id !== null,
-  });
+  return useQuery(munkiPackageQueryOptions(id));
 }
 
 export function useCreateMunkiPackage() {

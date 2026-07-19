@@ -9,6 +9,7 @@ import {
   updateAccount,
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { sessionQueryOptions } from "@/lib/session";
 
 export function useAccount() {
   return useQuery<Account, ApiError>({
@@ -24,7 +25,7 @@ export function useUpdateAccount() {
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
       queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
-      queryClient.setQueryData(queryKeys.session, (session: SessionBody | undefined) =>
+      queryClient.setQueryData(sessionQueryOptions.queryKey, (session: SessionBody | undefined) =>
         session ? { ...session, user: account.user } : session,
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.usersAll });

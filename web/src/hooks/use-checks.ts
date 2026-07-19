@@ -12,7 +12,6 @@ import {
   bulkDeleteOsqueryChecks,
   createOsqueryCheck,
   deleteOsqueryCheck,
-  getOsqueryCheck,
   listOsqueryCheckResults,
   listOsqueryChecks,
   unwrap,
@@ -23,6 +22,7 @@ import type {
   ListOsqueryChecksData,
 } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { checkQueryOptions } from "@/lib/queries/osquery";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
@@ -43,17 +43,7 @@ export function useChecks(params: CheckListParams = {}) {
 }
 
 export function useCheck(id: number | null) {
-  return useQuery<OsqueryCheck, ApiError>({
-    queryKey: queryKeys.check(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getOsqueryCheck({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(checkQueryOptions(id));
 }
 
 export function useCheckResults(id: number | null, params: CheckResultsParams = {}) {

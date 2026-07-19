@@ -1,3 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/munki/software")({});
+export const Route = createFileRoute("/_authenticated/munki/software")({
+  staticData: { breadcrumb: "Software" },
+});

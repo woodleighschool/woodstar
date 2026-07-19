@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import * as React from "react";
 
 import type {
   ApiError,
@@ -9,17 +8,13 @@ import type {
   SetupInputBody,
   User,
 } from "@/lib/api";
-import { completeSetup, createSession, deleteSession, getSession, unwrap } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
-import { expireSession } from "@/lib/session-expiry";
+import { completeSetup, createSession, deleteSession, unwrap } from "@/lib/api";
+import { type CurrentUser, sessionQueryOptions } from "@/lib/session";
 
-export type CurrentUser = NonNullable<SessionBody["user"]>;
+export type { CurrentUser };
 
 export function useSession(): { session: SessionBody | null; isLoading: boolean } {
-  const { data, isLoading } = useQuery<SessionBody, ApiError>({
-    queryKey: queryKeys.session,
-    queryFn: async ({ signal }) => unwrap(getSession({ signal })),
-  });
+  const { data, isLoading } = useQuery(sessionQueryOptions);
 
   return { session: data ?? null, isLoading };
 }
@@ -27,20 +22,6 @@ export function useSession(): { session: SessionBody | null; isLoading: boolean 
 export function useAuth(): { user: CurrentUser | null } {
   const { session } = useSession();
   return { user: session?.user ?? null };
-}
-
-export function useSessionGuard(): void {
-  const { session } = useSession();
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  React.useEffect(() => {
-    if (session && !session.user) {
-      expireSession(queryClient, router.state.location.pathname, () =>
-        router.navigate({ to: "/login", replace: true }),
-      );
-    }
-  }, [queryClient, router, session]);
 }
 
 export function useLogout() {
@@ -62,7 +43,7 @@ export function useLogin() {
     mutationFn: (body) => unwrap(createSession({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+      await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
       await router.navigate({ to: "/hosts" });
     },
   });
@@ -74,7 +55,7 @@ export function useSetup() {
     mutationFn: (body) => unwrap(completeSetup({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+      await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
     },
   });
 }

@@ -16,7 +16,6 @@ import {
   bulkDeleteHosts,
   clearHostPrimaryUser,
   deleteHost,
-  getHost,
   getHostMunkiState,
   getHostSantaState,
   listHostOsqueryChecks,
@@ -34,6 +33,7 @@ import type {
   ListHostSoftwareData,
 } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { hostQueryOptions } from "@/lib/queries/hosts";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
@@ -73,18 +73,7 @@ export function useHosts(params: HostListParams = {}, options: RefetchOptions = 
 }
 
 export function useHost(id: number | null, options: RefetchOptions = {}) {
-  return useQuery<HostDetail, ApiError>({
-    queryKey: queryKeys.host(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getHost({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-    refetchInterval: options.refetchInterval,
-  });
+  return useQuery(hostQueryOptions(id, options));
 }
 
 export function useHostMunkiState(id: number | null) {

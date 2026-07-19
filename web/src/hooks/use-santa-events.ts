@@ -1,26 +1,14 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import type {
-  ApiError,
-  PageExecutionEvent,
-  PageFileAccessEvent,
-  SantaExecutionEvent,
-  SantaFileAccessEvent,
-} from "@/lib/api";
-import {
-  getSantaEvent,
-  getSantaFileAccessEvent,
-  listSantaEvents,
-  listSantaFileAccessEvents,
-  unwrap,
-} from "@/lib/api";
+import type { ApiError, PageExecutionEvent, PageFileAccessEvent } from "@/lib/api";
+import { listSantaEvents, listSantaFileAccessEvents, unwrap } from "@/lib/api";
 import type {
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
 } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { santaEventQueryOptions, santaFileAccessEventQueryOptions } from "@/lib/queries/santa";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
 import { nonEmpty } from "@/lib/utils";
 
 export type SantaEventListParams = Omit<NonNullable<ListSantaEventsData["query"]>, "since">;
@@ -51,17 +39,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
 }
 
 export function useSantaEvent(id: number | null) {
-  return useQuery<SantaExecutionEvent, ApiError>({
-    queryKey: queryKeys.santaEvent(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getSantaEvent({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(santaEventQueryOptions(id));
 }
 
 export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams = {}) {
@@ -80,15 +58,5 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
 }
 
 export function useSantaFileAccessEvent(id: number | null) {
-  return useQuery<SantaFileAccessEvent, ApiError>({
-    queryKey: queryKeys.santaFileAccessEvent(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getSantaFileAccessEvent({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(santaFileAccessEventQueryOptions(id));
 }

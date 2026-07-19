@@ -12,15 +12,14 @@ import {
   bulkDeleteMunkiSoftware,
   createMunkiSoftware,
   deleteMunkiSoftware,
-  getMunkiSoftware,
   listMunkiSoftware,
   unwrap,
   updateMunkiSoftware,
 } from "@/lib/api";
 import type { ListMunkiSoftwareData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { munkiSoftwareQueryOptions } from "@/lib/queries/munki";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
 
@@ -34,11 +33,7 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
 }
 
 export function useMunkiSoftwareDetail(id: number | null) {
-  return useQuery<MunkiSoftwareDetail, ApiError>({
-    queryKey: queryKeys.munkiSoftwareDetail(id),
-    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: detailPath(id), signal })),
-    enabled: id !== null,
-  });
+  return useQuery(munkiSoftwareQueryOptions(id));
 }
 
 export function useCreateMunkiSoftware() {

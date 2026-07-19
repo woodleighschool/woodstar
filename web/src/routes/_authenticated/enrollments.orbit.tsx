@@ -1,5 +1,8 @@
-import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { OrbitEnrollmentsPage } from "@/pages/enrollments/orbit";
 
 export const Route = createFileRoute("/_authenticated/enrollments/orbit")({
-  component: lazyRouteComponent(() => import("@/pages/enrollments/orbit"), "OrbitEnrollmentsPage"),
+  staticData: { breadcrumb: "Orbit" },
+  component: OrbitEnrollmentsPage,
 });

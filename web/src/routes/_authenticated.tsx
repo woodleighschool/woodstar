@@ -4,6 +4,6 @@ import { AppLayout } from "@/layouts/app-layout";
 import { requireUser } from "@/lib/auth-router";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: requireUser,
+  beforeLoad: ({ context }) => requireUser(context.queryClient),
   component: AppLayout,
 });

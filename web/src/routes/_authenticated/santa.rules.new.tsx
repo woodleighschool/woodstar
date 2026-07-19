@@ -11,6 +11,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/santa/rules/new")({
+  staticData: { breadcrumb: "New" },
   validateSearch: (search) => searchSchema.parse(search),
   component: RuleCreatePage,
 });

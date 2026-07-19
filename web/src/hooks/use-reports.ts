@@ -12,7 +12,6 @@ import {
   bulkDeleteOsqueryReports,
   createOsqueryReport,
   deleteOsqueryReport,
-  getOsqueryReport,
   listOsqueryReportResults,
   listOsqueryReports,
   unwrap,
@@ -20,6 +19,7 @@ import {
 } from "@/lib/api";
 import type { ListOsqueryReportsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { reportQueryOptions } from "@/lib/queries/osquery";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
@@ -38,17 +38,7 @@ export function useReports(params: ReportListParams = {}) {
 }
 
 export function useReport(id: number | null) {
-  return useQuery<OsqueryReport, ApiError>({
-    queryKey: queryKeys.report(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getOsqueryReport({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(reportQueryOptions(id));
 }
 
 export function useReportResults(id: number | null) {

@@ -1,9 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import type { ApiError, PageSoftwareTitle, SantaSoftwareReference, SoftwareTitle } from "@/lib/api";
-import { getSoftware, getSoftwareSantaReference, listSoftware, nullOn404, unwrap } from "@/lib/api";
+import type { ApiError, PageSoftwareTitle, SantaSoftwareReference } from "@/lib/api";
+import { getSoftwareSantaReference, listSoftware, nullOn404, unwrap } from "@/lib/api";
 import type { ListSoftwareData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { softwareTitleQueryOptions } from "@/lib/queries/software";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
@@ -33,18 +34,7 @@ export function useSoftware(params: SoftwareListParams = {}, options: RefetchOpt
 }
 
 export function useSoftwareTitle(id: number | null, options: RefetchOptions = {}) {
-  return useQuery<SoftwareTitle, ApiError>({
-    queryKey: queryKeys.softwareTitle(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getSoftware({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-    refetchInterval: options.refetchInterval,
-  });
+  return useQuery(softwareTitleQueryOptions(id, options));
 }
 
 export function useSoftwareSantaReference(id: number | null) {

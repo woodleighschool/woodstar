@@ -12,7 +12,6 @@ import {
   bulkDeleteSantaConfigurations,
   createSantaConfiguration,
   deleteSantaConfiguration,
-  getSantaConfiguration,
   listSantaConfigurations,
   reorderSantaConfigurations,
   unwrap,
@@ -20,8 +19,8 @@ import {
 } from "@/lib/api";
 import type { ListSantaConfigurationsData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
+import { santaConfigurationQueryOptions } from "@/lib/queries/santa";
 import { queryKeys } from "@/lib/query-keys";
-import { detailPath } from "@/lib/route-params";
 
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]
@@ -40,17 +39,7 @@ export function useSantaConfigurations(params: SantaListParams = {}) {
 }
 
 export function useSantaConfiguration(id: number | null) {
-  return useQuery<SantaConfiguration, ApiError>({
-    queryKey: queryKeys.santaConfiguration(id),
-    queryFn: ({ signal }) =>
-      unwrap(
-        getSantaConfiguration({
-          path: detailPath(id),
-          signal,
-        }),
-      ),
-    enabled: id !== null,
-  });
+  return useQuery(santaConfigurationQueryOptions(id));
 }
 
 export function useCreateSantaConfiguration() {
