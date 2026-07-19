@@ -3,7 +3,6 @@ package packages
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"strings"
 	"testing"
 
@@ -12,11 +11,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestPackageUpdateSucceedsWhenDetachedInstallerCleanupFails(t *testing.T) {
+func TestPackageUpdateQueuesReplacedInstallerForDeletion(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	registry := storage.NewObjectStore(db, nil)
-	objects := &failingObjectStore{err: errors.New("storage unavailable")}
-	store := NewStore(db, objects, slog.New(slog.DiscardHandler))
+	registry := storage.NewObjectStore(db, unavailableBackend{})
+	store := NewStore(db, registry)
 	softwareID := insertSoftware(t, ctx, db, "CleanupFailure")
 	oldInstaller := createAvailableInstaller(t, ctx, registry, "old.pkg")
 	replacement := createAvailableInstaller(t, ctx, registry, "replacement.pkg")
@@ -39,24 +37,31 @@ func TestPackageUpdateSucceedsWhenDetachedInstallerCleanupFails(t *testing.T) {
 		InstallerObjectID: &replacement.ID,
 	})
 	if err != nil {
-		t.Fatalf("update package after cleanup failure: %v", err)
+		t.Fatalf("update package: %v", err)
 	}
 	if updated.InstallerObjectID == nil || *updated.InstallerObjectID != replacement.ID {
 		t.Fatalf("installer object = %v, want %d", updated.InstallerObjectID, replacement.ID)
 	}
-	if len(objects.deletedIDs) != 1 || objects.deletedIDs[0] != oldInstaller.ID {
-		t.Fatalf("cleanup IDs = %v, want [%d]", objects.deletedIDs, oldInstaller.ID)
+	queued, err := registry.GetByID(ctx, oldInstaller.ID)
+	if err != nil {
+		t.Fatalf("get replaced installer: %v", err)
+	}
+	if queued.DeletionRequestedAt == nil {
+		t.Fatal("replaced installer was not queued for deletion")
+	}
+	retained, err := registry.GetByID(ctx, replacement.ID)
+	if err != nil {
+		t.Fatalf("get replacement installer: %v", err)
+	}
+	if retained.DeletionRequestedAt != nil {
+		t.Fatal("replacement installer was queued for deletion")
 	}
 }
 
-type failingObjectStore struct {
-	err        error
-	deletedIDs []int64
-}
+type unavailableBackend struct{}
 
-func (s *failingObjectStore) Delete(_ context.Context, id int64) error {
-	s.deletedIDs = append(s.deletedIDs, id)
-	return s.err
+func (unavailableBackend) Delete(context.Context, string) error {
+	return errors.New("backend unavailable")
 }
 
 func createAvailableInstaller(

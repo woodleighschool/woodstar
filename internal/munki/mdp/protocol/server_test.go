@@ -59,7 +59,7 @@ func agentRouter(
 }
 
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, discardLogger())
+	store := mdp.NewStore(db, storage.NewObjectStore(db, nil), discardLogger())
 	return store, store.Presence()
 }
 
@@ -201,6 +201,18 @@ func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	var nopkgID int64
+	if err := db.Pool().QueryRow(ctx, `
+WITH software AS (
+	INSERT INTO munki_software (name, display_name)
+	VALUES ('Configuration', 'Configuration')
+	RETURNING id
+)
+INSERT INTO munki_packages (software_id, version, installer_type)
+SELECT id, '1.0', 'nopkg' FROM software
+RETURNING id`).Scan(&nopkgID); err != nil {
+		t.Fatalf("insert nopkg package: %v", err)
+	}
 	if _, err := store.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -221,6 +233,20 @@ func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 		req := httptest.NewRequest(
 			http.MethodGet,
 			"/api/munki/distribution/packages/999999/download-url",
+			nil,
+		)
+		req.Header.Set("Authorization", "Bearer worker-key")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404", rec.Code)
+		}
+	})
+
+	t.Run("package without installer", func(t *testing.T) {
+		req := httptest.NewRequest(
+			http.MethodGet,
+			"/api/munki/distribution/packages/"+strconv.FormatInt(nopkgID, 10)+"/download-url",
 			nil,
 		)
 		req.Header.Set("Authorization", "Bearer worker-key")

@@ -3,8 +3,6 @@ package directory
 import (
 	"context"
 	"errors"
-
-	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -16,18 +14,12 @@ var (
 
 // UserService owns user management and app-access policy.
 type UserService struct {
-	store     *Store
-	refresher DerivedLabelRefresher
-}
-
-// DerivedLabelRefresher recomputes materialized label membership after user resolution changes.
-type DerivedLabelRefresher interface {
-	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
+	store *Store
 }
 
 // NewUserService returns the user-management service.
-func NewUserService(store *Store, refresher DerivedLabelRefresher) *UserService {
-	return &UserService{store: store, refresher: refresher}
+func NewUserService(store *Store) *UserService {
+	return &UserService{store: store}
 }
 
 // ActiveAdministratorExists reports whether a current user has the administrator role.
@@ -82,7 +74,7 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         params.Role,
-	}, s.refresher.RefreshDerivedTx)
+	})
 }
 
 // CreateInitialAdministrator completes setup with a local administrator.
@@ -107,7 +99,7 @@ func (s *UserService) CreateInitialAdministrator(ctx context.Context, params Use
 		Email:        params.Email,
 		Name:         params.Name,
 		PasswordHash: hash,
-	}, s.refresher.RefreshDerivedTx)
+	})
 }
 
 // Update writes the full target record.
@@ -129,7 +121,7 @@ func (s *UserService) Update(ctx context.Context, targetID int64, params UserMut
 
 // Delete hard-deletes local users and soft-deletes source-owned identities.
 func (s *UserService) Delete(ctx context.Context, targetID int64) error {
-	return s.store.deleteUser(ctx, targetID, s.refresher.RefreshDerivedTx)
+	return s.store.deleteUser(ctx, targetID)
 }
 
 func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {

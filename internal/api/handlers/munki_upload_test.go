@@ -200,7 +200,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	}
 	objects := storage.NewObjectStore(db, backend)
 	uploads := storage.NewIngestor(objects, backend)
-	packageStore := packages.NewStore(db, objects, discardLogger())
+	packageStore := packages.NewStore(db, objects)
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "Upload Test"})
 	if err != nil {

@@ -14,12 +14,6 @@ import (
 // ObjectPrefix namespaces package installer objects in storage.
 const ObjectPrefix = "munki/packages"
 
-const detachedObjectCleanupTimeout = 15 * time.Second
-
-type objectStore interface {
-	Delete(ctx context.Context, objectID int64) error
-}
-
 func validateAndLockInstallerObject(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -58,17 +52,6 @@ LIMIT 1`, *objectID, packageID).Scan(&ownerID)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return err
-	}
-	return nil
-}
-
-func deleteObjects(ctx context.Context, objects objectStore, ids ...int64) error {
-	for _, id := range ids {
-		if err := objects.Delete(ctx, id); err != nil &&
-			!errors.Is(err, dbutil.ErrConflict) &&
-			!errors.Is(err, dbutil.ErrNotFound) {
-			return err
-		}
 	}
 	return nil
 }

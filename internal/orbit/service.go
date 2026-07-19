@@ -26,13 +26,13 @@ var ErrInvalidDeviceAuthToken = errors.New("invalid Orbit device auth token")
 type EnrollmentService struct {
 	hostStore    *hosts.Store
 	secretStore  *agentauth.Store
-	primaryUsers *hosts.PrimaryUserService
+	primaryUsers *hosts.PrimaryUserStore
 }
 
 func NewEnrollmentService(
 	hostStore *hosts.Store,
 	secretStore *agentauth.Store,
-	primaryUsers *hosts.PrimaryUserService,
+	primaryUsers *hosts.PrimaryUserStore,
 ) *EnrollmentService {
 	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers}
 }

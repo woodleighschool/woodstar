@@ -123,7 +123,7 @@ func TestListFiltersUsers(t *testing.T) {
 	store := NewStore(database)
 	service := newTestUserService(store)
 
-	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Groups: []ProviderGroup{
 			{ExternalID: "all-users", DisplayName: "All Users", MailNickname: "all-users"},
@@ -207,7 +207,7 @@ func TestListDepartmentsReturnsDirectoryDepartments(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 
-	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{

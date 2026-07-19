@@ -2,7 +2,6 @@ package software
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -18,11 +17,6 @@ import (
 // IconObjectPrefix namespaces software icon objects in storage.
 const IconObjectPrefix = "munki/icons"
 
-type objectStore interface {
-	GetByID(ctx context.Context, objectID int64) (*storage.Object, error)
-	Delete(ctx context.Context, objectID int64) error
-}
-
 type packageStore interface {
 	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
 	PackagesByID(ctx context.Context, packageIDs []int64) ([]packages.Package, error)
@@ -30,11 +24,11 @@ type packageStore interface {
 
 type Store struct {
 	db       *database.DB
-	objects  objectStore
+	objects  *storage.ObjectStore
 	packages packageStore
 }
 
-func NewStore(db *database.DB, objects objectStore, packages packageStore) *Store {
+func NewStore(db *database.DB, objects *storage.ObjectStore, packages packageStore) *Store {
 	return &Store{db: db, objects: objects, packages: packages}
 }
 
@@ -107,12 +101,16 @@ WHERE id = @id
 RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
-		return s.replaceTargets(ctx, tx, id, params.Targets)
+		if err := s.replaceTargets(ctx, tx, id, params.Targets); err != nil {
+			return err
+		}
+		return s.objects.RequestDeletion(
+			ctx,
+			tx,
+			replacedObjectID(oldIconObjectID, params.IconObjectID)...,
+		)
 	})
 	if err != nil {
-		return nil, err
-	}
-	if err := deleteObjects(ctx, s.objects, replacedObjectID(oldIconObjectID, params.IconObjectID)...); err != nil {
 		return nil, err
 	}
 	return s.GetByID(ctx, id)
@@ -140,12 +138,12 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return nil
+		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
 	})
 	if err != nil {
 		return err
 	}
-	return deleteObjects(ctx, s.objects, objectIDs...)
+	return nil
 }
 
 // DeleteMany removes multiple software rows. Missing IDs are ignored for bulk idempotency.
@@ -170,12 +168,12 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 			return dbutil.DeleteConflict(err, "Munki software is still referenced")
 		}
 		deleted = len(deletedIDs)
-		return nil
+		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
 	})
 	if err != nil {
 		return deleted, err
 	}
-	return deleted, deleteObjects(ctx, s.objects, objectIDs...)
+	return deleted, nil
 }
 
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
@@ -231,12 +229,16 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return nil
+		return s.objects.RequestDeletion(
+			ctx,
+			tx,
+			replacedObjectID(oldIconObjectID, &objectID)...,
+		)
 	})
 	if err != nil {
 		return err
 	}
-	return deleteObjects(ctx, s.objects, replacedObjectID(oldIconObjectID, &objectID)...)
+	return nil
 }
 
 func (s *Store) requireIcon(ctx context.Context, objectID int64) error {
@@ -265,17 +267,6 @@ func supportedIconContentType(contentType string) bool {
 		detected.Is("image/jpeg") ||
 		detected.Is("image/webp") ||
 		detected.Is("image/x-icns")
-}
-
-func deleteObjects(ctx context.Context, objects objectStore, ids ...int64) error {
-	for _, id := range ids {
-		if err := objects.Delete(ctx, id); err != nil &&
-			!errors.Is(err, dbutil.ErrConflict) &&
-			!errors.Is(err, dbutil.ErrNotFound) {
-			return err
-		}
-	}
-	return nil
 }
 
 func replacedObjectID(oldID, newID *int64) []int64 {

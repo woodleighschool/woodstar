@@ -17,12 +17,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database), labels.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database))
 	if _, err := userService.CreateInitialAdministrator(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",

@@ -12,12 +12,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // newStore returns a store and the presence set the hub would normally write, so
 // tests can mark a point online without standing up a live connection.
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, discardLogger())
+	store := mdp.NewStore(db, storage.NewObjectStore(db, nil), discardLogger())
 	return store, store.Presence()
 }
 

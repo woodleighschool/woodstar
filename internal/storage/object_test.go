@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -185,6 +187,125 @@ func TestMultipartUploadIDMustBeNonblankAndClosedBeforeAvailability(t *testing.T
 	if available.MultipartUploadID != nil {
 		t.Fatalf("available multipart ID = %v, want nil", available.MultipartUploadID)
 	}
+}
+
+func TestDeleteRetainsRegistryRowWhenBackendDeletionFails(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	backend := &deletionBackend{err: errors.New("backend unavailable")}
+	store := NewObjectStore(db, backend)
+	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+
+	if err := store.Delete(ctx, object.ID); err == nil {
+		t.Fatal("delete error = nil, want backend failure")
+	}
+	retained, err := store.GetByID(ctx, object.ID)
+	if err != nil {
+		t.Fatalf("get object after failed deletion: %v", err)
+	}
+	if retained.DeletionRequestedAt == nil {
+		t.Fatal("failed deletion was not retained for retry")
+	}
+
+	backend.err = nil
+	if err := store.Delete(ctx, object.ID); err != nil {
+		t.Fatalf("retry deletion: %v", err)
+	}
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get deleted object error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeletionSweepRetriesOutsideCanceledRequestContext(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	backend := &deletionBackend{err: errors.New("backend unavailable")}
+	store := NewObjectStore(db, backend)
+	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+	requestCtx, cancelRequest := context.WithCancel(ctx)
+	if err := store.RequestDeletion(requestCtx, db.Pool(), object.ID); err != nil {
+		t.Fatalf("request deletion: %v", err)
+	}
+	cancelRequest()
+
+	logger := slog.New(slog.DiscardHandler)
+	sweepDeletions(t.Context(), store, logger)
+	queued, err := store.GetByID(ctx, object.ID)
+	if err != nil {
+		t.Fatalf("get object after failed sweep: %v", err)
+	}
+	if queued.DeletionRequestedAt == nil {
+		t.Fatal("failed sweep cleared deletion request")
+	}
+
+	backend.err = nil
+	sweepDeletions(t.Context(), store, logger)
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get object after retry error = %v, want ErrNotFound", err)
+	}
+	if backend.sawCanceledContext {
+		t.Fatal("deletion used the canceled request context")
+	}
+}
+
+func TestDeletionSweepDoesNotDeleteReferencedObjectBytes(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	backend := &deletionBackend{}
+	store := NewObjectStore(db, backend)
+	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
+	if err != nil {
+		t.Fatalf("create pending object: %v", err)
+	}
+	object, err = store.MarkAvailable(ctx, object.ID, 1, "image/png", strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatalf("mark object available: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+INSERT INTO munki_software (name, display_name, icon_object_id)
+VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
+		t.Fatalf("reference object: %v", err)
+	}
+	if err := store.RequestDeletion(ctx, db.Pool(), object.ID); err != nil {
+		t.Fatalf("request deletion: %v", err)
+	}
+
+	sweepDeletions(ctx, store, slog.New(slog.DiscardHandler))
+	retained, err := store.GetByID(ctx, object.ID)
+	if err != nil {
+		t.Fatalf("get referenced object: %v", err)
+	}
+	if retained.DeletionRequestedAt == nil {
+		t.Fatal("referenced object lost its deletion request")
+	}
+	if backend.calls != 0 {
+		t.Fatalf("backend delete calls = %d, want 0", backend.calls)
+	}
+	if _, err := db.Pool().Exec(ctx, `DELETE FROM munki_software WHERE icon_object_id = $1`, object.ID); err != nil {
+		t.Fatalf("remove object reference: %v", err)
+	}
+	sweepDeletions(ctx, store, slog.New(slog.DiscardHandler))
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get object after final reference removal error = %v, want ErrNotFound", err)
+	}
+	if backend.calls != 1 {
+		t.Fatalf("backend delete calls after final unlink = %d, want 1", backend.calls)
+	}
+}
+
+type deletionBackend struct {
+	err                error
+	sawCanceledContext bool
+	calls              int
+}
+
+func (b *deletionBackend) Delete(ctx context.Context, _ string) error {
+	b.calls++
+	b.sawCanceledContext = b.sawCanceledContext || ctx.Err() != nil
+	return b.err
 }
 
 func objectIDs(objects []Object) []int64 {

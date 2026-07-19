@@ -8,18 +8,15 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestSetupIgnoresUsersWithoutAdministratorAccess(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := directory.NewStore(database)
-	provider := directory.NewProviderService(store, labels.NewStore(database))
-	if err := provider.ApplyProviderSnapshot(ctx, directory.SourceEntra, directory.ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, directory.SourceEntra, directory.ProviderSnapshot{
 		Users: []directory.ProviderUser{{
 			ExternalID:        "entra-user",
 			UserPrincipalName: "entra@example.test",
@@ -164,13 +161,7 @@ WHERE id = $1`, user.ID); err != nil {
 func testAuthService(store *directory.Store) (*Service, *scs.SessionManager) {
 	sessions := scs.New()
 	sessions.Store = memstore.New()
-	return NewService(directory.NewUserService(store, testDerivedLabelRefresher{}), sessions), sessions
-}
-
-type testDerivedLabelRefresher struct{}
-
-func (testDerivedLabelRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
-	return nil
+	return NewService(directory.NewUserService(store), sessions), sessions
 }
 
 func loadTestSession(t *testing.T, sessions *scs.SessionManager, ctx context.Context) context.Context {

@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -244,7 +242,7 @@ func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 	}
 }
 
-func TestPrimaryUserServiceRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
+func TestPrimaryUserStoreRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-refresh-rollback"},
@@ -253,9 +251,14 @@ func TestPrimaryUserServiceRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T)
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	service := NewPrimaryUserService(NewPrimaryUserStore(store.db), failingPrimaryUserRefresher{})
+	if _, err := store.db.Pool().Exec(ctx, `
+INSERT INTO labels (name, criteria, label_type, label_membership_type)
+VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
+		t.Fatalf("insert invalid derived label: %v", err)
+	}
+	primaryUsers := NewPrimaryUserStore(store.db)
 
-	err = service.Upsert(ctx, host.ID, "rollback@example.test", PrimaryUserSourceManual)
+	err = primaryUsers.Upsert(ctx, host.ID, "rollback@example.test", PrimaryUserSourceManual)
 	if err == nil {
 		t.Fatal("upsert succeeded despite derived label refresh failure")
 	}
@@ -270,12 +273,6 @@ WHERE host_id = $1 AND source = 'manual'`, host.ID).Scan(&count); err != nil {
 	if count != 0 {
 		t.Fatalf("persisted primary users = %d, want 0", count)
 	}
-}
-
-type failingPrimaryUserRefresher struct{}
-
-func (failingPrimaryUserRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
-	return errors.New("refresh failed")
 }
 
 // New hosts land in All Hosts.

@@ -58,7 +58,7 @@ type hostPrimaryUserPutInput struct {
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserService,
+	primaryUsers *hosts.PrimaryUserStore,
 	logger *slog.Logger,
 ) {
 	registerListHosts(api, hostStore, logger)
@@ -106,7 +106,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) 
 func registerSetHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserService,
+	primaryUsers *hosts.PrimaryUserStore,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -134,7 +134,7 @@ func registerSetHostPrimaryUser(
 func registerClearHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
-	primaryUsers *hosts.PrimaryUserService,
+	primaryUsers *hosts.PrimaryUserStore,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{

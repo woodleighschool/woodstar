@@ -216,32 +216,19 @@ WHERE id = @id
 RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 			return dbutil.MutationError(err)
 		}
-		return writePackageRelations(ctx, tx, id, params)
+		if err := writePackageRelations(ctx, tx, id, params); err != nil {
+			return err
+		}
+		return s.objects.RequestDeletion(
+			ctx,
+			tx,
+			replacedObjectID(oldObjectID, params.InstallerObjectID)...,
+		)
 	})
 	if err != nil {
 		return nil, err
 	}
-	committedCtx, cancel := context.WithTimeout(
-		context.WithoutCancel(ctx),
-		detachedObjectCleanupTimeout,
-	)
-	defer cancel()
-	pkg, err := s.GetByID(committedCtx, id)
-	if err != nil {
-		return nil, err
-	}
-	if err := deleteObjects(
-		committedCtx,
-		s.objects,
-		replacedObjectID(oldObjectID, params.InstallerObjectID)...); err != nil {
-		s.logger.WarnContext(
-			committedCtx,
-			"munki package installer cleanup failed",
-			"package_id", id,
-			"err", err,
-		)
-	}
-	return pkg, nil
+	return s.GetByID(ctx, id)
 }
 
 // DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
@@ -273,12 +260,12 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 			return dbutil.DeleteConflict(err, "Munki package is still referenced")
 		}
 		deleted = len(deletedIDs)
-		return nil
+		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
 	})
 	if err != nil {
 		return deleted, err
 	}
-	return deleted, deleteObjects(ctx, s.objects, objectIDs...)
+	return deleted, nil
 }
 
 func prepareMutation(params PackageMutation) (PackageMutation, error) {

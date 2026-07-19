@@ -238,12 +238,12 @@ func buildDependencies(
 	storageDelivery := storage.NewDelivery(storageBackend)
 
 	// Core stores.
+	labelStore := labels.NewStore(db)
 	directoryStore := directory.NewStore(db)
 	hostStore := hosts.NewStore(db)
 	secretStore := agentauth.NewStore(db)
 	inventoryStore := inventory.NewStore(db)
-	labelStore := labels.NewStore(db)
-	primaryUsers := hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(db), labelStore)
+	primaryUsers := hosts.NewPrimaryUserStore(db)
 
 	// Osquery stores.
 	reportStore := reports.NewStore(db)
@@ -263,7 +263,6 @@ func buildDependencies(
 	packageStore := packages.NewStore(
 		db,
 		objectStore,
-		logger.With("component", "munki_packages"),
 	)
 	munkiSoftwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	munkiHostState := munki.NewStore(db)
@@ -276,7 +275,7 @@ func buildDependencies(
 	referenceStore := references.NewStore(db)
 	syncStore := syncstate.NewStore(db)
 
-	userService := directory.NewUserService(directoryStore, labelStore)
+	userService := directory.NewUserService(directoryStore)
 	authService, err := newAuth(ctx, cfg, userService, sessions)
 	if err != nil {
 		return nil, nil, err
@@ -311,7 +310,7 @@ func buildDependencies(
 		ClientResources: clientResourceStore,
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
-	munkiDistribution := mdp.NewStore(db, munkiDistributionLogger)
+	munkiDistribution := mdp.NewStore(db, objectStore, munkiDistributionLogger)
 	munkiDistributionProtocol := mdpprotocol.NewServer(
 		ctx,
 		munkiDistribution,
@@ -395,11 +394,23 @@ func buildDependencies(
 		},
 	}
 	starters := []starter{
+		storageDeletionStarter(objectStore, logger),
 		santaCleanupStarter(cfg, eventStore, logger),
-		entraSyncStarter(cfg, directoryStore, labelStore, logger),
+		entraSyncStarter(cfg, directoryStore, logger),
 	}
 
 	return deps, starters, nil
+}
+
+func storageDeletionStarter(objects *storage.ObjectStore, logger *slog.Logger) starter {
+	return func(ctx context.Context) func() {
+		worker := storage.StartDeletionWorker(
+			ctx,
+			objects,
+			logger.With("component", "storage"),
+		)
+		return worker.Stop
+	}
 }
 
 func newAuth(
@@ -474,7 +485,6 @@ func santaCleanupStarter(
 func entraSyncStarter(
 	cfg config.Config,
 	directoryStore *directory.Store,
-	labelStore *labels.Store,
 	logger *slog.Logger,
 ) starter {
 	if !cfg.EntraEnabled() {
@@ -489,7 +499,7 @@ func entraSyncStarter(
 	})
 
 	service := entra.NewService(
-		directory.NewProviderService(directoryStore, labelStore),
+		directoryStore,
 		client,
 		logger.With("component", "entra"),
 	)

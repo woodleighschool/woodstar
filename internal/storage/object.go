@@ -19,19 +19,20 @@ import (
 // Object is a row in the storage registry: one stored (or pending) blob. The
 // byte key is derived, never stored, so the path format lives in one place.
 type Object struct {
-	ID                int64      `db:"id"`
-	Prefix            string     `db:"prefix"`
-	Filename          string     `db:"filename"`
-	ContentType       string     `db:"content_type"`
-	SizeBytes         *int64     `db:"size_bytes"`
-	SHA256            *string    `db:"sha256"`
-	AvailableAt       *time.Time `db:"available_at"`
-	MultipartUploadID *string    `db:"multipart_upload_id"`
-	CreatedAt         time.Time  `db:"created_at"`
-	UpdatedAt         time.Time  `db:"updated_at"`
+	ID                  int64      `db:"id"`
+	Prefix              string     `db:"prefix"`
+	Filename            string     `db:"filename"`
+	ContentType         string     `db:"content_type"`
+	SizeBytes           *int64     `db:"size_bytes"`
+	SHA256              *string    `db:"sha256"`
+	AvailableAt         *time.Time `db:"available_at"`
+	MultipartUploadID   *string    `db:"multipart_upload_id"`
+	DeletionRequestedAt *time.Time `db:"deletion_requested_at"`
+	CreatedAt           time.Time  `db:"created_at"`
+	UpdatedAt           time.Time  `db:"updated_at"`
 }
 
-const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at
+const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at
 FROM storage_objects`
 
 // Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
@@ -101,7 +102,7 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string
 	}
 	const sql = `INSERT INTO storage_objects (prefix, filename)
 VALUES (@prefix, @filename)
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"prefix":   prefix,
 		"filename": filename,
@@ -134,7 +135,7 @@ SET size_bytes = @size_bytes,
     available_at = now(),
     updated_at = now()
 WHERE id = @id
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"id":           id,
 		"size_bytes":   &sizeBytes,
@@ -262,23 +263,45 @@ func (s *ObjectStore) ListByPrefix(
 	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
 }
 
-// Delete removes one registry row and its bytes. Foreign keys decide whether
-// another row still uses the object.
-func (s *ObjectStore) Delete(ctx context.Context, id int64) error {
-	const sql = `DELETE FROM storage_objects
-WHERE id = $1
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
-	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
-	if err != nil {
-		return dbutil.DeleteConflict(err, "storage object is still referenced")
-	}
-	if s.backend == nil {
+// RequestDeletion records objects for backend cleanup inside q's transaction.
+func (*ObjectStore) RequestDeletion(
+	ctx context.Context,
+	q dbutil.Queryer,
+	ids ...int64,
+) error {
+	if len(ids) == 0 {
 		return nil
 	}
-	if err := s.backend.Delete(ctx, object.Key()); err != nil {
-		return fmt.Errorf("delete %q: %w", object.Key(), err)
+	_, err := q.Exec(ctx, `
+UPDATE storage_objects
+SET deletion_requested_at = COALESCE(deletion_requested_at, now()),
+    updated_at = now()
+WHERE id = ANY($1::bigint[])`, ids)
+	return err
+}
+
+// Delete removes one object's bytes and registry row atomically from the
+// registry's perspective. A backend failure leaves the row available to retry.
+func (s *ObjectStore) Delete(ctx context.Context, id int64) error {
+	if err := s.RequestDeletion(ctx, s.db.Pool(), id); err != nil {
+		return err
 	}
-	return nil
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		const sql = `DELETE FROM storage_objects
+WHERE id = $1
+RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
+		object, err := dbutil.GetOne[Object](ctx, tx, sql, id)
+		if err != nil {
+			return dbutil.DeleteConflict(err, "storage object is still referenced")
+		}
+		if s.backend == nil {
+			return nil
+		}
+		if err := s.backend.Delete(ctx, object.Key()); err != nil {
+			return fmt.Errorf("delete %q: %w", object.Key(), err)
+		}
+		return nil
+	})
 }
 
 func normalizeContentType(value string) (string, error) {

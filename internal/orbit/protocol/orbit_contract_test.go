@@ -15,7 +15,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
@@ -113,14 +112,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 
 type orbitContractStores struct {
 	hosts        *hosts.Store
-	primaryUsers *hosts.PrimaryUserService
+	primaryUsers *hosts.PrimaryUserStore
 	agentSecrets *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:        hosts.NewStore(database),
-		primaryUsers: hosts.NewPrimaryUserService(hosts.NewPrimaryUserStore(database), labels.NewStore(database)),
+		primaryUsers: hosts.NewPrimaryUserStore(database),
 		agentSecrets: agentauth.NewStore(database),
 	}
 }

@@ -35,7 +35,7 @@ func TestListAndGetGroups(t *testing.T) {
 
 func seedGroups(t *testing.T, ctx context.Context, store *Store) {
 	t.Helper()
-	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Groups: []ProviderGroup{
 			{ExternalID: "all-users", DisplayName: "All Users", MailNickname: "all-users"},

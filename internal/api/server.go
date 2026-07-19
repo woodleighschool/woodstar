@@ -84,7 +84,7 @@ type AppDependencies struct {
 	Users       *directory.UserService
 	Directory   *directory.Store
 	Hosts       *hosts.Store
-	PrimaryUser *hosts.PrimaryUserService
+	PrimaryUser *hosts.PrimaryUserStore
 	Secrets     *agentauth.Store
 	Software    *inventory.Store
 	Labels      *labels.Store

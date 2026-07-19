@@ -18,13 +18,14 @@ import (
 // Store persists distribution points and their per-package mirror state.
 type Store struct {
 	db       *database.DB
+	objects  *storage.ObjectStore
 	presence *Presence
 	logger   *slog.Logger
 }
 
 // NewStore returns a distribution point store backed by db.
-func NewStore(db *database.DB, logger *slog.Logger) *Store {
-	return &Store{db: db, presence: NewPresence(), logger: logger}
+func NewStore(db *database.DB, objects *storage.ObjectStore, logger *slog.Logger) *Store {
+	return &Store{db: db, objects: objects, presence: NewPresence(), logger: logger}
 }
 
 // Presence returns the live worker presence set shared by selection and the
@@ -402,30 +403,25 @@ ORDER BY p.id`)
 
 // InstallerObject returns the stored content for a package's installer.
 func (s *Store) InstallerObject(ctx context.Context, packageID int64) (storage.Object, error) {
-	object, err := dbutil.GetOne[storage.Object](ctx, s.db.Pool(), `
-SELECT
-	o.id,
-	o.prefix,
-	o.filename,
-	o.content_type,
-	o.size_bytes,
-	o.sha256,
-	o.available_at,
-	o.multipart_upload_id,
-	o.created_at,
-	o.updated_at
-FROM munki_packages p
-JOIN storage_objects o ON o.id = p.installer_object_id
-WHERE p.id = $1`,
-		packageID,
-	)
+	var objectID *int64
+	err := s.db.Pool().QueryRow(ctx, `
+SELECT installer_object_id
+FROM munki_packages
+WHERE id = $1`, packageID).Scan(&objectID)
+	if err != nil {
+		return storage.Object{}, dbutil.GetError(err)
+	}
+	if objectID == nil {
+		return storage.Object{}, dbutil.ErrNotFound
+	}
+	object, err := s.objects.GetByID(ctx, *objectID)
 	if err != nil {
 		return storage.Object{}, err
 	}
 	if !object.Available() || object.SizeBytes == nil || object.SHA256 == nil {
 		return storage.Object{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
 	}
-	return object, nil
+	return *object, nil
 }
 
 // RecordPackageState upserts one package's mirror state for a distribution

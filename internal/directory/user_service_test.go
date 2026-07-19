@@ -6,8 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
@@ -162,7 +160,12 @@ func TestCreateInitialAdministratorRejectsCompletedSetup(t *testing.T) {
 func TestCreateRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewUserService(store, failingDerivedLabelRefresher{})
+	if _, err := database.Pool().Exec(ctx, `
+INSERT INTO labels (name, criteria, label_type, label_membership_type)
+VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
+		t.Fatalf("insert invalid derived label: %v", err)
+	}
+	service := NewUserService(store)
 
 	_, err := service.Create(ctx, UserCreate{
 		Email:    "rollback@example.test",
@@ -303,22 +306,6 @@ func TestSetAndClearAccountAPIKey(t *testing.T) {
 	}
 }
 
-type testDerivedLabelRefresher struct{}
-
-func (testDerivedLabelRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
-	return nil
-}
-
-type failingDerivedLabelRefresher struct{}
-
-func (failingDerivedLabelRefresher) RefreshDerivedTx(context.Context, pgx.Tx) error {
-	return errors.New("refresh failed")
-}
-
 func newTestUserService(store *Store) *UserService {
-	return NewUserService(store, testDerivedLabelRefresher{})
-}
-
-func newTestProviderService(store *Store) *ProviderService {
-	return NewProviderService(store, testDerivedLabelRefresher{})
+	return NewUserService(store)
 }

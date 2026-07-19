@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -33,11 +34,12 @@ func (PrimaryUserSource) Schema(_ huma.Registry) *huma.Schema {
 
 // PrimaryUserStore persists host primary-user source observations.
 type PrimaryUserStore struct {
-	db *database.DB
+	db     *database.DB
+	labels *labels.Store
 }
 
 func NewPrimaryUserStore(db *database.DB) *PrimaryUserStore {
-	return &PrimaryUserStore{db: db}
+	return &PrimaryUserStore{db: db, labels: labels.NewStore(db)}
 }
 
 func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email string, source PrimaryUserSource) error {
@@ -46,7 +48,10 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 		return err
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		return upsertPrimaryUser(ctx, tx, hostID, email, source)
+		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
+			return err
+		}
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 }
 
@@ -70,7 +75,10 @@ func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source Prim
 		return err
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		return deletePrimaryUser(ctx, tx, hostID, source)
+		if err := deletePrimaryUser(ctx, tx, hostID, source); err != nil {
+			return err
+		}
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 }
 
@@ -98,53 +106,6 @@ func deletePrimaryUser(ctx context.Context, tx pgx.Tx, hostID int64, source Prim
 type primaryUserMutation struct {
 	Email  string            `validate:"required,email"`
 	Source PrimaryUserSource `validate:"required,oneof=manual orbit_profile"`
-}
-
-// DerivedLabelRefresher recomputes materialized label membership after a
-// primary-user source changes.
-type DerivedLabelRefresher interface {
-	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
-}
-
-// PrimaryUserService updates host primary-user sources and their derived label memberships.
-type PrimaryUserService struct {
-	store     *PrimaryUserStore
-	refresher DerivedLabelRefresher
-}
-
-// NewPrimaryUserService returns the primary-user orchestration service.
-func NewPrimaryUserService(store *PrimaryUserStore, refresher DerivedLabelRefresher) *PrimaryUserService {
-	return &PrimaryUserService{store: store, refresher: refresher}
-}
-
-func (s *PrimaryUserService) Upsert(
-	ctx context.Context,
-	hostID int64,
-	email string,
-	source PrimaryUserSource,
-) error {
-	email, err := validatePrimaryUser(email, source)
-	if err != nil {
-		return err
-	}
-	return s.store.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
-			return err
-		}
-		return s.refresher.RefreshDerivedTx(ctx, tx)
-	})
-}
-
-func (s *PrimaryUserService) Delete(ctx context.Context, hostID int64, source PrimaryUserSource) error {
-	if err := validatePrimaryUserSource(source); err != nil {
-		return err
-	}
-	return s.store.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := deletePrimaryUser(ctx, tx, hostID, source); err != nil {
-			return err
-		}
-		return s.refresher.RefreshDerivedTx(ctx, tx)
-	})
 }
 
 func validatePrimaryUser(email string, source PrimaryUserSource) (string, error) {

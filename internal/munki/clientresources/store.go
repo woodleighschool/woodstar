@@ -9,14 +9,15 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 type Store struct {
 	db      *database.DB
-	objects objectCleaner
+	objects *storage.ObjectStore
 }
 
-func NewStore(db *database.DB, objects objectCleaner) *Store {
+func NewStore(db *database.DB, objects *storage.ObjectStore) *Store {
 	return &Store{db: db, objects: objects}
 }
 
@@ -68,11 +69,7 @@ func (s *Store) Upsert(ctx context.Context, mutation storedMutation) (*ClientRes
 			return err
 		}
 		if existing != nil {
-			replacedObjectIDs = append(
-				replacedObjectIDs,
-				existing.BannerObjectID,
-				existing.ArchiveObjectID,
-			)
+			replacedObjectIDs = replacedClientResourceObjectIDs(*existing, mutation)
 		}
 
 		_, err = tx.Exec(ctx, `
@@ -112,12 +109,12 @@ ON CONFLICT (singleton) DO UPDATE SET
 			return dbutil.MutationError(err)
 		}
 		resource, err = get(ctx, tx)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.objects.RequestDeletion(ctx, tx, replacedObjectIDs...)
 	})
 	if err != nil {
-		return nil, err
-	}
-	if err := cleanupObjects(ctx, s.objects, replacedObjectIDs...); err != nil {
 		return nil, err
 	}
 	return resource, nil
@@ -141,12 +138,26 @@ func (s *Store) Delete(ctx context.Context) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return nil
+		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
 	})
 	if err != nil {
 		return err
 	}
-	return cleanupObjects(ctx, s.objects, objectIDs...)
+	return nil
+}
+
+func replacedClientResourceObjectIDs(existing ClientResources, replacement storedMutation) []int64 {
+	current := map[int64]struct{}{
+		replacement.BannerObjectID:  {},
+		replacement.ArchiveObjectID: {},
+	}
+	var replaced []int64
+	for _, id := range []int64{existing.BannerObjectID, existing.ArchiveObjectID} {
+		if _, retained := current[id]; !retained {
+			replaced = append(replaced, id)
+		}
+	}
+	return replaced
 }
 
 func clientResourcesFromRow(row clientResourcesRow) ClientResources {

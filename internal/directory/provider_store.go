@@ -9,32 +9,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// ProviderService reconciles source-owned directory snapshots and derived labels.
-type ProviderService struct {
-	store     *Store
-	refresher DerivedLabelRefresher
-}
-
-// NewProviderService returns the directory provider orchestration service.
-func NewProviderService(store *Store, refresher DerivedLabelRefresher) *ProviderService {
-	return &ProviderService{store: store, refresher: refresher}
-}
-
 // ApplyProviderSnapshot reconciles a source-owned snapshot and derived label
 // memberships in one transaction.
-func (s *ProviderService) ApplyProviderSnapshot(
+func (s *Store) ApplyProviderSnapshot(
 	ctx context.Context,
 	source Source,
 	snapshot ProviderSnapshot,
-) error {
-	return s.store.applyProviderSnapshot(ctx, source, snapshot, s.refresher.RefreshDerivedTx)
-}
-
-func (s *Store) applyProviderSnapshot(
-	ctx context.Context,
-	source Source,
-	snapshot ProviderSnapshot,
-	refreshDerived func(context.Context, pgx.Tx) error,
 ) error {
 	if source == SourceLocal {
 		return errors.New("directory: local source cannot apply provider snapshot")
@@ -49,7 +29,7 @@ func (s *Store) applyProviderSnapshot(
 		if err := applyUserSnapshot(ctx, tx, source, snapshot.Users); err != nil {
 			return err
 		}
-		return refreshDerived(ctx, tx)
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 }
 

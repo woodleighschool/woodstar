@@ -1,21 +1,18 @@
 package packages
 
 import (
-	"log/slog"
-
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 type Store struct {
 	db      *database.DB
-	objects objectStore
-	logger  *slog.Logger
+	objects *storage.ObjectStore
 }
 
-func NewStore(db *database.DB, objects objectStore, logger *slog.Logger) *Store {
+func NewStore(db *database.DB, objects *storage.ObjectStore) *Store {
 	return &Store{
 		db:      db,
 		objects: objects,
-		logger:  logger,
 	}
 }

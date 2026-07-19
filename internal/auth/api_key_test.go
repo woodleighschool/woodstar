@@ -9,12 +9,11 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database), labels.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database))
 	user, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "api@example.test",
 		Name:     "API User",

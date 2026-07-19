@@ -79,7 +79,7 @@ func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	primaryUserStore := hosts.NewPrimaryUserStore(db)
 	labelStore := labels.NewStore(db)
-	primaryUsers := hosts.NewPrimaryUserService(primaryUserStore, labelStore)
+	primaryUsers := primaryUserStore
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "host-manual-user-map"},

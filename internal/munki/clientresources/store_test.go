@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
+func TestStoreUpsertAndDeleteQueueUnreferencedObjects(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	objects := storage.NewObjectStore(db, nil)
 	store := NewStore(db, objects)
@@ -61,8 +61,19 @@ func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
 	if second.BannerAlignment != BannerAlignmentCenter {
 		t.Fatalf("banner alignment = %q, want %q", second.BannerAlignment, BannerAlignmentCenter)
 	}
-	if _, err := objects.GetByID(ctx, firstArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("old archive GetByID error = %v, want ErrNotFound", err)
+	replacedArchive, err := objects.GetByID(ctx, firstArchive.ID)
+	if err != nil {
+		t.Fatalf("get old archive: %v", err)
+	}
+	if replacedArchive.DeletionRequestedAt == nil {
+		t.Fatal("old archive was not queued for deletion")
+	}
+	retainedBanner, err := objects.GetByID(ctx, banner.ID)
+	if err != nil {
+		t.Fatalf("get retained banner: %v", err)
+	}
+	if retainedBanner.DeletionRequestedAt != nil {
+		t.Fatal("retained banner was queued for deletion")
 	}
 
 	if err := store.Delete(ctx); err != nil {
@@ -72,8 +83,12 @@ func TestStoreUpsertAndDeleteOwnReferencedObjects(t *testing.T) {
 		t.Fatalf("Get after Delete error = %v, want ErrNotFound", err)
 	}
 	for _, objectID := range []int64{banner.ID, secondArchive.ID} {
-		if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, dbutil.ErrNotFound) {
-			t.Fatalf("object %d GetByID error = %v, want ErrNotFound", objectID, err)
+		object, err := objects.GetByID(ctx, objectID)
+		if err != nil {
+			t.Fatalf("get object %d: %v", objectID, err)
+		}
+		if object.DeletionRequestedAt == nil {
+			t.Fatalf("object %d was not queued for deletion", objectID)
 		}
 	}
 }

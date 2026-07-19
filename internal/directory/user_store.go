@@ -9,15 +9,17 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 // Store persists directory users, groups, memberships, and source snapshots.
 type Store struct {
-	db *database.DB
+	db     *database.DB
+	labels *labels.Store
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+	return &Store{db: db, labels: labels.NewStore(db)}
 }
 
 type userRow struct {
@@ -170,7 +172,6 @@ type initialAdministratorRecord struct {
 func (s *Store) createUser(
 	ctx context.Context,
 	params userCreateRecord,
-	refreshDerived func(context.Context, pgx.Tx) error,
 ) (*User, error) {
 	var user User
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -188,7 +189,7 @@ RETURNING `+userColumnsSQL(""),
 			return dbutil.MutationError(err)
 		}
 		user = userFromRow(row)
-		return refreshDerived(ctx, tx)
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 	if err != nil {
 		return nil, err
@@ -199,7 +200,6 @@ RETURNING `+userColumnsSQL(""),
 func (s *Store) createInitialAdministrator(
 	ctx context.Context,
 	params initialAdministratorRecord,
-	refreshDerived func(context.Context, pgx.Tx) error,
 ) (*User, error) {
 	var user User
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -241,7 +241,7 @@ SET completed_at = now()
 WHERE singleton`); err != nil {
 			return err
 		}
-		return refreshDerived(ctx, tx)
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 	if err != nil {
 		return nil, err
@@ -399,7 +399,6 @@ RETURNING `+userColumnsSQL(""),
 func (s *Store) deleteUser(
 	ctx context.Context,
 	id int64,
-	refreshDerived func(context.Context, pgx.Tx) error,
 ) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := lockUserAdministration(ctx, tx); err != nil {
@@ -438,7 +437,7 @@ RETURNING id`, id).Scan(&deletedID); err != nil {
 		if err := requireActiveAdministrator(ctx, tx); err != nil {
 			return err
 		}
-		return refreshDerived(ctx, tx)
+		return s.labels.RefreshDerivedTx(ctx, tx)
 	})
 }
 

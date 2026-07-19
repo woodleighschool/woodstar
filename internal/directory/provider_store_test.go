@@ -12,7 +12,7 @@ func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
 	store := NewStore(database)
 	service := newTestUserService(store)
 
-	provider := newTestProviderService(store)
+	provider := store
 	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		Users: []ProviderUser{{
 			ExternalID:        "admin-object-id",
@@ -54,7 +54,12 @@ RETURNING id`).Scan(&adminID); err != nil {
 func TestApplyProviderSnapshotRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	provider := NewProviderService(store, failingDerivedLabelRefresher{})
+	if _, err := database.Pool().Exec(ctx, `
+INSERT INTO labels (name, criteria, label_type, label_membership_type)
+VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
+		t.Fatalf("insert invalid derived label: %v", err)
+	}
+	provider := store
 
 	err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		Users: []ProviderUser{{
@@ -109,7 +114,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 			},
 		},
 	}
-	provider := newTestProviderService(store)
+	provider := store
 	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, first); err != nil {
 		t.Fatalf("apply first snapshot: %v", err)
 	}
@@ -242,7 +247,7 @@ func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternal
 		t.Fatalf("insert deleted entra user: %v", err)
 	}
 
-	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{
@@ -291,7 +296,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 		t.Fatalf("insert local user: %v", err)
 	}
 
-	if err := newTestProviderService(store).ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Users: []ProviderUser{
 			{
@@ -342,7 +347,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 		t.Fatalf("provider identity user = %d, want local user %d", providerID, localID)
 	}
 
-	if err := newTestProviderService(store).ApplyProviderSnapshot(
+	if err := store.ApplyProviderSnapshot(
 		ctx,
 		SourceEntra,
 		ProviderSnapshot{},
