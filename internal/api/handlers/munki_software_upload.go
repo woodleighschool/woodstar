@@ -60,7 +60,7 @@ func registerCreateSoftwareIconRoute(
 			http.StatusBadRequest,
 			http.StatusNotFound,
 		},
-	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiUploadOutput, error) {
+	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiDirectUploadOutput, error) {
 		if _, err := software.GetByID(ctx, input.ID); err != nil {
 			return nil, resourceError(
 				ctx,

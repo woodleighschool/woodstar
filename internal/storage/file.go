@@ -26,8 +26,12 @@ type fileStore struct {
 	ttl            time.Duration
 }
 
-func (*fileStore) uploadMode() uploadMode {
-	return uploadModeDirect
+func (s *fileStore) beginUpload(ctx context.Context, key string) (UploadAction, error) {
+	target, err := s.PresignPut(ctx, key, 0)
+	if err != nil {
+		return nil, err
+	}
+	return DirectUploadAction{Target: target}, nil
 }
 
 func newFileStore(root, baseURL, capabilityKeyHex string, ttl time.Duration) (*fileStore, error) {

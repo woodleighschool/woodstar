@@ -29,7 +29,7 @@ type MunkiMultipartUpload struct {
 
 type MunkiMultipartPartTarget struct {
 	UploadURL string            `json:"upload_url"`
-	Method    string            `json:"method"`
+	Method    string            `json:"method"     enum:"PUT"`
 	Headers   map[string]string `json:"headers,omitempty"`
 }
 
@@ -50,7 +50,7 @@ const (
 type MunkiDirectUploadAction struct {
 	Strategy string            `json:"strategy"          enum:"direct-put"`
 	URL      string            `json:"url"`
-	Method   string            `json:"method"`
+	Method   string            `json:"method"            enum:"PUT"`
 	Headers  map[string]string `json:"headers,omitempty"`
 }
 
@@ -81,9 +81,14 @@ func (MunkiUploadAction) Schema(registry huma.Registry) *huma.Schema {
 	}
 }
 
-type MunkiUploadTarget struct {
+type MunkiPackageInstallerUploadTarget struct {
 	ObjectID int64             `json:"object_id"`
 	Upload   MunkiUploadAction `json:"upload"`
+}
+
+type MunkiDirectUploadTarget struct {
+	ObjectID int64                   `json:"object_id"`
+	Upload   MunkiDirectUploadAction `json:"upload"`
 }
 
 type MunkiObjectView struct {
@@ -95,8 +100,12 @@ type MunkiObjectView struct {
 	ContentURL  string  `json:"content_url"`
 }
 
-type munkiUploadOutput struct {
-	Body MunkiUploadTarget
+type munkiPackageInstallerUploadOutput struct {
+	Body MunkiPackageInstallerUploadTarget
+}
+
+type munkiDirectUploadOutput struct {
+	Body MunkiDirectUploadTarget
 }
 
 type munkiObjectOutput struct {
@@ -106,8 +115,23 @@ type munkiObjectOutput struct {
 func newMunkiDirectUploadOutput(
 	obj *storage.Object,
 	target storage.UploadTarget,
-) *munkiUploadOutput {
-	return &munkiUploadOutput{Body: MunkiUploadTarget{
+) *munkiDirectUploadOutput {
+	return &munkiDirectUploadOutput{Body: MunkiDirectUploadTarget{
+		ObjectID: obj.ID,
+		Upload: MunkiDirectUploadAction{
+			Strategy: munkiUploadStrategyDirectPut,
+			URL:      target.URL,
+			Method:   target.Method,
+			Headers:  target.Headers,
+		},
+	}}
+}
+
+func newMunkiPackageInstallerDirectUploadOutput(
+	obj *storage.Object,
+	target storage.UploadTarget,
+) *munkiPackageInstallerUploadOutput {
+	return &munkiPackageInstallerUploadOutput{Body: MunkiPackageInstallerUploadTarget{
 		ObjectID: obj.ID,
 		Upload: MunkiUploadAction{
 			Strategy: munkiUploadStrategyDirectPut,
@@ -118,8 +142,10 @@ func newMunkiDirectUploadOutput(
 	}}
 }
 
-func newMunkiMultipartUploadOutput(obj *storage.Object) *munkiUploadOutput {
-	return &munkiUploadOutput{Body: MunkiUploadTarget{
+func newMunkiPackageInstallerMultipartUploadOutput(
+	obj *storage.Object,
+) *munkiPackageInstallerUploadOutput {
+	return &munkiPackageInstallerUploadOutput{Body: MunkiPackageInstallerUploadTarget{
 		ObjectID: obj.ID,
 		Upload: MunkiUploadAction{
 			Strategy: munkiUploadStrategyMultipart,

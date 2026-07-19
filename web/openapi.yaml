@@ -846,6 +846,8 @@ components:
             type: string
           type: object
         method:
+          enum:
+            - PUT
           type: string
         strategy:
           enum:
@@ -857,6 +859,18 @@ components:
         - strategy
         - url
         - method
+      type: object
+    MunkiDirectUploadTarget:
+      additionalProperties: false
+      properties:
+        object_id:
+          format: int64
+          type: integer
+        upload:
+          $ref: "#/components/schemas/MunkiDirectUploadAction"
+      required:
+        - object_id
+        - upload
       type: object
     MunkiDistributionPoint:
       additionalProperties: false
@@ -1139,6 +1153,8 @@ components:
             type: string
           type: object
         method:
+          enum:
+            - PUT
           type: string
         upload_url:
           type: string
@@ -1623,6 +1639,25 @@ components:
         - name
         - value
       type: object
+    MunkiPackageInstallerUploadTarget:
+      additionalProperties: false
+      properties:
+        object_id:
+          format: int64
+          type: integer
+        upload:
+          discriminator:
+            mapping:
+              direct-put: "#/components/schemas/MunkiDirectUploadAction"
+              multipart: "#/components/schemas/MunkiMultipartUploadAction"
+            propertyName: strategy
+          oneOf:
+            - $ref: "#/components/schemas/MunkiDirectUploadAction"
+            - $ref: "#/components/schemas/MunkiMultipartUploadAction"
+      required:
+        - object_id
+        - upload
+      type: object
     MunkiPackageItemToCopy:
       additionalProperties: false
       properties:
@@ -2063,25 +2098,6 @@ components:
           type: string
       required:
         - filename
-      type: object
-    MunkiUploadTarget:
-      additionalProperties: false
-      properties:
-        object_id:
-          format: int64
-          type: integer
-        upload:
-          discriminator:
-            mapping:
-              direct-put: "#/components/schemas/MunkiDirectUploadAction"
-              multipart: "#/components/schemas/MunkiMultipartUploadAction"
-            propertyName: strategy
-          oneOf:
-            - $ref: "#/components/schemas/MunkiDirectUploadAction"
-            - $ref: "#/components/schemas/MunkiMultipartUploadAction"
-      required:
-        - object_id
-        - upload
       type: object
     OsqueryCheck:
       additionalProperties: false
@@ -5675,7 +5691,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiUploadTarget"
+                $ref: "#/components/schemas/MunkiDirectUploadTarget"
           description: Created
         "400":
           content:
@@ -6219,7 +6235,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiUploadTarget"
+                $ref: "#/components/schemas/MunkiPackageInstallerUploadTarget"
           description: Created
         "400":
           content:
@@ -7227,7 +7243,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiUploadTarget"
+                $ref: "#/components/schemas/MunkiDirectUploadTarget"
           description: Created
         "400":
           content:

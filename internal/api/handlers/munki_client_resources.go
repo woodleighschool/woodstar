@@ -148,7 +148,7 @@ func registerCreateClientResourcesBannerUpload(
 		Summary:       "Create a banner upload for Munki client resources",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
+	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiDirectUploadOutput, error) {
 		object, target, err := ingestor.BeginDirect(
 			ctx,
 			clientresources.BannerObjectPrefix,

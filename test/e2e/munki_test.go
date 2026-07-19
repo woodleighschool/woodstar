@@ -136,7 +136,7 @@ func TestMunki(t *testing.T) {
 		err,
 	)
 	installerTarget := createdInstaller.JSON201
-	installerUploadAction := directUpload(t, installerTarget)
+	installerUploadAction := directPackageInstallerUpload(t, installerTarget)
 	if installerTarget.ObjectId <= 0 || installerUploadAction.Method != http.MethodPut ||
 		installerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
@@ -156,7 +156,7 @@ func TestMunki(t *testing.T) {
 	)
 	installerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		installerUploadAction.Method,
+		string(installerUploadAction.Method),
 		installerUploadAction.Url,
 		bytes.NewReader(installerBytes),
 	)
@@ -302,7 +302,10 @@ func TestMunki(t *testing.T) {
 	)
 	createdBanner = requireAPIResponse(t, "create banner upload", http.StatusCreated, createdBanner, err)
 	bannerTarget := createdBanner.JSON201
-	bannerUploadAction := directUpload(t, bannerTarget)
+	if bannerTarget == nil {
+		t.Fatal("create banner upload returned no JSON body")
+	}
+	bannerUploadAction := bannerTarget.Upload
 	if bannerTarget.ObjectId <= 0 || bannerUploadAction.Method != http.MethodPut ||
 		bannerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
@@ -314,7 +317,7 @@ func TestMunki(t *testing.T) {
 	}
 	bannerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		bannerUploadAction.Method,
+		string(bannerUploadAction.Method),
 		bannerUploadAction.Url,
 		bytes.NewReader(bannerBytes),
 	)

@@ -26,8 +26,10 @@ type s3Store struct {
 	presigner      *s3.PresignClient
 }
 
-func (*s3Store) uploadMode() uploadMode {
-	return uploadModeMultipart
+var _ MultipartBackend = (*s3Store)(nil)
+
+func (*s3Store) beginUpload(context.Context, string) (UploadAction, error) {
+	return MultipartUploadAction{}, nil
 }
 
 func newS3Store(ctx context.Context, cfg S3Config, transferTTL time.Duration) (*s3Store, error) {

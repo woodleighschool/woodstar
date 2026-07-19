@@ -8,8 +8,9 @@ import {
   useMunkiPackages,
   useUpdateMunkiPackage,
 } from "@/hooks/use-munki-packages";
-import { deleteUnclaimedMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
 import type { MunkiPackage } from "@/lib/api";
+import { deleteUnclaimedMunkiInstaller } from "@/lib/munki-upload";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { parseRouteID } from "@/lib/route-params";
 

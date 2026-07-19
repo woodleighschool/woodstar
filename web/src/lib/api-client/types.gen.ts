@@ -331,9 +331,14 @@ export type MunkiDirectUploadAction = {
     headers?: {
         [key: string]: string;
     };
-    method: string;
+    method: 'PUT';
     strategy: 'direct-put';
     url: string;
+};
+
+export type MunkiDirectUploadTarget = {
+    object_id: number;
+    upload: MunkiDirectUploadAction;
 };
 
 export type MunkiDistributionPoint = {
@@ -431,7 +436,7 @@ export type MunkiMultipartPartTarget = {
     headers?: {
         [key: string]: string;
     };
-    method: string;
+    method: 'PUT';
     upload_url: string;
 };
 
@@ -596,6 +601,15 @@ export type MunkiPackageInstallerEnvironmentVariable = {
     value: string;
 };
 
+export type MunkiPackageInstallerUploadTarget = {
+    object_id: number;
+    upload: ({
+        strategy: 'direct-put';
+    } & MunkiDirectUploadAction) | ({
+        strategy: 'multipart';
+    } & MunkiMultipartUploadAction);
+};
+
 export type MunkiPackageItemToCopy = {
     destination_item?: string;
     destination_path: string;
@@ -755,15 +769,6 @@ export type MunkiUpdateMutation = {
 
 export type MunkiUploadRequest = {
     filename: string;
-};
-
-export type MunkiUploadTarget = {
-    object_id: number;
-    upload: ({
-        strategy: 'direct-put';
-    } & MunkiDirectUploadAction) | ({
-        strategy: 'multipart';
-    } & MunkiMultipartUploadAction);
 };
 
 export type OsqueryCheck = {
@@ -2827,7 +2832,7 @@ export type CreateMunkiClientResourcesBannerUploadResponses = {
     /**
      * Created
      */
-    201: MunkiUploadTarget;
+    201: MunkiDirectUploadTarget;
 };
 
 export type CreateMunkiClientResourcesBannerUploadResponse = CreateMunkiClientResourcesBannerUploadResponses[keyof CreateMunkiClientResourcesBannerUploadResponses];
@@ -3249,7 +3254,7 @@ export type CreateMunkiPackageInstallerResponses = {
     /**
      * Created
      */
-    201: MunkiUploadTarget;
+    201: MunkiPackageInstallerUploadTarget;
 };
 
 export type CreateMunkiPackageInstallerResponse = CreateMunkiPackageInstallerResponses[keyof CreateMunkiPackageInstallerResponses];
@@ -4017,7 +4022,7 @@ export type CreateMunkiSoftwareIconUploadResponses = {
     /**
      * Created
      */
-    201: MunkiUploadTarget;
+    201: MunkiDirectUploadTarget;
 };
 
 export type CreateMunkiSoftwareIconUploadResponse = CreateMunkiSoftwareIconUploadResponses[keyof CreateMunkiSoftwareIconUploadResponses];

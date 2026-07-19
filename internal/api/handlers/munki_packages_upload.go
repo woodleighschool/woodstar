@@ -67,7 +67,10 @@ func registerCreatePackageInstallerRoute(
 		Summary:       "Reserve a Munki package installer upload",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *munkiPackageInstallerCreateInput) (*munkiUploadOutput, error) {
+	}, func(
+		ctx context.Context,
+		input *munkiPackageInstallerCreateInput,
+	) (*munkiPackageInstallerUploadOutput, error) {
 		object, action, err := ingestor.Begin(
 			ctx,
 			packages.ObjectPrefix,
@@ -80,9 +83,9 @@ func registerCreatePackageInstallerRoute(
 		}
 		switch action := action.(type) {
 		case storage.DirectUploadAction:
-			return newMunkiDirectUploadOutput(object, action.Target), nil
+			return newMunkiPackageInstallerDirectUploadOutput(object, action.Target), nil
 		case storage.MultipartUploadAction:
-			return newMunkiMultipartUploadOutput(object), nil
+			return newMunkiPackageInstallerMultipartUploadOutput(object), nil
 		default:
 			return nil, resourceError(
 				ctx, logger, "create-munki-package-installer", munkiUploadLabel,

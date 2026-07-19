@@ -1,10 +1,8 @@
 import AwsS3, {
   type AwsS3Options,
-  type AwsS3Part,
   type AwsS3UploadParameters,
   type MultipartUploadResultWithSignal,
   type UploadResult,
-  type UploadResultWithSignal,
 } from "@uppy/aws-s3";
 import Uppy, { type Body, type Meta } from "@uppy/core";
 
@@ -14,31 +12,25 @@ export interface UploadProgress {
   percent: number;
 }
 
-type UploadMeta = Meta;
-type UploadBody = Body;
-
-export type MultipartUploadResult = UploadResult;
-
 export interface MultipartUploadRequest {
-  createMultipartUpload: (file: File) => Promise<MultipartUploadResult>;
-  listParts?: (file: File, upload: UploadResultWithSignal) => Promise<AwsS3Part[]>;
-  signPart: (
-    file: File,
-    part: { uploadId: string; key: string; partNumber: number; body: Blob; signal?: AbortSignal },
-  ) => Promise<AwsS3UploadParameters>;
-  completeMultipartUpload: (
-    file: File,
-    upload: MultipartUploadResultWithSignal,
-  ) => Promise<{ location?: string } | void>;
-  abortMultipartUpload: (file: File, upload: UploadResultWithSignal) => Promise<void>;
+  createMultipartUpload: () => Promise<UploadResult>;
+  signPart: (part: {
+    uploadId: string;
+    key: string;
+    partNumber: number;
+    body: Blob;
+    signal?: AbortSignal;
+  }) => Promise<AwsS3UploadParameters>;
+  completeMultipartUpload: (upload: MultipartUploadResultWithSignal) => Promise<void>;
+  abortMultipartUpload: () => Promise<void>;
 }
 
 export type UploadRequest =
   | {
       strategy: "direct-put";
       url: string;
-      method?: string;
-      headers?: Record<string, string>;
+      method: "PUT";
+      headers: Record<string, string>;
     }
   | {
       strategy: "multipart";
@@ -63,8 +55,8 @@ export function uploadWithProgress(request: UploadExecution) {
 function uploadWithXHRProgress({
   url,
   file,
-  method = "PUT",
-  headers = {},
+  method,
+  headers,
   signal,
   onProgress,
 }: Extract<UploadExecution, { strategy: "direct-put" }>) {
@@ -124,7 +116,7 @@ async function uploadWithMultipartProgress(
     throw cancelledError();
   }
 
-  const uppy = new Uppy<UploadMeta, UploadBody>({
+  const uppy = new Uppy<Meta, Body>({
     autoProceed: false,
     allowMultipleUploadBatches: false,
     restrictions: { maxNumberOfFiles: 1 },
@@ -165,17 +157,18 @@ async function uploadWithMultipartProgress(
 
 function awsS3Options({
   multipart,
-  file,
-}: Extract<UploadExecution, { strategy: "multipart" }>): AwsS3Options<UploadMeta, UploadBody> {
+}: Extract<UploadExecution, { strategy: "multipart" }>): AwsS3Options<Meta, Body> {
   return {
     allowedMetaFields: false,
     shouldUseMultipart: true,
-    createMultipartUpload: () => multipart.createMultipartUpload(file),
-    listParts: (_uppyFile, upload) => multipart.listParts?.(file, upload) ?? [],
-    signPart: (_uppyFile, part) => multipart.signPart(file, part),
-    completeMultipartUpload: async (_uppyFile, upload) =>
-      (await multipart.completeMultipartUpload(file, upload)) ?? {},
-    abortMultipartUpload: (_uppyFile, upload) => multipart.abortMultipartUpload(file, upload),
+    createMultipartUpload: () => multipart.createMultipartUpload(),
+    listParts: () => [],
+    signPart: (_uppyFile, part) => multipart.signPart(part),
+    completeMultipartUpload: async (_uppyFile, upload) => {
+      await multipart.completeMultipartUpload(upload);
+      return {};
+    },
+    abortMultipartUpload: () => multipart.abortMultipartUpload(),
   };
 }
 

@@ -222,7 +222,7 @@ func createMDPInstaller(
 		adminapi.MunkiUploadRequest{Filename: filename},
 	)
 	created = requireAPIResponse(t, "create package installer", http.StatusCreated, created, err)
-	upload := directUpload(t, created.JSON201)
+	upload := directPackageInstallerUpload(t, created.JSON201)
 	if created.JSON201.ObjectId <= 0 || upload.Url == "" || upload.Method != http.MethodPut ||
 		upload.Strategy != "direct-put" {
 		t.Fatalf(
@@ -236,7 +236,7 @@ func createMDPInstaller(
 
 	uploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		upload.Method,
+		string(upload.Method),
 		upload.Url,
 		bytes.NewReader(contents),
 	)

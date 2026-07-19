@@ -4,7 +4,8 @@ import { useRef } from "react";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useCreateMunkiPackage, useMunkiPackages } from "@/hooks/use-munki-packages";
 import { useMunkiSoftware } from "@/hooks/use-munki-software";
-import { deleteUnclaimedMunkiInstaller, useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { useUploadMunkiInstaller } from "@/hooks/use-munki-uploads";
+import { deleteUnclaimedMunkiInstaller } from "@/lib/munki-upload";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { emptyPackageForm, PackageForm } from "./fields";

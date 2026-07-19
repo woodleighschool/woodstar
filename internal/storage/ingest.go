@@ -63,27 +63,11 @@ func (s *Ingestor) Begin(
 		return nil, nil, err
 	}
 
-	switch s.backend.uploadMode() {
-	case uploadModeDirect:
-		target, err := s.backend.PresignPut(ctx, uploadKey(object.ID), 0)
-		if err != nil {
-			return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
-		}
-		return object, DirectUploadAction{Target: target}, nil
-	case uploadModeMultipart:
-		if _, ok := s.backend.(MultipartBackend); !ok {
-			return nil, nil, errors.Join(
-				errors.New("storage backend declares multipart uploads without implementing them"),
-				s.Delete(ctx, object.ID, prefix),
-			)
-		}
-		return object, MultipartUploadAction{}, nil
-	default:
-		return nil, nil, errors.Join(
-			errors.New("storage backend returned an unknown upload mode"),
-			s.Delete(ctx, object.ID, prefix),
-		)
+	action, err := s.backend.beginUpload(ctx, uploadKey(object.ID))
+	if err != nil {
+		return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
+	return object, action, nil
 }
 
 // BeginDirect reserves an object and returns a direct target for its temporary bytes.

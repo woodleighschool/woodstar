@@ -41,7 +41,7 @@ type Backend interface {
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 	TransferOrigin() string
 	deliveryMode() deliveryMode
-	uploadMode() uploadMode
+	beginUpload(ctx context.Context, key string) (UploadAction, error)
 }
 
 // MultipartBackend is the multipart transfer contract implemented by S3 storage.
@@ -92,13 +92,6 @@ func transferOrigin(rawURL string) (string, error) {
 	}
 	return parsed.Scheme + "://" + parsed.Host, nil
 }
-
-type uploadMode uint8
-
-const (
-	uploadModeDirect uploadMode = iota
-	uploadModeMultipart
-)
 
 // CompletedPart identifies one uploaded S3 multipart part.
 type CompletedPart struct {

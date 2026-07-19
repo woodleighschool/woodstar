@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useUpload } from "@/hooks/use-upload";
-import type { ApiError, MunkiClientResources, MunkiMutation, MunkiUploadTarget } from "@/lib/api";
+import type {
+  ApiError,
+  MunkiClientResources,
+  MunkiDirectUploadTarget,
+  MunkiMutation,
+} from "@/lib/api";
 import {
   createMunkiClientResourcesBannerUpload,
   deleteMunkiClientResources,
@@ -40,7 +45,7 @@ export function useSaveMunkiClientResources() {
 
 export function useUploadAndSaveMunkiClientResourcesBanner() {
   const queryClient = useQueryClient();
-  return useUpload<MunkiUploadTarget, MunkiClientResources, BannerUploadVariables>({
+  return useUpload<MunkiDirectUploadTarget, MunkiClientResources, BannerUploadVariables>({
     mutationKey: ["munki-client-resources-banner-upload"],
     loadingText: "Saving client resources",
     successText: "Client resources saved",
