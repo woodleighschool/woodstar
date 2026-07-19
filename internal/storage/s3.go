@@ -30,7 +30,7 @@ func (*s3Store) uploadMode() uploadMode {
 	return uploadModeMultipart
 }
 
-func newS3Store(ctx context.Context, cfg S3Config) (*s3Store, error) {
+func newS3Store(ctx context.Context, cfg S3Config, transferTTL time.Duration) (*s3Store, error) {
 	awsCfg, err := awsconfig.LoadDefaultConfig(
 		ctx,
 		awsconfig.WithRegion(cfg.Region),
@@ -57,7 +57,7 @@ func newS3Store(ctx context.Context, cfg S3Config) (*s3Store, error) {
 	return &s3Store{
 		bucket:         cfg.Bucket,
 		transferOrigin: origin,
-		ttl:            cfg.PresignTTL,
+		ttl:            transferTTL,
 		client:         client,
 		presigner:      presigner,
 	}, nil

@@ -4,15 +4,18 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 )
+
+const storageCapabilityKeyHexLength = 64
 
 func setValidEnvironment(t *testing.T) {
 	t.Helper()
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
 	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://woodstar:woodstar@localhost:5432/woodstar")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 }
 
 func resolveConfig(cfg *Config) error {
@@ -31,11 +34,11 @@ func TestApplyEnvironmentPreservesResolvedValues(t *testing.T) {
 	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://environment")
 
 	cfg := Config{
-		Host:          "127.0.0.1",
-		Port:          9443,
-		ServerURL:     "https://cli.example",
-		DatabaseURL:   "postgres://cli",
-		SessionSecret: strings.Repeat("c", minSessionSecretLength),
+		Host:                 "127.0.0.1",
+		Port:                 9443,
+		ServerURL:            "https://cli.example",
+		DatabaseURL:          "postgres://cli",
+		StorageCapabilityKey: strings.Repeat("c", storageCapabilityKeyHexLength),
 	}
 	if err := ApplyEnvironment(&cfg); err != nil {
 		t.Fatalf("ApplyEnvironment: %v", err)
@@ -62,20 +65,20 @@ func TestApplyEnvironmentReturnsAggregateParseErrors(t *testing.T) {
 
 func TestConfigValidateUsesGoFieldNames(t *testing.T) {
 	cfg := validConfig()
-	cfg.SessionSecret = ""
+	cfg.StorageCapabilityKey = ""
 
 	err := cfg.Validate()
-	if err == nil || err.Error() != "SessionSecret is required" {
+	if err == nil || err.Error() != "StorageCapabilityKey is required" {
 		t.Fatalf("Validate error = %v, want Go field name", err)
 	}
 }
 
-func TestConfigRequiresSessionSecret(t *testing.T) {
+func TestConfigRequiresStorageCapabilityKey(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
-	t.Setenv("WOODSTAR_SESSION_SECRET", "")
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", "")
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
 
@@ -83,14 +86,14 @@ func TestConfigRequiresSessionSecret(t *testing.T) {
 
 	err := resolveConfig(&cfg)
 	if err == nil {
-		t.Fatal("resolveConfig returned nil error, want required session secret error")
+		t.Fatal("resolveConfig returned nil error, want required storage capability key error")
 	}
 }
 
 func TestConfigRequiresServerURL(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 
 	err := resolveConfig(&Config{})
 	if err == nil {
@@ -103,7 +106,7 @@ func TestConfigDefaults(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
 
 	cfg := Config{}
@@ -127,8 +130,15 @@ func TestConfigDefaults(t *testing.T) {
 	if cfg.OIDCRedirectURL != "https://localhost:8080/api/auth/sso/callback" {
 		t.Fatalf("OIDCRedirectURL = %q, want server callback URL", cfg.OIDCRedirectURL)
 	}
-	if len(cfg.SessionSecret) < minSessionSecretLength {
-		t.Fatalf("SessionSecret length = %d, want at least %d", len(cfg.SessionSecret), minSessionSecretLength)
+	if len(cfg.StorageCapabilityKey) != storageCapabilityKeyHexLength {
+		t.Fatalf(
+			"storage capability key length = %d, want %d",
+			len(cfg.StorageCapabilityKey),
+			storageCapabilityKeyHexLength,
+		)
+	}
+	if cfg.StorageTransferTTL != 15*time.Minute {
+		t.Fatalf("StorageTransferTTL = %s, want 15m", cfg.StorageTransferTTL)
 	}
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
@@ -140,7 +150,7 @@ func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "127.0.0.1")
 	t.Setenv("WOODSTAR_PORT", "9090")
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://example")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "debug")
 	t.Setenv("WOODSTAR_TLS_CERT_FILE", "/etc/woodstar/tls.crt")
@@ -176,7 +186,7 @@ func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 func TestConfigNormalizesCORSAllowedOrigins(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv(
 		"WOODSTAR_CORS_ALLOWED_ORIGINS",
 		" https://panel.example.com/,https://panel.example.com, http://localhost:5173 ",
@@ -196,7 +206,7 @@ func TestConfigNormalizesCORSAllowedOrigins(t *testing.T) {
 func TestConfigRejectsCORSAllowedOriginWithPath(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_CORS_ALLOWED_ORIGINS", "https://panel.example.com/woodstar")
 
 	err := resolveConfig(&Config{})
@@ -208,7 +218,7 @@ func TestConfigRejectsCORSAllowedOriginWithPath(t *testing.T) {
 func TestConfigReadsStorageS3Environment(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", "")
 	t.Setenv("WOODSTAR_STORAGE_KIND", "s3")
 	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
 	t.Setenv("WOODSTAR_STORAGE_S3_REGION", "ap-southeast-2")
@@ -217,7 +227,7 @@ func TestConfigReadsStorageS3Environment(t *testing.T) {
 	t.Setenv("WOODSTAR_STORAGE_S3_ACCESS_KEY", "access")
 	t.Setenv("WOODSTAR_STORAGE_S3_SECRET_KEY", "secret")
 	t.Setenv("WOODSTAR_STORAGE_S3_PATH_STYLE", "true")
-	t.Setenv("WOODSTAR_STORAGE_S3_PRESIGN_TTL", "10m")
+	t.Setenv("WOODSTAR_STORAGE_TRANSFER_TTL", "10m")
 
 	cfg := Config{}
 	if err := resolveConfig(&cfg); err != nil {
@@ -233,15 +243,15 @@ func TestConfigReadsStorageS3Environment(t *testing.T) {
 	if cfg.StorageS3PublicEndpoint != "https://downloads.example" {
 		t.Fatalf("StorageS3PublicEndpoint = %q", cfg.StorageS3PublicEndpoint)
 	}
-	if cfg.StorageS3PresignTTL.String() != "10m0s" {
-		t.Fatalf("StorageS3PresignTTL = %s", cfg.StorageS3PresignTTL)
+	if cfg.StorageTransferTTL.String() != "10m0s" {
+		t.Fatalf("StorageTransferTTL = %s", cfg.StorageTransferTTL)
 	}
 }
 
 func TestConfigRejectsPartialStorageS3Config(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_STORAGE_KIND", "s3")
 	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
 
@@ -281,22 +291,22 @@ func TestConfigRequiresHTTPSForEffectivePublicS3Endpoint(t *testing.T) {
 	}
 }
 
-func TestConfigRejectsNonPositivePresignTTL(t *testing.T) {
+func TestConfigRejectsNonPositiveStorageTransferTTL(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
-	t.Setenv("WOODSTAR_STORAGE_S3_PRESIGN_TTL", "0s")
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
+	t.Setenv("WOODSTAR_STORAGE_TRANSFER_TTL", "0s")
 
 	err := resolveConfig(&Config{})
 	if err == nil {
-		t.Fatal("resolveConfig returned nil error, want presign TTL rejection")
+		t.Fatal("resolveConfig returned nil error, want transfer TTL rejection")
 	}
 }
 
 func TestConfigRejectsServerURLWithPath(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/woodstar")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 
 	err := resolveConfig(&Config{})
 	if err == nil {
@@ -310,7 +320,7 @@ func TestConfigRejectsServerURLWithPath(t *testing.T) {
 func TestConfigRejectsHTTPServerURL(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "http://localhost:8443")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 
 	err := resolveConfig(&Config{})
 	if err == nil {
@@ -378,7 +388,7 @@ func TestConfigAllowsOIDCIssuerPath(t *testing.T) {
 func TestConfigRejectsPartialTLSConfig(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
-	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_TLS_CERT_FILE", "/etc/woodstar/tls.crt")
 	t.Setenv("WOODSTAR_TLS_KEY_FILE", "")
 
@@ -388,14 +398,17 @@ func TestConfigRejectsPartialTLSConfig(t *testing.T) {
 	}
 }
 
-func TestConfigRejectsWeakSessionSecret(t *testing.T) {
+func TestConfigIgnoresFileCapabilityKeyForS3(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
-	t.Setenv("WOODSTAR_SESSION_SECRET", "too-short")
+	t.Setenv("WOODSTAR_STORAGE_KIND", "s3")
+	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", "not-a-file-capability-key")
+	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
+	t.Setenv("WOODSTAR_STORAGE_S3_REGION", "ap-southeast-2")
+	t.Setenv("WOODSTAR_STORAGE_S3_ACCESS_KEY", "access")
+	t.Setenv("WOODSTAR_STORAGE_S3_SECRET_KEY", "secret")
 
-	err := resolveConfig(&Config{})
-	if err == nil {
-		t.Fatal("resolveConfig returned nil error, want weak session secret error")
+	if err := resolveConfig(&Config{}); err != nil {
+		t.Fatalf("resolveConfig with unused file capability key: %v", err)
 	}
 }
 

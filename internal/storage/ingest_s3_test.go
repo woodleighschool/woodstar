@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -62,7 +63,8 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 	t.Cleanup(server.Close)
 
 	backend, err := storage.New(ctx, storage.Config{
-		Kind: storage.KindS3,
+		Kind:        storage.KindS3,
+		TransferTTL: time.Minute,
 		S3: storage.S3Config{
 			Bucket:    "test",
 			Region:    "us-east-1",

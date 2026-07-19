@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -29,10 +30,14 @@ func (*fileStore) uploadMode() uploadMode {
 	return uploadModeDirect
 }
 
-func newFileStore(root, baseURL string, capabilityKey []byte, ttl time.Duration) (*fileStore, error) {
+func newFileStore(root, baseURL, capabilityKeyHex string, ttl time.Duration) (*fileStore, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
 		return nil, errors.New("storage file root is empty")
+	}
+	capabilityKey, err := hex.DecodeString(capabilityKeyHex)
+	if err != nil || len(capabilityKey) != 32 {
+		return nil, errors.New("storage capability key must encode exactly 32 bytes as hexadecimal")
 	}
 	origin, err := transferOrigin(baseURL)
 	if err != nil {

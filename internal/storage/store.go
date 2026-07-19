@@ -32,10 +32,11 @@ type ObjectReader interface {
 }
 
 // Backend is a configured storage backend. All runtime backends can read/write
-// bytes and mint direct transfer capabilities.
+// bytes and mint direct transfer URLs.
 type Backend interface {
 	Store
 	Presigner
+	transferRouteRegistrar
 	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 	TransferOrigin() string

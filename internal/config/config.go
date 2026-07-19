@@ -13,8 +13,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
-const minSessionSecretLength = 32
-
 const oidcCallbackPath = "/api/auth/sso/callback"
 
 // SessionLifetime is the browser session lifetime.
@@ -33,7 +31,6 @@ type Config struct {
 	ServerURL           string   `env:"URL"                                        validate:"required"`
 	TLSCertFile         string   `env:"TLS_CERT_FILE"                              validate:"required_with=TLSKeyFile"`
 	TLSKeyFile          string   `env:"TLS_KEY_FILE"                               validate:"required_with=TLSCertFile"`
-	SessionSecret       string   `env:"SESSION_SECRET"                             validate:"required,notblank,min=32"`
 	SessionCookieSecure bool     `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
 	DatabaseURL         string   `env:"DATABASE_URL"                               validate:"required"`
 	LogLevel            string   `env:"LOG_LEVEL"             envDefault:"info"    validate:"required,oneof=debug info warn error"`
@@ -61,6 +58,8 @@ type Config struct {
 
 	StorageKind             string        `env:"STORAGE_KIND"               envDefault:"file"         validate:"required,oneof=file s3"`
 	StorageFileRoot         string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage" validate:"required_if=StorageKind file"`
+	StorageCapabilityKey    string        `env:"STORAGE_CAPABILITY_KEY"                               validate:"required_if=StorageKind file"`
+	StorageTransferTTL      time.Duration `env:"STORAGE_TRANSFER_TTL"       envDefault:"15m"          validate:"gt=0"`
 	StorageS3Bucket         string        `env:"STORAGE_S3_BUCKET"                                    validate:"required_if=StorageKind s3"`
 	StorageS3Region         string        `env:"STORAGE_S3_REGION"                                    validate:"required_if=StorageKind s3"`
 	StorageS3Endpoint       string        `env:"STORAGE_S3_ENDPOINT"                                  validate:"omitempty,url"`
@@ -68,7 +67,6 @@ type Config struct {
 	StorageS3AccessKey      string        `env:"STORAGE_S3_ACCESS_KEY"                                validate:"required_if=StorageKind s3"`
 	StorageS3SecretKey      string        `env:"STORAGE_S3_SECRET_KEY"                                validate:"required_if=StorageKind s3"`
 	StorageS3PathStyle      bool          `env:"STORAGE_S3_PATH_STYLE"`
-	StorageS3PresignTTL     time.Duration `env:"STORAGE_S3_PRESIGN_TTL"     envDefault:"15m"          validate:"gt=0"`
 
 	// ClientIPSource selects how the real client IP is derived behind proxies.
 	// The companion fields are required only for the matching source.

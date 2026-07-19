@@ -1,4 +1,4 @@
-package storage_test
+package storage
 
 import (
 	"bytes"
@@ -14,24 +14,23 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
 func TestBlobGetServesBytesAndRanges(t *testing.T) {
 	t.Parallel()
-	store := newTestFileStore(t)
+	store := newTransferTestFileStore(t)
 	const key = "munki/packages/1/Installer.pkg"
 	if err := store.Put(
 		t.Context(),
 		key,
 		strings.NewReader("0123456789"),
-		storage.PutOptions{},
+		PutOptions{},
 	); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 	router := newBlobTestRouter(store)
-	token := signBlobCapability(t, storage.BlobCapabilityClaims{
+	token := signBlobCapability(t, BlobCapabilityClaims{
 		Op:          capability.OpGet,
 		Key:         key,
 		Exp:         time.Now().Add(time.Minute).Unix(),
@@ -70,14 +69,14 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 
 func TestBlobGetRejectsInvalidExpiredAndMissingObjects(t *testing.T) {
 	t.Parallel()
-	store := newTestFileStore(t)
+	store := newTransferTestFileStore(t)
 	router := newBlobTestRouter(store)
-	expired := signBlobCapability(t, storage.BlobCapabilityClaims{
+	expired := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/icons/1/icon.png",
 		Exp: time.Now().Add(-time.Minute).Unix(),
 	})
-	missing := signBlobCapability(t, storage.BlobCapabilityClaims{
+	missing := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/icons/1/icon.png",
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -107,10 +106,10 @@ func TestBlobGetRejectsInvalidExpiredAndMissingObjects(t *testing.T) {
 
 func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 	t.Parallel()
-	store := newTestFileStore(t)
+	store := newTransferTestFileStore(t)
 	router := newBlobTestRouter(store)
 	key := "munki/icons/7/icon.png"
-	putToken := signBlobCapability(t, storage.BlobCapabilityClaims{
+	putToken := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpPut,
 		Key: key,
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -140,7 +139,7 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 		t.Fatalf("stored bytes = %q, want png bytes", got)
 	}
 
-	getToken := signBlobCapability(t, storage.BlobCapabilityClaims{
+	getToken := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: key,
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -159,9 +158,9 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 
 func TestBlobRejectsMismatchedPathAndSignedKey(t *testing.T) {
 	t.Parallel()
-	store := newTestFileStore(t)
+	store := newTransferTestFileStore(t)
 	router := newBlobTestRouter(store)
-	token := signBlobCapability(t, storage.BlobCapabilityClaims{
+	token := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/icons/7/icon.png",
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -181,8 +180,13 @@ func TestBlobGetLogsOpenFailures(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	router := chi.NewRouter()
-	storage.RegisterTransferRoutes(router, failingOpenStore{}, testCapabilityKey, logger)
-	token := signBlobCapability(t, storage.BlobCapabilityClaims{
+	h := transferHandler{
+		store:  failingOpenStore{},
+		key:    testCapabilityKey,
+		logger: logger,
+	}
+	router.Get("/storage/*", h.get)
+	token := signBlobCapability(t, BlobCapabilityClaims{
 		Op:  capability.OpGet,
 		Key: "munki/packages/1/Installer.pkg",
 		Exp: time.Now().Add(time.Minute).Unix(),
@@ -209,13 +213,42 @@ func TestBlobGetLogsOpenFailures(t *testing.T) {
 	}
 }
 
-func newBlobTestRouter(store storage.Store) chi.Router {
+func TestTransferRoutesAreNotMountedForS3(t *testing.T) {
+	t.Parallel()
+	backend, err := New(t.Context(), Config{
+		Kind:        KindS3,
+		TransferTTL: time.Minute,
+		S3: S3Config{
+			Bucket:         "woodstar",
+			Region:         "ap-southeast-2",
+			PublicEndpoint: "https://uploads.example",
+			AccessKey:      "test-access-key",
+			SecretKey:      "test-secret-key",
+			PathStyle:      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("New S3 backend: %v", err)
+	}
+	router := chi.NewRouter()
+	RegisterTransferRoutes(router, backend, slog.New(slog.DiscardHandler))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func newBlobTestRouter(store Backend) chi.Router {
 	r := chi.NewRouter()
-	storage.RegisterTransferRoutes(r, store, testCapabilityKey, slog.New(slog.DiscardHandler))
+	RegisterTransferRoutes(r, store, slog.New(slog.DiscardHandler))
 	return r
 }
 
-func signBlobCapability(t *testing.T, claims storage.BlobCapabilityClaims) string {
+func signBlobCapability(t *testing.T, claims BlobCapabilityClaims) string {
 	t.Helper()
 	token, err := capability.Sign(testCapabilityKey, claims)
 	if err != nil {
@@ -224,14 +257,16 @@ func signBlobCapability(t *testing.T, claims storage.BlobCapabilityClaims) strin
 	return token
 }
 
-func newTestFileStore(t *testing.T) storage.Backend {
+func newTransferTestFileStore(t *testing.T) Backend {
 	t.Helper()
-	store, err := storage.New(t.Context(), storage.Config{
-		Kind:          storage.KindFile,
-		FileRoot:      t.TempDir(),
-		BaseURL:       "https://woodstar.example",
-		CapabilityKey: testCapabilityKey,
-		PresignTTL:    time.Minute,
+	store, err := New(t.Context(), Config{
+		Kind:        KindFile,
+		TransferTTL: time.Minute,
+		File: FileConfig{
+			Root:             t.TempDir(),
+			BaseURL:          "https://woodstar.example",
+			CapabilityKeyHex: testCapabilityKeyHex,
+		},
 	})
 	if err != nil {
 		t.Fatalf("new storage backend: %v", err)
@@ -241,16 +276,14 @@ func newTestFileStore(t *testing.T) storage.Backend {
 
 type failingOpenStore struct{}
 
-func (failingOpenStore) Open(_ context.Context, _ string) (storage.ObjectReader, storage.ObjectInfo, error) {
-	return nil, storage.ObjectInfo{}, errors.New("backend unavailable")
+func (failingOpenStore) Open(_ context.Context, _ string) (ObjectReader, ObjectInfo, error) {
+	return nil, ObjectInfo{}, errors.New("backend unavailable")
 }
 
-func (failingOpenStore) Put(context.Context, string, io.Reader, storage.PutOptions) error {
+func (failingOpenStore) Put(context.Context, string, io.Reader, PutOptions) error {
 	return errors.New("unexpected put")
 }
 
 func (failingOpenStore) Delete(context.Context, string) error {
 	return nil
 }
-
-var testCapabilityKey = []byte("storage capability test key")

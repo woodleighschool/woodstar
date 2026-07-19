@@ -96,7 +96,7 @@ func validConfig() Config {
 		Host:                    "0.0.0.0",
 		Port:                    8080,
 		ServerURL:               "https://localhost:8080",
-		SessionSecret:           strings.Repeat("s", minSessionSecretLength),
+		StorageCapabilityKey:    strings.Repeat("a", storageCapabilityKeyHexLength),
 		SessionCookieSecure:     true,
 		DatabaseURL:             "postgres://woodstar:woodstar@localhost:5432/woodstar",
 		LogLevel:                "info",
@@ -108,7 +108,7 @@ func validConfig() Config {
 		EntraSyncInterval:       time.Hour,
 		StorageKind:             "file",
 		StorageFileRoot:         "data/storage",
-		StorageS3PresignTTL:     15 * time.Minute,
+		StorageTransferTTL:      15 * time.Minute,
 		ClientIPSource:          ClientIPSourceRemoteAddr,
 	}
 }

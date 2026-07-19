@@ -8,7 +8,7 @@ description: The WOODSTAR_ environment variables, their defaults, and what they 
 
 Woodstar reads its settings from environment variables with a `WOODSTAR_` prefix. CLI flags populate the same config first; environment parsing fills unset fields and applies defaults. Woodstar then normalizes and validates the resolved config independently of either input source.
 
-Three settings are required and the server won't start without them: `WOODSTAR_URL`, `WOODSTAR_DATABASE_URL`, and `WOODSTAR_SESSION_SECRET`.
+`WOODSTAR_URL` and `WOODSTAR_DATABASE_URL` are always required. The default `file` storage backend also requires `WOODSTAR_STORAGE_CAPABILITY_KEY`; S3 uses its own credentials instead.
 
 Several features stay off until you configure them. OIDC and Entra directory sync each switch on only once their settings are complete, so an unset block means that feature is simply not running. Storage is the exception: it always runs, defaulting to local files until you point it at an S3 bucket.
 
@@ -21,7 +21,6 @@ Several features stay off until you configure them. OIDC and Entra directory syn
 | `WOODSTAR_URL`                   | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
 | `WOODSTAR_TLS_CERT_FILE`         | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
 | `WOODSTAR_TLS_KEY_FILE`          | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
-| `WOODSTAR_SESSION_SECRET`        | required  | At least 32 characters.                                                                               |
 | `WOODSTAR_SESSION_COOKIE_SECURE` | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
 | `WOODSTAR_DATABASE_URL`          | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
 | `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
@@ -81,22 +80,25 @@ What the sync feeds is covered in [Directory](../admin/directory).
 
 ## Storage
 
-Munki package and icon bytes go to the backend chosen by `WOODSTAR_STORAGE_KIND`. It defaults to `file`, so storage works with no configuration. Set it to `s3` for an S3-compatible bucket, which unlocks presigned uploads and redirects.
+Munki package and icon bytes go to the backend chosen by `WOODSTAR_STORAGE_KIND`. It defaults to `file`, which needs one generated capability key. Set it to `s3` for an S3-compatible bucket, which uses provider-signed uploads and redirects instead.
 
-| Variable                              | Default        | Notes                                                                                  |
-| ------------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
-| `WOODSTAR_STORAGE_KIND`               | `file`         | `file` or `s3`.                                                                        |
-| `WOODSTAR_STORAGE_FILE_ROOT`          | `data/storage` | Root directory for the `file` backend.                                                 |
-| `WOODSTAR_STORAGE_S3_BUCKET`          | empty          | Bucket name.                                                                           |
-| `WOODSTAR_STORAGE_S3_REGION`          | empty          | Region passed to the S3 client.                                                        |
-| `WOODSTAR_STORAGE_S3_ENDPOINT`        | empty          | Internal S3 endpoint. Leave empty for AWS; set it for Garage, R2, MinIO, and the like. |
-| `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` | empty          | HTTPS endpoint used in presigned URLs. Required when the internal endpoint uses HTTP.  |
-| `WOODSTAR_STORAGE_S3_ACCESS_KEY`      | empty          | Access key.                                                                            |
-| `WOODSTAR_STORAGE_S3_SECRET_KEY`      | empty          | Secret key.                                                                            |
-| `WOODSTAR_STORAGE_S3_PATH_STYLE`      | `false`        | Use path-style addressing.                                                             |
-| `WOODSTAR_STORAGE_S3_PRESIGN_TTL`     | `15m`          | Lifetime of presigned URLs. Must be positive.                                          |
+| Variable                              | Default             | Notes                                                                                  |
+| ------------------------------------- | ------------------- | -------------------------------------------------------------------------------------- |
+| `WOODSTAR_STORAGE_KIND`               | `file`              | `file` or `s3`.                                                                        |
+| `WOODSTAR_STORAGE_FILE_ROOT`          | `data/storage`      | Root directory for the `file` backend.                                                 |
+| `WOODSTAR_STORAGE_CAPABILITY_KEY`     | required for `file` | Exactly 32 random bytes encoded as 64 hexadecimal characters.                          |
+| `WOODSTAR_STORAGE_TRANSFER_TTL`       | `15m`               | Lifetime of Woodstar file capabilities and S3 presigned URLs.                          |
+| `WOODSTAR_STORAGE_S3_BUCKET`          | empty               | Bucket name.                                                                           |
+| `WOODSTAR_STORAGE_S3_REGION`          | empty               | Region passed to the S3 client.                                                        |
+| `WOODSTAR_STORAGE_S3_ENDPOINT`        | empty               | Internal S3 endpoint. Leave empty for AWS; set it for Garage, R2, MinIO, and the like. |
+| `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` | empty               | HTTPS endpoint used in presigned URLs. Required when the internal endpoint uses HTTP.  |
+| `WOODSTAR_STORAGE_S3_ACCESS_KEY`      | empty               | Access key.                                                                            |
+| `WOODSTAR_STORAGE_S3_SECRET_KEY`      | empty               | Secret key.                                                                            |
+| `WOODSTAR_STORAGE_S3_PATH_STYLE`      | `false`             | Use path-style addressing.                                                             |
 
-With `s3`, the bucket, region, access key, and secret key have to be present together. See [Munki Storage](./storage) for how the backends fit the artifact flow and the bucket CORS rule browser uploads need.
+Generate the file capability key with `openssl rand -hex 32`. It authenticates the short-lived `/storage/*` URLs Woodstar issues for direct file transfers. Rotating it invalidates those URLs but does not affect browser sessions, S3 presigned URLs, or distribution-point grants.
+
+With `s3`, the bucket, region, access key, and secret key have to be present together; the Woodstar capability key is not required. See [Munki Storage](./storage) for how the backends fit the artifact flow and the bucket CORS rule browser uploads need.
 
 ## Distribution point worker
 
@@ -118,6 +120,12 @@ These configure the `woodstar mdp` worker, not the server. The worker is a separ
 
 ## A local example
 
+Run the below command to generate the value for `WOODSTAR_STORAGE_CAPABILITY_KEY`:
+
+```bash
+openssl rand -hex 32
+```
+
 ```bash
 WOODSTAR_HOST=0.0.0.0
 WOODSTAR_PORT=8443
@@ -125,6 +133,6 @@ WOODSTAR_URL=https://localhost:8443
 WOODSTAR_TLS_CERT_FILE=./tmp/tls/woodstar.pem
 WOODSTAR_TLS_KEY_FILE=./tmp/tls/woodstar-key.pem
 WOODSTAR_DATABASE_URL=postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable
-WOODSTAR_SESSION_SECRET=replace-with-at-least-32-characters
+WOODSTAR_STORAGE_CAPABILITY_KEY=paste_64_character_hex_here
 WOODSTAR_LOG_LEVEL=debug
 ```

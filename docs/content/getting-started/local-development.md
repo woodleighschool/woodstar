@@ -45,7 +45,7 @@ Woodstar uses file storage by default. The storage integration test starts an ep
 
 ## Run the server
 
-The server needs its canonical HTTPS URL, database URL, and a session secret of at least 32 characters. A local run usually looks like this:
+The server needs its canonical HTTPS URL, database URL, and a 32-byte file-storage capability key. A local run usually looks like this:
 
 ```bash
 mise run dev-tls
@@ -56,7 +56,7 @@ WOODSTAR_PORT=8443 \
 WOODSTAR_URL='https://woodstar:8443' \
 WOODSTAR_TLS_CERT_FILE='./tmp/tls/woodstar.pem' \
 WOODSTAR_TLS_KEY_FILE='./tmp/tls/woodstar-key.pem' \
-WOODSTAR_SESSION_SECRET='replace-with-at-least-32-characters' \
+WOODSTAR_STORAGE_CAPABILITY_KEY="$(openssl rand -hex 32)" \
   mise exec -- go run ./cmd/woodstar serve
 ```
 

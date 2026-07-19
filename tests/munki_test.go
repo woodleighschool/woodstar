@@ -15,9 +15,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"howett.net/plist"
+
+	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
 const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -149,7 +153,8 @@ func TestMunki(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse test server URL: %v", err)
 	}
-	if len(server.Client.Jar.Cookies(baseURL)) == 0 {
+	cookies := server.Client.Jar.Cookies(baseURL)
+	if len(cookies) == 0 {
 		t.Fatal("admin client did not retain the setup session cookie")
 	}
 
@@ -164,6 +169,25 @@ func TestMunki(t *testing.T) {
 			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
 		}
 	})
+	var sessionCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == "woodstar_session" {
+			sessionCookie = cookie
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("admin client did not retain woodstar_session")
+	}
+	var storedSessionToken string
+	if err := database.QueryRow(t.Context(), "SELECT token FROM sessions").Scan(&storedSessionToken); err != nil {
+		t.Fatalf("query stored session token: %v", err)
+	}
+	tokenHash := sha256.Sum256([]byte(sessionCookie.Value))
+	wantStoredToken := base64.RawURLEncoding.EncodeToString(tokenHash[:])
+	if storedSessionToken != wantStoredToken {
+		t.Fatal("session store retained the bearer token instead of its SHA-256 hash")
+	}
 
 	var hostID int64
 	err = database.QueryRow(
@@ -218,6 +242,7 @@ func TestMunki(t *testing.T) {
 	installerSum := sha256.Sum256(installerBytes)
 	installerSHA256 := hex.EncodeToString(installerSum[:])
 	var installerTarget munkiTestUploadTarget
+	capabilityIssuedAfter := time.Now()
 	requestJSON(
 		t,
 		server.Client,
@@ -229,6 +254,7 @@ func TestMunki(t *testing.T) {
 		http.StatusCreated,
 		&installerTarget,
 	)
+	capabilityIssuedBefore := time.Now()
 	if installerTarget.ObjectID <= 0 || installerTarget.Upload.Method != http.MethodPut ||
 		installerTarget.Upload.Strategy != "direct-put" {
 		t.Fatalf(
@@ -238,6 +264,14 @@ func TestMunki(t *testing.T) {
 			installerTarget.Upload.Strategy,
 		)
 	}
+	assertStorageCapabilityTTL(
+		t,
+		installerTarget.Upload.URL,
+		server.StorageCapabilityKey,
+		capability.OpPut,
+		capabilityIssuedAfter,
+		capabilityIssuedBefore,
+	)
 	installerUpload, err := http.NewRequestWithContext(
 		t.Context(),
 		installerTarget.Upload.Method,
@@ -726,5 +760,38 @@ func TestMunki(t *testing.T) {
 	showcase, ok := archiveFiles["templates/showcase_template.html"]
 	if !ok || !strings.Contains(string(showcase), "custom/resources/banner.png") {
 		t.Fatalf("client resources ZIP showcase template = %q, want banner reference", showcase)
+	}
+}
+
+func assertStorageCapabilityTTL(
+	t *testing.T,
+	rawURL string,
+	keyHex string,
+	op string,
+	issuedAfter time.Time,
+	issuedBefore time.Time,
+) {
+	t.Helper()
+	key, err := hex.DecodeString(keyHex)
+	if err != nil {
+		t.Fatalf("decode storage capability key: %v", err)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse storage capability URL: %v", err)
+	}
+	claims, err := capability.Verify[storage.BlobCapabilityClaims](
+		key,
+		parsed.Query().Get("cap"),
+		op,
+		issuedAfter,
+	)
+	if err != nil {
+		t.Fatalf("verify storage capability: %v", err)
+	}
+	minExpiry := issuedAfter.Add(testStorageTransferTTL).Unix()
+	maxExpiry := issuedBefore.Add(testStorageTransferTTL).Unix()
+	if claims.Exp < minExpiry || claims.Exp > maxExpiry {
+		t.Fatalf("storage capability expiry = %d, want between %d and %d", claims.Exp, minExpiry, maxExpiry)
 	}
 }

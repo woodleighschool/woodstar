@@ -95,7 +95,6 @@ type AppDependencies struct {
 
 	StorageBackend  storage.Backend
 	StorageDelivery *storage.Delivery
-	StorageKey      []byte
 	StorageObjects  *storage.ObjectStore
 	StorageIngestor *storage.Ingestor
 
@@ -270,7 +269,6 @@ func browserRoutes(
 	storage.RegisterTransferRoutes(
 		r.With(requestLogger),
 		deps.App.StorageBackend,
-		deps.App.StorageKey,
 		deps.Logger.With("component", "storage"),
 	)
 

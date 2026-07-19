@@ -32,23 +32,25 @@ import (
 )
 
 const (
-	testBinaryEnvironment      = "WOODSTAR_TEST_BINARY"
-	testDatabaseEnvironment    = "WOODSTAR_TEST_DATABASE_URL"
-	readinessTimeout           = 20 * time.Second
-	testClientTimeout          = 30 * time.Second
-	processShutdownTimeout     = 20 * time.Second
-	databaseOperationTimeout   = 10 * time.Second
-	serverLogTailLimit         = 64 << 10
-	testSessionSecretByteCount = 32
+	testBinaryEnvironment             = "WOODSTAR_TEST_BINARY"
+	testDatabaseEnvironment           = "WOODSTAR_TEST_DATABASE_URL"
+	readinessTimeout                  = 20 * time.Second
+	testClientTimeout                 = 30 * time.Second
+	processShutdownTimeout            = 20 * time.Second
+	databaseOperationTimeout          = 10 * time.Second
+	serverLogTailLimit                = 64 << 10
+	testStorageCapabilityKeyByteCount = 32
+	testStorageTransferTTL            = 7 * time.Minute
 )
 
 type testServer struct {
-	BaseURL           string
-	Client            *http.Client
-	DatabaseURL       string
-	StorageRoot       string
-	CACertificate     []byte
-	CACertificatePath string
+	BaseURL              string
+	Client               *http.Client
+	DatabaseURL          string
+	StorageRoot          string
+	StorageCapabilityKey string
+	CACertificate        []byte
+	CACertificatePath    string
 
 	logPath    string
 	redactions []string
@@ -107,7 +109,7 @@ func startTestServer(t *testing.T) *testServer {
 	port := allocatePort(t)
 	baseURL := "https://localhost:" + strconv.Itoa(port)
 	client := verifyingClient(t, tlsMaterial.caCertificate)
-	secret := randomHex(t, testSessionSecretByteCount)
+	storageCapabilityKey := randomHex(t, testStorageCapabilityKeyByteCount)
 	logPath := filepath.Join(root, "woodstar.log")
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -116,15 +118,16 @@ func startTestServer(t *testing.T) *testServer {
 	t.Cleanup(func() { _ = logFile.Close() })
 
 	server := &testServer{
-		BaseURL:           baseURL,
-		Client:            client,
-		DatabaseURL:       databaseURL,
-		StorageRoot:       storageRoot,
-		CACertificate:     append([]byte(nil), tlsMaterial.caCertificate...),
-		CACertificatePath: tlsMaterial.caPath,
-		logPath:           logPath,
+		BaseURL:              baseURL,
+		Client:               client,
+		DatabaseURL:          databaseURL,
+		StorageRoot:          storageRoot,
+		StorageCapabilityKey: storageCapabilityKey,
+		CACertificate:        append([]byte(nil), tlsMaterial.caCertificate...),
+		CACertificatePath:    tlsMaterial.caPath,
+		logPath:              logPath,
 	}
-	server.redact(secret, databaseURL)
+	server.redact(storageCapabilityKey, databaseURL)
 	if parsedDatabaseURL, parseErr := url.Parse(databaseURL); parseErr == nil && parsedDatabaseURL.User != nil {
 		if password, ok := parsedDatabaseURL.User.Password(); ok {
 			server.redact(password)
@@ -137,7 +140,7 @@ func startTestServer(t *testing.T) *testServer {
 		baseURL,
 		databaseURL,
 		storageRoot,
-		secret,
+		storageCapabilityKey,
 		tlsMaterial,
 		logFile,
 	)
@@ -443,7 +446,7 @@ func woodstarCommand(
 	baseURL string,
 	databaseURL string,
 	storageRoot string,
-	sessionSecret string,
+	storageCapabilityKey string,
 	tlsMaterial testTLS,
 	logFile *os.File,
 ) *exec.Cmd {
@@ -460,9 +463,10 @@ func woodstarCommand(
 	command.Env = append(
 		withoutWoodstarEnvironment(os.Environ()),
 		"WOODSTAR_DATABASE_URL="+databaseURL,
-		"WOODSTAR_SESSION_SECRET="+sessionSecret,
+		"WOODSTAR_STORAGE_CAPABILITY_KEY="+storageCapabilityKey,
 		"WOODSTAR_STORAGE_KIND=file",
 		"WOODSTAR_STORAGE_FILE_ROOT="+storageRoot,
+		"WOODSTAR_STORAGE_TRANSFER_TTL="+testStorageTransferTTL.String(),
 	)
 	command.Stdout = logFile
 	command.Stderr = logFile

@@ -12,10 +12,12 @@ Munki package installers, icons, client-resources banners, and compiled client-r
 
 `WOODSTAR_STORAGE_KIND` picks the backend:
 
-- `file` (the default) writes bytes under `WOODSTAR_STORAGE_FILE_ROOT` on local disk. Nothing to configure; fine for a single node and for local development.
+- `file` (the default) writes bytes under `WOODSTAR_STORAGE_FILE_ROOT` on local disk and requires one capability key; fine for a single node and for local development.
 - `s3` uses an S3-compatible bucket, and adds presigned uploads and presigned download redirects.
 
 The rest of Woodstar behaves the same either way; only the byte transfer differs.
+
+The file backend issues short-lived HMAC capabilities for Woodstar's `/storage/*` transfer routes. Set `WOODSTAR_STORAGE_CAPABILITY_KEY` to 32 random bytes encoded as hexadecimal (`openssl rand -hex 32`). S3 has no Woodstar transfer route and does not use this key; its provider signs the presigned URLs. `WOODSTAR_STORAGE_TRANSFER_TTL` controls both kinds of short-lived transfer URL.
 
 ## Getting package installers in
 

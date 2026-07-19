@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -187,13 +188,14 @@ type munkiUploadFixture struct {
 func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	t.Helper()
 	db, ctx := dbtest.Open(t)
-	capabilityKey := []byte("Munki upload test capability key")
 	backend, err := storage.New(ctx, storage.Config{
-		Kind:          storage.KindFile,
-		FileRoot:      t.TempDir(),
-		BaseURL:       "https://woodstar.example",
-		CapabilityKey: capabilityKey,
-		PresignTTL:    time.Minute,
+		Kind:        storage.KindFile,
+		TransferTTL: time.Minute,
+		File: storage.FileConfig{
+			Root:             t.TempDir(),
+			BaseURL:          "https://woodstar.example",
+			CapabilityKeyHex: strings.Repeat("42", 32),
+		},
 	})
 	if err != nil {
 		t.Fatalf("create storage backend: %v", err)
@@ -217,7 +219,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
 	registerCreateClientResourcesBannerUpload(api, uploads, discardLogger())
 	registerDeleteClientResourcesBannerUpload(api, uploads, discardLogger())
-	storage.RegisterTransferRoutes(router, backend, capabilityKey, discardLogger())
+	storage.RegisterTransferRoutes(router, backend, discardLogger())
 
 	return munkiUploadFixture{
 		router:     router,

@@ -18,6 +18,8 @@ woodstar_session
 
 The cookie is secure by default. Set `WOODSTAR_SESSION_COOKIE_SECURE=false` only when the browser uses an HTTP development origin such as Vite on localhost.
 
+The cookie value is an opaque random bearer token. Woodstar stores only its SHA-256 hash in Postgres; there is no session-signing key to configure or rotate. Revoking a session means deleting it or its database row, not rotating a storage credential.
+
 ## First setup
 
 The very first account is created through the setup flow, which the app walks you through on a fresh install: start the backend, open it in a browser, and create the first local admin. After that, the normal login, logout, and session endpoints take over.

@@ -35,11 +35,13 @@ const (
 func TestStorageBackends(t *testing.T) {
 	t.Run("file", func(t *testing.T) {
 		backend, err := storage.New(t.Context(), storage.Config{
-			Kind:          storage.KindFile,
-			FileRoot:      t.TempDir(),
-			BaseURL:       "http://woodstar.test",
-			CapabilityKey: bytes.Repeat([]byte{0x42}, 32),
-			PresignTTL:    time.Minute,
+			Kind:        storage.KindFile,
+			TransferTTL: time.Minute,
+			File: storage.FileConfig{
+				Root:             t.TempDir(),
+				BaseURL:          "http://woodstar.test",
+				CapabilityKeyHex: strings.Repeat("42", 32),
+			},
 		})
 		if err != nil {
 			t.Fatalf("create file storage: %v", err)
@@ -51,7 +53,8 @@ func TestStorageBackends(t *testing.T) {
 		requireStorageProvider(t)
 		endpoint := startGarage(t)
 		backend, err := storage.New(t.Context(), storage.Config{
-			Kind: storage.KindS3,
+			Kind:        storage.KindS3,
+			TransferTTL: time.Minute,
 			S3: storage.S3Config{
 				Bucket:         garageBucket,
 				Region:         garageRegion,
@@ -60,7 +63,6 @@ func TestStorageBackends(t *testing.T) {
 				AccessKey:      garageAccessKey,
 				SecretKey:      garageSecretKey,
 				PathStyle:      true,
-				PresignTTL:     time.Minute,
 			},
 		})
 		if err != nil {

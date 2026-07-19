@@ -3,9 +3,11 @@ package storage
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -131,10 +133,13 @@ func (b *overwritingMoveBackend) Move(
 func newTestBackend(t *testing.T) Backend {
 	t.Helper()
 	backend, err := New(t.Context(), Config{
-		Kind:          KindFile,
-		FileRoot:      t.TempDir(),
-		BaseURL:       "https://woodstar.example",
-		CapabilityKey: []byte("object upload test capability key"),
+		Kind:        KindFile,
+		TransferTTL: time.Minute,
+		File: FileConfig{
+			Root:             t.TempDir(),
+			BaseURL:          "https://woodstar.example",
+			CapabilityKeyHex: hex.EncodeToString(bytes.Repeat([]byte{0x42}, 32)),
+		},
 	})
 	if err != nil {
 		t.Fatalf("create file storage: %v", err)

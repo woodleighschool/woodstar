@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"net"
@@ -94,8 +92,6 @@ func serveCommand() *cobra.Command {
 	cmd.Flags().StringVar(&cfg.TLSKeyFile, "tls-key-file", "", "TLS private key file")
 	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
 	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
-	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
-
 	return cmd
 }
 
@@ -158,8 +154,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
 
-	storageCapabilityKey := assetCapabilityKey(cfg.SessionSecret)
-	storageBackend, err := storage.New(ctx, storageConfig(cfg, storageCapabilityKey))
+	storageBackend, err := storage.New(ctx, storageConfig(cfg))
 	if err != nil {
 		return fmt.Errorf("init storage: %w", err)
 	}
@@ -171,7 +166,6 @@ func serve(parent context.Context, cfg config.Config) error {
 		sessions,
 		logger,
 		storageBackend,
-		storageCapabilityKey,
 	)
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
@@ -233,7 +227,6 @@ func buildDependencies(
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
 	storageBackend storage.Backend,
-	storageCapabilityKey []byte,
 ) (*api.Dependencies, []starter, error) {
 	storageDelivery := storage.NewDelivery(storageBackend)
 
@@ -363,7 +356,6 @@ func buildDependencies(
 
 			StorageBackend:  storageBackend,
 			StorageDelivery: storageDelivery,
-			StorageKey:      slices.Clone(storageCapabilityKey),
 			StorageObjects:  objectStore,
 			StorageIngestor: storageIngestor,
 
@@ -438,13 +430,15 @@ func newAuth(
 	return service, nil
 }
 
-func storageConfig(cfg config.Config, capabilityKey []byte) storage.Config {
+func storageConfig(cfg config.Config) storage.Config {
 	return storage.Config{
-		Kind:          storage.Kind(cfg.StorageKind),
-		FileRoot:      cfg.StorageFileRoot,
-		BaseURL:       cfg.ServerURL,
-		CapabilityKey: slices.Clone(capabilityKey),
-		PresignTTL:    cfg.StorageS3PresignTTL,
+		Kind:        storage.Kind(cfg.StorageKind),
+		TransferTTL: cfg.StorageTransferTTL,
+		File: storage.FileConfig{
+			Root:             cfg.StorageFileRoot,
+			BaseURL:          cfg.ServerURL,
+			CapabilityKeyHex: cfg.StorageCapabilityKey,
+		},
 		S3: storage.S3Config{
 			Bucket:         cfg.StorageS3Bucket,
 			Region:         cfg.StorageS3Region,
@@ -453,15 +447,8 @@ func storageConfig(cfg config.Config, capabilityKey []byte) storage.Config {
 			AccessKey:      cfg.StorageS3AccessKey,
 			SecretKey:      cfg.StorageS3SecretKey,
 			PathStyle:      cfg.StorageS3PathStyle,
-			PresignTTL:     cfg.StorageS3PresignTTL,
 		},
 	}
-}
-
-func assetCapabilityKey(sessionSecret string) []byte {
-	mac := hmac.New(sha256.New, []byte(sessionSecret))
-	_, _ = mac.Write([]byte("woodstar-storage-capability-v1"))
-	return mac.Sum(nil)
 }
 
 func santaCleanupStarter(
@@ -538,6 +525,7 @@ func newSessions(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxs
 
 	sessions := scs.New()
 	sessions.Store = store
+	sessions.HashTokenInStore = true
 	sessions.Lifetime = config.SessionLifetime
 	sessions.Cookie.Name = "woodstar_session"
 	sessions.Cookie.Path = "/"
