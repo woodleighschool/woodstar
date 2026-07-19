@@ -24,7 +24,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -398,7 +405,8 @@ function TargetActionsField({
   };
   return (
     <>
-      <div className="grid gap-3" role="group" aria-invalid={invalid ? true : undefined}>
+      <FieldSet className="grid gap-3" aria-invalid={invalid ? true : undefined}>
+        <FieldLegend className="sr-only">Actions</FieldLegend>
         {MUNKI_ASSIGNMENT_ACTION_VALUES.map((action) => {
           const id = `munki-target-action-${action}`;
           const checked = value.includes(action);
@@ -426,7 +434,7 @@ function TargetActionsField({
             </Field>
           );
         })}
-      </div>
+      </FieldSet>
       {value.includes("optional_installs") ? (
         <div className="grid gap-3 pl-6">
           {MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES.map((action) => {

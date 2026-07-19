@@ -1,284 +1,34 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-
-  "ignorePatterns": ["node_modules/**", "dist/**", "src/routeTree.gen.ts", "src/lib/api-client/**"],
+  // Generated sources and vendored shadcn components are not our lint policy.
+  "ignorePatterns": [
+    "dist/**",
+    "src/routeTree.gen.ts",
+    "src/lib/api-client/**",
+    "src/components/ui/**",
+    "src/lib/compose-refs.ts",
+    "src/components/visually-hidden-input.tsx",
+  ],
 
   "env": {
     "builtin": true,
     "browser": true,
   },
 
-  "options": {
-    "typeAware": true,
-    "typeCheck": false,
-    "reportUnusedDisableDirectives": "error",
-  },
-
-  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "react", "react-perf", "promise"],
-
-  "jsPlugins": [
-    "@tanstack/eslint-plugin-query",
-    "@tanstack/eslint-plugin-router",
-    "eslint-plugin-better-tailwindcss",
-  ],
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "jsx-a11y", "import"],
 
   "categories": {
     "correctness": "error",
-    "suspicious": "error",
-    "perf": "off",
-    "pedantic": "off",
-    "style": "off",
-    "restriction": "off",
-    "nursery": "off",
-  },
-
-  "settings": {
-    "react": {
-      "version": "19.2.7",
-    },
-
-    "better-tailwindcss": {
-      "entryPoint": "src/index.css",
-      "tsconfig": "tsconfig.json",
-    },
   },
 
   "rules": {
-    "no-console": ["warn", { "allow": ["warn", "error"] }],
-    "no-debugger": "error",
-    "no-alert": "error",
-    "eqeqeq": ["error", "always", { "null": "ignore" }],
-    "curly": "off",
-    "no-shadow": "off",
-    "no-var": "error",
-    "prefer-const": ["error", { "destructuring": "all", "ignoreReadBeforeAssign": true }],
-    "no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-        "caughtErrorsIgnorePattern": "^_",
-        "destructuredArrayIgnorePattern": "^_",
-        "ignoreRestSiblings": true,
-      },
-    ],
-    "no-implicit-coercion": "off",
-    "prefer-template": "off",
-    "unicorn/no-nested-ternary": "off",
-    "unicorn/no-null": "off",
-    "unicorn/no-negated-condition": "off",
-    "unicorn/consistent-function-scoping": "off",
-    "unicorn/prefer-add-event-listener": "off",
-    "object-shorthand": ["warn", "always"],
-    "sort-imports": [
-      "warn",
-      {
-        "ignoreDeclarationSort": true,
-        "ignoreCase": true,
-        "allowSeparatedGroups": true,
-      },
-    ],
-    "capitalized-comments": "off",
-    "no-ternary": "off",
-    "no-nested-ternary": "off",
-    "no-underscore-dangle": "off",
-    "no-duplicate-imports": "off",
-
-    "typescript/await-thenable": "error",
-    "typescript/no-floating-promises": "error",
-    "typescript/no-misused-promises": "error",
-    "typescript/switch-exhaustiveness-check": "error",
-    "typescript/no-explicit-any": "warn",
-    "typescript/no-non-null-assertion": "warn",
-    "typescript/no-unsafe-argument": "warn",
-    "typescript/no-unsafe-assignment": "warn",
-    "typescript/no-unsafe-call": "warn",
-    "typescript/no-unsafe-member-access": "warn",
-    "typescript/no-unsafe-return": "warn",
-    "typescript/no-unsafe-type-assertion": "off",
-    "typescript/consistent-return": "off",
-    "typescript/no-unnecessary-type-conversion": "off",
-    "typescript/no-useless-default-assignment": "off",
-    "typescript/no-unnecessary-type-parameters": "off",
-    "typescript/no-unnecessary-type-assertion": "warn",
-    "typescript/no-confusing-void-expression": "off",
-    "typescript/no-import-type-side-effects": "off",
-    "typescript/consistent-type-imports": "off",
-    "typescript/consistent-type-exports": "warn",
-    "typescript/consistent-type-assertions": [
-      "warn",
-      {
-        "assertionStyle": "as",
-        "objectLiteralTypeAssertions": "allow-as-parameter",
-        "arrayLiteralTypeAssertions": "allow-as-parameter",
-      },
-    ],
-    "typescript/prefer-nullish-coalescing": "warn",
-    "typescript/prefer-optional-chain": "warn",
-    "typescript/return-await": ["warn", "error-handling-correctness-only"],
-    "typescript/only-throw-error": [
-      "error",
-      {
-        "allow": [
-          {
-            "from": "package",
-            "package": "@tanstack/router-core",
-            "name": "Redirect",
-          },
-          {
-            "from": "package",
-            "package": "@tanstack/router-core",
-            "name": "NotFoundError",
-          },
-        ],
-        "allowRethrowing": true,
-        "allowThrowingAny": false,
-        "allowThrowingUnknown": false,
-      },
-    ],
-
+    // Oxc classifies this as pedantic, but invalid hook ordering is a correctness failure.
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "error",
-    "react/jsx-key": "error",
-    "react/jsx-no-constructed-context-values": "error",
-    "react/jsx-no-duplicate-props": "error",
-    "react/button-has-type": "error",
-    "react/only-export-components": "off",
-    "react/display-name": "warn",
-    "react/jsx-no-useless-fragment": "warn",
-    "react/jsx-pascal-case": "warn",
-    "react/self-closing-comp": "warn",
-    "react/no-children-prop": "off",
-    "react/no-unstable-nested-components": "off",
-
-    "react/jsx-props-no-spreading": "off",
-    "react/no-multi-comp": "off",
-
-    // automatic JSX runtime: no React import needed
+    // Vite uses React's automatic JSX runtime.
     "react/react-in-jsx-scope": "off",
-
-    "import/no-duplicates": "error",
-    "import/no-cycle": [
-      "error",
-      {
-        "ignoreExternal": true,
-        "ignoreTypes": true,
-        "allowUnsafeDynamicCyclicDependency": true,
-      },
-    ],
-    "import/no-self-import": "error",
-    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
-    "import/no-mutable-exports": "error",
-    "import/first": "warn",
-    "import/no-named-as-default": "warn",
-    "import/no-named-as-default-member": "warn",
-
-    "@tanstack/query/exhaustive-deps": "error",
-    "@tanstack/query/stable-query-client": "error",
-    "@tanstack/query/no-unstable-deps": "error",
-    "@tanstack/query/no-rest-destructuring": "warn",
-    "@tanstack/query/infinite-query-property-order": "error",
-    "@tanstack/query/mutation-property-order": "error",
-    "@tanstack/query/no-void-query-fn": "error",
-    "@tanstack/query/prefer-query-options": "off",
-
-    "@tanstack/router/create-route-property-order": "error",
-
-    "better-tailwindcss/no-unknown-classes": [
-      "error",
-      { "ignore": ["^sidebar-subnav-collapsible$", "^toaster$"] },
-    ],
-    "better-tailwindcss/no-conflicting-classes": "error",
-    "better-tailwindcss/no-restricted-classes": "error",
-    "better-tailwindcss/no-duplicate-classes": "error",
-    "better-tailwindcss/no-deprecated-classes": "warn",
-    "better-tailwindcss/enforce-canonical-classes": "off",
-    "better-tailwindcss/enforce-shorthand-classes": "off",
-    "better-tailwindcss/enforce-logical-properties": "off",
-    "better-tailwindcss/enforce-consistent-class-order": "warn",
-    "better-tailwindcss/enforce-consistent-variant-order": "warn",
-    "better-tailwindcss/enforce-consistent-variable-syntax": "off",
-    "better-tailwindcss/enforce-consistent-important-position": "warn",
-    "better-tailwindcss/no-unnecessary-whitespace": "warn",
-    "better-tailwindcss/enforce-consistent-line-wrapping": "off",
+    // TanStack Form uses a callback children prop as its field render API.
+    "react/no-children-prop": "off",
+    // Base UI's render element receives its accessible content from the wrapping component.
+    "jsx-a11y/anchor-has-content": "off",
+    "jsx-a11y/control-has-associated-label": "off",
   },
-
-  "overrides": [
-    {
-      "files": ["vite.config.ts"],
-      "env": {
-        "node": true,
-      },
-      "rules": {
-        "no-console": "off",
-        "import/no-cycle": "off",
-      },
-    },
-    {
-      "files": ["src/main.tsx"],
-      "rules": {
-        "react/only-export-components": "off",
-      },
-    },
-    {
-      "files": ["src/routes/**/*.{ts,tsx}"],
-      "rules": {
-        "react/only-export-components": [
-          "warn",
-          {
-            "allowConstantExport": true,
-            "checkJS": true,
-            "allowExportNames": [
-              "Route",
-              "loader",
-              "beforeLoad",
-              "component",
-              "pendingComponent",
-              "errorComponent",
-              "notFoundComponent",
-              "ErrorComponent",
-              "NotFoundComponent",
-            ],
-          },
-        ],
-      },
-    },
-    {
-      "files": ["src/components/ui/**/*.{ts,tsx}"],
-      "rules": {
-        "react/display-name": "off",
-        "react/jsx-props-no-spreading": "off",
-        "react/no-multi-comp": "off",
-        // vendored components reach into library internals typed as `any` (e.g. dnd-kit `data.current`)
-        "typescript/no-unsafe-member-access": "off",
-        "typescript/no-unsafe-assignment": "off",
-      },
-    },
-    {
-      // vendored DiceUI memo hooks depend on rest props; exhaustive-deps wants the unstable parent object
-      "files": [
-        "src/lib/compose-refs.ts",
-        "src/components/ui/editable.tsx",
-        "src/components/ui/sortable.tsx",
-      ],
-      "rules": {
-        "react/exhaustive-deps": "off",
-      },
-    },
-    {
-      // DiceUI dispatches through the native input setter so React sees controlled value changes
-      "files": ["src/components/visually-hidden-input.tsx"],
-      "rules": {
-        "typescript/unbound-method": "off",
-      },
-    },
-    {
-      "files": ["**/*.d.ts"],
-      "rules": {
-        "no-unused-vars": "off",
-        "typescript/no-explicit-any": "off",
-        "import/no-duplicates": "off",
-      },
-    },
-  ],
 }

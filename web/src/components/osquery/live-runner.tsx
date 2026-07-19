@@ -470,9 +470,9 @@ function TargetPicker({
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (
-              <div className="px-2 py-2 text-sm text-muted-foreground" role="status">
+              <output className="block px-2 py-2 text-sm text-muted-foreground">
                 Searching hosts…
-              </div>
+              </output>
             ) : hostRows.length ? (
               hostRows.map((host) => (
                 <button

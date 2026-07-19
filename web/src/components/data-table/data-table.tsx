@@ -37,6 +37,26 @@ export function DataTable<TData>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const direction = header.column.getIsSorted();
+                  const content = (
+                    <>
+                      <span className="truncate">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </span>
+                      {direction === "asc" ? (
+                        <ChevronUpIcon
+                          className="shrink-0 opacity-60"
+                          size={16}
+                          aria-hidden="true"
+                        />
+                      ) : direction === "desc" ? (
+                        <ChevronDownIcon
+                          className="shrink-0 opacity-60"
+                          size={16}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                    </>
+                  );
 
                   return (
                     <TableHead
@@ -50,41 +70,16 @@ export function DataTable<TData>({
                             : "none"
                       }
                     >
-                      {header.isPlaceholder ? null : (
-                        <div
-                          className={cn(
-                            header.column.getCanSort() &&
-                              "flex h-full cursor-pointer items-center justify-between gap-2 select-none",
-                          )}
+                      {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                        <button
+                          type="button"
+                          className="flex h-full w-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                           onClick={header.column.getToggleSortingHandler()}
-                          onKeyDown={(event) => {
-                            if (
-                              header.column.getCanSort() &&
-                              (event.key === "Enter" || event.key === " ")
-                            ) {
-                              event.preventDefault();
-                              header.column.getToggleSortingHandler()?.(event);
-                            }
-                          }}
-                          tabIndex={header.column.getCanSort() ? 0 : undefined}
                         >
-                          <span className="truncate">
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                          </span>
-                          {direction === "asc" ? (
-                            <ChevronUpIcon
-                              className="shrink-0 opacity-60"
-                              size={16}
-                              aria-hidden="true"
-                            />
-                          ) : direction === "desc" ? (
-                            <ChevronDownIcon
-                              className="shrink-0 opacity-60"
-                              size={16}
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </div>
+                          {content}
+                        </button>
+                      ) : (
+                        content
                       )}
                     </TableHead>
                   );
