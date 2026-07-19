@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import * as React from "react";
@@ -27,23 +27,123 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useGroup } from "@/hooks/use-groups";
-import { type UserListParams, useUsers } from "@/hooks/use-users";
+import { useUsers } from "@/hooks/use-users";
 import type { User } from "@/lib/api";
-import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@/lib/directory";
+import {
+  DIRECTORY_SOURCE_OPTIONS,
+  DIRECTORY_SOURCES,
+  DIRECTORY_SOURCE_VALUES,
+} from "@/lib/directory";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
-import { nonEmpty } from "@/lib/utils";
+import {
+  USER_ACCESS_ROLE_OPTIONS,
+  USER_ACCESS_ROLES,
+  USER_ACCESS_ROLE_VALUES,
+  userAccessRole,
+} from "@/lib/users";
+import { isOneOf, nonEmpty } from "@/lib/utils";
 const USER_FILTER_KEYS = [{ id: "role" }, { id: "source" }] as const;
+
+interface UserTableRow {
+  user: User;
+  currentUserId: number | null;
+  isAdmin: boolean;
+  onDelete: (user: User) => void;
+}
+
+function UserNameCell({ row }: CellContext<UserTableRow, unknown>) {
+  const label = nonEmpty(row.original.user.name) ?? row.original.user.email;
+  if (row.original.isAdmin || row.original.user.id === row.original.currentUserId) {
+    return (
+      <Link
+        {...userEditLink(row.original.user.id, row.original.currentUserId)}
+        className="font-medium hover:underline"
+      >
+        {label}
+      </Link>
+    );
+  }
+  return <span className="font-medium">{label}</span>;
+}
+
+function UserEmailCell({ row }: CellContext<UserTableRow, unknown>) {
+  return `${row.original.user.email}${row.original.user.id === row.original.currentUserId ? " (you)" : ""}`;
+}
+
+function UserActionsCell({ row }: CellContext<UserTableRow, unknown>) {
+  return (
+    <UserRowActions
+      user={row.original.user}
+      isSelf={row.original.user.id === row.original.currentUserId}
+      onDelete={row.original.onDelete}
+    />
+  );
+}
+
+const userColumns: ColumnDef<UserTableRow>[] = [
+  {
+    id: "name",
+    accessorFn: (row) => row.user.name,
+    header: "Name",
+    cell: UserNameCell,
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "email",
+    accessorFn: (row) => row.user.email,
+    header: "Email",
+    cell: UserEmailCell,
+    meta: { label: "Email" },
+  },
+  {
+    id: "role",
+    accessorFn: (row) => row.user.role,
+    header: "Role",
+    cell: ({ row }) => (
+      <EnumBadge value={userAccessRole(row.original.user.role)} metadata={USER_ACCESS_ROLES} />
+    ),
+    meta: { label: "Role", options: USER_ACCESS_ROLE_OPTIONS },
+    enableColumnFilter: true,
+  },
+  {
+    id: "source",
+    accessorFn: (row) => row.user.source,
+    header: "Source",
+    cell: ({ row }) => <EnumBadge value={row.original.user.source} metadata={DIRECTORY_SOURCES} />,
+    meta: { label: "Source", options: DIRECTORY_SOURCE_OPTIONS },
+    enableColumnFilter: true,
+  },
+  {
+    id: "department",
+    accessorFn: (row) => row.user.department,
+    header: "Department",
+    cell: ({ row }) => nonEmpty(row.original.user.department) ?? "-",
+    meta: { label: "Department" },
+  },
+  {
+    id: "actions",
+    header: () => null,
+    enableSorting: false,
+    enableHiding: false,
+    size: 48,
+    cell: UserActionsCell,
+  },
+];
+
+const userViewerColumns = userColumns.filter((column) => column.id !== "actions");
+
 export function UserListPage() {
   const tableSearch = useDataTableSearch(USER_FILTER_KEYS);
   const { user: currentUser } = useAuth();
-  const currentUserId = currentUser?.id ?? null;
   const isAdmin = currentUser?.role === "admin";
   const [createOpen, setCreateOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<User | null>(null);
   const [deepLink, setDeepLink] = useQueryStates({ group_id: parseAsInteger });
-  const role = tableSearch.filters.role?.[0];
-  const source = tableSearch.filters.source?.[0];
+  const rawRole = tableSearch.filters.role?.[0];
+  const role = isOneOf(rawRole, USER_ACCESS_ROLE_VALUES) ? rawRole : undefined;
+  const rawSource = tableSearch.filters.source?.[0];
+  const source = isOneOf(rawSource, DIRECTORY_SOURCE_VALUES) ? rawSource : undefined;
   const groupID = deepLink.group_id ?? undefined;
   const group = useGroup(groupID ?? null);
   const query = useUsers({
@@ -51,98 +151,30 @@ export function UserListPage() {
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
-    role: role as UserListParams["role"],
-    source: source as UserListParams["source"],
+    role,
+    source,
     group_id: groupID,
   });
   const users = query.data?.items ?? [];
+  const tableRows: UserTableRow[] = users.map((user) => ({
+    user,
+    currentUserId: currentUser?.id ?? null,
+    isAdmin,
+    onDelete: setDeleting,
+  }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!role || !!source || groupID !== undefined;
   const groupLabel =
     groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
-  const columns = React.useMemo<ColumnDef<User>[]>(() => {
-    const baseColumns: ColumnDef<User>[] = [
-      {
-        id: "name",
-        accessorKey: "name",
-        header: "Name",
-        cell: ({ row }) => {
-          const label = nonEmpty(row.original.name) ?? row.original.email;
-          if (isAdmin || row.original.id === currentUserId) {
-            return (
-              <Link
-                {...userEditLink(row.original.id, currentUserId)}
-                className="font-medium hover:underline"
-              >
-                {label}
-              </Link>
-            );
-          }
-          return <span className="font-medium">{label}</span>;
-        },
-        enableHiding: false,
-        meta: { label: "Name" },
-      },
-      {
-        id: "email",
-        accessorKey: "email",
-        header: "Email",
-        cell: ({ row }) =>
-          `${row.original.email}${row.original.id === currentUserId ? " (you)" : ""}`,
-        meta: { label: "Email" },
-      },
-      {
-        id: "role",
-        accessorKey: "role",
-        header: "Role",
-        cell: ({ row }) => (
-          <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />
-        ),
-        meta: { label: "Role", options: USER_ACCESS_ROLE_OPTIONS },
-        enableColumnFilter: true,
-      },
-      {
-        id: "source",
-        accessorKey: "source",
-        header: "Source",
-        cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
-        meta: { label: "Source", options: DIRECTORY_SOURCE_OPTIONS },
-        enableColumnFilter: true,
-      },
-      {
-        id: "department",
-        accessorKey: "department",
-        header: "Department",
-        cell: ({ row }) => nonEmpty(row.original.department) ?? "-",
-        meta: { label: "Department" },
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableSorting: false,
-        enableHiding: false,
-        size: 48,
-        cell: ({ row }) =>
-          isAdmin ? (
-            <UserRowActions
-              user={row.original}
-              isSelf={row.original.id === currentUserId}
-              onDelete={setDeleting}
-            />
-          ) : null,
-      },
-    ];
-    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
-  }, [currentUserId, isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
-    data: users,
-    columns,
+    data: tableRows,
+    columns: isAdmin ? userColumns : userViewerColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
-    getRowId: (row) => String(row.id),
+    getRowId: (row) => String(row.user.id),
   });
   return (
     <PageShell>

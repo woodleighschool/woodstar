@@ -7,6 +7,7 @@ import { ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
+import { assertNever } from "@/lib/utils";
 
 import type { PackageEditorForm } from "./fields";
 import {
@@ -169,6 +170,7 @@ export function PackageEditorTabContent({
     case "advanced":
       return <AdvancedTab form={form} />;
   }
+  return assertNever(tab);
 }
 
 function BasicInfoTab({

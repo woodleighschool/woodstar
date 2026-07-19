@@ -612,8 +612,8 @@ function MediaActionField({
         variant="outline"
         className="flex-wrap"
         onValueChange={(value) => {
-          const action = value[0];
-          if (action && isSantaMediaAction(action)) onActionChange(action);
+          const nextAction = value[0];
+          if (nextAction && isSantaMediaAction(nextAction)) onActionChange(nextAction);
         }}
       >
         {MEDIA_ACTION_OPTIONS.map((option) => (

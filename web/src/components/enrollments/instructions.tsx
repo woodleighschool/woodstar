@@ -205,11 +205,11 @@ function payloadMeta(opts: {
     PayloadVersion: 1,
   };
 }
-function serverURL(value: string | undefined) {
+function normalizeServerURL(value: string | undefined) {
   return (value ?? SERVER_URL_PLACEHOLDER).replace(/\/+$/, "");
 }
 function woodstarURL(serverURLValue: string | undefined, path: string) {
-  return `${serverURL(serverURLValue)}${path}`;
+  return `${normalizeServerURL(serverURLValue)}${path}`;
 }
 function orbitProfileTemplate(serverURLValue: string | undefined) {
   return profile({
@@ -220,7 +220,7 @@ function orbitProfileTemplate(serverURLValue: string | undefined) {
     payloads: [
       {
         EnrollSecret: SECRET_PLACEHOLDER,
-        FleetURL: serverURL(serverURLValue),
+        FleetURL: normalizeServerURL(serverURLValue),
         ...payloadMeta({
           id: "com.fleetdm.fleetd.config",
           type: "com.fleetdm.fleetd.config",

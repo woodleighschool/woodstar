@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/select";
 import { useCreateUser } from "@/hooks/use-users";
 import { emailAddress } from "@/lib/form-validation";
-import { USER_ROLE_OPTIONS, type UserRole } from "@/lib/users";
+import { USER_ROLE_OPTIONS, USER_ROLE_VALUES, type UserRole } from "@/lib/users";
+import { isOneOf } from "@/lib/utils";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -126,7 +127,9 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
                   {(control) => (
                     <Select
                       value={field.state.value}
-                      onValueChange={(value) => field.handleChange(value as UserRole)}
+                      onValueChange={(value) => {
+                        if (isOneOf(value, USER_ROLE_VALUES)) field.handleChange(value);
+                      }}
                     >
                       <SelectTrigger {...control} className="w-full">
                         <SelectValue />

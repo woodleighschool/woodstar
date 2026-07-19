@@ -58,6 +58,16 @@ const secretValueSchema = z
   .string()
   .trim()
   .min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
+
+async function copyAgentSecret(secret: AgentSecret) {
+  try {
+    await navigator.clipboard.writeText(secret.value);
+    toast.success("Enrollment secret copied.");
+  } catch {
+    toast.error("Could not copy to clipboard.");
+  }
+}
+
 export function AgentSecretsDialog({
   integration,
   open,
@@ -78,15 +88,7 @@ export function AgentSecretsDialog({
   const [creatingValue, setCreatingValue] = useState<string | null>(null);
   const [editing, setEditing] = useState<AgentSecret | null>(null);
   const [deleting, setDeleting] = useState<AgentSecret | null>(null);
-  const [visibleSecrets, setVisibleSecrets] = useState<Record<number, boolean>>({});
-  async function copySecret(secret: AgentSecret) {
-    try {
-      await navigator.clipboard.writeText(secret.value);
-      toast.success("Enrollment secret copied.");
-    } catch {
-      toast.error("Could not copy to clipboard.");
-    }
-  }
+  const [visibleSecrets, setVisibleSecrets] = useState<Partial<Record<number, boolean>>>({});
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,7 +123,7 @@ export function AgentSecretsDialog({
             onToggleVisible={(secret) =>
               setVisibleSecrets((current) => ({ ...current, [secret.id]: !current[secret.id] }))
             }
-            onCopy={(secret) => void copySecret(secret)}
+            onCopy={(secret) => void copyAgentSecret(secret)}
             onEdit={setEditing}
             onDelete={setDeleting}
             emptyTitle={`No ${integrationLabel(integration)} secrets yet`}
@@ -223,7 +225,7 @@ function SecretList({
   } | null;
   onRetry: () => void;
   deletingID: number | null;
-  visibleSecrets: Record<number, boolean>;
+  visibleSecrets: Partial<Record<number, boolean>>;
   onToggleVisible: (secret: AgentSecret) => void;
   onCopy: (secret: AgentSecret) => void;
   onEdit: (secret: AgentSecret) => void;
@@ -252,7 +254,7 @@ function SecretList({
           key={secret.id}
           secret={secret}
           disabled={deletingID === secret.id}
-          visible={Boolean(visibleSecrets[secret.id])}
+          visible={visibleSecrets[secret.id] ?? false}
           onToggleVisible={() => onToggleVisible(secret)}
           onCopy={() => onCopy(secret)}
           onEdit={() => onEdit(secret)}

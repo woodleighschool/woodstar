@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, FolderLock } from "lucide-react";
-import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
@@ -17,6 +16,46 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
+
+const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
+  {
+    accessorKey: "name",
+    header: () => "Name",
+    cell: ({ row }) => row.original.name,
+  },
+  {
+    accessorKey: "identifier",
+    header: () => "Identifier",
+    cell: ({ row }) => row.original.identifier,
+  },
+  {
+    accessorKey: "rule_type",
+    header: () => "Type",
+    cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
+  },
+  {
+    accessorKey: "policy",
+    header: () => "Policy",
+    cell: ({ row }) => policyLabel(row.original.policy),
+  },
+  {
+    accessorKey: "applied",
+    header: () => "Status",
+    cell: ({ row }) => (
+      <Badge variant={!row.original.applied ? "secondary" : "outline"} className="gap-1.5">
+        <span
+          className={
+            !row.original.applied
+              ? "size-1.5 rounded-full bg-warning"
+              : "size-1.5 rounded-full bg-status-online"
+          }
+        />
+        {row.original.applied ? "Applied" : "Pending"}
+      </Badge>
+    ),
+  },
+];
+
 export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHostState }) {
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
@@ -34,47 +73,6 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
       santa.configuration.name
     )
   ) : undefined;
-  const columns = useMemo<ColumnDef<SantaRuleStatus>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: () => "Name",
-        cell: ({ row }) => row.original.name,
-      },
-      {
-        accessorKey: "identifier",
-        header: () => "Identifier",
-        cell: ({ row }) => row.original.identifier,
-      },
-      {
-        accessorKey: "rule_type",
-        header: () => "Type",
-        cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
-      },
-      {
-        accessorKey: "policy",
-        header: () => "Policy",
-        cell: ({ row }) => policyLabel(row.original.policy),
-      },
-      {
-        accessorKey: "applied",
-        header: () => "Status",
-        cell: ({ row }) => (
-          <Badge variant={!row.original.applied ? "secondary" : "outline"} className="gap-1.5">
-            <span
-              className={
-                !row.original.applied
-                  ? "size-1.5 rounded-full bg-warning"
-                  : "size-1.5 rounded-full bg-status-online"
-              }
-            />
-            {row.original.applied ? "Applied" : "Pending"}
-          </Badge>
-        ),
-      },
-    ],
-    [],
-  );
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -127,7 +125,7 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
           ) : rules.isLoading ? null : totalCount === 0 ? (
             <EmptyPanel>No matching rules</EmptyPanel>
           ) : (
-            <DataTableStatic columns={columns} data={items} />
+            <DataTableStatic columns={santaRuleColumns} data={items} />
           )}
         </CardContent>
       </Card>

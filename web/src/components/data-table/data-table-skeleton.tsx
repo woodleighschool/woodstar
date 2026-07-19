@@ -39,7 +39,7 @@ export function DataTableSkeleton({
   React.useEffect(() => {
     if (delayMs <= 0) {
       setShow(true);
-      return;
+      return undefined;
     }
 
     setShow(false);
@@ -69,9 +69,9 @@ export function DataTableSkeleton({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {Array.from({ length: 1 }).map((_, headerIndex) => (
+            {Array.from({ length: 1 }).map((_header, headerIndex) => (
               <TableRow key={headerIndex} className="hover:bg-transparent">
-                {Array.from({ length: columnCount }).map((_, columnIndex) => (
+                {Array.from({ length: columnCount }).map((_column, columnIndex) => (
                   <TableHead
                     key={columnIndex}
                     style={{
@@ -86,9 +86,9 @@ export function DataTableSkeleton({
             ))}
           </TableHeader>
           <TableBody>
-            {Array.from({ length: rowCount }).map((_, rowIndex) => (
+            {Array.from({ length: rowCount }).map((_row, rowIndex) => (
               <TableRow key={rowIndex} className="hover:bg-transparent">
-                {Array.from({ length: columnCount }).map((_, columnIndex) => (
+                {Array.from({ length: columnCount }).map((_column, columnIndex) => (
                   <TableCell
                     key={columnIndex}
                     style={{

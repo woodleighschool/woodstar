@@ -21,4 +21,8 @@ stage_fixed = true
 
 [pre-commit.commands.lint-web]
 glob = ["web/**/*.{ts,tsx,js,jsx}"]
+root = "web/"
 run = "oxlint --no-error-on-unmatched-pattern {staged_files}"
+
+[pre-commit.commands.format-yaml]
+exclude = ["web/pnpm-lock.yaml"]

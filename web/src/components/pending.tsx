@@ -18,6 +18,16 @@ interface UsePendingReturn<T extends HTMLElement = HTMLElement> {
   isPending: boolean;
 }
 
+function preventPendingEvent(event: React.SyntheticEvent) {
+  event.preventDefault();
+}
+
+function preventPendingKeyEvent(event: React.KeyboardEvent) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+  }
+}
+
 function usePending<T extends HTMLElement = HTMLElement>(
   options: UsePendingOptions = {},
 ): UsePendingReturn<T> {
@@ -41,23 +51,13 @@ function usePending<T extends HTMLElement = HTMLElement>(
       props["aria-disabled"] = "true";
       props["data-pending"] = true;
 
-      function onEventPrevent(event: React.SyntheticEvent) {
-        event.preventDefault();
-      }
-
-      function onKeyEventPrevent(event: React.KeyboardEvent<T>) {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-        }
-      }
-
-      props.onClick = onEventPrevent;
-      props.onPointerDown = onEventPrevent;
-      props.onPointerUp = onEventPrevent;
-      props.onMouseDown = onEventPrevent;
-      props.onMouseUp = onEventPrevent;
-      props.onKeyDown = onKeyEventPrevent;
-      props.onKeyUp = onKeyEventPrevent;
+      props.onClick = preventPendingEvent;
+      props.onPointerDown = preventPendingEvent;
+      props.onPointerUp = preventPendingEvent;
+      props.onMouseDown = preventPendingEvent;
+      props.onMouseUp = preventPendingEvent;
+      props.onKeyDown = preventPendingKeyEvent;
+      props.onKeyUp = preventPendingKeyEvent;
     }
 
     if (disabled) {

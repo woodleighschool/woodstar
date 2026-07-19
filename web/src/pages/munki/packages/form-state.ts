@@ -13,7 +13,7 @@ import type {
   MunkiPackageReferenceMutation,
 } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
-import { nonEmpty } from "@/lib/utils";
+import { isRecord, nonEmpty } from "@/lib/utils";
 import {
   MUNKI_INSTALL_ITEM_TYPE_VALUES,
   MUNKI_INSTALLER_TYPE_VALUES,
@@ -603,13 +603,12 @@ function parseInstallerChoices(value: string): MunkiPackageInstallerChoice[] {
 }
 
 function installerChoice(value: unknown): MunkiPackageInstallerChoice {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (!isRecord(value)) {
     throw new Error("Installer choice entries must be JSON objects.");
   }
-  const item = value as Record<string, unknown>;
-  const choiceIdentifier = stringValue(item.choice_identifier).trim();
-  const choiceAttribute = stringValue(item.choice_attribute);
-  const attributeSetting = numberValue(item.attribute_setting);
+  const choiceIdentifier = stringValue(value.choice_identifier).trim();
+  const choiceAttribute = stringValue(value.choice_attribute);
+  const attributeSetting = numberValue(value.attribute_setting);
   if (choiceIdentifier === "") {
     throw new Error("Installer choice entries require choice_identifier.");
   }

@@ -48,7 +48,7 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
   useEffect(() => {
     if (value.kind !== "upload") {
       setPreviewURL("");
-      return;
+      return undefined;
     }
     const url = URL.createObjectURL(value.file);
     setPreviewURL(url);

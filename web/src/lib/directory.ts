@@ -3,6 +3,11 @@ import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadat
 
 export type DirectorySource = (User | Group)["source"];
 
+export const DIRECTORY_SOURCE_VALUES = [
+  "local",
+  "entra",
+] as const satisfies readonly DirectorySource[];
+
 export const DIRECTORY_SOURCES = {
   local: {
     name: "Local",
@@ -16,7 +21,7 @@ export const DIRECTORY_SOURCES = {
   },
 } satisfies EnumMetadataMap<DirectorySource>;
 
-export const DIRECTORY_SOURCE_OPTIONS = enumOptions(DIRECTORY_SOURCES);
+export const DIRECTORY_SOURCE_OPTIONS = enumOptions(DIRECTORY_SOURCES, DIRECTORY_SOURCE_VALUES);
 
 export function directorySourceLabel(source: DirectorySource) {
   return enumLabel(DIRECTORY_SOURCES, source);

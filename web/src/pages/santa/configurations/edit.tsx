@@ -42,11 +42,11 @@ export function ConfigurationEditPage() {
       initial={formFromConfiguration(configuration)}
       submitLabel="Save"
       onSubmit={async (body) => (await update.mutateAsync({ id: configuration.id, body })).id}
-      onSuccess={(id) => {
-        if (id !== undefined) {
+      onSuccess={(savedID) => {
+        if (savedID !== undefined) {
           void navigate({
             to: "/santa/configurations/$configurationId",
-            params: { configurationId: String(id) },
+            params: { configurationId: String(savedID) },
           });
         }
       }}

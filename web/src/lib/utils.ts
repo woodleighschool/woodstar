@@ -21,6 +21,21 @@ export function formString(form: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+export function isOneOf<const Values extends readonly string[]>(
+  value: unknown,
+  values: Values,
+): value is Values[number] {
+  return typeof value === "string" && values.some((candidate) => candidate === value);
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
+}
+
 export function formatBytes(bytes: number, decimals = 1): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];

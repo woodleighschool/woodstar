@@ -26,7 +26,8 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { SantaRuleMutation } from "@/lib/api";
-import { RULE_TYPE_OPTIONS, type SantaRuleType } from "@/lib/santa-rules";
+import { RULE_TYPE_OPTIONS, RULE_TYPE_VALUES } from "@/lib/santa-rules";
+import { isOneOf } from "@/lib/utils";
 
 import {
   ruleBody,
@@ -144,7 +145,8 @@ export function RuleForm({
                         <Select
                           value={field.state.value}
                           onValueChange={(ruleType) => {
-                            field.handleChange(ruleType as SantaRuleType);
+                            if (!isOneOf(ruleType, RULE_TYPE_VALUES)) return;
+                            field.handleChange(ruleType);
                             form.setFieldValue("identifier", "");
                           }}
                         >

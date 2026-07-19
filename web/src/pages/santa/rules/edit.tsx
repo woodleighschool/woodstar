@@ -35,9 +35,9 @@ export function RuleEditPage() {
       initial={formFromRule(rule)}
       submitLabel="Save"
       onSubmit={async (body) => (await update.mutateAsync({ id: rule.id, body })).id}
-      onSuccess={(id) => {
-        if (id !== undefined) {
-          void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(id) } });
+      onSuccess={(savedID) => {
+        if (savedID !== undefined) {
+          void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(savedID) } });
         }
       }}
     />

@@ -38,7 +38,8 @@ import {
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { POLICY_OPTIONS, type SantaRulePolicy } from "@/lib/santa-rules";
+import { POLICY_OPTIONS, POLICY_VALUES } from "@/lib/santa-rules";
+import { isOneOf } from "@/lib/utils";
 
 import { type RuleIncludeForm, santaRuleIncludeSchema } from "./form-state";
 const POLICY_LABELS = new Map(POLICY_OPTIONS.map((option) => [option.value, option.label]));
@@ -232,7 +233,9 @@ function SantaIncludeDialog({
                 {(control) => (
                   <Select
                     value={field.state.value}
-                    onValueChange={(policy) => field.handleChange(policy as SantaRulePolicy)}
+                    onValueChange={(policy) => {
+                      if (isOneOf(policy, POLICY_VALUES)) field.handleChange(policy);
+                    }}
                   >
                     <SelectTrigger {...control} className="w-full">
                       <SelectValue />

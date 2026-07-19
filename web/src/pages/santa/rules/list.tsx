@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus } from "lucide-react";
 import * as React from "react";
 
@@ -23,13 +23,79 @@ import { useLabels } from "@/hooks/use-labels";
 import { useBulkDeleteSantaRules, useSantaRules } from "@/hooks/use-santa-rules";
 import type { SantaRule } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
-import { RULE_TYPE_OPTIONS, ruleTypeLabel, type SantaRuleType } from "@/lib/santa-rules";
+import { RULE_TYPE_OPTIONS, RULE_TYPE_VALUES, ruleTypeLabel } from "@/lib/santa-rules";
+import { isOneOf } from "@/lib/utils";
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
+
+interface RuleTableRow {
+  id: number;
+  rule: SantaRule;
+  isAdmin: boolean;
+  labelsByID: ReadonlyMap<number, LabelChip>;
+}
+
+function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
+  return row.original.isAdmin ? (
+    <Link
+      to="/santa/rules/$ruleId"
+      params={{ ruleId: String(row.original.rule.id) }}
+      className="font-medium hover:underline"
+    >
+      {row.original.rule.name}
+    </Link>
+  ) : (
+    <span className="font-medium">{row.original.rule.name}</span>
+  );
+}
+
+function RuleTargetsCell({ row }: CellContext<RuleTableRow, unknown>) {
+  return row.original.rule.targets.include.length ? (
+    <TargetLabelsCell targets={row.original.rule.targets} labelsByID={row.original.labelsByID} />
+  ) : (
+    <Badge variant="secondary">Inactive</Badge>
+  );
+}
+
+const ruleColumns: ColumnDef<RuleTableRow>[] = [
+  selectColumn<RuleTableRow>(),
+  {
+    id: "name",
+    accessorFn: (row) => row.rule.name,
+    header: "Name",
+    cell: RuleNameCell,
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "rule_type",
+    accessorFn: (row) => row.rule.rule_type,
+    header: "Rule Type",
+    cell: ({ row }) => ruleTypeLabel(row.original.rule.rule_type),
+    meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
+    enableColumnFilter: true,
+  },
+  {
+    id: "identifier",
+    accessorFn: (row) => row.rule.identifier,
+    header: "Identifier",
+    cell: ({ row }) => row.original.rule.identifier,
+    meta: { label: "Identifier" },
+  },
+  {
+    id: "targets",
+    header: () => "Targets",
+    enableSorting: false,
+    cell: RuleTargetsCell,
+    meta: { label: "Targets" },
+  },
+];
+
 export function RuleListPage() {
   const tableSearch = useDataTableSearch(RULE_TYPE_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const ruleType = tableSearch.filters.rule_type?.[0] as SantaRuleType | undefined;
+  const rawRuleType = tableSearch.filters.rule_type?.[0];
+  const ruleType = isOneOf(rawRuleType, RULE_TYPE_VALUES) ? rawRuleType : undefined;
   const query = useSantaRules({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -43,65 +109,19 @@ export function RuleListPage() {
     [labels.data?.items],
   );
   const rules = query.data?.items ?? [];
+  const tableRows: RuleTableRow[] = rules.map((rule) => ({
+    id: rule.id,
+    rule,
+    isAdmin,
+    labelsByID,
+  }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!ruleType;
-  const columns = React.useMemo<ColumnDef<SantaRule>[]>(() => {
-    const baseColumns: ColumnDef<SantaRule>[] = [
-      selectColumn<SantaRule>(),
-      {
-        id: "name",
-        accessorKey: "name",
-        header: "Name",
-        cell: ({ row }) =>
-          isAdmin ? (
-            <Link
-              to="/santa/rules/$ruleId"
-              params={{ ruleId: String(row.original.id) }}
-              className="font-medium hover:underline"
-            >
-              {row.original.name}
-            </Link>
-          ) : (
-            <span className="font-medium">{row.original.name}</span>
-          ),
-        enableHiding: false,
-        meta: { label: "Name" },
-      },
-      {
-        id: "rule_type",
-        accessorKey: "rule_type",
-        header: "Rule Type",
-        cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
-        meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
-        enableColumnFilter: true,
-      },
-      {
-        id: "identifier",
-        accessorKey: "identifier",
-        header: "Identifier",
-        cell: ({ row }) => row.original.identifier,
-        meta: { label: "Identifier" },
-      },
-      {
-        id: "targets",
-        header: () => "Targets",
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.original.targets.include.length ? (
-            <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />
-          ) : (
-            <Badge variant="secondary">Inactive</Badge>
-          ),
-        meta: { label: "Targets" },
-      },
-    ];
-    return baseColumns;
-  }, [isAdmin, labelsByID]);
   const table = useDataTable({
     tableState: tableSearch,
-    data: rules,
-    columns,
+    data: tableRows,
+    columns: ruleColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },

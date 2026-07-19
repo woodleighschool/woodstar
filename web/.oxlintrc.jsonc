@@ -14,21 +14,111 @@
     "browser": true,
   },
 
-  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "jsx-a11y", "import"],
+  "options": {
+    "typeAware": true,
+    "typeCheck": false,
+    "reportUnusedDisableDirectives": "error",
+    "maxWarnings": 0,
+  },
+
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "react", "jsx-a11y", "promise"],
+
+  "jsPlugins": [
+    "@tanstack/eslint-plugin-query",
+    "@tanstack/eslint-plugin-router",
+    "eslint-plugin-better-tailwindcss",
+  ],
 
   "categories": {
     "correctness": "error",
+    "suspicious": "error",
+  },
+
+  "settings": {
+    "better-tailwindcss": {
+      "entryPoint": "src/index.css",
+      "tsconfig": "tsconfig.json",
+    },
   },
 
   "rules": {
-    // Oxc classifies this as pedantic, but invalid hook ordering is a correctness failure.
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-alert": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-var": "error",
+    "prefer-const": "error",
+
+    "typescript/await-thenable": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": "Redirect",
+          },
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": "NotFoundError",
+          },
+        ],
+        "allowRethrowing": true,
+        "allowThrowingAny": false,
+        "allowThrowingUnknown": false,
+      },
+    ],
+
     "react/rules-of-hooks": "error",
-    // Vite uses React's automatic JSX runtime.
+    "react/exhaustive-deps": "error",
+    "react/button-has-type": "error",
     "react/react-in-jsx-scope": "off",
-    // TanStack Form uses a callback children prop as its field render API.
     "react/no-children-prop": "off",
-    // Base UI's render element receives its accessible content from the wrapping component.
+
     "jsx-a11y/anchor-has-content": "off",
     "jsx-a11y/control-has-associated-label": "off",
+
+    "import/no-duplicates": "error",
+    "import/no-cycle": [
+      "error",
+      {
+        "ignoreExternal": true,
+        "ignoreTypes": true,
+        "allowUnsafeDynamicCyclicDependency": true,
+      },
+    ],
+    "import/no-self-import": "error",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+    "import/no-mutable-exports": "error",
+
+    "@tanstack/query/exhaustive-deps": "error",
+    "@tanstack/query/stable-query-client": "error",
+    "@tanstack/query/no-unstable-deps": "error",
+    "@tanstack/query/no-rest-destructuring": "error",
+    "@tanstack/query/infinite-query-property-order": "error",
+    "@tanstack/query/mutation-property-order": "error",
+    "@tanstack/query/no-void-query-fn": "error",
+    "@tanstack/router/create-route-property-order": "error",
+
+    "better-tailwindcss/no-unknown-classes": [
+      "error",
+      { "ignore": ["^sidebar-subnav-collapsible$", "^toaster$"] },
+    ],
+    "better-tailwindcss/no-conflicting-classes": "error",
+    "better-tailwindcss/no-duplicate-classes": "error",
+    "better-tailwindcss/no-deprecated-classes": "warn",
   },
+
+  "overrides": [
+    {
+      "files": ["vite.config.ts"],
+      "env": {
+        "node": true,
+      },
+    },
+  ],
 }

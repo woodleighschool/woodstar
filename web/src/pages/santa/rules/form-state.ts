@@ -9,7 +9,7 @@ import {
   type SantaRulePolicy,
   type SantaRuleType,
 } from "@/lib/santa-rules";
-import { nonEmpty } from "@/lib/utils";
+import { isOneOf, nonEmpty } from "@/lib/utils";
 
 import { santaCELExpressionError } from "./cel";
 
@@ -120,7 +120,7 @@ export function formFromSearch(search: Record<string, unknown>): RuleFormState {
 }
 
 function isRuleType(value: unknown): value is SantaRuleType {
-  return typeof value === "string" && RULE_TYPE_VALUES.includes(value as SantaRuleType);
+  return isOneOf(value, RULE_TYPE_VALUES);
 }
 
 export function formFromRule(rule: SantaRule): RuleFormState {

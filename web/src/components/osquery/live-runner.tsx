@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Check, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -35,6 +35,63 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
 type ReportResultRow = Record<string, string>;
+
+function ReportHostCell({ row }: CellContext<ReportResultRow, unknown>) {
+  return (
+    <Link
+      to="/hosts/$hostId"
+      params={{ hostId: row.original.host_id }}
+      className="whitespace-nowrap hover:underline"
+    >
+      {row.original.host_name}
+    </Link>
+  );
+}
+
+function ReportValueCell({ row, column }: CellContext<ReportResultRow, unknown>) {
+  return <span className="whitespace-nowrap">{row.original[column.id] ?? "-"}</span>;
+}
+
+type CheckLiveRow = {
+  host_id: number;
+  host_name?: string;
+  response: "pass" | "fail";
+};
+
+const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
+  {
+    accessorKey: "host_name",
+    header: "Host",
+    cell: ({ row }) => (
+      <Link
+        to="/hosts/$hostId"
+        params={{ hostId: String(row.original.host_id) }}
+        className="hover:underline"
+      >
+        {row.original.host_name}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "response",
+    header: "Result",
+    cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
+  },
+];
+
+const errorResultColumns: ColumnDef<LiveQueryRow>[] = [
+  {
+    id: "host",
+    header: "Host",
+    cell: ({ row }) => row.original.host_name,
+  },
+  {
+    id: "error",
+    header: "Error",
+    cell: ({ row }) => row.original.error ?? row.original.status,
+  },
+];
+
 export function LiveRunner({
   kind,
   itemId,
@@ -560,21 +617,13 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
     {
       accessorKey: "host_name",
       header: "Host",
-      cell: ({ row }) => (
-        <Link
-          to="/hosts/$hostId"
-          params={{ hostId: row.original.host_id }}
-          className="whitespace-nowrap hover:underline"
-        >
-          {row.original.host_name}
-        </Link>
-      ),
+      cell: ReportHostCell,
     },
     ...resultColumns.map<ColumnDef<ReportResultRow>>((name) => ({
       id: name,
       accessorFn: (row) => row[name] ?? "-",
       header: name,
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.original[name] ?? "-"}</span>,
+      cell: ReportValueCell,
     })),
   ];
   return (
@@ -586,49 +635,21 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
   );
 }
 function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: boolean }) {
-  const columns: ColumnDef<CheckLiveRow>[] = [
-    {
-      accessorKey: "host_name",
-      header: "Host",
-      cell: ({ row }) => (
-        <Link
-          to="/hosts/$hostId"
-          params={{ hostId: String(row.original.host_id) }}
-          className="hover:underline"
-        >
-          {row.original.host_name}
-        </Link>
-      ),
-    },
-    {
-      accessorKey: "response",
-      header: "Result",
-      cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
-    },
-  ];
   return (
     <DataTableStatic
-      columns={columns}
+      columns={checkResultColumns}
       data={rows}
       empty={<RunEmptyState text={running ? "Waiting for hosts" : "No host results yet"} />}
     />
   );
 }
 function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
-  const columns: ColumnDef<LiveQueryRow>[] = [
-    {
-      id: "host",
-      header: "Host",
-      cell: ({ row }) => row.original.host_name,
-    },
-    {
-      id: "error",
-      header: "Error",
-      cell: ({ row }) => row.original.error ?? row.original.status,
-    },
-  ];
   return (
-    <DataTableStatic columns={columns} data={rows} empty={<RunEmptyState text="No errors yet" />} />
+    <DataTableStatic
+      columns={errorResultColumns}
+      data={rows}
+      empty={<RunEmptyState text="No errors yet" />}
+    />
   );
 }
 function RunEmptyState({ text }: { text: string }) {
@@ -653,11 +674,6 @@ function reportResultRows(rows: LiveQueryRow[]) {
     }));
   });
 }
-type CheckLiveRow = {
-  host_id: number;
-  host_name?: string;
-  response: "pass" | "fail";
-};
 function checkResultRows(rows: LiveQueryRow[]): CheckLiveRow[] {
   return rows.flatMap((row) => {
     if (row.status !== "success" || row.host_id === undefined) return [];

@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { PackageCheck, Plus } from "lucide-react";
-import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
@@ -18,17 +17,88 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteMunkiPackages, useMunkiPackages } from "@/hooks/use-munki-packages";
-import type { MunkiPackage, MunkiPackageMutation } from "@/lib/api";
+import type { MunkiPackage } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatBytes, formatRelative } from "@/lib/utils";
-import { MUNKI_INSTALLER_TYPE_OPTIONS } from "@/pages/munki/software/munki-software";
-type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
+import { formatBytes, formatRelative, isOneOf } from "@/lib/utils";
+import {
+  MUNKI_INSTALLER_TYPE_OPTIONS,
+  MUNKI_INSTALLER_TYPE_VALUES,
+} from "@/pages/munki/software/munki-software";
+
 const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type" }] as const;
+
+function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
+  const { user } = useAuth();
+  const content = (
+    <>
+      <SoftwareArtwork src={row.original.software.icon_url} />
+      <span className="truncate">{row.original.software.name}</span>
+    </>
+  );
+  return user?.role === "admin" ? (
+    <Link
+      to="/munki/packages/$packageId/edit"
+      params={{ packageId: String(row.original.id) }}
+      className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+    >
+      {content}
+    </Link>
+  ) : (
+    <span className="flex min-w-0 items-center gap-2 font-medium">{content}</span>
+  );
+}
+
+const packageColumns: ColumnDef<MunkiPackage>[] = [
+  selectColumn<MunkiPackage>(),
+  {
+    id: "software_name",
+    accessorFn: (row) => row.software.name,
+    header: "Software",
+    cell: PackageSoftwareCell,
+    enableHiding: false,
+    meta: { label: "Software" },
+  },
+  {
+    id: "version",
+    accessorKey: "version",
+    header: "Version",
+    cell: ({ row }) => row.original.version,
+    meta: { label: "Version" },
+  },
+  {
+    id: "type",
+    accessorKey: "installer_type",
+    header: "Type",
+    cell: ({ row }) => row.original.installer_type,
+    enableColumnFilter: true,
+    meta: { label: "Type", options: MUNKI_INSTALLER_TYPE_OPTIONS },
+  },
+  {
+    id: "size",
+    accessorFn: (row) => row.installer_file?.size_bytes ?? 0,
+    header: "Size",
+    cell: ({ row }) => {
+      const bytes = row.original.installer_file?.size_bytes ?? 0;
+      return bytes > 0 ? formatBytes(bytes) : "-";
+    },
+    meta: { label: "Size" },
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+    meta: { label: "Updated" },
+  },
+];
+
 export function MunkiPackageListPage() {
   const tableSearch = useDataTableSearch(PACKAGE_TYPE_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const packageTypes = (tableSearch.filters.type ?? []) as MunkiInstallerType[];
+  const packageTypes = (tableSearch.filters.type ?? []).filter((value) =>
+    isOneOf(value, MUNKI_INSTALLER_TYPE_VALUES),
+  );
   const query = useMunkiPackages({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -40,71 +110,10 @@ export function MunkiPackageListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || packageTypes.length > 0;
-  const columns = React.useMemo<ColumnDef<MunkiPackage>[]>(() => {
-    const baseColumns: ColumnDef<MunkiPackage>[] = [
-      selectColumn<MunkiPackage>(),
-      {
-        id: "software_name",
-        accessorFn: (row) => row.software.name,
-        header: "Software",
-        cell: ({ row }) =>
-          isAdmin ? (
-            <Link
-              to="/munki/packages/$packageId/edit"
-              params={{ packageId: String(row.original.id) }}
-              className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-            >
-              <SoftwareArtwork src={row.original.software.icon_url} />
-              <span className="truncate">{row.original.software.name}</span>
-            </Link>
-          ) : (
-            <span className="flex min-w-0 items-center gap-2 font-medium">
-              <SoftwareArtwork src={row.original.software.icon_url} />
-              <span className="truncate">{row.original.software.name}</span>
-            </span>
-          ),
-        enableHiding: false,
-        meta: { label: "Software" },
-      },
-      {
-        id: "version",
-        accessorKey: "version",
-        header: "Version",
-        cell: ({ row }) => row.original.version,
-        meta: { label: "Version" },
-      },
-      {
-        id: "type",
-        accessorKey: "installer_type",
-        header: "Type",
-        cell: ({ row }) => row.original.installer_type,
-        enableColumnFilter: true,
-        meta: { label: "Type", options: MUNKI_INSTALLER_TYPE_OPTIONS },
-      },
-      {
-        id: "size",
-        accessorFn: (row) => row.installer_file?.size_bytes ?? 0,
-        header: "Size",
-        cell: ({ row }) => {
-          const bytes = row.original.installer_file?.size_bytes ?? 0;
-          return bytes > 0 ? formatBytes(bytes) : "-";
-        },
-        meta: { label: "Size" },
-      },
-      {
-        id: "updated_at",
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) => formatRelative(row.original.updated_at),
-        meta: { label: "Updated" },
-      },
-    ];
-    return baseColumns;
-  }, [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
     data: packages,
-    columns,
+    columns: packageColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },

@@ -28,11 +28,12 @@ import { directorySourceLabel } from "@/lib/directory";
 import {
   USER_ACCESS_ROLE_OPTIONS,
   USER_ACCESS_ROLES,
+  USER_ACCESS_ROLE_VALUES,
   userAccessRole,
   type UserAccessRole,
   userMutationRole,
 } from "@/lib/users";
-import { formatRelative, nonEmpty } from "@/lib/utils";
+import { formatRelative, isOneOf, nonEmpty } from "@/lib/utils";
 interface UserFormState {
   name: string;
   role: UserAccessRole;
@@ -136,7 +137,9 @@ export function UserForm({
                     {(control) => (
                       <Select
                         value={field.state.value}
-                        onValueChange={(value) => field.handleChange(value as UserAccessRole)}
+                        onValueChange={(value) => {
+                          if (isOneOf(value, USER_ACCESS_ROLE_VALUES)) field.handleChange(value);
+                        }}
                       >
                         <SelectTrigger {...control} className="w-full">
                           <SelectValue />

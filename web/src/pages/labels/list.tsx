@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -23,18 +23,92 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
-import { type LabelListParams, useDeleteLabel, useLabels } from "@/hooks/use-labels";
+import { useDeleteLabel, useLabels } from "@/hooks/use-labels";
 import type { Label } from "@/lib/api";
-import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
+import {
+  LABEL_MEMBERSHIP_OPTIONS,
+  LABEL_MEMBERSHIP_VALUES,
+  labelMembershipLabel,
+} from "@/lib/labels";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatRelative } from "@/lib/utils";
+import { formatRelative, isOneOf } from "@/lib/utils";
 const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
+
+interface LabelTableRow {
+  label: Label;
+  isAdmin: boolean;
+  onDelete: (label: Label) => void;
+}
+
+function LabelNameCell({ row }: CellContext<LabelTableRow, unknown>) {
+  return row.original.isAdmin ? (
+    <Link
+      to="/labels/$labelId/edit"
+      params={{ labelId: String(row.original.label.id) }}
+      className="font-medium hover:underline"
+    >
+      {row.original.label.name}
+    </Link>
+  ) : (
+    <span className="font-medium">{row.original.label.name}</span>
+  );
+}
+
+function LabelActionsCell({ row }: CellContext<LabelTableRow, unknown>) {
+  return <LabelRowActions label={row.original.label} onDelete={row.original.onDelete} />;
+}
+
+const labelColumns: ColumnDef<LabelTableRow>[] = [
+  {
+    id: "name",
+    accessorFn: (row) => row.label.name,
+    header: "Name",
+    cell: LabelNameCell,
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "label_membership_type",
+    accessorFn: (row) => row.label.label_membership_type,
+    header: "Membership",
+    cell: ({ row }) => labelMembershipLabel(row.original.label.label_membership_type),
+    meta: { label: "Membership", options: LABEL_MEMBERSHIP_OPTIONS },
+    enableColumnFilter: true,
+  },
+  {
+    id: "hosts_count",
+    accessorFn: (row) => row.label.hosts_count,
+    header: "Hosts",
+    cell: ({ row }) => row.original.label.hosts_count,
+    meta: { label: "Hosts" },
+  },
+  {
+    id: "updated_at",
+    accessorFn: (row) => row.label.updated_at,
+    header: "Updated",
+    cell: ({ row }) =>
+      row.original.label.updated_at ? formatRelative(row.original.label.updated_at) : "-",
+    meta: { label: "Updated" },
+  },
+  {
+    id: "actions",
+    header: () => null,
+    enableSorting: false,
+    enableHiding: false,
+    size: 48,
+    cell: LabelActionsCell,
+  },
+];
+
+const labelViewerColumns = labelColumns.filter((column) => column.id !== "actions");
+
 export function LabelListPage() {
   const tableSearch = useDataTableSearch(MEMBERSHIP_FILTER_KEYS);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleting, setDeleting] = React.useState<Label | null>(null);
-  const membership = tableSearch.filters.label_membership_type?.[0];
+  const rawMembership = tableSearch.filters.label_membership_type?.[0];
+  const membership = isOneOf(rawMembership, LABEL_MEMBERSHIP_VALUES) ? rawMembership : undefined;
   const query = useLabels(
     {
       q: tableSearch.q,
@@ -42,78 +116,27 @@ export function LabelListPage() {
       per_page: tableSearch.per_page,
       sort: tableSearch.sort,
       label_type: "regular",
-      label_membership_type: membership as LabelListParams["label_membership_type"],
+      label_membership_type: membership,
     },
     { refetchInterval: 30000 },
   );
   const labels = query.data?.items ?? [];
+  const tableRows: LabelTableRow[] = labels.map((label) => ({
+    label,
+    isAdmin,
+    onDelete: setDeleting,
+  }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q || !!membership;
-  const columns = React.useMemo<ColumnDef<Label>[]>(() => {
-    const baseColumns: ColumnDef<Label>[] = [
-      {
-        id: "name",
-        accessorKey: "name",
-        header: "Name",
-        cell: ({ row }) =>
-          isAdmin ? (
-            <Link
-              to="/labels/$labelId/edit"
-              params={{ labelId: String(row.original.id) }}
-              className="font-medium hover:underline"
-            >
-              {row.original.name}
-            </Link>
-          ) : (
-            <span className="font-medium">{row.original.name}</span>
-          ),
-        enableHiding: false,
-        meta: { label: "Name" },
-      },
-      {
-        id: "label_membership_type",
-        accessorKey: "label_membership_type",
-        header: "Membership",
-        cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
-        meta: { label: "Membership", options: LABEL_MEMBERSHIP_OPTIONS },
-        enableColumnFilter: true,
-      },
-      {
-        id: "hosts_count",
-        accessorKey: "hosts_count",
-        header: "Hosts",
-        cell: ({ row }) => row.original.hosts_count,
-        meta: { label: "Hosts" },
-      },
-      {
-        id: "updated_at",
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) =>
-          row.original.updated_at ? formatRelative(row.original.updated_at) : "-",
-        meta: { label: "Updated" },
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableSorting: false,
-        enableHiding: false,
-        size: 48,
-        cell: ({ row }) =>
-          isAdmin ? <LabelRowActions label={row.original} onDelete={setDeleting} /> : null,
-      },
-    ];
-    return isAdmin ? baseColumns : baseColumns.filter((column) => column.id !== "actions");
-  }, [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
-    data: labels,
-    columns,
+    data: tableRows,
+    columns: isAdmin ? labelColumns : labelViewerColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
-    getRowId: (row) => String(row.id),
+    getRowId: (row) => String(row.label.id),
   });
   return (
     <PageShell>

@@ -1,5 +1,6 @@
 import type { Criteria, Label } from "@/lib/api";
 import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
+import { assertNever } from "@/lib/utils";
 
 export type LabelMembershipType = Label["label_membership_type"];
 export type LabelBuiltinKey = NonNullable<Label["builtin_key"]>;
@@ -28,7 +29,10 @@ export const LABEL_MEMBERSHIP_TYPES = {
   },
 } satisfies EnumMetadataMap<LabelMembershipType>;
 
-export const LABEL_MEMBERSHIP_OPTIONS = enumOptions(LABEL_MEMBERSHIP_TYPES);
+export const LABEL_MEMBERSHIP_OPTIONS = enumOptions(
+  LABEL_MEMBERSHIP_TYPES,
+  LABEL_MEMBERSHIP_VALUES,
+);
 
 export const LABEL_DERIVED_ATTRIBUTE_VALUES = [
   "user_department",
@@ -42,7 +46,10 @@ export const LABEL_DERIVED_ATTRIBUTES = {
   user: { name: "User" },
 } satisfies EnumMetadataMap<LabelDerivedAttribute>;
 
-export const LABEL_DERIVED_ATTRIBUTE_OPTIONS = enumOptions(LABEL_DERIVED_ATTRIBUTES);
+export const LABEL_DERIVED_ATTRIBUTE_OPTIONS = enumOptions(
+  LABEL_DERIVED_ATTRIBUTES,
+  LABEL_DERIVED_ATTRIBUTE_VALUES,
+);
 
 export function labelMembershipLabel(value: LabelMembershipType) {
   return enumLabel(LABEL_MEMBERSHIP_TYPES, value);
@@ -57,6 +64,7 @@ export function labelDerivedAttributeSelectorLabel(attribute: LabelDerivedAttrib
     case "user":
       return "Users";
   }
+  return assertNever(attribute);
 }
 
 export function isAllHostsLabel(label: Pick<Label, "builtin_key">) {

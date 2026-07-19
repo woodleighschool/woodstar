@@ -41,7 +41,7 @@ interface UseDataTableProps<TData>
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const {
     columns,
-    pageCount = -1,
+    pageCount,
     rowCount,
     initialState,
     tableState,

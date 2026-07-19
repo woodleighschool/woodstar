@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UsersRound } from "lucide-react";
-import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
@@ -18,6 +17,46 @@ import { DIRECTORY_SOURCES } from "@/lib/directory";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { nonEmpty } from "@/lib/utils";
 
+const groupColumns: ColumnDef<Group>[] = [
+  {
+    id: "display_name",
+    accessorKey: "display_name",
+    header: "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/directory/users"
+        search={{ group_id: row.original.id }}
+        className="font-medium hover:underline"
+      >
+        {row.original.display_name}
+      </Link>
+    ),
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "mail_nickname",
+    accessorKey: "mail_nickname",
+    header: "Nickname",
+    cell: ({ row }) => nonEmpty(row.original.mail_nickname) ?? "-",
+    meta: { label: "Nickname" },
+  },
+  {
+    id: "member_count",
+    accessorKey: "member_count",
+    header: "Members",
+    cell: ({ row }) => row.original.member_count,
+    meta: { label: "Members" },
+  },
+  {
+    id: "source",
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
+    meta: { label: "Source" },
+  },
+];
+
 export function GroupListPage() {
   const tableSearch = useDataTableSearch();
 
@@ -33,53 +72,10 @@ export function GroupListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
 
-  const columns = React.useMemo<ColumnDef<Group>[]>(
-    () => [
-      {
-        id: "display_name",
-        accessorKey: "display_name",
-        header: "Name",
-        cell: ({ row }) => (
-          <Link
-            to="/directory/users"
-            search={{ group_id: row.original.id }}
-            className="font-medium hover:underline"
-          >
-            {row.original.display_name}
-          </Link>
-        ),
-        enableHiding: false,
-        meta: { label: "Name" },
-      },
-      {
-        id: "mail_nickname",
-        accessorKey: "mail_nickname",
-        header: "Nickname",
-        cell: ({ row }) => nonEmpty(row.original.mail_nickname) ?? "-",
-        meta: { label: "Nickname" },
-      },
-      {
-        id: "member_count",
-        accessorKey: "member_count",
-        header: "Members",
-        cell: ({ row }) => row.original.member_count,
-        meta: { label: "Members" },
-      },
-      {
-        id: "source",
-        accessorKey: "source",
-        header: "Source",
-        cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
-        meta: { label: "Source" },
-      },
-    ],
-    [],
-  );
-
   const table = useDataTable({
     tableState: tableSearch,
     data: groups,
-    columns,
+    columns: groupColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },

@@ -45,7 +45,7 @@ export const RULE_TYPES = {
   },
 } satisfies EnumMetadataMap<SantaRuleType>;
 
-export const RULE_TYPE_OPTIONS = enumOptions(RULE_TYPES);
+export const RULE_TYPE_OPTIONS = enumOptions(RULE_TYPES, RULE_TYPE_VALUES);
 
 export const POLICY_VALUES = [
   "allowlist",
@@ -96,7 +96,7 @@ export const POLICIES = {
   },
 } satisfies StatusMetadataMap<SantaRulePolicy>;
 
-export const POLICY_OPTIONS = enumOptions(POLICIES);
+export const POLICY_OPTIONS = enumOptions(POLICIES, POLICY_VALUES);
 
 export const RULE_IDENTIFIER_RULES: Record<SantaRuleType, { pattern: RegExp; hint: string }> = {
   binary: {

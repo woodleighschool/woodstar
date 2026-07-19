@@ -36,7 +36,7 @@ import {
   type LabelMembershipType,
 } from "@/lib/labels";
 import { sqlSyntaxError } from "@/lib/sql-validation";
-import { cn } from "@/lib/utils";
+import { cn, isOneOf } from "@/lib/utils";
 interface LabelFormValue {
   name: string;
   description: string;
@@ -232,8 +232,8 @@ export function LabelForm({
                         <ToggleGroup
                           value={[field.state.value]}
                           onValueChange={(value) => {
-                            const membershipType = value[0] as LabelMembershipType | undefined;
-                            if (!membershipType) return;
+                            const membershipType = value[0];
+                            if (!isOneOf(membershipType, LABEL_MEMBERSHIP_VALUES)) return;
                             field.handleChange(membershipType);
                             if (membershipType !== "dynamic") setSchemaOpen(false);
                           }}
@@ -277,7 +277,8 @@ export function LabelForm({
                             <Select
                               value={field.state.value}
                               onValueChange={(value) => {
-                                field.handleChange(value as LabelDerivedAttribute);
+                                if (!isOneOf(value, LABEL_DERIVED_ATTRIBUTE_VALUES)) return;
+                                field.handleChange(value);
                                 form.setFieldValue("derived_values", []);
                               }}
                             >

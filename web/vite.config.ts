@@ -5,8 +5,8 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const __dirname = import.meta.dirname;
-const workspaceRoot = path.resolve(__dirname, "..");
+const projectDirectory = import.meta.dirname;
+const workspaceRoot = path.resolve(projectDirectory, "..");
 
 export default defineConfig({
   plugins: [
@@ -21,14 +21,14 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@schema": path.resolve(__dirname, "../schema"),
+      "@": path.resolve(projectDirectory, "./src"),
+      "@schema": path.resolve(projectDirectory, "../schema"),
     },
   },
   server: {
     fs: {
       // Allow Vite to serve the vendored osquery schema from the repo root.
-      allow: [workspaceRoot, path.resolve(__dirname)],
+      allow: [workspaceRoot, projectDirectory],
     },
     port: 5173,
     strictPort: true,

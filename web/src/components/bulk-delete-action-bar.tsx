@@ -32,7 +32,7 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
   description?: string;
 }) {
   const rows = table.getFilteredSelectedRowModel().rows;
-  const ids = useMemo(() => rows.map((row) => Number(row.original.id)), [rows]);
+  const ids = useMemo(() => rows.map((row) => row.original.id), [rows]);
   const [open, setOpen] = useState(false);
   const bulkDelete = useBulkDelete();
   const plural = pluralNoun ?? `${noun}s`;

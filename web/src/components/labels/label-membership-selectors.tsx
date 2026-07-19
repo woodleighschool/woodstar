@@ -28,6 +28,7 @@ import { useHosts } from "@/hooks/use-hosts";
 import { useUserDepartments, useUsers } from "@/hooks/use-users";
 import type { Department, Group, Host, User } from "@/lib/api";
 import type { LabelDerivedAttribute } from "@/lib/labels";
+import { assertNever } from "@/lib/utils";
 
 export function HostSelector({
   value,
@@ -108,6 +109,7 @@ export function DerivedSelector({
     case "user":
       return <UserSelector value={value} onChange={onChange} />;
   }
+  return assertNever(attribute);
 }
 
 function DepartmentSelector({
@@ -402,7 +404,7 @@ function SelectorTable<TData>({
                 <TableHead className="w-10">
                   <Checkbox
                     checked={allPageSelected}
-                    onCheckedChange={(value) => togglePage(!!value)}
+                    onCheckedChange={togglePage}
                     aria-label="Select page"
                   />
                 </TableHead>
@@ -425,7 +427,7 @@ function SelectorTable<TData>({
                     <TableCell className="w-10">
                       <Checkbox
                         checked={selectedSet.has(id)}
-                        onCheckedChange={(value) => toggleRow(id, !!value)}
+                        onCheckedChange={(value) => toggleRow(id, value)}
                         aria-label="Select row"
                       />
                     </TableCell>

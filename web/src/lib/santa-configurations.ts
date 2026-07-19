@@ -68,7 +68,7 @@ export const MEDIA_ACTIONS = {
   remount: { name: "Remount" },
 } satisfies EnumMetadataMap<SantaMediaAction>;
 
-export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS);
+export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS, MEDIA_ACTION_VALUES);
 
 export const FILE_ACCESS_ACTION_VALUES = [
   "none",
@@ -82,7 +82,10 @@ export const FILE_ACCESS_ACTIONS = {
   disable: { name: "Disable" },
 } satisfies EnumMetadataMap<SantaFileAccessAction>;
 
-export const FILE_ACCESS_ACTION_OPTIONS = enumOptions(FILE_ACCESS_ACTIONS);
+export const FILE_ACCESS_ACTION_OPTIONS = enumOptions(
+  FILE_ACCESS_ACTIONS,
+  FILE_ACCESS_ACTION_VALUES,
+);
 
 export const REMOUNT_FLAG_VALUES = [
   "rdonly",

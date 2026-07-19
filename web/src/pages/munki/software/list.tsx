@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { PackageSearch, Plus } from "lucide-react";
-import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
@@ -20,6 +19,61 @@ import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-
 import type { MunkiSoftware } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
+
+function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
+  const { user } = useAuth();
+  const content = (
+    <>
+      <SoftwareArtwork src={row.original.icon_url} />
+      <span className="truncate">{row.original.name}</span>
+    </>
+  );
+  return user?.role === "admin" ? (
+    <Link
+      to="/munki/software/$softwareId"
+      params={{ softwareId: String(row.original.id) }}
+      className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+    >
+      {content}
+    </Link>
+  ) : (
+    <span className="flex min-w-0 items-center gap-2 font-medium">{content}</span>
+  );
+}
+
+const softwareColumns: ColumnDef<MunkiSoftware>[] = [
+  selectColumn<MunkiSoftware>(),
+  {
+    id: "name",
+    accessorKey: "name",
+    header: "Name",
+    cell: SoftwareNameCell,
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "category",
+    accessorKey: "category",
+    header: "Category",
+    cell: ({ row }) => row.original.category || "-",
+    meta: { label: "Category" },
+  },
+  {
+    id: "developer",
+    accessorKey: "developer",
+    header: "Developer",
+    cell: ({ row }) => row.original.developer || "-",
+    meta: { label: "Developer" },
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+    meta: { label: "Updated" },
+  },
+];
+
 export function MunkiSoftwareListPage() {
   const tableSearch = useDataTableSearch();
   const { user } = useAuth();
@@ -34,60 +88,10 @@ export function MunkiSoftwareListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const hasFilters = !!tableSearch.q;
-  const columns = React.useMemo<ColumnDef<MunkiSoftware>[]>(() => {
-    const baseColumns: ColumnDef<MunkiSoftware>[] = [
-      selectColumn<MunkiSoftware>(),
-      {
-        id: "name",
-        accessorKey: "name",
-        header: "Name",
-        cell: ({ row }) =>
-          isAdmin ? (
-            <Link
-              to="/munki/software/$softwareId"
-              params={{ softwareId: String(row.original.id) }}
-              className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-            >
-              <SoftwareArtwork src={row.original.icon_url} />
-              <span className="truncate">{row.original.name}</span>
-            </Link>
-          ) : (
-            <span className="flex min-w-0 items-center gap-2 font-medium">
-              <SoftwareArtwork src={row.original.icon_url} />
-              <span className="truncate">{row.original.name}</span>
-            </span>
-          ),
-        enableHiding: false,
-        meta: { label: "Name" },
-      },
-      {
-        id: "category",
-        accessorKey: "category",
-        header: "Category",
-        cell: ({ row }) => row.original.category || "-",
-        meta: { label: "Category" },
-      },
-      {
-        id: "developer",
-        accessorKey: "developer",
-        header: "Developer",
-        cell: ({ row }) => row.original.developer || "-",
-        meta: { label: "Developer" },
-      },
-      {
-        id: "updated_at",
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) => formatRelative(row.original.updated_at),
-        meta: { label: "Updated" },
-      },
-    ];
-    return baseColumns;
-  }, [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
     data: software,
-    columns,
+    columns: softwareColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },

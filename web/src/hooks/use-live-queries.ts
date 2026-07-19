@@ -64,6 +64,7 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
     case "reset":
       return { results: [], nextSeq: 0, status: "idle" };
   }
+  return assertNever(action);
 }
 
 export function useCreateLiveQuery() {
@@ -95,7 +96,7 @@ export function useLiveQueryStream(liveQueryId: number | null) {
   const [state, dispatch] = useReducer(streamReducer, { results: [], nextSeq: 0, status: "idle" });
 
   useEffect(() => {
-    if (liveQueryId === null) return;
+    if (liveQueryId === null) return undefined;
     dispatch({ type: "reset" });
     dispatch({ type: "running" });
 

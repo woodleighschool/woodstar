@@ -22,12 +22,13 @@ export interface StatusMetadata extends EnumLabel {
 export type EnumMetadataMap<T extends string> = Record<T, EnumMetadata>;
 export type StatusMetadataMap<T extends string> = Record<T, StatusMetadata>;
 
-export function enumOptions<T extends string>(
-  metadata: Record<T, EnumLabel>,
-): Array<{ value: T; label: string }> {
-  return (Object.entries(metadata) as Array<[T, EnumLabel]>).map(([value, item]) => ({
+export function enumOptions<const Value extends string>(
+  metadata: Record<Value, EnumLabel>,
+  values: readonly Value[],
+): Array<{ value: Value; label: string }> {
+  return values.map((value) => ({
     value,
-    label: item.name,
+    label: metadata[value].name,
   }));
 }
 

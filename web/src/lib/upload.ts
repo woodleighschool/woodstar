@@ -54,12 +54,10 @@ type UploadContext = {
 export type UploadExecution = UploadRequest & UploadContext;
 
 export function uploadWithProgress(request: UploadExecution) {
-  switch (request.strategy) {
-    case "direct-put":
-      return uploadWithXHRProgress(request);
-    case "multipart":
-      return uploadWithMultipartProgress(request);
+  if (request.strategy === "direct-put") {
+    return uploadWithXHRProgress(request);
   }
+  return uploadWithMultipartProgress(request);
 }
 
 function uploadWithXHRProgress({
@@ -82,31 +80,31 @@ function uploadWithXHRProgress({
     };
     const abort = () => xhr.abort();
 
-    xhr.upload.onprogress = (event) => {
+    xhr.upload.addEventListener("progress", (event) => {
       const total = event.lengthComputable ? event.total : file.size;
       const percent =
         event.lengthComputable && total > 0 ? Math.round((event.loaded / total) * 100) : 0;
       onProgress?.({ loaded: event.loaded, total, percent });
-    };
+    });
 
-    xhr.onload = () => {
+    xhr.addEventListener("load", () => {
       finish();
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
         return;
       }
       reject(new Error(`Upload failed with HTTP ${xhr.status}.`));
-    };
+    });
 
-    xhr.onerror = () => {
+    xhr.addEventListener("error", () => {
       finish();
       reject(new Error("Upload failed before the storage service accepted the request."));
-    };
+    });
 
-    xhr.onabort = () => {
+    xhr.addEventListener("abort", () => {
       finish();
       reject(new Error("Upload cancelled."));
-    };
+    });
 
     signal?.addEventListener("abort", abort, { once: true });
     xhr.open(method, url);

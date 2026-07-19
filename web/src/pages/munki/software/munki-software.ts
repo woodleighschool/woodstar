@@ -82,7 +82,10 @@ export const MUNKI_SOFTWARE_ACTIONS = {
   },
 } satisfies EnumMetadataMap<MunkiSoftwareAction>;
 
-export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(MUNKI_SOFTWARE_ACTIONS);
+export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(
+  MUNKI_SOFTWARE_ACTIONS,
+  MUNKI_SOFTWARE_ACTION_VALUES,
+);
 
 // Managed installs and uninstalls are exclusive assignment intents. Managed
 // updates and optional installs can be combined for optional-but-forced updates.

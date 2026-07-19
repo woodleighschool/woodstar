@@ -49,6 +49,38 @@ const softwareFormTabs = [
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
+
+const packageColumns: ColumnDef<MunkiPackage>[] = [
+  {
+    id: "version",
+    accessorKey: "version",
+    header: () => "Version",
+    cell: ({ row }) => (
+      <Link
+        to="/munki/packages/$packageId/edit"
+        params={{ packageId: String(row.original.id) }}
+        className="flex min-w-0 items-center gap-3 hover:underline"
+      >
+        <SoftwareArtwork src={row.original.software.icon_url} size="md" />
+        <span className="truncate font-medium">{row.original.version}</span>
+      </Link>
+    ),
+  },
+  {
+    id: "installer_type",
+    header: "Installer",
+    enableSorting: false,
+    cell: ({ row }) => row.original.installer_type,
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    enableSorting: false,
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+  },
+];
+
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
   const softwareID = parseRouteID(params.softwareId);
@@ -151,36 +183,6 @@ function MunkiSoftwareDetailForm({
     form: softwareOptionsForm,
     onDiscard: resetTargetPage,
   });
-  const packageColumns: ColumnDef<MunkiPackage>[] = [
-    {
-      id: "version",
-      accessorKey: "version",
-      header: () => "Version",
-      cell: ({ row }) => (
-        <Link
-          to="/munki/packages/$packageId/edit"
-          params={{ packageId: String(row.original.id) }}
-          className="flex min-w-0 items-center gap-3 hover:underline"
-        >
-          <SoftwareArtwork src={software.icon_url} size="md" />
-          <span className="truncate font-medium">{row.original.version}</span>
-        </Link>
-      ),
-    },
-    {
-      id: "installer_type",
-      header: "Installer",
-      enableSorting: false,
-      cell: ({ row }) => row.original.installer_type,
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
   const tabs = [
     {
       value: "options",

@@ -98,9 +98,7 @@ export const EXECUTION_DECISIONS = {
   },
 } satisfies StatusMetadataMap<SantaExecutionDecision>;
 
-export const DECISION_FILTER_VALUES = [
-  "allowed",
-  "blocked",
+export const EXECUTION_DECISION_VALUES = [
   "unknown",
   "allow_unknown",
   "allow_binary",
@@ -119,6 +117,12 @@ export const DECISION_FILTER_VALUES = [
   "block_cdhash",
   "block_binary_mismatch",
   "bundle_binary",
+] as const satisfies readonly SantaExecutionDecision[];
+
+export const DECISION_FILTER_VALUES = [
+  "allowed",
+  "blocked",
+  ...EXECUTION_DECISION_VALUES,
 ] as const satisfies readonly SantaEventDecisionFilter[];
 
 export const DECISION_FILTERS = [
@@ -130,7 +134,7 @@ export const DECISION_FILTERS = [
     value: "blocked",
     label: "Blocked",
   },
-  ...enumOptions(EXECUTION_DECISIONS),
+  ...enumOptions(EXECUTION_DECISIONS, EXECUTION_DECISION_VALUES),
 ] satisfies Array<{ value: SantaEventDecisionFilter; label: string }>;
 
 export const FILE_ACCESS_DECISIONS = {
@@ -164,7 +168,10 @@ export const FILE_ACCESS_DECISION_VALUES = [
   "audit_only",
 ] as const satisfies readonly SantaFileAccessDecision[];
 
-export const FILE_ACCESS_DECISION_FILTERS = enumOptions(FILE_ACCESS_DECISIONS);
+export const FILE_ACCESS_DECISION_FILTERS = enumOptions(
+  FILE_ACCESS_DECISIONS,
+  FILE_ACCESS_DECISION_VALUES,
+);
 
 export function fileName(path: string) {
   const parts = path.split("/").filter(Boolean);

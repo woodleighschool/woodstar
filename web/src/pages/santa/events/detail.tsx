@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaEvent } from "@/hooks/use-santa-events";
 import type { SantaExecutionEvent as SantaEvent } from "@/lib/api";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, isRecord } from "@/lib/utils";
 
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
@@ -372,10 +372,8 @@ function entitlementEntries(raw: Record<string, unknown>): EntitlementEntry[] {
   const santaEntries = raw.entitlements;
   if (Array.isArray(santaEntries)) {
     const entries = santaEntries.flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
-      const record = entry as Record<string, unknown>;
-      if (typeof record.key !== "string" || record.key === "") return [];
-      return [{ key: record.key, value: record.value }];
+      if (!isRecord(entry) || typeof entry.key !== "string" || entry.key === "") return [];
+      return [{ key: entry.key, value: entry.value }];
     });
     if (entries.length > 0) return entries;
   }
@@ -424,8 +422,4 @@ function formatEntitlementChip(value: unknown): string {
     if (typeof identifier === "string") return identifier;
   }
   return JSON.stringify(normalized);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

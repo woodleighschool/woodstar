@@ -120,8 +120,10 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const updateQuery = useDebouncedCallback((value: string) => setActiveQuery(value.trim()), 200);
-  const sources =
-    (columnFilters.find((filter) => filter.id === "source")?.value as string[] | undefined) ?? [];
+  const sourceFilter = columnFilters.find((filter) => filter.id === "source")?.value;
+  const sources = Array.isArray(sourceFilter)
+    ? sourceFilter.filter((value): value is string => typeof value === "string")
+    : [];
   const setSearch = (next: string) => {
     setDraft(next);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));

@@ -38,18 +38,13 @@ export class ApiError extends Error {
   }
 }
 
-type ApiResult = Promise<{
+interface ApiResult {
   data: unknown;
   error: unknown;
   response?: Response;
-}>;
+}
 
-type ResponseData<T extends ApiResult> =
-  Awaited<T> extends infer Result
-    ? Result extends { data: infer Data; error: undefined }
-      ? Data
-      : never
-    : never;
+type ResponseData<Result extends ApiResult> = Extract<Result, { error: undefined }>["data"];
 
 function describeError(body: unknown, status: number): string {
   if (body && typeof body === "object") {
@@ -67,16 +62,22 @@ function describeError(body: unknown, status: number): string {
   return `request failed (${status})`;
 }
 
-export async function unwrap<T extends ApiResult>(pending: T): Promise<ResponseData<T>> {
+export function unwrap<Result extends ApiResult>(
+  pending: Promise<Result>,
+): Promise<ResponseData<Result>>;
+export async function unwrap(pending: Promise<ApiResult>): Promise<unknown> {
   const result = await pending;
   if (result.error !== undefined || !result.response?.ok) {
     const status = result.response?.status ?? 0;
     throw new ApiError(status, describeError(result.error, status), result.error);
   }
-  return result.data as ResponseData<T>;
+  return result.data;
 }
 
-export async function nullOn404<T extends ApiResult>(pending: T): Promise<ResponseData<T> | null> {
+export function nullOn404<Result extends ApiResult>(
+  pending: Promise<Result>,
+): Promise<ResponseData<Result> | null>;
+export async function nullOn404(pending: Promise<ApiResult>): Promise<unknown> {
   try {
     return await unwrap(pending);
   } catch (error) {

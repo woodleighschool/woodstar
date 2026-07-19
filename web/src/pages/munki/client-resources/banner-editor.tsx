@@ -88,9 +88,8 @@ export function BannerEditor({
             aria-label="Banner alignment"
             className="bg-background/90 shadow-sm backdrop-blur-sm"
             onValueChange={(value) => {
-              if (value[0]) {
-                onAlignmentChange(value[0] as ClientResourcesDraft["banner"]["alignment"]);
-              }
+              const selected = alignmentOptions.find((option) => option.value === value[0]);
+              if (selected) onAlignmentChange(selected.value);
             }}
           >
             {alignmentOptions.map((option) => {
