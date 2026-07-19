@@ -1,4 +1,5 @@
-import { HostImage } from "@/components/hosts/host-image";
+import { Laptop } from "lucide-react";
+
 import { HostStatus } from "@/components/hosts/host-status";
 import type { Host } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
@@ -6,8 +7,8 @@ import { formatRelative } from "@/lib/utils";
 export function HostHeader({ host }: { host: Host }) {
   return (
     <div className="flex items-center gap-4">
-      <div className="shrink-0">
-        <HostImage hardwareModel={host.hardware.model_identifier} />
+      <div className="flex size-20 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
+        <Laptop className="size-8 text-muted-foreground" />
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex min-w-0 flex-wrap items-center gap-2">

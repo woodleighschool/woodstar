@@ -1,11 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import gravatarUrl from "gravatar-url";
 import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
 import { Pending } from "@/components/pending";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -150,7 +149,7 @@ function SidebarUserMenu() {
               />
             }
           >
-            <SidebarUserAvatar email={user?.email} />
+            <SidebarUserAvatar />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{label}</span>
               {user?.role ? (
@@ -170,7 +169,7 @@ function SidebarUserMenu() {
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <SidebarUserAvatar email={user?.email} />
+                  <SidebarUserAvatar />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{label}</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -203,11 +202,9 @@ function SidebarUserMenu() {
     </SidebarMenu>
   );
 }
-function SidebarUserAvatar({ email }: { email?: string }) {
-  const src = email ? gravatarUrl(email, { size: 80, default: "404" }) : undefined;
+function SidebarUserAvatar() {
   return (
     <Avatar className="rounded-lg">
-      {src ? <AvatarImage src={src} className="rounded-lg" /> : null}
       <AvatarFallback className="rounded-lg">
         <UserIcon className="size-4" />
       </AvatarFallback>
