@@ -47,6 +47,11 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 	if session.Post.Responses["429"] == nil {
 		t.Fatal("password login does not declare rate limiting")
 	}
+	retryAfter := session.Post.Responses["429"].Headers["Retry-After"]
+	if retryAfter == nil || !retryAfter.Required ||
+		retryAfter.Schema == nil || retryAfter.Schema.Type != "integer" {
+		t.Fatalf("password login Retry-After header = %#v, want integer seconds", retryAfter)
+	}
 	if !reflect.DeepEqual(session.Delete.Security, want) {
 		t.Fatalf("DELETE session security = %#v, want %#v", session.Delete.Security, want)
 	}

@@ -25,7 +25,6 @@ const (
 var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrNotAuthenticated   = errors.New("not authenticated")
-	ErrTooManyAttempts    = errors.New("too many login attempts")
 )
 
 // Principal is an authenticated Woodstar identity. UserID is nil for the
@@ -54,7 +53,6 @@ type Service struct {
 	users        *directory.UserService
 	sessions     *scs.SessionManager
 	initialAdmin *initialAdmin
-	loginLimiter *loginLimiter
 	dummyHash    string
 	oidc         *oidcProvider
 }
@@ -85,7 +83,6 @@ func NewService(
 		users:        users,
 		sessions:     sessions,
 		initialAdmin: configured,
-		loginLimiter: newLoginLimiter(),
 		dummyHash:    dummyHash,
 	}, nil
 }

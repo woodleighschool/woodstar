@@ -274,6 +274,17 @@ func browserRoutes(
 
 	sessionMiddleware := deps.SessionManager.LoadAndSave
 	crossOriginProtection := middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins)
+	passwordLoginLimiter := middleware.NewPasswordLoginLimiter()
+	// Reject excess attempts before session loading so the denied path cannot
+	// reach the session store or any password-authentication work.
+	passwordLogin := r.With(
+		requestTimeoutMiddleware(defaultRequestTimeout),
+		compression,
+		requestLogger,
+		middleware.LimitPasswordLogin(passwordLoginLimiter),
+		sessionMiddleware,
+		crossOriginProtection,
+	)
 	transfers := r.With(requestLogger, sessionMiddleware, crossOriginProtection)
 	streaming := r.With(requestLogger, sessionMiddleware, crossOriginProtection)
 	ordinary := r.With(
@@ -290,17 +301,19 @@ func browserRoutes(
 		sessionMiddleware,
 		crossOriginProtection,
 	)
-	mount(ordinary, transfers, streaming, longRunning, deps)
+	mount(passwordLogin, ordinary, transfers, streaming, longRunning, deps)
 	deps.WebHandler.RegisterRoutes(ordinary)
 }
 
 type appAPIs struct {
-	ordinary    huma.API
-	streaming   huma.API
-	longRunning huma.API
+	passwordLogin huma.API
+	ordinary      huma.API
+	streaming     huma.API
+	longRunning   huma.API
 }
 
 func newAppAPIs(
+	passwordLogin chi.Router,
 	ordinary chi.Router,
 	streaming chi.Router,
 	longRunning chi.Router,
@@ -308,20 +321,22 @@ func newAppAPIs(
 ) appAPIs {
 	cfg := humaConfig(version)
 	return appAPIs{
-		ordinary:    humachi.New(ordinary, cfg),
-		streaming:   humachi.New(streaming, cfg),
-		longRunning: humachi.New(longRunning, cfg),
+		passwordLogin: humachi.New(passwordLogin, cfg),
+		ordinary:      humachi.New(ordinary, cfg),
+		streaming:     humachi.New(streaming, cfg),
+		longRunning:   humachi.New(longRunning, cfg),
 	}
 }
 
 func mount(
+	passwordLogin chi.Router,
 	ordinary chi.Router,
 	transfers chi.Router,
 	streaming chi.Router,
 	longRunning chi.Router,
 	deps *Dependencies,
 ) {
-	apis := newAppAPIs(ordinary, streaming, longRunning, deps.Version)
+	apis := newAppAPIs(passwordLogin, ordinary, streaming, longRunning, deps.Version)
 	registerAppRoutes(ordinary, transfers, apis, deps)
 }
 
@@ -349,13 +364,13 @@ func registerAppRoutes(
 
 	// Create handlers
 	handlers.RegisterAuth(handlers.AuthHandlerDeps{
-		Public:      apis.ordinary,
-		Session:     session,
-		Protected:   protected,
-		Router:      ordinaryRouter,
-		AuthService: deps.App.AuthService,
-		Users:       deps.App.Users,
-		Logger:      apiLogger,
+		PasswordLogin: apis.passwordLogin,
+		Session:       session,
+		Protected:     protected,
+		Router:        ordinaryRouter,
+		AuthService:   deps.App.AuthService,
+		Users:         deps.App.Users,
+		Logger:        apiLogger,
 	})
 	handlers.RegisterDirectory(ordinary, deps.App.Users, deps.App.Directory, apiLogger)
 	handlers.RegisterHosts(ordinary, deps.App.Hosts, deps.App.PrimaryUser, apiLogger)
@@ -455,7 +470,7 @@ func humaConfig(version string) huma.Config {
 // services are valid here.
 func BuildSchemaAPI(version string) huma.API {
 	r := chi.NewRouter()
-	apis := newAppAPIs(r, r, r, version)
+	apis := newAppAPIs(r, r, r, r, version)
 	registerAppRoutes(r, r, apis, &Dependencies{
 		Logger: slog.New(slog.DiscardHandler),
 	})

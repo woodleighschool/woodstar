@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
@@ -23,7 +22,6 @@ func TestInitialAdminLoginNeedsNoDirectoryUser(t *testing.T) {
 	ctx := loadTestSession(t, sessions, context.Background())
 
 	principal, err := service.Login(ctx, LoginParams{
-		ClientIP: "192.0.2.1",
 		Email:    " Admin@Example.Test ",
 		Password: "configured-password",
 	})
@@ -75,14 +73,12 @@ func TestInitialAdminShadowsSameEmailDirectoryLogin(t *testing.T) {
 	requestCtx := loadTestSession(t, sessions, ctx)
 
 	if _, err := service.Login(requestCtx, LoginParams{
-		ClientIP: "192.0.2.2",
 		Email:    "ADMIN@example.test",
 		Password: "persisted-password",
 	}); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("persisted password error = %v, want %v", err, ErrInvalidCredentials)
 	}
 	principal, err := service.Login(requestCtx, LoginParams{
-		ClientIP: "192.0.2.2",
 		Email:    "ADMIN@example.test",
 		Password: "configured-password",
 	})
@@ -119,7 +115,6 @@ func TestPersistedSessionSurvivesSameEmailInitialAdminOverlay(t *testing.T) {
 	withoutOverlay := testAuthService(t, users, sessions, InitialAdminConfig{})
 	requestCtx := loadTestSession(t, sessions, ctx)
 	if _, err := withoutOverlay.Login(requestCtx, LoginParams{
-		ClientIP: "192.0.2.3",
 		Email:    persisted.Email,
 		Password: "persisted-password",
 	}); err != nil {
@@ -147,7 +142,6 @@ func TestRemovingInitialAdminInvalidatesItsSession(t *testing.T) {
 	})
 	ctx := loadTestSession(t, sessions, context.Background())
 	if _, err := configured.Login(ctx, LoginParams{
-		ClientIP: "192.0.2.4",
 		Email:    "admin@example.test",
 		Password: "configured-password",
 	}); err != nil {
@@ -168,7 +162,6 @@ func TestInitialAdminSessionFollowsConfiguredPrincipalChanges(t *testing.T) {
 	})
 	ctx := loadTestSession(t, sessions, context.Background())
 	if _, err := configured.Login(ctx, LoginParams{
-		ClientIP: "192.0.2.5",
 		Email:    "first@example.test",
 		Password: "configured-password",
 	}); err != nil {
@@ -218,55 +211,6 @@ func TestSessionRejectsInitialAdminWithZeroUserIDField(t *testing.T) {
 	}
 }
 
-func TestLoginLimiterUsesClientAndEmail(t *testing.T) {
-	now := time.Date(2026, 7, 19, 0, 0, 0, 0, time.UTC)
-	limiter := newLoginLimiter()
-	limiter.limit = 2
-	limiter.window = time.Minute
-	limiter.now = func() time.Time { return now }
-
-	key := loginAttemptKey{clientIP: "192.0.2.10", email: "admin@example.test"}
-	if !limiter.allow(key) {
-		t.Fatal("limiter rejected the first attempt")
-	}
-	if !limiter.allow(key) {
-		t.Fatal("limiter rejected the second attempt")
-	}
-	if limiter.allow(key) {
-		t.Fatal("limiter allowed an attempt over the configured limit")
-	}
-	if !limiter.allow(loginAttemptKey{clientIP: "192.0.2.11", email: key.email}) {
-		t.Fatal("different client IP shared the rate limit")
-	}
-	if !limiter.allow(loginAttemptKey{clientIP: key.clientIP, email: "other@example.test"}) {
-		t.Fatal("different email shared the rate limit")
-	}
-
-	now = now.Add(time.Minute)
-	if !limiter.allow(key) {
-		t.Fatal("rate limit did not expire with its fixed window")
-	}
-}
-
-func TestLoginReturnsRateLimitForRepeatedClientEmailPair(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
-	sessions := testSessionManager()
-	service := testAuthService(t, users, sessions, InitialAdminConfig{})
-	service.loginLimiter.limit = 1
-	requestCtx := loadTestSession(t, sessions, ctx)
-
-	first := LoginParams{ClientIP: "192.0.2.30", Email: " Missing@Example.Test ", Password: "wrong"}
-	if _, err := service.Login(requestCtx, first); !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatalf("first login error = %v, want %v", err, ErrInvalidCredentials)
-	}
-	second := first
-	second.Email = "missing@example.test"
-	if _, err := service.Login(requestCtx, second); !errors.Is(err, ErrTooManyAttempts) {
-		t.Fatalf("second login error = %v, want %v", err, ErrTooManyAttempts)
-	}
-}
-
 func TestMissingLoginPerformsDummyPasswordVerification(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	users := directory.NewUserService(directory.NewStore(database))
@@ -276,25 +220,11 @@ func TestMissingLoginPerformsDummyPasswordVerification(t *testing.T) {
 	requestCtx := loadTestSession(t, sessions, ctx)
 
 	_, err := service.Login(requestCtx, LoginParams{
-		ClientIP: "192.0.2.31",
 		Email:    "missing@example.test",
 		Password: "wrong-password",
 	})
-	if err == nil || !strings.HasPrefix(err.Error(), "verify dummy password: ") {
+	if err == nil || !strings.HasPrefix(err.Error(), "verify password: ") {
 		t.Fatalf("Login error = %v, want dummy verification error", err)
-	}
-}
-
-func TestLoginLimiterStaysBounded(t *testing.T) {
-	limiter := newLoginLimiter()
-	limiter.capacity = 2
-	for _, email := range []string{"one@example.test", "two@example.test", "three@example.test"} {
-		if !limiter.allow(loginAttemptKey{clientIP: "192.0.2.20", email: email}) {
-			t.Fatalf("first attempt for %s was rejected", email)
-		}
-	}
-	if len(limiter.attempts) != limiter.capacity {
-		t.Fatalf("tracked keys = %d, want capacity %d", len(limiter.attempts), limiter.capacity)
 	}
 }
 

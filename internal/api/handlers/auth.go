@@ -8,7 +8,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -43,19 +42,19 @@ type sessionCreateInput struct {
 
 // AuthHandlerDeps are the route groups and services used by auth handlers.
 type AuthHandlerDeps struct {
-	Public      huma.API
-	Session     huma.API
-	Protected   huma.API
-	Router      chi.Router
-	AuthService *auth.Service
-	Users       *directory.UserService
-	Logger      *slog.Logger
+	PasswordLogin huma.API
+	Session       huma.API
+	Protected     huma.API
+	Router        chi.Router
+	AuthService   *auth.Service
+	Users         *directory.UserService
+	Logger        *slog.Logger
 }
 
 // RegisterAuth mounts session, account, and OIDC endpoints.
 func RegisterAuth(deps AuthHandlerDeps) {
 	registerGetSession(deps.Session, deps.AuthService)
-	registerCreateSession(deps.Public, deps.AuthService, deps.Logger)
+	registerCreateSession(deps.PasswordLogin, deps.AuthService, deps.Logger)
 	registerDeleteSession(deps.Protected, deps.AuthService, deps.Logger)
 
 	registerGetAccount(deps.Protected, deps.AuthService, deps.Logger)
@@ -93,7 +92,6 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusTooManyRequests},
 	}, func(ctx context.Context, input *sessionCreateInput) (*principalOutput, error) {
 		principal, err := authService.Login(ctx, auth.LoginParams{
-			ClientIP: chimiddleware.GetClientIP(ctx),
 			Email:    input.Body.Email,
 			Password: input.Body.Password,
 		})
@@ -102,6 +100,14 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 		}
 		return &principalOutput{Body: *principal}, nil
 	})
+
+	api.OpenAPI().Paths[sessionPath].Post.Responses["429"].Headers = map[string]*huma.Param{
+		"Retry-After": {
+			Description: "Seconds until another password-login attempt may be admitted",
+			Required:    true,
+			Schema:      &huma.Schema{Type: "integer"},
+		},
+	}
 }
 
 func registerDeleteSession(api huma.API, authService *auth.Service, logger *slog.Logger) {
@@ -126,8 +132,6 @@ func authError(err error) error {
 		return huma.Error401Unauthorized("invalid email or password")
 	case errors.Is(err, auth.ErrNotAuthenticated):
 		return huma.Error401Unauthorized("not authenticated")
-	case errors.Is(err, auth.ErrTooManyAttempts):
-		return huma.Error429TooManyRequests("too many login attempts; try again shortly")
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:

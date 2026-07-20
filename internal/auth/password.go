@@ -5,14 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// LoginParams contains a local-login attempt and its resolved client address.
+const minimumCredentialFailureDuration = time.Second
+
+// LoginParams contains a local-login attempt.
 type LoginParams struct {
-	ClientIP string
 	Email    string
 	Password string
 }
@@ -21,49 +23,49 @@ type LoginParams struct {
 // administrator owns its email on this login path and never falls through to a
 // directory account with the same email.
 func (s *Service) Login(ctx context.Context, params LoginParams) (*Principal, error) {
+	started := time.Now()
 	email := strings.ToLower(strings.TrimSpace(params.Email))
-	key := loginAttemptKey{clientIP: params.ClientIP, email: email}
-	if !s.loginLimiter.allow(key) {
-		return nil, ErrTooManyAttempts
+	principal, passwordHash, err := s.passwordLoginCandidate(ctx, email)
+	if err != nil {
+		return nil, err
 	}
 
+	valid, err := directory.VerifyPassword(params.Password, passwordHash)
+	if err != nil {
+		return nil, fmt.Errorf("verify password: %w", err)
+	}
+	if principal == nil || !valid {
+		// Only credential failures are padded; successful and internal-error paths
+		// return as soon as their work completes.
+		time.Sleep(time.Until(started.Add(minimumCredentialFailureDuration)))
+		return nil, ErrInvalidCredentials
+	}
+
+	if principal.UserID == nil {
+		err = s.startInitialAdminSession(ctx)
+	} else {
+		err = s.startPersistedSession(ctx, *principal.UserID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return principal, nil
+}
+
+func (s *Service) passwordLoginCandidate(
+	ctx context.Context,
+	email string,
+) (*Principal, string, error) {
 	if s.initialAdmin != nil && email == s.initialAdmin.email {
-		valid, err := directory.VerifyPassword(params.Password, s.initialAdmin.passwordHash)
-		if err != nil {
-			return nil, fmt.Errorf("verify initial admin password: %w", err)
-		}
-		if !valid {
-			return nil, ErrInvalidCredentials
-		}
-		if err := s.startInitialAdminSession(ctx); err != nil {
-			return nil, err
-		}
-		s.loginLimiter.reset(key)
-		return s.initialAdmin.principal(), nil
+		return s.initialAdmin.principal(), s.initialAdmin.passwordHash, nil
 	}
 
 	user, err := s.users.GetLoginByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
-		if _, verifyErr := directory.VerifyPassword(params.Password, s.dummyHash); verifyErr != nil {
-			return nil, fmt.Errorf("verify dummy password: %w", verifyErr)
-		}
-		return nil, ErrInvalidCredentials
+		return nil, s.dummyHash, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, "", fmt.Errorf("get user: %w", err)
 	}
-
-	valid, err := directory.VerifyPassword(params.Password, user.PasswordHash)
-	if err != nil {
-		return nil, fmt.Errorf("verify password: %w", err)
-	}
-	if !valid {
-		return nil, ErrInvalidCredentials
-	}
-
-	if err := s.startPersistedSession(ctx, user.ID); err != nil {
-		return nil, err
-	}
-	s.loginLimiter.reset(key)
-	return principalFromUser(user), nil
+	return principalFromUser(user), user.PasswordHash, nil
 }

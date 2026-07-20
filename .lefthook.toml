@@ -25,4 +25,4 @@ root = "web/"
 run = "oxlint --no-error-on-unmatched-pattern {staged_files}"
 
 [pre-commit.commands.format-yaml]
-exclude = ["web/pnpm-lock.yaml"]
+exclude = ["web/pnpm-lock.yaml", "web/openapi.yaml"]

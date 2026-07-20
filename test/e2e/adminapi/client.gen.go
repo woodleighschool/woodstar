@@ -7286,6 +7286,11 @@ func (r CreateSantaRuleResponse) ContentType() string {
 	return ""
 }
 
+// CreateSessionResponse429Headers the declared response headers of an HTTP 429 response for CreateSession
+type CreateSessionResponse429Headers struct {
+	RetryAfter int
+}
+
 type CreateSessionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -7301,6 +7306,8 @@ type CreateSessionResponse struct {
 	ApplicationproblemJSON429 *ErrorModel
 	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
 	ApplicationproblemJSON500 *ErrorModel
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *CreateSessionResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -9585,6 +9592,19 @@ func ParseCreateSessionResponse(rsp *http.Response) (*CreateSessionResponse, err
 		}
 		response.ApplicationproblemJSON500 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers CreateSessionResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
