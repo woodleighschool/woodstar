@@ -15,11 +15,11 @@ import (
 )
 
 // IconURL returns the icon resource URL when software has an attached icon.
-func IconURL(softwareID int64, iconObjectID *int64) string {
-	if softwareID <= 0 || iconObjectID == nil {
+func IconURL(iconObjectID *int64) string {
+	if iconObjectID == nil || *iconObjectID <= 0 {
 		return ""
 	}
-	return "/api/munki/software/" + strconv.FormatInt(softwareID, 10) + "/icon"
+	return "/api/munki/icons/" + strconv.FormatInt(*iconObjectID, 10) + "/content"
 }
 
 // CreateMutation is the input shape for creating Munki software.

@@ -106,17 +106,10 @@ export function MunkiSoftwareEditPage() {
     <MunkiSoftwareDetailForm
       key={`${query.data.id}:${query.data.updated_at}`}
       software={query.data}
-      refetchSoftware={() => query.refetch()}
     />
   );
 }
-function MunkiSoftwareDetailForm({
-  software,
-  refetchSoftware,
-}: {
-  software: MunkiSoftwareDetail;
-  refetchSoftware: () => Promise<unknown>;
-}) {
+function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }) {
   const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
   const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiIcon();
@@ -150,7 +143,6 @@ function MunkiSoftwareDetailForm({
       }
       return software.id;
     },
-    () => void refetchSoftware(),
   );
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
   const categoryOptions = useMemo(

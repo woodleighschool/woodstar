@@ -51,13 +51,12 @@ export function useCreateMunkiPackage() {
     { body: MunkiPackageCreateMutation; signal?: AbortSignal }
   >({
     mutationFn: ({ body, signal }) => unwrap(createMunkiPackage({ body, signal })),
-    onSuccess: async (pkg) => {
+    onSuccess: async () => {
       toast.success("Package created");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.munkiSoftwareDetail(pkg.software.id),
-        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
       ]);
     },
   });
@@ -72,14 +71,12 @@ export function useUpdateMunkiPackage() {
   >({
     mutationFn: ({ id, body, signal }) =>
       unwrap(updateMunkiPackage({ path: { id }, body, signal })),
-    onSuccess: async (pkg) => {
+    onSuccess: async () => {
       toast.success("Package saved");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.munkiSoftwareDetail(pkg.software.id),
-        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
       ]);
     },
   });
@@ -93,6 +90,7 @@ export function useBulkDeleteMunkiPackages() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
       ]);
     },
   });

@@ -18,7 +18,7 @@ import {
 } from "@/lib/api";
 import type { ListMunkiSoftwareData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
-import { munkiSoftwareQueryOptions } from "@/lib/queries/munki";
+import { invalidateMunkiSoftwareProjections, munkiSoftwareQueryOptions } from "@/lib/queries/munki";
 import { queryKeys } from "@/lib/query-keys";
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
@@ -51,12 +51,9 @@ export function useUpdateMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiUpdateMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
-    onSuccess: async (title) => {
+    onSuccess: async () => {
       toast.success("Software saved");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(title.id) }),
-      ]);
+      await invalidateMunkiSoftwareProjections(queryClient);
     },
   });
 }
@@ -65,11 +62,8 @@ export function useDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiSoftware({ path: { id } })),
-    onSuccess: async (_data, id) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(id) }),
-      ]);
+    onSuccess: async () => {
+      await invalidateMunkiSoftwareProjections(queryClient);
     },
   });
 }
@@ -79,7 +73,7 @@ export function useBulkDeleteMunkiSoftware() {
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteMunkiSoftware({ query: { ids } })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll });
+      await invalidateMunkiSoftwareProjections(queryClient);
     },
   });
 }

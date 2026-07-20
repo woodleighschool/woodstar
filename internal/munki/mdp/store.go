@@ -495,7 +495,7 @@ func packageStateFromRow(row packageStateRow) PackageState {
 		SoftwareID:      row.SoftwareID,
 		Name:            row.Name,
 		Version:         row.Version,
-		SoftwareIconURL: munkisoftware.IconURL(row.SoftwareID, row.SoftwareIconObjectID),
+		SoftwareIconURL: munkisoftware.IconURL(row.SoftwareIconObjectID),
 		Status:          PackageStatus(row.Status),
 		Error:           row.Error,
 	}

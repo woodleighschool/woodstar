@@ -132,7 +132,7 @@ func registerSetSoftwareIconRoute(
 		}
 		return &munkiObjectOutput{Body: munkiObjectView(
 			*object,
-			munkisoftware.IconURL(input.ID, &object.ID),
+			munkisoftware.IconURL(&object.ID),
 		)}, nil
 	})
 }

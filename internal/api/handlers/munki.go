@@ -54,7 +54,6 @@ func RegisterMunki(deps MunkiHandlerDeps) {
 	)
 	registerMunkiContentRoutes(
 		deps.TransferRouter.With(middleware.RequireHTTPAuth(deps.AuthService)),
-		deps.Software,
 		deps.Objects,
 		deps.Delivery,
 		deps.Logger,

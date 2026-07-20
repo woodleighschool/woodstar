@@ -18,7 +18,6 @@ import (
 const munkiAssetCacheControl = "private, max-age=86400"
 
 type munkiContentHandler struct {
-	software *munkisoftware.Store
 	objects  *storage.ObjectStore
 	delivery storage.Deliverer
 	logger   *slog.Logger
@@ -26,45 +25,21 @@ type munkiContentHandler struct {
 
 func registerMunkiContentRoutes(
 	r chi.Router,
-	software *munkisoftware.Store,
 	objects *storage.ObjectStore,
 	delivery storage.Deliverer,
 	logger *slog.Logger,
 ) {
 	h := munkiContentHandler{
-		software: software,
 		objects:  objects,
 		delivery: delivery,
 		logger:   logger,
 	}
-	r.Get(munkiSoftwareIDPath+"/icon", h.softwareIcon)
 	r.Get(munkiIconPath+"/{id}/content", h.object(munkisoftware.IconObjectPrefix, munkiAssetCacheControl))
 	r.Get(munkiPackageInstallerPath+"/{id}/content", h.object(packages.ObjectPrefix, ""))
 	r.Get(
 		clientResourcesBannerPath+"/{id}/content",
 		h.object(clientresources.BannerObjectPrefix, munkiAssetCacheControl),
 	)
-}
-
-func (h munkiContentHandler) softwareIcon(w http.ResponseWriter, r *http.Request) {
-	softwareID, ok := contentObjectID(w, r)
-	if !ok {
-		return
-	}
-	software, err := h.software.GetByID(r.Context(), softwareID)
-	if errors.Is(err, dbutil.ErrNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		h.fail(w, r, "get-munki-software-icon", err, "software_id", softwareID)
-		return
-	}
-	if software.IconObjectID == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	h.deliver(w, r, *software.IconObjectID, munkisoftware.IconObjectPrefix, munkiAssetCacheControl)
 }
 
 func (h munkiContentHandler) object(prefix, cacheControl string) http.HandlerFunc {

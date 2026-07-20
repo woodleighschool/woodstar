@@ -1,3 +1,5 @@
+import { useQueryClient } from "@tanstack/react-query";
+
 import { useUpload } from "@/hooks/use-upload";
 import type {
   MunkiDirectUploadTarget,
@@ -12,12 +14,14 @@ import {
   unwrap,
 } from "@/lib/api";
 import { deleteUnclaimedMunkiInstaller, uploadRequestFromTarget } from "@/lib/munki-upload";
+import { invalidateMunkiSoftwareProjections } from "@/lib/queries/munki";
 
 type IconUploadVars = { softwareId: number; file: File };
 type PackageUploadVars = { file: File };
 
 // useUploadMunkiIcon attaches an icon to existing software.
 export function useUploadMunkiIcon() {
+  const queryClient = useQueryClient();
   return useUpload<MunkiDirectUploadTarget, MunkiObjectView, IconUploadVars>({
     mutationKey: ["munki-icon-upload"],
     loadingText: "Uploading icon",
@@ -39,6 +43,7 @@ export function useUploadMunkiIcon() {
           signal,
         }),
       ),
+    onSuccess: async () => invalidateMunkiSoftwareProjections(queryClient),
   });
 }
 

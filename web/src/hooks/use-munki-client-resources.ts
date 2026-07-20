@@ -58,14 +58,14 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
         }),
       ),
     uploadRequest: (intent) => uploadRequestFromTarget(intent),
-    completeUpload: async (intent, { body }) => {
-      const resource = await unwrap(
+    completeUpload: (intent, { body }) =>
+      unwrap(
         saveMunkiClientResources({
           body: { ...body, banner_object_id: intent.object_id },
         }),
-      );
+      ),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.munkiClientResources });
-      return resource;
     },
     cleanupIntent: (intent) =>
       unwrap(deleteMunkiClientResourcesBannerUpload({ path: { id: intent.object_id } })),

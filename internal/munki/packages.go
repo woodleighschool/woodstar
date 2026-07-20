@@ -94,5 +94,5 @@ func (s *PackageService) notifyDesiredPackages(err error) {
 }
 
 func attachPackageSoftware(pkg *packages.Package) {
-	pkg.Software.IconURL = munkisoftware.IconURL(pkg.Software.ID, pkg.Software.IconObjectID)
+	pkg.Software.IconURL = munkisoftware.IconURL(pkg.Software.IconObjectID)
 }

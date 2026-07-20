@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 
 import type {
   ApiError,
@@ -9,6 +9,15 @@ import type {
 import { getMunkiDistributionPoint, getMunkiPackage, getMunkiSoftware, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
+
+export async function invalidateMunkiSoftwareProjections(queryClient: QueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareAll }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackagesAll }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.munkiIconsAll }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.munkiDistributionPointsAll }),
+  ]);
+}
 
 export function munkiSoftwareQueryOptions(id: number | null) {
   return queryOptions<MunkiSoftwareDetail, ApiError>({

@@ -12,6 +12,7 @@ interface UploadOptions<TIntent, TResult, TVars extends { file: File }> {
   createIntent: (vars: TVars) => Promise<TIntent>;
   uploadRequest: (intent: TIntent, vars: TVars) => UploadRequest;
   completeUpload: (intent: TIntent, vars: TVars, signal: AbortSignal) => Promise<TResult>;
+  onSuccess?: (result: TResult, vars: TVars) => void | Promise<void>;
   cleanupIntent?: (intent: TIntent, vars: TVars) => Promise<void>;
   loadingText?: UploadText;
   successText?: UploadText;
@@ -24,6 +25,7 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
   createIntent,
   uploadRequest,
   completeUpload,
+  onSuccess,
   cleanupIntent,
   loadingText,
   successText,
@@ -37,6 +39,7 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
   const mutation = useMutation<TResult, Error, TVars>({
     mutationKey,
     onError: () => undefined,
+    onSuccess,
     mutationFn: async (vars) => {
       const { file } = vars;
       const abortController = new AbortController();

@@ -139,15 +139,26 @@ func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
 func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
 	path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
+	icon := []byte("\x89PNG\r\n\x1a\n")
 	target := fixture.beginUpload(t, path, "icon.png")
-	fixture.upload(t, target, []byte("\x89PNG\r\n\x1a\n"))
+	fixture.upload(t, target, icon)
 
 	rec := fixture.requestJSON(t, http.MethodPut, path, MunkiObjectMutation{ObjectID: target.ObjectID})
 	assertStatus(t, rec, http.StatusOK, "attach icon")
 	var view MunkiObjectView
 	decodeJSON(t, rec, &view)
-	if view.ID != target.ObjectID || view.ContentType != "image/png" {
+	wantContentURL := fmt.Sprintf("/api/munki/icons/%d/content", target.ObjectID)
+	if view.ID != target.ObjectID || view.ContentType != "image/png" || view.ContentURL != wantContentURL {
 		t.Fatalf("attached icon = %+v, want object %d as image/png", view, target.ObjectID)
+	}
+
+	content := fixture.request(t, http.MethodGet, view.ContentURL)
+	assertStatus(t, content, http.StatusOK, "get attached icon content")
+	if !bytes.Equal(content.Body.Bytes(), icon) {
+		t.Fatalf("icon content = %q, want uploaded bytes %q", content.Body.Bytes(), icon)
+	}
+	if got := content.Header().Get("Cache-Control"); got != munkiAssetCacheControl {
+		t.Fatalf("icon Cache-Control = %q, want %q", got, munkiAssetCacheControl)
 	}
 }
 
@@ -219,6 +230,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
 	registerCreateClientResourcesBannerUpload(api, uploads, discardLogger())
 	registerDeleteClientResourcesBannerUpload(api, uploads, discardLogger())
+	registerMunkiContentRoutes(router, objects, storage.NewDelivery(backend), discardLogger())
 	storage.RegisterTransferRoutes(router, backend, discardLogger())
 
 	return munkiUploadFixture{
