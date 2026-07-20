@@ -1,11 +1,93 @@
 package directory
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
+
+func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	service := newTestUserService(store)
+
+	upnOwner, err := service.Create(ctx, UserCreate{
+		Email:    "upn-owner@example.test",
+		Name:     "UPN Owner",
+		Role:     RoleViewer,
+		Password: "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("create UPN owner: %v", err)
+	}
+	mailOwner, err := service.Create(ctx, UserCreate{
+		Email:    "mail-owner@example.test",
+		Name:     "Mail Owner",
+		Role:     RoleViewer,
+		Password: "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("create mail owner: %v", err)
+	}
+
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		Users: []ProviderUser{{
+			ExternalID:        "provider-identity",
+			Mail:              mailOwner.Email,
+			UserPrincipalName: upnOwner.Email,
+			DisplayName:       "Provider Identity",
+			Enabled:           true,
+		}},
+	}); err != nil {
+		t.Fatalf("apply provider snapshot: %v", err)
+	}
+
+	var linkedUserID int64
+	if err := database.Pool().QueryRow(ctx, `
+SELECT user_id
+FROM directory_user_links
+WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(&linkedUserID); err != nil {
+		t.Fatalf("load provider link: %v", err)
+	}
+	if linkedUserID != mailOwner.ID {
+		t.Fatalf("linked user ID = %d, want canonical email owner %d", linkedUserID, mailOwner.ID)
+	}
+}
+
+func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	service := newTestUserService(store)
+
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		Users: []ProviderUser{{
+			ExternalID:        "provider-user",
+			Mail:              "canonical@example.test",
+			UserPrincipalName: "alternate@example.test",
+			DisplayName:       "Provider User",
+			Enabled:           true,
+		}},
+	}); err != nil {
+		t.Fatalf("apply provider snapshot: %v", err)
+	}
+	if _, err := service.SetRoleByEmail(ctx, "canonical@example.test", RoleViewer); err != nil {
+		t.Fatalf("grant app role: %v", err)
+	}
+
+	if _, err := service.GetSSOByEmail(ctx, "alternate@example.test"); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("SSO lookup by UPN error = %v, want %v", err, dbutil.ErrNotFound)
+	}
+	user, err := service.GetSSOByEmail(ctx, "canonical@example.test")
+	if err != nil {
+		t.Fatalf("SSO lookup by canonical email: %v", err)
+	}
+	if user.Email != "canonical@example.test" {
+		t.Fatalf("SSO user email = %q, want canonical email", user.Email)
+	}
+}
 
 func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
 	database, ctx := dbtest.Open(t)

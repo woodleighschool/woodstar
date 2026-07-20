@@ -1387,12 +1387,12 @@ export const deleteSession = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Get the current signed-in principal, if any
+ * Get the current signed-in user, if any
  */
 export const getSession = <ThrowOnError extends boolean = false>(options?: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options?.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({ url: '/api/session', ...options });
 
 /**
- * Create a local admin session
+ * Create a local user session
  */
 export const createSession = <ThrowOnError extends boolean = false>(options: Options<CreateSessionData, ThrowOnError>): RequestResult<CreateSessionResponses, CreateSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateSessionResponses, CreateSessionErrors, ThrowOnError>({
     url: '/api/session',

@@ -5,63 +5,50 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 type contextKey int
 
-const principalContextKey contextKey = 0
+const userContextKey contextKey = 0
 
-// WithPrincipal attaches the authenticated app principal to ctx.
-func WithPrincipal(ctx context.Context, principal *auth.Principal) context.Context {
-	return context.WithValue(ctx, principalContextKey, principal)
+// WithUser attaches the authenticated app API user to ctx.
+func WithUser(ctx context.Context, user *directory.User) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
 }
 
-// Principal returns the authenticated app principal from ctx.
-func Principal(ctx context.Context) (*auth.Principal, bool) {
-	principal, ok := ctx.Value(principalContextKey).(*auth.Principal)
-	return principal, ok && principal != nil
+// User returns the authenticated app API user from ctx.
+func User(ctx context.Context) (*directory.User, bool) {
+	user, ok := ctx.Value(userContextKey).(*directory.User)
+	return user, ok && user != nil
 }
 
-// RequirePrincipal returns the authenticated principal regardless of role.
-func RequirePrincipal(ctx context.Context) (*auth.Principal, error) {
-	principal, ok := Principal(ctx)
+// RequireUser returns the authenticated user regardless of role.
+func RequireUser(ctx context.Context) (*directory.User, error) {
+	user, ok := User(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
-	return principal, nil
+	return user, nil
 }
 
-// RequireUserID returns the authenticated principal's persisted user ID.
-func RequireUserID(ctx context.Context) (int64, error) {
-	principal, err := RequirePrincipal(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if principal.UserID == nil {
-		return 0, huma.Error404NotFound("account not found")
-	}
-	return *principal.UserID, nil
-}
-
-// RequireAdmin returns the authenticated administrator principal.
-func RequireAdmin(ctx context.Context) (*auth.Principal, error) {
-	principal, err := RequirePrincipal(ctx)
+// RequireAdmin returns the authenticated administrator.
+func RequireAdmin(ctx context.Context) (*directory.User, error) {
+	user, err := RequireUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if principal.Role != directory.RoleAdmin {
+	if user.Role == nil || *user.Role != directory.RoleAdmin {
 		return nil, huma.Error403Forbidden("admin role required")
 	}
-	return principal, nil
+	return user, nil
 }
 
-// CurrentUserID returns the authenticated principal's persisted user ID.
+// CurrentUserID returns the authenticated user's ID, or nil if anonymous.
 func CurrentUserID(ctx context.Context) *int64 {
-	principal, ok := Principal(ctx)
+	user, ok := User(ctx)
 	if !ok {
 		return nil
 	}
-	return principal.UserID
+	return &user.ID
 }

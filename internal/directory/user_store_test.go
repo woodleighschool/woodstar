@@ -5,9 +5,40 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
+
+func TestUsersRejectUppercaseIdentityFields(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+
+	tests := []struct {
+		name string
+		stmt string
+	}{
+		{
+			name: "email",
+			stmt: `INSERT INTO users (email, name) VALUES ('UPPER@example.test', 'Upper Email')`,
+		},
+		{
+			name: "user principal name",
+			stmt: `
+INSERT INTO users (email, name, source, external_id, user_principal_name)
+VALUES ('lower@example.test', 'Upper UPN', 'entra', 'upper-upn', 'UPPER@example.test')`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := database.Pool().Exec(ctx, test.stmt)
+			var postgresError *pgconn.PgError
+			if !errors.As(err, &postgresError) || postgresError.Code != "23514" {
+				t.Fatalf("insert error = %v, want check violation", err)
+			}
+		})
+	}
+}
 
 func TestDeleteRemovesLocalUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)

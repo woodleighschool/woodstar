@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 
-import type { ApiError, Principal, SessionBody, SessionCreateInputBody } from "@/lib/api";
+import type { ApiError, SessionBody, SessionCreateInputBody, User } from "@/lib/api";
 import { createSession, deleteSession, unwrap } from "@/lib/api";
 import { type CurrentUser, sessionQueryOptions } from "@/lib/session";
 
@@ -33,7 +33,7 @@ export function useLogout() {
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  return useMutation<Principal, ApiError, SessionCreateInputBody>({
+  return useMutation<User, ApiError, SessionCreateInputBody>({
     mutationFn: (body) => unwrap(createSession({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {

@@ -26,11 +26,11 @@ type sessionOutput struct {
 
 type sessionBody struct {
 	SSOEnabled bool            `json:"sso_enabled"`
-	User       *auth.Principal `json:"user,omitempty"`
+	User       *directory.User `json:"user,omitempty"`
 }
 
-type principalOutput struct {
-	Body auth.Principal
+type sessionUserOutput struct {
+	Body directory.User
 }
 
 type sessionCreateInput struct {
@@ -70,13 +70,13 @@ func registerGetSession(api huma.API, authService *auth.Service) {
 		Method:      http.MethodGet,
 		Path:        sessionPath,
 		Tags:        []string{authTag},
-		Summary:     "Get the current signed-in principal, if any",
+		Summary:     "Get the current signed-in user, if any",
 	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
 		out := &sessionOutput{Body: sessionBody{
 			SSOEnabled: authService.SSOEnabled(),
 		}}
-		if principal, ok := ctxkeys.Principal(ctx); ok {
-			out.Body.User = principal
+		if user, ok := ctxkeys.User(ctx); ok {
+			out.Body.User = user
 		}
 		return out, nil
 	})
@@ -88,17 +88,17 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 		Method:      http.MethodPost,
 		Path:        sessionPath,
 		Tags:        []string{authTag},
-		Summary:     "Create a local admin session",
+		Summary:     "Create a local user session",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusTooManyRequests},
-	}, func(ctx context.Context, input *sessionCreateInput) (*principalOutput, error) {
-		principal, err := authService.Login(ctx, auth.LoginParams{
+	}, func(ctx context.Context, input *sessionCreateInput) (*sessionUserOutput, error) {
+		user, err := authService.Login(ctx, auth.LoginParams{
 			Email:    input.Body.Email,
 			Password: input.Body.Password,
 		})
 		if err != nil {
 			return nil, handlerError(ctx, logger, "create-session", authError(err))
 		}
-		return &principalOutput{Body: *principal}, nil
+		return &sessionUserOutput{Body: *user}, nil
 	})
 
 	api.OpenAPI().Paths[sessionPath].Post.Responses["429"].Headers = map[string]*huma.Param{

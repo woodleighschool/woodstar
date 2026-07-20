@@ -998,13 +998,6 @@ export type PathSignatureInformation = {
     team_identifier: string;
 };
 
-export type Principal = {
-    email: string;
-    id?: number;
-    name: string;
-    role: 'admin' | 'viewer';
-};
-
 export type SantaBundleReference = {
     binary_count: number;
     bundle_id: string;
@@ -1306,7 +1299,7 @@ export type SantaSoftwareReference = {
 
 export type SessionBody = {
     sso_enabled: boolean;
-    user?: Principal;
+    user?: User;
 };
 
 export type SessionCreateInputBody = {
@@ -5507,7 +5500,7 @@ export type CreateSessionResponses = {
     /**
      * OK
      */
-    200: Principal;
+    200: User;
 };
 
 export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];

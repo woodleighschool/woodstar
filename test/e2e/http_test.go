@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os/exec"
 	"testing"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -32,39 +33,28 @@ func provisionAdmin(
 	password string,
 ) {
 	t.Helper()
+	initialPassword := password + "-initial"
+	server.redact(password, initialPassword)
+	runUserCommand(
+		t,
+		server,
+		"create",
+		"--email", email,
+		"--name", name,
+		"--role", "viewer",
+		"--password", initialPassword,
+	)
+	runUserCommand(t, server, "set-role", "--email", email, "--role", "admin")
+	runUserCommand(t, server, "set-password", "--email", email, "--password", password)
 
 	sessionClient := newAdminAPIClient(t, server.BaseURL, server.Client)
-	initialLogin, err := sessionClient.CreateSessionWithResponse(
-		t.Context(),
-		adminapi.CreateSessionJSONRequestBody{
-			Email:    openapi_types.Email(testInitialAdminEmail),
-			Password: testInitialAdminPassword,
-		},
-	)
-	initialLogin = requireAPIResponse(t, "log in as initial administrator", http.StatusOK, initialLogin, err)
-	if initialLogin.JSON200 == nil || initialLogin.JSON200.Id != nil ||
-		string(initialLogin.JSON200.Email) != testInitialAdminEmail {
-		t.Fatalf("initial administrator = %+v, want non-persisted principal", initialLogin.JSON200)
-	}
-
-	created, err := sessionClient.CreateUserWithResponse(t.Context(), adminapi.CreateUserJSONRequestBody{
-		Email:    openapi_types.Email(email),
-		Name:     new(name),
-		Password: password,
-		Role:     adminapi.UserCreateRoleAdmin,
-	})
-	created = requireAPIResponse(t, "create persisted administrator", http.StatusCreated, created, err)
-	if created.JSON201 == nil || created.JSON201.Id <= 0 || string(created.JSON201.Email) != email {
-		t.Fatalf("created user = %+v, want persisted administrator %q", created.JSON201, email)
-	}
-
 	login, err := sessionClient.CreateSessionWithResponse(t.Context(), adminapi.CreateSessionJSONRequestBody{
 		Email:    openapi_types.Email(email),
 		Password: password,
 	})
 	login = requireAPIResponse(t, "log in as persisted administrator", http.StatusOK, login, err)
-	if login.JSON200 == nil || login.JSON200.Id == nil || *login.JSON200.Id != created.JSON201.Id {
-		t.Fatalf("persisted principal = %+v, want user %d", login.JSON200, created.JSON201.Id)
+	if login.JSON200 == nil || login.JSON200.Id <= 0 || string(login.JSON200.Email) != email {
+		t.Fatalf("persisted user = %+v, want %q", login.JSON200, email)
 	}
 
 	secureSession := false
@@ -92,8 +82,18 @@ func provisionAdmin(
 
 	account, err := server.Admin.GetAccountWithResponse(t.Context())
 	account = requireAPIResponse(t, "get account with administrator API key", http.StatusOK, account, err)
-	if account.JSON200 == nil || account.JSON200.User.Id != created.JSON201.Id {
-		t.Fatalf("API-key account = %+v, want persisted user %d", account.JSON200, created.JSON201.Id)
+	if account.JSON200 == nil || account.JSON200.User.Id != login.JSON200.Id {
+		t.Fatalf("API-key account = %+v, want persisted user %d", account.JSON200, login.JSON200.Id)
+	}
+}
+
+func runUserCommand(t *testing.T, server *testServer, args ...string) {
+	t.Helper()
+	commandArgs := []string{"user", "--database-url", server.DatabaseURL}
+	commandArgs = append(commandArgs, args...)
+	command := exec.CommandContext(t.Context(), server.BinaryPath, commandArgs...)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run Woodstar user command: %v\n%s", err, output)
 	}
 }
 

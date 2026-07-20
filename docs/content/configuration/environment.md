@@ -6,7 +6,7 @@ description: The WOODSTAR_ environment variables, their defaults, and what they 
 
 # Environment
 
-Woodstar reads its settings from environment variables with a `WOODSTAR_` prefix. CLI flags populate the same config first; environment parsing fills unset fields and applies defaults. Woodstar then normalizes and validates the resolved config independently of either input source.
+Woodstar reads its server settings from environment variables with a `WOODSTAR_` prefix. Server CLI flags populate the same config first; environment parsing fills unset fields and applies defaults. Woodstar then normalizes and validates the resolved config independently of either input source.
 
 `WOODSTAR_URL` and `WOODSTAR_DATABASE_URL` are always required. The default `file` storage backend also requires `WOODSTAR_STORAGE_CAPABILITY_KEY`; S3 uses its own credentials instead.
 
@@ -14,24 +14,20 @@ Several features stay off until you configure them. OIDC and Entra directory syn
 
 ## Server
 
-| Variable                          | Default   | Notes                                                                                                 |
-| --------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| `WOODSTAR_HOST`                   | `0.0.0.0` | Listen host.                                                                                          |
-| `WOODSTAR_PORT`                   | `8080`    | Listen port.                                                                                          |
-| `WOODSTAR_URL`                    | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
-| `WOODSTAR_TLS_CERT_FILE`          | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
-| `WOODSTAR_TLS_KEY_FILE`           | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
-| `WOODSTAR_SESSION_COOKIE_SECURE`  | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
-| `WOODSTAR_DATABASE_URL`           | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
-| `WOODSTAR_LOG_LEVEL`              | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
-| `WOODSTAR_INITIAL_ADMIN_EMAIL`    | unset     | Email for the optional initial administrator. Set with its password.                                  |
-| `WOODSTAR_INITIAL_ADMIN_PASSWORD` | unset     | Password for the optional initial administrator. Minimum 12 characters.                               |
+| Variable                         | Default   | Notes                                                                                                 |
+| -------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| `WOODSTAR_HOST`                  | `0.0.0.0` | Listen host.                                                                                          |
+| `WOODSTAR_PORT`                  | `8080`    | Listen port.                                                                                          |
+| `WOODSTAR_URL`                   | required  | Canonical HTTPS origin used by the app, agents, enrollment profiles, and file-storage redirects.      |
+| `WOODSTAR_TLS_CERT_FILE`         | empty     | PEM certificate chain for direct TLS termination. Must be set with `WOODSTAR_TLS_KEY_FILE`.           |
+| `WOODSTAR_TLS_KEY_FILE`          | empty     | PEM private key for direct TLS termination. Must be set with `WOODSTAR_TLS_CERT_FILE`.                |
+| `WOODSTAR_SESSION_COOKIE_SECURE` | `true`    | Whether browser session cookies carry the `Secure` attribute. Set `false` only for HTTP development.  |
+| `WOODSTAR_DATABASE_URL`          | required  | Postgres connection URL, e.g. `postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable`. |
+| `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`.                                                                  |
 
 `WOODSTAR_URL` has its trailing slash trimmed and rejects HTTP, sub-paths, credentials, query strings, and fragments. If you need to serve Woodstar under a path, put a reverse proxy in front; the app expects to own the root of its host.
 
 Certificate files are optional because the normal container deployment terminates TLS at a reverse proxy. Set neither file for that private HTTP hop. Set both files when the Woodstar process listens directly on HTTPS. A partial pair is a startup error, and Woodstar does not fall back to HTTP when a configured certificate cannot be loaded.
-
-Set both initial-administrator variables or neither. Empty values, a partial pair, or a password shorter than 12 characters stop startup. The password is used exactly as supplied.
 
 ## Client IP
 
@@ -57,14 +53,14 @@ The default trusts the connection's own address, which is right when nothing ter
 
 OIDC turns on only when the issuer URL, client ID, and client secret are all set. A partial block is a startup error.
 
-| Variable                      | Default                | Notes                                |
-| ----------------------------- | ---------------------- | ------------------------------------ |
-| `WOODSTAR_OIDC_ISSUER_URL`    | empty                  | Provider issuer URL.                 |
-| `WOODSTAR_OIDC_CLIENT_ID`     | empty                  | Client ID.                           |
-| `WOODSTAR_OIDC_CLIENT_SECRET` | empty                  | Client secret.                       |
-| `WOODSTAR_OIDC_REDIRECT_URL`  | server callback        | Exact browser callback URL.          |
-| `WOODSTAR_OIDC_SCOPES`        | `openid,email,profile` | Scopes to request.                   |
-| `WOODSTAR_OIDC_EMAIL_CLAIM`   | `email`                | Claim used as the Woodstar identity. |
+| Variable                      | Default                | Notes                                                        |
+| ----------------------------- | ---------------------- | ------------------------------------------------------------ |
+| `WOODSTAR_OIDC_ISSUER_URL`    | empty                  | Provider issuer URL.                                         |
+| `WOODSTAR_OIDC_CLIENT_ID`     | empty                  | Client ID.                                                   |
+| `WOODSTAR_OIDC_CLIENT_SECRET` | empty                  | Client secret.                                               |
+| `WOODSTAR_OIDC_REDIRECT_URL`  | server callback        | Exact browser callback URL.                                  |
+| `WOODSTAR_OIDC_SCOPES`        | `openid,email,profile` | Scopes to request.                                           |
+| `WOODSTAR_OIDC_EMAIL_CLAIM`   | `email`                | Claim whose value exactly matches the Woodstar user's email. |
 
 The redirect defaults to `<WOODSTAR_URL>/api/auth/sso/callback`. Set it explicitly when the browser reaches the callback through another origin, such as `http://localhost:5173/api/auth/sso/callback` through Vite. HTTPS is required except for loopback HTTP development, and the path must remain `/api/auth/sso/callback`. Configured OIDC discovery must succeed during startup; Woodstar does not silently disable a requested login path.
 
@@ -137,8 +133,6 @@ WOODSTAR_URL=https://localhost:8443
 WOODSTAR_TLS_CERT_FILE=./tmp/tls/woodstar.pem
 WOODSTAR_TLS_KEY_FILE=./tmp/tls/woodstar-key.pem
 WOODSTAR_DATABASE_URL=postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable
-WOODSTAR_INITIAL_ADMIN_EMAIL=admin@example.com
-WOODSTAR_INITIAL_ADMIN_PASSWORD=replace-with-a-long-password
 WOODSTAR_STORAGE_CAPABILITY_KEY=paste_64_character_hex_here
 WOODSTAR_LOG_LEVEL=debug
 ```

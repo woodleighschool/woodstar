@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -27,17 +26,15 @@ var ErrInvalidOIDCRedirectURL = errors.New("invalid OIDC redirect URL")
 
 // Config contains runtime settings.
 type Config struct {
-	Host                 string   `env:"HOST"                  envDefault:"0.0.0.0" validate:"required"`
-	Port                 int      `env:"PORT"                  envDefault:"8080"    validate:"gte=1,lte=65535"`
-	ServerURL            string   `env:"URL"                                        validate:"required"`
-	TLSCertFile          string   `env:"TLS_CERT_FILE"                              validate:"required_with=TLSKeyFile"`
-	TLSKeyFile           string   `env:"TLS_KEY_FILE"                               validate:"required_with=TLSCertFile"`
-	SessionCookieSecure  bool     `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
-	DatabaseURL          string   `env:"DATABASE_URL"                               validate:"required"`
-	LogLevel             string   `env:"LOG_LEVEL"             envDefault:"info"    validate:"required,oneof=debug info warn error"`
-	CORSAllowedOrigins   []string `env:"CORS_ALLOWED_ORIGINS"                       validate:"dive,web_origin"`
-	InitialAdminEmail    string   `env:"INITIAL_ADMIN_EMAIL"                        validate:"required_with=InitialAdminPassword,omitempty,email"`
-	InitialAdminPassword string   `env:"INITIAL_ADMIN_PASSWORD"                     validate:"required_with=InitialAdminEmail"`
+	Host                string   `env:"HOST"                  envDefault:"0.0.0.0" validate:"required"`
+	Port                int      `env:"PORT"                  envDefault:"8080"    validate:"gte=1,lte=65535"`
+	ServerURL           string   `env:"URL"                                        validate:"required"`
+	TLSCertFile         string   `env:"TLS_CERT_FILE"                              validate:"required_with=TLSKeyFile"`
+	TLSKeyFile          string   `env:"TLS_KEY_FILE"                               validate:"required_with=TLSCertFile"`
+	SessionCookieSecure bool     `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
+	DatabaseURL         string   `env:"DATABASE_URL"                               validate:"required"`
+	LogLevel            string   `env:"LOG_LEVEL"             envDefault:"info"    validate:"required,oneof=debug info warn error"`
+	CORSAllowedOrigins  []string `env:"CORS_ALLOWED_ORIGINS"                       validate:"dive,web_origin"`
 
 	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
 	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
@@ -77,9 +74,6 @@ type Config struct {
 	ClientIPTrustedCIDRs   []string       `env:"HTTP_CLIENT_IP_TRUSTED_CIDRS"                                validate:"excluded_unless=ClientIPSource xff_trusted_cidrs,required_if=ClientIPSource xff_trusted_cidrs,dive,cidr"`
 	ClientIPTrustedProxies int            `env:"HTTP_CLIENT_IP_TRUSTED_PROXY_COUNT"                          validate:"excluded_unless=ClientIPSource xff_trusted_proxies,required_if=ClientIPSource xff_trusted_proxies,omitempty,gte=1"`
 	ClientIPHeader         string         `env:"HTTP_CLIENT_IP_HEADER"                                       validate:"excluded_unless=ClientIPSource header,required_if=ClientIPSource header"`
-
-	initialAdminEmailPresent    bool
-	initialAdminPasswordPresent bool
 }
 
 // ClientIPSource is how the server derives the real client IP behind proxies.
@@ -108,8 +102,6 @@ func (cfg *Config) EntraEnabled() bool {
 
 // ApplyEnvironment fills unset config fields from environment variables and defaults.
 func ApplyEnvironment(cfg *Config) error {
-	_, cfg.initialAdminEmailPresent = os.LookupEnv("WOODSTAR_INITIAL_ADMIN_EMAIL")
-	_, cfg.initialAdminPasswordPresent = os.LookupEnv("WOODSTAR_INITIAL_ADMIN_PASSWORD")
 	return env.ParseWithOptions(cfg, env.Options{
 		Prefix:                       "WOODSTAR_",
 		SetDefaultsForZeroValuesOnly: true,
@@ -127,7 +119,6 @@ func (cfg *Config) Normalize() {
 	cfg.TLSCertFile = strings.TrimSpace(cfg.TLSCertFile)
 	cfg.TLSKeyFile = strings.TrimSpace(cfg.TLSKeyFile)
 	cfg.LogLevel = strings.ToLower(strings.TrimSpace(cfg.LogLevel))
-	cfg.InitialAdminEmail = strings.ToLower(strings.TrimSpace(cfg.InitialAdminEmail))
 	cfg.OIDCIssuerURL = strings.TrimSpace(cfg.OIDCIssuerURL)
 	cfg.OIDCClientID = strings.TrimSpace(cfg.OIDCClientID)
 	cfg.OIDCScopes = normalizeStrings(cfg.OIDCScopes)
@@ -141,9 +132,6 @@ func (cfg *Config) Normalize() {
 
 // Validate checks the resolved configuration independently of its input sources.
 func (cfg *Config) Validate() error {
-	if err := cfg.validateInitialAdministrator(); err != nil {
-		return err
-	}
 	if !validation.IsHTTPSOrigin(cfg.ServerURL) {
 		return fmt.Errorf("%w: must be an HTTPS origin", ErrInvalidServerURL)
 	}
@@ -164,18 +152,6 @@ func (cfg *Config) Validate() error {
 	if cfg.StorageKind == "s3" && publicStorageEndpoint != "" &&
 		!validation.IsHTTPSOrigin(publicStorageEndpoint) {
 		return errors.New("StorageS3PublicEndpoint must resolve to an HTTPS origin")
-	}
-	return nil
-}
-
-func (cfg *Config) validateInitialAdministrator() error {
-	emailPresent := cfg.initialAdminEmailPresent || cfg.InitialAdminEmail != ""
-	passwordPresent := cfg.initialAdminPasswordPresent || cfg.InitialAdminPassword != ""
-	if emailPresent != passwordPresent {
-		return errors.New("InitialAdminEmail and InitialAdminPassword must both be set")
-	}
-	if emailPresent && (cfg.InitialAdminEmail == "" || cfg.InitialAdminPassword == "") {
-		return errors.New("InitialAdminEmail and InitialAdminPassword must not be empty")
 	}
 	return nil
 }

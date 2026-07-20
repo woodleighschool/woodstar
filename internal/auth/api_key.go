@@ -37,10 +37,10 @@ func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*directory.Ac
 	return account, nil
 }
 
-// principalByAPIKey returns the persisted principal owning the given API key.
+// userByAPIKey returns the persisted user owning the given API key.
 // Token lookup is plain equality on the indexed column; the user is not
 // retrieved when token is empty.
-func (s *Service) principalByAPIKey(ctx context.Context, token string) (*Principal, error) {
+func (s *Service) userByAPIKey(ctx context.Context, token string) (*directory.User, error) {
 	if token == "" {
 		return nil, ErrNotAuthenticated
 	}
@@ -51,5 +51,5 @@ func (s *Service) principalByAPIKey(ctx context.Context, token string) (*Princip
 	if err != nil {
 		return nil, fmt.Errorf("get user by api key: %w", err)
 	}
-	return principalFromUser(user), nil
+	return user, nil
 }

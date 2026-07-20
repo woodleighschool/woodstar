@@ -180,17 +180,13 @@ function SidebarUserMenu() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {user?.id !== undefined ? (
-              <>
-                <DropdownMenuGroup>
-                  <DropdownMenuItem render={<Link to="/account" />}>
-                    <UserIcon />
-                    Account
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-              </>
-            ) : null}
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link to="/account" />}>
+                <UserIcon />
+                Account
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <Pending
                 isPending={logout.isPending}

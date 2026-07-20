@@ -11,7 +11,7 @@ async function loadSession(queryClient: QueryClient): Promise<SessionBody> {
   return queryClient.fetchQuery(sessionQueryOptions);
 }
 
-/** Authenticated route guard. Redirects to login if no principal is signed in. */
+/** Authenticated route guard. Redirects to login if no user is signed in. */
 export async function requireUser(queryClient: QueryClient): Promise<SessionUser> {
   const session = await loadSession(queryClient);
   if (!session.user) throw redirect({ to: "/login" });
@@ -25,7 +25,7 @@ export async function redirectForEntry(queryClient: QueryClient): Promise<void> 
   throw redirect({ to: "/hosts" });
 }
 
-/** Login page guard: send an already-signed-in principal to the app. */
+/** Login page guard: send an already-signed-in user to the app. */
 export async function redirectAuthenticatedFromLogin(queryClient: QueryClient): Promise<void> {
   const session = await loadSession(queryClient);
   if (session.user) throw redirect({ to: "/hosts" });

@@ -7,29 +7,35 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 func TestRequireAdmin(t *testing.T) {
+	admin := directory.RoleAdmin
+	viewer := directory.RoleViewer
 	tests := []struct {
 		name       string
-		principal  *auth.Principal
+		user       *directory.User
 		wantStatus int
 		wantOK     bool
 	}{
 		{
-			name:      "initial administrator in context",
-			principal: &auth.Principal{Role: directory.RoleAdmin},
-			wantOK:    true,
+			name:   "administrator in context",
+			user:   &directory.User{ID: 1, Role: &admin},
+			wantOK: true,
 		},
 		{
 			name:       "viewer is forbidden",
-			principal:  &auth.Principal{Role: directory.RoleViewer},
+			user:       &directory.User{ID: 2, Role: &viewer},
 			wantStatus: 403,
 		},
 		{
-			name:       "missing principal is unauthorized",
+			name:       "user without role is forbidden",
+			user:       &directory.User{ID: 3},
+			wantStatus: 403,
+		},
+		{
+			name:       "missing user is unauthorized",
 			wantStatus: 401,
 		},
 	}
@@ -38,16 +44,16 @@ func TestRequireAdmin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			if tt.principal != nil {
-				ctx = WithPrincipal(ctx, tt.principal)
+			if tt.user != nil {
+				ctx = WithUser(ctx, tt.user)
 			}
 			got, err := RequireAdmin(ctx)
 			if tt.wantOK {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if got == nil {
-					t.Fatal("expected principal, got nil")
+				if got == nil || got.ID != tt.user.ID {
+					t.Fatalf("user = %+v, want %+v", got, tt.user)
 				}
 				return
 			}
@@ -65,11 +71,13 @@ func TestRequireAdmin(t *testing.T) {
 	}
 }
 
-func TestRequireUserIDRejectsInitialAdmin(t *testing.T) {
-	ctx := WithPrincipal(context.Background(), &auth.Principal{Role: directory.RoleAdmin})
-	_, err := RequireUserID(ctx)
-	status, ok := errors.AsType[huma.StatusError](err)
-	if !ok || status.GetStatus() != 404 {
-		t.Fatalf("RequireUserID error = %v, want 404", err)
+func TestCurrentUserID(t *testing.T) {
+	if got := CurrentUserID(context.Background()); got != nil {
+		t.Fatalf("anonymous user ID = %v, want nil", got)
+	}
+	ctx := WithUser(context.Background(), &directory.User{ID: 42})
+	got := CurrentUserID(ctx)
+	if got == nil || *got != 42 {
+		t.Fatalf("current user ID = %v, want 42", got)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
@@ -98,7 +99,7 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	return s.oidc.oauth2.AuthCodeURL(state, oidc.Nonce(nonce)), nil
 }
 
-func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*Principal, error) {
+func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*directory.User, error) {
 	if s.oidc == nil {
 		return nil, ErrSSONotConfigured
 	}
@@ -132,17 +133,14 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*Princip
 		return nil, fmt.Errorf("decode id token claims: %w", err)
 	}
 	email, _ := claims[s.oidc.emailClaim].(string)
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = strings.TrimSpace(email)
 	if email == "" {
 		return nil, ErrSSOEmailClaimEmpty
 	}
 	return s.completeSSOLogin(ctx, email)
 }
 
-func (s *Service) completeSSOLogin(ctx context.Context, email string) (*Principal, error) {
-	if s.initialAdmin != nil && email == s.initialAdmin.email {
-		return nil, ErrSSOUnknownUser
-	}
+func (s *Service) completeSSOLogin(ctx context.Context, email string) (*directory.User, error) {
 	user, err := s.users.GetSSOByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, ErrSSOUnknownUser
@@ -151,8 +149,8 @@ func (s *Service) completeSSOLogin(ctx context.Context, email string) (*Principa
 		return nil, fmt.Errorf("lookup sso user: %w", err)
 	}
 
-	if err := s.startPersistedSession(ctx, user.ID); err != nil {
+	if err := s.startSession(ctx, user.ID); err != nil {
 		return nil, err
 	}
-	return principalFromUser(user), nil
+	return user, nil
 }

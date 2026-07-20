@@ -2720,27 +2720,6 @@ components:
         - executable_sha256
         - executable_path
       type: object
-    Principal:
-      additionalProperties: false
-      properties:
-        email:
-          format: email
-          type: string
-        id:
-          format: int64
-          type: integer
-        name:
-          type: string
-        role:
-          enum:
-            - admin
-            - viewer
-          type: string
-      required:
-        - email
-        - name
-        - role
-      type: object
     SantaBundleReference:
       additionalProperties: false
       properties:
@@ -3689,7 +3668,7 @@ components:
         sso_enabled:
           type: boolean
         user:
-          $ref: "#/components/schemas/Principal"
+          $ref: "#/components/schemas/User"
       required:
         - sso_enabled
       type: object
@@ -9211,7 +9190,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Get the current signed-in principal, if any
+      summary: Get the current signed-in user, if any
       tags:
         - Auth
     post:
@@ -9227,7 +9206,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Principal"
+                $ref: "#/components/schemas/User"
           description: OK
         "400":
           content:
@@ -9265,7 +9244,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Create a local admin session
+      summary: Create a local user session
       tags:
         - Auth
   /api/software:

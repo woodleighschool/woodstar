@@ -146,7 +146,7 @@ func (s *Store) createUser(
 INSERT INTO users (email, name, password_hash, role, source)
 VALUES ($1, $2, $3, $4::user_role, 'local')
 RETURNING `+userColumnsSQL(""),
-			strings.ToLower(params.Email), params.Name, params.PasswordHash, string(params.Role),
+			params.Email, params.Name, params.PasswordHash, string(params.Role),
 		)
 		if err != nil {
 			return dbutil.MutationError(err)
@@ -170,28 +170,18 @@ WHERE deleted_at IS NULL
   AND source = 'local'
   AND role IS NOT NULL
   AND password_hash IS NOT NULL
-  AND (
-      lower(email) = lower($1)
-      OR lower(COALESCE(user_principal_name, '')) = lower($1)
-  )
-ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
-LIMIT 1`)
+  AND email = $1`)
 }
 
 func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
 	return s.getUserByEmail(ctx, email, `
 WHERE deleted_at IS NULL
   AND role IS NOT NULL
-  AND (
-      lower(email) = lower($1)
-      OR lower(COALESCE(user_principal_name, '')) = lower($1)
-)
-ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
-LIMIT 1`)
+  AND email = $1`)
 }
 
 func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+whereSQL, strings.ToLower(email))
+	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+whereSQL, email)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -266,6 +256,51 @@ WHERE id = $4
   AND deleted_at IS NULL
 RETURNING `+userColumnsSQL(""),
 		params.Name, roleStr, params.PasswordHash, id)
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	user := userFromRow(row)
+	return &user, nil
+}
+
+func (s *Store) setLocalUserPasswordByEmail(
+	ctx context.Context,
+	email string,
+	passwordHash string,
+) (*User, error) {
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    password_hash = $1,
+    updated_at = now()
+WHERE email = $2
+  AND source = 'local'
+  AND deleted_at IS NULL
+RETURNING `+userColumnsSQL(""), passwordHash, email)
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	user := userFromRow(row)
+	return &user, nil
+}
+
+func (s *Store) setUserRoleByEmail(ctx context.Context, email string, role Role) (*User, error) {
+	qrows, err := s.db.Pool().Query(ctx, `
+UPDATE users
+SET
+    role = $1::user_role,
+    updated_at = now()
+WHERE email = $2
+  AND deleted_at IS NULL
+RETURNING `+userColumnsSQL(""), string(role), email)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}

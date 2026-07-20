@@ -183,44 +183,6 @@ func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 	}
 }
 
-func TestConfigReadsInitialAdministratorPair(t *testing.T) {
-	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_EMAIL", " Admin@Example.Test ")
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_PASSWORD", " configured password ")
-
-	cfg := Config{}
-	if err := resolveConfig(&cfg); err != nil {
-		t.Fatalf("resolveConfig returned error: %v", err)
-	}
-	if cfg.InitialAdminEmail != "admin@example.test" {
-		t.Fatalf("InitialAdminEmail = %q, want lower-case email", cfg.InitialAdminEmail)
-	}
-	if cfg.InitialAdminPassword != " configured password " {
-		t.Fatalf("InitialAdminPassword = %q, want exact value", cfg.InitialAdminPassword)
-	}
-}
-
-func TestConfigRejectsPartialInitialAdministratorPair(t *testing.T) {
-	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_EMAIL", "admin@example.test")
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_PASSWORD", "")
-
-	if err := resolveConfig(&Config{}); err == nil {
-		t.Fatal("resolveConfig returned nil error for partial initial administrator pair")
-	}
-}
-
-func TestConfigRejectsPresentButEmptyInitialAdministratorPair(t *testing.T) {
-	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_EMAIL", "")
-	t.Setenv("WOODSTAR_INITIAL_ADMIN_PASSWORD", "")
-
-	err := resolveConfig(&Config{})
-	if err == nil || err.Error() != "InitialAdminEmail and InitialAdminPassword must not be empty" {
-		t.Fatalf("resolveConfig error = %v, want present-but-empty error", err)
-	}
-}
-
 func TestConfigNormalizesCORSAllowedOrigins(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("WOODSTAR_URL", "https://example.com/")

@@ -12,7 +12,7 @@ import (
 
 func TestOIDCStartReturnsNotFoundWhenDisabled(t *testing.T) {
 	router := chi.NewRouter()
-	service, err := auth.NewService(nil, testSessionManager(), auth.InitialAdminConfig{})
+	service, err := auth.NewService(nil, testSessionManager())
 	if err != nil {
 		t.Fatalf("create auth service: %v", err)
 	}

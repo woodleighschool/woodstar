@@ -1,26 +1,45 @@
 ---
 sidebar_position: 3
 title: Authentication
-description: Sign in with local accounts, an initial administrator, or OIDC.
+description: Provision local users and sign in with passwords, OIDC, or API keys.
 ---
 
 # Authentication
 
-Woodstar supports local accounts, an optional initial administrator, and OIDC. Administrators manage local accounts from the Directory page.
+Every person who signs in to Woodstar is a persisted directory user. Administrators manage users from the Directory page; operators can create or recover them with the Woodstar binary when no administrator can sign in.
 
-## Initial administrator
+## Provision a local user
 
-Set `WOODSTAR_INITIAL_ADMIN_EMAIL` and `WOODSTAR_INITIAL_ADMIN_PASSWORD` together to make an administrator available without creating an account first. It can manage users and reset passwords, but it does not appear in the Directory and has no Account page or API key.
+Run the user command against the Woodstar database before exposing a fresh server:
 
-If a regular account has the same email, the configured password takes precedence for password sign-in. Remove both settings and restart Woodstar to disable the initial administrator.
+```bash
+woodstar user create \
+  --email admin@example.com \
+  --name Administrator \
+  --role admin
+```
+
+The command prompts for the password when `--password` is omitted. Pass `--password` explicitly for non-interactive automation. It reads `WOODSTAR_DATABASE_URL`, or accepts `--database-url`. Email addresses must be lowercase; surrounding whitespace is ignored.
+
+The release image is distroless but still runs Woodstar subcommands directly. It does not need a shell:
+
+```bash
+kubectl exec -it deploy/woodstar -- \
+  /woodstar user create \
+  --email admin@example.com \
+  --name Administrator \
+  --role admin
+```
+
+Use `user set-password --email ...` to replace a local password and `user set-role --email ... --role admin` to restore administrator access. Woodstar permits deleting or demoting the final administrator; the same commands recover that deliberate zero-administrator state.
 
 ## OIDC
 
-Configure an issuer URL, client ID, and client secret to enable OIDC. Only identities matching a Woodstar directory user can sign in. The initial administrator cannot sign in through OIDC. See [Environment](./environment#oidc).
+Configure an issuer URL, client ID, and client secret to enable OIDC. Only identities whose configured claim exactly matches a Woodstar user's email can sign in, and that user must have an app role. A directory UPN remains metadata rather than a second login identifier. See [Environment](./environment#oidc).
 
 ## API keys
 
-Regular accounts can create an API key with the same permissions as the account. [AutoPkg](../autopkg/overview) uses one to upload packages.
+Users can create an API key with the same permissions as their account. [AutoPkg](../autopkg/overview) uses one to upload packages.
 
 ## Agent secrets
 

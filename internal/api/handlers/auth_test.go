@@ -35,7 +35,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 		t.Fatalf("create test administrator: %v", err)
 	}
 	sessions := testSessionManager()
-	authService, err := auth.NewService(userService, sessions, auth.InitialAdminConfig{})
+	authService, err := auth.NewService(userService, sessions)
 	if err != nil {
 		t.Fatalf("create auth service: %v", err)
 	}
@@ -77,10 +77,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 
 func TestLoginRateLimitPrecedesRequestValidation(t *testing.T) {
 	sessions := testSessionManager()
-	authService, err := auth.NewService(nil, sessions, auth.InitialAdminConfig{
-		Email:    "admin@example.test",
-		Password: "configured-password",
-	})
+	authService, err := auth.NewService(nil, sessions)
 	if err != nil {
 		t.Fatalf("create auth service: %v", err)
 	}
@@ -107,17 +104,24 @@ func TestLoginRateLimitPrecedesRequestValidation(t *testing.T) {
 }
 
 func TestSuccessfulPasswordLoginConsumesCapacityWithoutLimitingOIDC(t *testing.T) {
-	sessions := testSessionManager()
-	authService, err := auth.NewService(nil, sessions, auth.InitialAdminConfig{
+	database, ctx := dbtest.Open(t)
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
+		Name:     "Test Admin",
+		Role:     directory.RoleAdmin,
 		Password: "configured-password",
-	})
+	}); err != nil {
+		t.Fatalf("create test administrator: %v", err)
+	}
+	sessions := testSessionManager()
+	authService, err := auth.NewService(userService, sessions)
 	if err != nil {
 		t.Fatalf("create auth service: %v", err)
 	}
 	router := authTestRouter(
 		authService,
-		nil,
+		userService,
 		sessions,
 		rate.NewLimiter(rate.Every(time.Hour), 1),
 	)

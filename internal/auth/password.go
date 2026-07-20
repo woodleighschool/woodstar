@@ -19,13 +19,11 @@ type LoginParams struct {
 	Password string
 }
 
-// Login checks local credentials and starts a session. The configured initial
-// administrator owns its email on this login path and never falls through to a
-// directory account with the same email.
-func (s *Service) Login(ctx context.Context, params LoginParams) (*Principal, error) {
+// Login checks local credentials and starts a session.
+func (s *Service) Login(ctx context.Context, params LoginParams) (*directory.User, error) {
 	started := time.Now()
-	email := strings.ToLower(strings.TrimSpace(params.Email))
-	principal, passwordHash, err := s.passwordLoginCandidate(ctx, email)
+	email := strings.TrimSpace(params.Email)
+	user, passwordHash, err := s.passwordLoginCandidate(ctx, email)
 	if err != nil {
 		return nil, err
 	}
@@ -34,32 +32,23 @@ func (s *Service) Login(ctx context.Context, params LoginParams) (*Principal, er
 	if err != nil {
 		return nil, fmt.Errorf("verify password: %w", err)
 	}
-	if principal == nil || !valid {
+	if user == nil || !valid {
 		// Only credential failures are padded; successful and internal-error paths
 		// return as soon as their work completes.
 		time.Sleep(time.Until(started.Add(minimumCredentialFailureDuration)))
 		return nil, ErrInvalidCredentials
 	}
 
-	if principal.UserID == nil {
-		err = s.startInitialAdminSession(ctx)
-	} else {
-		err = s.startPersistedSession(ctx, *principal.UserID)
-	}
-	if err != nil {
+	if err := s.startSession(ctx, user.ID); err != nil {
 		return nil, err
 	}
-	return principal, nil
+	return user, nil
 }
 
 func (s *Service) passwordLoginCandidate(
 	ctx context.Context,
 	email string,
-) (*Principal, string, error) {
-	if s.initialAdmin != nil && email == s.initialAdmin.email {
-		return s.initialAdmin.principal(), s.initialAdmin.passwordHash, nil
-	}
-
+) (*directory.User, string, error) {
 	user, err := s.users.GetLoginByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, s.dummyHash, nil
@@ -67,5 +56,5 @@ func (s *Service) passwordLoginCandidate(
 	if err != nil {
 		return nil, "", fmt.Errorf("get user: %w", err)
 	}
-	return principalFromUser(user), user.PasswordHash, nil
+	return user, user.PasswordHash, nil
 }

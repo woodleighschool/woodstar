@@ -43,6 +43,17 @@ docker compose up -d postgres
 
 Woodstar uses file storage by default. The storage integration test starts an ephemeral Garage container when it exercises the S3 backend; it is not part of the development stack.
 
+Create a local administrator after Postgres is available. This also runs pending database migrations:
+
+```bash
+WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable' \
+  mise exec -- go run ./cmd/woodstar user create \
+  --email admin@example.com \
+  --name Administrator \
+  --role admin \
+  --password woodstar-development
+```
+
 ## Run the server
 
 The server needs its canonical HTTPS URL, database URL, and a 32-byte file-storage capability key. A local run usually looks like this:
@@ -56,8 +67,6 @@ WOODSTAR_PORT=8443 \
 WOODSTAR_URL='https://woodstar:8443' \
 WOODSTAR_TLS_CERT_FILE='./tmp/tls/woodstar.pem' \
 WOODSTAR_TLS_KEY_FILE='./tmp/tls/woodstar-key.pem' \
-WOODSTAR_INITIAL_ADMIN_EMAIL='admin@example.com' \
-WOODSTAR_INITIAL_ADMIN_PASSWORD='woodstar-development' \
 WOODSTAR_STORAGE_CAPABILITY_KEY="$(openssl rand -hex 32)" \
   mise exec -- go run ./cmd/woodstar serve
 ```
@@ -102,6 +111,6 @@ Munki and Santa use macOS trust evaluation. Deliver the CA as a trusted certific
 
 System trust remains opt-in. `mise run dev-tls-trust` trusts the CA only on the development machine where the command runs; it does not change a test VM.
 
-## Initial administrator
+## Local administrator
 
-The checked-in `.env.example` contains local initial-administrator credentials. Start the backend and sign in with those values; change them before exposing the server beyond your machine.
+The administrator created above is an ordinary directory user with an Account page and API-key support. If local development reaches a state with no administrator, rerun `woodstar user set-role --email admin@example.com --role admin` against the same database.

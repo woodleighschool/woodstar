@@ -2,6 +2,10 @@ package directory
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // UserService owns user management and app-access policy.
@@ -79,6 +83,30 @@ func (s *UserService) Update(ctx context.Context, targetID int64, params UserMut
 // Delete hard-deletes local users and soft-deletes source-owned identities.
 func (s *UserService) Delete(ctx context.Context, targetID int64) error {
 	return s.store.deleteUser(ctx, targetID)
+}
+
+// SetPasswordByEmail replaces a local user's password.
+func (s *UserService) SetPasswordByEmail(
+	ctx context.Context,
+	email string,
+	password string,
+) (*User, error) {
+	email = strings.TrimSpace(email)
+	hash, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.setLocalUserPasswordByEmail(ctx, email, hash)
+}
+
+// SetRoleByEmail grants a persisted user the requested app role.
+func (s *UserService) SetRoleByEmail(ctx context.Context, email string, role Role) (*User, error) {
+	email = strings.TrimSpace(email)
+	role = Role(strings.TrimSpace(string(role)))
+	if role != RoleAdmin && role != RoleViewer {
+		return nil, fmt.Errorf("%w: role must be one of admin viewer", dbutil.ErrInvalidInput)
+	}
+	return s.store.setUserRoleByEmail(ctx, email, role)
 }
 
 func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {

@@ -30,13 +30,13 @@ func registerAccountAction(
 ) {
 	op.Errors = append(op.Errors, http.StatusNotFound)
 	huma.Register(api, op, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		userID, err := ctxkeys.RequireUserID(ctx)
+		user, err := ctxkeys.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
-		account, err := action(ctx, userID)
+		account, err := action(ctx, user.ID)
 		if err != nil {
-			return nil, handlerError(ctx, logger, op.OperationID, err, "user_id", userID)
+			return nil, handlerError(ctx, logger, op.OperationID, err, "user_id", user.ID)
 		}
 		return &accountOutput{Body: *account}, nil
 	})
@@ -65,13 +65,13 @@ func registerPutAccount(api huma.API, userService *directory.UserService, logger
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *accountPutInput) (*accountOutput, error) {
-		userID, err := ctxkeys.RequireUserID(ctx)
+		user, err := ctxkeys.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
-		account, err := userService.UpdateAccount(ctx, userID, input.Body)
+		account, err := userService.UpdateAccount(ctx, user.ID, input.Body)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "update-account", accountMutationError(err), "user_id", userID)
+			return nil, handlerError(ctx, logger, "update-account", accountMutationError(err), "user_id", user.ID)
 		}
 		return &accountOutput{Body: *account}, nil
 	})

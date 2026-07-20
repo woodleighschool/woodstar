@@ -3,6 +3,7 @@ package directory
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -62,6 +63,8 @@ WHERE source = $1::directory_source
 func applyUserSnapshot(ctx context.Context, tx pgx.Tx, source Source, users []ProviderUser) error {
 	userExternalIDs := make([]string, 0, len(users))
 	for _, u := range users {
+		u.Mail = strings.TrimSpace(u.Mail)
+		u.UserPrincipalName = strings.TrimSpace(u.UserPrincipalName)
 		if err := upsertSnapshotUser(ctx, tx, source, u); err != nil {
 			return err
 		}
@@ -98,10 +101,7 @@ SET
 WHERE (
 	      source = $1::directory_source AND deleted_at IS NOT NULL
 	  )
-  AND (
-      lower(email) = lower(COALESCE($3::text, $4::text))
-      OR lower(COALESCE(user_principal_name, '')) = lower($4::text)
-  )`,
+  AND email = COALESCE($3::text, $4::text)`,
 			string(source), u.ExternalID, dbutil.NullString(u.Mail), u.UserPrincipalName,
 		); err != nil {
 			return err
@@ -172,8 +172,7 @@ WHERE u.source = 'local'
   AND u.deleted_at IS NULL
   AND (
       l.external_id = $2
-      OR lower(u.email) = lower(COALESCE($3::text, $4::text))
-      OR lower(u.email) = lower($4::text)
+      OR u.email = COALESCE($3::text, $4::text)
   )
 ORDER BY CASE WHEN l.external_id = $2 THEN 0 ELSE 1 END, u.id
 LIMIT 1`,

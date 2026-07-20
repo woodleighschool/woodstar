@@ -33,6 +33,13 @@ func TestUserMutationsAllowZeroPersistedAdministrators(t *testing.T) {
 	if updated.Role == nil || *updated.Role != RoleViewer {
 		t.Fatalf("updated role = %v, want viewer", updated.Role)
 	}
+	restored, err := service.SetRoleByEmail(ctx, " admin@example.test ", RoleAdmin)
+	if err != nil {
+		t.Fatalf("restore administrator by email: %v", err)
+	}
+	if restored.Role == nil || *restored.Role != RoleAdmin {
+		t.Fatalf("restored role = %v, want admin", restored.Role)
+	}
 	if err := service.Delete(ctx, admin.ID); err != nil {
 		t.Fatalf("delete final persisted administrator: %v", err)
 	}
@@ -132,6 +139,39 @@ func TestUpdateHashesPassword(t *testing.T) {
 	}
 	if !valid {
 		t.Fatal("updated password hash does not verify new password")
+	}
+}
+
+func TestSetPasswordByEmailHashesPassword(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	service := newTestUserService(NewStore(database))
+	user, err := service.Create(ctx, UserCreate{
+		Email:    "local@example.test",
+		Name:     "Local User",
+		Role:     RoleAdmin,
+		Password: "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	updated, err := service.SetPasswordByEmail(
+		ctx,
+		" local@example.test ",
+		"replacement-password",
+	)
+	if err != nil {
+		t.Fatalf("set password by email: %v", err)
+	}
+	if updated.ID != user.ID || updated.PasswordHash == user.PasswordHash {
+		t.Fatalf("updated user = %+v, want changed password for user %d", updated, user.ID)
+	}
+	valid, err := VerifyPassword("replacement-password", updated.PasswordHash)
+	if err != nil {
+		t.Fatalf("verify replacement password: %v", err)
+	}
+	if !valid {
+		t.Fatal("replacement password does not verify")
 	}
 }
 

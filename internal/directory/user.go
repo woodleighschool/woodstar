@@ -90,7 +90,7 @@ func (params *UserListParams) validate() error {
 }
 
 func (params *UserCreate) normalize() {
-	params.Email = strings.ToLower(strings.TrimSpace(params.Email))
+	params.Email = strings.TrimSpace(params.Email)
 	params.Name = strings.TrimSpace(params.Name)
 	params.Role = Role(strings.TrimSpace(string(params.Role)))
 }

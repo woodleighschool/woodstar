@@ -538,24 +538,6 @@ func (e MunkiPackageStateStatus) Valid() bool {
 	}
 }
 
-// Defines values for PrincipalRole.
-const (
-	PrincipalRoleAdmin  PrincipalRole = "admin"
-	PrincipalRoleViewer PrincipalRole = "viewer"
-)
-
-// Valid indicates whether the value is a known member of the PrincipalRole enum.
-func (e PrincipalRole) Valid() bool {
-	switch e {
-	case PrincipalRoleAdmin:
-		return true
-	case PrincipalRoleViewer:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for SantaConfigurationClientMode.
 const (
 	SantaConfigurationClientModeLockdown   SantaConfigurationClientMode = "lockdown"
@@ -2028,17 +2010,6 @@ type PathSignatureInformation struct {
 	TeamIdentifier   string `json:"team_identifier"`
 }
 
-// Principal defines model for Principal.
-type Principal struct {
-	Email openapi_types.Email `json:"email"`
-	Id    *int64              `json:"id,omitempty"`
-	Name  string              `json:"name"`
-	Role  PrincipalRole       `json:"role"`
-}
-
-// PrincipalRole defines model for Principal.Role.
-type PrincipalRole string
-
 // SantaConfiguration defines model for SantaConfiguration.
 type SantaConfiguration struct {
 	AllowedPathRegex              *string                                    `json:"allowed_path_regex,omitempty"`
@@ -2870,14 +2841,14 @@ type ClientInterface interface {
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSessionWithBody Create a local admin session
+	// CreateSessionWithBody Create a local user session
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSession Create a local admin session
+	// CreateSession Create a local user session
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -3498,7 +3469,7 @@ func (c *Client) CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRe
 	return c.Client.Do(req)
 }
 
-// CreateSessionWithBody Create a local admin session
+// CreateSessionWithBody Create a local user session
 //
 // Takes any type of body and a specified content type.
 //
@@ -3515,7 +3486,7 @@ func (c *Client) CreateSessionWithBody(ctx context.Context, contentType string, 
 	return c.Client.Do(req)
 }
 
-// CreateSession Create a local admin session
+// CreateSession Create a local user session
 //
 // Takes a body of the `application/json` content type.
 //
@@ -5316,14 +5287,14 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRuleWithResponse(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSantaRuleResponse, error)
 
-	// CreateSessionWithBodyWithResponse Create a local admin session
+	// CreateSessionWithBodyWithResponse Create a local user session
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
 
-	// CreateSessionWithResponse Create a local admin session
+	// CreateSessionWithResponse Create a local user session
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -7295,7 +7266,7 @@ type CreateSessionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Principal
+	JSON200 *User
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
@@ -7311,7 +7282,7 @@ type CreateSessionResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r CreateSessionResponse) GetJSON200() *Principal {
+func (r CreateSessionResponse) GetJSON200() *User {
 	return r.JSON200
 }
 
@@ -7933,7 +7904,7 @@ func (c *ClientWithResponses) CreateSantaRuleWithResponse(ctx context.Context, b
 	return ParseCreateSantaRuleResponse(rsp)
 }
 
-// CreateSessionWithBodyWithResponse Create a local admin session
+// CreateSessionWithBodyWithResponse Create a local user session
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7946,7 +7917,7 @@ func (c *ClientWithResponses) CreateSessionWithBodyWithResponse(ctx context.Cont
 	return ParseCreateSessionResponse(rsp)
 }
 
-// CreateSessionWithResponse Create a local admin session
+// CreateSessionWithResponse Create a local user session
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -9551,7 +9522,7 @@ func ParseCreateSessionResponse(rsp *http.Response) (*CreateSessionResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Principal
+		var dest User
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

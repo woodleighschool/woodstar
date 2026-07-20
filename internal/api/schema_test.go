@@ -34,9 +34,6 @@ func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 		t.Fatal("sensitive read does not declare a 403 response")
 	}
 
-	if doc.Paths["/api/setup"] != nil {
-		t.Fatal("removed setup endpoint is still registered")
-	}
 	session := doc.Paths["/api/session"]
 	if len(session.Get.Security) != 0 {
 		t.Fatalf("GET session security = %#v, want optional authentication", session.Get.Security)

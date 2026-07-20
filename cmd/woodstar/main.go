@@ -65,6 +65,7 @@ func main() {
 	}
 
 	root.AddCommand(serveCommand())
+	root.AddCommand(userCommand())
 	root.AddCommand(mdpCommand())
 	root.AddCommand(openAPICommand())
 
@@ -412,12 +413,9 @@ func newAuth(
 	users *directory.UserService,
 	sessions *scs.SessionManager,
 ) (*auth.Service, error) {
-	service, err := auth.NewService(users, sessions, auth.InitialAdminConfig{
-		Email:    cfg.InitialAdminEmail,
-		Password: cfg.InitialAdminPassword,
-	})
+	service, err := auth.NewService(users, sessions)
 	if err != nil {
-		return nil, fmt.Errorf("configure initial administrator: %w", err)
+		return nil, fmt.Errorf("configure authentication: %w", err)
 	}
 	if !cfg.OIDCEnabled() {
 		return service, nil

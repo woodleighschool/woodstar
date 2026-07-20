@@ -11,21 +11,22 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/auth"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// Authenticator resolves a browser session or API key into a Woodstar principal.
+// Authenticator resolves a browser session or API key into a Woodstar user.
 type Authenticator interface {
-	Authenticate(ctx context.Context, authHeader string) (*auth.Principal, error)
+	Authenticate(ctx context.Context, authHeader string) (*directory.User, error)
 }
 
-// OptionalHumaAuth attaches a principal to the Huma context when credentials are
+// OptionalHumaAuth attaches a user to the Huma context when credentials are
 // present and valid. Missing credentials are allowed; invalid or broken
 // credentials keep their normal auth failure semantics.
 func OptionalHumaAuth(api huma.API, authenticator Authenticator) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		principal, err := authenticator.Authenticate(ctx.Context(), ctx.Header("Authorization"))
+		user, err := authenticator.Authenticate(ctx.Context(), ctx.Header("Authorization"))
 		if err == nil {
-			next(huma.WithContext(ctx, ctxkeys.WithPrincipal(ctx.Context(), principal)))
+			next(huma.WithContext(ctx, ctxkeys.WithUser(ctx.Context(), user)))
 			return
 		}
 		if errors.Is(err, auth.ErrNotAuthenticated) {
@@ -36,10 +37,10 @@ func OptionalHumaAuth(api huma.API, authenticator Authenticator) func(huma.Conte
 	}
 }
 
-// RequireHumaAuth attaches the authenticated principal to protected Huma operations.
+// RequireHumaAuth attaches the authenticated user to protected Huma operations.
 func RequireHumaAuth(api huma.API, authenticator Authenticator) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		principal, err := authenticator.Authenticate(ctx.Context(), ctx.Header("Authorization"))
+		user, err := authenticator.Authenticate(ctx.Context(), ctx.Header("Authorization"))
 		if err != nil {
 			if errors.Is(err, auth.ErrNotAuthenticated) {
 				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "not authenticated")
@@ -49,7 +50,7 @@ func RequireHumaAuth(api huma.API, authenticator Authenticator) func(huma.Contex
 			return
 		}
 
-		next(huma.WithContext(ctx, ctxkeys.WithPrincipal(ctx.Context(), principal)))
+		next(huma.WithContext(ctx, ctxkeys.WithUser(ctx.Context(), user)))
 	}
 }
 
@@ -67,11 +68,11 @@ func ProtectedOperation(api huma.API) func(*huma.Operation, func(*huma.Operation
 	}
 }
 
-// RequireHTTPAuth attaches the authenticated principal to raw HTTP routes.
+// RequireHTTPAuth attaches the authenticated user to raw HTTP routes.
 func RequireHTTPAuth(authenticator Authenticator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			principal, err := authenticator.Authenticate(req.Context(), req.Header.Get("Authorization"))
+			user, err := authenticator.Authenticate(req.Context(), req.Header.Get("Authorization"))
 			if err != nil {
 				status := http.StatusInternalServerError
 				if errors.Is(err, auth.ErrNotAuthenticated) {
@@ -80,7 +81,7 @@ func RequireHTTPAuth(authenticator Authenticator) func(http.Handler) http.Handle
 				http.Error(w, http.StatusText(status), status)
 				return
 			}
-			next.ServeHTTP(w, req.WithContext(ctxkeys.WithPrincipal(req.Context(), principal)))
+			next.ServeHTTP(w, req.WithContext(ctxkeys.WithUser(req.Context(), user)))
 		})
 	}
 }
