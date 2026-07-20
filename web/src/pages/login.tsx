@@ -104,11 +104,9 @@ export function LoginPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      render={<a href="/api/auth/sso/start" />}
+                      render={<a href="/api/auth/sso/start">Login with SSO</a>}
                       nativeButton={false}
-                    >
-                      Login with SSO
-                    </Button>
+                    />
                   </>
                 ) : null}
               </Field>

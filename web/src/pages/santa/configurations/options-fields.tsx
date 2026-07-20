@@ -41,9 +41,8 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
           </FormField>
         )}
       </form.Field>
-      <form.Field
-        name="description"
-        children={(field) => (
+      <form.Field name="description">
+        {(field) => (
           <Field>
             <FieldLabel htmlFor="santa-configuration-description">Description</FieldLabel>
             <Textarea
@@ -56,7 +55,7 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             />
           </Field>
         )}
-      />
+      </form.Field>
       <form.Field name="client_mode">
         {(field) => (
           <FormField field={field} label="Client Mode" htmlFor="santa-client-mode">
@@ -85,9 +84,8 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
           </FormField>
         )}
       </form.Field>
-      <form.Field
-        name="enable_bundles"
-        children={(field) => (
+      <form.Field name="enable_bundles">
+        {(field) => (
           <BoolField
             id="santa-enable-bundles"
             label="Bundles"
@@ -95,10 +93,9 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             onChange={field.handleChange}
           />
         )}
-      />
-      <form.Field
-        name="enable_transitive_rules"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="enable_transitive_rules">
+        {(field) => (
           <BoolField
             id="santa-enable-transitive-rules"
             label="Transitive Rules"
@@ -106,10 +103,9 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             onChange={field.handleChange}
           />
         )}
-      />
-      <form.Field
-        name="enable_all_event_upload"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="enable_all_event_upload">
+        {(field) => (
           <BoolField
             id="santa-upload-all-events"
             label="Upload All Events"
@@ -117,10 +113,9 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             onChange={field.handleChange}
           />
         )}
-      />
-      <form.Field
-        name="disable_unknown_event_upload"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="disable_unknown_event_upload">
+        {(field) => (
           <BoolField
             id="santa-disable-unknown-event-upload"
             label="Disable Unknown Event Upload"
@@ -128,7 +123,7 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             onChange={field.handleChange}
           />
         )}
-      />
+      </form.Field>
       <form.Field name="override_file_access_action">
         {(field) => (
           <FormField
@@ -210,9 +205,8 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
           )}
         </form.Field>
       </div>
-      <form.Field
-        name="allowed_path_regex"
-        children={(field) => (
+      <form.Field name="allowed_path_regex">
+        {(field) => (
           <Field>
             <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
             <Input
@@ -224,10 +218,9 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             />
           </Field>
         )}
-      />
-      <form.Field
-        name="blocked_path_regex"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="blocked_path_regex">
+        {(field) => (
           <Field>
             <FieldLabel htmlFor="santa-blocked-path-regex">Blocked Path Regex</FieldLabel>
             <Input
@@ -239,11 +232,10 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
             />
           </Field>
         )}
-      />
+      </form.Field>
       <div className="grid gap-4 md:grid-cols-2">
-        <form.Field
-          name="event_detail_url"
-          children={(field) => (
+        <form.Field name="event_detail_url">
+          {(field) => (
             <FormField field={field} label="Event Detail URL" htmlFor="santa-event-detail-url">
               {(control) => (
                 <Input
@@ -256,10 +248,9 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
               )}
             </FormField>
           )}
-        />
-        <form.Field
-          name="event_detail_text"
-          children={(field) => (
+        </form.Field>
+        <form.Field name="event_detail_text">
+          {(field) => (
             <Field>
               <FieldLabel htmlFor="santa-event-detail-text">Event Detail Text</FieldLabel>
               <Input
@@ -271,7 +262,7 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
               />
             </Field>
           )}
-        />
+        </form.Field>
       </div>
       <ConfigurationMediaFields form={form} />
     </FieldGroup>

@@ -94,7 +94,6 @@ export function LabelAssignmentList({
                   <TableCell>{labelsByID.get(row.label_id) ?? `Label ${row.label_id}`}</TableCell>
                   <TableCell className="w-12">
                     <LabelAssignmentRowActions
-                      title={title}
                       onRemove={() =>
                         onChange(rows.filter((item) => item.label_id !== row.label_id))
                       }
@@ -197,20 +196,11 @@ function LabelAssignmentDialog({
     </Dialog>
   );
 }
-function LabelAssignmentRowActions({ title, onRemove }: { title: string; onRemove: () => void }) {
+function LabelAssignmentRowActions({ onRemove }: { onRemove: () => void }) {
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Open ${title.toLowerCase()} actions`}
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" />}>
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">

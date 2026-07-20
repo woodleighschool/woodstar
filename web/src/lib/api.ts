@@ -28,9 +28,9 @@ export function setUnauthorizedHandler(handler: () => void): void {
 
 export class ApiError extends Error {
   readonly status: number;
-  readonly body?: unknown;
+  readonly body?: ErrorModel;
 
-  constructor(status: number, message: string, body?: unknown) {
+  constructor(status: number, message: string, body?: ErrorModel) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -40,25 +40,24 @@ export class ApiError extends Error {
 
 interface ApiResult {
   data: unknown;
-  error: unknown;
+  error: ErrorModel | Error | undefined;
   response?: Response;
 }
 
 type ResponseData<Result extends ApiResult> = Extract<Result, { error: undefined }>["data"];
 
-function describeError(body: unknown, status: number): string {
-  if (body && typeof body === "object") {
-    const huma = body as ErrorModel;
-    if (huma.errors?.length) {
-      const details = huma.errors
-        .map((e) => (e.location ? `${e.location}: ${e.message ?? ""}` : (e.message ?? "")))
-        .filter(Boolean)
-        .join("; ");
-      if (details) return details;
-    }
-    if (huma.detail) return huma.detail;
-    if (huma.title) return huma.title;
+function describeError(body: ErrorModel | undefined, status: number): string {
+  if (body?.errors?.length) {
+    const details = body.errors
+      .map((error) =>
+        error.location ? `${error.location}: ${error.message ?? ""}` : (error.message ?? ""),
+      )
+      .filter(Boolean)
+      .join("; ");
+    if (details) return details;
   }
+  if (body?.detail) return body.detail;
+  if (body?.title) return body.title;
   return `request failed (${status})`;
 }
 
@@ -67,6 +66,7 @@ export function unwrap<Result extends ApiResult>(
 ): Promise<ResponseData<Result>>;
 export async function unwrap(pending: Promise<ApiResult>): Promise<unknown> {
   const result = await pending;
+  if (result.error instanceof Error) throw result.error;
   if (result.error !== undefined || !result.response?.ok) {
     const status = result.response?.status ?? 0;
     throw new ApiError(status, describeError(result.error, status), result.error);

@@ -225,9 +225,7 @@ function InstalledPathCell({
   }
   return (
     <Dialog>
-      <DialogTrigger
-        render={<Button variant="link" size="sm" className="h-auto px-0 py-0 text-xs" />}
-      >
+      <DialogTrigger render={<Button variant="link" size="sm" className="h-auto p-0 text-xs" />}>
         {paths.length} paths
       </DialogTrigger>
       <DialogContent className="max-w-2xl">

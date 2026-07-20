@@ -11,14 +11,12 @@ export function selectColumn<TData>(): ColumnDef<TData> {
         checked={table.getIsAllPageRowsSelected()}
         indeterminate={!table.getIsAllPageRowsSelected() && table.getIsSomePageRowsSelected()}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(value)}
-        aria-label="Select all"
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(value)}
-        aria-label="Select row"
       />
     ),
     enableSorting: false,

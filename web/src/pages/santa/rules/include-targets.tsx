@@ -105,7 +105,7 @@ export function SantaIncludeTargets({
               {include.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{includeLabel(row, labelsByID)}</TableCell>
-                  <TableCell className="max-w-[28rem]">
+                  <TableCell className="max-w-md">
                     <div className="flex min-w-0 items-center gap-2">
                       <Badge variant="secondary" className="font-normal">
                         {POLICY_LABELS.get(row.policy) ?? row.policy}
@@ -311,16 +311,7 @@ function SantaIncludeRowActions({
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Open include actions"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" />}>
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">

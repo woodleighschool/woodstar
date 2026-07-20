@@ -113,18 +113,13 @@ export function InstallerFileField({
                   </AttachmentContent>
                   {file ? (
                     <AttachmentActions>
-                      <AttachmentAction
-                        type="button"
-                        aria-label="Clear selected installer"
-                        onClick={() => field.handleChange(null)}
-                      >
+                      <AttachmentAction type="button" onClick={() => field.handleChange(null)}>
                         <Trash2 />
                       </AttachmentAction>
                     </AttachmentActions>
                   ) : null}
                   <AttachmentTrigger
                     id="munki-package-installer-file"
-                    aria-label="Select installer"
                     aria-invalid={control["aria-invalid"]}
                     onClick={() => inputRef.current?.click()}
                   />
@@ -177,19 +172,16 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
   return (
     <form.Subscribe selector={(state) => state.values.blocking_applications_none}>
       {(blockingApplicationsNone) => (
-        <form.Field
-          name="blocking_applications"
-          mode="array"
-          children={(field) => (
+        <form.Field name="blocking_applications" mode="array">
+          {(field) => (
             <FormField field={field}>
               {(control) => (
                 <div {...control} tabIndex={-1}>
                   <FieldSet className="gap-4">
                     <FieldLegend variant="label">Blocking Applications</FieldLegend>
                     <FieldGroup className="gap-2">
-                      <form.Field
-                        name="blocking_applications_none"
-                        children={(noneField) => (
+                      <form.Field name="blocking_applications_none">
+                        {(noneField) => (
                           <Field orientation="horizontal">
                             <Checkbox
                               id="munki-package-blocking-applications-none"
@@ -211,11 +203,10 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                             </FieldContent>
                           </Field>
                         )}
-                      />
+                      </form.Field>
                       {blockingApplicationsNone ? null : (
                         <>
                           <StringArrayRows
-                            removeLabel="Remove application"
                             rows={field.state.value}
                             onReplace={(index, row) => field.replaceValue(index, row)}
                             onRemove={(index) => field.removeValue(index)}
@@ -237,19 +228,17 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
               )}
             </FormField>
           )}
-        />
+        </form.Field>
       )}
     </form.Subscribe>
   );
 }
 
 function StringArrayRows({
-  removeLabel,
   rows,
   onReplace,
   onRemove,
 }: {
-  removeLabel: string;
   rows: StringRow[];
   onReplace: (index: number, row: StringRow) => void;
   onRemove: (index: number) => void;
@@ -259,7 +248,6 @@ function StringArrayRows({
       {rows.map((row, index) => (
         <InputGroup key={row.rowID}>
           <InputGroupInput
-            aria-label="Application"
             value={row.value}
             onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
           />
@@ -268,7 +256,6 @@ function StringArrayRows({
               type="button"
               variant="ghost"
               size="icon-xs"
-              aria-label={removeLabel}
               onClick={() => onRemove(index)}
             >
               <Trash2 />
@@ -298,13 +285,11 @@ export function InstallerEnvironmentEditor({
         {rows.map((row, index) => (
           <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
             <Input
-              aria-label="Name"
               value={row.name}
               onChange={(event) => onReplace(index, { ...row, name: event.target.value })}
             />
             <InputGroup>
               <InputGroupInput
-                aria-label="Value"
                 value={row.value}
                 onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
               />
@@ -313,7 +298,6 @@ export function InstallerEnvironmentEditor({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Remove variable"
                   onClick={() => onRemove(index)}
                 >
                   <Trash2 />
@@ -349,13 +333,13 @@ export function InstallsTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[14rem]">Path</TableHead>
-                <TableHead className="w-[9rem]">Type</TableHead>
-                <TableHead className="min-w-[10rem]">CFBundleName</TableHead>
-                <TableHead className="min-w-[12rem]">CFBundleIdentifier</TableHead>
-                <TableHead className="min-w-[9rem]">CFBundleShortVersionString</TableHead>
-                <TableHead className="min-w-[9rem]">CFBundleVersion</TableHead>
-                <TableHead className="min-w-[9rem]">Minimum Update</TableHead>
+                <TableHead className="min-w-56">Path</TableHead>
+                <TableHead className="w-36">Type</TableHead>
+                <TableHead className="min-w-40">CFBundleName</TableHead>
+                <TableHead className="min-w-48">CFBundleIdentifier</TableHead>
+                <TableHead className="min-w-36">CFBundleShortVersionString</TableHead>
+                <TableHead className="min-w-36">CFBundleVersion</TableHead>
+                <TableHead className="min-w-36">Minimum Update</TableHead>
                 <TableHead className="w-9" />
               </TableRow>
             </TableHeader>
@@ -364,7 +348,6 @@ export function InstallsTable({
                 <TableRow key={row.rowID} className="hover:bg-transparent">
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Path"
                       value={row.path}
                       onValueChange={(value) => onReplace(index, { ...row, path: value })}
                     />
@@ -377,10 +360,7 @@ export function InstallsTable({
                         if (next !== null) onReplace(index, { ...row, type: next });
                       }}
                     >
-                      <SelectTrigger
-                        aria-label="Type"
-                        className="h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent"
-                      >
+                      <SelectTrigger className="h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -396,14 +376,12 @@ export function InstallsTable({
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="CFBundleName"
                       value={row.bundle_name ?? ""}
                       onValueChange={(value) => onReplace(index, { ...row, bundle_name: value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="CFBundleIdentifier"
                       value={row.bundle_identifier ?? ""}
                       onValueChange={(value) =>
                         onReplace(index, { ...row, bundle_identifier: value })
@@ -412,7 +390,6 @@ export function InstallsTable({
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="CFBundleShortVersionString"
                       value={row.bundle_short_version ?? ""}
                       onValueChange={(value) =>
                         onReplace(index, {
@@ -424,14 +401,12 @@ export function InstallsTable({
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="CFBundleVersion"
                       value={row.bundle_version ?? ""}
                       onValueChange={(value) => onReplace(index, { ...row, bundle_version: value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Minimum Update Version"
                       value={row.minimum_update_version ?? ""}
                       onValueChange={(value) =>
                         onReplace(index, {
@@ -479,9 +454,9 @@ export function ReceiptsTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[16rem]">Package ID</TableHead>
-                <TableHead className="min-w-[9rem]">Version</TableHead>
-                <TableHead className="min-w-[10rem]">Name</TableHead>
-                <TableHead className="min-w-[8rem]">Installed Size</TableHead>
+                <TableHead className="min-w-36">Version</TableHead>
+                <TableHead className="min-w-40">Name</TableHead>
+                <TableHead className="min-w-32">Installed Size</TableHead>
                 <TableHead className="w-24 text-center">Optional</TableHead>
                 <TableHead className="w-9" />
               </TableRow>
@@ -491,28 +466,24 @@ export function ReceiptsTable({
                 <TableRow key={row.rowID} className="hover:bg-transparent">
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Package ID"
                       value={row.package_id}
                       onValueChange={(value) => onReplace(index, { ...row, package_id: value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Version"
                       value={row.version ?? ""}
                       onValueChange={(value) => onReplace(index, { ...row, version: value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Name"
                       value={row.name ?? ""}
                       onValueChange={(value) => onReplace(index, { ...row, name: value })}
                     />
                   </TableCell>
                   <TableCell className="p-0">
                     <CellInput
-                      aria-label="Installed Size"
                       type="number"
                       min={0}
                       value={row.installed_size ?? ""}
@@ -526,7 +497,6 @@ export function ReceiptsTable({
                   </TableCell>
                   <TableCell className="text-center">
                     <Checkbox
-                      aria-label="Optional"
                       checked={row.optional === true}
                       onCheckedChange={(value) => onReplace(index, { ...row, optional: value })}
                     />
@@ -554,24 +524,18 @@ function CellInput({
   onValueChange,
   type = "text",
   min,
-  "aria-label": ariaLabel,
 }: {
   value: string | number;
   onValueChange: (value: string) => void;
   type?: "number" | "text";
   min?: number;
-  "aria-label": string;
 }) {
   const text = String(value);
   return (
     <Editable value={text} onValueChange={onValueChange} placeholder="—" className="gap-0">
       <EditableArea className="block">
-        <EditablePreview
-          aria-label={ariaLabel}
-          className="h-8 rounded-none px-2 focus-visible:ring-inset"
-        />
+        <EditablePreview className="h-8 rounded-none px-2 focus-visible:ring-inset" />
         <EditableInput
-          aria-label={ariaLabel}
           type={type}
           min={min}
           className="h-8 rounded-none border-0 px-2 shadow-none focus-visible:ring-inset"
@@ -632,7 +596,6 @@ export function ItemsToCopyEditor({
                       type="button"
                       variant="ghost"
                       size="icon-xs"
-                      aria-label="Remove copy item"
                       onClick={() => onRemove(index)}
                     >
                       <Trash2 />

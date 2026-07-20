@@ -120,9 +120,8 @@ export function RuleForm({
                       </FormField>
                     )}
                   </form.Field>
-                  <form.Field
-                    name="description"
-                    children={(field) => (
+                  <form.Field name="description">
+                    {(field) => (
                       <FormField field={field} label="Description" htmlFor="santa-rule-description">
                         {(control) => (
                           <Textarea
@@ -136,10 +135,9 @@ export function RuleForm({
                         )}
                       </FormField>
                     )}
-                  />
-                  <form.Field
-                    name="rule_type"
-                    children={(field) => (
+                  </form.Field>
+                  <form.Field name="rule_type">
+                    {(field) => (
                       <Field>
                         <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
                         <Select
@@ -165,7 +163,7 @@ export function RuleForm({
                         </Select>
                       </Field>
                     )}
-                  />
+                  </form.Field>
                   <form.Field name="identifier">
                     {(field) => (
                       <FormField
@@ -188,9 +186,8 @@ export function RuleForm({
                       </FormField>
                     )}
                   </form.Field>
-                  <form.Field
-                    name="custom_url"
-                    children={(field) => (
+                  <form.Field name="custom_url">
+                    {(field) => (
                       <FormField field={field} label="Custom URL" htmlFor="santa-rule-custom-url">
                         {(control) => (
                           <Input
@@ -203,10 +200,9 @@ export function RuleForm({
                         )}
                       </FormField>
                     )}
-                  />
-                  <form.Field
-                    name="custom_message"
-                    children={(field) => (
+                  </form.Field>
+                  <form.Field name="custom_message">
+                    {(field) => (
                       <FormField
                         field={field}
                         label="Custom Message"
@@ -224,7 +220,7 @@ export function RuleForm({
                         )}
                       </FormField>
                     )}
-                  />
+                  </form.Field>
                 </FieldGroup>
               </TabsContent>
 

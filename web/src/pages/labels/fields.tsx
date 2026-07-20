@@ -165,10 +165,7 @@ export function LabelForm({
   return (
     <>
       <PageShell
-        className={cn(
-          "h-full transition-[padding] duration-200 ease-out",
-          schemaOpen && "pr-[21rem]",
-        )}
+        className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && `pr-84`)}
         render={
           <form
             noValidate
@@ -224,9 +221,8 @@ export function LabelForm({
                     )}
                   </form.Field>
 
-                  <form.Field
-                    name="label_membership_type"
-                    children={(field) => (
+                  <form.Field name="label_membership_type">
+                    {(field) => (
                       <Field>
                         <FieldLabel>Type</FieldLabel>
                         <ToggleGroup
@@ -252,26 +248,24 @@ export function LabelForm({
                         ) : null}
                       </Field>
                     )}
-                  />
+                  </form.Field>
 
                   {isManual ? (
-                    <form.Field
-                      name="host_ids"
-                      children={(field) => (
+                    <form.Field name="host_ids">
+                      {(field) => (
                         <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
                           <FieldLabel>Hosts</FieldLabel>
                           <HostSelector value={field.state.value} onChange={field.handleChange} />
                           <FieldError errors={field.state.meta.errors} />
                         </Field>
                       )}
-                    />
+                    </form.Field>
                   ) : null}
 
                   {isDerived ? (
                     <FieldGroup>
-                      <form.Field
-                        name="derived_attribute"
-                        children={(field) => (
+                      <form.Field name="derived_attribute">
+                        {(field) => (
                           <Field>
                             <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
                             <Select
@@ -297,10 +291,9 @@ export function LabelForm({
                             </Select>
                           </Field>
                         )}
-                      />
-                      <form.Field
-                        name="derived_values"
-                        children={(field) => (
+                      </form.Field>
+                      <form.Field name="derived_values">
+                        {(field) => (
                           <Field
                             data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
                           >
@@ -321,15 +314,14 @@ export function LabelForm({
                             <FieldError errors={field.state.meta.errors} />
                           </Field>
                         )}
-                      />
+                      </form.Field>
                     </FieldGroup>
                   ) : null}
                 </FieldGroup>
 
                 {isDynamic ? (
-                  <form.Field
-                    name="query"
-                    children={(field) => (
+                  <form.Field name="query">
+                    {(field) => (
                       <Field
                         data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
                         className="max-w-3xl"
@@ -351,7 +343,7 @@ export function LabelForm({
                         <FieldError errors={field.state.meta.errors} />
                       </Field>
                     )}
-                  />
+                  </form.Field>
                 ) : null}
 
                 {isDynamic ? (

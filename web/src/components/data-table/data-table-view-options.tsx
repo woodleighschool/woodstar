@@ -37,7 +37,6 @@ export function DataTableViewOptions<TData>({
       <DropdownMenuTrigger
         render={
           <Button
-            aria-label="Toggle columns"
             variant="outline"
             size="sm"
             className="ml-auto hidden h-8 font-normal lg:flex"

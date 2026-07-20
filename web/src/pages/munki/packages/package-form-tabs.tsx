@@ -265,10 +265,8 @@ function BasicInfoTab({
 function ContentsTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldGroup>
-      <form.Field
-        name="installs"
-        mode="array"
-        children={(field) => (
+      <form.Field name="installs" mode="array">
+        {(field) => (
           <FormField field={field}>
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -282,11 +280,9 @@ function ContentsTab({ form }: { form: PackageEditorForm }) {
             )}
           </FormField>
         )}
-      />
-      <form.Field
-        name="receipts"
-        mode="array"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="receipts" mode="array">
+        {(field) => (
           <FormField field={field}>
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -300,7 +296,7 @@ function ContentsTab({ form }: { form: PackageEditorForm }) {
             )}
           </FormField>
         )}
-      />
+      </form.Field>
     </FieldGroup>
   );
 }
@@ -314,10 +310,8 @@ function RequirementsTab({
 }) {
   return (
     <FieldGroup>
-      <form.Field
-        name="requires"
-        mode="array"
-        children={(field) => (
+      <form.Field name="requires" mode="array">
+        {(field) => (
           <FormField field={field}>
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -334,11 +328,9 @@ function RequirementsTab({
             )}
           </FormField>
         )}
-      />
-      <form.Field
-        name="update_for"
-        mode="array"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="update_for" mode="array">
+        {(field) => (
           <FormField field={field}>
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -355,7 +347,7 @@ function RequirementsTab({
             )}
           </FormField>
         )}
-      />
+      </form.Field>
       <FieldSet>
         <FieldLegend>Compatibility</FieldLegend>
         <FieldGroup className="grid gap-4 md:grid-cols-3">
@@ -393,10 +385,8 @@ function RequirementsTab({
 function InstallationTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldGroup>
-      <form.Field
-        name="items_to_copy"
-        mode="array"
-        children={(field) => (
+      <form.Field name="items_to_copy" mode="array">
+        {(field) => (
           <FormField field={field}>
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -410,7 +400,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
             )}
           </FormField>
         )}
-      />
+      </form.Field>
 
       <BlockingApplicationsEditor form={form} />
       <FieldSet>
@@ -432,19 +422,17 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
         </FieldGroup>
       </FieldSet>
 
-      <form.Field
-        name="supported_architectures"
-        children={(field) => (
+      <form.Field name="supported_architectures">
+        {(field) => (
           <ArchitectureEditor
             values={field.state.value}
             onChange={(values) => field.handleChange(values)}
           />
         )}
-      />
+      </form.Field>
 
-      <form.Field
-        name="installer_choices_xml"
-        children={(field) => (
+      <form.Field name="installer_choices_xml">
+        {(field) => (
           <FormField field={field} label="Installer Choices XML" htmlFor="installer-choices-xml">
             {(control) => (
               <div {...control} tabIndex={-1}>
@@ -458,7 +446,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
             )}
           </FormField>
         )}
-      />
+      </form.Field>
     </FieldGroup>
   );
 }
@@ -473,9 +461,8 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
               <UninstallMethodField form={form} />
             </div>
             {uninstallMethod === "uninstall_script" ? (
-              <form.Field
-                name="uninstall_script"
-                children={(field) => (
+              <form.Field name="uninstall_script">
+                {(field) => (
                   <FormField field={field} label="Uninstall Script">
                     {(control) => (
                       <div {...control} tabIndex={-1}>
@@ -484,7 +471,7 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
                     )}
                   </FormField>
                 )}
-              />
+              </form.Field>
             ) : null}
           </>
         )}
@@ -495,12 +482,11 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
 
 function ScriptsTab({ form }: { form: PackageEditorForm }) {
   return (
-    <form.Subscribe
-      selector={(state) => state.values}
-      children={(values) => (
+    <form.Subscribe selector={(state) => state.values}>
+      {(values) => (
         <ScriptsEditor values={values} onChange={(key, value) => form.setFieldValue(key, value)} />
       )}
-    />
+    </form.Subscribe>
   );
 }
 
@@ -550,9 +536,8 @@ function isGeneralScriptKey(value: string): value is ScriptKey {
 function AlertsTab({ form }: { form: PackageEditorForm }) {
   return (
     <FieldGroup>
-      <form.Field
-        name="preinstall_alert"
-        children={(field) => (
+      <form.Field name="preinstall_alert">
+        {(field) => (
           <AlertEditor
             id="munki-package-preinstall-alert"
             legend="Preinstall Alert"
@@ -560,10 +545,9 @@ function AlertsTab({ form }: { form: PackageEditorForm }) {
             onChange={(alert) => field.handleChange(alert)}
           />
         )}
-      />
-      <form.Field
-        name="preuninstall_alert"
-        children={(field) => (
+      </form.Field>
+      <form.Field name="preuninstall_alert">
+        {(field) => (
           <AlertEditor
             id="munki-package-preuninstall-alert"
             legend="Preuninstall Alert"
@@ -571,7 +555,7 @@ function AlertsTab({ form }: { form: PackageEditorForm }) {
             onChange={(alert) => field.handleChange(alert)}
           />
         )}
-      />
+      </form.Field>
     </FieldGroup>
   );
 }
@@ -597,10 +581,8 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             inputMode="numeric"
           />
         </FieldGroup>
-        <form.Field
-          name="installer_environment"
-          mode="array"
-          children={(field) => (
+        <form.Field name="installer_environment" mode="array">
+          {(field) => (
             <FormField field={field}>
               {(control) => (
                 <div {...control} tabIndex={-1}>
@@ -614,7 +596,7 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
               )}
             </FormField>
           )}
-        />
+        </form.Field>
       </FieldSet>
 
       <FieldSet>

@@ -83,7 +83,7 @@ export function ClientResourcesEditor({
       </Alert>
 
       <div className="min-w-0 overflow-x-auto p-8">
-        <div className="mx-auto max-w-[96rem] min-w-[56rem] overflow-hidden rounded-2xl border bg-background shadow-lg">
+        <div className="mx-auto max-w-384 min-w-4xl overflow-hidden rounded-2xl border bg-background shadow-lg">
           <div className="flex">
             <aside className="w-60 shrink-0 border-r bg-muted/45 px-4 py-5">
               <div className="flex h-7 items-center gap-2 px-2" aria-hidden="true">
@@ -97,18 +97,22 @@ export function ClientResourcesEditor({
                 <span>Search</span>
               </div>
 
-              <nav
-                aria-label="Managed Software Center navigation"
-                className="mt-8 flex flex-col gap-1"
-              >
+              <nav className="mt-8 flex flex-col gap-1">
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={item.label}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
-                        item.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                        `
+                          flex items-center gap-3 rounded-lg px-3 py-2 text-sm
+                          font-medium
+                        `,
+                        item.active
+                          ? "bg-accent text-accent-foreground"
+                          : `
+                          text-muted-foreground
+                        `,
                       )}
                     >
                       <Icon className="size-5" />
@@ -194,14 +198,8 @@ export function ClientResourcesEditor({
                               className="w-56 gap-0"
                             >
                               <EditableArea className="block w-full">
-                                <EditablePreview
-                                  aria-label="Footer text"
-                                  className="h-7 px-1.5 py-0.5 text-center text-[11px]"
-                                />
-                                <EditableInput
-                                  aria-label="Footer text"
-                                  className="h-7 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none"
-                                />
+                                <EditablePreview className="h-7 px-1.5 py-0.5 text-center text-[11px]" />
+                                <EditableInput className="h-7 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none" />
                               </EditableArea>
                             </Editable>
 
@@ -262,12 +260,11 @@ function EditableLinks({
                     <button
                       type="button"
                       className="cursor-grab rounded-sm px-0.5 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-                      aria-label={`Drag ${link.label || "untitled link"} to reorder`}
-                    />
+                    >
+                      {link.label || "Untitled link"}
+                    </button>
                   }
-                >
-                  {link.label || "Untitled link"}
-                </SortableItemHandle>
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -276,7 +273,6 @@ function EditableLinks({
                         variant="ghost"
                         size="icon-xs"
                         className="ml-0.5 size-5"
-                        aria-label={`Actions for ${link.label || "untitled link"}`}
                       />
                     }
                   >
@@ -311,7 +307,6 @@ function EditableLinks({
               variant="ghost"
               size="icon-xs"
               className="absolute right-2"
-              aria-label={addLabel}
               disabled={items.length >= 12}
               onClick={() => setDialogIndex("new")}
             />
@@ -341,10 +336,7 @@ function EditableLinks({
 }
 function MunkiCategories() {
   return (
-    <div
-      aria-label="Munki categories"
-      className="flex flex-wrap items-center justify-center gap-y-1"
-    >
+    <div className="flex flex-wrap items-center justify-center gap-y-1">
       {defaultCategories.map((category, index) => (
         <span key={category} className="flex items-center">
           {index > 0 ? (

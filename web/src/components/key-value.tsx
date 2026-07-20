@@ -37,7 +37,7 @@ export function KeyValueItem({
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
       <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-      <dd className={cn("min-w-0 text-sm break-words text-foreground", valueClassName)}>
+      <dd className={cn("min-w-0 text-sm wrap-break-word text-foreground", valueClassName)}>
         {displayValue}
       </dd>
     </div>

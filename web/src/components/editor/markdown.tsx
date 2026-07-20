@@ -24,7 +24,7 @@ const defaultComponents: Components = {
   li: ({ children }) => <li>{children}</li>,
   code: ({ children }) => <span>{children}</span>,
   pre: ({ children }) => (
-    <div className="mb-2 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap text-foreground last:mb-0">
+    <div className="mb-2 overflow-x-auto text-sm/relaxed whitespace-pre-wrap text-foreground last:mb-0">
       {children}
     </div>
   ),
@@ -35,7 +35,7 @@ const defaultComponents: Components = {
 
 export function Markdown({ children, className, components }: MarkdownProps) {
   return (
-    <div className={cn("text-sm leading-relaxed break-words", className)}>
+    <div className={cn("text-sm/relaxed wrap-break-word", className)}>
       <ReactMarkdown components={{ ...defaultComponents, ...components }}>{children}</ReactMarkdown>
     </div>
   );

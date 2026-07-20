@@ -41,11 +41,11 @@ export function TargetLabelsCell({
           <button
             type="button"
             className="rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          />
+          >
+            {countText}
+          </button>
         }
-      >
-        {countText}
-      </HoverCardTrigger>
+      />
       <HoverCardContent align="start" side="top" className="w-auto max-w-80 p-2">
         <LabelChips labels={labels} />
       </HoverCardContent>

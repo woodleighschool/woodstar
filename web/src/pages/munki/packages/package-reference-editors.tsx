@@ -49,7 +49,6 @@ export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
         <Link
           to="/munki/software/$softwareId"
           params={{ softwareId: String(software.id) }}
-          aria-label={`Open ${software.name}`}
           className="absolute inset-0 z-10 outline-none"
         />
       </Attachment>
@@ -221,7 +220,6 @@ function PackageReferenceCombobox({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Remove package reference"
           onClick={(event) => {
             event.stopPropagation();
             onRemove();

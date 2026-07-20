@@ -527,22 +527,20 @@ function TargetPicker({
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (
-              <output className="block px-2 py-2 text-sm text-muted-foreground">
-                Searching hosts…
-              </output>
+              <output className="block p-2 text-sm text-muted-foreground">Searching hosts…</output>
             ) : hostRows.length ? (
               hostRows.map((host) => (
                 <button
                   type="button"
                   key={host.id}
-                  className="flex items-center justify-between rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                  className="flex items-center justify-between rounded-sm p-2 text-left text-sm hover:bg-muted"
                   onClick={() => addHost(host)}
                 >
                   <span>{host.display_name}</span>
                 </button>
               ))
             ) : (
-              <div className="px-2 py-2 text-sm text-muted-foreground">No Hosts Found.</div>
+              <div className="p-2 text-sm text-muted-foreground">No Hosts Found.</div>
             )}
           </div>
         ) : null}

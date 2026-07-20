@@ -49,7 +49,7 @@ export function HostMunkiTab({ munki }: { munki: MunkiHostState }) {
                   <Badge variant="secondary" className="shrink-0">
                     {problem.kind}
                   </Badge>
-                  <span className="min-w-0 text-sm break-words">{problem.value}</span>
+                  <span className="min-w-0 text-sm wrap-break-word">{problem.value}</span>
                 </div>
               ))}
             </div>

@@ -42,12 +42,18 @@ export function SchemaSidebar({
     <TooltipProvider delay={150}>
       <button
         type="button"
-        aria-label={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         onClick={() => onOpenChange(!open)}
         className={cn(
-          "fixed top-20 z-40 rounded-l-md border border-r-0 bg-card p-2 shadow-sm md:top-6",
-          "transition-[right,color,border-color] duration-200 ease-out hover:bg-accent hover:text-accent-foreground",
+          `
+            fixed top-20 z-40 rounded-l-md border border-r-0 bg-card p-2
+            shadow-sm
+            md:top-6
+          `,
+          `
+            transition-[right,color,border-color] duration-200 ease-out
+            hover:bg-accent hover:text-accent-foreground
+          `,
           open ? "right-80" : "right-0",
         )}
       >
@@ -95,7 +101,11 @@ function SchemaPanel({
   return (
     <aside
       className={cn(
-        "fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l bg-card shadow-lg md:top-0",
+        `
+          fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l bg-card
+          shadow-lg
+          md:top-0
+        `,
         "transition-transform duration-200 ease-out",
         open ? "translate-x-0" : "translate-x-full",
       )}

@@ -63,7 +63,7 @@ function SidebarBrand() {
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" render={<Link to="/hosts" />}>
           <WoodstarMark />
-          <div className="grid flex-1 text-left text-sm leading-tight">
+          <div className="grid flex-1 text-left text-sm/tight">
             <span className="truncate font-semibold">Woodstar</span>
             <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>
           </div>
@@ -150,7 +150,7 @@ function SidebarUserMenu() {
             }
           >
             <SidebarUserAvatar />
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <div className="grid flex-1 text-left text-sm/tight">
               <span className="truncate font-medium">{label}</span>
               {user?.role ? (
                 <span className="truncate text-xs text-muted-foreground">
@@ -170,7 +170,7 @@ function SidebarUserMenu() {
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <SidebarUserAvatar />
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-left text-sm/tight">
                     <span className="truncate font-medium">{label}</span>
                     <span className="truncate text-xs text-muted-foreground">
                       {user?.email ?? "Not signed in"}

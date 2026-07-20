@@ -58,7 +58,10 @@ export function BannerEditor({
             alt=""
             draggable={false}
             className={cn(
-              "pointer-events-none absolute top-0 h-[200px] w-auto max-w-none select-none",
+              `
+                pointer-events-none absolute top-0 h-[200px] w-auto max-w-none
+                select-none
+              `,
               alignment === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
             )}
           />
@@ -75,7 +78,7 @@ export function BannerEditor({
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 border border-dashed border-primary/50 group-data-[dragging]:border-primary group-data-[invalid]:border-destructive"
+          className="pointer-events-none absolute inset-0 border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"
         />
       </FileUploadDropzone>
 
@@ -85,7 +88,6 @@ export function BannerEditor({
             value={[alignment]}
             variant="outline"
             size="sm"
-            aria-label="Banner alignment"
             className="bg-background/90 shadow-sm backdrop-blur-sm"
             onValueChange={(value) => {
               const selected = alignmentOptions.find((option) => option.value === value[0]);
@@ -95,7 +97,7 @@ export function BannerEditor({
             {alignmentOptions.map((option) => {
               const Icon = option.icon;
               return (
-                <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
+                <ToggleGroupItem key={option.value} value={option.value}>
                   <Icon />
                   {option.label}
                 </ToggleGroupItem>

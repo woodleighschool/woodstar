@@ -270,9 +270,7 @@ function UserRowActions({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button type="button" size="icon" variant="ghost" aria-label="User actions" />}
-      >
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
         <MoreHorizontal />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

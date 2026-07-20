@@ -39,7 +39,7 @@ export function DeploymentInstructions({
 function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+      <div className="flex max-w-3xl flex-col gap-2 text-sm/relaxed text-muted-foreground">
         <p>
           Build the Orbit package once. Keep the Woodstar URL, enroll secret, and user email in the
           profile.
@@ -55,12 +55,14 @@ function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
             type="button"
             variant="outline"
             size="sm"
-            render={<a href={FLEETCTL_INSTALL_URL} target="_blank" rel="noreferrer" />}
+            render={
+              <a href={FLEETCTL_INSTALL_URL} target="_blank" rel="noreferrer">
+                <ExternalLink data-icon="inline-start" />
+                Install Fleetctl
+              </a>
+            }
             nativeButton={false}
-          >
-            <ExternalLink data-icon="inline-start" />
-            Install Fleetctl
-          </Button>
+          />
         }
       />
 
@@ -77,7 +79,7 @@ function OrbitDeploymentInstructions({ serverURL }: { serverURL?: string }) {
 function SantaDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+      <div className="flex max-w-3xl flex-col gap-2 text-sm/relaxed text-muted-foreground">
         <p>Deploy Santa with a profile for Woodstar and a bearer secret.</p>
         <p>MachineID identifies Santa clients. Leave it unset so Santa uses the hardware UUID.</p>
       </div>
@@ -95,7 +97,7 @@ function SantaDeploymentInstructions({ serverURL }: { serverURL?: string }) {
 function MunkiDeploymentInstructions({ serverURL }: { serverURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+      <div className="flex max-w-3xl flex-col gap-2 text-sm/relaxed text-muted-foreground">
         <p>Deploy Munki with a profile for Woodstar.</p>
       </div>
 
@@ -132,7 +134,7 @@ function DeploymentArtifact({
           <h2 id={titleID} className="text-base font-medium">
             {title}
           </h2>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <p className="max-w-3xl text-sm/relaxed text-muted-foreground">{description}</p>
         </div>
         {action}
       </div>
@@ -160,8 +162,16 @@ function DeploymentExample({
       highlightActiveLine={false}
       className={cn(
         multiline
-          ? "max-h-96 min-h-56 overflow-auto [&_.cm-content]:py-1.5"
-          : "min-h-9 [&_.cm-content]:py-2 [&_.cm-line]:whitespace-pre [&_.cm-scroller]:overflow-x-auto",
+          ? `
+            max-h-96 min-h-56 overflow-auto
+            [&_.cm-content]:py-1.5
+          `
+          : `
+            min-h-9
+            [&_.cm-content]:py-2
+            [&_.cm-line]:whitespace-pre
+            [&_.cm-scroller]:overflow-x-auto
+          `,
       )}
     />
   );

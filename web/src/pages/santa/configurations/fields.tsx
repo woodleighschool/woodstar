@@ -122,9 +122,8 @@ export function ConfigurationForm({
         </TabsContent>
 
         <TabsContent value="targets" keepMounted className="data-inactive:hidden">
-          <form.Field
-            name="targets"
-            children={(field) => (
+          <form.Field name="targets">
+            {(field) => (
               <FormField field={field}>
                 {(control) => (
                   <div {...control} tabIndex={-1}>
@@ -133,7 +132,7 @@ export function ConfigurationForm({
                 )}
               </FormField>
             )}
-          />
+          </form.Field>
         </TabsContent>
       </ScrollableTabs>
 

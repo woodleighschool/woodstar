@@ -402,11 +402,7 @@ function SelectorTable<TData>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 <TableHead className="w-10">
-                  <Checkbox
-                    checked={allPageSelected}
-                    onCheckedChange={togglePage}
-                    aria-label="Select page"
-                  />
+                  <Checkbox checked={allPageSelected} onCheckedChange={togglePage} />
                 </TableHead>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
@@ -428,7 +424,6 @@ function SelectorTable<TData>({
                       <Checkbox
                         checked={selectedSet.has(id)}
                         onCheckedChange={(value) => toggleRow(id, value)}
-                        aria-label="Select row"
                       />
                     </TableCell>
                     {row.getVisibleCells().map((cell) => (
@@ -443,7 +438,7 @@ function SelectorTable<TData>({
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columns.length + 1} className="p-0">
                   {isLoading ? (
-                    <div className="h-24 text-center leading-[6rem] text-muted-foreground">
+                    <div className="h-24 text-center leading-24 text-muted-foreground">
                       Loading...
                     </div>
                   ) : (

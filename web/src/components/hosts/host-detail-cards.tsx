@@ -464,7 +464,7 @@ function CertificateDetailSection({
         {visibleRows.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 break-words">{value}</dd>
+            <dd className="min-w-0 wrap-break-word">{value}</dd>
           </div>
         ))}
       </dl>

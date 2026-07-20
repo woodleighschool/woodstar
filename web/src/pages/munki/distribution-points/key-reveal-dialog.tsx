@@ -89,9 +89,7 @@ function KeyAction({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={<InputGroupButton size="icon-sm" aria-label={label} onClick={onClick} />}
-      >
+      <TooltipTrigger render={<InputGroupButton size="icon-sm" onClick={onClick} />}>
         {children}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

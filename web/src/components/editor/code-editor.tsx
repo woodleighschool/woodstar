@@ -169,11 +169,17 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
     <div
       aria-invalid={invalid ? true : undefined}
       className={cn(
-        "overflow-visible rounded-md border border-input bg-[var(--code-editor-background)]",
+        `
+          overflow-visible rounded-md border border-input
+          bg-(--code-editor-background)
+        `,
         readOnly
           ? "[--code-editor-background:var(--background)]"
           : "[--code-editor-background:var(--card)]",
-        "aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20",
+        `
+          aria-invalid:border-destructive aria-invalid:ring-[3px]
+          aria-invalid:ring-destructive/20
+        `,
         className,
       )}
     >

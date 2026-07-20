@@ -350,16 +350,7 @@ function MunkiIncludeRowActions({
   return (
     <div className="flex justify-end">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Open include actions"
-            />
-          }
-        >
+        <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" />}>
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">

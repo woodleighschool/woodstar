@@ -87,11 +87,7 @@ export function APIKeyCard() {
                     <Tooltip>
                       <TooltipTrigger
                         render={
-                          <InputGroupButton
-                            size="icon-xs"
-                            aria-label="Copy"
-                            onClick={() => void handleCopy()}
-                          />
+                          <InputGroupButton size="icon-xs" onClick={() => void handleCopy()} />
                         }
                       >
                         <Copy />
@@ -103,7 +99,6 @@ export function APIKeyCard() {
                         render={
                           <InputGroupButton
                             size="icon-xs"
-                            aria-label="Rotate"
                             disabled={pending}
                             onClick={() => setConfirmRotate(true)}
                           />
@@ -118,7 +113,6 @@ export function APIKeyCard() {
                         render={
                           <InputGroupButton
                             size="icon-xs"
-                            aria-label="Revoke"
                             disabled={pending}
                             onClick={() => setConfirmRevoke(true)}
                           />

@@ -104,14 +104,14 @@ export function LabelPicker({
           }
         </ComboboxValue>
         <ComboboxChipsInput
-          className="h-[calc(--spacing(5.5))] min-w-16 flex-1 px-0 py-0 text-sm"
+          className="h-[calc(--spacing(5.5))] min-w-16 flex-1 p-0 text-sm"
           placeholder={
             items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
           }
           required={required && selected.length === 0}
           aria-invalid={invalid ? true : undefined}
         />
-        <ComboboxTrigger aria-label="Open labels" className="ml-auto" />
+        <ComboboxTrigger className="ml-auto" />
       </ComboboxChips>
       <ComboboxContent anchor={anchorRef}>
         <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>

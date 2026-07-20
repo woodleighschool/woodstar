@@ -161,10 +161,7 @@ export function ReportForm({
   );
   return (
     <PageShell
-      className={cn(
-        "h-full transition-[padding] duration-200 ease-out",
-        schemaOpen && "pr-[21rem]",
-      )}
+      className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && `pr-84`)}
       render={
         <form
           noValidate

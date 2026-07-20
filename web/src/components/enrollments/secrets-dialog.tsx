@@ -324,14 +324,7 @@ function SecretAction({
   return (
     <Tooltip>
       <TooltipTrigger
-        render={
-          <InputGroupButton
-            size="icon-sm"
-            aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
-          />
-        }
+        render={<InputGroupButton size="icon-sm" disabled={disabled} onClick={onClick} />}
       >
         {children}
       </TooltipTrigger>

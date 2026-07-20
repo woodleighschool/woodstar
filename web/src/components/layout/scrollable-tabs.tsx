@@ -19,9 +19,15 @@ export function ScrollableTabsList({
         <TabsList
           variant={variant}
           className={cn(
-            "w-max justify-start [&_[data-slot=tabs-trigger]]:flex-none",
+            `
+              w-max justify-start
+              **:data-[slot=tabs-trigger]:flex-none
+            `,
             variant === "line" &&
-              "min-w-full gap-6 border-b px-0 pb-1.5 [&_[data-slot=tabs-trigger]]:px-0",
+              `
+                min-w-full gap-6 border-b px-0 pb-1.5
+                **:data-[slot=tabs-trigger]:px-0
+              `,
             className,
           )}
           {...props}

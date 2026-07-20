@@ -289,7 +289,7 @@ function SessionGroup({ label, values }: { label: string; values: string[] }) {
 function ValueText({ value }: { value?: string }) {
   if (!value) return <span className="text-muted-foreground">-</span>;
   return (
-    <span className="break-words" title={value}>
+    <span className="wrap-break-word" title={value}>
       {value}
     </span>
   );

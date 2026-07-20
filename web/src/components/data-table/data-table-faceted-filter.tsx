@@ -103,13 +103,7 @@ export function DataTableFacetedFilter<TData, TValue>({
           ) : null}
         </ComboboxTrigger>
         {selectedValues.size > 0 ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label={`Clear ${title ?? "table"} filter`}
-            onClick={resetFilter}
-          >
+          <Button type="button" variant="outline" size="icon-sm" onClick={resetFilter}>
             <X />
           </Button>
         ) : null}

@@ -43,7 +43,6 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const displayURL = value.kind === "stored" ? value.url : previewURL;
   const hasIcon = value.kind !== "none";
-  const uploadLabel = hasIcon ? "Replace software icon" : "Choose software icon";
 
   useEffect(() => {
     if (value.kind !== "upload") {
@@ -102,7 +101,6 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
             <AttachmentActions>
               <AttachmentAction
                 type="button"
-                aria-label="Clear software icon"
                 onClick={() => {
                   onChange({ kind: "none" });
                   resetInput();
@@ -112,7 +110,7 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
               </AttachmentAction>
             </AttachmentActions>
           ) : null}
-          <AttachmentTrigger aria-label={uploadLabel} onClick={() => setPickerOpen(true)} />
+          <AttachmentTrigger onClick={() => setPickerOpen(true)} />
         </Attachment>
       </div>
 
@@ -158,7 +156,6 @@ function IconPickerDialog({
                       variant="ghost"
                       size="icon-lg"
                       className="size-14"
-                      aria-label={`Choose ${object.filename}`}
                       disabled={!object.content_url}
                       onClick={() =>
                         object.content_url

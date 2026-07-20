@@ -151,14 +151,19 @@ export function DraggableTableRowHandle({
       type="button"
       variant="ghost"
       size="icon"
-      aria-label="Drag to reorder"
       {...(isDisabled ? {} : context.attributes)}
       {...(isDisabled ? {} : context.listeners)}
       {...props}
       ref={composedRef}
       disabled={isDisabled}
       data-dragging={context.dragging || undefined}
-      className={cn("cursor-grab touch-none data-dragging:cursor-grabbing", className)}
+      className={cn(
+        `
+          cursor-grab touch-none
+          data-dragging:cursor-grabbing
+        `,
+        className,
+      )}
     />
   );
 }

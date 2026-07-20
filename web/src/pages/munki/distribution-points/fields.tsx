@@ -131,9 +131,8 @@ export function DistributionPointForm({
               </FormField>
             )}
           </form.Field>
-          <form.Field
-            name="enabled"
-            children={(field) => (
+          <form.Field name="enabled">
+            {(field) => (
               <BoolField
                 id="munki-distribution-point-enabled"
                 label="Enabled"
@@ -141,10 +140,9 @@ export function DistributionPointForm({
                 onChange={field.handleChange}
               />
             )}
-          />
-          <form.Field
-            name="client_base_url"
-            children={(field) => (
+          </form.Field>
+          <form.Field name="client_base_url">
+            {(field) => (
               <FormField field={field} label="Base URL" htmlFor="munki-distribution-point-base-url">
                 {(control) => (
                   <Input
@@ -157,11 +155,9 @@ export function DistributionPointForm({
                 )}
               </FormField>
             )}
-          />
-          <form.Field
-            name="client_cidrs"
-            mode="array"
-            children={(field) => {
+          </form.Field>
+          <form.Field name="client_cidrs" mode="array">
+            {(field) => {
               const error = firstErrorMessage(field.state.meta.errors);
               return (
                 <FieldSet
@@ -171,8 +167,6 @@ export function DistributionPointForm({
                   <FieldLegend variant="label">Client CIDRs</FieldLegend>
                   <FieldGroup className="gap-2">
                     <StringArrayRows
-                      ariaLabel="CIDR"
-                      removeLabel="Remove CIDR"
                       rows={field.state.value}
                       invalid={Boolean(error)}
                       onReplace={(index, row) => field.replaceValue(index, row)}
@@ -196,7 +190,7 @@ export function DistributionPointForm({
                 </FieldSet>
               );
             }}
-          />
+          </form.Field>
         </FieldGroup>
 
         <FormActions
@@ -233,15 +227,11 @@ function BoolField({
   );
 }
 function StringArrayRows({
-  ariaLabel,
-  removeLabel,
   rows,
   invalid,
   onReplace,
   onRemove,
 }: {
-  ariaLabel: string;
-  removeLabel: string;
   rows: StringRow[];
   invalid?: boolean;
   onReplace: (index: number, row: StringRow) => void;
@@ -252,7 +242,6 @@ function StringArrayRows({
       {rows.map((row, index) => (
         <InputGroup key={row.rowID}>
           <InputGroupInput
-            aria-label={ariaLabel}
             aria-invalid={invalid ? true : undefined}
             className="font-mono"
             value={row.value}
@@ -263,7 +252,6 @@ function StringArrayRows({
               type="button"
               variant="ghost"
               size="icon-xs"
-              aria-label={removeLabel}
               onClick={() => onRemove(index)}
             >
               <Trash2 />

@@ -32,7 +32,11 @@ export function DataTablePagination<TData>({
   return (
     <div
       className={cn(
-        "flex w-full flex-col-reverse items-center justify-between gap-4 overflow-auto p-1 sm:flex-row sm:gap-8",
+        `
+          flex w-full flex-col-reverse items-center justify-between gap-4
+          overflow-auto p-1
+          sm:flex-row sm:gap-8
+        `,
         className,
       )}
       {...props}
@@ -68,7 +72,6 @@ export function DataTablePagination<TData>({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            aria-label="Go to first page"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"
@@ -78,7 +81,6 @@ export function DataTablePagination<TData>({
             <ChevronsLeft />
           </Button>
           <Button
-            aria-label="Go to previous page"
             variant="outline"
             size="icon"
             className="size-8"
@@ -88,7 +90,6 @@ export function DataTablePagination<TData>({
             <ChevronLeft />
           </Button>
           <Button
-            aria-label="Go to next page"
             variant="outline"
             size="icon"
             className="size-8"
@@ -98,7 +99,6 @@ export function DataTablePagination<TData>({
             <ChevronRight />
           </Button>
           <Button
-            aria-label="Go to last page"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"

@@ -23,12 +23,10 @@ import type { ConfigurationEditorForm } from "./fields";
 export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorForm }) {
   return (
     <>
-      <form.Field
-        name="removable_media_action"
-        children={(actionField) => (
-          <form.Field
-            name="removable_media_remount_flags"
-            children={(flagsField) => (
+      <form.Field name="removable_media_action">
+        {(actionField) => (
+          <form.Field name="removable_media_remount_flags">
+            {(flagsField) => (
               <MediaActionField
                 id="santa-removable-media"
                 label="Removable Media"
@@ -42,15 +40,13 @@ export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorFo
                 onFlagsChange={flagsField.handleChange}
               />
             )}
-          />
+          </form.Field>
         )}
-      />
-      <form.Field
-        name="encrypted_removable_media_action"
-        children={(actionField) => (
-          <form.Field
-            name="encrypted_removable_media_remount_flags"
-            children={(flagsField) => (
+      </form.Field>
+      <form.Field name="encrypted_removable_media_action">
+        {(actionField) => (
+          <form.Field name="encrypted_removable_media_remount_flags">
+            {(flagsField) => (
               <MediaActionField
                 id="santa-encrypted-removable-media"
                 label="Encrypted Removable Media"
@@ -64,9 +60,9 @@ export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorFo
                 onFlagsChange={flagsField.handleChange}
               />
             )}
-          />
+          </form.Field>
         )}
-      />
+      </form.Field>
     </>
   );
 }

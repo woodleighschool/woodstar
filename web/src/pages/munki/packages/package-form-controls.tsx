@@ -387,7 +387,7 @@ export function ScriptField({
         value={value}
         onChange={onChange}
         extensions={shellExtensions}
-        className="[&_.cm-content]:min-h-56 [&_.cm-scroller]:max-h-[30rem] [&_.cm-scroller]:overflow-y-auto"
+        className="[&_.cm-content]:min-h-56 [&_.cm-scroller]:max-h-120 [&_.cm-scroller]:overflow-y-auto"
         placeholder="#!/bin/zsh"
       />
     </Field>
