@@ -59,7 +59,7 @@ func agentRouter(
 }
 
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, storage.NewObjectStore(db, nil), discardLogger())
+	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 	return store, store.Presence()
 }
 

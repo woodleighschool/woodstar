@@ -244,7 +244,8 @@ func buildDependencies(
 	liveQueries := livequery.NewManager()
 
 	// Munki stores.
-	objectStore := storage.NewObjectStore(db, storageBackend)
+	storageLogger := logger.With("component", "storage")
+	objectStore := storage.NewObjectStore(db, storageBackend, storageLogger)
 	storageIngestor := storage.NewIngestor(objectStore, storageBackend)
 	clientResourceStore := clientresources.NewStore(db, objectStore)
 	clientResourceService := clientresources.NewService(
@@ -386,7 +387,7 @@ func buildDependencies(
 		},
 	}
 	starters := []starter{
-		storageDeletionStarter(objectStore, logger),
+		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
 		santaCleanupStarter(cfg, eventStore, logger),
 		entraSyncStarter(cfg, directoryStore, logger),
 	}
@@ -394,14 +395,14 @@ func buildDependencies(
 	return deps, starters, nil
 }
 
-func storageDeletionStarter(objects *storage.ObjectStore, logger *slog.Logger) starter {
+func storageUploadCleanupStarter(
+	ingestor *storage.Ingestor,
+	transferTTL time.Duration,
+	logger *slog.Logger,
+) starter {
 	return func(ctx context.Context) func() {
-		worker := storage.StartDeletionWorker(
-			ctx,
-			objects,
-			logger.With("component", "storage"),
-		)
-		return worker.Stop
+		cleanup := storage.StartUploadCleanup(ctx, ingestor, transferTTL, logger)
+		return cleanup.Stop
 	}
 }
 

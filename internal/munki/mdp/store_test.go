@@ -18,7 +18,7 @@ import (
 // newStore returns a store and the presence set the hub would normally write, so
 // tests can mark a point online without standing up a live connection.
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, storage.NewObjectStore(db, nil), discardLogger())
+	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 	return store, store.Presence()
 }
 

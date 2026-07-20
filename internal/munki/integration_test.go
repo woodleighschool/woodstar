@@ -3,6 +3,7 @@ package munki_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ type munkiStores struct {
 }
 
 func newMunkiStores(db *database.DB) munkiStores {
-	objectStore := storage.NewObjectStore(db, nil)
+	objectStore := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
@@ -348,7 +349,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 	if replaced.InstallerObjectID == nil || *replaced.InstallerObjectID != replacement.ID {
 		t.Fatalf("replacement installer = %v, want %d", replaced.InstallerObjectID, replacement.ID)
 	}
-	assertObjectDeletionRequested(t, ctx, stores.objects, firstObject.ID)
+	assertObjectDeleted(t, ctx, stores.objects, firstObject.ID)
 
 	packageless, err := stores.packages.Update(ctx, first.ID, packages.PackageMutation{
 		Version:       first.Version,
@@ -360,7 +361,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 	if packageless.InstallerObjectID != nil {
 		t.Fatalf("nopkg installer = %v, want nil", packageless.InstallerObjectID)
 	}
-	assertObjectDeletionRequested(t, ctx, stores.objects, replacement.ID)
+	assertObjectDeleted(t, ctx, stores.objects, replacement.ID)
 
 	dmg := createMunkiPackageObject(t, ctx, stores, "copy.dmg", "4")
 	copied, err := stores.packages.Update(ctx, first.ID, packages.PackageMutation{
@@ -906,13 +907,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		t.Fatalf("delete package collection: %v", err)
 	}
 	for _, ref := range references {
-		assertObjectDeletionRequested(t, ctx, stores.objects, ref.id)
-		if err := stores.objects.Delete(ctx, ref.id); err != nil {
-			t.Fatalf("retry post-delete %s object cleanup: %v", ref.name, err)
-		}
-		if _, err := stores.objects.GetByID(ctx, ref.id); !errors.Is(err, dbutil.ErrNotFound) {
-			t.Fatalf("post-delete %s object lookup error = %v, want ErrNotFound", ref.name, err)
-		}
+		assertObjectDeleted(t, ctx, stores.objects, ref.id)
 	}
 }
 
@@ -1158,7 +1153,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	if _, err := stores.software.GetByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("GetByID after delete error = %v, want ErrNotFound", err)
 	}
-	assertObjectDeletionRequested(t, ctx, stores.objects, firstIcon.ID)
+	assertObjectDeleted(t, ctx, stores.objects, firstIcon.ID)
 	assertNoMunkiChildren(t, ctx, stores, first.ID)
 	if err := stores.software.Delete(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("repeat delete error = %v, want ErrNotFound", err)
@@ -1474,19 +1469,15 @@ func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores
 	}
 }
 
-func assertObjectDeletionRequested(
+func assertObjectDeleted(
 	t *testing.T,
 	ctx context.Context,
 	objects *storage.ObjectStore,
 	objectID int64,
 ) {
 	t.Helper()
-	object, err := objects.GetByID(ctx, objectID)
-	if err != nil {
-		t.Fatalf("get queued object %d: %v", objectID, err)
-	}
-	if object.DeletionRequestedAt == nil {
-		t.Fatalf("object %d was not queued for deletion", objectID)
+	if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get deleted object %d error = %v, want ErrNotFound", objectID, err)
 	}
 }
 

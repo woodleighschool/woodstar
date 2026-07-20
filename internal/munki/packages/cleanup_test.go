@@ -3,23 +3,31 @@ package packages
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestPackageUpdateQueuesReplacedInstallerForDeletion(t *testing.T) {
+func TestPackageUpdateSucceedsWhenReplacedInstallerBytesCannotBeRemoved(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	registry := storage.NewObjectStore(db, unavailableBackend{})
+	requestCtx, cancelRequest := context.WithCancel(ctx)
+	defer cancelRequest()
+	registry := storage.NewObjectStore(
+		db,
+		unavailableBackend{cancelRequest: cancelRequest},
+		slog.New(slog.DiscardHandler),
+	)
 	store := NewStore(db, registry)
-	softwareID := insertSoftware(t, ctx, db, "CleanupFailure")
-	oldInstaller := createAvailableInstaller(t, ctx, registry, "old.pkg")
-	replacement := createAvailableInstaller(t, ctx, registry, "replacement.pkg")
+	softwareID := insertSoftware(t, requestCtx, db, "CleanupFailure")
+	oldInstaller := createAvailableInstaller(t, requestCtx, registry, "old.pkg")
+	replacement := createAvailableInstaller(t, requestCtx, registry, "replacement.pkg")
 
-	pkg, err := store.Create(ctx, PackageCreateMutation{
+	pkg, err := store.Create(requestCtx, PackageCreateMutation{
 		SoftwareID: softwareID,
 		PackageMutation: PackageMutation{
 			Version:           "1.0.0",
@@ -31,7 +39,7 @@ func TestPackageUpdateQueuesReplacedInstallerForDeletion(t *testing.T) {
 		t.Fatalf("create package: %v", err)
 	}
 
-	updated, err := store.Update(ctx, pkg.ID, PackageMutation{
+	updated, err := store.Update(requestCtx, pkg.ID, PackageMutation{
 		Version:           pkg.Version,
 		InstallerType:     InstallerTypePkg,
 		InstallerObjectID: &replacement.ID,
@@ -42,25 +50,23 @@ func TestPackageUpdateQueuesReplacedInstallerForDeletion(t *testing.T) {
 	if updated.InstallerObjectID == nil || *updated.InstallerObjectID != replacement.ID {
 		t.Fatalf("installer object = %v, want %d", updated.InstallerObjectID, replacement.ID)
 	}
-	queued, err := registry.GetByID(ctx, oldInstaller.ID)
-	if err != nil {
-		t.Fatalf("get replaced installer: %v", err)
+	if requestCtx.Err() == nil {
+		t.Fatal("cleanup did not cancel the request context")
 	}
-	if queued.DeletionRequestedAt == nil {
-		t.Fatal("replaced installer was not queued for deletion")
+	if _, err := registry.GetByID(ctx, oldInstaller.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get replaced installer error = %v, want ErrNotFound", err)
 	}
-	retained, err := registry.GetByID(ctx, replacement.ID)
-	if err != nil {
+	if _, err := registry.GetByID(ctx, replacement.ID); err != nil {
 		t.Fatalf("get replacement installer: %v", err)
-	}
-	if retained.DeletionRequestedAt != nil {
-		t.Fatal("replacement installer was queued for deletion")
 	}
 }
 
-type unavailableBackend struct{}
+type unavailableBackend struct {
+	cancelRequest context.CancelFunc
+}
 
-func (unavailableBackend) Delete(context.Context, string) error {
+func (b unavailableBackend) Delete(context.Context, string) error {
+	b.cancelRequest()
 	return errors.New("backend unavailable")
 }
 

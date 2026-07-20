@@ -16,7 +16,7 @@ import (
 func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	backend := newTestBackend(t)
-	objects := NewObjectStore(db, backend)
+	objects := NewObjectStore(db, backend, testLogger())
 	uploads := NewIngestor(objects, backend)
 	object, target, err := uploads.BeginDirect(ctx, "munki/packages", "Installer.pkg")
 	if err != nil {
@@ -25,7 +25,7 @@ func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 	initial := []byte("initial installer bytes")
 	if err := backend.Put(
 		ctx,
-		uploadKey(object.ID),
+		stagingKey(object.ID),
 		bytes.NewReader(initial),
 		PutOptions{},
 	); err != nil {
@@ -37,7 +37,7 @@ func TestFinalizeMakesCanonicalObjectImmutableFromUploadTarget(t *testing.T) {
 
 	if err := backend.Put(
 		ctx,
-		uploadKey(object.ID),
+		stagingKey(object.ID),
 		bytes.NewReader([]byte("late replacement")),
 		PutOptions{},
 	); err != nil {
@@ -63,7 +63,7 @@ func TestFinalizeRejectsBytesChangedDuringPromotion(t *testing.T) {
 		Backend:     newTestBackend(t),
 		replacement: []byte("replacement bytes"),
 	}
-	objects := NewObjectStore(db, backend)
+	objects := NewObjectStore(db, backend, testLogger())
 	uploads := NewIngestor(objects, backend)
 	object, err := objects.CreatePending(ctx, "munki/icons", "icon.png")
 	if err != nil {
@@ -71,7 +71,7 @@ func TestFinalizeRejectsBytesChangedDuringPromotion(t *testing.T) {
 	}
 	if err := backend.Put(
 		ctx,
-		uploadKey(object.ID),
+		stagingKey(object.ID),
 		bytes.NewReader([]byte("initial bytes")),
 		PutOptions{},
 	); err != nil {

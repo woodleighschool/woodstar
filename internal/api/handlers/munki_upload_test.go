@@ -211,7 +211,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	if err != nil {
 		t.Fatalf("create storage backend: %v", err)
 	}
-	objects := storage.NewObjectStore(db, backend)
+	objects := storage.NewObjectStore(db, backend, discardLogger())
 	uploads := storage.NewIngestor(objects, backend)
 	packageStore := packages.NewStore(db, objects)
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)

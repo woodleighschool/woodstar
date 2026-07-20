@@ -219,16 +219,17 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 		if err := writePackageRelations(ctx, tx, id, params); err != nil {
 			return err
 		}
-		return s.objects.RequestDeletion(
-			ctx,
-			tx,
-			replacedObjectID(oldObjectID, params.InstallerObjectID)...,
-		)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.GetByID(ctx, id)
+	updated, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.objects.DeleteUnreferenced(ctx, replacedObjectID(oldObjectID, params.InstallerObjectID)...)
+	return updated, nil
 }
 
 // DeleteMany removes multiple package rows. Missing IDs are ignored for bulk idempotency.
@@ -260,11 +261,12 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 			return dbutil.DeleteConflict(err, "Munki package is still referenced")
 		}
 		deleted = len(deletedIDs)
-		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
+		return nil
 	})
 	if err != nil {
 		return deleted, err
 	}
+	s.objects.DeleteUnreferenced(ctx, objectIDs...)
 	return deleted, nil
 }
 

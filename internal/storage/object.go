@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"path"
 	"regexp"
@@ -19,21 +20,23 @@ import (
 // Object is a row in the storage registry: one stored (or pending) blob. The
 // byte key is derived, never stored, so the path format lives in one place.
 type Object struct {
-	ID                  int64      `db:"id"`
-	Prefix              string     `db:"prefix"`
-	Filename            string     `db:"filename"`
-	ContentType         string     `db:"content_type"`
-	SizeBytes           *int64     `db:"size_bytes"`
-	SHA256              *string    `db:"sha256"`
-	AvailableAt         *time.Time `db:"available_at"`
-	MultipartUploadID   *string    `db:"multipart_upload_id"`
-	DeletionRequestedAt *time.Time `db:"deletion_requested_at"`
-	CreatedAt           time.Time  `db:"created_at"`
-	UpdatedAt           time.Time  `db:"updated_at"`
+	ID                int64      `db:"id"`
+	Prefix            string     `db:"prefix"`
+	Filename          string     `db:"filename"`
+	ContentType       string     `db:"content_type"`
+	SizeBytes         *int64     `db:"size_bytes"`
+	SHA256            *string    `db:"sha256"`
+	AvailableAt       *time.Time `db:"available_at"`
+	MultipartUploadID *string    `db:"multipart_upload_id"`
+	CreatedAt         time.Time  `db:"created_at"`
+	UpdatedAt         time.Time  `db:"updated_at"`
 }
 
-const objectSelectSQL = `SELECT id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at
+const (
+	objectColumnsSQL = `id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, created_at, updated_at`
+	objectSelectSQL  = `SELECT ` + objectColumnsSQL + `
 FROM storage_objects`
+)
 
 // Key builds a storage key from its parts: <prefix>/<id>/<filename>. This is the
 // one place the key format lives.
@@ -80,6 +83,7 @@ func (o Object) SizeKBValue() int64 {
 type ObjectStore struct {
 	db      *database.DB
 	backend objectBackend
+	logger  *slog.Logger
 }
 
 type objectBackend interface {
@@ -87,8 +91,8 @@ type objectBackend interface {
 }
 
 // NewObjectStore returns a registry backed by db.
-func NewObjectStore(db *database.DB, backend objectBackend) *ObjectStore {
-	return &ObjectStore{db: db, backend: backend}
+func NewObjectStore(db *database.DB, backend objectBackend, logger *slog.Logger) *ObjectStore {
+	return &ObjectStore{db: db, backend: backend, logger: logger}
 }
 
 // CreatePending reserves an object in the registry without classifying content.
@@ -102,7 +106,7 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string
 	}
 	const sql = `INSERT INTO storage_objects (prefix, filename)
 VALUES (@prefix, @filename)
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
+RETURNING ` + objectColumnsSQL
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"prefix":   prefix,
 		"filename": filename,
@@ -135,7 +139,8 @@ SET size_bytes = @size_bytes,
     available_at = now(),
     updated_at = now()
 WHERE id = @id
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
+  AND expired_at IS NULL
+RETURNING ` + objectColumnsSQL
 	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
 		"id":           id,
 		"size_bytes":   &sizeBytes,
@@ -146,6 +151,21 @@ RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, 
 		return nil, dbutil.MutationError(err)
 	}
 	return &obj, nil
+}
+
+// RefreshPending keeps an active upload outside the abandoned-upload window.
+func (s *ObjectStore) RefreshPending(ctx context.Context, id int64) (*Object, error) {
+	const sql = `UPDATE storage_objects
+SET updated_at = now()
+WHERE id = $1
+  AND available_at IS NULL
+  AND expired_at IS NULL
+RETURNING ` + objectColumnsSQL
+	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
+	if err != nil {
+		return nil, dbutil.MutationError(err)
+	}
+	return &object, nil
 }
 
 // RecordMultipartUploadID records the provider upload ID, or returns the ID
@@ -166,6 +186,7 @@ SET multipart_upload_id = $2,
     updated_at = now()
 WHERE id = $1
   AND available_at IS NULL
+  AND expired_at IS NULL
   AND multipart_upload_id IS NULL
 RETURNING multipart_upload_id`, id, uploadID).Scan(&recorded)
 	if err == nil {
@@ -191,6 +212,7 @@ UPDATE storage_objects
 SET multipart_upload_id = NULL,
     updated_at = now()
 WHERE id = $1
+  AND expired_at IS NULL
   AND multipart_upload_id = $2`, id, uploadID)
 	if err != nil {
 		return dbutil.MutationError(err)
@@ -210,7 +232,7 @@ WHERE id = $1
 
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
-	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), objectSelectSQL+"\nWHERE id = $1", id)
+	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), objectSelectSQL+"\nWHERE id = $1 AND expired_at IS NULL", id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -228,7 +250,7 @@ func (o Object) ETag() string {
 // ListByIDs returns objects keyed by id. Missing IDs are ignored.
 func (s *ObjectStore) ListByIDs(ctx context.Context, ids []int64) (map[int64]Object, error) {
 	rows, err := s.db.Pool().Query(ctx,
-		objectSelectSQL+"\nWHERE id = ANY($1::bigint[])", ids)
+		objectSelectSQL+"\nWHERE id = ANY($1::bigint[]) AND expired_at IS NULL", ids)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +274,7 @@ func (s *ObjectStore) ListByPrefix(
 	params = dbutil.NormalizeListParams(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: objectSelectSQL,
-		WhereSQL:  "WHERE prefix = $1 AND available_at IS NOT NULL",
+		WhereSQL:  "WHERE prefix = $1 AND available_at IS NOT NULL AND expired_at IS NULL",
 		Args:      []any{prefix},
 		DefaultOrder: []dbutil.OrderExpr{
 			{SQL: "created_at", Descending: true},
@@ -263,45 +285,62 @@ func (s *ObjectStore) ListByPrefix(
 	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
 }
 
-// RequestDeletion records objects for backend cleanup inside q's transaction.
-func (*ObjectStore) RequestDeletion(
-	ctx context.Context,
-	q dbutil.Queryer,
-	ids ...int64,
-) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	_, err := q.Exec(ctx, `
-UPDATE storage_objects
-SET deletion_requested_at = COALESCE(deletion_requested_at, now()),
-    updated_at = now()
-WHERE id = ANY($1::bigint[])`, ids)
-	return err
-}
-
-// Delete removes one object's bytes and registry row atomically from the
-// registry's perspective. A backend failure leaves the row available to retry.
+// Delete removes one object from the registry and then best-effort removes its bytes.
 func (s *ObjectStore) Delete(ctx context.Context, id int64) error {
-	if err := s.RequestDeletion(ctx, s.db.Pool(), id); err != nil {
+	object, err := s.deleteRegistryObject(ctx, id)
+	if err != nil {
 		return err
 	}
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		const sql = `DELETE FROM storage_objects
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), objectCleanupTimeout)
+	defer cancel()
+	s.deleteBytes(cleanupCtx, object)
+	return nil
+}
+
+// DeleteUnreferenced best-effort removes objects after their owning mutation commits.
+func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) {
+	if len(ids) == 0 {
+		return
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), objectCleanupTimeout)
+	defer cancel()
+	for _, id := range ids {
+		object, err := s.deleteRegistryObject(cleanupCtx, id)
+		switch {
+		case err == nil:
+			s.deleteBytes(cleanupCtx, object)
+		case errors.Is(err, dbutil.ErrNotFound), errors.Is(err, dbutil.ErrConflict):
+		default:
+			s.logger.WarnContext(cleanupCtx, "storage object cleanup failed", "object_id", id, "err", err)
+		}
+	}
+}
+
+func (s *ObjectStore) deleteRegistryObject(ctx context.Context, id int64) (*Object, error) {
+	const sql = `DELETE FROM storage_objects
 WHERE id = $1
-RETURNING id, prefix, filename, content_type, size_bytes, sha256, available_at, multipart_upload_id, deletion_requested_at, created_at, updated_at`
-		object, err := dbutil.GetOne[Object](ctx, tx, sql, id)
-		if err != nil {
-			return dbutil.DeleteConflict(err, "storage object is still referenced")
-		}
-		if s.backend == nil {
-			return nil
-		}
-		if err := s.backend.Delete(ctx, object.Key()); err != nil {
-			return fmt.Errorf("delete %q: %w", object.Key(), err)
-		}
-		return nil
-	})
+  AND expired_at IS NULL
+RETURNING ` + objectColumnsSQL
+	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
+	if err != nil {
+		return nil, dbutil.DeleteConflict(err, "storage object is still referenced")
+	}
+	return &object, nil
+}
+
+func (s *ObjectStore) deleteBytes(ctx context.Context, object *Object) {
+	if s.backend == nil {
+		return
+	}
+	if err := s.backend.Delete(ctx, object.Key()); err != nil {
+		s.logger.WarnContext(
+			ctx,
+			"storage object bytes could not be removed",
+			"object_id", object.ID,
+			"key", object.Key(),
+			"err", err,
+		)
+	}
 }
 
 func normalizeContentType(value string) (string, error) {

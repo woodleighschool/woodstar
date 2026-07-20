@@ -3,6 +3,7 @@ package clientresources
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -12,9 +13,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-func TestStoreUpsertAndDeleteQueueUnreferencedObjects(t *testing.T) {
+func TestStoreUpsertAndDeleteRemoveUnreferencedObjects(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	objects := storage.NewObjectStore(db, nil)
+	objects := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	store := NewStore(db, objects)
 	banner := createAvailableObject(t, ctx, db, objects, BannerObjectPrefix, "banner.png", "image/png")
 	firstArchive := createAvailableObject(t, ctx, db, objects, ArchiveObjectPrefix, archiveFilename, "application/zip")
@@ -61,19 +62,11 @@ func TestStoreUpsertAndDeleteQueueUnreferencedObjects(t *testing.T) {
 	if second.BannerAlignment != BannerAlignmentCenter {
 		t.Fatalf("banner alignment = %q, want %q", second.BannerAlignment, BannerAlignmentCenter)
 	}
-	replacedArchive, err := objects.GetByID(ctx, firstArchive.ID)
-	if err != nil {
-		t.Fatalf("get old archive: %v", err)
+	if _, err := objects.GetByID(ctx, firstArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get old archive error = %v, want ErrNotFound", err)
 	}
-	if replacedArchive.DeletionRequestedAt == nil {
-		t.Fatal("old archive was not queued for deletion")
-	}
-	retainedBanner, err := objects.GetByID(ctx, banner.ID)
-	if err != nil {
+	if _, err := objects.GetByID(ctx, banner.ID); err != nil {
 		t.Fatalf("get retained banner: %v", err)
-	}
-	if retainedBanner.DeletionRequestedAt != nil {
-		t.Fatal("retained banner was queued for deletion")
 	}
 
 	if err := store.Delete(ctx); err != nil {
@@ -83,12 +76,8 @@ func TestStoreUpsertAndDeleteQueueUnreferencedObjects(t *testing.T) {
 		t.Fatalf("Get after Delete error = %v, want ErrNotFound", err)
 	}
 	for _, objectID := range []int64{banner.ID, secondArchive.ID} {
-		object, err := objects.GetByID(ctx, objectID)
-		if err != nil {
-			t.Fatalf("get object %d: %v", objectID, err)
-		}
-		if object.DeletionRequestedAt == nil {
-			t.Fatalf("object %d was not queued for deletion", objectID)
+		if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, dbutil.ErrNotFound) {
+			t.Fatalf("get deleted object %d error = %v, want ErrNotFound", objectID, err)
 		}
 	}
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-const uploadPrefix = ".uploads/"
+const stagingPrefix = ".staging/"
 
 // Ingestor owns the complete lifecycle from temporary upload bytes to a
 // classified, immutable object in the registry.
@@ -63,7 +63,7 @@ func (s *Ingestor) Begin(
 		return nil, nil, err
 	}
 
-	action, err := s.backend.beginUpload(ctx, uploadKey(object.ID))
+	action, err := s.backend.beginUpload(ctx, stagingKey(object.ID))
 	if err != nil {
 		return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
@@ -80,7 +80,7 @@ func (s *Ingestor) BeginDirect(
 	if err != nil {
 		return nil, UploadTarget{}, err
 	}
-	target, err := s.backend.PresignPut(ctx, uploadKey(object.ID), 0)
+	target, err := s.backend.PresignPut(ctx, stagingKey(object.ID), 0)
 	if err != nil {
 		return nil, UploadTarget{}, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
@@ -137,6 +137,10 @@ func (s *Ingestor) Finalize(
 	if object.Available() {
 		return object, nil
 	}
+	object, err = s.objects.RefreshPending(ctx, object.ID)
+	if err != nil {
+		return nil, err
+	}
 	if object.MultipartUploadID != nil {
 		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", dbutil.ErrInvalidInput)
 	}
@@ -144,7 +148,7 @@ func (s *Ingestor) Finalize(
 	sourceKey := object.Key()
 	metadata, err := s.inspect(ctx, sourceKey)
 	if errors.Is(err, ErrObjectNotFound) {
-		sourceKey = uploadKey(object.ID)
+		sourceKey = stagingKey(object.ID)
 		metadata, err = s.inspect(ctx, sourceKey)
 	}
 	if err != nil {
@@ -290,6 +294,12 @@ func (s *Ingestor) Delete(ctx context.Context, objectID int64, prefix string) er
 	if object.Prefix != prefix {
 		return fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
 	}
+	if !object.Available() {
+		object, err = s.objects.RefreshPending(ctx, object.ID)
+		if err != nil {
+			return err
+		}
+	}
 	if object.MultipartUploadID != nil {
 		backend, err := s.multipartBackend()
 		if err != nil {
@@ -301,7 +311,7 @@ func (s *Ingestor) Delete(ctx context.Context, objectID int64, prefix string) er
 		}
 	}
 	if !object.Available() {
-		key := uploadKey(object.ID)
+		key := stagingKey(object.ID)
 		if err := s.backend.Delete(ctx, key); err != nil {
 			return fmt.Errorf("delete %q: %w", key, err)
 		}
@@ -327,6 +337,10 @@ func (s *Ingestor) multipartObject(
 	}
 	if object.Available() {
 		return nil, nil, fmt.Errorf("%w: storage object is already finalized", dbutil.ErrInvalidInput)
+	}
+	object, err = s.objects.RefreshPending(ctx, object.ID)
+	if err != nil {
+		return nil, nil, err
 	}
 	return object, backend, nil
 }
@@ -408,8 +422,8 @@ func (s *Ingestor) inspect(ctx context.Context, key string) (objectMetadata, err
 	}, nil
 }
 
-func uploadKey(objectID int64) string {
-	return fmt.Sprintf("%s%d", uploadPrefix, objectID)
+func stagingKey(objectID int64) string {
+	return fmt.Sprintf("%s%d", stagingPrefix, objectID)
 }
 
 type byteCount int64

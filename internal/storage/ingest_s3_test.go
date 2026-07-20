@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -77,7 +78,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 	if err != nil {
 		t.Fatalf("create S3 backend: %v", err)
 	}
-	objects := storage.NewObjectStore(db, backend)
+	objects := storage.NewObjectStore(db, backend, slog.New(slog.DiscardHandler))
 	uploads := storage.NewIngestor(objects, backend)
 	object, action, err := uploads.Begin(ctx, packages.ObjectPrefix, "Installer.pkg")
 	if err != nil {

@@ -104,16 +104,17 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 		if err := s.replaceTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
 		}
-		return s.objects.RequestDeletion(
-			ctx,
-			tx,
-			replacedObjectID(oldIconObjectID, params.IconObjectID)...,
-		)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.GetByID(ctx, id)
+	updated, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.objects.DeleteUnreferenced(ctx, replacedObjectID(oldIconObjectID, params.IconObjectID)...)
+	return updated, nil
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
@@ -138,11 +139,12 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
+	s.objects.DeleteUnreferenced(ctx, objectIDs...)
 	return nil
 }
 
@@ -168,11 +170,12 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 			return dbutil.DeleteConflict(err, "Munki software is still referenced")
 		}
 		deleted = len(deletedIDs)
-		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
+		return nil
 	})
 	if err != nil {
 		return deleted, err
 	}
+	s.objects.DeleteUnreferenced(ctx, objectIDs...)
 	return deleted, nil
 }
 
@@ -229,15 +232,12 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return s.objects.RequestDeletion(
-			ctx,
-			tx,
-			replacedObjectID(oldIconObjectID, &objectID)...,
-		)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
+	s.objects.DeleteUnreferenced(ctx, replacedObjectID(oldIconObjectID, &objectID)...)
 	return nil
 }
 

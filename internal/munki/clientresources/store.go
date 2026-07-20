@@ -112,11 +112,12 @@ ON CONFLICT (singleton) DO UPDATE SET
 		if err != nil {
 			return err
 		}
-		return s.objects.RequestDeletion(ctx, tx, replacedObjectIDs...)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	s.objects.DeleteUnreferenced(ctx, replacedObjectIDs...)
 	return resource, nil
 }
 
@@ -138,11 +139,12 @@ func (s *Store) Delete(ctx context.Context) error {
 		if tag.RowsAffected() == 0 {
 			return dbutil.ErrNotFound
 		}
-		return s.objects.RequestDeletion(ctx, tx, objectIDs...)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
+	s.objects.DeleteUnreferenced(ctx, objectIDs...)
 	return nil
 }
 
