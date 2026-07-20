@@ -32,7 +32,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
-	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -56,77 +55,43 @@ import (
 const gracefulShutdownTimeout = 15 * time.Second
 
 func main() {
+	if err := rootCommand().ExecuteContext(context.Background()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func rootCommand() *cobra.Command {
+	var cfg config.Config
+
 	root := &cobra.Command{
 		Use:           "woodstar",
 		Short:         "Woodstar macOS observability and admin server",
 		Version:       buildinfo.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Args:          cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return run(cmd.Context(), cfg)
+		},
 	}
 
-	root.AddCommand(serveCommand())
 	root.AddCommand(userCommand())
 	root.AddCommand(mdpCommand())
 	root.AddCommand(openAPICommand())
 
-	if err := root.ExecuteContext(context.Background()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	root.Flags().StringVar(&cfg.Host, "host", "", "Listen host")
+	root.Flags().IntVar(&cfg.Port, "port", 0, "Listen port")
+	root.Flags().StringVar(&cfg.ServerURL, "url", "", "Canonical HTTPS server origin")
+	root.Flags().StringVar(&cfg.TLSCertFile, "tls-cert-file", "", "TLS certificate file")
+	root.Flags().StringVar(&cfg.TLSKeyFile, "tls-key-file", "", "TLS private key file")
+	root.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
+	root.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
+
+	return root
 }
 
-func serveCommand() *cobra.Command {
-	var cfg config.Config
-
-	cmd := &cobra.Command{
-		Use:   "serve",
-		Short: "Start the Woodstar server",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return serve(cmd.Context(), cfg)
-		},
-	}
-
-	cmd.Flags().StringVar(&cfg.Host, "host", "", "Listen host")
-	cmd.Flags().IntVar(&cfg.Port, "port", 0, "Listen port")
-	cmd.Flags().StringVar(&cfg.ServerURL, "url", "", "Canonical HTTPS server origin")
-	cmd.Flags().StringVar(&cfg.TLSCertFile, "tls-cert-file", "", "TLS certificate file")
-	cmd.Flags().StringVar(&cfg.TLSKeyFile, "tls-key-file", "", "TLS private key file")
-	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
-	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
-	return cmd
-}
-
-func mdpCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "mdp",
-		Short: "Run a Munki distribution point that mirrors and serves package installers",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runMDP(cmd.Context())
-		},
-	}
-}
-
-func runMDP(parent context.Context) error {
-	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	cfg, err := worker.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("load mdp config: %w", err)
-	}
-	logLevel, err := logging.ParseLevel(cfg.LogLevel)
-	if err != nil {
-		return fmt.Errorf("parse mdp log level: %w", err)
-	}
-	logger := logging.New(os.Stderr, logLevel)
-	mdp, err := worker.New(cfg, logger)
-	if err != nil {
-		return fmt.Errorf("init mdp worker: %w", err)
-	}
-	return mdp.Run(ctx)
-}
-
-func serve(parent context.Context, cfg config.Config) error {
+func run(parent context.Context, cfg config.Config) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

@@ -68,7 +68,7 @@ WOODSTAR_URL='https://woodstar:8443' \
 WOODSTAR_TLS_CERT_FILE='./tmp/tls/woodstar.pem' \
 WOODSTAR_TLS_KEY_FILE='./tmp/tls/woodstar-key.pem' \
 WOODSTAR_STORAGE_CAPABILITY_KEY="$(openssl rand -hex 32)" \
-  mise exec -- go run ./cmd/woodstar serve
+  mise exec -- go run ./cmd/woodstar
 ```
 
 This development command listens on `0.0.0.0:8443` and serves HTTPS. Leave both TLS file settings empty only when a reverse proxy terminates HTTPS in front of Woodstar.

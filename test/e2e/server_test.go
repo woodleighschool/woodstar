@@ -458,7 +458,6 @@ func woodstarCommand(
 ) *exec.Cmd {
 	command := exec.Command(
 		binaryPath,
-		"serve",
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
 		"--url", baseURL,

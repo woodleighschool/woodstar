@@ -10,7 +10,7 @@ Repo rules for AI agents working on Woodstar.
 
 ## Repo Map
 
-- Entrypoint: `cmd/woodstar/main.go`
+- Process and composition boundary: `cmd/woodstar`; `main.go` owns the root server command and composition, while `mdp.go`, `openapi.go`, and `user.go` own the subcommands
 - Backend packages: `internal/`, organized by capability
 - App/browser API wiring: `internal/api/server.go`; app handlers: `internal/api/handlers`
 - Agent protocols: `internal/{orbit,osquery,munki,santa}/protocol`
@@ -39,7 +39,7 @@ Lefthook formats and lints staged Go and frontend files before commit. Keep that
 
 ## Backend
 
-- `cmd/woodstar/main.go` is the construction glass: config, DB, stores, services, server.
+- `cmd/woodstar/main.go` is the central-server construction glass: config, DB, stores, services, server.
 - Domain types live in their owning package. Services are for orchestration, not plain CRUD.
 - Orbit and osquery enroll hosts. Santa and Munki enrich existing hosts and do not create canonical host identity.
 - `inventory` is observed client state. Munki desired state belongs under `munki`.

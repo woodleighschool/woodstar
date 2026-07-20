@@ -19,7 +19,7 @@ docker compose up -d postgres
 WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable' \
 WOODSTAR_PUBLIC_URL='http://localhost:8080' \
 WOODSTAR_SESSION_SECRET='replace-with-at-least-32-characters' \
-  mise exec -- go run ./cmd/woodstar serve
+  mise exec -- go run ./cmd/woodstar
 ```
 
 ## Documentation
