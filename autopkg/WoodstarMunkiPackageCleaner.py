@@ -59,10 +59,14 @@ class WoodstarMunkiPackageCleaner(Processor):
         packages = sorted(packages, key=lambda item: int(item["id"]), reverse=True)
         delete_packages = packages[keep_count:]
 
-        for package in delete_packages:
-            client.delete(f"/api/munki/packages/{package['id']}")
+        delete_ids = [str(package["id"]) for package in delete_packages]
+        if delete_ids:
+            client.delete(
+                "/api/munki/packages",
+                query={"ids": ",".join(delete_ids)},
+            )
 
-        deleted_packages = len(delete_packages)
+        deleted_packages = len(delete_ids)
         self.env["woodstar_deleted_package_count"] = deleted_packages
         if deleted_packages:
             self.env["woodstarmunkipackagecleaner_summary_result"] = {

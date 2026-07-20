@@ -40,8 +40,8 @@ class WoodstarClient:
     def patch(self, path, body=None):
         return self.request("PATCH", path, body)
 
-    def delete(self, path):
-        return self.request("DELETE", path)
+    def delete(self, path, query=None):
+        return self.request("DELETE", path, query=query)
 
     def request(self, method, path, body=None, query=None, timeout=API_TIMEOUT):
         request_kwargs = {}
