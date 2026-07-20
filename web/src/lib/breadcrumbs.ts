@@ -1,17 +1,9 @@
-export function breadcrumbLabel(loaderData: unknown): string | undefined {
-  if (
-    loaderData &&
-    typeof loaderData === "object" &&
-    "breadcrumb" in loaderData &&
-    typeof loaderData.breadcrumb === "string"
-  ) {
-    return loaderData.breadcrumb;
-  }
-  return undefined;
-}
+import type { ComponentType } from "react";
+
+export type BreadcrumbLabel = string | ComponentType;
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
-    breadcrumb?: string;
+    breadcrumb?: BreadcrumbLabel;
   }
 }

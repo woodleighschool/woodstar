@@ -9,14 +9,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { breadcrumbLabel } from "@/lib/breadcrumbs";
+import type { BreadcrumbLabel } from "@/lib/breadcrumbs";
 import { cn } from "@/lib/utils";
 
 export function AppBreadcrumbs({ className }: { className?: string }) {
   const crumbs = useMatches({
     select: (matches) =>
       matches.flatMap((match) => {
-        const label = breadcrumbLabel(match.loaderData) ?? match.staticData.breadcrumb;
+        const label = match.staticData.breadcrumb;
         return label ? [{ key: match.id, label, to: match.pathname }] : [];
       }),
   });
@@ -32,9 +32,13 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
             <Fragment key={crumb.key}>
               <BreadcrumbItem>
                 {isLast || !crumb.to ? (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage>
+                    <BreadcrumbContent label={crumb.label} />
+                  </BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink render={<Link to={crumb.to} />}>{crumb.label}</BreadcrumbLink>
+                  <BreadcrumbLink render={<Link to={crumb.to} />}>
+                    <BreadcrumbContent label={crumb.label} />
+                  </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
               {!isLast ? <BreadcrumbSeparator /> : null}
@@ -44,4 +48,10 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
       </BreadcrumbList>
     </Breadcrumb>
   );
+}
+
+function BreadcrumbContent({ label }: { label: BreadcrumbLabel }) {
+  if (typeof label === "string") return label;
+  const Label = label;
+  return <Label />;
 }
