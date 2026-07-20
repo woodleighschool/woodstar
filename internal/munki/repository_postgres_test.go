@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -277,9 +278,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 			InstallerObjectID: &pending.ID,
 		},
 	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("create with pending installer error = %v, want ErrInvalidInput", err)
-	}
+	requireErrorIs(t, "create with pending installer", err, dbutil.ErrInvalidInput)
 
 	firstObject := createMunkiPackageObject(t, ctx, stores, "first.pkg", "1")
 	first, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
@@ -299,9 +298,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 			InstallerObjectID: &firstObject.ID,
 		},
 	})
-	if !errors.Is(err, dbutil.ErrConflict) {
-		t.Fatalf("create with owned installer error = %v, want ErrConflict", err)
-	}
+	requireErrorIs(t, "create with owned installer", err, dbutil.ErrConflict)
 
 	secondObject := createMunkiPackageObject(t, ctx, stores, "second.pkg", "2")
 	second, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
@@ -320,17 +317,13 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 		firstObject.ID,
 		second.ID,
 	)
-	if !errors.Is(dbutil.MutationError(err), dbutil.ErrAlreadyExists) {
-		t.Fatalf("database unique owner error = %v, want ErrAlreadyExists", err)
-	}
+	requireErrorIs(t, "database unique owner", dbutil.MutationError(err), dbutil.ErrAlreadyExists)
 
 	_, err = stores.packages.Update(ctx, first.ID, packages.PackageMutation{
 		Version:       first.Version,
 		InstallerType: packages.InstallerTypePkg,
 	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("update without explicit installer error = %v, want ErrInvalidInput", err)
-	}
+	requireErrorIs(t, "update without explicit installer", err, dbutil.ErrInvalidInput)
 	unchanged, err := stores.packages.GetByID(ctx, first.ID)
 	if err != nil {
 		t.Fatalf("get unchanged package: %v", err)
@@ -380,6 +373,13 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 	}
 	if copied.InstallerObjectID == nil || *copied.InstallerObjectID != dmg.ID {
 		t.Fatalf("copy_from_dmg installer = %v, want %d", copied.InstallerObjectID, dmg.ID)
+	}
+}
+
+func requireErrorIs(t *testing.T, operation string, err error, target error) {
+	t.Helper()
+	if !errors.Is(err, target) {
+		t.Fatalf("%s error = %v, want %v", operation, err, target)
 	}
 }
 
@@ -578,7 +578,7 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if !sameActions(
+	if !slices.Equal(
 		effective[0].Actions,
 		[]munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
 	) ||
@@ -635,7 +635,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if !sameActions(
+	if !slices.Equal(
 		effective[0].Actions,
 		[]munkisoftware.Action{munkisoftware.ActionManagedInstalls},
 	) ||
@@ -1286,18 +1286,6 @@ func labelRefs(ids []int64) []targeting.LabelRef {
 		refs[i] = targeting.LabelRef{LabelID: id}
 	}
 	return refs
-}
-
-func sameActions(a, b []munkisoftware.Action) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func createMunkiPackage(

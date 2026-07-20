@@ -19,7 +19,7 @@ func TestOIDCStartReturnsNotFoundWhenDisabled(t *testing.T) {
 	registerOIDC(router, service, discardLogger())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/sso/start", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/sso/start", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
@@ -32,7 +32,7 @@ func TestOIDCCallbackRedirectsProviderErrorsToLogin(t *testing.T) {
 	registerOIDC(router, nil, discardLogger())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?error=access_denied", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/sso/callback?error=access_denied", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {
@@ -48,7 +48,7 @@ func TestOIDCCallbackRequiresStateAndCode(t *testing.T) {
 	registerOIDC(router, nil, discardLogger())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?state=state-only", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/sso/callback?state=state-only", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {

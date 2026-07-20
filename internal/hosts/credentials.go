@@ -1,3 +1,4 @@
+// Package hosts owns canonical host identity, credentials, and observations.
 package hosts
 
 import (

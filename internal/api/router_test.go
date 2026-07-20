@@ -24,7 +24,7 @@ func TestClientIPHeaderSourceUsesTrustedHeaderOverXFF(t *testing.T) {
 		got = chimiddleware.GetClientIP(r.Context())
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	// Canonical form of Cloudflare's CF-Connecting-IP header.
 	req.Header.Set("Cf-Connecting-Ip", "203.0.113.7")
 	req.Header.Set("X-Forwarded-For", "10.9.9.9")

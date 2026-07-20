@@ -1,3 +1,4 @@
+// Package directory owns local and external user and group identities.
 package directory
 
 import (

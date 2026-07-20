@@ -1,3 +1,4 @@
+// Package orbit owns Orbit enrollment and inventory application behavior.
 package orbit
 
 import "encoding/json"

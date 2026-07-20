@@ -24,7 +24,7 @@ func TestSSOLoginStartsPersistedUserSession(t *testing.T) {
 	}
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
-	requestCtx := loadTestSession(t, sessions, ctx)
+	requestCtx := loadTestSession(t, ctx, sessions)
 
 	if _, err := service.completeSSOLogin(requestCtx, "ADMIN@EXAMPLE.TEST"); !errors.Is(
 		err,

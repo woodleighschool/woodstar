@@ -22,10 +22,10 @@ import (
 
 const mdpLifecycleTimeout = 30 * time.Second
 
-func TestMDP(t *testing.T) {
+func TestMDP(t *testing.T) { //nolint:funlen // Linear product lifecycle; splitting would hide the order being proved.
 	const (
 		installerFilename = "WoodstarMDPIntegration.pkg"
-		munkiSecret       = "munki-mdp-integration-secret-0123456789"
+		munkiSecret       = "munki-mdp-integration-secret-0123456789" //nolint:gosec // Protocol fixture secret.
 	)
 
 	server := startTestServer(t)
@@ -53,13 +53,13 @@ func TestMDP(t *testing.T) {
 	server.redact(point.Key)
 
 	workerLogPath := filepath.Join(workerRoot, "worker.log")
-	workerLog, err := os.OpenFile(workerLogPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	workerLog, err := os.OpenFile(workerLogPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // Test-owned temporary path.
 	if err != nil {
 		t.Fatalf("create MDP worker log: %v", err)
 	}
 	t.Cleanup(func() { _ = workerLog.Close() })
 
-	workerCommand := exec.Command(testBinary(t), "mdp")
+	workerCommand := exec.Command(testBinary(t), "mdp") //nolint:gosec,noctx // E2E harness selects the binary; stopProcess owns shutdown and forced kill.
 	workerCommand.Env = append(
 		withoutWoodstarEnvironment(os.Environ()),
 		"WOODSTAR_MDP_SERVER_URL="+server.BaseURL,
@@ -114,7 +114,7 @@ func TestMDP(t *testing.T) {
 	}
 
 	mirroredPath := filepath.Join(workerDataDir, fmt.Sprintf("%d-%s", pkg.Id, installerFilename))
-	mirroredBytes, err := os.ReadFile(mirroredPath)
+	mirroredBytes, err := os.ReadFile(mirroredPath) //nolint:gosec // Test-owned temporary path.
 	if err != nil {
 		t.Fatalf("read mirrored installer: %v", err)
 	}

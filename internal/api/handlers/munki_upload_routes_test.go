@@ -40,7 +40,7 @@ func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil))
 			if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
 				t.Fatalf("route surface = %q, want %q", got, tc.wantSurface)
 			}

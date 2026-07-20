@@ -36,8 +36,8 @@ type orbitProtocolFixtureClient struct {
 	baseURL string
 }
 
-func TestOrbit(t *testing.T) {
-	const enrollSecret = "orbit-fixture-enroll-secret-0123456789abcdef"
+func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; splitting would hide the order being proved.
+	const enrollSecret = "orbit-fixture-enroll-secret-0123456789abcdef" //nolint:gosec // Protocol fixture secret.
 	server := startTestServer(t)
 	server.redact(enrollSecret)
 	provisionAdmin(
@@ -189,7 +189,7 @@ func (client orbitProtocolFixtureClient) request(
 	payload []byte,
 	wantStatus int,
 	target any,
-) *http.Response {
+) http.Header {
 	client.t.Helper()
 
 	request, err := http.NewRequestWithContext(
@@ -224,7 +224,7 @@ func (client orbitProtocolFixtureClient) request(
 			client.t.Fatalf("decode %s %s response: %v", method, path, err)
 		}
 	}
-	return response
+	return response.Header
 }
 
 func loadOrbitProtocolFixture(t *testing.T, name string, replacements map[string]any) []byte {
@@ -234,9 +234,9 @@ func loadOrbitProtocolFixture(t *testing.T, name string, replacements map[string
 
 func assertOrbitFixtureCapabilities(t *testing.T, client orbitProtocolFixtureClient) {
 	t.Helper()
-	response := client.request(http.MethodHead, "/api/fleet/orbit/ping", nil, http.StatusOK, nil)
+	header := client.request(http.MethodHead, "/api/fleet/orbit/ping", nil, http.StatusOK, nil)
 	const want = "orbit_endpoints,token_rotation,end_user_email"
-	if got := response.Header.Get("X-Fleet-Capabilities"); got != want {
+	if got := header.Get("X-Fleet-Capabilities"); got != want {
 		t.Fatalf("Orbit capabilities = %q, want %q", got, want)
 	}
 }

@@ -76,8 +76,8 @@ func pointMutation(cidrs []string) mdp.DistributionPointMutation {
 
 func seedAvailablePackage(
 	t *testing.T,
-	db *database.DB,
 	ctx context.Context,
+	db *database.DB,
 	name string,
 	sha256 string,
 	size int64,
@@ -118,11 +118,11 @@ func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 		bearer string
 	}{
 		{name: "missing", bearer: ""},
-		{name: "unknown", bearer: "Bearer not-a-real-key"},
+		{name: "unknown", bearer: "Bearer not-a-real-key"}, //nolint:gosec // Invalid bearer fixture.
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/munki/distribution/connect", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/munki/distribution/connect", nil)
 			if tc.bearer != "" {
 				req.Header.Set("Authorization", tc.bearer)
 			}
@@ -147,13 +147,14 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	ws, _, err := websocket.Dial(ctx, wsURL(srv.URL), &websocket.DialOptions{
-		HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
-	})
+	ws, _, err := websocket.Dial( //nolint:bodyclose // websocket.Dial owns its handshake response body.
+		ctx, wsURL(srv.URL), &websocket.DialOptions{
+			HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
+		})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer ws.Close(websocket.StatusNormalClosure, "")
+	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 	readJSON(t, ctx, ws, new(struct{}))
 	eventually(t, func() bool { return presence.Online(point.ID) })
 
@@ -178,13 +179,14 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	httpServer := httptest.NewServer(router)
 	defer httpServer.Close()
 
-	ws, _, err := websocket.Dial(ctx, wsURL(httpServer.URL), &websocket.DialOptions{
-		HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
-	})
+	ws, _, err := websocket.Dial( //nolint:bodyclose // websocket.Dial owns its handshake response body.
+		ctx, wsURL(httpServer.URL), &websocket.DialOptions{
+			HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
+		})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer ws.CloseNow()
+	defer func() { _ = ws.CloseNow() }()
 	readJSON(t, ctx, ws, new(struct{}))
 	readJSON(t, ctx, ws, new(struct{}))
 	eventually(t, func() bool { return presence.Online(point.ID) })
@@ -202,7 +204,7 @@ func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 	var nopkgID int64
 	if err := db.Pool().QueryRow(ctx, `
 WITH software AS (
@@ -223,7 +225,7 @@ RETURNING id`).Scan(&nopkgID); err != nil {
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
 
 	t.Run("missing bearer", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusUnauthorized {
@@ -232,11 +234,11 @@ RETURNING id`).Scan(&nopkgID); err != nil {
 	})
 
 	t.Run("unknown package", func(t *testing.T) {
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(t.Context(),
 			http.MethodGet,
 			"/api/munki/distribution/packages/999999/download-url",
-			nil,
-		)
+			nil)
+
 		req.Header.Set("Authorization", "Bearer worker-key")
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
@@ -246,11 +248,11 @@ RETURNING id`).Scan(&nopkgID); err != nil {
 	})
 
 	t.Run("package without installer", func(t *testing.T) {
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(t.Context(),
 			http.MethodGet,
 			"/api/munki/distribution/packages/"+strconv.FormatInt(nopkgID, 10)+"/download-url",
-			nil,
-		)
+			nil)
+
 		req.Header.Set("Authorization", "Bearer worker-key")
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)

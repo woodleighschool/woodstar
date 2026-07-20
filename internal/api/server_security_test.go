@@ -77,7 +77,7 @@ func TestSecurityHeadersProtectRenderedSPAForStorageBackend(t *testing.T) {
 			}).RegisterRoutes(router)
 
 			recorder := httptest.NewRecorder()
-			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/hosts/1", nil))
+			router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/hosts/1", nil))
 			if recorder.Code != http.StatusOK {
 				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 			}
@@ -157,7 +157,7 @@ func TestBrowserStorageRoutesFollowConfiguredBackend(t *testing.T) {
 			})
 
 			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
 			router.ServeHTTP(recorder, request)
 			if recorder.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", recorder.Code, tt.wantStatus)

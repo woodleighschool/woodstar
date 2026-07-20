@@ -21,8 +21,8 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, error) {
-	in.ReportMutation.normalize()
-	if err := in.ReportMutation.Validate(); err != nil {
+	in.normalize()
+	if err := in.Validate(); err != nil {
 		return nil, err
 	}
 	write := newReportWrite(in.ReportMutation)

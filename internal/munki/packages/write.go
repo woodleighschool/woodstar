@@ -281,7 +281,7 @@ func prepareMutation(params PackageMutation) (PackageMutation, error) {
 
 func prepareCreateMutation(params PackageCreateMutation) (PackageMutation, error) {
 	params.PackageMutation = applyDefaults(params.PackageMutation)
-	params.PackageMutation.normalize()
+	params.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}

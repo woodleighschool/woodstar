@@ -84,8 +84,7 @@ func (s *fileStore) Open(_ context.Context, key string) (ObjectReader, ObjectInf
 	if err != nil {
 		return nil, ObjectInfo{}, err
 	}
-	// #nosec G703 -- path comes from resolve, which keeps reads under root.
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // resolve confines the path to the configured storage root.
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ObjectInfo{}, ErrObjectNotFound
 	}
@@ -116,7 +115,7 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 		return fmt.Errorf("create temp for %q: %w", key, err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer func() { _ = os.Remove(tmpName) }() //nolint:gosec // CreateTemp returned a path inside the resolved storage directory.
 	if _, err := io.Copy(tmp, r); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("write %q: %w", key, err)

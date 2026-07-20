@@ -1,3 +1,4 @@
+// Package entra imports Microsoft Entra users and groups into the directory.
 package entra
 
 import (
@@ -282,7 +283,7 @@ func (c *Client) get(ctx context.Context, endpoint string, out any) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("graph %s: %s", endpoint, res.Status)
 	}
@@ -309,7 +310,7 @@ func (c *Client) post(ctx context.Context, endpoint string, body any, out any) e
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("graph %s: %s", endpoint, res.Status)
 	}

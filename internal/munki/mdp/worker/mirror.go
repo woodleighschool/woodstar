@@ -59,7 +59,7 @@ func loadMirror(dataDir string) (*mirror, error) {
 	}
 	m := &mirror{dataDir: dataDir, packages: map[int64]packageState{}}
 
-	raw, err := os.ReadFile(filepath.Join(dataDir, snapshotFilename))
+	raw, err := os.ReadFile(filepath.Join(dataDir, snapshotFilename)) //nolint:gosec // dataDir is an administrator-configured storage root.
 	if errors.Is(err, os.ErrNotExist) {
 		return m, nil
 	}
@@ -150,11 +150,11 @@ func (m *mirror) save() error {
 // wantSHA256. It reads the whole file and is used once per download, never on
 // the serve path.
 func verifyFile(path string, wantSize int64, wantSHA256 string) error {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // Callers provide a mirror path under the configured data directory.
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if err != nil {

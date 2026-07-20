@@ -32,7 +32,7 @@ func TestBearerToken(t *testing.T) {
 }
 
 func TestDecodeRejectsTrailingJSON(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"value":1}{"value":2}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"value":1}{"value":2}`))
 	_, err := Decode[struct {
 		Value int `json:"value"`
 	}](httptest.NewRecorder(), req, 1024)
@@ -42,7 +42,7 @@ func TestDecodeRejectsTrailingJSON(t *testing.T) {
 }
 
 func TestDecodeReportsOversizedBody(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"value":"too large"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"value":"too large"}`))
 	rec := httptest.NewRecorder()
 	_, err := Decode[struct {
 		Value string `json:"value"`

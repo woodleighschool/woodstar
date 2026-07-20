@@ -17,7 +17,7 @@ func TestCORSDisabledByDefault(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/healthz", nil)
 	req.Header.Set("Origin", "https://panel.example.com")
 	handler.ServeHTTP(rec, req)
 
@@ -35,7 +35,7 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodOptions, "/storage/munki/packages/1/Installer.pkg", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/storage/munki/packages/1/Installer.pkg", nil)
 	req.Header.Set("Origin", "https://panel.example.com")
 	req.Header.Set("Access-Control-Request-Method", http.MethodPut)
 	req.Header.Set("Access-Control-Request-Headers", "content-type,range")
@@ -66,7 +66,7 @@ func TestCompressionMiddlewareCompressesResponse(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	handler.ServeHTTP(rec, req)
 
@@ -90,7 +90,7 @@ func TestRequestTimeoutMiddlewareSetsConfiguredDeadline(t *testing.T) {
 		}),
 	)
 
-	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 	if gotTimeout < timeout-time.Second || gotTimeout > timeout {
 		t.Fatalf("context timeout = %s, want about %s", gotTimeout, timeout)
 	}

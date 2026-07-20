@@ -63,7 +63,7 @@ type osqueryTestLogRequest struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-func TestOsquery(t *testing.T) {
+func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear protocol lifecycle; splitting would hide the order being proved.
 	const (
 		enrollSecret   = "osquery-integration-secret-0123456789abcdef"
 		hostIdentifier = "osquery-integration-mac"

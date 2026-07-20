@@ -1,3 +1,4 @@
+// Package targeting evaluates label inclusion and exclusion for hosts.
 package targeting
 
 import (

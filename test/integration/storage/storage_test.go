@@ -94,7 +94,7 @@ func testS3MoveContentType(t *testing.T, backend storage.Backend, endpoint strin
 	}
 	assertPresignedEndpoint(t, getURL, endpoint)
 	response := getS3URL(t, client, getURL)
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if got := response.Header.Get("Content-Type"); got != movedContentType {
 		t.Fatalf("moved object content type = %q, want %q", got, movedContentType)
 	}
@@ -137,7 +137,7 @@ func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint st
 	assertPresignedEndpoint(t, getURL, endpoint)
 	response := getS3URL(t, client, getURL)
 	if got := response.Header.Get("Content-Type"); got != uploadContentType {
-		response.Body.Close()
+		_ = response.Body.Close()
 		t.Fatalf("stored content type = %q, want %q", got, uploadContentType)
 	}
 	got, err := io.ReadAll(response.Body)
@@ -153,7 +153,7 @@ func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint st
 	}
 
 	deliveryResponse := httptest.NewRecorder()
-	deliveryRequest := httptest.NewRequest(http.MethodGet, "/api/content", nil)
+	deliveryRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/content", nil)
 	if err := storage.NewDelivery(backend).Deliver(deliveryResponse, deliveryRequest, object, storage.DeliveryOptions{
 		CacheControl: "private, max-age=86400",
 	}); err != nil {
@@ -182,7 +182,7 @@ func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint st
 		t.Fatalf("presign get with content type: %v", err)
 	}
 	response = getS3URL(t, client, getURL)
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if got := response.Header.Get("Content-Type"); got != downloadContentType {
 		t.Fatalf("presigned response content type = %q, want %q", got, downloadContentType)
 	}
@@ -285,7 +285,7 @@ func assertStorageObjectMissing(t *testing.T, backend storage.Backend, key strin
 
 	reader, _, err := backend.Open(t.Context(), key)
 	if reader != nil {
-		reader.Close()
+		_ = reader.Close()
 	}
 	if !errors.Is(err, storage.ErrObjectNotFound) {
 		t.Fatalf("open missing %q error = %v, want storage.ErrObjectNotFound", key, err)
@@ -344,7 +344,7 @@ func putS3Target(
 	if err != nil {
 		t.Fatalf("execute presigned PUT: %v", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(io.LimitReader(response.Body, 4*1024))
 		t.Fatalf(
@@ -368,7 +368,7 @@ func getS3URL(t *testing.T, client *http.Client, rawURL string) *http.Response {
 		t.Fatalf("execute presigned GET: %v", err)
 	}
 	if response.StatusCode != http.StatusOK {
-		defer response.Body.Close()
+		defer func() { _ = response.Body.Close() }()
 		responseBody, _ := io.ReadAll(io.LimitReader(response.Body, 4*1024))
 		t.Fatalf(
 			"presigned GET status = %d, want 200: %s",

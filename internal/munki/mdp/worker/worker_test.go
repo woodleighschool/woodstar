@@ -149,7 +149,7 @@ func TestDownloadErrorRedactsPresignedCredentials(t *testing.T) {
 			return nil, errors.New("connection refused")
 		})},
 	}
-	const rawURL = "https://access:secret@storage.example/package.pkg?signature=private"
+	const rawURL = "https://access:secret@storage.example/package.pkg?signature=private" //nolint:gosec // Credential-redaction fixture.
 	err := client.download(t.Context(), rawURL, t.TempDir()+"/package.pkg")
 	if err == nil {
 		t.Fatal("download returned nil error")
@@ -181,7 +181,7 @@ func TestConnectOnceReportsCurrentForMirroredPackage(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer ws.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 		send(t, r.Context(), ws, serverMessage{
 			Type:              messageHello,
 			DistributionPoint: pointIdentity{ID: 1, Name: "test"},
@@ -241,7 +241,7 @@ func TestConnectOnceRejectsUnexpectedMessage(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer ws.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 		if err := ws.Write(r.Context(), websocket.MessageText, []byte(`{"type":"unknown"}`)); err != nil {
 			return
 		}

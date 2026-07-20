@@ -55,7 +55,7 @@ func TestOsqueryRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, tt.path, strings.NewReader(tt.body))
 			router.ServeHTTP(rec, req)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d; body: %s", rec.Code, tt.wantStatus, rec.Body.String())
@@ -99,7 +99,7 @@ func postOsqueryEnroll(t *testing.T, router http.Handler, body osquery.EnrollReq
 		t.Fatalf("encode enroll request: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, osqueryPath+"/enroll", strings.NewReader(string(payload)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, osqueryPath+"/enroll", strings.NewReader(string(payload)))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 	return recorder

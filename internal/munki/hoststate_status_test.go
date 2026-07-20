@@ -1,6 +1,7 @@
 package munki
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -21,13 +22,13 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	if status.HostID != 42 || status.Version != "7.1.2.5700" || status.ManifestName != "site_default" {
 		t.Fatalf("status identity = %+v, want host/version/manifest", status)
 	}
-	if !sameStrings(status.Errors, []string{"first error", "second error"}) {
+	if !slices.Equal(status.Errors, []string{"first error", "second error"}) {
 		t.Fatalf("errors = %#v", status.Errors)
 	}
-	if !sameStrings(status.Warnings, []string{"first warning", "second warning"}) {
+	if !slices.Equal(status.Warnings, []string{"first warning", "second warning"}) {
 		t.Fatalf("warnings = %#v", status.Warnings)
 	}
-	if !sameStrings(status.ProblemInstalls, []string{"Broken App"}) {
+	if !slices.Equal(status.ProblemInstalls, []string{"Broken App"}) {
 		t.Fatalf("problem installs = %#v", status.ProblemInstalls)
 	}
 	if !sameTime(status.RunStartedAt, "2026-05-31T09:23:00Z") ||
@@ -64,18 +65,6 @@ func TestItemsFromInstallRows(t *testing.T) {
 	if got[1].Installed {
 		t.Fatalf("second installed = true, want false")
 	}
-}
-
-func sameStrings(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func sameTime(got *time.Time, want string) bool {

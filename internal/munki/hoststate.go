@@ -1,3 +1,4 @@
+// Package munki coordinates client observations and desired package state.
 package munki
 
 import "time"

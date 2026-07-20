@@ -16,13 +16,13 @@ func TestRequestLogPathUsesRoutePattern(t *testing.T) {
 		}
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/latest/fleet/device/secret-token/ping", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/latest/fleet/device/secret-token/ping", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 }
 
 func TestRequestLogPathRedactsUnmatchedDeviceToken(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/api/latest/fleet/device/secret-token/unknown", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/latest/fleet/device/secret-token/unknown", nil)
 	if got, want := requestLogPath(request), "/api/latest/fleet/device/{token}/unknown"; got != want {
 		t.Fatalf("request log path = %q, want %q", got, want)
 	}

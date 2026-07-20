@@ -165,7 +165,7 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer ws.Close(websocket.StatusNormalClosure, "")
+	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 	ws.SetReadLimit(maxMessageBytes)
 	w.logger.InfoContext(ctx, "connected", "server_url", w.cfg.ServerURL)
 

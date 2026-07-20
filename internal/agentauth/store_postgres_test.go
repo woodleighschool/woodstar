@@ -3,6 +3,7 @@
 package agentauth
 
 import (
+	"context"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -12,27 +13,9 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database)
 
-	orbitSecret, err := store.Create(ctx, AgentSecretCreate{
-		Agent: AgentOrbit,
-		Value: "orbit-secret-value-long-enough-32",
-	})
-	if err != nil {
-		t.Fatalf("create orbit agent secret: %v", err)
-	}
-	santaSecret, err := store.Create(ctx, AgentSecretCreate{
-		Agent: AgentSanta,
-		Value: "santa-secret-value-long-enough-32",
-	})
-	if err != nil {
-		t.Fatalf("create santa agent secret: %v", err)
-	}
-	munkiSecret, err := store.Create(ctx, AgentSecretCreate{
-		Agent: AgentMunki,
-		Value: "munki-secret-value-long-enough-32",
-	})
-	if err != nil {
-		t.Fatalf("create munki agent secret: %v", err)
-	}
+	orbitSecret := createAgentSecret(t, ctx, store, AgentOrbit, "orbit-secret-value-long-enough-32")
+	santaSecret := createAgentSecret(t, ctx, store, AgentSanta, "santa-secret-value-long-enough-32")
+	munkiSecret := createAgentSecret(t, ctx, store, AgentMunki, "munki-secret-value-long-enough-32")
 
 	secrets, err := store.List(ctx)
 	if err != nil {
@@ -48,37 +31,10 @@ func TestAgentSecretLifecycle(t *testing.T) {
 		t.Fatalf("munki secret not listed: %+v", secrets)
 	}
 
-	ok, err := store.Verify(ctx, AgentOrbit, orbitSecret.Value)
-	if err != nil {
-		t.Fatalf("verify orbit secret: %v", err)
-	}
-	if !ok {
-		t.Fatal("created orbit secret did not verify")
-	}
-
-	ok, err = store.Verify(ctx, AgentSanta, orbitSecret.Value)
-	if err != nil {
-		t.Fatalf("verify orbit secret as santa: %v", err)
-	}
-	if ok {
-		t.Fatal("orbit secret verified for santa")
-	}
-
-	ok, err = store.Verify(ctx, AgentMunki, munkiSecret.Value)
-	if err != nil {
-		t.Fatalf("verify munki secret: %v", err)
-	}
-	if !ok {
-		t.Fatal("created munki secret did not verify")
-	}
-
-	ok, err = store.Verify(ctx, AgentOrbit, "")
-	if err != nil {
-		t.Fatalf("verify empty secret: %v", err)
-	}
-	if ok {
-		t.Fatal("empty secret verified")
-	}
+	requireAgentSecretVerification(t, ctx, store, AgentOrbit, orbitSecret.Value, true)
+	requireAgentSecretVerification(t, ctx, store, AgentSanta, orbitSecret.Value, false)
+	requireAgentSecretVerification(t, ctx, store, AgentMunki, munkiSecret.Value, true)
+	requireAgentSecretVerification(t, ctx, store, AgentOrbit, "", false)
 
 	updatedOrbitSecret, err := store.Update(ctx, orbitSecret.ID, AgentSecretMutation{
 		Value: "updated-orbit-secret-value-long-32",
@@ -89,31 +45,46 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	if updatedOrbitSecret.Value != "updated-orbit-secret-value-long-32" {
 		t.Fatalf("updated orbit secret value = %q, want updated value", updatedOrbitSecret.Value)
 	}
-	ok, err = store.Verify(ctx, AgentOrbit, orbitSecret.Value)
-	if err != nil {
-		t.Fatalf("verify old orbit secret: %v", err)
-	}
-	if ok {
-		t.Fatal("old orbit secret still verifies after update")
-	}
-	ok, err = store.Verify(ctx, AgentOrbit, updatedOrbitSecret.Value)
-	if err != nil {
-		t.Fatalf("verify updated orbit secret: %v", err)
-	}
-	if !ok {
-		t.Fatal("updated orbit secret did not verify")
-	}
+	requireAgentSecretVerification(t, ctx, store, AgentOrbit, orbitSecret.Value, false)
+	requireAgentSecretVerification(t, ctx, store, AgentOrbit, updatedOrbitSecret.Value, true)
 	orbitSecret = updatedOrbitSecret
 
 	if err := store.Delete(ctx, orbitSecret.ID); err != nil {
 		t.Fatalf("delete orbit secret: %v", err)
 	}
-	ok, err = store.Verify(ctx, AgentOrbit, orbitSecret.Value)
+	requireAgentSecretVerification(t, ctx, store, AgentOrbit, orbitSecret.Value, false)
+}
+
+func createAgentSecret(
+	t *testing.T,
+	ctx context.Context,
+	store *Store,
+	agent Agent,
+	value string,
+) *AgentSecret {
+	t.Helper()
+	secret, err := store.Create(ctx, AgentSecretCreate{Agent: agent, Value: value})
 	if err != nil {
-		t.Fatalf("verify deleted orbit secret: %v", err)
+		t.Fatalf("create %s agent secret: %v", agent, err)
 	}
-	if ok {
-		t.Fatal("deleted orbit secret still verifies")
+	return secret
+}
+
+func requireAgentSecretVerification(
+	t *testing.T,
+	ctx context.Context,
+	store *Store,
+	agent Agent,
+	value string,
+	want bool,
+) {
+	t.Helper()
+	got, err := store.Verify(ctx, agent, value)
+	if err != nil {
+		t.Fatalf("verify %s agent secret: %v", agent, err)
+	}
+	if got != want {
+		t.Fatalf("Verify(%s) = %v, want %v", agent, got, want)
 	}
 }
 

@@ -92,7 +92,7 @@ func TestConfigNormalizesTrustedCIDRs(t *testing.T) {
 }
 
 func validConfig() Config {
-	return Config{
+	return Config{ //nolint:gosec // Contains a fixed test database credential.
 		Host:                    "0.0.0.0",
 		Port:                    8080,
 		ServerURL:               "https://localhost:8080",

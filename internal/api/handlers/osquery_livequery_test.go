@@ -24,7 +24,7 @@ func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(
 		recorder,
-		httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/live-queries/%d", handle.ID), nil),
+		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, fmt.Sprintf("/api/live-queries/%d", handle.ID), nil),
 	)
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNoContent, recorder.Body.String())
@@ -36,7 +36,7 @@ func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(
 		recorder,
-		httptest.NewRequest(http.MethodDelete, "/api/live-queries/999999", nil),
+		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/live-queries/999999", nil),
 	)
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
@@ -68,7 +68,7 @@ func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil))
 			if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
 				t.Fatalf("route surface = %q, want %q", got, tc.wantSurface)
 			}
@@ -99,7 +99,7 @@ func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
 	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/live-queries/404/stream", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/live-queries/404/stream", nil)
 	request.Header.Set("Accept", "text/event-stream")
 	router.ServeHTTP(recorder, request)
 
@@ -125,7 +125,7 @@ func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
 	registerLiveQueries(api, api, manager, nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/live-queries/1/stream", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/live-queries/1/stream", nil)
 	request.Header.Set("Accept", "text/event-stream")
 	router.ServeHTTP(recorder, request)
 

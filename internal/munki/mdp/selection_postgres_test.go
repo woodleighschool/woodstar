@@ -14,12 +14,12 @@ func TestSelectRedirectFallsBackWithoutEligiblePoint(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "sel-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 	presence.Connect(point.ID)
 	if _, ok := store.SelectRedirect(
 		ctx,

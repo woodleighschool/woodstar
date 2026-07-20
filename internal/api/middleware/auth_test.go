@@ -134,7 +134,7 @@ func TestRequireHTTPAuthAttachesUser(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -154,7 +154,7 @@ func TestRequireHTTPAuthRejectsMissingCredentials(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/protected", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", nil))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -213,7 +213,7 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			register(tc.authenticator).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/session", nil))
+			register(tc.authenticator).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/session", nil))
 			if rec.Code != tc.wantStatus {
 				t.Fatalf("status = %d, want %d; body = %q", rec.Code, tc.wantStatus, rec.Body.String())
 			}

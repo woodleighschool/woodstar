@@ -54,7 +54,7 @@ func clientTransport(serverCAFile string) (*http.Transport, error) {
 	if serverCAFile == "" {
 		return transport, nil
 	}
-	pem, err := os.ReadFile(serverCAFile)
+	pem, err := os.ReadFile(serverCAFile) //nolint:gosec // The administrator configures the CA path.
 	if err != nil {
 		return nil, fmt.Errorf("read server CA file: %w", err)
 	}
@@ -94,7 +94,7 @@ func (c *woodstarClient) downloadURL(ctx context.Context, packageID int64) (stri
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download url: unexpected status %d", resp.StatusCode)
 	}
@@ -119,7 +119,7 @@ func (c *woodstarClient) download(ctx context.Context, downloadURL string, path 
 	if err != nil {
 		return sanitizedRequestError("download", downloadURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download: unexpected status %d", resp.StatusCode)
 	}
@@ -144,7 +144,7 @@ func sanitizedRequestError(operation, rawURL string, err error) error {
 }
 
 func writeBody(path string, body io.Reader) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // Callers provide a mirror path under the configured data directory.
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ func TestCrossOriginProtectionAllowsTrustedOriginMutation(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/example", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/example", nil)
 	req.Host = "api.example.com"
 	req.Header.Set("Origin", "https://panel.example.com")
 	handler.ServeHTTP(rec, req)
@@ -34,7 +34,7 @@ func TestCrossOriginProtectionRejectsUntrustedOriginMutation(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/api/example", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/example", nil)
 	req.Host = "api.example.com"
 	req.Header.Set("Origin", "https://panel.example.com")
 	handler.ServeHTTP(rec, req)

@@ -26,7 +26,7 @@ func serveKey(w http.ResponseWriter, r *http.Request, store Store, key string, o
 		w.WriteHeader(http.StatusInternalServerError)
 		return fmt.Errorf("open object: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	if opts.ContentType != "" {
 		w.Header().Set("Content-Type", opts.ContentType)

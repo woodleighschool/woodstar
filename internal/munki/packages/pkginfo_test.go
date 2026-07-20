@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	}
 	if got["installer_item_location"] != "packages/12/installer/Example.pkg" ||
 		got["installer_item_hash"] != installerHash ||
-		intValue(got["installer_item_size"]) != 2 {
+		intValue(t, got["installer_item_size"]) != 2 {
 		t.Fatalf(
 			"installer projection = %v/%v/%v, want object-derived Munki metadata",
 			got["installer_item_location"],
@@ -135,7 +136,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	receipts := mapSlice(t, got["receipts"])
 	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" ||
 		receipts[0]["name"] != "Example" ||
-		intValue(receipts[0]["installed_size"]) != 2048 ||
+		intValue(t, receipts[0]["installed_size"]) != 2048 ||
 		receipts[0]["optional"] != true {
 		t.Fatalf("receipts = %#v, want Munki receipt package ID key", receipts)
 	}
@@ -379,12 +380,17 @@ func stringSlice(value any) ([]string, bool) {
 	return out, true
 }
 
-func intValue(value any) int64 {
+func intValue(t *testing.T, value any) int64 {
+	t.Helper()
+
 	switch value := value.(type) {
 	case int64:
 		return value
 	case uint64:
-		return int64(value)
+		if value > math.MaxInt64 {
+			t.Fatalf("integer value %d exceeds int64", value)
+		}
+		return int64(value) //nolint:gosec // The uint64 bound is checked immediately above.
 	case int:
 		return int64(value)
 	default:

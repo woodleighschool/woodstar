@@ -175,6 +175,17 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get software reference: %v", err)
 	}
+	requireSoftwareReference(t, ref, executableSHA, bundleHash, certificateSHA)
+}
+
+func requireSoftwareReference(
+	t *testing.T,
+	ref *references.SoftwareReference,
+	executableSHA string,
+	bundleHash string,
+	certificateSHA string,
+) {
+	t.Helper()
 	if ref.ExecutionCount != 1 || ref.BlockCount != 1 {
 		t.Fatalf("counts = %d/%d, want one blocked execution", ref.ExecutionCount, ref.BlockCount)
 	}

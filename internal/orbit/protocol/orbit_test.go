@@ -23,7 +23,7 @@ func TestPingReportsSupportedCapabilities(t *testing.T) {
 	NewServer(nil, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodHead, "/api/fleet/orbit/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodHead, "/api/fleet/orbit/ping", nil)
 
 	router.ServeHTTP(rec, req)
 
@@ -102,10 +102,11 @@ func TestOrbitEnrollRejectsInvalidSecret(t *testing.T) {
 	t.Parallel()
 
 	service := &stubEnrollmentService{enrollErr: agentauth.ErrInvalidSecret}
-	doOrbitJSON(t, newOrbitRouter(service), http.MethodPost, "/api/fleet/orbit/enroll", orbit.EnrollRequest{
-		EnrollSecret: "not-a-real-secret",
-		HardwareUUID: "orbit-invalid-secret",
-	}, http.StatusUnauthorized)
+	doOrbitJSON(
+		t, newOrbitRouter(service), http.MethodPost, "/api/fleet/orbit/enroll", orbit.EnrollRequest{ //nolint:gosec // Intentionally invalid enrollment-secret fixture.
+			EnrollSecret: "not-a-real-secret",
+			HardwareUUID: "orbit-invalid-secret",
+		}, http.StatusUnauthorized)
 }
 
 func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
@@ -131,7 +132,7 @@ func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/api/fleet/orbit/config", strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/fleet/orbit/config", strings.NewReader(tt.body))
 			router.ServeHTTP(rec, req)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d; body: %s", rec.Code, tt.wantStatus, rec.Body.String())
@@ -193,7 +194,7 @@ func doOrbitJSON(
 			t.Fatalf("encode request body: %v", err)
 		}
 	}
-	req := httptest.NewRequest(method, path, &body)
+	req := httptest.NewRequestWithContext(t.Context(), method, path, &body)
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

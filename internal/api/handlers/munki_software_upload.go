@@ -149,7 +149,7 @@ func registerListMunkiIconsRoute(
 		Tags:        []string{munkiTag},
 		Summary:     "List uploaded Munki icons",
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
-		rows, count, err := objects.ListByPrefix(ctx, munkisoftware.IconObjectPrefix, input.ListQueryInput.params())
+		rows, count, err := objects.ListByPrefix(ctx, munkisoftware.IconObjectPrefix, input.params())
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-munki-icons", "Munki icon", err)
 		}

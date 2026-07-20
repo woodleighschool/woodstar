@@ -1,3 +1,4 @@
+// Package catalog defines the osquery queries that populate host inventory.
 package catalog
 
 import (

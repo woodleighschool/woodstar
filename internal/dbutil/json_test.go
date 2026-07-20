@@ -100,8 +100,12 @@ func TestJSONSliceValue(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Value: %v", err)
 		}
+		data, ok := value.([]byte)
+		if !ok {
+			t.Fatalf("Value returned %T, want []byte", value)
+		}
 		var decoded []jsonSliceItem
-		if err := json.Unmarshal(value.([]byte), &decoded); err != nil {
+		if err := json.Unmarshal(data, &decoded); err != nil {
 			t.Fatalf("decode Value result: %v", err)
 		}
 		if len(decoded) != 2 || decoded[0].Name != "one" || decoded[1].Name != "two" {

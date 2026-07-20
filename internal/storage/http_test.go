@@ -38,7 +38,7 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -52,7 +52,7 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
 	req.Header.Set("Range", "bytes=2-5")
 	router.ServeHTTP(rec, req)
 
@@ -95,7 +95,7 @@ func TestBlobGetRejectsInvalidExpiredAndMissingObjects(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/storage/munki/icons/1/icon.png?cap="+tc.cap, nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/icons/1/icon.png?cap="+tc.cap, nil)
 			router.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("status = %d, want %d; body = %q", rec.Code, tc.want, rec.Body.String())
@@ -116,11 +116,11 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(t.Context(),
 		http.MethodPut,
 		"/storage/munki/icons/7/icon.png?cap="+putToken,
-		bytes.NewReader([]byte("png bytes")),
-	)
+		bytes.NewReader([]byte("png bytes")))
+
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
@@ -145,11 +145,11 @@ func TestBlobPutWritesAndRejectsWrongOperation(t *testing.T) {
 		Exp: time.Now().Add(time.Minute).Unix(),
 	})
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(
+	req = httptest.NewRequestWithContext(t.Context(),
 		http.MethodPut,
 		"/storage/munki/icons/7/icon.png?cap="+getToken,
-		strings.NewReader("wrong"),
-	)
+		strings.NewReader("wrong"))
+
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("wrong op status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -167,7 +167,7 @@ func TestBlobRejectsMismatchedPathAndSignedKey(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/icons/8/icon.png?cap="+token, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/icons/8/icon.png?cap="+token, nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
@@ -193,7 +193,7 @@ func TestBlobGetLogsOpenFailures(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/packages/1/Installer.pkg?cap="+token, nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusInternalServerError {
@@ -234,7 +234,7 @@ func TestTransferRoutesAreNotMountedForS3(t *testing.T) {
 	RegisterTransferRoutes(router, backend, slog.New(slog.DiscardHandler))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/storage/munki/packages/1/Installer.pkg", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {

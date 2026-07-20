@@ -51,7 +51,7 @@ type santaProtocolFixtureClient struct {
 	secret    string
 }
 
-func TestSanta(t *testing.T) {
+func TestSanta(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear protocol lifecycle; splitting would hide the order being proved.
 	const (
 		machineID        = "11111111-2222-4333-8444-555555555555"
 		unknownMachineID = "99999999-8888-4777-8666-555555555555"
@@ -483,6 +483,28 @@ func (client santaProtocolFixtureClient) postProtoStatus(
 ) {
 	client.t.Helper()
 
+	httpRequest := client.newProtoRequest(stage, requestMessage)
+	httpResponse, err := client.client.Do(httpRequest)
+	if err != nil {
+		client.t.Fatalf("send Santa %s request: %v", stage, err)
+	}
+	responseBody := readAndClose(client.t, httpResponse)
+	if httpResponse.StatusCode != wantStatus {
+		client.t.Fatalf("Santa %s status = %d, want %d", stage, httpResponse.StatusCode, wantStatus)
+	}
+	if wantStatus != http.StatusOK {
+		client.requireEmptyErrorResponse(stage, httpResponse, responseBody)
+		return
+	}
+	client.readProtoResponse(stage, httpResponse, responseBody, responseMessage)
+}
+
+func (client santaProtocolFixtureClient) newProtoRequest(
+	stage string,
+	requestMessage proto.Message,
+) *http.Request {
+	client.t.Helper()
+
 	machineRequest, ok := requestMessage.(interface{ GetMachineId() string })
 	if !ok || machineRequest.GetMachineId() != client.machineID {
 		client.t.Fatalf("%s request machine ID does not match client", stage)
@@ -491,22 +513,13 @@ func (client santaProtocolFixtureClient) postProtoStatus(
 	if err != nil {
 		client.t.Fatalf("marshal Santa %s request: %v", stage, err)
 	}
-	var compressed bytes.Buffer
-	zw := gzip.NewWriter(&compressed)
-	if _, err := zw.Write(payload); err != nil {
-		_ = zw.Close()
-		client.t.Fatalf("compress Santa %s request: %v", stage, err)
-	}
-	if err := zw.Close(); err != nil {
-		client.t.Fatalf("finish Santa %s request compression: %v", stage, err)
-	}
-
+	compressed := client.compressProtoRequest(stage, payload)
 	requestURL := client.baseURL + "/santa/sync/" + stage + "/" + client.machineID
 	httpRequest, err := http.NewRequestWithContext(
 		client.t.Context(),
 		http.MethodPost,
 		requestURL,
-		bytes.NewReader(compressed.Bytes()),
+		bytes.NewReader(compressed),
 	)
 	if err != nil {
 		client.t.Fatalf("create Santa %s request: %v", stage, err)
@@ -517,45 +530,67 @@ func (client santaProtocolFixtureClient) postProtoStatus(
 	// Supplying Accept-Encoding ourselves keeps net/http from transparently
 	// decoding and removing the response's Content-Encoding header.
 	httpRequest.Header.Set("Accept-Encoding", "gzip")
+	return httpRequest
+}
 
-	httpResponse, err := client.client.Do(httpRequest)
-	if err != nil {
-		client.t.Fatalf("send Santa %s request: %v", stage, err)
-	}
-	responseBody := readAndClose(client.t, httpResponse)
-	if httpResponse.StatusCode != wantStatus {
-		client.t.Fatalf("Santa %s status = %d, want %d", stage, httpResponse.StatusCode, wantStatus)
-	}
-	if wantStatus != http.StatusOK {
-		if len(responseBody) != 0 {
-			client.t.Fatalf("Santa %s error body length = %d, want empty", stage, len(responseBody))
-		}
-		if contentType := httpResponse.Header.Get("Content-Type"); contentType != "" {
-			client.t.Fatalf("Santa %s error content type = %q, want absent", stage, contentType)
-		}
-		if contentEncoding := httpResponse.Header.Get("Content-Encoding"); contentEncoding != "" {
-			client.t.Fatalf("Santa %s error content encoding = %q, want absent", stage, contentEncoding)
-		}
-		return
-	}
+func (client santaProtocolFixtureClient) compressProtoRequest(stage string, payload []byte) []byte {
+	client.t.Helper()
 
-	mediaType, _, err := mime.ParseMediaType(httpResponse.Header.Get("Content-Type"))
+	var compressed bytes.Buffer
+	zw := gzip.NewWriter(&compressed)
+	if _, err := zw.Write(payload); err != nil {
+		_ = zw.Close()
+		client.t.Fatalf("compress Santa %s request: %v", stage, err)
+	}
+	if err := zw.Close(); err != nil {
+		client.t.Fatalf("finish Santa %s request compression: %v", stage, err)
+	}
+	return compressed.Bytes()
+}
+
+func (client santaProtocolFixtureClient) requireEmptyErrorResponse(
+	stage string,
+	response *http.Response,
+	body []byte,
+) {
+	client.t.Helper()
+
+	if len(body) != 0 {
+		client.t.Fatalf("Santa %s error body length = %d, want empty", stage, len(body))
+	}
+	if contentType := response.Header.Get("Content-Type"); contentType != "" {
+		client.t.Fatalf("Santa %s error content type = %q, want absent", stage, contentType)
+	}
+	if contentEncoding := response.Header.Get("Content-Encoding"); contentEncoding != "" {
+		client.t.Fatalf("Santa %s error content encoding = %q, want absent", stage, contentEncoding)
+	}
+}
+
+func (client santaProtocolFixtureClient) readProtoResponse(
+	stage string,
+	response *http.Response,
+	body []byte,
+	responseMessage proto.Message,
+) {
+	client.t.Helper()
+
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if err != nil || mediaType != santaProtobufContentType {
 		client.t.Fatalf(
 			"Santa %s response content type = %q, want %q",
 			stage,
-			httpResponse.Header.Get("Content-Type"),
+			response.Header.Get("Content-Type"),
 			santaProtobufContentType,
 		)
 	}
-	if !strings.EqualFold(httpResponse.Header.Get("Content-Encoding"), "gzip") {
+	if !strings.EqualFold(response.Header.Get("Content-Encoding"), "gzip") {
 		client.t.Fatalf(
 			"Santa %s response content encoding = %q, want gzip",
 			stage,
-			httpResponse.Header.Get("Content-Encoding"),
+			response.Header.Get("Content-Encoding"),
 		)
 	}
-	zr, err := gzip.NewReader(bytes.NewReader(responseBody))
+	zr, err := gzip.NewReader(bytes.NewReader(body))
 	if err != nil {
 		client.t.Fatalf("open Santa %s response compression: %v", stage, err)
 	}

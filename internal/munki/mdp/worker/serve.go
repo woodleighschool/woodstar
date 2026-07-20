@@ -56,7 +56,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := s.mirror.localPath(claims.PackageID, state.Filename)
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // mirror.localPath confines the file to the configured data directory.
 	if errors.Is(err, os.ErrNotExist) {
 		s.reject(w, r, http.StatusNotFound, "file missing")
 		return
@@ -65,7 +65,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {

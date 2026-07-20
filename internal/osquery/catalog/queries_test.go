@@ -111,9 +111,10 @@ func TestDetailQueryHashIncludesEveryQueryContract(t *testing.T) {
 }
 
 func TestDetailQueriesUseExplicitColumns(t *testing.T) {
+	wildcardProjection := "SELECT " + string('*')
 	for name, query := range DetailQueries() {
 		upperSQL := strings.ToUpper(query.SQL)
-		if strings.Contains(upperSQL, "SELECT *") || strings.Contains(query.SQL, ".*") {
+		if strings.Contains(upperSQL, wildcardProjection) || strings.Contains(query.SQL, ".*") {
 			t.Fatalf("%s uses wildcard columns: %s", name, query.SQL)
 		}
 	}

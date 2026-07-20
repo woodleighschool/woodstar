@@ -1,3 +1,4 @@
+// Package santa coordinates host state, events, rules, and sync configuration.
 package santa
 
 import (

@@ -19,7 +19,7 @@ var migrationsFS embed.FS
 
 func (db *DB) migrate(ctx context.Context) error {
 	sqlDB := stdlib.OpenDBFromPool(db.pool)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	// Pin to a single connection so the connection-bound advisory lock taken
 	// below is held across every query goose issues.

@@ -223,7 +223,7 @@ func (f munkiUploadFixture) upload(t *testing.T, target MunkiDirectUploadTarget,
 		t.Fatalf("parse upload URL: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(target.Upload.Method, uploadURL.RequestURI(), bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), target.Upload.Method, uploadURL.RequestURI(), bytes.NewReader(body))
 	for name, value := range target.Upload.Headers {
 		req.Header.Set(name, value)
 	}

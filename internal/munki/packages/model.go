@@ -1,3 +1,4 @@
+// Package packages models and persists Munki installers and package metadata.
 package packages
 
 import (
@@ -324,7 +325,7 @@ func (m PackageCreateMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
-	return m.PackageMutation.validateRelations()
+	return m.validateRelations()
 }
 
 func (m *PackageMutation) validateRelations() error {

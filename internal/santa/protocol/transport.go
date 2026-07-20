@@ -53,7 +53,7 @@ func decodeRequest(r *http.Request, msg proto.Message) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", errInvalidSyncBody, err)
 	}
-	defer zr.Close()
+	defer func() { _ = zr.Close() }()
 
 	payload, err := io.ReadAll(io.LimitReader(zr, maxRequestBodyBytes+1))
 	if err != nil {

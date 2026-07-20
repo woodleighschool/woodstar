@@ -29,7 +29,7 @@ import (
 
 const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
-func TestMunki(t *testing.T) {
+func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product lifecycle; splitting would hide the order being proved.
 	const (
 		serial       = "C02WOODSTARMUNKI"
 		softwareName = "WoodstarIntegrationApp"
@@ -202,10 +202,7 @@ func TestMunki(t *testing.T) {
 			strconv.FormatInt(installer.Id, 10)+"/content" {
 		t.Fatal("finalized installer did not contain the expected server-derived metadata")
 	}
-	installerContentResponse, err := server.AdminHTTP.Get(server.BaseURL + installer.ContentUrl)
-	if err != nil {
-		t.Fatalf("fetch installer through admin content route: %v", err)
-	}
+	installerContentResponse := getResponse(t, server.AdminHTTP, server.BaseURL+installer.ContentUrl)
 	if got := readAndClose(t, installerContentResponse); installerContentResponse.StatusCode != http.StatusOK ||
 		!bytes.Equal(got, installerBytes) {
 		t.Fatalf(
@@ -416,12 +413,11 @@ func TestMunki(t *testing.T) {
 		rereadClientResources.FooterLinks[0] != footerLinks[0] {
 		t.Fatal("re-read client resources did not match the saved public state")
 	}
-	bannerContentResponse, err := server.AdminHTTP.Get(
-		server.BaseURL + rereadClientResources.Banner.ContentUrl,
+	bannerContentResponse := getResponse(
+		t,
+		server.AdminHTTP,
+		server.BaseURL+rereadClientResources.Banner.ContentUrl,
 	)
-	if err != nil {
-		t.Fatalf("fetch banner through admin content route: %v", err)
-	}
 	if got := readAndClose(t, bannerContentResponse); bannerContentResponse.StatusCode != http.StatusOK ||
 		!bytes.Equal(got, bannerBytes) {
 		t.Fatalf("admin banner content status/body = %d/%d, want 200/exact", bannerContentResponse.StatusCode, len(got))

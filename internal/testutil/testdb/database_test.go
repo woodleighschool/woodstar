@@ -8,7 +8,7 @@ import (
 func TestDatabaseURLsPreserveConnectionSettings(t *testing.T) {
 	t.Parallel()
 
-	const base = "postgres://woodstar:secret@database.test:5432/custom?sslmode=disable&pool_max_conns=12"
+	const base = "postgres://woodstar:secret@database.test:5432/custom?sslmode=disable&pool_max_conns=12" //nolint:gosec // Fixed test database credential.
 	adminURL, databaseURL, err := databaseURLs(base, "woodstar_test_example")
 	if err != nil {
 		t.Fatalf("databaseURLs: %v", err)

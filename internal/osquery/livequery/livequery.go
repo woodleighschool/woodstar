@@ -126,7 +126,7 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 		ID:                id,
 		SQL:               sql,
 		StartedAt:         q.startedAt,
-		ResolvedHostCount: int32(len(pending)),
+		ResolvedHostCount: int32(len(pending)), //nolint:gosec // More than MaxInt32 distinct in-memory hosts is outside supported process limits.
 	}
 }
 

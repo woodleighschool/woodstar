@@ -1,3 +1,4 @@
+// Package middleware provides authentication, logging, and browser HTTP policy.
 package middleware
 
 import (

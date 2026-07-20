@@ -30,7 +30,7 @@ func TestPersistedUserLoginStartsSession(t *testing.T) {
 
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
-	requestCtx := loadTestSession(t, sessions, ctx)
+	requestCtx := loadTestSession(t, ctx, sessions)
 	if _, err := service.Login(requestCtx, LoginParams{
 		Email:    "ADMIN@EXAMPLE.TEST",
 		Password: "correct-password",
@@ -72,7 +72,7 @@ func TestSessionReloadsPersistedUser(t *testing.T) {
 
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
-	requestCtx := loadTestSession(t, sessions, ctx)
+	requestCtx := loadTestSession(t, ctx, sessions)
 	if _, err := service.Login(requestCtx, LoginParams{
 		Email:    created.Email,
 		Password: "correct-password",
@@ -112,7 +112,7 @@ func TestDeletedUserSessionIsRejected(t *testing.T) {
 
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
-	requestCtx := loadTestSession(t, sessions, ctx)
+	requestCtx := loadTestSession(t, ctx, sessions)
 	if _, err := service.Login(requestCtx, LoginParams{
 		Email:    created.Email,
 		Password: "correct-password",
@@ -134,7 +134,7 @@ func TestMissingLoginPerformsDummyPasswordVerification(t *testing.T) {
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
 	service.dummyHash = "not-an-argon2-hash"
-	requestCtx := loadTestSession(t, sessions, ctx)
+	requestCtx := loadTestSession(t, ctx, sessions)
 
 	_, err := service.Login(requestCtx, LoginParams{
 		Email:    "missing@example.test",
@@ -164,7 +164,7 @@ func testSessionManager() *scs.SessionManager {
 	return sessions
 }
 
-func loadTestSession(t *testing.T, sessions *scs.SessionManager, ctx context.Context) context.Context {
+func loadTestSession(t *testing.T, ctx context.Context, sessions *scs.SessionManager) context.Context {
 	t.Helper()
 	ctx, err := sessions.Load(ctx, "")
 	if err != nil {

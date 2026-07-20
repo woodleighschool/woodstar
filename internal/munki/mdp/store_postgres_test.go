@@ -41,8 +41,8 @@ func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {
 // and the package that links them, returning the package id.
 func seedAvailablePackage(
 	t *testing.T,
-	db *database.DB,
 	ctx context.Context,
+	db *database.DB,
 	name string,
 	sha256 string,
 	size int64,
@@ -77,8 +77,8 @@ func seedAvailablePackage(
 // package_current event applied server-side.
 func recordCurrent(
 	t *testing.T,
-	store *mdp.Store,
 	ctx context.Context,
+	store *mdp.Store,
 	dpID, packageID int64,
 	sha256 string,
 ) {
@@ -95,25 +95,25 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	store, _ := newStore(db)
 	shaA := strings.Repeat("a", 64)
 	shaB := strings.Repeat("b", 64)
-	pkgA := seedAvailablePackage(t, db, ctx, "Chrome", shaA, 4096)
-	pkgB := seedAvailablePackage(t, db, ctx, "Firefox", shaB, 8192)
+	pkgA := seedAvailablePackage(t, ctx, db, "Chrome", shaA, 4096)
+	pkgB := seedAvailablePackage(t, ctx, db, "Firefox", shaB, 8192)
 
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	states := packageStates(t, store, ctx, point.ID)
+	states := packageStates(t, ctx, store, point.ID)
 	if states[pkgA].Status != mdp.PackageStatusPending || states[pkgB].Status != mdp.PackageStatusPending {
 		t.Fatalf("initial states = %+v, want both pending", states)
 	}
 
 	// pkgA reports the desired hash; pkgB reports a stale one. Each is derived
 	// independently against Woodstar's current desired installer.
-	recordCurrent(t, store, ctx, point.ID, pkgA, shaA)
-	recordCurrent(t, store, ctx, point.ID, pkgB, strings.Repeat("c", 64))
+	recordCurrent(t, ctx, store, point.ID, pkgA, shaA)
+	recordCurrent(t, ctx, store, point.ID, pkgB, strings.Repeat("c", 64))
 
-	states = packageStates(t, store, ctx, point.ID)
+	states = packageStates(t, ctx, store, point.ID)
 	if a := states[pkgA]; a.Status != mdp.PackageStatusCurrent {
 		t.Fatalf("matching hash status = %q, want current", a.Status)
 	}
@@ -122,8 +122,8 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	}
 
 	// pkgB catching up to the desired hash flips it current without touching pkgA.
-	recordCurrent(t, store, ctx, point.ID, pkgB, shaB)
-	states = packageStates(t, store, ctx, point.ID)
+	recordCurrent(t, ctx, store, point.ID, pkgB, shaB)
+	states = packageStates(t, ctx, store, point.ID)
 	if a := states[pkgA]; a.Status != mdp.PackageStatusCurrent {
 		t.Fatalf("untouched package status = %q, want current", a.Status)
 	}
@@ -136,7 +136,7 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, _ := newStore(db)
 	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -148,7 +148,7 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 		t.Fatalf("RecordPackageState error: %v", err)
 	}
 
-	states := packageStates(t, store, ctx, point.ID)
+	states := packageStates(t, ctx, store, point.ID)
 	if got := states[pkg]; got.Status != mdp.PackageStatusError || got.Error == "" {
 		t.Fatalf("error package state = %+v, want error with message", got)
 	}
@@ -158,7 +158,7 @@ func TestListMarksOnlineFromPresence(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
 
-	pointID := mustCreate(t, store, ctx, "Melbourne")
+	pointID := mustCreate(t, ctx, store, "Melbourne")
 	points, _, err := store.List(ctx, mdp.DistributionPointListParams{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -181,13 +181,13 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 	presence.Connect(point.ID)
 
 	inside := mustAddr(t, "10.1.2.3")
@@ -199,10 +199,10 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 		t.Fatalf("resolved = %+v, want point %d with key", resolved, point.ID)
 	}
 
-	if got := resolveOrNil(t, store, ctx, mustAddr(t, "192.168.1.1"), pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, mustAddr(t, "192.168.1.1"), pkg); got != nil {
 		t.Fatalf("client outside CIDRs resolved %+v, want nil", got)
 	}
-	if got := resolveOrNil(t, store, ctx, inside, pkg+9999); got != nil {
+	if got := resolveOrNil(t, ctx, store, inside, pkg+9999); got != nil {
 		t.Fatalf("package not mirrored by this point resolved %+v, want nil", got)
 	}
 
@@ -212,23 +212,23 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	); err != nil {
 		t.Fatalf("stale RecordPackageState: %v", err)
 	}
-	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("stale-hash point resolved %+v, want nil", got)
 	}
-	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 
 	if err := store.RecordPackageState(
 		ctx, point.ID, pkg, mdp.PackageStatusError, sha, "package 7 download: unavailable",
 	); err != nil {
 		t.Fatalf("error RecordPackageState: %v", err)
 	}
-	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("error package resolved %+v, want nil", got)
 	}
-	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 
 	presence.Disconnect(point.ID)
-	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("offline point resolved %+v, want nil", got)
 	}
 	presence.Connect(point.ID)
@@ -241,7 +241,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Update disabled: %v", err)
 	}
-	if got := resolveOrNil(t, store, ctx, inside, pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("disabled point resolved %+v, want nil", got)
 	}
 }
@@ -250,7 +250,7 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
 	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, db, ctx, "Chrome", sha, 4096)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 
 	point, err := store.Create(ctx, mdp.DistributionPointMutation{
 		Name:          "Melbourne",
@@ -261,10 +261,10 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	recordCurrent(t, store, ctx, point.ID, pkg, sha)
+	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 	presence.Connect(point.ID)
 
-	if got := resolveOrNil(t, store, ctx, mustAddr(t, "10.1.2.3"), pkg); got != nil {
+	if got := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg); got != nil {
 		t.Fatalf("point with empty client_base_url resolved %+v, want nil", got)
 	}
 }
@@ -272,9 +272,9 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 func TestReorderRequiresExactSet(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, _ := newStore(db)
-	a := mustCreate(t, store, ctx, "A")
-	b := mustCreate(t, store, ctx, "B")
-	c := mustCreate(t, store, ctx, "C")
+	a := mustCreate(t, ctx, store, "A")
+	b := mustCreate(t, ctx, store, "B")
+	c := mustCreate(t, ctx, store, "C")
 
 	if err := store.Reorder(ctx, []int64{a, b}); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("partial reorder error = %v, want ErrInvalidInput", err)
@@ -293,7 +293,7 @@ func TestReorderRequiresExactSet(t *testing.T) {
 	}
 }
 
-func mustCreate(t *testing.T, store *mdp.Store, ctx context.Context, name string) int64 {
+func mustCreate(t *testing.T, ctx context.Context, store *mdp.Store, name string) int64 {
 	t.Helper()
 	point, err := store.Create(ctx, pointMutation(name, nil), "key-"+name)
 	if err != nil {
@@ -313,8 +313,8 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 
 func resolveOrNil(
 	t *testing.T,
-	store *mdp.Store,
 	ctx context.Context,
+	store *mdp.Store,
 	addr netip.Addr,
 	packageID int64,
 ) *mdp.ResolvedPoint {
@@ -328,8 +328,8 @@ func resolveOrNil(
 
 func packageStates(
 	t *testing.T,
-	store *mdp.Store,
 	ctx context.Context,
+	store *mdp.Store,
 	id int64,
 ) map[int64]mdp.PackageState {
 	t.Helper()

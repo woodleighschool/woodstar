@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 		newStaticRepository(),
 	)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/icons/_icon_hashes.plist", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/icons/_icon_hashes.plist", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 
 	router.ServeHTTP(rec, req)
@@ -67,7 +68,7 @@ func TestRegisterRoutesSelectsTransferSurface(t *testing.T) {
 		{path: "/munki/client_resources/site.zip", wantSurface: "transfer"},
 	} {
 		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil))
 		if got := recorder.Header().Get("X-Route-Surface"); got != tc.wantSurface {
 			t.Errorf("%s route surface = %q, want %q", tc.path, got, tc.wantSurface)
 		}
@@ -140,7 +141,7 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	)
 
 	manifest := httptest.NewRecorder()
-	manifestReq := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	manifestReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	manifestReq.Header.Set("Authorization", "Bearer munki-secret")
 	router.ServeHTTP(manifest, manifestReq)
 
@@ -153,12 +154,12 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	if _, err := plist.Unmarshal(manifest.Body.Bytes(), &manifestBody); err != nil {
 		t.Fatalf("manifest plist: %v", err)
 	}
-	if !sameStrings(manifestBody.OptionalInstalls, []string{"GoogleChrome"}) {
+	if !slices.Equal(manifestBody.OptionalInstalls, []string{"GoogleChrome"}) {
 		t.Fatalf("optional_installs = %v, want [GoogleChrome]", manifestBody.OptionalInstalls)
 	}
 
 	catalog := httptest.NewRecorder()
-	catalogReq := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
+	catalogReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/catalogs/woodstar", nil)
 	catalogReq.Header.Set("Authorization", "Bearer munki-secret")
 	router.ServeHTTP(catalog, catalogReq)
 
@@ -204,7 +205,7 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 		}),
 	)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 
 	router.ServeHTTP(rec, req)
@@ -220,7 +221,7 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"OverlapApp"}) {
+	if !slices.Equal(decoded.ManagedInstalls, []string{"OverlapApp"}) {
 		t.Fatalf("managed_installs = %v, want [OverlapApp]", decoded.ManagedInstalls)
 	}
 	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
@@ -241,7 +242,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 		}),
 	)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 
 	router.ServeHTTP(rec, req)
@@ -255,7 +256,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"PinnedApp--1.0"}) {
+	if !slices.Equal(decoded.ManagedInstalls, []string{"PinnedApp--1.0"}) {
 		t.Fatalf("managed_installs = %v, want [PinnedApp--1.0]", decoded.ManagedInstalls)
 	}
 }
@@ -279,7 +280,7 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 			if tc.authorization != "" {
 				req.Header.Set("Authorization", tc.authorization)
 			}
@@ -310,7 +311,7 @@ func TestMunkiHTTPRequiresExistingManifestSerial(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil)
 			req.Header.Set("Authorization", "Bearer munki-secret")
 
 			router.ServeHTTP(rec, req)
@@ -351,7 +352,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	).RegisterRoutes(router, router)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	router.ServeHTTP(rec, req)
 
@@ -388,7 +389,7 @@ func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/icons/7-GoogleChrome.png", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/icons/7-GoogleChrome.png", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 
 	router.ServeHTTP(rec, req)
@@ -411,7 +412,7 @@ func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 	router := newMunkiContractRouter(errorVerifier{}, newStaticRepository())
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/catalogs/woodstar", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/catalogs/woodstar", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 
 	router.ServeHTTP(rec, req)
@@ -653,16 +654,4 @@ func staticMunkiPackage(id int64, name string, version string) packages.Package 
 		InstallerType: packages.InstallerTypeNoPkg,
 		OnDemand:      true,
 	}
-}
-
-func sameStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

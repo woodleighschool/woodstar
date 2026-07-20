@@ -3,7 +3,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,7 +22,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
+func santaEventsRouter(t *testing.T) *chi.Mux {
+	t.Helper()
 	db, ctx := testdb.Open(t)
 	hostStore := hosts.NewStore(db)
 	santaStore := santa.NewStore(db)
@@ -94,6 +94,11 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
 	registerSantaEvents(api, eventsStore, discardLogger())
+	return router
+}
+
+func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
+	router := santaEventsRouter(t)
 
 	rec := santaEventsRequest(t, router, "/api/santa/events?decisions=blocked&per_page=1")
 	if rec.Code != http.StatusOK {
@@ -123,7 +128,6 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "Allowed") || strings.Contains(rec.Body.String(), "Blocked") {
 		t.Fatalf("search response = %q, want only allowed event", rec.Body.String())
 	}
-
 	rec = santaEventsRequest(t, router, "/api/santa/events?user=alice")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
@@ -177,7 +181,7 @@ func santaEventsRequest(t *testing.T, router *chi.Mux, path string) *httptest.Re
 	t.Helper()
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 	router.ServeHTTP(rec, req)
 	return rec
 }

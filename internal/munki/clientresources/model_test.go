@@ -20,7 +20,7 @@ func TestMutationValidateLinks(t *testing.T) {
 		},
 		{name: "mailto", link: Link{Label: "Email", Target: "mailto:help@example.com"}},
 		{name: "relative", link: Link{Label: "Support", Target: "/help"}, wantErr: true},
-		{name: "credentials", link: Link{Label: "Support", Target: "https://user:pass@example.com"}, wantErr: true},
+		{name: "credentials", link: Link{Label: "Support", Target: "https://user:pass@example.com"}, wantErr: true}, //nolint:gosec // Invalid credential-bearing URL fixture.
 		{
 			name:    "Munki route in browser",
 			link:    Link{Label: "Updates", Target: "munki://updates", OpenInBrowser: true},

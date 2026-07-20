@@ -16,7 +16,7 @@ func TestSecurityHeadersRestrictBrowserResponsesToTransferOrigin(t *testing.T) {
 		}),
 	)
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/hosts", nil))
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/hosts", nil))
 
 	wantCSP := "default-src 'self'; base-uri 'none'; connect-src 'self' https://uploads.example; " +
 		"font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; " +

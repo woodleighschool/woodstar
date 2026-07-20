@@ -78,7 +78,7 @@ func TestFileStoreDeliversCanonicalObjectDirectly(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/munki/icons/7/content", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/munki/icons/7/content", nil)
 	if err := NewDelivery(store).Deliver(rec, req, object, DeliveryOptions{
 		CacheControl: "private, max-age=86400",
 	}); err != nil {

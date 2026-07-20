@@ -3,6 +3,7 @@ package munki_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -189,10 +190,10 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	if len(manifest.OptionalInstalls) != 0 {
 		t.Fatalf("optional_installs = %v, want empty", manifest.OptionalInstalls)
 	}
-	if !sameStrings(manifest.DefaultInstalls, []string{"DefaultApp"}) {
+	if !slices.Equal(manifest.DefaultInstalls, []string{"DefaultApp"}) {
 		t.Fatalf("default_installs = %v, want [DefaultApp]", manifest.DefaultInstalls)
 	}
-	if !sameStrings(manifest.FeaturedItems, []string{"FeaturedApp"}) {
+	if !slices.Equal(manifest.FeaturedItems, []string{"FeaturedApp"}) {
 		t.Fatalf("featured_items = %v, want [FeaturedApp]", manifest.FeaturedItems)
 	}
 }
@@ -352,16 +353,4 @@ func (s servicePackageStore) RepositoryPackagesByIconObjectID(
 	iconObjectID int64,
 ) ([]packages.Package, error) {
 	return s.packagesByIconObjectID[iconObjectID], nil
-}
-
-func sameStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

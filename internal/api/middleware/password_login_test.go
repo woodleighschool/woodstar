@@ -40,13 +40,13 @@ func TestPasswordLoginRateLimitStopsBeforeHandler(t *testing.T) {
 	}))
 
 	first := httptest.NewRecorder()
-	handler.ServeHTTP(first, httptest.NewRequest(http.MethodPost, "/login", nil))
+	handler.ServeHTTP(first, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil))
 	if first.Code != http.StatusNoContent {
 		t.Fatalf("first status = %d, want %d", first.Code, http.StatusNoContent)
 	}
 
 	second := httptest.NewRecorder()
-	handler.ServeHTTP(second, httptest.NewRequest(http.MethodPost, "/login", nil))
+	handler.ServeHTTP(second, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil))
 	if second.Code != http.StatusTooManyRequests {
 		t.Fatalf("second status = %d, want %d", second.Code, http.StatusTooManyRequests)
 	}

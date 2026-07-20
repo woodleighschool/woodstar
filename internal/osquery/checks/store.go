@@ -23,7 +23,7 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, error) {
-	in.CheckMutation.normalize()
+	in.normalize()
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}

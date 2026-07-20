@@ -146,7 +146,7 @@ func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 	body, err := io.ReadAll(io.LimitReader(reader, MaxBannerSizeBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read banner: %w", err)

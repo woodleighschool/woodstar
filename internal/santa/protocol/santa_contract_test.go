@@ -187,7 +187,7 @@ func TestSantaHTTPEventUploadMapsStaticAndAuditEvents(t *testing.T) {
 				StandaloneModeRuleCreation: &syncv1.StandaloneModeRuleCreation{
 					Decision:   syncv1.Decision_ALLOW_BINARY,
 					Identifier: strings.Repeat("2", 64),
-					Timestamp:  uint32(createdAt.Unix()),
+					Timestamp:  uint32(createdAt.Unix()), //nolint:gosec // Fixed 2026 fixture is within uint32.
 				},
 			},
 		}},
@@ -426,7 +426,7 @@ func TestSantaHTTPRejectsMachineIDMismatch(t *testing.T) {
 			service := &recordingService{}
 			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, tt.path, bytes.NewReader(mustGzipProto(t, tt.request)))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, tt.path, bytes.NewReader(mustGzipProto(t, tt.request)))
 			req.Header.Set("Authorization", "Bearer ok")
 			req.Header.Set("Content-Type", protobufContentType)
 			req.Header.Set("Content-Encoding", "gzip")
@@ -532,7 +532,7 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{})
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
 			}
@@ -584,7 +584,7 @@ func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Re
 	}
 	setter.SetMachineId(machineIDFromSyncPath(path))
 
-	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(mustGzipProto(t, msg)))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, bytes.NewReader(mustGzipProto(t, msg)))
 	req.Header.Set("Authorization", "Bearer ok")
 	req.Header.Set("Content-Type", protobufContentType)
 	req.Header.Set("Content-Encoding", "gzip")
@@ -635,7 +635,7 @@ func mustGunzip(t *testing.T, payload []byte) []byte {
 	if err != nil {
 		t.Fatalf("new gzip reader: %v", err)
 	}
-	defer zr.Close()
+	defer func() { _ = zr.Close() }()
 	decoded, err := io.ReadAll(zr)
 	if err != nil {
 		t.Fatalf("read gzip: %v", err)

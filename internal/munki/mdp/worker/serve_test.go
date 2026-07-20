@@ -91,7 +91,7 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/"+installerItemLocation+"?cap="+tc.cap, nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/pkgs/"+installerItemLocation+"?cap="+tc.cap, nil)
 			handler.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
@@ -101,12 +101,12 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 
 	t.Run("missing file", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(t.Context(),
 			http.MethodGet,
 			"/munki/pkgs/packages/9/installer/Gone.pkg?cap="+
 				token(9, "packages/9/installer/Gone.pkg", sha, size, now.Add(time.Minute)),
-			nil,
-		)
+			nil)
+
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusNotFound {
 			t.Fatalf("status = %d, want 404", rec.Code)

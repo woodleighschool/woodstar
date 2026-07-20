@@ -93,7 +93,7 @@ func runUserCommand(t *testing.T, server *testServer, args ...string) {
 	t.Helper()
 	commandArgs := []string{"user", "--database-url", server.DatabaseURL}
 	commandArgs = append(commandArgs, args...)
-	command := exec.CommandContext(t.Context(), server.BinaryPath, commandArgs...)
+	command := exec.CommandContext(t.Context(), server.BinaryPath, commandArgs...) //nolint:gosec // Test-configured or test-built binary and arguments.
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("run Woodstar user command: %v\n%s", err, output)
 	}
@@ -183,7 +183,7 @@ func postJSON(
 	requestURL string,
 	body any,
 	target any,
-) *http.Response {
+) {
 	t.Helper()
 
 	var requestBody io.Reader
@@ -213,6 +213,19 @@ func postJSON(
 		if err := json.Unmarshal(responseBody, target); err != nil {
 			t.Fatalf("decode POST %s JSON response: %v", requestURL, err)
 		}
+	}
+}
+
+func getResponse(t *testing.T, client *http.Client, requestURL string) *http.Response {
+	t.Helper()
+
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, requestURL, nil)
+	if err != nil {
+		t.Fatalf("create GET %s request: %v", requestURL, err)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("send GET %s request: %v", requestURL, err)
 	}
 	return response
 }

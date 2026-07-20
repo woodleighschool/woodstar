@@ -51,7 +51,7 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, logger *slog.L
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSantaRulesInput) (*hostSantaRulesOutput, error) {
 		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.ID, rules.RuleStatusListParams{
-			ListParams: input.ListQueryInput.params(),
+			ListParams: input.params(),
 		})
 		if err != nil {
 			return nil, resourceError(

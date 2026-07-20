@@ -117,7 +117,7 @@ func startTestServer(t *testing.T) *testServer {
 	client := verifyingClient(t, tlsMaterial.caCertificate)
 	storageCapabilityKey := randomHex(t, testStorageCapabilityKeyByteCount)
 	logPath := filepath.Join(root, "woodstar.log")
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // Test-owned temporary path.
 	if err != nil {
 		t.Fatalf("create server log: %v", err)
 	}
@@ -180,14 +180,14 @@ func (server *testServer) logs() string {
 func testBinary(t *testing.T) string {
 	t.Helper()
 
-	compiledTestBinary.once.Do(compiledTestBinary.resolve)
+	compiledTestBinary.once.Do(func() { compiledTestBinary.resolve(t.Context()) })
 	if compiledTestBinary.err != nil {
 		t.Fatalf("prepare Woodstar test binary: %v", compiledTestBinary.err)
 	}
 	return compiledTestBinary.path
 }
 
-func (cache *binaryCache) resolve() {
+func (cache *binaryCache) resolve(ctx context.Context) {
 	configuredPath := strings.TrimSpace(os.Getenv(testBinaryEnvironment))
 	if configuredPath != "" {
 		cache.path, cache.err = existingExecutable(configuredPath)
@@ -205,7 +205,7 @@ func (cache *binaryCache) resolve() {
 		return
 	}
 	cache.path = filepath.Join(cache.buildRoot, "woodstar")
-	command := exec.Command("go", "build", "-o", cache.path, "./cmd/woodstar")
+	command := exec.CommandContext(ctx, "go", "build", "-o", cache.path, "./cmd/woodstar") //nolint:gosec // Output path is a test-owned temporary directory.
 	command.Dir = repositoryRoot
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -303,7 +303,7 @@ func createTestTLS(t *testing.T, root string) testTLS {
 	certificatePath := filepath.Join(root, "server.pem")
 	privateKeyPath := filepath.Join(root, "server-key.pem")
 	// The CA is public and copied into the osqueryd test container.
-	if err := os.WriteFile(caPath, caPEM, 0o644); err != nil {
+	if err := os.WriteFile(caPath, caPEM, 0o644); err != nil { //nolint:gosec // The public CA must be readable inside the test container.
 		t.Fatalf("write test CA certificate: %v", err)
 	}
 	if err := os.WriteFile(
@@ -353,7 +353,8 @@ func randomHex(t *testing.T, byteCount int) string {
 func allocatePort(t *testing.T) int {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("allocate test server port: %v", err)
 	}
@@ -400,7 +401,7 @@ func woodstarCommand(
 	tlsMaterial testTLS,
 	logFile *os.File,
 ) *exec.Cmd {
-	command := exec.Command(
+	command := exec.Command( //nolint:gosec,noctx // E2E harness selects the binary; stopProcess owns shutdown and forced kill.
 		binaryPath,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
@@ -525,7 +526,7 @@ func stopProcess(t *testing.T, name string, process *serverProcess) {
 }
 
 func safeLogTail(path string, redactions []string) string {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // Callers provide a test-owned log path.
 	if err != nil {
 		return "read server log: " + err.Error()
 	}

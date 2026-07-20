@@ -122,7 +122,7 @@ func TestHandlerEscapesRuntimeMetadata(t *testing.T) {
 	}).RegisterRoutes(router)
 
 	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 	body := recorder.Body.String()
 	if strings.Contains(body, `<script>alert`) {
 		t.Fatalf("body included executable runtime metadata: %q", body)
@@ -162,7 +162,7 @@ func requestWeb(t *testing.T, path string) *httptest.ResponseRecorder {
 		Logger:    slog.New(slog.DiscardHandler),
 	}).RegisterRoutes(router)
 
-	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	return recorder
