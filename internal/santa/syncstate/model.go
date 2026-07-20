@@ -1,3 +1,4 @@
+// Package syncstate tracks versioned Santa rule synchronization per host.
 package syncstate
 
 type SyncType string
@@ -9,13 +10,13 @@ const (
 )
 
 type RuleCounts struct {
-	Binary      int32
-	Certificate int32
-	TeamID      int32
-	SigningID   int32
-	CDHash      int32
-	Compiler    int32
-	Transitive  int32
+	Binary      uint32
+	Certificate uint32
+	TeamID      uint32
+	SigningID   uint32
+	CDHash      uint32
+	Compiler    uint32
+	Transitive  uint32
 }
 
 func (counts RuleCounts) MatchesReported(reported RuleCounts) bool {
@@ -27,6 +28,6 @@ func (counts RuleCounts) MatchesReported(reported RuleCounts) bool {
 		counts.Compiler == reported.Compiler
 }
 
-func (counts RuleCounts) binaryWithoutTransitive() int32 {
+func (counts RuleCounts) binaryWithoutTransitive() uint32 {
 	return counts.Binary - counts.Transitive
 }

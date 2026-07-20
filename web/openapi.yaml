@@ -2724,7 +2724,8 @@ components:
       additionalProperties: false
       properties:
         binary_count:
-          format: int32
+          format: uint32
+          minimum: 0
           type: integer
         bundle_id:
           type: string
@@ -2734,7 +2735,8 @@ components:
         complete:
           type: boolean
         hash_millis:
-          format: int32
+          format: uint32
+          minimum: 0
           type: integer
         name:
           type: string
@@ -3038,19 +3040,21 @@ components:
         cdhash:
           type: string
         codesigning_flags:
-          format: int32
+          format: uint32
           minimum: 0
           type: integer
         entitlements: {}
         file_bundle_binary_count:
-          format: int32
+          format: uint32
+          minimum: 0
           type: integer
         file_bundle_executable_rel_path:
           type: string
         file_bundle_hash:
           type: string
         file_bundle_hash_millis:
-          format: int32
+          format: uint32
+          minimum: 0
           type: integer
         file_bundle_id:
           type: string

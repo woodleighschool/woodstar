@@ -13,8 +13,8 @@ import (
 func (s *Store) PromotePending(
 	ctx context.Context,
 	hostID int64,
-	rulesReceived int32,
-	rulesProcessed int32,
+	rulesReceived uint32,
+	rulesProcessed uint32,
 	syncType SyncType,
 	rulesHash string,
 ) error {
@@ -109,8 +109,8 @@ func recordPostflightAttempt(
 	ctx context.Context,
 	tx pgx.Tx,
 	hostID int64,
-	rulesReceived int32,
-	rulesProcessed int32,
+	rulesReceived uint32,
+	rulesProcessed uint32,
 ) error {
 	_, err := tx.Exec(ctx, `
 UPDATE santa_sync_state
@@ -125,8 +125,8 @@ WHERE host_id = $1`, hostID, rulesReceived, rulesProcessed)
 
 func validatePostflight(
 	state santaPendingStateRow,
-	rulesReceived int32,
-	rulesProcessed int32,
+	rulesReceived uint32,
+	rulesProcessed uint32,
 	syncType SyncType,
 	rulesHash string,
 ) error {

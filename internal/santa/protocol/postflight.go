@@ -16,8 +16,8 @@ func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.Postflight
 		return santa.PostflightRequest{}, err
 	}
 	return santa.PostflightRequest{
-		RulesReceived:  int32(req.GetRulesReceived()),
-		RulesProcessed: int32(req.GetRulesProcessed()),
+		RulesReceived:  req.GetRulesReceived(),
+		RulesProcessed: req.GetRulesProcessed(),
 		SyncType:       syncType,
 		RulesHash:      req.GetRulesHash(),
 	}, nil

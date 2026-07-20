@@ -271,8 +271,8 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 	}
 	for _, attempt := range []struct {
 		name           string
-		rulesReceived  int32
-		rulesProcessed int32
+		rulesReceived  uint32
+		rulesProcessed uint32
 		syncType       syncstate.SyncType
 		rulesHash      string
 	}{

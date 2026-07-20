@@ -13,11 +13,11 @@ ALTER TABLE santa_hosts
 
 ALTER TABLE santa_sync_state
     DROP COLUMN client_rules_hash,
-    ADD COLUMN desired_compiler_rule_count INT NOT NULL DEFAULT 0
+    ADD COLUMN desired_compiler_rule_count BIGINT NOT NULL DEFAULT 0
         CHECK (desired_compiler_rule_count >= 0),
-    ADD COLUMN compiler_rule_count INT NOT NULL DEFAULT 0
+    ADD COLUMN compiler_rule_count BIGINT NOT NULL DEFAULT 0
         CHECK (compiler_rule_count >= 0),
-    ADD COLUMN transitive_rule_count INT NOT NULL DEFAULT 0
+    ADD COLUMN transitive_rule_count BIGINT NOT NULL DEFAULT 0
         CHECK (transitive_rule_count >= 0);
 
 DROP TABLE santa_sync_pending_rules;

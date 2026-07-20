@@ -15,7 +15,7 @@ type PreflightRequest struct {
 	RuleCounts        syncstate.RuleCounts
 	PrimaryUser       string
 	PrimaryUserGroups []string
-	SIPStatus         *int16
+	SIPStatus         *uint32
 }
 
 type PreflightResponse struct {
@@ -40,8 +40,8 @@ type RuleDownloadRequest struct {
 type RuleDownloadResponse = syncstate.PayloadRulePage
 
 type PostflightRequest struct {
-	RulesReceived  int32
-	RulesProcessed int32
+	RulesReceived  uint32
+	RulesProcessed uint32
 	SyncType       syncstate.SyncType
 	RulesHash      string
 }

@@ -65,7 +65,7 @@ type syncStore interface {
 	PromotePending(
 		ctx context.Context,
 		hostID int64,
-		rulesReceived, rulesProcessed int32,
+		rulesReceived, rulesProcessed uint32,
 		syncType syncstate.SyncType,
 		rulesHash string,
 	) error

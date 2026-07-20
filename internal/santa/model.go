@@ -15,7 +15,7 @@ type HostObservation struct {
 	ClientModeReported configurations.ReportedClientMode
 	PrimaryUser        string
 	PrimaryUserGroups  []string
-	SIPStatus          *int16
+	SIPStatus          *uint32
 	LastSeenAt         *time.Time
 }
 

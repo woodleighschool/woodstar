@@ -2109,12 +2109,12 @@ type SantaConfigurationTargets struct {
 // SantaExecutable defines model for SantaExecutable.
 type SantaExecutable struct {
 	Cdhash                      string                       `json:"cdhash"`
-	CodesigningFlags            int32                        `json:"codesigning_flags"`
+	CodesigningFlags            uint32                       `json:"codesigning_flags"`
 	Entitlements                interface{}                  `json:"entitlements,omitempty"`
-	FileBundleBinaryCount       int32                        `json:"file_bundle_binary_count"`
+	FileBundleBinaryCount       uint32                       `json:"file_bundle_binary_count"`
 	FileBundleExecutableRelPath string                       `json:"file_bundle_executable_rel_path"`
 	FileBundleHash              string                       `json:"file_bundle_hash"`
-	FileBundleHashMillis        int32                        `json:"file_bundle_hash_millis"`
+	FileBundleHashMillis        uint32                       `json:"file_bundle_hash_millis"`
 	FileBundleId                string                       `json:"file_bundle_id"`
 	FileBundleName              string                       `json:"file_bundle_name"`
 	FileBundlePath              string                       `json:"file_bundle_path"`

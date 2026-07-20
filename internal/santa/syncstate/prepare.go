@@ -171,7 +171,7 @@ func upsertPreflight(ctx context.Context, tx pgx.Tx, p preflightParams) error {
 	_, err := tx.Exec(ctx, upsertPreflightSQL,
 		p.hostID,
 		p.pendingFullSync,
-		int32(len(p.payload)),
+		len(p.payload),
 		p.clientRulesHash,
 		desiredCounts.Binary,
 		desiredCounts.Certificate,
@@ -207,14 +207,7 @@ func rewritePendingState(
 }
 
 func validateRuleCounts(counts RuleCounts) error {
-	if counts.Binary < 0 ||
-		counts.Certificate < 0 ||
-		counts.TeamID < 0 ||
-		counts.SigningID < 0 ||
-		counts.CDHash < 0 ||
-		counts.Compiler < 0 ||
-		counts.Transitive < 0 ||
-		counts.Transitive > counts.Binary {
+	if counts.Transitive > counts.Binary {
 		return fmt.Errorf("%w: invalid Santa rule counts", dbutil.ErrInvalidInput)
 	}
 	return nil

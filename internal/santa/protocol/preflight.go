@@ -12,9 +12,9 @@ import (
 )
 
 func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightRequest, error) {
-	var sipStatus *int16
+	var sipStatus *uint32
 	if req.GetSipStatus() != 0 {
-		value := int16(req.GetSipStatus())
+		value := req.GetSipStatus()
 		sipStatus = &value
 	}
 	return santa.PreflightRequest{
@@ -46,13 +46,13 @@ func preflightResponseToProto(resp santa.PreflightResponse) (*syncv1.PreflightRe
 
 func ruleCountsFromProto(req *syncv1.PreflightRequest) syncstate.RuleCounts {
 	return syncstate.RuleCounts{
-		Binary:      int32(req.GetBinaryRuleCount()),
-		Certificate: int32(req.GetCertificateRuleCount()),
-		TeamID:      int32(req.GetTeamidRuleCount()),
-		SigningID:   int32(req.GetSigningidRuleCount()),
-		CDHash:      int32(req.GetCdhashRuleCount()),
-		Compiler:    int32(req.GetCompilerRuleCount()),
-		Transitive:  int32(req.GetTransitiveRuleCount()),
+		Binary:      req.GetBinaryRuleCount(),
+		Certificate: req.GetCertificateRuleCount(),
+		TeamID:      req.GetTeamidRuleCount(),
+		SigningID:   req.GetSigningidRuleCount(),
+		CDHash:      req.GetCdhashRuleCount(),
+		Compiler:    req.GetCompilerRuleCount(),
+		Transitive:  req.GetTransitiveRuleCount(),
 	}
 }
 
@@ -71,8 +71,8 @@ func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, confi
 		return err
 	}
 	resp.OverrideFileAccessAction = &fileAccessAction
-	resp.FullSyncIntervalSeconds = uint32(config.FullSyncIntervalSeconds)
-	resp.BatchSize = uint32(config.BatchSize)
+	resp.FullSyncIntervalSeconds = uint32(config.FullSyncIntervalSeconds) //nolint:gosec // Persisted configurations require at least 60 seconds.
+	resp.BatchSize = uint32(config.BatchSize)                             //nolint:gosec // Persisted configurations require a value from 5 through 100.
 	if config.AllowedPathRegex != "" {
 		resp.AllowedPathRegex = &config.AllowedPathRegex
 	}

@@ -166,12 +166,12 @@ type executionEventRow struct {
 	FileBundleVersion           string                              `db:"file_bundle_version"`
 	FileBundleVersionString     string                              `db:"file_bundle_version_string"`
 	FileBundleHash              string                              `db:"file_bundle_hash"`
-	FileBundleHashMillis        int32                               `db:"file_bundle_hash_millis"`
-	FileBundleBinaryCount       int32                               `db:"file_bundle_binary_count"`
+	FileBundleHashMillis        uint32                              `db:"file_bundle_hash_millis"`
+	FileBundleBinaryCount       uint32                              `db:"file_bundle_binary_count"`
 	SigningID                   string                              `db:"signing_id"`
 	TeamID                      string                              `db:"team_id"`
 	CDHash                      string                              `db:"cdhash"`
-	CodesigningFlags            int64                               `db:"codesigning_flags"`
+	CodesigningFlags            uint32                              `db:"codesigning_flags"`
 	SigningStatus               string                              `db:"signing_status"`
 	SecureSigningTime           *time.Time                          `db:"secure_signing_time"`
 	SigningTime                 *time.Time                          `db:"signing_time"`
@@ -228,7 +228,7 @@ func executionEventFromRow(row executionEventRow) ExecutionEvent {
 			SigningID:               row.SigningID,
 			TeamID:                  row.TeamID,
 			CDHash:                  row.CDHash,
-			CodesigningFlags:        uint32(row.CodesigningFlags),
+			CodesigningFlags:        row.CodesigningFlags,
 			SigningStatus:           normalizeSigningStatus(SigningStatus(row.SigningStatus)),
 			SecureSigningTime:       row.SecureSigningTime,
 			SigningTime:             row.SigningTime,

@@ -200,8 +200,8 @@ type ExecutionEventInput struct {
 	BundleVersion           string
 	BundleVersionString     string
 	BundleHash              string
-	BundleHashMillis        int32
-	BundleBinaryCount       int32
+	BundleHashMillis        uint32
+	BundleBinaryCount       uint32
 	PID                     int32
 	PPID                    int32
 	ParentName              string
@@ -238,12 +238,12 @@ type Executable struct {
 	BundleVersion           string              `json:"file_bundle_version"`
 	BundleVersionString     string              `json:"file_bundle_version_string"`
 	BundleHash              string              `json:"file_bundle_hash"`
-	BundleHashMillis        int32               `json:"file_bundle_hash_millis"`
-	BundleBinaryCount       int32               `json:"file_bundle_binary_count"`
+	BundleHashMillis        uint32              `json:"file_bundle_hash_millis"  format:"uint32"`
+	BundleBinaryCount       uint32              `json:"file_bundle_binary_count" format:"uint32"`
 	SigningID               string              `json:"signing_id"`
 	TeamID                  string              `json:"team_id"`
 	CDHash                  string              `json:"cdhash"`
-	CodesigningFlags        uint32              `json:"codesigning_flags"`
+	CodesigningFlags        uint32              `json:"codesigning_flags"        format:"uint32"`
 	SigningStatus           SigningStatus       `json:"signing_status"`
 	SecureSigningTime       *time.Time          `json:"secure_signing_time,omitempty"`
 	SigningTime             *time.Time          `json:"signing_time,omitempty"`

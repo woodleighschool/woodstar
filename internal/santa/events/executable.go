@@ -23,7 +23,7 @@ func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput)
 		SigningID:                   event.SigningID,
 		TeamID:                      event.TeamID,
 		CDHash:                      event.CDHash,
-		CodesigningFlags:            int64(event.CodesigningFlags),
+		CodesigningFlags:            event.CodesigningFlags,
 		SigningStatus:               string(normalizeSigningStatus(event.SigningStatus)),
 		SecureSigningTime:           timeOrNil(event.SecureSigningTime),
 		SigningTime:                 timeOrNil(event.SigningTime),
@@ -125,12 +125,12 @@ type executableWrite struct {
 	FileBundleVersion           string     `db:"file_bundle_version"`
 	FileBundleVersionString     string     `db:"file_bundle_version_string"`
 	FileBundleHash              string     `db:"file_bundle_hash"`
-	FileBundleHashMillis        int32      `db:"file_bundle_hash_millis"`
-	FileBundleBinaryCount       int32      `db:"file_bundle_binary_count"`
+	FileBundleHashMillis        uint32     `db:"file_bundle_hash_millis"`
+	FileBundleBinaryCount       uint32     `db:"file_bundle_binary_count"`
 	SigningID                   string     `db:"signing_id"`
 	TeamID                      string     `db:"team_id"`
 	CDHash                      string     `db:"cdhash"`
-	CodesigningFlags            int64      `db:"codesigning_flags"`
+	CodesigningFlags            uint32     `db:"codesigning_flags"`
 	SigningStatus               string     `db:"signing_status"`
 	SecureSigningTime           *time.Time `db:"secure_signing_time"`
 	SigningTime                 *time.Time `db:"signing_time"`

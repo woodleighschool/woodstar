@@ -1,3 +1,4 @@
+// Package references joins Santa evidence to observed software inventory.
 package references
 
 import (
@@ -23,9 +24,9 @@ type BundleReference struct {
 	Path                 string     `json:"path"                   db:"path"`
 	Version              string     `json:"version"                db:"version"`
 	VersionString        string     `json:"version_string"         db:"version_string"`
-	BinaryCount          int32      `json:"binary_count"           db:"binary_count"`
+	BinaryCount          uint32     `json:"binary_count"           db:"binary_count" format:"uint32"`
 	CollectedBinaryCount int32      `json:"collected_binary_count" db:"collected_binary_count"`
-	HashMillis           int32      `json:"hash_millis"            db:"hash_millis"`
+	HashMillis           uint32     `json:"hash_millis"            db:"hash_millis" format:"uint32"`
 	UploadedAt           *time.Time `json:"uploaded_at,omitempty"  db:"uploaded_at"`
 	Complete             bool       `json:"complete"               db:"complete"`
 }

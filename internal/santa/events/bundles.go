@@ -1,3 +1,4 @@
+// Package events persists and queries Santa execution and file-access events.
 package events
 
 import (
@@ -151,6 +152,6 @@ type bundleWrite struct {
 	ExecutableRelPath string `db:"executable_rel_path"`
 	Version           string `db:"version"`
 	VersionString     string `db:"version_string"`
-	BinaryCount       int32  `db:"binary_count"`
-	HashMillis        int32  `db:"hash_millis"`
+	BinaryCount       uint32 `db:"binary_count"`
+	HashMillis        uint32 `db:"hash_millis"`
 }
