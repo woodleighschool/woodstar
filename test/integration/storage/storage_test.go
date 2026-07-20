@@ -1,3 +1,5 @@
+//go:build integration
+
 package storageintegration
 
 import (
@@ -17,6 +19,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/storagecontract"
 )
 
 const (
@@ -32,125 +35,37 @@ const (
 	storageRequestTimeout       = 30 * time.Second
 )
 
-func TestStorageBackends(t *testing.T) {
-	t.Run("file", func(t *testing.T) {
-		backend, err := storage.New(t.Context(), storage.Config{
-			Kind:        storage.KindFile,
-			TransferTTL: time.Minute,
-			File: storage.FileConfig{
-				Root:             t.TempDir(),
-				BaseURL:          "http://woodstar.test",
-				CapabilityKeyHex: strings.Repeat("42", 32),
-			},
-		})
-		if err != nil {
-			t.Fatalf("create file storage: %v", err)
-		}
-		testStorageBackend(t, backend)
+func TestS3StorageBackend(t *testing.T) {
+	endpoint := startGarage(t)
+	backend, err := storage.New(t.Context(), storage.Config{
+		Kind:        storage.KindS3,
+		TransferTTL: time.Minute,
+		S3: storage.S3Config{
+			Bucket:         garageBucket,
+			Region:         garageRegion,
+			Endpoint:       endpoint,
+			PublicEndpoint: endpoint,
+			AccessKey:      garageAccessKey,
+			SecretKey:      garageSecretKey,
+			PathStyle:      true,
+		},
 	})
-
-	t.Run("s3", func(t *testing.T) {
-		requireStorageProvider(t)
-		endpoint := startGarage(t)
-		backend, err := storage.New(t.Context(), storage.Config{
-			Kind:        storage.KindS3,
-			TransferTTL: time.Minute,
-			S3: storage.S3Config{
-				Bucket:         garageBucket,
-				Region:         garageRegion,
-				Endpoint:       endpoint,
-				PublicEndpoint: endpoint,
-				AccessKey:      garageAccessKey,
-				SecretKey:      garageSecretKey,
-				PathStyle:      true,
-			},
-		})
-		if err != nil {
-			t.Fatalf("create S3 storage: %v", err)
-		}
-
-		t.Run("backend", func(t *testing.T) {
-			testStorageBackend(t, backend)
-		})
-		t.Run("presigned", func(t *testing.T) {
-			testS3PresignedTransfers(t, backend, endpoint)
-		})
-		t.Run("move content type", func(t *testing.T) {
-			testS3MoveContentType(t, backend, endpoint)
-		})
-		t.Run("multipart", func(t *testing.T) {
-			testS3MultipartTransfers(t, backend, endpoint)
-		})
-	})
-}
-
-func testStorageBackend(t *testing.T, backend storage.Backend) {
-	t.Helper()
-
-	ctx := t.Context()
-	key := "contract/source object with spaces.bin"
-	first := []byte("woodstar-storage-contract-first")
-	if err := backend.Put(ctx, key, bytes.NewReader(first), storage.PutOptions{
-		ContentType: "application/octet-stream",
-	}); err != nil {
-		t.Fatalf("put object: %v", err)
-	}
-	assertStorageObject(t, backend, key, first)
-	assertStorageRange(t, backend, key, first, 5, 12)
-
-	overwritten := []byte("replacement bytes")
-	if err := backend.Put(ctx, key, bytes.NewReader(overwritten), storage.PutOptions{
-		ContentType: "application/x-woodstar-replacement",
-	}); err != nil {
-		t.Fatalf("overwrite object: %v", err)
-	}
-	assertStorageObject(t, backend, key, overwritten)
-
-	destinationKey := "contract/moved object with spaces.bin"
-	if err := backend.Move(ctx, key, destinationKey, storage.PutOptions{
-		ContentType: "application/x-woodstar-moved",
-	}); err != nil {
-		t.Fatalf("move object: %v", err)
-	}
-	assertStorageObject(t, backend, destinationKey, overwritten)
-	assertStorageObjectMissing(t, backend, key)
-
-	if err := backend.Delete(ctx, destinationKey); err != nil {
-		t.Fatalf("delete object: %v", err)
-	}
-	assertStorageObjectMissing(t, backend, destinationKey)
-	if err := backend.Delete(ctx, destinationKey); err != nil {
-		t.Fatalf("delete absent object: %v", err)
-	}
-
-	assertStorageObjectMissing(t, backend, "contract/object that never existed.bin")
-}
-
-func assertStorageRange(
-	t *testing.T,
-	backend storage.Backend,
-	key string,
-	want []byte,
-	start int,
-	end int,
-) {
-	t.Helper()
-
-	reader, _, err := backend.Open(t.Context(), key)
 	if err != nil {
-		t.Fatalf("open %q for range: %v", key, err)
+		t.Fatalf("create S3 storage: %v", err)
 	}
-	defer reader.Close()
-	if _, err := reader.Seek(int64(start), io.SeekStart); err != nil {
-		t.Fatalf("seek %q range: %v", key, err)
-	}
-	got := make([]byte, end-start+1)
-	if _, err := io.ReadFull(reader, got); err != nil {
-		t.Fatalf("read %q range: %v", key, err)
-	}
-	if !bytes.Equal(got, want[start:end+1]) {
-		t.Fatalf("read %q range bytes = %q, want %q", key, got, want[start:end+1])
-	}
+
+	t.Run("backend", func(t *testing.T) {
+		storagecontract.Run(t, backend)
+	})
+	t.Run("presigned", func(t *testing.T) {
+		testS3PresignedTransfers(t, backend, endpoint)
+	})
+	t.Run("move content type", func(t *testing.T) {
+		testS3MoveContentType(t, backend, endpoint)
+	})
+	t.Run("multipart", func(t *testing.T) {
+		testS3MultipartTransfers(t, backend, endpoint)
+	})
 }
 
 func testS3MoveContentType(t *testing.T, backend storage.Backend, endpoint string) {
@@ -532,12 +447,4 @@ s3_region = "garage"
 api_bind_addr = "[::]:3900"
 root_domain = ".s3.garage.localhost"
 `
-}
-
-func requireStorageProvider(t *testing.T) {
-	t.Helper()
-
-	if os.Getenv("CI") == "" {
-		testcontainers.SkipIfProviderIsNotHealthy(t)
-	}
 }

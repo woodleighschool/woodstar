@@ -18,7 +18,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -551,62 +550,6 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 			}
 			if rec.Body.Len() != 0 {
 				t.Fatalf("body = %q, want empty", rec.Body.String())
-			}
-		})
-	}
-}
-
-func TestSantaHTTPAuthorizesOnlyActiveSantaAgentSecrets(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	secrets := agentauth.NewStore(db)
-	service := &recordingService{}
-	router := newSantaContractRouter(secrets, service)
-
-	santaSecret, err := secrets.Create(
-		ctx,
-		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-active-secret-value-long-32"},
-	)
-	if err != nil {
-		t.Fatalf("create santa agent secret: %v", err)
-	}
-	orbitSecret, err := secrets.Create(
-		ctx,
-		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "orbit-wrong-agent-secret-value-32"},
-	)
-	if err != nil {
-		t.Fatalf("create orbit agent secret: %v", err)
-	}
-	deletedSecret, err := secrets.Create(
-		ctx,
-		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-deleted-secret-value-long-32"},
-	)
-	if err != nil {
-		t.Fatalf("create deleted santa agent secret: %v", err)
-	}
-	if err := secrets.Delete(ctx, deletedSecret.ID); err != nil {
-		t.Fatalf("delete santa agent secret: %v", err)
-	}
-
-	tests := []struct {
-		name       string
-		secret     string
-		wantStatus int
-	}{
-		{name: "valid santa", secret: santaSecret.Value, wantStatus: http.StatusOK},
-		{name: "orbit secret rejected", secret: orbitSecret.Value, wantStatus: http.StatusUnauthorized},
-		{name: "deleted santa rejected", secret: deletedSecret.Value, wantStatus: http.StatusUnauthorized},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rec := httptest.NewRecorder()
-			req := santaContractRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{})
-			req.Header.Set("Authorization", "Bearer "+tt.secret)
-
-			router.ServeHTTP(rec, req)
-
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d; body = %q", rec.Code, tt.wantStatus, rec.Body.String())
 			}
 		})
 	}

@@ -2,6 +2,7 @@
 package protocol
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
@@ -23,12 +25,20 @@ const (
 
 // Server owns Orbit protocol routes.
 type Server struct {
-	service *orbit.EnrollmentService
+	service enrollmentService
 	logger  *slog.Logger
 }
 
+type enrollmentService interface {
+	Enroll(context.Context, orbit.EnrollRequest) (*hosts.Host, string, error)
+	Config(context.Context, string) (orbit.ConfigResponse, error)
+	SetPrimaryUser(context.Context, string, string) error
+	SetDeviceAuthToken(context.Context, string, string) error
+	ValidateDeviceAuthToken(context.Context, string) error
+}
+
 // NewServer returns an Orbit protocol server.
-func NewServer(service *orbit.EnrollmentService, logger *slog.Logger) *Server {
+func NewServer(service enrollmentService, logger *slog.Logger) *Server {
 	return &Server{service: service, logger: logger}
 }
 
@@ -45,7 +55,7 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 	})
 }
 
-func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+func orbitEnrollHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[orbit.EnrollRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
@@ -89,7 +99,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 	}
 }
 
-func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+func orbitConfigHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[orbit.ConfigRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
@@ -110,7 +120,7 @@ func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 	}
 }
 
-func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+func orbitDeviceMappingHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[orbit.DeviceMappingRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
@@ -146,7 +156,7 @@ func orbitPingHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func orbitDeviceTokenHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+func orbitDeviceTokenHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[orbit.DeviceTokenRequest](w, r, orbitRequestMaxBytes)
 		if err != nil {
@@ -173,7 +183,7 @@ func orbitDeviceTokenHandler(svc *orbit.EnrollmentService, logger *slog.Logger) 
 	}
 }
 
-func orbitDevicePingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
+func orbitDevicePingHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := svc.ValidateDeviceAuthToken(r.Context(), chi.URLParam(r, "token"))
 		switch {

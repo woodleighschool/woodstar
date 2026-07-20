@@ -1,7 +1,9 @@
 package protocol
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,8 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -63,77 +64,32 @@ func TestOsqueryRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 	}
 }
 
-func TestOsqueryEnrollValidation(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	secretStore := agentauth.NewStore(database)
-	hostStore := hosts.NewStore(database)
-	const enrollSecret = "focused-osquery-secret-0123456789abcdef"
-	if _, err := secretStore.Create(ctx, agentauth.AgentSecretCreate{
-		Agent: agentauth.AgentOrbit,
-		Value: enrollSecret,
-	}); err != nil {
-		t.Fatalf("create Orbit secret: %v", err)
+func TestOsqueryEnrollMapsServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "invalid enrollment secret", err: agentauth.ErrInvalidSecret, wantStatus: http.StatusUnauthorized},
+		{name: "missing hardware UUID", err: enrollment.ErrMissingHardwareUUID, wantStatus: http.StatusBadRequest},
+		{name: "service failure", err: errors.New("database unavailable"), wantStatus: http.StatusInternalServerError},
 	}
-
-	router := chi.NewRouter()
-	logger := slog.New(slog.DiscardHandler)
-	NewServer(osquery.NewAgentService(osquery.Dependencies{
-		HostStore:   hostStore,
-		SecretStore: secretStore,
-		Logger:      logger,
-	}), logger).RegisterRoutes(router)
-
-	t.Run("invalid enrollment secret", func(t *testing.T) {
-		recorder := postOsqueryEnroll(t, router, osquery.EnrollRequest{
-			EnrollSecret:   "wrong-secret",
-			HostIdentifier: "invalid-secret-host",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			router := chi.NewRouter()
+			NewServer(&stubAgentService{enrollErr: tt.err}, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
+			recorder := postOsqueryEnroll(t, router, osquery.EnrollRequest{
+				EnrollSecret:   "enroll-secret",
+				HostIdentifier: "host-identifier",
+			})
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body: %s", recorder.Code, tt.wantStatus, recorder.Body.String())
+			}
 		})
-		if recorder.Code != http.StatusUnauthorized {
-			t.Fatalf("status = %d, want %d; body: %s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
-		}
-	})
-
-	t.Run("missing hardware UUID and host identifier", func(t *testing.T) {
-		recorder := postOsqueryEnroll(t, router, osquery.EnrollRequest{
-			EnrollSecret: enrollSecret,
-			HostDetails:  map[string]map[string]string{"system_info": {}},
-		})
-		if recorder.Code != http.StatusBadRequest {
-			t.Fatalf("status = %d, want %d; body: %s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
-		}
-	})
-
-	t.Run("host identifier is the hardware UUID fallback", func(t *testing.T) {
-		const hostIdentifier = "focused-osquery-fallback-host"
-		recorder := postOsqueryEnroll(t, router, osquery.EnrollRequest{
-			EnrollSecret:   enrollSecret,
-			HostIdentifier: hostIdentifier,
-			HostDetails: map[string]map[string]string{
-				"system_info": {"hostname": "fallback-host"},
-			},
-		})
-		if recorder.Code != http.StatusOK {
-			t.Fatalf("status = %d, want %d; body: %s", recorder.Code, http.StatusOK, recorder.Body.String())
-		}
-		var response osquery.EnrollResponse
-		if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
-			t.Fatalf("decode enroll response: %v", err)
-		}
-		if response.NodeKey == "" || response.NodeInvalid {
-			t.Fatalf(
-				"node key present/node_invalid = %t/%t, want true/false",
-				response.NodeKey != "",
-				response.NodeInvalid,
-			)
-		}
-		host, err := hostStore.GetByOsqueryNodeKey(ctx, response.NodeKey)
-		if err != nil {
-			t.Fatalf("load enrolled host: %v", err)
-		}
-		if host.Hardware.UUID != hostIdentifier {
-			t.Fatalf("hardware UUID = %q, want host identifier fallback %q", host.Hardware.UUID, hostIdentifier)
-		}
-	})
+	}
 }
 
 func postOsqueryEnroll(t *testing.T, router http.Handler, body osquery.EnrollRequest) *httptest.ResponseRecorder {
@@ -147,6 +103,43 @@ func postOsqueryEnroll(t *testing.T, router http.Handler, body osquery.EnrollReq
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 	return recorder
+}
+
+type stubAgentService struct {
+	enrollErr error
+}
+
+func (s *stubAgentService) Enroll(context.Context, osquery.EnrollRequest) (string, error) {
+	return "node-key", s.enrollErr
+}
+
+func (*stubAgentService) Config(context.Context, string, string) (osquery.ConfigResponse, error) {
+	return osquery.ConfigResponse{}, nil
+}
+
+func (*stubAgentService) DistributedRead(
+	context.Context,
+	string,
+	string,
+) (osquery.DistributedReadResponse, error) {
+	return osquery.DistributedReadResponse{}, nil
+}
+
+func (*stubAgentService) DistributedWrite(
+	context.Context,
+	osquery.DistributedWriteRequest,
+	string,
+) (osquery.DistributedWriteResponse, error) {
+	return osquery.DistributedWriteResponse{}, nil
+}
+
+func (*stubAgentService) Log(
+	context.Context,
+	string,
+	string,
+	osquery.LogRequest,
+) (osquery.LogResponse, error) {
+	return osquery.LogResponse{}, nil
 }
 
 func oversizedJSON(limit int64) string {

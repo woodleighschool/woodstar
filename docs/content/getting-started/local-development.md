@@ -35,13 +35,15 @@ The CA certificate is `tmp/tls/ca/rootCA.pem`. Its private key stays under the i
 
 ## Start Postgres
 
-The checked-in compose file provides only local PostgreSQL:
+The checked-in Compose stack owns the persistent local PostgreSQL service used by development, local server runs, PostgreSQL component tests, and E2E tests:
 
 ```bash
 docker compose up -d postgres
 ```
 
-Woodstar uses file storage by default. The storage integration test starts an ephemeral Garage container when it exercises the S3 backend; it is not part of the development stack.
+Tests create and drop isolated databases inside that server. No test task starts Compose behind the scenes. Set `WOODSTAR_TEST_DATABASE_URL` to use another PostgreSQL server.
+
+Woodstar uses file storage by default. The S3 integration task starts an ephemeral Garage container because Garage is a test-only provider fixture, not a persistent development dependency.
 
 Create a local administrator after Postgres is available. This also runs pending database migrations:
 

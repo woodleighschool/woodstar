@@ -154,6 +154,9 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 		"reference without software": func(m *PackageMutation) {
 			m.Requires = []PackageReferenceMutation{{SoftwareID: 0}}
 		},
+		"reference with negative package": func(m *PackageMutation) {
+			m.Requires = []PackageReferenceMutation{{SoftwareID: 1, PackageID: -1}}
+		},
 		"none uninstall sentinel": func(m *PackageMutation) { m.UninstallMethod = "none" },
 		"none restart sentinel":   func(m *PackageMutation) { m.RestartAction = "None" },
 	}
@@ -166,5 +169,20 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 				t.Fatalf("Validate() = %v, want ErrInvalidInput", err)
 			}
 		})
+	}
+}
+
+func TestPackageCreateMutationRejectsInvalidSoftwareID(t *testing.T) {
+	t.Parallel()
+
+	m := PackageCreateMutation{
+		SoftwareID: -1,
+		PackageMutation: PackageMutation{
+			Version:       "1.0",
+			InstallerType: InstallerTypeNoPkg,
+		},
+	}
+	if err := m.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
 	}
 }

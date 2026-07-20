@@ -1,3 +1,5 @@
+//go:build e2e
+
 package e2e
 
 import (
@@ -28,8 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
+	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
@@ -104,7 +105,7 @@ func startTestServer(t *testing.T) *testServer {
 
 	binaryPath := testBinary(t)
 	root := t.TempDir()
-	databaseURL := createTestDatabase(t, baseDatabaseURL)
+	databaseURL := testdb.Create(t, baseDatabaseURL)
 	tlsMaterial := createTestTLS(t, root)
 	storageRoot := filepath.Join(root, "storage")
 	if err := os.Mkdir(storageRoot, 0o700); err != nil {
@@ -246,63 +247,6 @@ func findRepositoryRoot() (string, error) {
 	return repositoryRoot, nil
 }
 
-func createTestDatabase(t *testing.T, baseURL string) string {
-	t.Helper()
-
-	databaseName := "woodstar_integration_" + randomHex(t, 8)
-	adminURL, databaseURL, err := databaseURLs(baseURL, databaseName)
-	if err != nil {
-		t.Fatalf("parse %s: %v", testDatabaseEnvironment, err)
-	}
-	ctx, cancel := context.WithTimeout(t.Context(), databaseOperationTimeout)
-	defer cancel()
-	admin, err := pgx.Connect(ctx, adminURL)
-	if err != nil {
-		t.Fatalf("connect to PostgreSQL test server: %v", err)
-	}
-	defer func() { _ = admin.Close(ctx) }()
-
-	identifier := pgx.Identifier{databaseName}.Sanitize()
-	t.Cleanup(func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
-		defer cleanupCancel()
-		cleanupAdmin, cleanupErr := pgx.Connect(cleanupCtx, adminURL)
-		if cleanupErr != nil {
-			t.Errorf("connect to drop test database %s: %v", databaseName, cleanupErr)
-			return
-		}
-		defer func() { _ = cleanupAdmin.Close(cleanupCtx) }()
-		if _, cleanupErr = cleanupAdmin.Exec(
-			cleanupCtx,
-			"DROP DATABASE IF EXISTS "+identifier+" WITH (FORCE)",
-		); cleanupErr != nil {
-			t.Errorf("drop test database %s: %v", databaseName, cleanupErr)
-		}
-	})
-
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+identifier); err != nil {
-		t.Fatalf("create test database %s: %v", databaseName, err)
-	}
-	return databaseURL
-}
-
-func databaseURLs(baseURL string, databaseName string) (string, string, error) {
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		return "", "", err
-	}
-	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
-		return "", "", fmt.Errorf("unsupported PostgreSQL URL scheme %q", parsed.Scheme)
-	}
-	admin := *parsed
-	admin.Path = "/postgres"
-	admin.RawPath = ""
-	target := *parsed
-	target.Path = "/" + databaseName
-	target.RawPath = ""
-	return admin.String(), target.String(), nil
-}
-
 func createTestTLS(t *testing.T, root string) testTLS {
 	t.Helper()
 
@@ -358,7 +302,7 @@ func createTestTLS(t *testing.T, root string) testTLS {
 	caPath := filepath.Join(root, "ca.pem")
 	certificatePath := filepath.Join(root, "server.pem")
 	privateKeyPath := filepath.Join(root, "server-key.pem")
-	// The CA is public and must be readable by a later bind-mounted Orbit container.
+	// The CA is public and copied into the osqueryd test container.
 	if err := os.WriteFile(caPath, caPEM, 0o644); err != nil {
 		t.Fatalf("write test CA certificate: %v", err)
 	}

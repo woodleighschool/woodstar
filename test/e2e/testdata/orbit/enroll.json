@@ -1,0 +1,11 @@
+{
+  "enroll_secret": "$ENROLL_SECRET",
+  "hardware_uuid": "$HARDWARE_UUID",
+  "hardware_serial": "ORBIT-FIXTURE-001",
+  "hostname": "orbit-fixture.woodstar.test",
+  "computer_name": "Orbit Fixture Mac",
+  "hardware_model": "Mac15,8",
+  "platform": "darwin",
+  "platform_like": "darwin",
+  "osquery_identifier": "orbit-fixture-osquery"
+}

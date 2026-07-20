@@ -183,19 +183,12 @@ func (s *Store) SetDynamicMemberships(
 	if len(memberships) == 0 {
 		return 0, nil
 	}
-	labelIDs := make([]int64, len(memberships))
-	matches := make([]bool, len(memberships))
-	seen := make(map[int64]struct{}, len(memberships))
-	for i, membership := range memberships {
-		if _, ok := seen[membership.LabelID]; ok {
-			return 0, fmt.Errorf("%w: duplicate dynamic label result %d", dbutil.ErrInvalidInput, membership.LabelID)
-		}
-		seen[membership.LabelID] = struct{}{}
-		labelIDs[i] = membership.LabelID
-		matches[i] = membership.Matched
+	labelIDs, matches, err := dynamicMembershipValues(memberships)
+	if err != nil {
+		return 0, err
 	}
 	var handled int
-	err := s.db.Pool().QueryRow(ctx, `
+	err = s.db.Pool().QueryRow(ctx, `
 WITH applicable AS (
     SELECT result.label_id, result.matched
     FROM unnest($2::bigint[], $3::boolean[]) AS result(label_id, matched)
@@ -218,6 +211,25 @@ deleted AS (
 )
 SELECT count(*)::integer FROM applicable`, hostID, labelIDs, matches).Scan(&handled)
 	return handled, err
+}
+
+func dynamicMembershipValues(memberships []DynamicMembership) ([]int64, []bool, error) {
+	labelIDs := make([]int64, len(memberships))
+	matches := make([]bool, len(memberships))
+	seen := make(map[int64]struct{}, len(memberships))
+	for i, membership := range memberships {
+		if _, ok := seen[membership.LabelID]; ok {
+			return nil, nil, fmt.Errorf(
+				"%w: duplicate dynamic label result %d",
+				dbutil.ErrInvalidInput,
+				membership.LabelID,
+			)
+		}
+		seen[membership.LabelID] = struct{}{}
+		labelIDs[i] = membership.LabelID
+		matches[i] = membership.Matched
+	}
+	return labelIDs, matches, nil
 }
 
 func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {

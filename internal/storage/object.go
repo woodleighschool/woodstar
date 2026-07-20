@@ -129,8 +129,8 @@ func (s *ObjectStore) MarkAvailable(
 	if err != nil {
 		return nil, err
 	}
-	if sizeBytes < 0 || sha256sum == "" {
-		return nil, fmt.Errorf("%w: incomplete storage object metadata", dbutil.ErrInvalidInput)
+	if err := validateAvailableObjectMetadata(sizeBytes, sha256sum); err != nil {
+		return nil, err
 	}
 	const sql = `UPDATE storage_objects
 SET size_bytes = @size_bytes,
@@ -175,12 +175,13 @@ func (s *ObjectStore) RecordMultipartUploadID(
 	id int64,
 	uploadID string,
 ) (string, bool, error) {
-	uploadID = strings.TrimSpace(uploadID)
-	if uploadID == "" {
-		return "", false, fmt.Errorf("%w: multipart upload ID is blank", dbutil.ErrInvalidInput)
+	var err error
+	uploadID, err = normalizeMultipartUploadID(uploadID)
+	if err != nil {
+		return "", false, err
 	}
 	var recorded string
-	err := s.db.Pool().QueryRow(ctx, `
+	err = s.db.Pool().QueryRow(ctx, `
 UPDATE storage_objects
 SET multipart_upload_id = $2,
     updated_at = now()
@@ -353,6 +354,21 @@ func normalizeContentType(value string) (string, error) {
 		return "", fmt.Errorf("%w: invalid content type", dbutil.ErrInvalidInput)
 	}
 	return value, nil
+}
+
+func normalizeMultipartUploadID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("%w: multipart upload ID is blank", dbutil.ErrInvalidInput)
+	}
+	return value, nil
+}
+
+func validateAvailableObjectMetadata(sizeBytes int64, sha256sum string) error {
+	if sizeBytes < 0 || strings.TrimSpace(sha256sum) == "" {
+		return fmt.Errorf("%w: incomplete storage object metadata", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 // prefixPattern constrains a storage prefix to the lowercase slash-separated

@@ -1,0 +1,12 @@
+{
+  "serial_num": "SANTA-INTEGRATION-001",
+  "santa_version": "2026.7",
+  "primary_user": "alice@santa.integration.test",
+  "primary_user_groups": ["students", "santa-integration"],
+  "client_mode": "MONITOR",
+  "request_clean_sync": false,
+  "binary_rule_count": 1,
+  "machine_id": "11111111-2222-4333-8444-555555555555",
+  "sipStatus": 1,
+  "rulesHash": "11111111111111111111111111111111"
+}

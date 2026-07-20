@@ -2,6 +2,7 @@
 package protocol
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -24,12 +25,20 @@ const (
 
 // Server owns osquery TLS-plugin routes.
 type Server struct {
-	service *osquery.AgentService
+	service agentService
 	logger  *slog.Logger
 }
 
+type agentService interface {
+	Enroll(context.Context, osquery.EnrollRequest) (string, error)
+	Config(context.Context, string, string) (osquery.ConfigResponse, error)
+	DistributedRead(context.Context, string, string) (osquery.DistributedReadResponse, error)
+	DistributedWrite(context.Context, osquery.DistributedWriteRequest, string) (osquery.DistributedWriteResponse, error)
+	Log(context.Context, string, string, osquery.LogRequest) (osquery.LogResponse, error)
+}
+
 // NewServer returns an osquery protocol server.
-func NewServer(service *osquery.AgentService, logger *slog.Logger) *Server {
+func NewServer(service agentService, logger *slog.Logger) *Server {
 	return &Server{service: service, logger: logger}
 }
 
@@ -42,7 +51,7 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Post(osqueryPath+"/log", osqueryLogHandler(s.service, s.logger))
 }
 
-func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
+func osqueryEnrollHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[osquery.EnrollRequest](w, r, osqueryRequestMaxBytes)
 		if err != nil {
@@ -77,7 +86,7 @@ func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 	}
 }
 
-func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
+func osqueryConfigHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[osquery.ConfigRequest](w, r, osqueryRequestMaxBytes)
 		if err != nil {
@@ -89,7 +98,7 @@ func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 	}
 }
 
-func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
+func osqueryDistributedReadHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[osquery.DistributedReadRequest](w, r, osqueryRequestMaxBytes)
 		if err != nil {
@@ -101,7 +110,7 @@ func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logge
 	}
 }
 
-func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
+func osqueryDistributedWriteHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[osquery.DistributedWriteRequest](w, r, osqueryDistributedWriteMaxBytes)
 		if err != nil {
@@ -113,7 +122,7 @@ func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logg
 	}
 }
 
-func osqueryLogHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
+func osqueryLogHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpx.Decode[osquery.LogRequest](w, r, osqueryLogMaxBytes)
 		if err != nil {

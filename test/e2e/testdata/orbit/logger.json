@@ -1,0 +1,12 @@
+{
+  "node_key": "$OSQUERY_NODE_KEY",
+  "log_type": "status",
+  "data": [
+    {
+      "severity": 0,
+      "filename": "init.cpp",
+      "line": 1,
+      "message": "orbit fixture osquery initialized"
+    }
+  ]
+}

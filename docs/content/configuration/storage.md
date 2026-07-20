@@ -65,6 +65,6 @@ Each request uses the shared Munki bearer secret. Woodstar resolves the stable r
 
 ## Backend integration test
 
-`mise run test-integration-storage` runs the shared storage contract against the file backend and an S3 backend. The S3 case starts an ephemeral [Garage](https://garagehq.deuxfleurs.fr/) container with testcontainers; Garage is a small standards-compliant S3 server for the test, not a persistent development dependency.
+The dependency-free Go suite runs the shared storage contract against the file backend. `mise run test-integration-storage` runs the same contract against S3 and starts an ephemeral [Garage](https://garagehq.deuxfleurs.fr/) container with testcontainers. Garage is a small standards-compliant S3 server for the provider test, not a persistent development dependency.
 
 A real deployment supplies its own S3-compatible bucket, credentials, and endpoints. The full provider-agnostic settings are in [Environment](./environment#storage).

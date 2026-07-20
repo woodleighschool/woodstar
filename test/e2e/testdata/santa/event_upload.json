@@ -1,0 +1,21 @@
+{
+  "machine_id": "11111111-2222-4333-8444-555555555555",
+  "events": [
+    {
+      "file_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "file_path": "/Applications/Woodstar Santa Test.app/Contents/MacOS/Woodstar Santa Test",
+      "file_name": "Woodstar Santa Test",
+      "executing_user": "alice",
+      "execution_time": 1784196000,
+      "decision": "BLOCK_BINARY",
+      "static_rule": true,
+      "pid": 4242,
+      "ppid": 1,
+      "parent_name": "launchd",
+      "signing_id": "ABCDE12345:au.edu.woodleigh.woodstar.santa-test",
+      "team_id": "ABCDE12345",
+      "cdhash": "cccccccccccccccccccccccccccccccccccccccc",
+      "signingStatus": "SIGNING_STATUS_PRODUCTION"
+    }
+  ]
+}

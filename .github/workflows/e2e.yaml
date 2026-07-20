@@ -34,6 +34,7 @@ jobs:
           - osquery
           - santa
           - mdp
+          - orbit
     services:
       postgres:
         image: postgres:18

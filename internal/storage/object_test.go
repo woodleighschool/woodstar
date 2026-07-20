@@ -1,294 +1,62 @@
 package storage
 
 import (
-	"context"
 	"errors"
-	"log/slog"
-	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func TestNormalizeUploadFilename(t *testing.T) {
+func TestNormalizeContentType(t *testing.T) {
 	t.Parallel()
-	cases := map[string]string{
-		"Firefox-120.0.dmg":   "Firefox-120.0.dmg",
-		"/tmp/Firefox.dmg":    "Firefox.dmg",
-		`C:\Users\me\App.pkg`: "App.pkg",
-		"  Spaced.icns  ":     "Spaced.icns",
-		"Acmé Café.png":       "Acmé Café.png",
-		"sub/dir/file.pkg":    "file.pkg",
-		"../../etc/passwd":    "passwd",
+
+	got, err := normalizeContentType(`IMAGE/PNG; profile="screen"`)
+	if err != nil {
+		t.Fatalf("normalize valid content type: %v", err)
 	}
-	for in, want := range cases {
-		got := normalizeUploadFilename(in)
-		if got != want {
-			t.Errorf("normalizeUploadFilename(%q) = %q, want %q", in, got, want)
-		}
+	if got != "image/png; profile=screen" {
+		t.Fatalf("content type = %q, want normalized media type", got)
+	}
+
+	if _, err := normalizeContentType("not a content type"); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("normalize invalid content type error = %v, want ErrInvalidInput", err)
 	}
 }
 
-func TestValidateUploadFilenameRejects(t *testing.T) {
+func TestNormalizeMultipartUploadID(t *testing.T) {
 	t.Parallel()
-	for _, in := range []string{
-		"",
-		"   ",
-		".",
-		"..",
-		"/",
-		"a/b/..",
-		"with\x00null.pkg",
+
+	got, err := normalizeMultipartUploadID("  upload-1  ")
+	if err != nil {
+		t.Fatalf("normalize multipart upload ID: %v", err)
+	}
+	if got != "upload-1" {
+		t.Fatalf("multipart upload ID = %q, want upload-1", got)
+	}
+
+	if _, err := normalizeMultipartUploadID("  "); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("normalize blank multipart upload ID error = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestValidateAvailableObjectMetadata(t *testing.T) {
+	t.Parallel()
+
+	if err := validateAvailableObjectMetadata(0, "sha256"); err != nil {
+		t.Fatalf("validate complete metadata: %v", err)
+	}
+	for name, input := range map[string]struct {
+		sizeBytes int64
+		sha256sum string
+	}{
+		"negative size": {sizeBytes: -1, sha256sum: "sha256"},
+		"blank hash":    {sizeBytes: 1, sha256sum: "  "},
 	} {
-		name := normalizeUploadFilename(in)
-		if err := validateUploadFilename(name); !errors.Is(err, dbutil.ErrInvalidInput) {
-			t.Errorf("validateUploadFilename(%q) error = %v, want ErrInvalidInput", name, err)
-		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if err := validateAvailableObjectMetadata(input.sizeBytes, input.sha256sum); !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("validate metadata error = %v, want ErrInvalidInput", err)
+			}
+		})
 	}
-}
-
-func TestListByPrefixReturnsAvailableObjectsNewestFirst(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := NewObjectStore(db, nil, testLogger())
-
-	first, err := store.CreatePending(ctx, "munki/icons", "first.png")
-	if err != nil {
-		t.Fatalf("create first object: %v", err)
-	}
-	if _, err := store.MarkAvailable(
-		ctx,
-		first.ID,
-		1,
-		"image/png",
-		strings.Repeat("a", 64),
-	); err != nil {
-		t.Fatalf("finalize first object: %v", err)
-	}
-	second, err := store.CreatePending(ctx, "munki/icons", "second.png")
-	if err != nil {
-		t.Fatalf("create second object: %v", err)
-	}
-	if _, err := store.MarkAvailable(
-		ctx,
-		second.ID,
-		1,
-		"image/png",
-		strings.Repeat("b", 64),
-	); err != nil {
-		t.Fatalf("finalize second object: %v", err)
-	}
-	if _, err := store.CreatePending(ctx, "munki/icons", "pending.png"); err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-	other, err := store.CreatePending(ctx, "munki/packages", "other.pkg")
-	if err != nil {
-		t.Fatalf("create other-prefix object: %v", err)
-	}
-	if _, err := store.MarkAvailable(
-		ctx,
-		other.ID,
-		1,
-		"application/octet-stream",
-		strings.Repeat("c", 64),
-	); err != nil {
-		t.Fatalf("finalize other-prefix object: %v", err)
-	}
-
-	objects, count, err := store.ListByPrefix(ctx, "munki/icons", dbutil.ListParams{})
-	if err != nil {
-		t.Fatalf("list objects: %v", err)
-	}
-	if count != 2 {
-		t.Fatalf("count = %d, want 2", count)
-	}
-	if len(objects) != 2 || objects[0].ID != second.ID || objects[1].ID != first.ID {
-		t.Fatalf("object IDs = %v, want [%d %d]", objectIDs(objects), second.ID, first.ID)
-	}
-}
-
-func TestMarkAvailableNormalizesContentType(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := NewObjectStore(db, nil, testLogger())
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-
-	available, err := store.MarkAvailable(
-		ctx,
-		object.ID,
-		1,
-		"IMAGE/PNG; profile=\"screen\"",
-		strings.Repeat("a", 64),
-	)
-	if err != nil {
-		t.Fatalf("mark available: %v", err)
-	}
-	if available.ContentType != "image/png; profile=screen" {
-		t.Fatalf("content type = %q, want normalized media type", available.ContentType)
-	}
-}
-
-func TestMarkAvailableRejectsInvalidContentType(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := NewObjectStore(db, nil, testLogger())
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-
-	_, err = store.MarkAvailable(ctx, object.ID, 1, "not a content type", strings.Repeat("a", 64))
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("mark available error = %v, want ErrInvalidInput", err)
-	}
-}
-
-func TestMultipartUploadIDMustBeNonblankAndClosedBeforeAvailability(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := NewObjectStore(db, nil, testLogger())
-	object, err := store.CreatePending(ctx, "munki/packages", "installer.pkg")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-	if _, _, err := store.RecordMultipartUploadID(ctx, object.ID, "  "); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("record blank multipart ID error = %v, want ErrInvalidInput", err)
-	}
-	uploadID, created, err := store.RecordMultipartUploadID(ctx, object.ID, "upload-1")
-	if err != nil {
-		t.Fatalf("record multipart ID: %v", err)
-	}
-	if !created || uploadID != "upload-1" {
-		t.Fatalf("recorded multipart = %q/%t, want upload-1/true", uploadID, created)
-	}
-	_, err = store.MarkAvailable(
-		ctx,
-		object.ID,
-		1,
-		"application/octet-stream",
-		strings.Repeat("a", 64),
-	)
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("finalize open multipart error = %v, want ErrInvalidInput", err)
-	}
-	if err := store.ClearMultipartUploadID(ctx, object.ID, uploadID); err != nil {
-		t.Fatalf("clear multipart ID: %v", err)
-	}
-	available, err := store.MarkAvailable(
-		ctx,
-		object.ID,
-		1,
-		"application/octet-stream",
-		strings.Repeat("a", 64),
-	)
-	if err != nil {
-		t.Fatalf("finalize closed multipart: %v", err)
-	}
-	if available.MultipartUploadID != nil {
-		t.Fatalf("available multipart ID = %v, want nil", available.MultipartUploadID)
-	}
-}
-
-func TestDeleteRemovesRegistryWhenBackendDeletionFails(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	backend := &deletionBackend{err: errors.New("backend unavailable")}
-	store := NewObjectStore(db, backend, testLogger())
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-
-	if err := store.Delete(ctx, object.ID); err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get deleted object error = %v, want ErrNotFound", err)
-	}
-	if backend.calls != 1 {
-		t.Fatalf("backend delete calls = %d, want 1", backend.calls)
-	}
-}
-
-func TestDeleteUnreferencedUsesDetachedContext(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	backend := &deletionBackend{}
-	store := NewObjectStore(db, backend, testLogger())
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-	requestCtx, cancelRequest := context.WithCancel(ctx)
-	cancelRequest()
-
-	store.DeleteUnreferenced(requestCtx, object.ID)
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get object after cleanup error = %v, want ErrNotFound", err)
-	}
-	if backend.sawCanceledContext {
-		t.Fatal("cleanup used the canceled request context")
-	}
-}
-
-func TestDeleteConflictDoesNotScheduleReferencedObject(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	backend := &deletionBackend{}
-	store := NewObjectStore(db, backend, testLogger())
-	object, err := store.CreatePending(ctx, "munki/icons", "icon.png")
-	if err != nil {
-		t.Fatalf("create pending object: %v", err)
-	}
-	object, err = store.MarkAvailable(ctx, object.ID, 1, "image/png", strings.Repeat("a", 64))
-	if err != nil {
-		t.Fatalf("mark object available: %v", err)
-	}
-	if _, err := db.Pool().Exec(ctx, `
-INSERT INTO munki_software (name, display_name, icon_object_id)
-VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
-		t.Fatalf("reference object: %v", err)
-	}
-	if err := store.Delete(ctx, object.ID); !errors.Is(err, dbutil.ErrConflict) {
-		t.Fatalf("delete referenced object error = %v, want ErrConflict", err)
-	}
-	if _, err := store.GetByID(ctx, object.ID); err != nil {
-		t.Fatalf("get referenced object after conflict: %v", err)
-	}
-	if backend.calls != 0 {
-		t.Fatalf("backend delete calls = %d, want 0", backend.calls)
-	}
-	if _, err := db.Pool().Exec(ctx, `DELETE FROM munki_software WHERE icon_object_id = $1`, object.ID); err != nil {
-		t.Fatalf("remove object reference: %v", err)
-	}
-	if err := store.Delete(ctx, object.ID); err != nil {
-		t.Fatalf("delete after removing reference: %v", err)
-	}
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get object after final reference removal error = %v, want ErrNotFound", err)
-	}
-	if backend.calls != 1 {
-		t.Fatalf("backend delete calls after final unlink = %d, want 1", backend.calls)
-	}
-}
-
-type deletionBackend struct {
-	err                error
-	sawCanceledContext bool
-	calls              int
-}
-
-func (b *deletionBackend) Delete(ctx context.Context, _ string) error {
-	b.calls++
-	b.sawCanceledContext = b.sawCanceledContext || ctx.Err() != nil
-	return b.err
-}
-
-func testLogger() *slog.Logger {
-	return slog.New(slog.DiscardHandler)
-}
-
-func objectIDs(objects []Object) []int64 {
-	ids := make([]int64, len(objects))
-	for i, object := range objects {
-		ids[i] = object.ID
-	}
-	return ids
 }

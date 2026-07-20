@@ -17,7 +17,7 @@ mise run deps
 docker compose up -d postgres
 ```
 
-`mise run deps` downloads Go modules and installs frontend dependencies in `web/`. Compose provides only the local PostgreSQL service; Woodstar runs through mise, and integration tests create their own ephemeral dependencies.
+`mise run deps` downloads Go modules and installs frontend dependencies in `web/`. Compose provides the PostgreSQL service shared by local development and dependency-bearing tests. Woodstar runs through mise; S3 integration starts its own ephemeral Garage dependency.
 
 ## Build
 
@@ -45,20 +45,27 @@ mise //web:dev
 
 ```bash
 mise run test
-mise run test-integration-munki
-mise run test-integration-osquery
-mise run test-integration-santa
+mise run test-postgres
 mise run test-integration-storage
-mise run test-integration-mdp
 mise run test-integration
-mise run test-openapi
+mise run test-e2e-munki
+mise run test-e2e-osquery
+mise run test-e2e-santa
+mise run test-e2e-mdp
+mise run test-e2e-orbit
+mise run test-e2e
+mise run test-all
 ```
 
-`mise run test` is the focused Go suite. It uses a real PostgreSQL database with race detection and fresh test results. Most integration tasks run compiled-server lifecycles; the storage task runs backend conformance directly. `mise run test-integration` runs every suite under `tests/`. Every test task supplies the default local PostgreSQL URL when `WOODSTAR_TEST_DATABASE_URL` is unset.
+`mise run test` runs `go vet ./...` and the dependency-free Go suite with race detection. It needs neither PostgreSQL nor Docker. Pure validation, mapping, protocol error handling, local file storage, and service behavior with Woodstar-owned fakes belong here.
 
-Munki, Santa, MDP, and the deterministic osquery protocol lifecycle fail when their prerequisites or assertions fail. The osquery task also starts an official osquery container. The storage task runs the same contract against local files and S3, using an ephemeral Garage testcontainer as the S3 server. The real osqueryd lifecycle and Garage-backed storage checks may skip locally only when Docker is absent; CI requires Docker for both. Garage is test infrastructure, not a persistent Compose service.
+`mise run test-postgres` selects `//go:build postgres` component tests under `internal/`. Each test creates, migrates, and drops an isolated database on `WOODSTAR_TEST_DATABASE_URL`. The task defaults that URL to the checked-in Compose PostgreSQL service, but it never starts Compose itself.
 
-The frontend has no test runner. Its verification is `mise //web:lint`, `mise //web:typecheck`, `mise run test-openapi`, and `mise //web:build`.
+`mise run test-integration-storage` selects `//go:build integration` and runs the S3 contract against an ephemeral Garage testcontainer. The dependency-free file implementation runs in the normal suite. `mise run test-integration` is the aggregate provider lane.
+
+The E2E tasks select `//go:build e2e`, compile a real Woodstar server, and exercise application lifecycles. The Orbit lane replays representative Orbit and osquery requests from checked-in protocol fixtures. Santa uses the same fixture approach for its protobuf requests while retaining the stateful clean-sync, rule-download, event-upload, checkpoint, and normal-sync exchange. Tagged dependency lanes fail when PostgreSQL or Docker is unavailable; they never turn a requested test into a skip. `mise run test-all` runs every lane.
+
+The frontend has no test runner. Its verification is `mise run //web:lint`, `mise run //web:typecheck`, generated OpenAPI clients, and `mise run //web:build`.
 
 ## Lint And Format
 
@@ -81,12 +88,13 @@ mise run openapi-types
 mise run generate
 ```
 
-`generate` runs OpenAPI and frontend client generation.
+`generate` regenerates the OpenAPI schema, frontend client, and Go E2E client.
 
-## Local Gate
+## Complete Test Gate
 
 ```bash
-mise run precommit
+docker compose up -d postgres
+mise run test-all
 ```
 
-The precommit task runs format, lint, tidy, build, the focused PostgreSQL-backed suite, all compiled integrations, and OpenAPI freshness in that order.
+The aggregate test gate is intentionally explicit about its dependencies. Use `mise run fmt-check`, `mise run tidy-check`, `mise run lint`, and `mise run build` as separate repository checks.

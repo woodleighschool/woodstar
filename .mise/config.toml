@@ -76,54 +76,74 @@ description = "Check the Go module is tidy"
 run = "go mod tidy -diff"
 
 [tasks.test]
-description = "Run the focused PostgreSQL-backed Go suite"
+description = "Run dependency-free Go checks"
+run = ["go vet ./...", "go test -race -count=1 ./..."]
+
+[tasks.test-postgres]
+description = "Run PostgreSQL component tests"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 ./cmd/... ./internal/...
+  go test -race -count=1 -tags=postgres ./internal/...
 """
 
 [tasks.test-e2e-munki]
 description = "Run the Munki end-to-end lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestMunki$' ./test/e2e
+  go test -race -count=1 -tags=e2e -v -run '^TestMunki$' ./test/e2e
 """
 
 [tasks.test-e2e-osquery]
 description = "Run the osquery end-to-end lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestOsquery(d)?$' ./test/e2e
+  go test -race -count=1 -tags=e2e -v -run '^TestOsquery(d)?$' ./test/e2e
 """
 
 [tasks.test-e2e-santa]
 description = "Run the Santa end-to-end protobuf lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestSanta$' ./test/e2e
+  go test -race -count=1 -tags=e2e -v -run '^TestSanta$' ./test/e2e
 """
 
 [tasks.test-integration-storage]
-description = "Run file and Garage-backed S3 backend conformance"
-run = "go test -race -count=1 -v -run '^TestStorageBackends$' ./test/integration/storage"
+description = "Run Garage-backed S3 backend conformance"
+run = "go test -race -count=1 -tags=integration -v -run '^TestS3StorageBackend$' ./test/integration/storage"
 
 [tasks.test-e2e-mdp]
 description = "Run the MDP end-to-end mirroring lifecycle"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v -run '^TestMDP$' ./test/e2e
+  go test -race -count=1 -tags=e2e -v -run '^TestMDP$' ./test/e2e
+"""
+
+[tasks.test-e2e-orbit]
+description = "Run the Orbit protocol fixture lifecycle"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go test -race -count=1 -tags=e2e -v -run '^TestOrbit$' ./test/e2e
 """
 
 [tasks.test-e2e]
 description = "Run all end-to-end lifecycles"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -v ./test/e2e
+  go test -race -count=1 -tags=e2e -v ./test/e2e
 """
 
 [tasks.test-integration]
 description = "Run integration suites"
-run = "go test -race -count=1 -v ./test/integration/..."
+run = [{ task = "test-integration-storage" }]
+
+[tasks.test-all]
+description = "Run dependency-free, PostgreSQL, integration, and end-to-end tests"
+run = [
+  { task = "test" },
+  { task = "test-postgres" },
+  { task = "test-integration" },
+  { task = "test-e2e" },
+]
 
 [tasks.openapi]
 description = "Generate OpenAPI schema"

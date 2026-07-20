@@ -1,3 +1,5 @@
+//go:build e2e
+
 package e2e
 
 import (
@@ -27,7 +29,6 @@ const (
 )
 
 func TestOsqueryd(t *testing.T) {
-	requireOsquerydProvider(t)
 	server := startTestServer(t)
 
 	provisionAdmin(
@@ -97,14 +98,6 @@ func TestOsqueryd(t *testing.T) {
 	})
 
 	waitForOsquerydHost(t, server, container)
-}
-
-func requireOsquerydProvider(t *testing.T) {
-	t.Helper()
-
-	if os.Getenv("CI") == "" {
-		testcontainers.SkipIfProviderIsNotHealthy(t)
-	}
 }
 
 func osquerydFlags() string {

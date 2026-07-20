@@ -1,0 +1,46 @@
+{
+  "node_key": "$OSQUERY_NODE_KEY",
+  "queries": {
+    "$QUERY_SYSTEM_INFO": [
+      {
+        "uuid": "8D7A0410-6313-4EBD-A563-20EF6F2FD32C",
+        "hostname": "orbit-fixture.woodstar.test",
+        "computer_name": "Orbit Fixture Mac",
+        "hardware_serial": "ORBIT-FIXTURE-001",
+        "hardware_model": "Mac15,8",
+        "hardware_vendor": "Apple Inc.",
+        "cpu_type": "arm64",
+        "cpu_subtype": "arm64e",
+        "cpu_brand": "Apple M4",
+        "cpu_logical_cores": "10",
+        "cpu_physical_cores": "10",
+        "physical_memory": "68719476736"
+      }
+    ],
+    "$QUERY_OS_VERSION": [
+      {
+        "name": "macOS",
+        "version": "26.5",
+        "build": "25F5068a",
+        "platform": "darwin"
+      }
+    ],
+    "$QUERY_OSQUERY_INFO": [
+      {
+        "version": "5.23.1"
+      }
+    ],
+    "$QUERY_ORBIT_INFO": [
+      {
+        "version": "1.57.0"
+      }
+    ]
+  },
+  "statuses": {
+    "$QUERY_SYSTEM_INFO": 0,
+    "$QUERY_OS_VERSION": 0,
+    "$QUERY_OSQUERY_INFO": 0,
+    "$QUERY_ORBIT_INFO": 0
+  },
+  "messages": {}
+}

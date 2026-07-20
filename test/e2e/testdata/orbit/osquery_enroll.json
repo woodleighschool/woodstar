@@ -1,0 +1,32 @@
+{
+  "enroll_secret": "$ENROLL_SECRET",
+  "host_identifier": "orbit-fixture-osquery",
+  "host_details": {
+    "system_info": {
+      "uuid": "$HARDWARE_UUID",
+      "hostname": "orbit-fixture.woodstar.test",
+      "computer_name": "Orbit Fixture Mac",
+      "hardware_serial": "ORBIT-FIXTURE-001",
+      "hardware_model": "Mac15,8",
+      "hardware_vendor": "Apple Inc.",
+      "cpu_type": "arm64",
+      "cpu_subtype": "arm64e",
+      "cpu_brand": "Apple M4",
+      "cpu_logical_cores": "10",
+      "cpu_physical_cores": "10",
+      "physical_memory": "68719476736"
+    },
+    "osquery_info": {
+      "version": "5.23.1"
+    },
+    "os_version": {
+      "name": "macOS",
+      "version": "26.5",
+      "build": "25F5068a",
+      "platform": "darwin"
+    },
+    "platform_info": {
+      "extra": "Darwin Kernel Version 25.5.0"
+    }
+  }
+}

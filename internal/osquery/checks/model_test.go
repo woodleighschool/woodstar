@@ -91,3 +91,17 @@ func TestCheckMutationValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestPassesForCheckStatus(t *testing.T) {
+	t.Parallel()
+
+	if passes, err := passesForCheckStatus(CheckStatusPass); err != nil || !passes {
+		t.Fatalf("pass = %t, error = %v; want true, nil", passes, err)
+	}
+	if passes, err := passesForCheckStatus(CheckStatusFail); err != nil || passes {
+		t.Fatalf("fail = %t, error = %v; want false, nil", passes, err)
+	}
+	if _, err := passesForCheckStatus(CheckStatus("unknown")); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
+	}
+}

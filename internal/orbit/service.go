@@ -85,6 +85,13 @@ func (s *EnrollmentService) SetPrimaryUser(ctx context.Context, nodeKey, email s
 
 // SetDeviceAuthToken rotates the per-host token issued and retained by Orbit.
 func (s *EnrollmentService) SetDeviceAuthToken(ctx context.Context, nodeKey, token string) error {
+	if err := validateDeviceAuthToken(token); err != nil {
+		return err
+	}
+	return s.hostStore.SetOrbitDeviceAuthToken(ctx, nodeKey, token)
+}
+
+func validateDeviceAuthToken(token string) error {
 	compact := strings.ReplaceAll(token, "-", "")
 	_, err := hex.DecodeString(compact)
 	if err != nil || len(token) != 36 || len(compact) != 32 ||
@@ -92,7 +99,7 @@ func (s *EnrollmentService) SetDeviceAuthToken(ctx context.Context, nodeKey, tok
 		token != strings.ToLower(token) {
 		return ErrInvalidDeviceAuthToken
 	}
-	return s.hostStore.SetOrbitDeviceAuthToken(ctx, nodeKey, token)
+	return nil
 }
 
 // ValidateDeviceAuthToken checks whether an Orbit machine token is active.

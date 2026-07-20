@@ -12,6 +12,12 @@
 
 version: "2"
 
+run:
+  build-tags:
+    - postgres
+    - integration
+    - e2e
+
 issues:
   # Maximum count of issues with the same text.
   # Set to 0 to disable.
@@ -453,14 +459,14 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: "// ?(nolint|TODO)"
         linters: [revive, staticcheck]
-      - path: '(_test\.go|internal/database/dbtest/)'
+      - path: '(_test\.go|internal/testutil/testdb/)'
         text: "context-as-argument"
         linters: [revive]
       - path: 'types_db\.go'
         linters: [recvcheck]
       - path: "^test/e2e/"
         linters: [gocognit, gocyclo]
-      - path: 'internal/labels/store_test\.go'
+      - path: 'internal/labels/store_postgres_test\.go'
         linters: [unqueryvet]
       - path: 'internal/osquery/catalog/queries_test\.go'
         linters: [unqueryvet]

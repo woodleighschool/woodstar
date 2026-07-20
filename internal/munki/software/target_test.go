@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
@@ -102,6 +103,37 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatalf("validate: %v", err)
+			}
+		})
+	}
+}
+
+func TestSoftwareTargetsRejectDuplicateAndOverlappingLabels(t *testing.T) {
+	t.Parallel()
+
+	include := Include{
+		LabelID: 1,
+		Package: PackageSelector{Strategy: PackageLatest},
+		Actions: []Action{ActionManagedInstalls},
+	}
+	tests := map[string]Targets{
+		"duplicate include": {
+			Include: []Include{include, include},
+		},
+		"duplicate exclude": {
+			Exclude: []targeting.LabelRef{{LabelID: 2}, {LabelID: 2}},
+		},
+		"include and exclude overlap": {
+			Include: []Include{include},
+			Exclude: []targeting.LabelRef{{LabelID: 1}},
+		},
+	}
+
+	for name, targets := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if err := targets.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("validate error = %v, want ErrInvalidInput", err)
 			}
 		})
 	}

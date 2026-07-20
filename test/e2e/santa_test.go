@@ -1,9 +1,12 @@
+//go:build e2e
+
 package e2e
 
 import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"embed"
 	"fmt"
 	"io"
 	"mime"
@@ -15,12 +18,16 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
 const santaProtobufContentType = "application/x-protobuf"
+
+//go:embed testdata/santa/*.json
+var santaProtocolFixtures embed.FS
 
 type santaSyncCheckpoint struct {
 	RulesReceived       int32
@@ -36,7 +43,7 @@ type santaSyncCheckpoint struct {
 	AppliedTargetCount  int32
 }
 
-type santaProtoClient struct {
+type santaProtocolFixtureClient struct {
 	t         *testing.T
 	client    *http.Client
 	baseURL   string
@@ -50,7 +57,6 @@ func TestSanta(t *testing.T) {
 		unknownMachineID = "99999999-8888-4777-8666-555555555555"
 		serial           = "SANTA-INTEGRATION-001"
 		santaSecret      = "santa-integration-agent-secret-0001"
-		initialHash      = "00000000000000000000000000000000"
 		acknowledgedHash = "11111111111111111111111111111111"
 		ruleIdentifier   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		eventSHA256      = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
@@ -207,7 +213,7 @@ RETURNING id`,
 	hostsBefore := *hostsBeforeResponse.JSON200
 	requireOnlySantaHost(t, hostsBefore, hostID, machineID, serial)
 
-	client := santaProtoClient{
+	client := santaProtocolFixtureClient{
 		t:         t,
 		client:    server.Client,
 		baseURL:   server.BaseURL,
@@ -216,30 +222,12 @@ RETURNING id`,
 	}
 
 	var firstPreflight syncv1.PreflightResponse
-	client.postProto("preflight", santaTestPreflight(machineID, serial, true, 0, initialHash), &firstPreflight)
+	client.postFixture("preflight", "preflight_clean.json", nil, &syncv1.PreflightRequest{}, &firstPreflight)
 	requireSantaPreflightConfiguration(t, &firstPreflight)
 
 	eventTime := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
 	var eventUpload syncv1.EventUploadResponse
-	client.postProto("eventupload", &syncv1.EventUploadRequest{
-		MachineId: machineID,
-		Events: []*syncv1.Event{{
-			FileSha256:    eventSHA256,
-			FilePath:      eventPath,
-			FileName:      "Woodstar Santa Test",
-			ExecutingUser: "alice",
-			ExecutionTime: float64(eventTime.Unix()),
-			Decision:      syncv1.Decision_BLOCK_BINARY,
-			StaticRule:    true,
-			Pid:           4242,
-			Ppid:          1,
-			ParentName:    "launchd",
-			SigningId:     "ABCDE12345:au.edu.woodleigh.woodstar.santa-test",
-			TeamId:        "ABCDE12345",
-			Cdhash:        eventCDHash,
-			SigningStatus: syncv1.SigningStatus_SIGNING_STATUS_PRODUCTION,
-		}},
-	}, &eventUpload)
+	client.postFixture("eventupload", "event_upload.json", nil, &syncv1.EventUploadRequest{}, &eventUpload)
 	if len(eventUpload.GetEventUploadBundleBinaries()) != 0 {
 		t.Fatalf("bundle requests = %v, want none", eventUpload.GetEventUploadBundleBinaries())
 	}
@@ -257,13 +245,13 @@ RETURNING id`,
 		t.Fatalf("first downloaded rule = %+v, want public blocklist rule", firstRule)
 	}
 
-	client.postProto("postflight", &syncv1.PostflightRequest{
-		MachineId:      machineID,
-		RulesReceived:  1,
-		RulesProcessed: 1,
-		SyncType:       syncv1.SyncType_CLEAN,
-		RulesHash:      acknowledgedHash,
-	}, &syncv1.PostflightResponse{})
+	client.postFixture(
+		"postflight",
+		"postflight_clean.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
 
 	firstCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
 	if firstCheckpoint.RulesReceived != 1 || firstCheckpoint.RulesProcessed != 1 ||
@@ -276,7 +264,7 @@ RETURNING id`,
 	}
 
 	var secondPreflight syncv1.PreflightResponse
-	client.postProto("preflight", santaTestPreflight(machineID, serial, false, 1, acknowledgedHash), &secondPreflight)
+	client.postFixture("preflight", "preflight_normal.json", nil, &syncv1.PreflightRequest{}, &secondPreflight)
 	if secondPreflight.SyncType == nil || secondPreflight.GetSyncType() != syncv1.SyncType_NORMAL {
 		t.Fatalf("second sync type = %v, want present NORMAL", secondPreflight.SyncType)
 	}
@@ -284,11 +272,13 @@ RETURNING id`,
 	if len(secondRules) != 0 {
 		t.Fatalf("second sync downloaded rules = %+v, want none", secondRules)
 	}
-	client.postProto("postflight", &syncv1.PostflightRequest{
-		MachineId: machineID,
-		SyncType:  syncv1.SyncType_NORMAL,
-		RulesHash: acknowledgedHash,
-	}, &syncv1.PostflightResponse{})
+	client.postFixture(
+		"postflight",
+		"postflight_normal.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
 
 	secondCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
 	if secondCheckpoint.RulesReceived != 0 || secondCheckpoint.RulesProcessed != 0 ||
@@ -397,16 +387,18 @@ WHERE host_id = $1`, hostID).Scan(
 		)
 	}
 
-	unknownClient := santaProtoClient{
+	unknownClient := santaProtocolFixtureClient{
 		t:         t,
 		client:    server.Client,
 		baseURL:   server.BaseURL,
 		machineID: unknownMachineID,
 		secret:    santaSecret,
 	}
-	unknownClient.postProtoStatus(
+	unknownClient.postFixtureStatus(
 		"preflight",
-		santaTestPreflight(unknownMachineID, "UNKNOWN-SANTA-HOST", false, 0, initialHash),
+		"preflight_unknown.json",
+		nil,
+		&syncv1.PreflightRequest{},
 		nil,
 		http.StatusNotFound,
 	)
@@ -455,12 +447,35 @@ WHERE host_id = $1`, hostID).Scan(
 	}
 }
 
-func (client santaProtoClient) postProto(stage string, request proto.Message, response proto.Message) {
+func (client santaProtocolFixtureClient) postFixture(
+	stage string,
+	name string,
+	values map[string]any,
+	request proto.Message,
+	response proto.Message,
+) {
 	client.t.Helper()
-	client.postProtoStatus(stage, request, response, http.StatusOK)
+	client.postFixtureStatus(stage, name, values, request, response, http.StatusOK)
 }
 
-func (client santaProtoClient) postProtoStatus(
+func (client santaProtocolFixtureClient) postFixtureStatus(
+	stage string,
+	name string,
+	values map[string]any,
+	request proto.Message,
+	response proto.Message,
+	wantStatus int,
+) {
+	client.t.Helper()
+
+	payload := loadProtocolFixture(client.t, santaProtocolFixtures, "santa", name, values)
+	if err := protojson.Unmarshal(payload, request); err != nil {
+		client.t.Fatalf("unmarshal Santa protocol fixture %s: %v", name, err)
+	}
+	client.postProtoStatus(stage, request, response, wantStatus)
+}
+
+func (client santaProtocolFixtureClient) postProtoStatus(
 	stage string,
 	requestMessage proto.Message,
 	responseMessage proto.Message,
@@ -560,43 +575,25 @@ func (client santaProtoClient) postProtoStatus(
 	}
 }
 
-func (client santaProtoClient) downloadRules() []*syncv1.Rule {
+func (client santaProtocolFixtureClient) downloadRules() []*syncv1.Rule {
 	client.t.Helper()
 
 	var rules []*syncv1.Rule
 	cursor := ""
 	for {
 		var response syncv1.RuleDownloadResponse
-		client.postProto("ruledownload", &syncv1.RuleDownloadRequest{
-			MachineId: client.machineID,
-			Cursor:    cursor,
-		}, &response)
+		client.postFixture(
+			"ruledownload",
+			"rule_download.json",
+			map[string]any{"$MACHINE_ID": client.machineID, "$CURSOR": cursor},
+			&syncv1.RuleDownloadRequest{},
+			&response,
+		)
 		rules = append(rules, response.GetRules()...)
 		cursor = response.GetCursor()
 		if cursor == "" {
 			return rules
 		}
-	}
-}
-
-func santaTestPreflight(
-	machineID string,
-	serial string,
-	requestCleanSync bool,
-	binaryRuleCount uint32,
-	rulesHash string,
-) *syncv1.PreflightRequest {
-	return &syncv1.PreflightRequest{
-		SerialNumber:      serial,
-		SantaVersion:      "2026.7",
-		PrimaryUser:       "alice@santa.integration.test",
-		PrimaryUserGroups: []string{"students", "santa-integration"},
-		ClientMode:        syncv1.ClientMode_MONITOR,
-		RequestCleanSync:  requestCleanSync,
-		BinaryRuleCount:   binaryRuleCount,
-		MachineId:         machineID,
-		SipStatus:         1,
-		RulesHash:         rulesHash,
 	}
 }
 
