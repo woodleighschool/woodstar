@@ -167,7 +167,7 @@ func validateLinkTarget(link Link) error {
 }
 
 func bannerExtension(contentType string) (string, bool) {
-	detected := lookupContentType(contentType)
+	detected := mimetype.Lookup(contentType)
 	if detected == nil {
 		return "", false
 	}
@@ -189,8 +189,4 @@ func validateBanner(contentType string, sizeBytes int64) error {
 		return fmt.Errorf("%w: banner must be between 1 byte and 5 MiB", dbutil.ErrInvalidInput)
 	}
 	return nil
-}
-
-func lookupContentType(contentType string) *mimetype.MIME {
-	return mimetype.Lookup(contentType)
 }

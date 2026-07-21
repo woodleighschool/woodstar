@@ -109,22 +109,6 @@ func contentObjectID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-func munkiPackageInstallerContentURL(objectID int64) string {
-	return contentURL(munkiPackageInstallerPath, objectID)
-}
-
-func munkiIconContentURL(objectID int64) string {
-	return contentURL(munkiIconPath, objectID)
-}
-
-func clientResourcesBannerContentURL(objectID int64) string {
-	return contentURL(clientResourcesBannerUploadPath, objectID)
-}
-
-func clientResourcesArchiveContentURL(objectID int64) string {
-	return contentURL(clientResourcesArchiveUploadPath, objectID)
-}
-
 func contentURL(basePath string, objectID int64) string {
 	if objectID <= 0 {
 		return ""

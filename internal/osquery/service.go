@@ -150,11 +150,11 @@ func (s *AgentService) DistributedRead(
 	due := catalog.DetailQueriesDue(host.Timestamps.InventoryUpdatedAt, host.InventoryQueryHash)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
-		detailQueries[detailQueryName(suffix)] = sql
+		detailQueries[queryName(kindDetail, suffix)] = sql
 	}
 	detailDiscovery := make(map[string]string, len(due.Discovery))
 	for suffix, sql := range due.Discovery {
-		detailDiscovery[detailQueryName(suffix)] = sql
+		detailDiscovery[queryName(kindDetail, suffix)] = sql
 	}
 
 	labelCount, err := s.queueLabelQueries(ctx, detailQueries)

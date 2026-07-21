@@ -115,7 +115,7 @@ func registerCompletePackageInstallerUploadRoute(
 				"object_id", input.ID,
 			)
 		}
-		view := munkiObjectView(*object, munkiPackageInstallerContentURL(object.ID))
+		view := munkiObjectView(*object, contentURL(munkiPackageInstallerPath, object.ID))
 		return &munkiObjectOutput{Body: view}, nil
 	})
 }

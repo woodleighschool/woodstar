@@ -10,6 +10,8 @@ import (
 	"image/png"
 	"io"
 
+	"github.com/gabriel-vasile/mimetype"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -198,7 +200,7 @@ func (s *Service) storeArchive(ctx context.Context, body []byte) (*storage.Objec
 }
 
 func validateBannerBody(contentType string, body []byte) error {
-	detected := lookupContentType(contentType)
+	detected := mimetype.Lookup(contentType)
 	if detected == nil {
 		return fmt.Errorf("%w: unsupported banner content type", dbutil.ErrInvalidInput)
 	}

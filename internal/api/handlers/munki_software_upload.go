@@ -137,7 +137,7 @@ func registerListMunkiIconsRoute(
 		}
 		views := make([]MunkiObjectView, len(rows))
 		for i, row := range rows {
-			views[i] = munkiObjectView(row, munkiIconContentURL(row.ID))
+			views[i] = munkiObjectView(row, contentURL(munkiIconPath, row.ID))
 		}
 		return &munkiIconObjectsOutput{Body: Page[MunkiObjectView]{
 			Items: views,

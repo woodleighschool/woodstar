@@ -435,14 +435,10 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 			CDHashSHA256:     pathEnrichment.CDHashSHA256,
 			ExecutableSHA256: pathEnrichment.ExecutableSHA256,
 			ExecutablePath:   pathEnrichment.ExecutablePath,
-			LastOpenedAt:     parseSoftwareLastOpenedAt(row),
+			LastOpenedAt:     parseUnixTime(row["last_opened_at"]),
 		})
 	}
 	return entries
-}
-
-func parseSoftwareLastOpenedAt(row map[string]string) *time.Time {
-	return parseUnixTime(row["last_opened_at"])
 }
 
 func parseUnixTime(value string) *time.Time {

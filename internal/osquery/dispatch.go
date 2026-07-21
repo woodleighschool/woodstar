@@ -34,10 +34,6 @@ func queryNameID(kind queryKind, id int64) string {
 	return queryName(kind, strconv.FormatInt(id, 10))
 }
 
-func detailQueryName(suffix string) string {
-	return queryName(kindDetail, suffix)
-}
-
 // parseQueryName splits our query name into kind and suffix.
 func parseQueryName(name string) (queryKind, string, bool) {
 	raw, ok := strings.CutPrefix(name, namePrefix)

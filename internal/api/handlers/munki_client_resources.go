@@ -306,7 +306,7 @@ func clientResourcesResponse(
 	response := MunkiClientResources{
 		Archive: munkiObjectView(
 			*archiveObject,
-			clientResourcesArchiveContentURL(archiveObject.ID),
+			contentURL(clientResourcesArchiveUploadPath, archiveObject.ID),
 		),
 		Custom:    resource.Custom,
 		CreatedAt: resource.CreatedAt,
@@ -324,7 +324,10 @@ func clientResourcesResponse(
 		return nil, errors.New("configured client resources reference an invalid banner object")
 	}
 	response.Builder = &MunkiClientResourcesBuilder{
-		Banner:       munkiObjectView(*bannerObject, clientResourcesBannerContentURL(bannerObject.ID)),
+		Banner: munkiObjectView(
+			*bannerObject,
+			contentURL(clientResourcesBannerUploadPath, bannerObject.ID),
+		),
 		BannerFit:    resource.Builder.BannerFit,
 		BannerFocalX: resource.Builder.BannerFocalX,
 		Links:        resource.Builder.Links,

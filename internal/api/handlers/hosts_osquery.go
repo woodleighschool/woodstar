@@ -59,10 +59,6 @@ func registerHostOsqueryReports(
 	hostStore *hosts.Store,
 	logger *slog.Logger,
 ) {
-	registerHostReports(api, reportStore, hostStore, logger)
-}
-
-func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
