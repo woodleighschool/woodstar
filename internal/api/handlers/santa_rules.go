@@ -67,8 +67,8 @@ func registerListSantaRules(api huma.API, store *rules.Store, logger *slog.Logge
 		OperationID: "list-santa-rules",
 		Method:      http.MethodGet,
 		Path:        "/api/santa/rules",
-		Tags:        []string{santaTag},
-		Summary:     "List Santa rules",
+		Tags:        []string{santaRulesTag},
+		Summary:     "List rules",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaRuleListInput) (*santaRuleListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
@@ -84,8 +84,8 @@ func registerCreateSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		OperationID:   "create-santa-rule",
 		Method:        http.MethodPost,
 		Path:          "/api/santa/rules",
-		Tags:          []string{santaTag},
-		Summary:       "Create a Santa rule",
+		Tags:          []string{santaRulesTag},
+		Summary:       "Create a rule",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -106,8 +106,8 @@ func registerGetSantaRule(api huma.API, store *rules.Store, logger *slog.Logger)
 		OperationID: "get-santa-rule",
 		Method:      http.MethodGet,
 		Path:        santaRuleIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Get a Santa rule",
+		Tags:        []string{santaRulesTag},
+		Summary:     "Get a rule",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
 		rule, err := store.GetByID(ctx, input.ID)
@@ -123,8 +123,8 @@ func registerUpdateSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		OperationID: "update-santa-rule",
 		Method:      http.MethodPut,
 		Path:        santaRuleIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Update a Santa rule",
+		Tags:        []string{santaRulesTag},
+		Summary:     "Update a rule",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -144,8 +144,8 @@ func registerDeleteSantaRule(api huma.API, store *rules.Store, logger *slog.Logg
 		OperationID: "delete-santa-rule",
 		Method:      http.MethodDelete,
 		Path:        santaRuleIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Delete a Santa rule",
+		Tags:        []string{santaRulesTag},
+		Summary:     "Delete a rule",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
@@ -160,8 +160,8 @@ func registerBulkDeleteSantaRules(api huma.API, store *rules.Store, logger *slog
 		OperationID:   "bulk-delete-santa-rules",
 		Method:        http.MethodDelete,
 		Path:          "/api/santa/rules",
-		Tags:          []string{santaTag},
-		Summary:       "Delete Santa rules",
+		Tags:          []string{santaRulesTag},
+		Summary:       "Delete rules",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {

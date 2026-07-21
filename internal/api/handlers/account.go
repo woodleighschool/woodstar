@@ -49,7 +49,7 @@ func registerGetAccount(api huma.API, authService *auth.Service, logger *slog.Lo
 		Method:      http.MethodGet,
 		Path:        "/api/account",
 		Tags:        []string{accountTag},
-		Summary:     "Get the signed-in user's account, including any API key",
+		Summary:     "Get account",
 	}, authService.Account, logger)
 }
 
@@ -59,7 +59,7 @@ func registerPutAccount(api huma.API, userService *directory.UserService, logger
 		Method:      http.MethodPut,
 		Path:        "/api/account",
 		Tags:        []string{accountTag},
-		Summary:     "Update the signed-in user's account",
+		Summary:     "Update account",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusConflict,
@@ -84,7 +84,7 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service, logger *slog.
 		Method:        http.MethodPost,
 		Path:          "/api/account/api-key",
 		Tags:          []string{accountTag},
-		Summary:       "Generate a new API key for the signed-in user, replacing any prior key",
+		Summary:       "Rotate API key",
 		DefaultStatus: http.StatusCreated,
 	}, authService.RotateAPIKey, logger)
 }
@@ -95,7 +95,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service, logger *slog.
 		Method:      http.MethodDelete,
 		Path:        "/api/account/api-key",
 		Tags:        []string{accountTag},
-		Summary:     "Clear the API key on the signed-in user's account",
+		Summary:     "Revoke API key",
 	}, authService.RevokeAPIKey, logger)
 }
 

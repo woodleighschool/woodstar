@@ -1,11 +1,99 @@
 package api
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
 )
+
+type schemaTagGroup struct {
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
+}
+
+func TestOpenAPITagsBelongToOneGroup(t *testing.T) {
+	t.Parallel()
+	doc := BuildSchemaAPI("test").OpenAPI()
+
+	declared := make(map[string]bool, len(doc.Tags))
+	for _, tag := range doc.Tags {
+		declared[tag.Name] = true
+	}
+
+	membership := make(map[string]int, len(doc.Tags))
+	for _, group := range openAPITagGroups(t, doc) {
+		for _, tag := range group.Tags {
+			if !declared[tag] {
+				t.Errorf("tag group %q contains undeclared tag %q", group.Name, tag)
+			}
+			membership[tag]++
+		}
+	}
+	for tag := range declared {
+		if membership[tag] != 1 {
+			t.Errorf("declared tag %q belongs to %d groups, want one", tag, membership[tag])
+		}
+	}
+}
+
+func TestOpenAPIOperationsUseResourceTag(t *testing.T) {
+	t.Parallel()
+	doc := BuildSchemaAPI("test").OpenAPI()
+
+	declared := make(map[string]bool, len(doc.Tags))
+	for _, tag := range doc.Tags {
+		declared[tag.Name] = true
+	}
+
+	integrationTags := map[string]string{
+		"/api/munki/":   "Munki ",
+		"/api/osquery/": "Osquery ",
+		"/api/santa/":   "Santa ",
+	}
+	for path, item := range doc.Paths {
+		for _, operation := range []*huma.Operation{
+			item.Get,
+			item.Post,
+			item.Put,
+			item.Patch,
+			item.Delete,
+		} {
+			if operation == nil {
+				continue
+			}
+			if len(operation.Tags) != 1 {
+				t.Errorf("%s %s has tags %v, want exactly one", operation.Method, path, operation.Tags)
+				continue
+			}
+			tag := operation.Tags[0]
+			if !declared[tag] {
+				t.Errorf("%s %s uses undeclared tag %q", operation.Method, path, tag)
+			}
+			for pathPrefix, tagPrefix := range integrationTags {
+				if strings.HasPrefix(path, pathPrefix) && !strings.HasPrefix(tag, tagPrefix) {
+					t.Errorf("%s %s uses non-%s tag %q", operation.Method, path, tagPrefix, tag)
+				}
+			}
+		}
+	}
+}
+
+func openAPITagGroups(t *testing.T, doc *huma.OpenAPI) []schemaTagGroup {
+	t.Helper()
+
+	payload, err := json.Marshal(doc.Extensions["x-tagGroups"])
+	if err != nil {
+		t.Fatalf("marshal tag groups: %v", err)
+	}
+	var groups []schemaTagGroup
+	if err := json.Unmarshal(payload, &groups); err != nil {
+		t.Fatalf("unmarshal tag groups: %v", err)
+	}
+	return groups
+}
 
 func TestProtectedOperationsDeclareAuthentication(t *testing.T) {
 	api := BuildSchemaAPI("test")
@@ -72,11 +160,11 @@ func TestAdminRoutesUseResourceMethods(t *testing.T) {
 		}
 	}
 
-	liveQuery := doc.Paths["/api/live-queries/{id}"]
+	liveQuery := doc.Paths["/api/osquery/live-queries/{id}"]
 	if liveQuery == nil || liveQuery.Delete == nil {
 		t.Fatalf("live query methods = %#v, want DELETE", liveQuery)
 	}
-	if doc.Paths["/api/live-queries/{id}/stop"] != nil {
+	if doc.Paths["/api/osquery/live-queries/{id}/stop"] != nil {
 		t.Error("live query stop action path is still registered")
 	}
 
@@ -130,7 +218,7 @@ func TestLiveQueryStreamUsesTheAppSchema(t *testing.T) {
 	t.Parallel()
 	doc := BuildSchemaAPI("test").OpenAPI()
 
-	liveQueryStream := doc.Paths["/api/live-queries/{id}/stream"]
+	liveQueryStream := doc.Paths["/api/osquery/live-queries/{id}/stream"]
 	if liveQueryStream == nil || liveQueryStream.Get == nil {
 		t.Fatal("live query stream is missing")
 	}
@@ -148,8 +236,8 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 	if packageInstaller == nil || packageInstaller.Put == nil {
 		t.Fatal("package installer finalization is missing")
 	}
-	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart/complete"]
-	if multipartComplete == nil || multipartComplete.Post == nil {
+	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart"]
+	if multipartComplete == nil || multipartComplete.Put == nil {
 		t.Fatal("multipart completion is missing")
 	}
 
@@ -185,9 +273,9 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 	}
 
 	for path, wantRef := range map[string]string{
-		"/api/munki/package-installers":      "#/components/schemas/MunkiPackageInstallerUploadTarget",
-		"/api/munki/client-resources/banner": "#/components/schemas/MunkiDirectUploadTarget",
-		"/api/munki/software/{id}/icon":      "#/components/schemas/MunkiDirectUploadTarget",
+		"/api/munki/package-installers":              "#/components/schemas/MunkiPackageInstallerUploadTarget",
+		"/api/munki/client-resources/banner-uploads": "#/components/schemas/MunkiDirectUploadTarget",
+		"/api/munki/icons":                           "#/components/schemas/MunkiDirectUploadTarget",
 	} {
 		operation := doc.Paths[path].Post
 		got := operation.Responses["201"].Content["application/json"].Schema.Ref

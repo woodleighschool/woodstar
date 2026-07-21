@@ -31,17 +31,17 @@ The admin UI shows a single `display_name` for each host. The raw hostname, comp
 
 Labels group hosts so you can target them. There are three membership types:
 
-| Type | Meaning |
-| --- | --- |
-| `manual` | Hosts selected by hand. |
-| `dynamic` | Membership from an osquery query. |
+| Type      | Meaning                                                                  |
+| --------- | ------------------------------------------------------------------------ |
+| `manual`  | Hosts selected by hand.                                                  |
+| `dynamic` | Membership from an osquery query.                                        |
 | `derived` | Membership from directory attributes such as department, group, or user. |
 
 Manual, dynamic, and builtin labels come straight from Fleet. Builtins are the platform groupings like All Hosts and macOS; dynamic labels rely on osquery distributed query results; manual labels are whatever you set. Derived is Woodstar's addition, sourced from directory sync rather than from the fleet itself.
 
 ## Software
 
-Software is *observed* inventory. It's populated from osquery and records titles, versions, install paths, browser extensions, bundle identifiers, signing data, and how many hosts carry each one.
+Software is _observed_ inventory. It's populated from osquery and records titles, versions, install paths, browser extensions, bundle identifiers, signing data, and how many hosts carry each one.
 
 This is not the same thing as Munki. Munki is desired state: the software you've decided a Mac should have. osquery seeing a package installed is an observation, and it lives in software inventory. The two sit side by side and answer different questions: "what's on this Mac?" versus "what should be?"
 

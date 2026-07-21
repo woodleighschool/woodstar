@@ -83,8 +83,8 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger 
 		OperationID: "list-munki-software",
 		Method:      http.MethodGet,
 		Path:        munkiSoftwarePath,
-		Tags:        []string{munkiTag},
-		Summary:     "List Munki software",
+		Tags:        []string{munkiSoftwareTag},
+		Summary:     "List software titles",
 	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -106,8 +106,8 @@ func registerCreateMunkiSoftware(
 		OperationID:   "create-munki-software",
 		Method:        http.MethodPost,
 		Path:          munkiSoftwarePath,
-		Tags:          []string{munkiTag},
-		Summary:       "Create Munki software",
+		Tags:          []string{munkiSoftwareTag},
+		Summary:       "Create a software title",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -133,8 +133,8 @@ func registerGetMunkiSoftware(
 		OperationID: "get-munki-software",
 		Method:      http.MethodGet,
 		Path:        munkiSoftwareIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Get Munki software",
+		Tags:        []string{munkiSoftwareTag},
+		Summary:     "Get a software title",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareGetInput) (*munkiSoftwareDetailOutput, error) {
 		return loadMunkiSoftwareDetail(ctx, input.ID, store, packageService, logger, "get-munki-software")
@@ -151,8 +151,8 @@ func registerPutMunkiSoftware(
 		OperationID: "update-munki-software",
 		Method:      http.MethodPut,
 		Path:        munkiSoftwareIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Update Munki software",
+		Tags:        []string{munkiSoftwareTag},
+		Summary:     "Update a software title",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -184,8 +184,8 @@ func registerDeleteMunkiSoftware(
 		OperationID: "delete-munki-software",
 		Method:      http.MethodDelete,
 		Path:        munkiSoftwareIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Delete Munki software",
+		Tags:        []string{munkiSoftwareTag},
+		Summary:     "Delete a software title",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareDeleteInput) (*struct{}, error) {
 		if err := deletions.Delete(ctx, input.ID); err != nil {
@@ -212,8 +212,8 @@ func registerBulkDeleteMunkiSoftware(
 		OperationID:   "bulk-delete-munki-software",
 		Method:        http.MethodDelete,
 		Path:          munkiSoftwarePath,
-		Tags:          []string{munkiTag},
-		Summary:       "Delete Munki software",
+		Tags:          []string{munkiSoftwareTag},
+		Summary:       "Delete software titles",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {

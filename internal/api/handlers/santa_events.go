@@ -96,8 +96,8 @@ func registerListSantaEvents(api huma.API, store *events.Store, logger *slog.Log
 		OperationID: "list-santa-events",
 		Method:      http.MethodGet,
 		Path:        "/api/santa/events",
-		Tags:        []string{santaTag},
-		Summary:     "List Santa execution events",
+		Tags:        []string{santaEventsTag},
+		Summary:     "List execution events",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		rows, count, err := store.ListEvents(ctx, input.params())
@@ -113,8 +113,8 @@ func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logge
 		OperationID: "get-santa-event",
 		Method:      http.MethodGet,
 		Path:        santaEventIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Get a Santa execution event",
+		Tags:        []string{santaEventsTag},
+		Summary:     "Get an execution event",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
 		event, err := store.GetExecutionEvent(ctx, input.ID)
@@ -141,8 +141,8 @@ func registerListSantaFileAccessEvents(api huma.API, store *events.Store, logger
 		OperationID: "list-santa-file-access-events",
 		Method:      http.MethodGet,
 		Path:        santaFileAccessEventPath,
-		Tags:        []string{santaTag},
-		Summary:     "List Santa file access events",
+		Tags:        []string{santaEventsTag},
+		Summary:     "List file access events",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		rows, count, err := store.ListFileAccessEvents(ctx, input.params())
@@ -160,8 +160,8 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *
 		OperationID: "get-santa-file-access-event",
 		Method:      http.MethodGet,
 		Path:        santaFileAccessIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Get a Santa file access event",
+		Tags:        []string{santaEventsTag},
+		Summary:     "Get a file access event",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
 		event, err := store.GetFileAccessEvent(ctx, input.ID)

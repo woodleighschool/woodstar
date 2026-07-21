@@ -38,7 +38,7 @@ func registerHostSoftware(
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/software",
 		Tags:        []string{hostsTag},
-		Summary:     "List software installed on a host",
+		Summary:     "List software for a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSoftwareInput) (*hostSoftwareOutput, error) {
 		id, params := input.params()

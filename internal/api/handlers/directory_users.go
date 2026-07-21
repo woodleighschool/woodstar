@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	usersTag     = "Users"
 	userResource = "user"
 	userIDPath   = "/api/users/{id}"
 )
@@ -101,8 +100,8 @@ func registerListUsers(api huma.API, userService *directory.UserService, logger 
 		OperationID: "list-users",
 		Method:      http.MethodGet,
 		Path:        "/api/users",
-		Tags:        []string{usersTag},
-		Summary:     "List Woodstar users",
+		Tags:        []string{directoryUsersTag},
+		Summary:     "List users",
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
@@ -117,8 +116,8 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 		OperationID: "list-user-departments",
 		Method:      http.MethodGet,
 		Path:        "/api/users/departments",
-		Tags:        []string{usersTag},
-		Summary:     "List directory user departments",
+		Tags:        []string{directoryUsersTag},
+		Summary:     "List user departments",
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
@@ -133,8 +132,8 @@ func registerCreateUser(api huma.API, userService *directory.UserService, logger
 		OperationID:   "create-user",
 		Method:        http.MethodPost,
 		Path:          "/api/users",
-		Tags:          []string{usersTag},
-		Summary:       "Create a Woodstar user",
+		Tags:          []string{directoryUsersTag},
+		Summary:       "Create a user",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -154,8 +153,8 @@ func registerGetUser(api huma.API, userService *directory.UserService, logger *s
 		OperationID: "get-user",
 		Method:      http.MethodGet,
 		Path:        userIDPath,
-		Tags:        []string{usersTag},
-		Summary:     "Get a Woodstar user",
+		Tags:        []string{directoryUsersTag},
+		Summary:     "Get a user",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
 		user, err := userService.Get(ctx, input.ID)
@@ -171,8 +170,8 @@ func registerPutUser(api huma.API, userService *directory.UserService, logger *s
 		OperationID: "update-user",
 		Method:      http.MethodPut,
 		Path:        userIDPath,
-		Tags:        []string{usersTag},
-		Summary:     "Replace a Woodstar user",
+		Tags:        []string{directoryUsersTag},
+		Summary:     "Update a user",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -192,8 +191,8 @@ func registerDeleteUser(api huma.API, userService *directory.UserService, logger
 		OperationID: "delete-user",
 		Method:      http.MethodDelete,
 		Path:        userIDPath,
-		Tags:        []string{usersTag},
-		Summary:     "Delete a Woodstar user",
+		Tags:        []string{directoryUsersTag},
+		Summary:     "Delete a user",
 		Errors: []int{
 			http.StatusNotFound,
 			http.StatusConflict,

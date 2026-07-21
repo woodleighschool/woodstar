@@ -6,7 +6,7 @@ description: The admin API, how it's authenticated, and how this reference is ge
 
 # API Reference
 
-This is the admin API: the JSON surface the web app runs on, served under `/api`. The pages beside this one are generated from Woodstar's own OpenAPI spec and grouped by capability, so the sidebar lines up with the parts of the app (Hosts, Labels, Santa, Munki, and the rest).
+This is the admin API: the JSON surface the web app runs on, served under `/api`. The pages beside this one are generated from Woodstar's OpenAPI spec and grouped by resource.
 
 The Mac clients don't use this API. Their endpoints are a separate surface, documented in [Agent Protocols](../agent-protocols/overview).
 

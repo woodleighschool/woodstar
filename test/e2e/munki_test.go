@@ -125,7 +125,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	installerSum := sha256.Sum256(installerBytes)
 	installerSHA256 := hex.EncodeToString(installerSum[:])
 	capabilityIssuedAfter := time.Now()
-	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerWithResponse(
+	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
 		adminapi.MunkiUploadRequest{Filename: "WoodstarIntegration.pkg"},
 	)
@@ -179,7 +179,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("installer upload status = %d, want %d", installerUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	finalizedInstaller, err := server.Admin.FinalizeMunkiPackageInstallerWithResponse(
+	finalizedInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
 		installerTarget.ObjectId,
 	)
@@ -346,7 +346,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		Label:  "Updates",
 		Target: "munki://updates",
 	}}
-	savedResources, err := server.Admin.SaveMunkiClientResourcesWithResponse(
+	savedResources, err := server.Admin.UpdateMunkiClientResourcesWithResponse(
 		t.Context(),
 		adminapi.MunkiMutation{
 			BannerObjectId:  bannerTarget.ObjectId,
@@ -405,7 +405,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	}
 	rereadClientResources := *rereadResourcesResponse.JSON200
 	if rereadClientResources.Banner.Id != bannerTarget.ObjectId ||
-		rereadClientResources.Banner.ContentUrl != "/api/munki/client-resources/banner/"+
+		rereadClientResources.Banner.ContentUrl != "/api/munki/client-resources/banner-uploads/"+
 			strconv.FormatInt(bannerTarget.ObjectId, 10)+"/content" ||
 		rereadClientResources.BannerAlignment != "center" ||
 		len(rereadClientResources.Links) != 1 || rereadClientResources.Links[0] != links[0] ||

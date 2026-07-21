@@ -38,7 +38,7 @@ pnpm typecheck
 
 ## The API reference
 
-The [API reference](../api/overview) isn't written by hand. It's generated from `web/openapi.yaml`, the same spec the backend produces, using [docusaurus-openapi-docs](https://github.com/PaloAltoNetworks/docusaurus-openapi-docs). Endpoints are grouped by their OpenAPI tag, so the sidebar mirrors the capabilities.
+The operation pages in the [API reference](../api/overview) are generated from `web/openapi.yaml`, the same spec the backend produces, using [docusaurus-openapi-docs](https://github.com/PaloAltoNetworks/docusaurus-openapi-docs). OpenAPI tag groups and tags define the integration and resource hierarchy in the sidebar.
 
 Regenerate it after the spec changes:
 

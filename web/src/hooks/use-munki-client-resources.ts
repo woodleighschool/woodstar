@@ -14,7 +14,7 @@ import {
   deleteMunkiClientResourcesBannerUpload,
   getMunkiClientResources,
   nullOn404,
-  saveMunkiClientResources,
+  updateMunkiClientResources,
   unwrap,
 } from "@/lib/api";
 import { uploadRequestFromTarget } from "@/lib/munki-upload";
@@ -35,7 +35,7 @@ export function useMunkiClientResources() {
 export function useSaveMunkiClientResources() {
   const queryClient = useQueryClient();
   return useMutation<MunkiClientResources, ApiError, MunkiMutation>({
-    mutationFn: (body) => unwrap(saveMunkiClientResources({ body })),
+    mutationFn: (body) => unwrap(updateMunkiClientResources({ body })),
     onSuccess: async () => {
       toast.success("Client resources saved");
       await queryClient.invalidateQueries({ queryKey: queryKeys.munkiClientResources });
@@ -60,7 +60,7 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
     uploadRequest: (intent) => uploadRequestFromTarget(intent),
     completeUpload: (intent, { body }) =>
       unwrap(
-        saveMunkiClientResources({
+        updateMunkiClientResources({
           body: { ...body, banner_object_id: intent.object_id },
         }),
       ),

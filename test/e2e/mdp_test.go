@@ -219,7 +219,7 @@ func createMDPInstaller(
 ) adminapi.MunkiObjectView {
 	t.Helper()
 
-	created, err := server.Admin.CreateMunkiPackageInstallerWithResponse(
+	created, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
 		adminapi.MunkiUploadRequest{Filename: filename},
 	)
@@ -259,7 +259,7 @@ func createMDPInstaller(
 		t.Fatalf("installer upload status = %d, want %d", uploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	finalized, err := server.Admin.FinalizeMunkiPackageInstallerWithResponse(
+	finalized, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
 		created.JSON201.ObjectId,
 	)

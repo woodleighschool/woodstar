@@ -2,7 +2,7 @@ import type { MunkiDirectUploadTarget, MunkiPackageInstallerUploadTarget } from 
 import {
   completeMunkiPackageInstallerMultipart,
   createMunkiPackageInstallerMultipart,
-  deleteMunkiPackageInstaller,
+  deleteMunkiPackageInstallerUpload,
   signMunkiPackageInstallerPart,
   unwrap,
 } from "@/lib/api";
@@ -31,7 +31,7 @@ export function uploadRequestFromTarget(
 }
 
 export async function deleteUnclaimedMunkiInstaller(objectID: number) {
-  await unwrap(deleteMunkiPackageInstaller({ path: { id: objectID } }));
+  await unwrap(deleteMunkiPackageInstallerUpload({ path: { id: objectID } }));
 }
 
 function packageInstallerMultipartRequest(objectID: number): MultipartUploadRequest {

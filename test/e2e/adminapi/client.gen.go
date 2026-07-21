@@ -2404,8 +2404,8 @@ type CreateAgentSecretJSONRequestBody = AgentSecretCreate
 // CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
 type CreateLabelJSONRequestBody = LabelMutation
 
-// SaveMunkiClientResourcesJSONRequestBody defines body for SaveMunkiClientResources for application/json ContentType.
-type SaveMunkiClientResourcesJSONRequestBody = MunkiMutation
+// UpdateMunkiClientResourcesJSONRequestBody defines body for UpdateMunkiClientResources for application/json ContentType.
+type UpdateMunkiClientResourcesJSONRequestBody = MunkiMutation
 
 // CreateMunkiClientResourcesBannerUploadJSONRequestBody defines body for CreateMunkiClientResourcesBannerUpload for application/json ContentType.
 type CreateMunkiClientResourcesBannerUploadJSONRequestBody = MunkiUploadRequest
@@ -2413,8 +2413,8 @@ type CreateMunkiClientResourcesBannerUploadJSONRequestBody = MunkiUploadRequest
 // CreateMunkiDistributionPointJSONRequestBody defines body for CreateMunkiDistributionPoint for application/json ContentType.
 type CreateMunkiDistributionPointJSONRequestBody = MunkiDistributionPointMutation
 
-// CreateMunkiPackageInstallerJSONRequestBody defines body for CreateMunkiPackageInstaller for application/json ContentType.
-type CreateMunkiPackageInstallerJSONRequestBody = MunkiUploadRequest
+// CreateMunkiPackageInstallerUploadJSONRequestBody defines body for CreateMunkiPackageInstallerUpload for application/json ContentType.
+type CreateMunkiPackageInstallerUploadJSONRequestBody = MunkiUploadRequest
 
 // CreateMunkiPackageJSONRequestBody defines body for CreateMunkiPackage for application/json ContentType.
 type CreateMunkiPackageJSONRequestBody = MunkiPackageCreateMutation
@@ -2612,36 +2612,36 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
-	// GetAccount Get the signed-in user's account, including any API key
+	// GetAccount Get account
 	//
 	// Corresponds with GET /api/account (the `GetAccount` operationId).
 	GetAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RotateAccountApiKey Generate a new API key for the signed-in user, replacing any prior key
+	// RotateAccountApiKey Rotate API key
 	//
 	// Corresponds with POST /api/account/api-key (the `RotateAccountApiKey` operationId).
 	RotateAccountApiKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateAgentSecretWithBody Create agent secret
+	// CreateAgentSecretWithBody Create an agent secret
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/agent-secrets (the `CreateAgentSecret` operationId).
 	CreateAgentSecretWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateAgentSecret Create agent secret
+	// CreateAgentSecret Create an agent secret
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/agent-secrets (the `CreateAgentSecret` operationId).
 	CreateAgentSecret(ctx context.Context, body CreateAgentSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListHosts List enrolled hosts
+	// ListHosts List hosts
 	//
 	// Corresponds with GET /api/hosts (the `ListHosts` operationId).
 	ListHosts(ctx context.Context, params *ListHostsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetHost Get an enrolled host
+	// GetHost Get a host
 	//
 	// Corresponds with GET /api/hosts/{id} (the `GetHost` operationId).
 	GetHost(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2661,7 +2661,7 @@ type ClientInterface interface {
 	// Corresponds with GET /api/hosts/{id}/santa/rules (the `ListHostSantaRules` operationId).
 	ListHostSantaRules(ctx context.Context, id int64, params *ListHostSantaRulesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListHostSoftware List software installed on a host
+	// ListHostSoftware List software for a host
 	//
 	// Corresponds with GET /api/hosts/{id}/software (the `ListHostSoftware` operationId).
 	ListHostSoftware(ctx context.Context, id int64, params *ListHostSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2685,106 +2685,106 @@ type ClientInterface interface {
 	// Corresponds with POST /api/labels (the `CreateLabel` operationId).
 	CreateLabel(ctx context.Context, body CreateLabelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetMunkiClientResources Get configured Munki client resources
+	// GetMunkiClientResources Get client resources
 	//
 	// Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
 	GetMunkiClientResources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SaveMunkiClientResourcesWithBody Build and publish Munki client resources
+	// UpdateMunkiClientResourcesWithBody Update client resources
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-	SaveMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+	UpdateMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SaveMunkiClientResources Build and publish Munki client resources
+	// UpdateMunkiClientResources Update client resources
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-	SaveMunkiClientResources(ctx context.Context, body SaveMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+	UpdateMunkiClientResources(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiClientResourcesBannerUploadWithBody Create a banner upload for Munki client resources
+	// CreateMunkiClientResourcesBannerUploadWithBody Create a banner upload
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+	// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 	CreateMunkiClientResourcesBannerUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiClientResourcesBannerUpload Create a banner upload for Munki client resources
+	// CreateMunkiClientResourcesBannerUpload Create a banner upload
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+	// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 	CreateMunkiClientResourcesBannerUpload(ctx context.Context, body CreateMunkiClientResourcesBannerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiDistributionPointWithBody Create a Munki distribution point
+	// CreateMunkiDistributionPointWithBody Create a distribution point
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/munki/distribution-points (the `CreateMunkiDistributionPoint` operationId).
 	CreateMunkiDistributionPointWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiDistributionPoint Create a Munki distribution point
+	// CreateMunkiDistributionPoint Create a distribution point
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/munki/distribution-points (the `CreateMunkiDistributionPoint` operationId).
 	CreateMunkiDistributionPoint(ctx context.Context, body CreateMunkiDistributionPointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetMunkiDistributionPoint Get a Munki distribution point
+	// GetMunkiDistributionPoint Get a distribution point
 	//
 	// Corresponds with GET /api/munki/distribution-points/{id} (the `GetMunkiDistributionPoint` operationId).
 	GetMunkiDistributionPoint(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiPackageInstallerWithBody Reserve a Munki package installer upload
+	// CreateMunkiPackageInstallerUploadWithBody Create a package installer upload
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-	CreateMunkiPackageInstallerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+	CreateMunkiPackageInstallerUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiPackageInstaller Reserve a Munki package installer upload
+	// CreateMunkiPackageInstallerUpload Create a package installer upload
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-	CreateMunkiPackageInstaller(ctx context.Context, body CreateMunkiPackageInstallerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+	CreateMunkiPackageInstallerUpload(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// FinalizeMunkiPackageInstaller Finalize a Munki package installer upload
+	// CompleteMunkiPackageInstallerUpload Complete a package installer upload
 	//
-	// Corresponds with PUT /api/munki/package-installers/{id} (the `FinalizeMunkiPackageInstaller` operationId).
-	FinalizeMunkiPackageInstaller(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
+	CompleteMunkiPackageInstallerUpload(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiPackageWithBody Create a Munki package
+	// CreateMunkiPackageWithBody Create a package
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/munki/packages (the `CreateMunkiPackage` operationId).
 	CreateMunkiPackageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiPackage Create a Munki package
+	// CreateMunkiPackage Create a package
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/munki/packages (the `CreateMunkiPackage` operationId).
 	CreateMunkiPackage(ctx context.Context, body CreateMunkiPackageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiSoftwareWithBody Create Munki software
+	// CreateMunkiSoftwareWithBody Create a software title
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/munki/software (the `CreateMunkiSoftware` operationId).
 	CreateMunkiSoftwareWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateMunkiSoftware Create Munki software
+	// CreateMunkiSoftware Create a software title
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/munki/software (the `CreateMunkiSoftware` operationId).
 	CreateMunkiSoftware(ctx context.Context, body CreateMunkiSoftwareJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetMunkiSoftware Get Munki software
+	// GetMunkiSoftware Get a software title
 	//
 	// Corresponds with GET /api/munki/software/{id} (the `GetMunkiSoftware` operationId).
 	GetMunkiSoftware(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2803,66 +2803,66 @@ type ClientInterface interface {
 	// Corresponds with POST /api/osquery/reports (the `CreateOsqueryReport` operationId).
 	CreateOsqueryReport(ctx context.Context, body CreateOsqueryReportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListOsqueryReportResults List latest snapshots for a report
+	// ListOsqueryReportResults List report results
 	//
 	// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
 	ListOsqueryReportResults(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSantaConfigurationWithBody Create a Santa configuration
+	// CreateSantaConfigurationWithBody Create a configuration
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfigurationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSantaConfiguration Create a Santa configuration
+	// CreateSantaConfiguration Create a configuration
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfiguration(ctx context.Context, body CreateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListSantaEvents List Santa execution events
+	// ListSantaEvents List execution events
 	//
 	// Corresponds with GET /api/santa/events (the `ListSantaEvents` operationId).
 	ListSantaEvents(ctx context.Context, params *ListSantaEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSantaRuleWithBody Create a Santa rule
+	// CreateSantaRuleWithBody Create a rule
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSantaRule Create a Santa rule
+	// CreateSantaRule Create a rule
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSessionWithBody Create a local user session
+	// CreateSessionWithBody Create a session
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateSession Create a local user session
+	// CreateSession Create a session
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSession(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateUserWithBody Create a Woodstar user
+	// CreateUserWithBody Create a user
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /api/users (the `CreateUser` operationId).
 	CreateUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateUser Create a Woodstar user
+	// CreateUser Create a user
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -2870,7 +2870,7 @@ type ClientInterface interface {
 	CreateUser(ctx context.Context, body CreateUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-// GetAccount Get the signed-in user's account, including any API key
+// GetAccount Get account
 //
 // Corresponds with GET /api/account (the `GetAccount` operationId).
 func (c *Client) GetAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2885,7 +2885,7 @@ func (c *Client) GetAccount(ctx context.Context, reqEditors ...RequestEditorFn) 
 	return c.Client.Do(req)
 }
 
-// RotateAccountApiKey Generate a new API key for the signed-in user, replacing any prior key
+// RotateAccountApiKey Rotate API key
 //
 // Corresponds with POST /api/account/api-key (the `RotateAccountApiKey` operationId).
 func (c *Client) RotateAccountApiKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2900,7 +2900,7 @@ func (c *Client) RotateAccountApiKey(ctx context.Context, reqEditors ...RequestE
 	return c.Client.Do(req)
 }
 
-// CreateAgentSecretWithBody Create agent secret
+// CreateAgentSecretWithBody Create an agent secret
 //
 // Takes any type of body and a specified content type.
 //
@@ -2917,7 +2917,7 @@ func (c *Client) CreateAgentSecretWithBody(ctx context.Context, contentType stri
 	return c.Client.Do(req)
 }
 
-// CreateAgentSecret Create agent secret
+// CreateAgentSecret Create an agent secret
 //
 // Takes a body of the `application/json` content type.
 //
@@ -2934,7 +2934,7 @@ func (c *Client) CreateAgentSecret(ctx context.Context, body CreateAgentSecretJS
 	return c.Client.Do(req)
 }
 
-// ListHosts List enrolled hosts
+// ListHosts List hosts
 //
 // Corresponds with GET /api/hosts (the `ListHosts` operationId).
 func (c *Client) ListHosts(ctx context.Context, params *ListHostsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2949,7 +2949,7 @@ func (c *Client) ListHosts(ctx context.Context, params *ListHostsParams, reqEdit
 	return c.Client.Do(req)
 }
 
-// GetHost Get an enrolled host
+// GetHost Get a host
 //
 // Corresponds with GET /api/hosts/{id} (the `GetHost` operationId).
 func (c *Client) GetHost(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3009,7 +3009,7 @@ func (c *Client) ListHostSantaRules(ctx context.Context, id int64, params *ListH
 	return c.Client.Do(req)
 }
 
-// ListHostSoftware List software installed on a host
+// ListHostSoftware List software for a host
 //
 // Corresponds with GET /api/hosts/{id}/software (the `ListHostSoftware` operationId).
 func (c *Client) ListHostSoftware(ctx context.Context, id int64, params *ListHostSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3073,7 +3073,7 @@ func (c *Client) CreateLabel(ctx context.Context, body CreateLabelJSONRequestBod
 	return c.Client.Do(req)
 }
 
-// GetMunkiClientResources Get configured Munki client resources
+// GetMunkiClientResources Get client resources
 //
 // Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
 func (c *Client) GetMunkiClientResources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3088,13 +3088,13 @@ func (c *Client) GetMunkiClientResources(ctx context.Context, reqEditors ...Requ
 	return c.Client.Do(req)
 }
 
-// SaveMunkiClientResourcesWithBody Build and publish Munki client resources
+// UpdateMunkiClientResourcesWithBody Update client resources
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-func (c *Client) SaveMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSaveMunkiClientResourcesRequestWithBody(c.Server, contentType, body)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+func (c *Client) UpdateMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMunkiClientResourcesRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3105,13 +3105,13 @@ func (c *Client) SaveMunkiClientResourcesWithBody(ctx context.Context, contentTy
 	return c.Client.Do(req)
 }
 
-// SaveMunkiClientResources Build and publish Munki client resources
+// UpdateMunkiClientResources Update client resources
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-func (c *Client) SaveMunkiClientResources(ctx context.Context, body SaveMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSaveMunkiClientResourcesRequest(c.Server, body)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+func (c *Client) UpdateMunkiClientResources(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMunkiClientResourcesRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3122,11 +3122,11 @@ func (c *Client) SaveMunkiClientResources(ctx context.Context, body SaveMunkiCli
 	return c.Client.Do(req)
 }
 
-// CreateMunkiClientResourcesBannerUploadWithBody Create a banner upload for Munki client resources
+// CreateMunkiClientResourcesBannerUploadWithBody Create a banner upload
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 func (c *Client) CreateMunkiClientResourcesBannerUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateMunkiClientResourcesBannerUploadRequestWithBody(c.Server, contentType, body)
 	if err != nil {
@@ -3139,11 +3139,11 @@ func (c *Client) CreateMunkiClientResourcesBannerUploadWithBody(ctx context.Cont
 	return c.Client.Do(req)
 }
 
-// CreateMunkiClientResourcesBannerUpload Create a banner upload for Munki client resources
+// CreateMunkiClientResourcesBannerUpload Create a banner upload
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 func (c *Client) CreateMunkiClientResourcesBannerUpload(ctx context.Context, body CreateMunkiClientResourcesBannerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateMunkiClientResourcesBannerUploadRequest(c.Server, body)
 	if err != nil {
@@ -3156,7 +3156,7 @@ func (c *Client) CreateMunkiClientResourcesBannerUpload(ctx context.Context, bod
 	return c.Client.Do(req)
 }
 
-// CreateMunkiDistributionPointWithBody Create a Munki distribution point
+// CreateMunkiDistributionPointWithBody Create a distribution point
 //
 // Takes any type of body and a specified content type.
 //
@@ -3173,7 +3173,7 @@ func (c *Client) CreateMunkiDistributionPointWithBody(ctx context.Context, conte
 	return c.Client.Do(req)
 }
 
-// CreateMunkiDistributionPoint Create a Munki distribution point
+// CreateMunkiDistributionPoint Create a distribution point
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3190,7 +3190,7 @@ func (c *Client) CreateMunkiDistributionPoint(ctx context.Context, body CreateMu
 	return c.Client.Do(req)
 }
 
-// GetMunkiDistributionPoint Get a Munki distribution point
+// GetMunkiDistributionPoint Get a distribution point
 //
 // Corresponds with GET /api/munki/distribution-points/{id} (the `GetMunkiDistributionPoint` operationId).
 func (c *Client) GetMunkiDistributionPoint(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3205,13 +3205,13 @@ func (c *Client) GetMunkiDistributionPoint(ctx context.Context, id int64, reqEdi
 	return c.Client.Do(req)
 }
 
-// CreateMunkiPackageInstallerWithBody Reserve a Munki package installer upload
+// CreateMunkiPackageInstallerUploadWithBody Create a package installer upload
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-func (c *Client) CreateMunkiPackageInstallerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateMunkiPackageInstallerRequestWithBody(c.Server, contentType, body)
+// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+func (c *Client) CreateMunkiPackageInstallerUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMunkiPackageInstallerUploadRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3222,13 +3222,13 @@ func (c *Client) CreateMunkiPackageInstallerWithBody(ctx context.Context, conten
 	return c.Client.Do(req)
 }
 
-// CreateMunkiPackageInstaller Reserve a Munki package installer upload
+// CreateMunkiPackageInstallerUpload Create a package installer upload
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-func (c *Client) CreateMunkiPackageInstaller(ctx context.Context, body CreateMunkiPackageInstallerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateMunkiPackageInstallerRequest(c.Server, body)
+// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+func (c *Client) CreateMunkiPackageInstallerUpload(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMunkiPackageInstallerUploadRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3239,11 +3239,11 @@ func (c *Client) CreateMunkiPackageInstaller(ctx context.Context, body CreateMun
 	return c.Client.Do(req)
 }
 
-// FinalizeMunkiPackageInstaller Finalize a Munki package installer upload
+// CompleteMunkiPackageInstallerUpload Complete a package installer upload
 //
-// Corresponds with PUT /api/munki/package-installers/{id} (the `FinalizeMunkiPackageInstaller` operationId).
-func (c *Client) FinalizeMunkiPackageInstaller(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFinalizeMunkiPackageInstallerRequest(c.Server, id)
+// Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
+func (c *Client) CompleteMunkiPackageInstallerUpload(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteMunkiPackageInstallerUploadRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -3254,7 +3254,7 @@ func (c *Client) FinalizeMunkiPackageInstaller(ctx context.Context, id int64, re
 	return c.Client.Do(req)
 }
 
-// CreateMunkiPackageWithBody Create a Munki package
+// CreateMunkiPackageWithBody Create a package
 //
 // Takes any type of body and a specified content type.
 //
@@ -3271,7 +3271,7 @@ func (c *Client) CreateMunkiPackageWithBody(ctx context.Context, contentType str
 	return c.Client.Do(req)
 }
 
-// CreateMunkiPackage Create a Munki package
+// CreateMunkiPackage Create a package
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3288,7 +3288,7 @@ func (c *Client) CreateMunkiPackage(ctx context.Context, body CreateMunkiPackage
 	return c.Client.Do(req)
 }
 
-// CreateMunkiSoftwareWithBody Create Munki software
+// CreateMunkiSoftwareWithBody Create a software title
 //
 // Takes any type of body and a specified content type.
 //
@@ -3305,7 +3305,7 @@ func (c *Client) CreateMunkiSoftwareWithBody(ctx context.Context, contentType st
 	return c.Client.Do(req)
 }
 
-// CreateMunkiSoftware Create Munki software
+// CreateMunkiSoftware Create a software title
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3322,7 +3322,7 @@ func (c *Client) CreateMunkiSoftware(ctx context.Context, body CreateMunkiSoftwa
 	return c.Client.Do(req)
 }
 
-// GetMunkiSoftware Get Munki software
+// GetMunkiSoftware Get a software title
 //
 // Corresponds with GET /api/munki/software/{id} (the `GetMunkiSoftware` operationId).
 func (c *Client) GetMunkiSoftware(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3371,7 +3371,7 @@ func (c *Client) CreateOsqueryReport(ctx context.Context, body CreateOsqueryRepo
 	return c.Client.Do(req)
 }
 
-// ListOsqueryReportResults List latest snapshots for a report
+// ListOsqueryReportResults List report results
 //
 // Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
 func (c *Client) ListOsqueryReportResults(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3386,7 +3386,7 @@ func (c *Client) ListOsqueryReportResults(ctx context.Context, id int64, reqEdit
 	return c.Client.Do(req)
 }
 
-// CreateSantaConfigurationWithBody Create a Santa configuration
+// CreateSantaConfigurationWithBody Create a configuration
 //
 // Takes any type of body and a specified content type.
 //
@@ -3403,7 +3403,7 @@ func (c *Client) CreateSantaConfigurationWithBody(ctx context.Context, contentTy
 	return c.Client.Do(req)
 }
 
-// CreateSantaConfiguration Create a Santa configuration
+// CreateSantaConfiguration Create a configuration
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3420,7 +3420,7 @@ func (c *Client) CreateSantaConfiguration(ctx context.Context, body CreateSantaC
 	return c.Client.Do(req)
 }
 
-// ListSantaEvents List Santa execution events
+// ListSantaEvents List execution events
 //
 // Corresponds with GET /api/santa/events (the `ListSantaEvents` operationId).
 func (c *Client) ListSantaEvents(ctx context.Context, params *ListSantaEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3435,7 +3435,7 @@ func (c *Client) ListSantaEvents(ctx context.Context, params *ListSantaEventsPar
 	return c.Client.Do(req)
 }
 
-// CreateSantaRuleWithBody Create a Santa rule
+// CreateSantaRuleWithBody Create a rule
 //
 // Takes any type of body and a specified content type.
 //
@@ -3452,7 +3452,7 @@ func (c *Client) CreateSantaRuleWithBody(ctx context.Context, contentType string
 	return c.Client.Do(req)
 }
 
-// CreateSantaRule Create a Santa rule
+// CreateSantaRule Create a rule
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3469,7 +3469,7 @@ func (c *Client) CreateSantaRule(ctx context.Context, body CreateSantaRuleJSONRe
 	return c.Client.Do(req)
 }
 
-// CreateSessionWithBody Create a local user session
+// CreateSessionWithBody Create a session
 //
 // Takes any type of body and a specified content type.
 //
@@ -3486,7 +3486,7 @@ func (c *Client) CreateSessionWithBody(ctx context.Context, contentType string, 
 	return c.Client.Do(req)
 }
 
-// CreateSession Create a local user session
+// CreateSession Create a session
 //
 // Takes a body of the `application/json` content type.
 //
@@ -3503,7 +3503,7 @@ func (c *Client) CreateSession(ctx context.Context, body CreateSessionJSONReques
 	return c.Client.Do(req)
 }
 
-// CreateUserWithBody Create a Woodstar user
+// CreateUserWithBody Create a user
 //
 // Takes any type of body and a specified content type.
 //
@@ -3520,7 +3520,7 @@ func (c *Client) CreateUserWithBody(ctx context.Context, contentType string, bod
 	return c.Client.Do(req)
 }
 
-// CreateUser Create a Woodstar user
+// CreateUser Create a user
 //
 // Takes a body of the `application/json` content type.
 //
@@ -4270,19 +4270,19 @@ func NewGetMunkiClientResourcesRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewSaveMunkiClientResourcesRequest calls the generic SaveMunkiClientResources builder with application/json body
-func NewSaveMunkiClientResourcesRequest(server string, body SaveMunkiClientResourcesJSONRequestBody) (*http.Request, error) {
+// NewUpdateMunkiClientResourcesRequest calls the generic UpdateMunkiClientResources builder with application/json body
+func NewUpdateMunkiClientResourcesRequest(server string, body UpdateMunkiClientResourcesJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewSaveMunkiClientResourcesRequestWithBody(server, "application/json", bodyReader)
+	return NewUpdateMunkiClientResourcesRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewSaveMunkiClientResourcesRequestWithBody constructs an http.Request for the SaveMunkiClientResources method, with any body, and a specified content type
-func NewSaveMunkiClientResourcesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewUpdateMunkiClientResourcesRequestWithBody constructs an http.Request for the UpdateMunkiClientResources method, with any body, and a specified content type
+func NewUpdateMunkiClientResourcesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4330,7 +4330,7 @@ func NewCreateMunkiClientResourcesBannerUploadRequestWithBody(server string, con
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/munki/client-resources/banner")
+	operationPath := fmt.Sprintf("/api/munki/client-resources/banner-uploads")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -4424,19 +4424,19 @@ func NewGetMunkiDistributionPointRequest(server string, id int64) (*http.Request
 	return req, nil
 }
 
-// NewCreateMunkiPackageInstallerRequest calls the generic CreateMunkiPackageInstaller builder with application/json body
-func NewCreateMunkiPackageInstallerRequest(server string, body CreateMunkiPackageInstallerJSONRequestBody) (*http.Request, error) {
+// NewCreateMunkiPackageInstallerUploadRequest calls the generic CreateMunkiPackageInstallerUpload builder with application/json body
+func NewCreateMunkiPackageInstallerUploadRequest(server string, body CreateMunkiPackageInstallerUploadJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateMunkiPackageInstallerRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateMunkiPackageInstallerUploadRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewCreateMunkiPackageInstallerRequestWithBody constructs an http.Request for the CreateMunkiPackageInstaller method, with any body, and a specified content type
-func NewCreateMunkiPackageInstallerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewCreateMunkiPackageInstallerUploadRequestWithBody constructs an http.Request for the CreateMunkiPackageInstallerUpload method, with any body, and a specified content type
+func NewCreateMunkiPackageInstallerUploadRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4464,8 +4464,8 @@ func NewCreateMunkiPackageInstallerRequestWithBody(server string, contentType st
 	return req, nil
 }
 
-// NewFinalizeMunkiPackageInstallerRequest constructs an http.Request for the FinalizeMunkiPackageInstaller method
-func NewFinalizeMunkiPackageInstallerRequest(server string, id int64) (*http.Request, error) {
+// NewCompleteMunkiPackageInstallerUploadRequest constructs an http.Request for the CompleteMunkiPackageInstallerUpload method
+func NewCompleteMunkiPackageInstallerUploadRequest(server string, id int64) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5028,42 +5028,42 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
-	// GetAccountWithResponse Get the signed-in user's account, including any API key
+	// GetAccountWithResponse Get account
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/account (the `GetAccount` operationId).
 	GetAccountWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAccountResponse, error)
 
-	// RotateAccountApiKeyWithResponse Generate a new API key for the signed-in user, replacing any prior key
+	// RotateAccountApiKeyWithResponse Rotate API key
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/account/api-key (the `RotateAccountApiKey` operationId).
 	RotateAccountApiKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RotateAccountApiKeyResponse, error)
 
-	// CreateAgentSecretWithBodyWithResponse Create agent secret
+	// CreateAgentSecretWithBodyWithResponse Create an agent secret
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/agent-secrets (the `CreateAgentSecret` operationId).
 	CreateAgentSecretWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentSecretResponse, error)
 
-	// CreateAgentSecretWithResponse Create agent secret
+	// CreateAgentSecretWithResponse Create an agent secret
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/agent-secrets (the `CreateAgentSecret` operationId).
 	CreateAgentSecretWithResponse(ctx context.Context, body CreateAgentSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentSecretResponse, error)
 
-	// ListHostsWithResponse List enrolled hosts
+	// ListHostsWithResponse List hosts
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/hosts (the `ListHosts` operationId).
 	ListHostsWithResponse(ctx context.Context, params *ListHostsParams, reqEditors ...RequestEditorFn) (*ListHostsResponse, error)
 
-	// GetHostWithResponse Get an enrolled host
+	// GetHostWithResponse Get a host
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -5091,7 +5091,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/hosts/{id}/santa/rules (the `ListHostSantaRules` operationId).
 	ListHostSantaRulesWithResponse(ctx context.Context, id int64, params *ListHostSantaRulesParams, reqEditors ...RequestEditorFn) (*ListHostSantaRulesResponse, error)
 
-	// ListHostSoftwareWithResponse List software installed on a host
+	// ListHostSoftwareWithResponse List software for a host
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -5119,112 +5119,112 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/labels (the `CreateLabel` operationId).
 	CreateLabelWithResponse(ctx context.Context, body CreateLabelJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLabelResponse, error)
 
-	// GetMunkiClientResourcesWithResponse Get configured Munki client resources
+	// GetMunkiClientResourcesWithResponse Get client resources
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
 	GetMunkiClientResourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMunkiClientResourcesResponse, error)
 
-	// SaveMunkiClientResourcesWithBodyWithResponse Build and publish Munki client resources
+	// UpdateMunkiClientResourcesWithBodyWithResponse Update client resources
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-	SaveMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveMunkiClientResourcesResponse, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+	UpdateMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error)
 
-	// SaveMunkiClientResourcesWithResponse Build and publish Munki client resources
+	// UpdateMunkiClientResourcesWithResponse Update client resources
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-	SaveMunkiClientResourcesWithResponse(ctx context.Context, body SaveMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveMunkiClientResourcesResponse, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+	UpdateMunkiClientResourcesWithResponse(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error)
 
-	// CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload for Munki client resources
+	// CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+	// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 	CreateMunkiClientResourcesBannerUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesBannerUploadResponse, error)
 
-	// CreateMunkiClientResourcesBannerUploadWithResponse Create a banner upload for Munki client resources
+	// CreateMunkiClientResourcesBannerUploadWithResponse Create a banner upload
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+	// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 	CreateMunkiClientResourcesBannerUploadWithResponse(ctx context.Context, body CreateMunkiClientResourcesBannerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesBannerUploadResponse, error)
 
-	// CreateMunkiDistributionPointWithBodyWithResponse Create a Munki distribution point
+	// CreateMunkiDistributionPointWithBodyWithResponse Create a distribution point
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/distribution-points (the `CreateMunkiDistributionPoint` operationId).
 	CreateMunkiDistributionPointWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiDistributionPointResponse, error)
 
-	// CreateMunkiDistributionPointWithResponse Create a Munki distribution point
+	// CreateMunkiDistributionPointWithResponse Create a distribution point
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/distribution-points (the `CreateMunkiDistributionPoint` operationId).
 	CreateMunkiDistributionPointWithResponse(ctx context.Context, body CreateMunkiDistributionPointJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiDistributionPointResponse, error)
 
-	// GetMunkiDistributionPointWithResponse Get a Munki distribution point
+	// GetMunkiDistributionPointWithResponse Get a distribution point
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/munki/distribution-points/{id} (the `GetMunkiDistributionPoint` operationId).
 	GetMunkiDistributionPointWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*GetMunkiDistributionPointResponse, error)
 
-	// CreateMunkiPackageInstallerWithBodyWithResponse Reserve a Munki package installer upload
+	// CreateMunkiPackageInstallerUploadWithBodyWithResponse Create a package installer upload
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-	CreateMunkiPackageInstallerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerResponse, error)
+	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+	CreateMunkiPackageInstallerUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerUploadResponse, error)
 
-	// CreateMunkiPackageInstallerWithResponse Reserve a Munki package installer upload
+	// CreateMunkiPackageInstallerUploadWithResponse Create a package installer upload
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-	CreateMunkiPackageInstallerWithResponse(ctx context.Context, body CreateMunkiPackageInstallerJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerResponse, error)
+	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+	CreateMunkiPackageInstallerUploadWithResponse(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerUploadResponse, error)
 
-	// FinalizeMunkiPackageInstallerWithResponse Finalize a Munki package installer upload
+	// CompleteMunkiPackageInstallerUploadWithResponse Complete a package installer upload
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /api/munki/package-installers/{id} (the `FinalizeMunkiPackageInstaller` operationId).
-	FinalizeMunkiPackageInstallerWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*FinalizeMunkiPackageInstallerResponse, error)
+	// Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
+	CompleteMunkiPackageInstallerUploadWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*CompleteMunkiPackageInstallerUploadResponse, error)
 
-	// CreateMunkiPackageWithBodyWithResponse Create a Munki package
+	// CreateMunkiPackageWithBodyWithResponse Create a package
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/packages (the `CreateMunkiPackage` operationId).
 	CreateMunkiPackageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiPackageResponse, error)
 
-	// CreateMunkiPackageWithResponse Create a Munki package
+	// CreateMunkiPackageWithResponse Create a package
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/packages (the `CreateMunkiPackage` operationId).
 	CreateMunkiPackageWithResponse(ctx context.Context, body CreateMunkiPackageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageResponse, error)
 
-	// CreateMunkiSoftwareWithBodyWithResponse Create Munki software
+	// CreateMunkiSoftwareWithBodyWithResponse Create a software title
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/software (the `CreateMunkiSoftware` operationId).
 	CreateMunkiSoftwareWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiSoftwareResponse, error)
 
-	// CreateMunkiSoftwareWithResponse Create Munki software
+	// CreateMunkiSoftwareWithResponse Create a software title
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/munki/software (the `CreateMunkiSoftware` operationId).
 	CreateMunkiSoftwareWithResponse(ctx context.Context, body CreateMunkiSoftwareJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiSoftwareResponse, error)
 
-	// GetMunkiSoftwareWithResponse Get Munki software
+	// GetMunkiSoftwareWithResponse Get a software title
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -5245,70 +5245,70 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/osquery/reports (the `CreateOsqueryReport` operationId).
 	CreateOsqueryReportWithResponse(ctx context.Context, body CreateOsqueryReportJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOsqueryReportResponse, error)
 
-	// ListOsqueryReportResultsWithResponse List latest snapshots for a report
+	// ListOsqueryReportResultsWithResponse List report results
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
 	ListOsqueryReportResultsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportResultsResponse, error)
 
-	// CreateSantaConfigurationWithBodyWithResponse Create a Santa configuration
+	// CreateSantaConfigurationWithBodyWithResponse Create a configuration
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfigurationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSantaConfigurationResponse, error)
 
-	// CreateSantaConfigurationWithResponse Create a Santa configuration
+	// CreateSantaConfigurationWithResponse Create a configuration
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfigurationWithResponse(ctx context.Context, body CreateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSantaConfigurationResponse, error)
 
-	// ListSantaEventsWithResponse List Santa execution events
+	// ListSantaEventsWithResponse List execution events
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/santa/events (the `ListSantaEvents` operationId).
 	ListSantaEventsWithResponse(ctx context.Context, params *ListSantaEventsParams, reqEditors ...RequestEditorFn) (*ListSantaEventsResponse, error)
 
-	// CreateSantaRuleWithBodyWithResponse Create a Santa rule
+	// CreateSantaRuleWithBodyWithResponse Create a rule
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSantaRuleResponse, error)
 
-	// CreateSantaRuleWithResponse Create a Santa rule
+	// CreateSantaRuleWithResponse Create a rule
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/santa/rules (the `CreateSantaRule` operationId).
 	CreateSantaRuleWithResponse(ctx context.Context, body CreateSantaRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSantaRuleResponse, error)
 
-	// CreateSessionWithBodyWithResponse Create a local user session
+	// CreateSessionWithBodyWithResponse Create a session
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
 
-	// CreateSessionWithResponse Create a local user session
+	// CreateSessionWithResponse Create a session
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithResponse(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
 
-	// CreateUserWithBodyWithResponse Create a Woodstar user
+	// CreateUserWithBodyWithResponse Create a user
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /api/users (the `CreateUser` operationId).
 	CreateUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateUserResponse, error)
 
-	// CreateUserWithResponse Create a Woodstar user
+	// CreateUserWithResponse Create a user
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -6130,7 +6130,7 @@ func (r GetMunkiClientResourcesResponse) ContentType() string {
 	return ""
 }
 
-type SaveMunkiClientResourcesResponse struct {
+type UpdateMunkiClientResourcesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
@@ -6150,47 +6150,47 @@ type SaveMunkiClientResourcesResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r SaveMunkiClientResourcesResponse) GetJSON200() *MunkiClientResources {
+func (r UpdateMunkiClientResourcesResponse) GetJSON200() *MunkiClientResources {
 	return r.JSON200
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON400() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON400() *ErrorModel {
 	return r.ApplicationproblemJSON400
 }
 
 // GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON401() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON403() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON403() *ErrorModel {
 	return r.ApplicationproblemJSON403
 }
 
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON404() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON404() *ErrorModel {
 	return r.ApplicationproblemJSON404
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r SaveMunkiClientResourcesResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r SaveMunkiClientResourcesResponse) GetBody() []byte {
+func (r UpdateMunkiClientResourcesResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r SaveMunkiClientResourcesResponse) Status() string {
+func (r UpdateMunkiClientResourcesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6198,7 +6198,7 @@ func (r SaveMunkiClientResourcesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r SaveMunkiClientResourcesResponse) StatusCode() int {
+func (r UpdateMunkiClientResourcesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6206,7 +6206,7 @@ func (r SaveMunkiClientResourcesResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r SaveMunkiClientResourcesResponse) ContentType() string {
+func (r UpdateMunkiClientResourcesResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -6441,7 +6441,7 @@ func (r GetMunkiDistributionPointResponse) ContentType() string {
 	return ""
 }
 
-type CreateMunkiPackageInstallerResponse struct {
+type CreateMunkiPackageInstallerUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
@@ -6459,42 +6459,42 @@ type CreateMunkiPackageInstallerResponse struct {
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CreateMunkiPackageInstallerResponse) GetJSON201() *MunkiPackageInstallerUploadTarget {
+func (r CreateMunkiPackageInstallerUploadResponse) GetJSON201() *MunkiPackageInstallerUploadTarget {
 	return r.JSON201
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
-func (r CreateMunkiPackageInstallerResponse) GetApplicationproblemJSON400() *ErrorModel {
+func (r CreateMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON400() *ErrorModel {
 	return r.ApplicationproblemJSON400
 }
 
 // GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
-func (r CreateMunkiPackageInstallerResponse) GetApplicationproblemJSON401() *ErrorModel {
+func (r CreateMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
-func (r CreateMunkiPackageInstallerResponse) GetApplicationproblemJSON403() *ErrorModel {
+func (r CreateMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON403() *ErrorModel {
 	return r.ApplicationproblemJSON403
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r CreateMunkiPackageInstallerResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r CreateMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r CreateMunkiPackageInstallerResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r CreateMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r CreateMunkiPackageInstallerResponse) GetBody() []byte {
+func (r CreateMunkiPackageInstallerUploadResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r CreateMunkiPackageInstallerResponse) Status() string {
+func (r CreateMunkiPackageInstallerUploadResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6502,7 +6502,7 @@ func (r CreateMunkiPackageInstallerResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CreateMunkiPackageInstallerResponse) StatusCode() int {
+func (r CreateMunkiPackageInstallerUploadResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6510,14 +6510,14 @@ func (r CreateMunkiPackageInstallerResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r CreateMunkiPackageInstallerResponse) ContentType() string {
+func (r CreateMunkiPackageInstallerUploadResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-type FinalizeMunkiPackageInstallerResponse struct {
+type CompleteMunkiPackageInstallerUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
@@ -6537,47 +6537,47 @@ type FinalizeMunkiPackageInstallerResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetJSON200() *MunkiObjectView {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetJSON200() *MunkiObjectView {
 	return r.JSON200
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON400() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON400() *ErrorModel {
 	return r.ApplicationproblemJSON400
 }
 
 // GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON401() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON403() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON403() *ErrorModel {
 	return r.ApplicationproblemJSON403
 }
 
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON404() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON404() *ErrorModel {
 	return r.ApplicationproblemJSON404
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r FinalizeMunkiPackageInstallerResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r FinalizeMunkiPackageInstallerResponse) GetBody() []byte {
+func (r CompleteMunkiPackageInstallerUploadResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r FinalizeMunkiPackageInstallerResponse) Status() string {
+func (r CompleteMunkiPackageInstallerUploadResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6585,7 +6585,7 @@ func (r FinalizeMunkiPackageInstallerResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r FinalizeMunkiPackageInstallerResponse) StatusCode() int {
+func (r CompleteMunkiPackageInstallerUploadResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6593,7 +6593,7 @@ func (r FinalizeMunkiPackageInstallerResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r FinalizeMunkiPackageInstallerResponse) ContentType() string {
+func (r CompleteMunkiPackageInstallerUploadResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7423,7 +7423,7 @@ func (r CreateUserResponse) ContentType() string {
 	return ""
 }
 
-// GetAccountWithResponse Get the signed-in user's account, including any API key
+// GetAccountWithResponse Get account
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7436,7 +7436,7 @@ func (c *ClientWithResponses) GetAccountWithResponse(ctx context.Context, reqEdi
 	return ParseGetAccountResponse(rsp)
 }
 
-// RotateAccountApiKeyWithResponse Generate a new API key for the signed-in user, replacing any prior key
+// RotateAccountApiKeyWithResponse Rotate API key
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7449,7 +7449,7 @@ func (c *ClientWithResponses) RotateAccountApiKeyWithResponse(ctx context.Contex
 	return ParseRotateAccountApiKeyResponse(rsp)
 }
 
-// CreateAgentSecretWithBodyWithResponse Create agent secret
+// CreateAgentSecretWithBodyWithResponse Create an agent secret
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7462,7 +7462,7 @@ func (c *ClientWithResponses) CreateAgentSecretWithBodyWithResponse(ctx context.
 	return ParseCreateAgentSecretResponse(rsp)
 }
 
-// CreateAgentSecretWithResponse Create agent secret
+// CreateAgentSecretWithResponse Create an agent secret
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7475,7 +7475,7 @@ func (c *ClientWithResponses) CreateAgentSecretWithResponse(ctx context.Context,
 	return ParseCreateAgentSecretResponse(rsp)
 }
 
-// ListHostsWithResponse List enrolled hosts
+// ListHostsWithResponse List hosts
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7488,7 +7488,7 @@ func (c *ClientWithResponses) ListHostsWithResponse(ctx context.Context, params 
 	return ParseListHostsResponse(rsp)
 }
 
-// GetHostWithResponse Get an enrolled host
+// GetHostWithResponse Get a host
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7540,7 +7540,7 @@ func (c *ClientWithResponses) ListHostSantaRulesWithResponse(ctx context.Context
 	return ParseListHostSantaRulesResponse(rsp)
 }
 
-// ListHostSoftwareWithResponse List software installed on a host
+// ListHostSoftwareWithResponse List software for a host
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7592,7 +7592,7 @@ func (c *ClientWithResponses) CreateLabelWithResponse(ctx context.Context, body 
 	return ParseCreateLabelResponse(rsp)
 }
 
-// GetMunkiClientResourcesWithResponse Get configured Munki client resources
+// GetMunkiClientResourcesWithResponse Get client resources
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7605,37 +7605,37 @@ func (c *ClientWithResponses) GetMunkiClientResourcesWithResponse(ctx context.Co
 	return ParseGetMunkiClientResourcesResponse(rsp)
 }
 
-// SaveMunkiClientResourcesWithBodyWithResponse Build and publish Munki client resources
+// UpdateMunkiClientResourcesWithBodyWithResponse Update client resources
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-func (c *ClientWithResponses) SaveMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveMunkiClientResourcesResponse, error) {
-	rsp, err := c.SaveMunkiClientResourcesWithBody(ctx, contentType, body, reqEditors...)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+func (c *ClientWithResponses) UpdateMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error) {
+	rsp, err := c.UpdateMunkiClientResourcesWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseSaveMunkiClientResourcesResponse(rsp)
+	return ParseUpdateMunkiClientResourcesResponse(rsp)
 }
 
-// SaveMunkiClientResourcesWithResponse Build and publish Munki client resources
+// UpdateMunkiClientResourcesWithResponse Update client resources
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /api/munki/client-resources (the `SaveMunkiClientResources` operationId).
-func (c *ClientWithResponses) SaveMunkiClientResourcesWithResponse(ctx context.Context, body SaveMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveMunkiClientResourcesResponse, error) {
-	rsp, err := c.SaveMunkiClientResources(ctx, body, reqEditors...)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
+func (c *ClientWithResponses) UpdateMunkiClientResourcesWithResponse(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error) {
+	rsp, err := c.UpdateMunkiClientResources(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseSaveMunkiClientResourcesResponse(rsp)
+	return ParseUpdateMunkiClientResourcesResponse(rsp)
 }
 
-// CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload for Munki client resources
+// CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 func (c *ClientWithResponses) CreateMunkiClientResourcesBannerUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesBannerUploadResponse, error) {
 	rsp, err := c.CreateMunkiClientResourcesBannerUploadWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -7644,11 +7644,11 @@ func (c *ClientWithResponses) CreateMunkiClientResourcesBannerUploadWithBodyWith
 	return ParseCreateMunkiClientResourcesBannerUploadResponse(rsp)
 }
 
-// CreateMunkiClientResourcesBannerUploadWithResponse Create a banner upload for Munki client resources
+// CreateMunkiClientResourcesBannerUploadWithResponse Create a banner upload
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/munki/client-resources/banner (the `CreateMunkiClientResourcesBannerUpload` operationId).
+// Corresponds with POST /api/munki/client-resources/banner-uploads (the `CreateMunkiClientResourcesBannerUpload` operationId).
 func (c *ClientWithResponses) CreateMunkiClientResourcesBannerUploadWithResponse(ctx context.Context, body CreateMunkiClientResourcesBannerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesBannerUploadResponse, error) {
 	rsp, err := c.CreateMunkiClientResourcesBannerUpload(ctx, body, reqEditors...)
 	if err != nil {
@@ -7657,7 +7657,7 @@ func (c *ClientWithResponses) CreateMunkiClientResourcesBannerUploadWithResponse
 	return ParseCreateMunkiClientResourcesBannerUploadResponse(rsp)
 }
 
-// CreateMunkiDistributionPointWithBodyWithResponse Create a Munki distribution point
+// CreateMunkiDistributionPointWithBodyWithResponse Create a distribution point
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7670,7 +7670,7 @@ func (c *ClientWithResponses) CreateMunkiDistributionPointWithBodyWithResponse(c
 	return ParseCreateMunkiDistributionPointResponse(rsp)
 }
 
-// CreateMunkiDistributionPointWithResponse Create a Munki distribution point
+// CreateMunkiDistributionPointWithResponse Create a distribution point
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7683,7 +7683,7 @@ func (c *ClientWithResponses) CreateMunkiDistributionPointWithResponse(ctx conte
 	return ParseCreateMunkiDistributionPointResponse(rsp)
 }
 
-// GetMunkiDistributionPointWithResponse Get a Munki distribution point
+// GetMunkiDistributionPointWithResponse Get a distribution point
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7696,46 +7696,46 @@ func (c *ClientWithResponses) GetMunkiDistributionPointWithResponse(ctx context.
 	return ParseGetMunkiDistributionPointResponse(rsp)
 }
 
-// CreateMunkiPackageInstallerWithBodyWithResponse Reserve a Munki package installer upload
+// CreateMunkiPackageInstallerUploadWithBodyWithResponse Create a package installer upload
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-func (c *ClientWithResponses) CreateMunkiPackageInstallerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerResponse, error) {
-	rsp, err := c.CreateMunkiPackageInstallerWithBody(ctx, contentType, body, reqEditors...)
+// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+func (c *ClientWithResponses) CreateMunkiPackageInstallerUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerUploadResponse, error) {
+	rsp, err := c.CreateMunkiPackageInstallerUploadWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateMunkiPackageInstallerResponse(rsp)
+	return ParseCreateMunkiPackageInstallerUploadResponse(rsp)
 }
 
-// CreateMunkiPackageInstallerWithResponse Reserve a Munki package installer upload
+// CreateMunkiPackageInstallerUploadWithResponse Create a package installer upload
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstaller` operationId).
-func (c *ClientWithResponses) CreateMunkiPackageInstallerWithResponse(ctx context.Context, body CreateMunkiPackageInstallerJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerResponse, error) {
-	rsp, err := c.CreateMunkiPackageInstaller(ctx, body, reqEditors...)
+// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
+func (c *ClientWithResponses) CreateMunkiPackageInstallerUploadWithResponse(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerUploadResponse, error) {
+	rsp, err := c.CreateMunkiPackageInstallerUpload(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateMunkiPackageInstallerResponse(rsp)
+	return ParseCreateMunkiPackageInstallerUploadResponse(rsp)
 }
 
-// FinalizeMunkiPackageInstallerWithResponse Finalize a Munki package installer upload
+// CompleteMunkiPackageInstallerUploadWithResponse Complete a package installer upload
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /api/munki/package-installers/{id} (the `FinalizeMunkiPackageInstaller` operationId).
-func (c *ClientWithResponses) FinalizeMunkiPackageInstallerWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*FinalizeMunkiPackageInstallerResponse, error) {
-	rsp, err := c.FinalizeMunkiPackageInstaller(ctx, id, reqEditors...)
+// Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
+func (c *ClientWithResponses) CompleteMunkiPackageInstallerUploadWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*CompleteMunkiPackageInstallerUploadResponse, error) {
+	rsp, err := c.CompleteMunkiPackageInstallerUpload(ctx, id, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFinalizeMunkiPackageInstallerResponse(rsp)
+	return ParseCompleteMunkiPackageInstallerUploadResponse(rsp)
 }
 
-// CreateMunkiPackageWithBodyWithResponse Create a Munki package
+// CreateMunkiPackageWithBodyWithResponse Create a package
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7748,7 +7748,7 @@ func (c *ClientWithResponses) CreateMunkiPackageWithBodyWithResponse(ctx context
 	return ParseCreateMunkiPackageResponse(rsp)
 }
 
-// CreateMunkiPackageWithResponse Create a Munki package
+// CreateMunkiPackageWithResponse Create a package
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7761,7 +7761,7 @@ func (c *ClientWithResponses) CreateMunkiPackageWithResponse(ctx context.Context
 	return ParseCreateMunkiPackageResponse(rsp)
 }
 
-// CreateMunkiSoftwareWithBodyWithResponse Create Munki software
+// CreateMunkiSoftwareWithBodyWithResponse Create a software title
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7774,7 +7774,7 @@ func (c *ClientWithResponses) CreateMunkiSoftwareWithBodyWithResponse(ctx contex
 	return ParseCreateMunkiSoftwareResponse(rsp)
 }
 
-// CreateMunkiSoftwareWithResponse Create Munki software
+// CreateMunkiSoftwareWithResponse Create a software title
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7787,7 +7787,7 @@ func (c *ClientWithResponses) CreateMunkiSoftwareWithResponse(ctx context.Contex
 	return ParseCreateMunkiSoftwareResponse(rsp)
 }
 
-// GetMunkiSoftwareWithResponse Get Munki software
+// GetMunkiSoftwareWithResponse Get a software title
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7826,7 +7826,7 @@ func (c *ClientWithResponses) CreateOsqueryReportWithResponse(ctx context.Contex
 	return ParseCreateOsqueryReportResponse(rsp)
 }
 
-// ListOsqueryReportResultsWithResponse List latest snapshots for a report
+// ListOsqueryReportResultsWithResponse List report results
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7839,7 +7839,7 @@ func (c *ClientWithResponses) ListOsqueryReportResultsWithResponse(ctx context.C
 	return ParseListOsqueryReportResultsResponse(rsp)
 }
 
-// CreateSantaConfigurationWithBodyWithResponse Create a Santa configuration
+// CreateSantaConfigurationWithBodyWithResponse Create a configuration
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7852,7 +7852,7 @@ func (c *ClientWithResponses) CreateSantaConfigurationWithBodyWithResponse(ctx c
 	return ParseCreateSantaConfigurationResponse(rsp)
 }
 
-// CreateSantaConfigurationWithResponse Create a Santa configuration
+// CreateSantaConfigurationWithResponse Create a configuration
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7865,7 +7865,7 @@ func (c *ClientWithResponses) CreateSantaConfigurationWithResponse(ctx context.C
 	return ParseCreateSantaConfigurationResponse(rsp)
 }
 
-// ListSantaEventsWithResponse List Santa execution events
+// ListSantaEventsWithResponse List execution events
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -7878,7 +7878,7 @@ func (c *ClientWithResponses) ListSantaEventsWithResponse(ctx context.Context, p
 	return ParseListSantaEventsResponse(rsp)
 }
 
-// CreateSantaRuleWithBodyWithResponse Create a Santa rule
+// CreateSantaRuleWithBodyWithResponse Create a rule
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7891,7 +7891,7 @@ func (c *ClientWithResponses) CreateSantaRuleWithBodyWithResponse(ctx context.Co
 	return ParseCreateSantaRuleResponse(rsp)
 }
 
-// CreateSantaRuleWithResponse Create a Santa rule
+// CreateSantaRuleWithResponse Create a rule
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7904,7 +7904,7 @@ func (c *ClientWithResponses) CreateSantaRuleWithResponse(ctx context.Context, b
 	return ParseCreateSantaRuleResponse(rsp)
 }
 
-// CreateSessionWithBodyWithResponse Create a local user session
+// CreateSessionWithBodyWithResponse Create a session
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7917,7 +7917,7 @@ func (c *ClientWithResponses) CreateSessionWithBodyWithResponse(ctx context.Cont
 	return ParseCreateSessionResponse(rsp)
 }
 
-// CreateSessionWithResponse Create a local user session
+// CreateSessionWithResponse Create a session
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7930,7 +7930,7 @@ func (c *ClientWithResponses) CreateSessionWithResponse(ctx context.Context, bod
 	return ParseCreateSessionResponse(rsp)
 }
 
-// CreateUserWithBodyWithResponse Create a Woodstar user
+// CreateUserWithBodyWithResponse Create a user
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -7943,7 +7943,7 @@ func (c *ClientWithResponses) CreateUserWithBodyWithResponse(ctx context.Context
 	return ParseCreateUserResponse(rsp)
 }
 
-// CreateUserWithResponse Create a Woodstar user
+// CreateUserWithResponse Create a user
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -8590,15 +8590,15 @@ func ParseGetMunkiClientResourcesResponse(rsp *http.Response) (*GetMunkiClientRe
 	return response, nil
 }
 
-// ParseSaveMunkiClientResourcesResponse parses an HTTP response from a SaveMunkiClientResourcesWithResponse call
-func ParseSaveMunkiClientResourcesResponse(rsp *http.Response) (*SaveMunkiClientResourcesResponse, error) {
+// ParseUpdateMunkiClientResourcesResponse parses an HTTP response from a UpdateMunkiClientResourcesWithResponse call
+func ParseUpdateMunkiClientResourcesResponse(rsp *http.Response) (*UpdateMunkiClientResourcesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &SaveMunkiClientResourcesResponse{
+	response := &UpdateMunkiClientResourcesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -8841,15 +8841,15 @@ func ParseGetMunkiDistributionPointResponse(rsp *http.Response) (*GetMunkiDistri
 	return response, nil
 }
 
-// ParseCreateMunkiPackageInstallerResponse parses an HTTP response from a CreateMunkiPackageInstallerWithResponse call
-func ParseCreateMunkiPackageInstallerResponse(rsp *http.Response) (*CreateMunkiPackageInstallerResponse, error) {
+// ParseCreateMunkiPackageInstallerUploadResponse parses an HTTP response from a CreateMunkiPackageInstallerUploadWithResponse call
+func ParseCreateMunkiPackageInstallerUploadResponse(rsp *http.Response) (*CreateMunkiPackageInstallerUploadResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CreateMunkiPackageInstallerResponse{
+	response := &CreateMunkiPackageInstallerUploadResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -8902,15 +8902,15 @@ func ParseCreateMunkiPackageInstallerResponse(rsp *http.Response) (*CreateMunkiP
 	return response, nil
 }
 
-// ParseFinalizeMunkiPackageInstallerResponse parses an HTTP response from a FinalizeMunkiPackageInstallerWithResponse call
-func ParseFinalizeMunkiPackageInstallerResponse(rsp *http.Response) (*FinalizeMunkiPackageInstallerResponse, error) {
+// ParseCompleteMunkiPackageInstallerUploadResponse parses an HTTP response from a CompleteMunkiPackageInstallerUploadWithResponse call
+func ParseCompleteMunkiPackageInstallerUploadResponse(rsp *http.Response) (*CompleteMunkiPackageInstallerUploadResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &FinalizeMunkiPackageInstallerResponse{
+	response := &CompleteMunkiPackageInstallerUploadResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

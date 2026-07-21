@@ -3842,7 +3842,7 @@ components:
       name: woodstar_session
       type: apiKey
 info:
-  description: Typed admin and frontend API.
+  description: Admin API.
   license:
     name: Apache-2.0
   title: Woodstar API
@@ -3880,7 +3880,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get the signed-in user's account, including any API key
+      summary: Get account
       tags:
         - Account
     put:
@@ -3937,7 +3937,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update the signed-in user's account
+      summary: Update account
       tags:
         - Account
   /api/account/api-key:
@@ -3971,7 +3971,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Clear the API key on the signed-in user's account
+      summary: Revoke API key
       tags:
         - Account
     post:
@@ -4004,7 +4004,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Generate a new API key for the signed-in user, replacing any prior key
+      summary: Rotate API key
       tags:
         - Account
   /api/agent-secrets:
@@ -4091,7 +4091,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create agent secret
+      summary: Create an agent secret
       tags:
         - Agent secrets
   /api/agent-secrets/{id}:
@@ -4146,7 +4146,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete agent secret
+      summary: Delete an agent secret
       tags:
         - Agent secrets
     put:
@@ -4210,7 +4210,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update agent secret
+      summary: Update an agent secret
       tags:
         - Agent secrets
   /api/groups:
@@ -4271,9 +4271,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List directory groups
+      summary: List groups
       tags:
-        - Groups
+        - Directory groups
   /api/groups/{id}:
     get:
       operationId: get-group
@@ -4318,9 +4318,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a directory group
+      summary: Get a group
       tags:
-        - Groups
+        - Directory groups
   /api/hosts:
     delete:
       operationId: bulk-delete-hosts
@@ -4371,7 +4371,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete enrolled hosts
+      summary: Delete hosts
       tags:
         - Hosts
     get:
@@ -4458,7 +4458,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List enrolled hosts
+      summary: List hosts
       tags:
         - Hosts
   /api/hosts/{id}:
@@ -4507,7 +4507,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete an enrolled host
+      summary: Delete a host
       tags:
         - Hosts
     get:
@@ -4553,7 +4553,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get an enrolled host
+      summary: Get a host
       tags:
         - Hosts
   /api/hosts/{id}/munki:
@@ -4651,7 +4651,6 @@ paths:
         - bearerAuth: []
       summary: List checks for a host
       tags:
-        - Checks
         - Hosts
   /api/hosts/{id}/osquery/reports:
     get:
@@ -4701,7 +4700,6 @@ paths:
         - bearerAuth: []
       summary: List reports for a host
       tags:
-        - Reports
         - Hosts
   /api/hosts/{id}/primary-user:
     delete:
@@ -4753,7 +4751,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Clear the host primary user
+      summary: Clear primary user for a host
       tags:
         - Hosts
     put:
@@ -4817,7 +4815,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Set the host primary user
+      summary: Set primary user for a host
       tags:
         - Hosts
   /api/hosts/{id}/santa:
@@ -5021,7 +5019,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List software installed on a host
+      summary: List software for a host
       tags:
         - Hosts
   /api/labels:
@@ -5204,7 +5202,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a regular label
+      summary: Delete a label
       tags:
         - Labels
     get:
@@ -5320,220 +5318,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Replace a label
+      summary: Update a label
       tags:
         - Labels
-  /api/live-queries:
-    post:
-      operationId: create-live-query
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OsqueryLiveQueryCreateBody"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OsqueryHandle"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Start a live run against online hosts
-      tags:
-        - Live Queries
-  /api/live-queries/targets/count:
-    post:
-      operationId: count-live-query-targets
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OsqueryLiveQueryTargetCountBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OsqueryLiveQueryTargetCountOutputBody"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Count live query targets
-      tags:
-        - Live Queries
-  /api/live-queries/{id}:
-    delete:
-      operationId: delete-live-query
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "204":
-          description: No Content
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Stop a running live query
-      tags:
-        - Live Queries
-  /api/live-queries/{id}/stream:
-    get:
-      operationId: stream-live-query
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            text/event-stream:
-              schema:
-                description: One decoded live-query payload per server-sent event.
-                oneOf:
-                  - $ref: "#/components/schemas/OsqueryLiveQueryPingEvent"
-                  - $ref: "#/components/schemas/OsqueryLiveQueryResultEvent"
-                  - $ref: "#/components/schemas/OsqueryLiveQueryCompletedEvent"
-                title: Live query events
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Stream live query results
-      tags:
-        - Live Queries
   /api/munki/client-resources:
     delete:
       operationId: delete-munki-client-resources
@@ -5567,9 +5354,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Remove Munki client resources and use Munki defaults
+      summary: Delete client resources
       tags:
-        - Munki
+        - Munki client resources
     get:
       operationId: get-munki-client-resources
       responses:
@@ -5600,11 +5387,11 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get configured Munki client resources
+      summary: Get client resources
       tags:
-        - Munki
+        - Munki client resources
     put:
-      operationId: save-munki-client-resources
+      operationId: update-munki-client-resources
       requestBody:
         content:
           application/json:
@@ -5657,10 +5444,10 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Build and publish Munki client resources
+      summary: Update client resources
       tags:
-        - Munki
-  /api/munki/client-resources/banner:
+        - Munki client resources
+  /api/munki/client-resources/banner-uploads:
     post:
       operationId: create-munki-client-resources-banner-upload
       requestBody:
@@ -5709,10 +5496,10 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a banner upload for Munki client resources
+      summary: Create a banner upload
       tags:
-        - Munki
-  /api/munki/client-resources/banner/{id}:
+        - Munki client resources
+  /api/munki/client-resources/banner-uploads/{id}:
     delete:
       operationId: delete-munki-client-resources-banner-upload
       parameters:
@@ -5770,9 +5557,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete an unclaimed Munki client resources banner
+      summary: Delete a banner upload
       tags:
-        - Munki
+        - Munki client resources
   /api/munki/distribution-points:
     get:
       operationId: list-munki-distribution-points
@@ -5824,9 +5611,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Munki distribution points
+      summary: List distribution points
       tags:
-        - Munki
+        - Munki distribution points
     post:
       operationId: create-munki-distribution-point
       requestBody:
@@ -5881,9 +5668,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Munki distribution point
+      summary: Create a distribution point
       tags:
-        - Munki
+        - Munki distribution points
   /api/munki/distribution-points/order:
     put:
       operationId: reorder-munki-distribution-points
@@ -5929,9 +5716,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Reorder Munki distribution points
+      summary: Reorder distribution points
       tags:
-        - Munki
+        - Munki distribution points
   /api/munki/distribution-points/{id}:
     delete:
       operationId: delete-munki-distribution-point
@@ -5978,9 +5765,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a Munki distribution point
+      summary: Delete a distribution point
       tags:
-        - Munki
+        - Munki distribution points
     get:
       operationId: get-munki-distribution-point
       parameters:
@@ -6024,9 +5811,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Munki distribution point
+      summary: Get a distribution point
       tags:
-        - Munki
+        - Munki distribution points
     put:
       operationId: update-munki-distribution-point
       parameters:
@@ -6094,9 +5881,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update a Munki distribution point
+      summary: Update a distribution point
       tags:
-        - Munki
+        - Munki distribution points
   /api/munki/distribution-points/{id}/key:
     post:
       operationId: rotate-munki-distribution-point-key
@@ -6147,9 +5934,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Rotate a Munki distribution point key
+      summary: Rotate a distribution point key
       tags:
-        - Munki
+        - Munki distribution points
   /api/munki/icons:
     get:
       operationId: list-munki-icons
@@ -6201,12 +5988,63 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List uploaded Munki icons
+      summary: List icons
       tags:
-        - Munki
+        - Munki icons
+    post:
+      operationId: create-munki-icon-upload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiUploadRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiDirectUploadTarget"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Create an icon upload
+      tags:
+        - Munki icons
   /api/munki/package-installers:
     post:
-      operationId: create-munki-package-installer
+      operationId: create-munki-package-installer-upload
       requestBody:
         content:
           application/json:
@@ -6253,12 +6091,12 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Reserve a Munki package installer upload
+      summary: Create a package installer upload
       tags:
-        - Munki
+        - Munki package installers
   /api/munki/package-installers/{id}:
     delete:
-      operationId: delete-munki-package-installer
+      operationId: delete-munki-package-installer-upload
       parameters:
         - in: path
           name: id
@@ -6314,11 +6152,11 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete an unclaimed Munki package installer
+      summary: Delete a package installer upload
       tags:
-        - Munki
+        - Munki package installers
     put:
-      operationId: finalize-munki-package-installer
+      operationId: complete-munki-package-installer-upload
       parameters:
         - in: path
           name: id
@@ -6372,9 +6210,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Finalize a Munki package installer upload
+      summary: Complete a package installer upload
       tags:
-        - Munki
+        - Munki package installers
   /api/munki/package-installers/{id}/multipart:
     post:
       operationId: create-munki-package-installer-multipart
@@ -6431,11 +6269,10 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Munki package installer multipart upload
+      summary: Create a multipart upload
       tags:
-        - Munki
-  /api/munki/package-installers/{id}/multipart/complete:
-    post:
+        - Munki package installers
+    put:
       operationId: complete-munki-package-installer-multipart
       parameters:
         - in: path
@@ -6492,9 +6329,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Complete a Munki package installer multipart upload
+      summary: Complete a multipart upload
       tags:
-        - Munki
+        - Munki package installers
   /api/munki/package-installers/{id}/multipart/parts/{part_number}:
     post:
       operationId: sign-munki-package-installer-part
@@ -6559,9 +6396,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Sign one Munki package installer multipart part
+      summary: Sign a multipart upload part
       tags:
-        - Munki
+        - Munki package installers
   /api/munki/packages:
     delete:
       operationId: bulk-delete-munki-packages
@@ -6618,9 +6455,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete Munki packages
+      summary: Delete packages
       tags:
-        - Munki
+        - Munki packages
     get:
       operationId: list-munki-packages
       parameters:
@@ -6688,9 +6525,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Munki packages
+      summary: List packages
       tags:
-        - Munki
+        - Munki packages
     post:
       operationId: create-munki-package
       requestBody:
@@ -6751,9 +6588,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Munki package
+      summary: Create a package
       tags:
-        - Munki
+        - Munki packages
   /api/munki/packages/{id}:
     get:
       operationId: get-munki-package
@@ -6798,9 +6635,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Munki package
+      summary: Get a package
       tags:
-        - Munki
+        - Munki packages
     put:
       operationId: update-munki-package
       parameters:
@@ -6868,9 +6705,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update a Munki package
+      summary: Update a package
       tags:
-        - Munki
+        - Munki packages
   /api/munki/software:
     delete:
       operationId: bulk-delete-munki-software
@@ -6921,9 +6758,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete Munki software
+      summary: Delete software titles
       tags:
-        - Munki
+        - Munki software
     get:
       operationId: list-munki-software
       parameters:
@@ -6974,9 +6811,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Munki software
+      summary: List software titles
       tags:
-        - Munki
+        - Munki software
     post:
       operationId: create-munki-software
       requestBody:
@@ -7037,9 +6874,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create Munki software
+      summary: Create a software title
       tags:
-        - Munki
+        - Munki software
   /api/munki/software/{id}:
     delete:
       operationId: delete-munki-software
@@ -7086,9 +6923,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete Munki software
+      summary: Delete a software title
       tags:
-        - Munki
+        - Munki software
     get:
       operationId: get-munki-software
       parameters:
@@ -7132,9 +6969,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get Munki software
+      summary: Get a software title
       tags:
-        - Munki
+        - Munki software
     put:
       operationId: update-munki-software
       parameters:
@@ -7202,74 +7039,10 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update Munki software
+      summary: Update a software title
       tags:
-        - Munki
+        - Munki software
   /api/munki/software/{id}/icon:
-    post:
-      operationId: create-munki-software-icon-upload
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiDirectUploadTarget"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Create an icon upload for Munki software
-      tags:
-        - Munki
     put:
       operationId: set-munki-software-icon
       parameters:
@@ -7331,9 +7104,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Set the uploaded icon for Munki software
+      summary: Set a software icon
       tags:
-        - Munki
+        - Munki icons
   /api/osquery/checks:
     delete:
       operationId: bulk-delete-osquery-checks
@@ -7386,7 +7159,7 @@ paths:
         - bearerAuth: []
       summary: Delete checks
       tags:
-        - Checks
+        - Osquery checks
     get:
       operationId: list-osquery-checks
       parameters:
@@ -7439,7 +7212,7 @@ paths:
         - bearerAuth: []
       summary: List checks
       tags:
-        - Checks
+        - Osquery checks
     post:
       operationId: create-osquery-check
       requestBody:
@@ -7502,7 +7275,7 @@ paths:
         - bearerAuth: []
       summary: Create a check
       tags:
-        - Checks
+        - Osquery checks
   /api/osquery/checks/{id}:
     delete:
       operationId: delete-osquery-check
@@ -7551,7 +7324,7 @@ paths:
         - bearerAuth: []
       summary: Delete a check
       tags:
-        - Checks
+        - Osquery checks
     get:
       operationId: get-osquery-check
       parameters:
@@ -7597,7 +7370,7 @@ paths:
         - bearerAuth: []
       summary: Get a check
       tags:
-        - Checks
+        - Osquery checks
     put:
       operationId: update-osquery-check
       parameters:
@@ -7665,9 +7438,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Replace a check
+      summary: Update a check
       tags:
-        - Checks
+        - Osquery checks
   /api/osquery/checks/{id}/results:
     get:
       operationId: list-osquery-check-results
@@ -7722,9 +7495,220 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List latest results for a check
+      summary: List check results
       tags:
-        - Checks
+        - Osquery checks
+  /api/osquery/live-queries:
+    post:
+      operationId: create-live-query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OsqueryLiveQueryCreateBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OsqueryHandle"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Create a live query
+      tags:
+        - Osquery live queries
+  /api/osquery/live-queries/target-count:
+    post:
+      operationId: count-live-query-targets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OsqueryLiveQueryTargetCountBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OsqueryLiveQueryTargetCountOutputBody"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Count live query targets
+      tags:
+        - Osquery live queries
+  /api/osquery/live-queries/{id}:
+    delete:
+      operationId: delete-live-query
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Delete a live query
+      tags:
+        - Osquery live queries
+  /api/osquery/live-queries/{id}/stream:
+    get:
+      operationId: stream-live-query
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                description: One payload per event.
+                oneOf:
+                  - $ref: "#/components/schemas/OsqueryLiveQueryPingEvent"
+                  - $ref: "#/components/schemas/OsqueryLiveQueryResultEvent"
+                  - $ref: "#/components/schemas/OsqueryLiveQueryCompletedEvent"
+                title: Live query events
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Stream live query results
+      tags:
+        - Osquery live queries
   /api/osquery/reports:
     delete:
       operationId: bulk-delete-osquery-reports
@@ -7777,7 +7761,7 @@ paths:
         - bearerAuth: []
       summary: Delete reports
       tags:
-        - Reports
+        - Osquery reports
     get:
       operationId: list-osquery-reports
       parameters:
@@ -7830,7 +7814,7 @@ paths:
         - bearerAuth: []
       summary: List reports
       tags:
-        - Reports
+        - Osquery reports
     post:
       operationId: create-osquery-report
       requestBody:
@@ -7893,7 +7877,7 @@ paths:
         - bearerAuth: []
       summary: Create a report
       tags:
-        - Reports
+        - Osquery reports
   /api/osquery/reports/{id}:
     delete:
       operationId: delete-osquery-report
@@ -7942,7 +7926,7 @@ paths:
         - bearerAuth: []
       summary: Delete a report
       tags:
-        - Reports
+        - Osquery reports
     get:
       operationId: get-osquery-report
       parameters:
@@ -7988,7 +7972,7 @@ paths:
         - bearerAuth: []
       summary: Get a report
       tags:
-        - Reports
+        - Osquery reports
     put:
       operationId: update-osquery-report
       parameters:
@@ -8056,9 +8040,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Replace a report
+      summary: Update a report
       tags:
-        - Reports
+        - Osquery reports
   /api/osquery/reports/{id}/results:
     get:
       operationId: list-osquery-report-results
@@ -8105,9 +8089,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List latest snapshots for a report
+      summary: List report results
       tags:
-        - Reports
+        - Osquery reports
   /api/santa/configurations:
     delete:
       operationId: bulk-delete-santa-configurations
@@ -8158,9 +8142,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete Santa configurations
+      summary: Delete configurations
       tags:
-        - Santa
+        - Santa configurations
     get:
       operationId: list-santa-configurations
       parameters:
@@ -8211,9 +8195,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Santa configurations
+      summary: List configurations
       tags:
-        - Santa
+        - Santa configurations
     post:
       operationId: create-santa-configuration
       requestBody:
@@ -8274,9 +8258,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Santa configuration
+      summary: Create a configuration
       tags:
-        - Santa
+        - Santa configurations
   /api/santa/configurations/order:
     put:
       operationId: reorder-santa-configurations
@@ -8322,9 +8306,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Reorder Santa configurations
+      summary: Reorder configurations
       tags:
-        - Santa
+        - Santa configurations
   /api/santa/configurations/{id}:
     delete:
       operationId: delete-santa-configuration
@@ -8371,9 +8355,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a Santa configuration
+      summary: Delete a configuration
       tags:
-        - Santa
+        - Santa configurations
     get:
       operationId: get-santa-configuration
       parameters:
@@ -8417,9 +8401,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Santa configuration
+      summary: Get a configuration
       tags:
-        - Santa
+        - Santa configurations
     put:
       operationId: update-santa-configuration
       parameters:
@@ -8487,9 +8471,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update a Santa configuration
+      summary: Update a configuration
       tags:
-        - Santa
+        - Santa configurations
   /api/santa/events:
     get:
       operationId: list-santa-events
@@ -8598,9 +8582,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Santa execution events
+      summary: List execution events
       tags:
-        - Santa
+        - Santa events
   /api/santa/events/{id}:
     get:
       operationId: get-santa-event
@@ -8651,9 +8635,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Santa execution event
+      summary: Get an execution event
       tags:
-        - Santa
+        - Santa events
   /api/santa/file-access-events:
     get:
       operationId: list-santa-file-access-events
@@ -8741,9 +8725,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Santa file access events
+      summary: List file access events
       tags:
-        - Santa
+        - Santa events
   /api/santa/file-access-events/{id}:
     get:
       operationId: get-santa-file-access-event
@@ -8794,9 +8778,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Santa file access event
+      summary: Get a file access event
       tags:
-        - Santa
+        - Santa events
   /api/santa/rules:
     delete:
       operationId: bulk-delete-santa-rules
@@ -8847,9 +8831,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete Santa rules
+      summary: Delete rules
       tags:
-        - Santa
+        - Santa rules
     get:
       operationId: list-santa-rules
       parameters:
@@ -8924,9 +8908,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Santa rules
+      summary: List rules
       tags:
-        - Santa
+        - Santa rules
     post:
       operationId: create-santa-rule
       requestBody:
@@ -8987,9 +8971,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Santa rule
+      summary: Create a rule
       tags:
-        - Santa
+        - Santa rules
   /api/santa/rules/{id}:
     delete:
       operationId: delete-santa-rule
@@ -9036,9 +9020,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a Santa rule
+      summary: Delete a rule
       tags:
-        - Santa
+        - Santa rules
     get:
       operationId: get-santa-rule
       parameters:
@@ -9082,9 +9066,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Santa rule
+      summary: Get a rule
       tags:
-        - Santa
+        - Santa rules
     put:
       operationId: update-santa-rule
       parameters:
@@ -9152,9 +9136,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update a Santa rule
+      summary: Update a rule
       tags:
-        - Santa
+        - Santa rules
   /api/session:
     delete:
       operationId: delete-session
@@ -9176,9 +9160,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Revoke the current session
+      summary: Delete session
       tags:
-        - Auth
+        - Session
     get:
       operationId: get-session
       responses:
@@ -9194,9 +9178,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Get the current signed-in user, if any
+      summary: Get session
       tags:
-        - Auth
+        - Session
     post:
       operationId: create-session
       requestBody:
@@ -9238,7 +9222,7 @@ paths:
           description: Too Many Requests
           headers:
             Retry-After:
-              description: Seconds until another password-login attempt may be admitted
+              description: Seconds before another login attempt
               required: true
               schema:
                 type: integer
@@ -9248,9 +9232,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Create a local user session
+      summary: Create a session
       tags:
-        - Auth
+        - Session
   /api/software:
     get:
       operationId: list-software
@@ -9403,7 +9387,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get Santa reference data for a software title
+      summary: Get Santa reference for a software title
       tags:
         - Software
   /api/users:
@@ -9488,9 +9472,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List Woodstar users
+      summary: List users
       tags:
-        - Users
+        - Directory users
     post:
       operationId: create-user
       requestBody:
@@ -9545,9 +9529,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Create a Woodstar user
+      summary: Create a user
       tags:
-        - Users
+        - Directory users
   /api/users/departments:
     get:
       operationId: list-user-departments
@@ -9606,9 +9590,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List directory user departments
+      summary: List user departments
       tags:
-        - Users
+        - Directory users
   /api/users/{id}:
     delete:
       operationId: delete-user
@@ -9661,9 +9645,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a Woodstar user
+      summary: Delete a user
       tags:
-        - Users
+        - Directory users
     get:
       operationId: get-user
       parameters:
@@ -9707,9 +9691,9 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get a Woodstar user
+      summary: Get a user
       tags:
-        - Users
+        - Directory users
     put:
       operationId: update-user
       parameters:
@@ -9777,6 +9761,88 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Replace a Woodstar user
+      summary: Update a user
       tags:
-        - Users
+        - Directory users
+tags:
+  - name: Account
+    x-displayName: Account
+  - name: Agent secrets
+    x-displayName: Agent secrets
+  - name: Directory groups
+    x-displayName: Groups
+  - name: Directory users
+    x-displayName: Users
+  - name: Hosts
+    x-displayName: Hosts
+  - name: Labels
+    x-displayName: Labels
+  - name: Munki client resources
+    x-displayName: Client resources
+  - name: Munki distribution points
+    x-displayName: Distribution points
+  - name: Munki icons
+    x-displayName: Icons
+  - name: Munki package installers
+    x-displayName: Package installers
+  - name: Munki packages
+    x-displayName: Packages
+  - name: Munki software
+    x-displayName: Software
+  - name: Osquery checks
+    x-displayName: Checks
+  - name: Osquery live queries
+    x-displayName: Live queries
+  - name: Osquery reports
+    x-displayName: Reports
+  - name: Santa configurations
+    x-displayName: Configurations
+  - name: Santa events
+    x-displayName: Events
+  - name: Santa rules
+    x-displayName: Rules
+  - name: Session
+    x-displayName: Session
+  - name: Software
+    x-displayName: Software
+x-tagGroups:
+  - name: Account
+    tags:
+      - Account
+  - name: Agent secrets
+    tags:
+      - Agent secrets
+  - name: Directory
+    tags:
+      - Directory groups
+      - Directory users
+  - name: Hosts
+    tags:
+      - Hosts
+  - name: Labels
+    tags:
+      - Labels
+  - name: Munki
+    tags:
+      - Munki client resources
+      - Munki distribution points
+      - Munki icons
+      - Munki package installers
+      - Munki packages
+      - Munki software
+  - name: Osquery
+    tags:
+      - Osquery checks
+      - Osquery live queries
+      - Osquery reports
+  - name: Santa
+    tags:
+      - Santa configurations
+      - Santa events
+      - Santa rules
+  - name: Session
+    tags:
+      - Session
+  - name: Software
+    tags:
+      - Software

@@ -30,10 +30,10 @@ A label is a group of hosts. Once you can name a group, you can point things at 
 
 Labels come in three flavours:
 
-| Type | Membership |
-| --- | --- |
-| Manual | Hosts you pick by hand. |
-| Dynamic | Hosts that match an osquery query. |
+| Type    | Membership                                                      |
+| ------- | --------------------------------------------------------------- |
+| Manual  | Hosts you pick by hand.                                         |
+| Dynamic | Hosts that match an osquery query.                              |
 | Derived | Hosts that match directory data, such as a department or group. |
 
 Dynamic labels depend on osquery results coming back from the fleet. Derived labels depend on directory sync. Manual labels just are what you set them to.

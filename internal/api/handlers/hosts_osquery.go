@@ -34,7 +34,7 @@ func registerHostOsqueryChecks(
 		OperationID: "list-host-osquery-checks",
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/osquery/checks",
-		Tags:        []string{checksTag, hostsTag},
+		Tags:        []string{hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*checkResultsOutput, error) {
@@ -67,7 +67,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/osquery/reports",
-		Tags:        []string{reportsTag, hostsTag},
+		Tags:        []string{hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostReportsOutput, error) {

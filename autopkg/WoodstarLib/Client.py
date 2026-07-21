@@ -146,8 +146,8 @@ class WoodstarClient:
                     )
                 parts.append({"part_number": part_number, "etag": etag})
         self.request(
-            "POST",
-            f"/api/munki/package-installers/{object_id}/multipart/complete",
+            "PUT",
+            f"/api/munki/package-installers/{object_id}/multipart",
             {"parts": parts},
             timeout=UPLOAD_TIMEOUT,
         )

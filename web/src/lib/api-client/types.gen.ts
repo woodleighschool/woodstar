@@ -2504,176 +2504,6 @@ export type UpdateLabelResponses = {
 
 export type UpdateLabelResponse = UpdateLabelResponses[keyof UpdateLabelResponses];
 
-export type CreateLiveQueryData = {
-    body: OsqueryLiveQueryCreateBody;
-    path?: never;
-    query?: never;
-    url: '/api/live-queries';
-};
-
-export type CreateLiveQueryErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateLiveQueryError = CreateLiveQueryErrors[keyof CreateLiveQueryErrors];
-
-export type CreateLiveQueryResponses = {
-    /**
-     * Created
-     */
-    201: OsqueryHandle;
-};
-
-export type CreateLiveQueryResponse = CreateLiveQueryResponses[keyof CreateLiveQueryResponses];
-
-export type CountLiveQueryTargetsData = {
-    body: OsqueryLiveQueryTargetCountBody;
-    path?: never;
-    query?: never;
-    url: '/api/live-queries/targets/count';
-};
-
-export type CountLiveQueryTargetsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CountLiveQueryTargetsError = CountLiveQueryTargetsErrors[keyof CountLiveQueryTargetsErrors];
-
-export type CountLiveQueryTargetsResponses = {
-    /**
-     * OK
-     */
-    200: OsqueryLiveQueryTargetCountOutputBody;
-};
-
-export type CountLiveQueryTargetsResponse = CountLiveQueryTargetsResponses[keyof CountLiveQueryTargetsResponses];
-
-export type DeleteLiveQueryData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/live-queries/{id}';
-};
-
-export type DeleteLiveQueryErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type DeleteLiveQueryError = DeleteLiveQueryErrors[keyof DeleteLiveQueryErrors];
-
-export type DeleteLiveQueryResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteLiveQueryResponse = DeleteLiveQueryResponses[keyof DeleteLiveQueryResponses];
-
-export type StreamLiveQueryData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/live-queries/{id}/stream';
-};
-
-export type StreamLiveQueryErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type StreamLiveQueryError = StreamLiveQueryErrors[keyof StreamLiveQueryErrors];
-
-export type StreamLiveQueryResponses = {
-    /**
-     * Live query events
-     *
-     * One decoded live-query payload per server-sent event.
-     */
-    200: OsqueryLiveQueryPingEvent | OsqueryLiveQueryResultEvent | OsqueryLiveQueryCompletedEvent;
-};
-
-export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
-
 export type DeleteMunkiClientResourcesData = {
     body?: never;
     path?: never;
@@ -2744,14 +2574,14 @@ export type GetMunkiClientResourcesResponses = {
 
 export type GetMunkiClientResourcesResponse = GetMunkiClientResourcesResponses[keyof GetMunkiClientResourcesResponses];
 
-export type SaveMunkiClientResourcesData = {
+export type UpdateMunkiClientResourcesData = {
     body: MunkiMutation;
     path?: never;
     query?: never;
     url: '/api/munki/client-resources';
 };
 
-export type SaveMunkiClientResourcesErrors = {
+export type UpdateMunkiClientResourcesErrors = {
     /**
      * Bad Request
      */
@@ -2778,22 +2608,22 @@ export type SaveMunkiClientResourcesErrors = {
     500: ErrorModel;
 };
 
-export type SaveMunkiClientResourcesError = SaveMunkiClientResourcesErrors[keyof SaveMunkiClientResourcesErrors];
+export type UpdateMunkiClientResourcesError = UpdateMunkiClientResourcesErrors[keyof UpdateMunkiClientResourcesErrors];
 
-export type SaveMunkiClientResourcesResponses = {
+export type UpdateMunkiClientResourcesResponses = {
     /**
      * OK
      */
     200: MunkiClientResources;
 };
 
-export type SaveMunkiClientResourcesResponse = SaveMunkiClientResourcesResponses[keyof SaveMunkiClientResourcesResponses];
+export type UpdateMunkiClientResourcesResponse = UpdateMunkiClientResourcesResponses[keyof UpdateMunkiClientResourcesResponses];
 
 export type CreateMunkiClientResourcesBannerUploadData = {
     body: MunkiUploadRequest;
     path?: never;
     query?: never;
-    url: '/api/munki/client-resources/banner';
+    url: '/api/munki/client-resources/banner-uploads';
 };
 
 export type CreateMunkiClientResourcesBannerUploadErrors = {
@@ -2836,7 +2666,7 @@ export type DeleteMunkiClientResourcesBannerUploadData = {
         id: number;
     };
     query?: never;
-    url: '/api/munki/client-resources/banner/{id}';
+    url: '/api/munki/client-resources/banner-uploads/{id}';
 };
 
 export type DeleteMunkiClientResourcesBannerUploadErrors = {
@@ -3211,14 +3041,14 @@ export type ListMunkiIconsResponses = {
 
 export type ListMunkiIconsResponse = ListMunkiIconsResponses[keyof ListMunkiIconsResponses];
 
-export type CreateMunkiPackageInstallerData = {
+export type CreateMunkiIconUploadData = {
     body: MunkiUploadRequest;
     path?: never;
     query?: never;
-    url: '/api/munki/package-installers';
+    url: '/api/munki/icons';
 };
 
-export type CreateMunkiPackageInstallerErrors = {
+export type CreateMunkiIconUploadErrors = {
     /**
      * Bad Request
      */
@@ -3241,18 +3071,59 @@ export type CreateMunkiPackageInstallerErrors = {
     500: ErrorModel;
 };
 
-export type CreateMunkiPackageInstallerError = CreateMunkiPackageInstallerErrors[keyof CreateMunkiPackageInstallerErrors];
+export type CreateMunkiIconUploadError = CreateMunkiIconUploadErrors[keyof CreateMunkiIconUploadErrors];
 
-export type CreateMunkiPackageInstallerResponses = {
+export type CreateMunkiIconUploadResponses = {
+    /**
+     * Created
+     */
+    201: MunkiDirectUploadTarget;
+};
+
+export type CreateMunkiIconUploadResponse = CreateMunkiIconUploadResponses[keyof CreateMunkiIconUploadResponses];
+
+export type CreateMunkiPackageInstallerUploadData = {
+    body: MunkiUploadRequest;
+    path?: never;
+    query?: never;
+    url: '/api/munki/package-installers';
+};
+
+export type CreateMunkiPackageInstallerUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiPackageInstallerUploadError = CreateMunkiPackageInstallerUploadErrors[keyof CreateMunkiPackageInstallerUploadErrors];
+
+export type CreateMunkiPackageInstallerUploadResponses = {
     /**
      * Created
      */
     201: MunkiPackageInstallerUploadTarget;
 };
 
-export type CreateMunkiPackageInstallerResponse = CreateMunkiPackageInstallerResponses[keyof CreateMunkiPackageInstallerResponses];
+export type CreateMunkiPackageInstallerUploadResponse = CreateMunkiPackageInstallerUploadResponses[keyof CreateMunkiPackageInstallerUploadResponses];
 
-export type DeleteMunkiPackageInstallerData = {
+export type DeleteMunkiPackageInstallerUploadData = {
     body?: never;
     path: {
         id: number;
@@ -3261,7 +3132,7 @@ export type DeleteMunkiPackageInstallerData = {
     url: '/api/munki/package-installers/{id}';
 };
 
-export type DeleteMunkiPackageInstallerErrors = {
+export type DeleteMunkiPackageInstallerUploadErrors = {
     /**
      * Bad Request
      */
@@ -3292,18 +3163,18 @@ export type DeleteMunkiPackageInstallerErrors = {
     500: ErrorModel;
 };
 
-export type DeleteMunkiPackageInstallerError = DeleteMunkiPackageInstallerErrors[keyof DeleteMunkiPackageInstallerErrors];
+export type DeleteMunkiPackageInstallerUploadError = DeleteMunkiPackageInstallerUploadErrors[keyof DeleteMunkiPackageInstallerUploadErrors];
 
-export type DeleteMunkiPackageInstallerResponses = {
+export type DeleteMunkiPackageInstallerUploadResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteMunkiPackageInstallerResponse = DeleteMunkiPackageInstallerResponses[keyof DeleteMunkiPackageInstallerResponses];
+export type DeleteMunkiPackageInstallerUploadResponse = DeleteMunkiPackageInstallerUploadResponses[keyof DeleteMunkiPackageInstallerUploadResponses];
 
-export type FinalizeMunkiPackageInstallerData = {
+export type CompleteMunkiPackageInstallerUploadData = {
     body?: never;
     path: {
         id: number;
@@ -3312,7 +3183,7 @@ export type FinalizeMunkiPackageInstallerData = {
     url: '/api/munki/package-installers/{id}';
 };
 
-export type FinalizeMunkiPackageInstallerErrors = {
+export type CompleteMunkiPackageInstallerUploadErrors = {
     /**
      * Bad Request
      */
@@ -3339,16 +3210,16 @@ export type FinalizeMunkiPackageInstallerErrors = {
     500: ErrorModel;
 };
 
-export type FinalizeMunkiPackageInstallerError = FinalizeMunkiPackageInstallerErrors[keyof FinalizeMunkiPackageInstallerErrors];
+export type CompleteMunkiPackageInstallerUploadError = CompleteMunkiPackageInstallerUploadErrors[keyof CompleteMunkiPackageInstallerUploadErrors];
 
-export type FinalizeMunkiPackageInstallerResponses = {
+export type CompleteMunkiPackageInstallerUploadResponses = {
     /**
      * OK
      */
     200: MunkiObjectView;
 };
 
-export type FinalizeMunkiPackageInstallerResponse = FinalizeMunkiPackageInstallerResponses[keyof FinalizeMunkiPackageInstallerResponses];
+export type CompleteMunkiPackageInstallerUploadResponse = CompleteMunkiPackageInstallerUploadResponses[keyof CompleteMunkiPackageInstallerUploadResponses];
 
 export type CreateMunkiPackageInstallerMultipartData = {
     body?: never;
@@ -3403,7 +3274,7 @@ export type CompleteMunkiPackageInstallerMultipartData = {
         id: number;
     };
     query?: never;
-    url: '/api/munki/package-installers/{id}/multipart/complete';
+    url: '/api/munki/package-installers/{id}/multipart';
 };
 
 export type CompleteMunkiPackageInstallerMultipartErrors = {
@@ -3973,53 +3844,6 @@ export type UpdateMunkiSoftwareResponses = {
 
 export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
 
-export type CreateMunkiSoftwareIconUploadData = {
-    body: MunkiUploadRequest;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/software/{id}/icon';
-};
-
-export type CreateMunkiSoftwareIconUploadErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiSoftwareIconUploadError = CreateMunkiSoftwareIconUploadErrors[keyof CreateMunkiSoftwareIconUploadErrors];
-
-export type CreateMunkiSoftwareIconUploadResponses = {
-    /**
-     * Created
-     */
-    201: MunkiDirectUploadTarget;
-};
-
-export type CreateMunkiSoftwareIconUploadResponse = CreateMunkiSoftwareIconUploadResponses[keyof CreateMunkiSoftwareIconUploadResponses];
-
 export type SetMunkiSoftwareIconData = {
     body: MunkiObjectMutation;
     path: {
@@ -4366,6 +4190,176 @@ export type ListOsqueryCheckResultsResponses = {
 };
 
 export type ListOsqueryCheckResultsResponse = ListOsqueryCheckResultsResponses[keyof ListOsqueryCheckResultsResponses];
+
+export type CreateLiveQueryData = {
+    body: OsqueryLiveQueryCreateBody;
+    path?: never;
+    query?: never;
+    url: '/api/osquery/live-queries';
+};
+
+export type CreateLiveQueryErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateLiveQueryError = CreateLiveQueryErrors[keyof CreateLiveQueryErrors];
+
+export type CreateLiveQueryResponses = {
+    /**
+     * Created
+     */
+    201: OsqueryHandle;
+};
+
+export type CreateLiveQueryResponse = CreateLiveQueryResponses[keyof CreateLiveQueryResponses];
+
+export type CountLiveQueryTargetsData = {
+    body: OsqueryLiveQueryTargetCountBody;
+    path?: never;
+    query?: never;
+    url: '/api/osquery/live-queries/target-count';
+};
+
+export type CountLiveQueryTargetsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CountLiveQueryTargetsError = CountLiveQueryTargetsErrors[keyof CountLiveQueryTargetsErrors];
+
+export type CountLiveQueryTargetsResponses = {
+    /**
+     * OK
+     */
+    200: OsqueryLiveQueryTargetCountOutputBody;
+};
+
+export type CountLiveQueryTargetsResponse = CountLiveQueryTargetsResponses[keyof CountLiveQueryTargetsResponses];
+
+export type DeleteLiveQueryData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/live-queries/{id}';
+};
+
+export type DeleteLiveQueryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteLiveQueryError = DeleteLiveQueryErrors[keyof DeleteLiveQueryErrors];
+
+export type DeleteLiveQueryResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteLiveQueryResponse = DeleteLiveQueryResponses[keyof DeleteLiveQueryResponses];
+
+export type StreamLiveQueryData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/live-queries/{id}/stream';
+};
+
+export type StreamLiveQueryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type StreamLiveQueryError = StreamLiveQueryErrors[keyof StreamLiveQueryErrors];
+
+export type StreamLiveQueryResponses = {
+    /**
+     * Live query events
+     *
+     * One payload per event.
+     */
+    200: OsqueryLiveQueryPingEvent | OsqueryLiveQueryResultEvent | OsqueryLiveQueryCompletedEvent;
+};
+
+export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
 
 export type BulkDeleteOsqueryReportsData = {
     body?: never;

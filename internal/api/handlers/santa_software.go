@@ -26,7 +26,7 @@ func registerSoftwareSantaReference(api huma.API, store *references.Store, logge
 		Method:      http.MethodGet,
 		Path:        "/api/software/{id}/santa",
 		Tags:        []string{softwareTag},
-		Summary:     "Get Santa reference data for a software title",
+		Summary:     "Get Santa reference for a software title",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareSantaGetInput) (*softwareSantaGetOutput, error) {
 		ref, err := store.GetSoftwareReference(ctx, input.ID)

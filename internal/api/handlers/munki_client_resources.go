@@ -15,7 +15,7 @@ import (
 
 const (
 	clientResourcesPath       = "/api/munki/client-resources"
-	clientResourcesBannerPath = clientResourcesPath + "/banner"
+	clientResourcesBannerPath = clientResourcesPath + "/banner-uploads"
 	clientResourcesLabel      = "Munki client resources"
 )
 
@@ -49,7 +49,7 @@ func registerMunkiClientResources(
 	logger *slog.Logger,
 ) {
 	registerGetMunkiClientResources(api, service, objects, logger)
-	registerSaveMunkiClientResources(api, service, objects, logger)
+	registerUpdateMunkiClientResources(api, service, objects, logger)
 	registerDeleteMunkiClientResources(api, service, logger)
 	registerCreateClientResourcesBannerUpload(api, ingestor, logger)
 	registerDeleteClientResourcesBannerUpload(api, ingestor, logger)
@@ -69,8 +69,8 @@ func registerGetMunkiClientResources(
 		OperationID: "get-munki-client-resources",
 		Method:      http.MethodGet,
 		Path:        clientResourcesPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Get configured Munki client resources",
+		Tags:        []string{munkiClientResourcesTag},
+		Summary:     "Get client resources",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, _ *struct{}) (*clientResourcesOutput, error) {
 		resource, err := service.Get(ctx)
@@ -85,18 +85,18 @@ func registerGetMunkiClientResources(
 	})
 }
 
-func registerSaveMunkiClientResources(
+func registerUpdateMunkiClientResources(
 	api huma.API,
 	service *clientresources.Service,
 	objects *storage.ObjectStore,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID: "save-munki-client-resources",
+		OperationID: "update-munki-client-resources",
 		Method:      http.MethodPut,
 		Path:        clientResourcesPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Build and publish Munki client resources",
+		Tags:        []string{munkiClientResourcesTag},
+		Summary:     "Update client resources",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -104,11 +104,11 @@ func registerSaveMunkiClientResources(
 	}, func(ctx context.Context, input *clientResourcesPutInput) (*clientResourcesOutput, error) {
 		resource, err := service.Save(ctx, input.Body)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "save-munki-client-resources", clientResourcesLabel, err)
+			return nil, resourceError(ctx, logger, "update-munki-client-resources", clientResourcesLabel, err)
 		}
 		output, err := clientResourcesResponse(ctx, objects, *resource)
 		if err != nil {
-			return nil, resourceError(ctx, logger, "save-munki-client-resources", clientResourcesLabel, err)
+			return nil, resourceError(ctx, logger, "update-munki-client-resources", clientResourcesLabel, err)
 		}
 		return output, nil
 	})
@@ -123,8 +123,8 @@ func registerDeleteMunkiClientResources(
 		OperationID:   "delete-munki-client-resources",
 		Method:        http.MethodDelete,
 		Path:          clientResourcesPath,
-		Tags:          []string{munkiTag},
-		Summary:       "Remove Munki client resources and use Munki defaults",
+		Tags:          []string{munkiClientResourcesTag},
+		Summary:       "Delete client resources",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusNotFound},
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
@@ -144,8 +144,8 @@ func registerCreateClientResourcesBannerUpload(
 		OperationID:   "create-munki-client-resources-banner-upload",
 		Method:        http.MethodPost,
 		Path:          clientResourcesBannerPath,
-		Tags:          []string{munkiTag},
-		Summary:       "Create a banner upload for Munki client resources",
+		Tags:          []string{munkiClientResourcesTag},
+		Summary:       "Create a banner upload",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiDirectUploadOutput, error) {
@@ -176,8 +176,8 @@ func registerDeleteClientResourcesBannerUpload(
 		OperationID:   "delete-munki-client-resources-banner-upload",
 		Method:        http.MethodDelete,
 		Path:          clientResourcesBannerPath + "/{id}",
-		Tags:          []string{munkiTag},
-		Summary:       "Delete an unclaimed Munki client resources banner",
+		Tags:          []string{munkiClientResourcesTag},
+		Summary:       "Delete a banner upload",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *clientResourcesBannerUploadInput) (*struct{}, error) {

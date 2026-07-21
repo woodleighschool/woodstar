@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryChecksData, BulkDeleteOsqueryChecksErrors, BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteMunkiPackageInstallerMultipartData, CompleteMunkiPackageInstallerMultipartErrors, CompleteMunkiPackageInstallerMultipartResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerData, CreateMunkiPackageInstallerErrors, CreateMunkiPackageInstallerMultipartData, CreateMunkiPackageInstallerMultipartErrors, CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareIconUploadData, CreateMunkiSoftwareIconUploadErrors, CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareResponses, CreateOsqueryCheckData, CreateOsqueryCheckErrors, CreateOsqueryCheckResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteLiveQueryData, DeleteLiveQueryErrors, DeleteLiveQueryResponses, DeleteMunkiClientResourcesBannerUploadData, DeleteMunkiClientResourcesBannerUploadErrors, DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageInstallerData, DeleteMunkiPackageInstallerErrors, DeleteMunkiPackageInstallerResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryCheckData, DeleteOsqueryCheckErrors, DeleteOsqueryCheckResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, FinalizeMunkiPackageInstallerData, FinalizeMunkiPackageInstallerErrors, FinalizeMunkiPackageInstallerResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryCheckData, GetOsqueryCheckErrors, GetOsqueryCheckResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetSoftwareSantaReferenceData, GetSoftwareSantaReferenceErrors, GetSoftwareSantaReferenceResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostOsqueryChecksData, ListHostOsqueryChecksErrors, ListHostOsqueryChecksResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryCheckResultsData, ListOsqueryCheckResultsErrors, ListOsqueryCheckResultsResponses, ListOsqueryChecksData, ListOsqueryChecksErrors, ListOsqueryChecksResponses, ListOsqueryReportResultsData, ListOsqueryReportResultsErrors, ListOsqueryReportResultsResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, SaveMunkiClientResourcesData, SaveMunkiClientResourcesErrors, SaveMunkiClientResourcesResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, SignMunkiPackageInstallerPartData, SignMunkiPackageInstallerPartErrors, SignMunkiPackageInstallerPartResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryCheckData, UpdateOsqueryCheckErrors, UpdateOsqueryCheckResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
+import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryChecksData, BulkDeleteOsqueryChecksErrors, BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteMunkiPackageInstallerMultipartData, CompleteMunkiPackageInstallerMultipartErrors, CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerUploadData, CompleteMunkiPackageInstallerUploadErrors, CompleteMunkiPackageInstallerUploadResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiIconUploadData, CreateMunkiIconUploadErrors, CreateMunkiIconUploadResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerMultipartData, CreateMunkiPackageInstallerMultipartErrors, CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerUploadData, CreateMunkiPackageInstallerUploadErrors, CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareResponses, CreateOsqueryCheckData, CreateOsqueryCheckErrors, CreateOsqueryCheckResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteLiveQueryData, DeleteLiveQueryErrors, DeleteLiveQueryResponses, DeleteMunkiClientResourcesBannerUploadData, DeleteMunkiClientResourcesBannerUploadErrors, DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageInstallerUploadData, DeleteMunkiPackageInstallerUploadErrors, DeleteMunkiPackageInstallerUploadResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryCheckData, DeleteOsqueryCheckErrors, DeleteOsqueryCheckResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryCheckData, GetOsqueryCheckErrors, GetOsqueryCheckResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetSoftwareSantaReferenceData, GetSoftwareSantaReferenceErrors, GetSoftwareSantaReferenceResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostOsqueryChecksData, ListHostOsqueryChecksErrors, ListHostOsqueryChecksResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryCheckResultsData, ListOsqueryCheckResultsErrors, ListOsqueryCheckResultsResponses, ListOsqueryChecksData, ListOsqueryChecksErrors, ListOsqueryChecksResponses, ListOsqueryReportResultsData, ListOsqueryReportResultsErrors, ListOsqueryReportResultsResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, SignMunkiPackageInstallerPartData, SignMunkiPackageInstallerPartErrors, SignMunkiPackageInstallerPartResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiClientResourcesData, UpdateMunkiClientResourcesErrors, UpdateMunkiClientResourcesResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryCheckData, UpdateOsqueryCheckErrors, UpdateOsqueryCheckResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,7 +19,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Get the signed-in user's account, including any API key
+ * Get account
  */
 export const getAccount = <ThrowOnError extends boolean = false>(options?: Options<GetAccountData, ThrowOnError>): RequestResult<GetAccountResponses, GetAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetAccountResponses, GetAccountErrors, ThrowOnError>({
     security: [{
@@ -32,7 +32,7 @@ export const getAccount = <ThrowOnError extends boolean = false>(options?: Optio
 });
 
 /**
- * Update the signed-in user's account
+ * Update account
  */
 export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).put<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
     security: [{
@@ -49,7 +49,7 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Clear the API key on the signed-in user's account
+ * Revoke API key
  */
 export const revokeAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RevokeAccountApiKeyData, ThrowOnError>): RequestResult<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).delete<RevokeAccountApiKeyResponses, RevokeAccountApiKeyErrors, ThrowOnError>({
     security: [{
@@ -62,7 +62,7 @@ export const revokeAccountApiKey = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Generate a new API key for the signed-in user, replacing any prior key
+ * Rotate API key
  */
 export const rotateAccountApiKey = <ThrowOnError extends boolean = false>(options?: Options<RotateAccountApiKeyData, ThrowOnError>): RequestResult<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError> => (options?.client ?? client).post<RotateAccountApiKeyResponses, RotateAccountApiKeyErrors, ThrowOnError>({
     security: [{
@@ -88,7 +88,7 @@ export const listAgentSecrets = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Create agent secret
+ * Create an agent secret
  */
 export const createAgentSecret = <ThrowOnError extends boolean = false>(options: Options<CreateAgentSecretData, ThrowOnError>): RequestResult<CreateAgentSecretResponses, CreateAgentSecretErrors, ThrowOnError> => (options.client ?? client).post<CreateAgentSecretResponses, CreateAgentSecretErrors, ThrowOnError>({
     security: [{
@@ -105,7 +105,7 @@ export const createAgentSecret = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Delete agent secret
+ * Delete an agent secret
  */
 export const deleteAgentSecret = <ThrowOnError extends boolean = false>(options: Options<DeleteAgentSecretData, ThrowOnError>): RequestResult<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAgentSecretResponses, DeleteAgentSecretErrors, ThrowOnError>({
     security: [{
@@ -118,7 +118,7 @@ export const deleteAgentSecret = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Update agent secret
+ * Update an agent secret
  */
 export const updateAgentSecret = <ThrowOnError extends boolean = false>(options: Options<UpdateAgentSecretData, ThrowOnError>): RequestResult<UpdateAgentSecretResponses, UpdateAgentSecretErrors, ThrowOnError> => (options.client ?? client).put<UpdateAgentSecretResponses, UpdateAgentSecretErrors, ThrowOnError>({
     security: [{
@@ -135,7 +135,7 @@ export const updateAgentSecret = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * List directory groups
+ * List groups
  */
 export const listGroups = <ThrowOnError extends boolean = false>(options?: Options<ListGroupsData, ThrowOnError>): RequestResult<ListGroupsResponses, ListGroupsErrors, ThrowOnError> => (options?.client ?? client).get<ListGroupsResponses, ListGroupsErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
@@ -149,7 +149,7 @@ export const listGroups = <ThrowOnError extends boolean = false>(options?: Optio
 });
 
 /**
- * Get a directory group
+ * Get a group
  */
 export const getGroup = <ThrowOnError extends boolean = false>(options: Options<GetGroupData, ThrowOnError>): RequestResult<GetGroupResponses, GetGroupErrors, ThrowOnError> => (options.client ?? client).get<GetGroupResponses, GetGroupErrors, ThrowOnError>({
     security: [{
@@ -162,7 +162,7 @@ export const getGroup = <ThrowOnError extends boolean = false>(options: Options<
 });
 
 /**
- * Delete enrolled hosts
+ * Delete hosts
  */
 export const bulkDeleteHosts = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteHostsData, ThrowOnError>): RequestResult<BulkDeleteHostsResponses, BulkDeleteHostsErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteHostsResponses, BulkDeleteHostsErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -176,7 +176,7 @@ export const bulkDeleteHosts = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * List enrolled hosts
+ * List hosts
  */
 export const listHosts = <ThrowOnError extends boolean = false>(options?: Options<ListHostsData, ThrowOnError>): RequestResult<ListHostsResponses, ListHostsErrors, ThrowOnError> => (options?.client ?? client).get<ListHostsResponses, ListHostsErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -190,7 +190,7 @@ export const listHosts = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
- * Delete an enrolled host
+ * Delete a host
  */
 export const deleteHost = <ThrowOnError extends boolean = false>(options: Options<DeleteHostData, ThrowOnError>): RequestResult<DeleteHostResponses, DeleteHostErrors, ThrowOnError> => (options.client ?? client).delete<DeleteHostResponses, DeleteHostErrors, ThrowOnError>({
     security: [{
@@ -203,7 +203,7 @@ export const deleteHost = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * Get an enrolled host
+ * Get a host
  */
 export const getHost = <ThrowOnError extends boolean = false>(options: Options<GetHostData, ThrowOnError>): RequestResult<GetHostResponses, GetHostErrors, ThrowOnError> => (options.client ?? client).get<GetHostResponses, GetHostErrors, ThrowOnError>({
     security: [{
@@ -255,7 +255,7 @@ export const listHostOsqueryReports = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Clear the host primary user
+ * Clear primary user for a host
  */
 export const clearHostPrimaryUser = <ThrowOnError extends boolean = false>(options: Options<ClearHostPrimaryUserData, ThrowOnError>): RequestResult<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError> => (options.client ?? client).delete<ClearHostPrimaryUserResponses, ClearHostPrimaryUserErrors, ThrowOnError>({
     security: [{
@@ -268,7 +268,7 @@ export const clearHostPrimaryUser = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Set the host primary user
+ * Set primary user for a host
  */
 export const setHostPrimaryUser = <ThrowOnError extends boolean = false>(options: Options<SetHostPrimaryUserData, ThrowOnError>): RequestResult<SetHostPrimaryUserResponses, SetHostPrimaryUserErrors, ThrowOnError> => (options.client ?? client).put<SetHostPrimaryUserResponses, SetHostPrimaryUserErrors, ThrowOnError>({
     security: [{
@@ -311,7 +311,7 @@ export const listHostSantaRules = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * List software installed on a host
+ * List software for a host
  */
 export const listHostSoftware = <ThrowOnError extends boolean = false>(options: Options<ListHostSoftwareData, ThrowOnError>): RequestResult<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError> => (options.client ?? client).get<ListHostSoftwareResponses, ListHostSoftwareErrors, ThrowOnError>({
     querySerializer: { parameters: { source: { array: { explode: false } } } },
@@ -355,7 +355,7 @@ export const createLabel = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Delete a regular label
+ * Delete a label
  */
 export const deleteLabel = <ThrowOnError extends boolean = false>(options: Options<DeleteLabelData, ThrowOnError>): RequestResult<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError> => (options.client ?? client).delete<DeleteLabelResponses, DeleteLabelErrors, ThrowOnError>({
     security: [{
@@ -381,7 +381,7 @@ export const getLabel = <ThrowOnError extends boolean = false>(options: Options<
 });
 
 /**
- * Replace a label
+ * Update a label
  */
 export const updateLabel = <ThrowOnError extends boolean = false>(options: Options<UpdateLabelData, ThrowOnError>): RequestResult<UpdateLabelResponses, UpdateLabelErrors, ThrowOnError> => (options.client ?? client).put<UpdateLabelResponses, UpdateLabelErrors, ThrowOnError>({
     security: [{
@@ -398,67 +398,7 @@ export const updateLabel = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Start a live run against online hosts
- */
-export const createLiveQuery = <ThrowOnError extends boolean = false>(options: Options<CreateLiveQueryData, ThrowOnError>): RequestResult<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/live-queries',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Count live query targets
- */
-export const countLiveQueryTargets = <ThrowOnError extends boolean = false>(options: Options<CountLiveQueryTargetsData, ThrowOnError>): RequestResult<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError> => (options.client ?? client).post<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/live-queries/targets/count',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Stop a running live query
- */
-export const deleteLiveQuery = <ThrowOnError extends boolean = false>(options: Options<DeleteLiveQueryData, ThrowOnError>): RequestResult<DeleteLiveQueryResponses, DeleteLiveQueryErrors, ThrowOnError> => (options.client ?? client).delete<DeleteLiveQueryResponses, DeleteLiveQueryErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/live-queries/{id}',
-    ...options
-});
-
-/**
- * Stream live query results
- */
-export const streamLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StreamLiveQueryData, ThrowOnError, StreamLiveQueryResponse>): Promise<ServerSentEventsResult<StreamLiveQueryResponses>> => (options.client ?? client).sse.get<StreamLiveQueryResponses, StreamLiveQueryErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/live-queries/{id}/stream',
-    ...options
-});
-
-/**
- * Remove Munki client resources and use Munki defaults
+ * Delete client resources
  */
 export const deleteMunkiClientResources = <ThrowOnError extends boolean = false>(options?: Options<DeleteMunkiClientResourcesData, ThrowOnError>): RequestResult<DeleteMunkiClientResourcesResponses, DeleteMunkiClientResourcesErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteMunkiClientResourcesResponses, DeleteMunkiClientResourcesErrors, ThrowOnError>({
     security: [{
@@ -471,7 +411,7 @@ export const deleteMunkiClientResources = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Get configured Munki client resources
+ * Get client resources
  */
 export const getMunkiClientResources = <ThrowOnError extends boolean = false>(options?: Options<GetMunkiClientResourcesData, ThrowOnError>): RequestResult<GetMunkiClientResourcesResponses, GetMunkiClientResourcesErrors, ThrowOnError> => (options?.client ?? client).get<GetMunkiClientResourcesResponses, GetMunkiClientResourcesErrors, ThrowOnError>({
     security: [{
@@ -484,9 +424,9 @@ export const getMunkiClientResources = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Build and publish Munki client resources
+ * Update client resources
  */
-export const saveMunkiClientResources = <ThrowOnError extends boolean = false>(options: Options<SaveMunkiClientResourcesData, ThrowOnError>): RequestResult<SaveMunkiClientResourcesResponses, SaveMunkiClientResourcesErrors, ThrowOnError> => (options.client ?? client).put<SaveMunkiClientResourcesResponses, SaveMunkiClientResourcesErrors, ThrowOnError>({
+export const updateMunkiClientResources = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiClientResourcesData, ThrowOnError>): RequestResult<UpdateMunkiClientResourcesResponses, UpdateMunkiClientResourcesErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiClientResourcesResponses, UpdateMunkiClientResourcesErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -501,7 +441,7 @@ export const saveMunkiClientResources = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Create a banner upload for Munki client resources
+ * Create a banner upload
  */
 export const createMunkiClientResourcesBannerUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiClientResourcesBannerUploadData, ThrowOnError>): RequestResult<CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiClientResourcesBannerUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiClientResourcesBannerUploadErrors, ThrowOnError>({
     security: [{
@@ -509,7 +449,7 @@ export const createMunkiClientResourcesBannerUpload = <ThrowOnError extends bool
             name: 'woodstar_session',
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/client-resources/banner',
+    url: '/api/munki/client-resources/banner-uploads',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -518,7 +458,7 @@ export const createMunkiClientResourcesBannerUpload = <ThrowOnError extends bool
 });
 
 /**
- * Delete an unclaimed Munki client resources banner
+ * Delete a banner upload
  */
 export const deleteMunkiClientResourcesBannerUpload = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiClientResourcesBannerUploadData, ThrowOnError>): RequestResult<DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesBannerUploadErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesBannerUploadErrors, ThrowOnError>({
     security: [{
@@ -526,12 +466,12 @@ export const deleteMunkiClientResourcesBannerUpload = <ThrowOnError extends bool
             name: 'woodstar_session',
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/client-resources/banner/{id}',
+    url: '/api/munki/client-resources/banner-uploads/{id}',
     ...options
 });
 
 /**
- * List Munki distribution points
+ * List distribution points
  */
 export const listMunkiDistributionPoints = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiDistributionPointsData, ThrowOnError>): RequestResult<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiDistributionPointsResponses, ListMunkiDistributionPointsErrors, ThrowOnError>({
     security: [{
@@ -544,7 +484,7 @@ export const listMunkiDistributionPoints = <ThrowOnError extends boolean = false
 });
 
 /**
- * Create a Munki distribution point
+ * Create a distribution point
  */
 export const createMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiDistributionPointData, ThrowOnError>): RequestResult<CreateMunkiDistributionPointResponses, CreateMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiDistributionPointResponses, CreateMunkiDistributionPointErrors, ThrowOnError>({
     security: [{
@@ -561,7 +501,7 @@ export const createMunkiDistributionPoint = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Reorder Munki distribution points
+ * Reorder distribution points
  */
 export const reorderMunkiDistributionPoints = <ThrowOnError extends boolean = false>(options: Options<ReorderMunkiDistributionPointsData, ThrowOnError>): RequestResult<ReorderMunkiDistributionPointsResponses, ReorderMunkiDistributionPointsErrors, ThrowOnError> => (options.client ?? client).put<ReorderMunkiDistributionPointsResponses, ReorderMunkiDistributionPointsErrors, ThrowOnError>({
     security: [{
@@ -578,7 +518,7 @@ export const reorderMunkiDistributionPoints = <ThrowOnError extends boolean = fa
 });
 
 /**
- * Delete a Munki distribution point
+ * Delete a distribution point
  */
 export const deleteMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiDistributionPointData, ThrowOnError>): RequestResult<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiDistributionPointResponses, DeleteMunkiDistributionPointErrors, ThrowOnError>({
     security: [{
@@ -591,7 +531,7 @@ export const deleteMunkiDistributionPoint = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Get a Munki distribution point
+ * Get a distribution point
  */
 export const getMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<GetMunkiDistributionPointData, ThrowOnError>): RequestResult<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiDistributionPointResponses, GetMunkiDistributionPointErrors, ThrowOnError>({
     security: [{
@@ -604,7 +544,7 @@ export const getMunkiDistributionPoint = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Update a Munki distribution point
+ * Update a distribution point
  */
 export const updateMunkiDistributionPoint = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiDistributionPointData, ThrowOnError>): RequestResult<UpdateMunkiDistributionPointResponses, UpdateMunkiDistributionPointErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiDistributionPointResponses, UpdateMunkiDistributionPointErrors, ThrowOnError>({
     security: [{
@@ -621,7 +561,7 @@ export const updateMunkiDistributionPoint = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Rotate a Munki distribution point key
+ * Rotate a distribution point key
  */
 export const rotateMunkiDistributionPointKey = <ThrowOnError extends boolean = false>(options: Options<RotateMunkiDistributionPointKeyData, ThrowOnError>): RequestResult<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError> => (options.client ?? client).post<RotateMunkiDistributionPointKeyResponses, RotateMunkiDistributionPointKeyErrors, ThrowOnError>({
     security: [{
@@ -634,7 +574,7 @@ export const rotateMunkiDistributionPointKey = <ThrowOnError extends boolean = f
 });
 
 /**
- * List uploaded Munki icons
+ * List icons
  */
 export const listMunkiIcons = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiIconsData, ThrowOnError>): RequestResult<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiIconsResponses, ListMunkiIconsErrors, ThrowOnError>({
     security: [{
@@ -647,9 +587,26 @@ export const listMunkiIcons = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Reserve a Munki package installer upload
+ * Create an icon upload
  */
-export const createMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerResponses, CreateMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerResponses, CreateMunkiPackageInstallerErrors, ThrowOnError>({
+export const createMunkiIconUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiIconUploadData, ThrowOnError>): RequestResult<CreateMunkiIconUploadResponses, CreateMunkiIconUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiIconUploadResponses, CreateMunkiIconUploadErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/munki/icons',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Create a package installer upload
+ */
+export const createMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageInstallerUploadErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -664,9 +621,9 @@ export const createMunkiPackageInstaller = <ThrowOnError extends boolean = false
 });
 
 /**
- * Delete an unclaimed Munki package installer
+ * Delete a package installer upload
  */
-export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerResponses, DeleteMunkiPackageInstallerErrors, ThrowOnError>({
+export const deleteMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<DeleteMunkiPackageInstallerUploadResponses, DeleteMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiPackageInstallerUploadResponses, DeleteMunkiPackageInstallerUploadErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -677,9 +634,9 @@ export const deleteMunkiPackageInstaller = <ThrowOnError extends boolean = false
 });
 
 /**
- * Finalize a Munki package installer upload
+ * Complete a package installer upload
  */
-export const finalizeMunkiPackageInstaller = <ThrowOnError extends boolean = false>(options: Options<FinalizeMunkiPackageInstallerData, ThrowOnError>): RequestResult<FinalizeMunkiPackageInstallerResponses, FinalizeMunkiPackageInstallerErrors, ThrowOnError> => (options.client ?? client).put<FinalizeMunkiPackageInstallerResponses, FinalizeMunkiPackageInstallerErrors, ThrowOnError>({
+export const completeMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<CompleteMunkiPackageInstallerUploadResponses, CompleteMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).put<CompleteMunkiPackageInstallerUploadResponses, CompleteMunkiPackageInstallerUploadErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -690,7 +647,7 @@ export const finalizeMunkiPackageInstaller = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Create a Munki package installer multipart upload
+ * Create a multipart upload
  */
 export const createMunkiPackageInstallerMultipart = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageInstallerMultipartData, ThrowOnError>): RequestResult<CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerMultipartErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerMultipartErrors, ThrowOnError>({
     security: [{
@@ -703,15 +660,15 @@ export const createMunkiPackageInstallerMultipart = <ThrowOnError extends boolea
 });
 
 /**
- * Complete a Munki package installer multipart upload
+ * Complete a multipart upload
  */
-export const completeMunkiPackageInstallerMultipart = <ThrowOnError extends boolean = false>(options: Options<CompleteMunkiPackageInstallerMultipartData, ThrowOnError>): RequestResult<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError> => (options.client ?? client).post<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError>({
+export const completeMunkiPackageInstallerMultipart = <ThrowOnError extends boolean = false>(options: Options<CompleteMunkiPackageInstallerMultipartData, ThrowOnError>): RequestResult<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError> => (options.client ?? client).put<CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerMultipartErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/package-installers/{id}/multipart/complete',
+    url: '/api/munki/package-installers/{id}/multipart',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -720,7 +677,7 @@ export const completeMunkiPackageInstallerMultipart = <ThrowOnError extends bool
 });
 
 /**
- * Sign one Munki package installer multipart part
+ * Sign a multipart upload part
  */
 export const signMunkiPackageInstallerPart = <ThrowOnError extends boolean = false>(options: Options<SignMunkiPackageInstallerPartData, ThrowOnError>): RequestResult<SignMunkiPackageInstallerPartResponses, SignMunkiPackageInstallerPartErrors, ThrowOnError> => (options.client ?? client).post<SignMunkiPackageInstallerPartResponses, SignMunkiPackageInstallerPartErrors, ThrowOnError>({
     security: [{
@@ -733,7 +690,7 @@ export const signMunkiPackageInstallerPart = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Delete Munki packages
+ * Delete packages
  */
 export const bulkDeleteMunkiPackages = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteMunkiPackagesData, ThrowOnError>): RequestResult<BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiPackagesErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiPackagesErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -747,7 +704,7 @@ export const bulkDeleteMunkiPackages = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * List Munki packages
+ * List packages
  */
 export const listMunkiPackages = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiPackagesData, ThrowOnError>): RequestResult<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiPackagesResponses, ListMunkiPackagesErrors, ThrowOnError>({
     querySerializer: { parameters: { type: { array: { explode: false } } } },
@@ -761,7 +718,7 @@ export const listMunkiPackages = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
- * Create a Munki package
+ * Create a package
  */
 export const createMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiPackageData, ThrowOnError>): RequestResult<CreateMunkiPackageResponses, CreateMunkiPackageErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiPackageResponses, CreateMunkiPackageErrors, ThrowOnError>({
     security: [{
@@ -778,7 +735,7 @@ export const createMunkiPackage = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Get a Munki package
+ * Get a package
  */
 export const getMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<GetMunkiPackageData, ThrowOnError>): RequestResult<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiPackageResponses, GetMunkiPackageErrors, ThrowOnError>({
     security: [{
@@ -791,7 +748,7 @@ export const getMunkiPackage = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Update a Munki package
+ * Update a package
  */
 export const updateMunkiPackage = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiPackageData, ThrowOnError>): RequestResult<UpdateMunkiPackageResponses, UpdateMunkiPackageErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiPackageResponses, UpdateMunkiPackageErrors, ThrowOnError>({
     security: [{
@@ -808,7 +765,7 @@ export const updateMunkiPackage = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Delete Munki software
+ * Delete software titles
  */
 export const bulkDeleteMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteMunkiSoftwareData, ThrowOnError>): RequestResult<BulkDeleteMunkiSoftwareResponses, BulkDeleteMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteMunkiSoftwareResponses, BulkDeleteMunkiSoftwareErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -822,7 +779,7 @@ export const bulkDeleteMunkiSoftware = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * List Munki software
+ * List software titles
  */
 export const listMunkiSoftware = <ThrowOnError extends boolean = false>(options?: Options<ListMunkiSoftwareData, ThrowOnError>): RequestResult<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError> => (options?.client ?? client).get<ListMunkiSoftwareResponses, ListMunkiSoftwareErrors, ThrowOnError>({
     security: [{
@@ -835,7 +792,7 @@ export const listMunkiSoftware = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
- * Create Munki software
+ * Create a software title
  */
 export const createMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiSoftwareData, ThrowOnError>): RequestResult<CreateMunkiSoftwareResponses, CreateMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiSoftwareResponses, CreateMunkiSoftwareErrors, ThrowOnError>({
     security: [{
@@ -852,7 +809,7 @@ export const createMunkiSoftware = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Delete Munki software
+ * Delete a software title
  */
 export const deleteMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<DeleteMunkiSoftwareData, ThrowOnError>): RequestResult<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMunkiSoftwareResponses, DeleteMunkiSoftwareErrors, ThrowOnError>({
     security: [{
@@ -865,7 +822,7 @@ export const deleteMunkiSoftware = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get Munki software
+ * Get a software title
  */
 export const getMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<GetMunkiSoftwareData, ThrowOnError>): RequestResult<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).get<GetMunkiSoftwareResponses, GetMunkiSoftwareErrors, ThrowOnError>({
     security: [{
@@ -878,7 +835,7 @@ export const getMunkiSoftware = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Update Munki software
+ * Update a software title
  */
 export const updateMunkiSoftware = <ThrowOnError extends boolean = false>(options: Options<UpdateMunkiSoftwareData, ThrowOnError>): RequestResult<UpdateMunkiSoftwareResponses, UpdateMunkiSoftwareErrors, ThrowOnError> => (options.client ?? client).put<UpdateMunkiSoftwareResponses, UpdateMunkiSoftwareErrors, ThrowOnError>({
     security: [{
@@ -895,24 +852,7 @@ export const updateMunkiSoftware = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Create an icon upload for Munki software
- */
-export const createMunkiSoftwareIconUpload = <ThrowOnError extends boolean = false>(options: Options<CreateMunkiSoftwareIconUploadData, ThrowOnError>): RequestResult<CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareIconUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateMunkiSoftwareIconUploadResponses, CreateMunkiSoftwareIconUploadErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/munki/software/{id}/icon',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Set the uploaded icon for Munki software
+ * Set a software icon
  */
 export const setMunkiSoftwareIcon = <ThrowOnError extends boolean = false>(options: Options<SetMunkiSoftwareIconData, ThrowOnError>): RequestResult<SetMunkiSoftwareIconResponses, SetMunkiSoftwareIconErrors, ThrowOnError> => (options.client ?? client).put<SetMunkiSoftwareIconResponses, SetMunkiSoftwareIconErrors, ThrowOnError>({
     security: [{
@@ -999,7 +939,7 @@ export const getOsqueryCheck = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Replace a check
+ * Update a check
  */
 export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryCheckData, ThrowOnError>): RequestResult<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError>({
     security: [{
@@ -1016,7 +956,7 @@ export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * List latest results for a check
+ * List check results
  */
 export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryCheckResultsData, ThrowOnError>): RequestResult<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError>({
     security: [{
@@ -1025,6 +965,66 @@ export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(op
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/checks/{id}/results',
+    ...options
+});
+
+/**
+ * Create a live query
+ */
+export const createLiveQuery = <ThrowOnError extends boolean = false>(options: Options<CreateLiveQueryData, ThrowOnError>): RequestResult<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/live-queries',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Count live query targets
+ */
+export const countLiveQueryTargets = <ThrowOnError extends boolean = false>(options: Options<CountLiveQueryTargetsData, ThrowOnError>): RequestResult<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError> => (options.client ?? client).post<CountLiveQueryTargetsResponses, CountLiveQueryTargetsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/live-queries/target-count',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a live query
+ */
+export const deleteLiveQuery = <ThrowOnError extends boolean = false>(options: Options<DeleteLiveQueryData, ThrowOnError>): RequestResult<DeleteLiveQueryResponses, DeleteLiveQueryErrors, ThrowOnError> => (options.client ?? client).delete<DeleteLiveQueryResponses, DeleteLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/live-queries/{id}',
+    ...options
+});
+
+/**
+ * Stream live query results
+ */
+export const streamLiveQuery = <ThrowOnError extends boolean = false>(options: Options<StreamLiveQueryData, ThrowOnError, StreamLiveQueryResponse>): Promise<ServerSentEventsResult<StreamLiveQueryResponses>> => (options.client ?? client).sse.get<StreamLiveQueryResponses, StreamLiveQueryErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/live-queries/{id}/stream',
     ...options
 });
 
@@ -1099,7 +1099,7 @@ export const getOsqueryReport = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Replace a report
+ * Update a report
  */
 export const updateOsqueryReport = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryReportData, ThrowOnError>): RequestResult<UpdateOsqueryReportResponses, UpdateOsqueryReportErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryReportResponses, UpdateOsqueryReportErrors, ThrowOnError>({
     security: [{
@@ -1116,7 +1116,7 @@ export const updateOsqueryReport = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * List latest snapshots for a report
+ * List report results
  */
 export const listOsqueryReportResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryReportResultsData, ThrowOnError>): RequestResult<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryReportResultsResponses, ListOsqueryReportResultsErrors, ThrowOnError>({
     security: [{
@@ -1129,7 +1129,7 @@ export const listOsqueryReportResults = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Delete Santa configurations
+ * Delete configurations
  */
 export const bulkDeleteSantaConfigurations = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteSantaConfigurationsData, ThrowOnError>): RequestResult<BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaConfigurationsErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaConfigurationsErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -1143,7 +1143,7 @@ export const bulkDeleteSantaConfigurations = <ThrowOnError extends boolean = fal
 });
 
 /**
- * List Santa configurations
+ * List configurations
  */
 export const listSantaConfigurations = <ThrowOnError extends boolean = false>(options?: Options<ListSantaConfigurationsData, ThrowOnError>): RequestResult<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaConfigurationsResponses, ListSantaConfigurationsErrors, ThrowOnError>({
     security: [{
@@ -1156,7 +1156,7 @@ export const listSantaConfigurations = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Create a Santa configuration
+ * Create a configuration
  */
 export const createSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<CreateSantaConfigurationData, ThrowOnError>): RequestResult<CreateSantaConfigurationResponses, CreateSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).post<CreateSantaConfigurationResponses, CreateSantaConfigurationErrors, ThrowOnError>({
     security: [{
@@ -1173,7 +1173,7 @@ export const createSantaConfiguration = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Reorder Santa configurations
+ * Reorder configurations
  */
 export const reorderSantaConfigurations = <ThrowOnError extends boolean = false>(options: Options<ReorderSantaConfigurationsData, ThrowOnError>): RequestResult<ReorderSantaConfigurationsResponses, ReorderSantaConfigurationsErrors, ThrowOnError> => (options.client ?? client).put<ReorderSantaConfigurationsResponses, ReorderSantaConfigurationsErrors, ThrowOnError>({
     security: [{
@@ -1190,7 +1190,7 @@ export const reorderSantaConfigurations = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Delete a Santa configuration
+ * Delete a configuration
  */
 export const deleteSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaConfigurationData, ThrowOnError>): RequestResult<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaConfigurationResponses, DeleteSantaConfigurationErrors, ThrowOnError>({
     security: [{
@@ -1203,7 +1203,7 @@ export const deleteSantaConfiguration = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Get a Santa configuration
+ * Get a configuration
  */
 export const getSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<GetSantaConfigurationData, ThrowOnError>): RequestResult<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).get<GetSantaConfigurationResponses, GetSantaConfigurationErrors, ThrowOnError>({
     security: [{
@@ -1216,7 +1216,7 @@ export const getSantaConfiguration = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Update a Santa configuration
+ * Update a configuration
  */
 export const updateSantaConfiguration = <ThrowOnError extends boolean = false>(options: Options<UpdateSantaConfigurationData, ThrowOnError>): RequestResult<UpdateSantaConfigurationResponses, UpdateSantaConfigurationErrors, ThrowOnError> => (options.client ?? client).put<UpdateSantaConfigurationResponses, UpdateSantaConfigurationErrors, ThrowOnError>({
     security: [{
@@ -1233,7 +1233,7 @@ export const updateSantaConfiguration = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List Santa execution events
+ * List execution events
  */
 export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaEventsData, ThrowOnError>): RequestResult<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaEventsResponses, ListSantaEventsErrors, ThrowOnError>({
     querySerializer: { parameters: { decisions: { array: { explode: false } } } },
@@ -1247,7 +1247,7 @@ export const listSantaEvents = <ThrowOnError extends boolean = false>(options?: 
 });
 
 /**
- * Get a Santa execution event
+ * Get an execution event
  */
 export const getSantaEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaEventData, ThrowOnError>): RequestResult<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaEventResponses, GetSantaEventErrors, ThrowOnError>({
     security: [{
@@ -1260,7 +1260,7 @@ export const getSantaEvent = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * List Santa file access events
+ * List file access events
  */
 export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(options?: Options<ListSantaFileAccessEventsData, ThrowOnError>): RequestResult<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaFileAccessEventsResponses, ListSantaFileAccessEventsErrors, ThrowOnError>({
     querySerializer: { parameters: { decisions: { array: { explode: false } } } },
@@ -1274,7 +1274,7 @@ export const listSantaFileAccessEvents = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Get a Santa file access event
+ * Get a file access event
  */
 export const getSantaFileAccessEvent = <ThrowOnError extends boolean = false>(options: Options<GetSantaFileAccessEventData, ThrowOnError>): RequestResult<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError> => (options.client ?? client).get<GetSantaFileAccessEventResponses, GetSantaFileAccessEventErrors, ThrowOnError>({
     security: [{
@@ -1287,7 +1287,7 @@ export const getSantaFileAccessEvent = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Delete Santa rules
+ * Delete rules
  */
 export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteSantaRulesData, ThrowOnError>): RequestResult<BulkDeleteSantaRulesResponses, BulkDeleteSantaRulesErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteSantaRulesResponses, BulkDeleteSantaRulesErrors, ThrowOnError>({
     querySerializer: { parameters: { ids: { array: { explode: false } } } },
@@ -1301,7 +1301,7 @@ export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List Santa rules
+ * List rules
  */
 export const listSantaRules = <ThrowOnError extends boolean = false>(options?: Options<ListSantaRulesData, ThrowOnError>): RequestResult<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError>({
     security: [{
@@ -1314,7 +1314,7 @@ export const listSantaRules = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Create a Santa rule
+ * Create a rule
  */
 export const createSantaRule = <ThrowOnError extends boolean = false>(options: Options<CreateSantaRuleData, ThrowOnError>): RequestResult<CreateSantaRuleResponses, CreateSantaRuleErrors, ThrowOnError> => (options.client ?? client).post<CreateSantaRuleResponses, CreateSantaRuleErrors, ThrowOnError>({
     security: [{
@@ -1331,7 +1331,7 @@ export const createSantaRule = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Delete a Santa rule
+ * Delete a rule
  */
 export const deleteSantaRule = <ThrowOnError extends boolean = false>(options: Options<DeleteSantaRuleData, ThrowOnError>): RequestResult<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSantaRuleResponses, DeleteSantaRuleErrors, ThrowOnError>({
     security: [{
@@ -1344,7 +1344,7 @@ export const deleteSantaRule = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Get a Santa rule
+ * Get a rule
  */
 export const getSantaRule = <ThrowOnError extends boolean = false>(options: Options<GetSantaRuleData, ThrowOnError>): RequestResult<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError> => (options.client ?? client).get<GetSantaRuleResponses, GetSantaRuleErrors, ThrowOnError>({
     security: [{
@@ -1357,7 +1357,7 @@ export const getSantaRule = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Update a Santa rule
+ * Update a rule
  */
 export const updateSantaRule = <ThrowOnError extends boolean = false>(options: Options<UpdateSantaRuleData, ThrowOnError>): RequestResult<UpdateSantaRuleResponses, UpdateSantaRuleErrors, ThrowOnError> => (options.client ?? client).put<UpdateSantaRuleResponses, UpdateSantaRuleErrors, ThrowOnError>({
     security: [{
@@ -1374,7 +1374,7 @@ export const updateSantaRule = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Revoke the current session
+ * Delete session
  */
 export const deleteSession = <ThrowOnError extends boolean = false>(options?: Options<DeleteSessionData, ThrowOnError>): RequestResult<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteSessionResponses, DeleteSessionErrors, ThrowOnError>({
     security: [{
@@ -1387,12 +1387,12 @@ export const deleteSession = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Get the current signed-in user, if any
+ * Get session
  */
 export const getSession = <ThrowOnError extends boolean = false>(options?: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options?.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({ url: '/api/session', ...options });
 
 /**
- * Create a local user session
+ * Create a session
  */
 export const createSession = <ThrowOnError extends boolean = false>(options: Options<CreateSessionData, ThrowOnError>): RequestResult<CreateSessionResponses, CreateSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateSessionResponses, CreateSessionErrors, ThrowOnError>({
     url: '/api/session',
@@ -1431,7 +1431,7 @@ export const getSoftware = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Get Santa reference data for a software title
+ * Get Santa reference for a software title
  */
 export const getSoftwareSantaReference = <ThrowOnError extends boolean = false>(options: Options<GetSoftwareSantaReferenceData, ThrowOnError>): RequestResult<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError> => (options.client ?? client).get<GetSoftwareSantaReferenceResponses, GetSoftwareSantaReferenceErrors, ThrowOnError>({
     security: [{
@@ -1444,7 +1444,7 @@ export const getSoftwareSantaReference = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * List Woodstar users
+ * List users
  */
 export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
@@ -1458,7 +1458,7 @@ export const listUsers = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
- * Create a Woodstar user
+ * Create a user
  */
 export const createUser = <ThrowOnError extends boolean = false>(options: Options<CreateUserData, ThrowOnError>): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> => (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
     security: [{
@@ -1475,7 +1475,7 @@ export const createUser = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * List directory user departments
+ * List user departments
  */
 export const listUserDepartments = <ThrowOnError extends boolean = false>(options?: Options<ListUserDepartmentsData, ThrowOnError>): RequestResult<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListUserDepartmentsResponses, ListUserDepartmentsErrors, ThrowOnError>({
     querySerializer: { parameters: { values: { array: { explode: false } } } },
@@ -1489,7 +1489,7 @@ export const listUserDepartments = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Delete a Woodstar user
+ * Delete a user
  */
 export const deleteUser = <ThrowOnError extends boolean = false>(options: Options<DeleteUserData, ThrowOnError>): RequestResult<DeleteUserResponses, DeleteUserErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUserResponses, DeleteUserErrors, ThrowOnError>({
     security: [{
@@ -1502,7 +1502,7 @@ export const deleteUser = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * Get a Woodstar user
+ * Get a user
  */
 export const getUser = <ThrowOnError extends boolean = false>(options: Options<GetUserData, ThrowOnError>): RequestResult<GetUserResponses, GetUserErrors, ThrowOnError> => (options.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({
     security: [{
@@ -1515,7 +1515,7 @@ export const getUser = <ThrowOnError extends boolean = false>(options: Options<G
 });
 
 /**
- * Replace a Woodstar user
+ * Update a user
  */
 export const updateUser = <ThrowOnError extends boolean = false>(options: Options<UpdateUserData, ThrowOnError>): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> => (options.client ?? client).put<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
     security: [{

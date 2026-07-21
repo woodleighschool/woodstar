@@ -11,8 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-type munkiSoftwareUploadInput struct {
-	ID   int64 `path:"id"`
+type munkiIconUploadInput struct {
 	Body MunkiUploadRequest
 }
 
@@ -38,40 +37,25 @@ func registerIconRoutes(
 	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
-	registerCreateSoftwareIconRoute(api, software, ingestor, logger)
+	registerCreateIconUploadRoute(api, ingestor, logger)
 	registerSetSoftwareIconRoute(api, software, ingestor, logger)
 	registerListMunkiIconsRoute(api, objects, logger)
 }
 
-func registerCreateSoftwareIconRoute(
+func registerCreateIconUploadRoute(
 	api huma.API,
-	software *munkisoftware.Store,
 	ingestor *storage.Ingestor,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "create-munki-software-icon-upload",
+		OperationID:   "create-munki-icon-upload",
 		Method:        http.MethodPost,
-		Path:          munkiSoftwareIDPath + "/icon",
-		Tags:          []string{munkiTag},
-		Summary:       "Create an icon upload for Munki software",
+		Path:          munkiIconPath,
+		Tags:          []string{munkiIconsTag},
+		Summary:       "Create an icon upload",
 		DefaultStatus: http.StatusCreated,
-		Errors: []int{
-			http.StatusBadRequest,
-			http.StatusNotFound,
-		},
-	}, func(ctx context.Context, input *munkiSoftwareUploadInput) (*munkiDirectUploadOutput, error) {
-		if _, err := software.GetByID(ctx, input.ID); err != nil {
-			return nil, resourceError(
-				ctx,
-				logger,
-				"create-munki-software-icon-upload",
-				munkiUploadLabel,
-				err,
-				"software_id",
-				input.ID,
-			)
-		}
+		Errors:        []int{http.StatusBadRequest},
+	}, func(ctx context.Context, input *munkiIconUploadInput) (*munkiDirectUploadOutput, error) {
 		obj, target, err := ingestor.BeginDirect(
 			ctx,
 			munkisoftware.IconObjectPrefix,
@@ -81,11 +65,9 @@ func registerCreateSoftwareIconRoute(
 			return nil, resourceError(
 				ctx,
 				logger,
-				"create-munki-software-icon-upload",
+				"create-munki-icon-upload",
 				munkiUploadLabel,
 				err,
-				"software_id",
-				input.ID,
 			)
 		}
 		return newMunkiDirectUploadOutput(obj, target), nil
@@ -102,8 +84,8 @@ func registerSetSoftwareIconRoute(
 		OperationID:   "set-munki-software-icon",
 		Method:        http.MethodPut,
 		Path:          munkiSoftwareIDPath + "/icon",
-		Tags:          []string{munkiTag},
-		Summary:       "Set the uploaded icon for Munki software",
+		Tags:          []string{munkiIconsTag},
+		Summary:       "Set a software icon",
 		DefaultStatus: http.StatusOK,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -146,8 +128,8 @@ func registerListMunkiIconsRoute(
 		OperationID: "list-munki-icons",
 		Method:      http.MethodGet,
 		Path:        munkiIconPath,
-		Tags:        []string{munkiTag},
-		Summary:     "List uploaded Munki icons",
+		Tags:        []string{munkiIconsTag},
+		Summary:     "List icons",
 	}, func(ctx context.Context, input *munkiIconObjectsInput) (*munkiIconObjectsOutput, error) {
 		rows, count, err := objects.ListByPrefix(ctx, munkisoftware.IconObjectPrefix, input.params())
 		if err != nil {

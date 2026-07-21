@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	groupsTag     = "Groups"
 	groupResource = "group"
 	groupIDPath   = "/api/groups/{id}"
 )
@@ -47,8 +46,8 @@ func registerListGroups(api huma.API, groupStore *directory.Store, logger *slog.
 		OperationID: "list-groups",
 		Method:      http.MethodGet,
 		Path:        "/api/groups",
-		Tags:        []string{groupsTag},
-		Summary:     "List directory groups",
+		Tags:        []string{directoryGroupsTag},
+		Summary:     "List groups",
 	}, func(ctx context.Context, input *groupListInput) (*groupListOutput, error) {
 		list, count, err := groupStore.ListGroups(ctx, input.params())
 		if err != nil {
@@ -63,8 +62,8 @@ func registerGetGroup(api huma.API, groupStore *directory.Store, logger *slog.Lo
 		OperationID: "get-group",
 		Method:      http.MethodGet,
 		Path:        groupIDPath,
-		Tags:        []string{groupsTag},
-		Summary:     "Get a directory group",
+		Tags:        []string{directoryGroupsTag},
+		Summary:     "Get a group",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *groupGetInput) (*groupOutput, error) {
 		group, err := groupStore.GetGroupByID(ctx, input.ID)

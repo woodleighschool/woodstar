@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	authTag     = "Auth"
-	accountTag  = "Account"
 	sessionPath = "/api/session"
 )
 
@@ -69,8 +67,8 @@ func registerGetSession(api huma.API, authService *auth.Service) {
 		OperationID: "get-session",
 		Method:      http.MethodGet,
 		Path:        sessionPath,
-		Tags:        []string{authTag},
-		Summary:     "Get the current signed-in user, if any",
+		Tags:        []string{sessionTag},
+		Summary:     "Get session",
 	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
 		out := &sessionOutput{Body: sessionBody{
 			SSOEnabled: authService.SSOEnabled(),
@@ -87,8 +85,8 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 		OperationID: "create-session",
 		Method:      http.MethodPost,
 		Path:        sessionPath,
-		Tags:        []string{authTag},
-		Summary:     "Create a local user session",
+		Tags:        []string{sessionTag},
+		Summary:     "Create a session",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusTooManyRequests},
 	}, func(ctx context.Context, input *sessionCreateInput) (*sessionUserOutput, error) {
 		user, err := authService.Login(ctx, auth.LoginParams{
@@ -103,7 +101,7 @@ func registerCreateSession(api huma.API, authService *auth.Service, logger *slog
 
 	api.OpenAPI().Paths[sessionPath].Post.Responses["429"].Headers = map[string]*huma.Param{
 		"Retry-After": {
-			Description: "Seconds until another password-login attempt may be admitted",
+			Description: "Seconds before another login attempt",
 			Required:    true,
 			Schema:      &huma.Schema{Type: "integer"},
 		},
@@ -115,8 +113,8 @@ func registerDeleteSession(api huma.API, authService *auth.Service, logger *slog
 		OperationID:   "delete-session",
 		Method:        http.MethodDelete,
 		Path:          sessionPath,
-		Tags:          []string{authTag},
-		Summary:       "Revoke the current session",
+		Tags:          []string{sessionTag},
+		Summary:       "Delete session",
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 		if err := authService.Logout(ctx); err != nil {

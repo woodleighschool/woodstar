@@ -24,7 +24,7 @@ func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(
 		recorder,
-		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, fmt.Sprintf("/api/live-queries/%d", handle.ID), nil),
+		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, fmt.Sprintf("/api/osquery/live-queries/%d", handle.ID), nil),
 	)
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNoContent, recorder.Body.String())
@@ -36,7 +36,7 @@ func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(
 		recorder,
-		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/live-queries/999999", nil),
+		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/osquery/live-queries/999999", nil),
 	)
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
@@ -62,9 +62,9 @@ func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
 		path        string
 		wantSurface string
 	}{
-		{name: "create", method: http.MethodPost, path: "/api/live-queries", wantSurface: "ordinary"},
-		{name: "delete", method: http.MethodDelete, path: "/api/live-queries/1", wantSurface: "ordinary"},
-		{name: "stream", method: http.MethodGet, path: "/api/live-queries/1/stream", wantSurface: "streaming"},
+		{name: "create", method: http.MethodPost, path: "/api/osquery/live-queries", wantSurface: "ordinary"},
+		{name: "delete", method: http.MethodDelete, path: "/api/osquery/live-queries/1", wantSurface: "ordinary"},
+		{name: "stream", method: http.MethodGet, path: "/api/osquery/live-queries/1/stream", wantSurface: "streaming"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -99,7 +99,7 @@ func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
 	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/live-queries/404/stream", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/osquery/live-queries/404/stream", nil)
 	request.Header.Set("Accept", "text/event-stream")
 	router.ServeHTTP(recorder, request)
 
@@ -125,7 +125,7 @@ func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
 	registerLiveQueries(api, api, manager, nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/live-queries/1/stream", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/osquery/live-queries/1/stream", nil)
 	request.Header.Set("Accept", "text/event-stream")
 	router.ServeHTTP(recorder, request)
 

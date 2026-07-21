@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	labelsTag     = "Labels"
 	labelResource = "label"
 	labelIDPath   = "/api/labels/{id}"
 )
@@ -122,7 +121,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store, logger *slog.Lo
 		Method:      http.MethodPut,
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
-		Summary:     "Replace a label",
+		Summary:     "Update a label",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
 		label, err := labelStore.Update(ctx, input.ID, input.Body)
@@ -139,7 +138,7 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store, logger *slog.Lo
 		Method:      http.MethodDelete,
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
-		Summary:     "Delete a regular label",
+		Summary:     "Delete a label",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *labelDeleteInput) (*struct{}, error) {
 		if err := labelStore.Delete(ctx, input.ID); err != nil {

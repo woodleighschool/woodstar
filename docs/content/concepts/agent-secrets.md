@@ -10,17 +10,17 @@ Agent secrets are the shared credentials the Mac clients use to talk to Woodstar
 
 There are three:
 
-| Secret | Used by |
-| --- | --- |
+| Secret  | Used by                       |
+| ------- | ----------------------------- |
 | `orbit` | Orbit and osquery enrollment. |
-| `santa` | Santa sync. |
-| `munki` | Munki repository access. |
+| `santa` | Santa sync.                   |
+| `munki` | Munki repository access.      |
 
 Each value has to be at least 32 characters.
 
 ## Enrollment secrets and node keys
 
-Orbit and osquery use the shared secret only at enrollment. Enrolling successfully mints a *node key*, which Woodstar stores on the host, and every request after that carries the node key instead of the shared secret. Re-enrolling the same Mac issues a fresh node key and retires the old one.
+Orbit and osquery use the shared secret only at enrollment. Enrolling successfully mints a _node key_, which Woodstar stores on the host, and every request after that carries the node key instead of the shared secret. Re-enrolling the same Mac issues a fresh node key and retires the old one.
 
 So the shared secret is the thing you hand out when setting up a machine. The node key is the per-host credential it earns once it's in.
 

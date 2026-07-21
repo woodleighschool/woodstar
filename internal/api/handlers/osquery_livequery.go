@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	liveQueriesTag  = "Live Queries"
-	liveQueriesPath = "/api/live-queries"
+	liveQueriesPath = "/api/osquery/live-queries"
 )
 
 type OsqueryLiveQueryCreateBody struct {
@@ -93,8 +92,8 @@ func registerLiveQueries(
 		OperationID:   "create-live-query",
 		Method:        http.MethodPost,
 		Path:          liveQueriesPath,
-		Tags:          []string{liveQueriesTag},
-		Summary:       "Start a live run against online hosts",
+		Tags:          []string{osqueryLiveQueriesTag},
+		Summary:       "Create a live query",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
@@ -108,8 +107,8 @@ func registerLiveQueries(
 	huma.Register(api, huma.Operation{
 		OperationID: "count-live-query-targets",
 		Method:      http.MethodPost,
-		Path:        liveQueriesPath + "/targets/count",
-		Tags:        []string{liveQueriesTag},
+		Path:        liveQueriesPath + "/target-count",
+		Tags:        []string{osqueryLiveQueriesTag},
 		Summary:     "Count live query targets",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *liveQueryTargetCountInput) (*liveQueryTargetCountOutput, error) {
@@ -128,8 +127,8 @@ func registerLiveQueries(
 		OperationID:   "delete-live-query",
 		Method:        http.MethodDelete,
 		Path:          liveQueriesPath + "/{id}",
-		Tags:          []string{liveQueriesTag},
-		Summary:       "Stop a running live query",
+		Tags:          []string{osqueryLiveQueriesTag},
+		Summary:       "Delete a live query",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusNotFound},
 	}, func(_ context.Context, input *liveQueryInput) (*struct{}, error) {
@@ -143,7 +142,7 @@ func registerLiveQueries(
 		OperationID: "stream-live-query",
 		Method:      http.MethodGet,
 		Path:        liveQueriesPath + "/{id}/stream",
-		Tags:        []string{liveQueriesTag},
+		Tags:        []string{osqueryLiveQueriesTag},
 		Summary:     "Stream live query results",
 		Errors:      []int{http.StatusNotFound},
 		Middlewares: huma.Middlewares{subscribeLiveQuery(streamingAPI, manager)},
@@ -168,7 +167,7 @@ func setLiveQueryStreamResponseSchema(api huma.API) {
 	operation := api.OpenAPI().Paths[liveQueriesPath+"/{id}/stream"].Get
 	operation.Responses["200"].Content["text/event-stream"].Schema = &huma.Schema{
 		Title:       "Live query events",
-		Description: "One decoded live-query payload per server-sent event.",
+		Description: "One payload per event.",
 		OneOf: []*huma.Schema{
 			api.OpenAPI().Components.Schemas.Schema(
 				reflect.TypeFor[OsqueryLiveQueryPingEvent](),

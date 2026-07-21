@@ -82,8 +82,8 @@ func registerListMunkiPackages(api huma.API, store *munki.PackageService, logger
 		OperationID: "list-munki-packages",
 		Method:      http.MethodGet,
 		Path:        munkiPackagePath,
-		Tags:        []string{munkiTag},
-		Summary:     "List Munki packages",
+		Tags:        []string{munkiPackagesTag},
+		Summary:     "List packages",
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -103,8 +103,8 @@ func registerCreateMunkiPackage(api huma.API, store *munki.PackageService, logge
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
 		Path:          munkiPackagePath,
-		Tags:          []string{munkiTag},
-		Summary:       "Create a Munki package",
+		Tags:          []string{munkiPackagesTag},
+		Summary:       "Create a package",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -125,8 +125,8 @@ func registerGetMunkiPackage(api huma.API, store *munki.PackageService, logger *
 		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
 		Path:        munkiPackageIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Get a Munki package",
+		Tags:        []string{munkiPackagesTag},
+		Summary:     "Get a package",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.ID)
@@ -150,8 +150,8 @@ func registerPutMunkiPackage(api huma.API, store *munki.PackageService, logger *
 		OperationID: "update-munki-package",
 		Method:      http.MethodPut,
 		Path:        munkiPackageIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Update a Munki package",
+		Tags:        []string{munkiPackagesTag},
+		Summary:     "Update a package",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -183,8 +183,8 @@ func registerBulkDeleteMunkiPackages(
 		OperationID:   "bulk-delete-munki-packages",
 		Method:        http.MethodDelete,
 		Path:          munkiPackagePath,
-		Tags:          []string{munkiTag},
-		Summary:       "Delete Munki packages",
+		Tags:          []string{munkiPackagesTag},
+		Summary:       "Delete packages",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusConflict},
 	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {

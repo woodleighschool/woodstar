@@ -105,8 +105,8 @@ func registerListDistributionPoints(api huma.API, store *mdp.Store, logger *slog
 		OperationID: "list-munki-distribution-points",
 		Method:      http.MethodGet,
 		Path:        "/api/munki/distribution-points",
-		Tags:        []string{munkiTag},
-		Summary:     "List Munki distribution points",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "List distribution points",
 	}, func(ctx context.Context, input *distributionPointListInput) (*distributionPointListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -128,8 +128,8 @@ func registerCreateDistributionPoint(api huma.API, store *mdp.Store, logger *slo
 		OperationID:   "create-munki-distribution-point",
 		Method:        http.MethodPost,
 		Path:          "/api/munki/distribution-points",
-		Tags:          []string{munkiTag},
-		Summary:       "Create a Munki distribution point",
+		Tags:          []string{munkiDistributionPointsTag},
+		Summary:       "Create a distribution point",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -164,8 +164,8 @@ func registerGetDistributionPoint(
 		OperationID: "get-munki-distribution-point",
 		Method:      http.MethodGet,
 		Path:        distributionPointIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Get a Munki distribution point",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "Get a distribution point",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *distributionPointGetInput) (*distributionPointDetailOutput, error) {
 		detail, err := store.GetByID(ctx, input.ID)
@@ -192,8 +192,8 @@ func registerUpdateDistributionPoint(
 		OperationID: "update-munki-distribution-point",
 		Method:      http.MethodPut,
 		Path:        distributionPointIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Update a Munki distribution point",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "Update a distribution point",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -237,8 +237,8 @@ func registerDeleteDistributionPoint(
 		OperationID: "delete-munki-distribution-point",
 		Method:      http.MethodDelete,
 		Path:        distributionPointIDPath,
-		Tags:        []string{munkiTag},
-		Summary:     "Delete a Munki distribution point",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "Delete a distribution point",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *distributionPointDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
@@ -260,8 +260,8 @@ func registerReorderDistributionPoints(api huma.API, store *mdp.Store, logger *s
 		OperationID: "reorder-munki-distribution-points",
 		Method:      http.MethodPut,
 		Path:        "/api/munki/distribution-points/order",
-		Tags:        []string{munkiTag},
-		Summary:     "Reorder Munki distribution points",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "Reorder distribution points",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *distributionPointReorderInput) (*struct{}, error) {
 		if err := store.Reorder(ctx, input.Body.OrderedIDs); err != nil {
@@ -286,8 +286,8 @@ func registerRotateDistributionPointKey(
 		OperationID: "rotate-munki-distribution-point-key",
 		Method:      http.MethodPost,
 		Path:        "/api/munki/distribution-points/{id}/key",
-		Tags:        []string{munkiTag},
-		Summary:     "Rotate a Munki distribution point key",
+		Tags:        []string{munkiDistributionPointsTag},
+		Summary:     "Rotate a distribution point key",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *distributionPointRotateInput) (*distributionPointKeyOutput, error) {
 		key, err := randtoken.Generate(keyByteLen)

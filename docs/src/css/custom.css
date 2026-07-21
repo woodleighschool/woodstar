@@ -41,6 +41,17 @@
   --ifm-color-warning: oklch(0.772 0.146 59.7);
   --ifm-color-danger: oklch(0.655 0.182 35.1);
 
+  --api-method-get: #16a34a;
+  --api-method-get-muted: #15803d;
+  --api-method-post: #2563eb;
+  --api-method-post-muted: #1d4ed8;
+  --api-method-delete: #dc2626;
+  --api-method-delete-muted: #b91c1c;
+  --api-method-put: #d97706;
+  --api-method-put-muted: #a16207;
+  --api-method-patch: #9333ea;
+  --api-method-patch-muted: #7e22ce;
+
   --ifm-global-radius: 0.625rem;
   --ifm-font-family-base:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto,
@@ -79,6 +90,17 @@
   --ifm-color-success: oklch(0.74 0.12 150);
   --ifm-color-warning: oklch(0.8 0.145 68);
   --ifm-color-danger: oklch(0.7 0.18 35);
+
+  --api-method-get: #22c55e;
+  --api-method-get-muted: #4ade80;
+  --api-method-post: #3b82f6;
+  --api-method-post-muted: #93c5fd;
+  --api-method-delete: #ef4444;
+  --api-method-delete-muted: #f87171;
+  --api-method-put: #f59e0b;
+  --api-method-put-muted: #fbbf24;
+  --api-method-patch: #a855f7;
+  --api-method-patch-muted: #d8b4fe;
 }
 
 /* Flat chrome to match the app: a hairline instead of Infima's drop shadow. */
@@ -128,6 +150,85 @@ code {
 
 pre code {
   border: 0;
+}
+
+/* The OpenAPI sidebar generator supplies the method classes. */
+.api-method > .menu__link {
+  align-items: center;
+}
+
+.api-method > .menu__link::before {
+  display: inline-flex;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.65rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.api-method.get > .menu__link::before {
+  content: "GET";
+  color: var(--api-method-get-muted);
+  background: color-mix(in srgb, var(--api-method-get) 15%, transparent);
+}
+
+.api-method.post > .menu__link::before {
+  content: "POST";
+  color: var(--api-method-post-muted);
+  background: color-mix(in srgb, var(--api-method-post) 15%, transparent);
+}
+
+.api-method.put > .menu__link::before {
+  content: "PUT";
+  color: var(--api-method-put-muted);
+  background: color-mix(in srgb, var(--api-method-put) 15%, transparent);
+}
+
+.api-method.delete > .menu__link::before {
+  content: "DEL";
+  color: var(--api-method-delete-muted);
+  background: color-mix(in srgb, var(--api-method-delete) 15%, transparent);
+}
+
+.api-method.patch > .menu__link::before {
+  content: "PATCH";
+  color: var(--api-method-patch-muted);
+  background: color-mix(in srgb, var(--api-method-patch) 15%, transparent);
+}
+
+.api-method.get > .menu__link--active::before,
+.openapi__method-endpoint .badge--primary {
+  color: var(--ifm-color-white);
+  background: var(--api-method-get);
+}
+
+.api-method.post > .menu__link--active::before,
+.openapi__method-endpoint .badge--success {
+  color: var(--ifm-color-white);
+  background: var(--api-method-post);
+}
+
+.api-method.delete > .menu__link--active::before,
+.openapi__method-endpoint .badge--danger {
+  color: var(--ifm-color-white);
+  background: var(--api-method-delete);
+}
+
+.api-method.put > .menu__link--active::before,
+.openapi__method-endpoint .badge--info {
+  color: var(--ifm-color-white);
+  background: var(--api-method-put);
+}
+
+.api-method.patch > .menu__link--active::before,
+.openapi__method-endpoint .badge--warning {
+  color: var(--ifm-color-white);
+  background: var(--api-method-patch);
 }
 
 ::selection {

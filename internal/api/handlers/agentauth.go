@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	agentSecretsTag   = "Agent secrets"
 	agentSecretPath   = "/api/agent-secrets" //nolint:gosec // API path, not a credential.
 	agentSecretIDPath = agentSecretPath + "/{id}"
 )
@@ -69,7 +68,7 @@ func registerCreateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Method:        http.MethodPost,
 		Path:          agentSecretPath,
 		Tags:          []string{agentSecretsTag},
-		Summary:       "Create agent secret",
+		Summary:       "Create an agent secret",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *agentSecretCreateInput) (*agentSecretCreateOutput, error) {
@@ -93,7 +92,7 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Method:      http.MethodPut,
 		Path:        agentSecretIDPath,
 		Tags:        []string{agentSecretsTag},
-		Summary:     "Update agent secret",
+		Summary:     "Update an agent secret",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -125,7 +124,7 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Method:      http.MethodDelete,
 		Path:        agentSecretIDPath,
 		Tags:        []string{agentSecretsTag},
-		Summary:     "Delete agent secret",
+		Summary:     "Delete an agent secret",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {

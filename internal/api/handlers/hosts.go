@@ -75,7 +75,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger
 		Method:      http.MethodGet,
 		Path:        "/api/hosts",
 		Tags:        []string{hostsTag},
-		Summary:     "List enrolled hosts",
+		Summary:     "List hosts",
 	}, func(ctx context.Context, input *hostListInput) (*hostListOutput, error) {
 		params := input.params()
 		rows, count, err := hostStore.List(ctx, params)
@@ -92,7 +92,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) 
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}",
 		Tags:        []string{hostsTag},
-		Summary:     "Get an enrolled host",
+		Summary:     "Get a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "get-host")
@@ -114,7 +114,7 @@ func registerSetHostPrimaryUser(
 		Method:      http.MethodPut,
 		Path:        "/api/hosts/{id}/primary-user",
 		Tags:        []string{hostsTag},
-		Summary:     "Set the host primary user",
+		Summary:     "Set primary user for a host",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -142,7 +142,7 @@ func registerClearHostPrimaryUser(
 		Method:      http.MethodDelete,
 		Path:        "/api/hosts/{id}/primary-user",
 		Tags:        []string{hostsTag},
-		Summary:     "Clear the host primary user",
+		Summary:     "Clear primary user for a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		if err := primaryUsers.Delete(ctx, input.ID, hosts.PrimaryUserSourceManual); err != nil {
@@ -180,7 +180,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store, logger *slog.Logge
 		Method:      http.MethodDelete,
 		Path:        "/api/hosts/{id}",
 		Tags:        []string{hostsTag},
-		Summary:     "Delete an enrolled host",
+		Summary:     "Delete a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
@@ -196,7 +196,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store, logger *slog.
 		Method:        http.MethodDelete,
 		Path:          "/api/hosts",
 		Tags:          []string{hostsTag},
-		Summary:       "Delete enrolled hosts",
+		Summary:       "Delete hosts",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {

@@ -7,9 +7,9 @@ import type {
   MunkiPackageInstallerUploadTarget,
 } from "@/lib/api";
 import {
-  createMunkiPackageInstaller,
-  createMunkiSoftwareIconUpload,
-  finalizeMunkiPackageInstaller,
+  completeMunkiPackageInstallerUpload,
+  createMunkiIconUpload,
+  createMunkiPackageInstallerUpload,
   setMunkiSoftwareIcon,
   unwrap,
 } from "@/lib/api";
@@ -27,10 +27,9 @@ export function useUploadMunkiIcon() {
     loadingText: "Uploading icon",
     successText: "Icon uploaded",
     errorSurface: "inline",
-    createIntent: ({ softwareId, file }) =>
+    createIntent: ({ file }) =>
       unwrap(
-        createMunkiSoftwareIconUpload({
-          path: { id: softwareId },
+        createMunkiIconUpload({
           body: { filename: file.name },
         }),
       ),
@@ -47,17 +46,17 @@ export function useUploadMunkiIcon() {
   });
 }
 
-// useUploadMunkiInstaller reserves, uploads, and finalizes an unclaimed installer object.
+// useUploadMunkiInstaller reserves, uploads, and completes an unclaimed installer object.
 export function useUploadMunkiInstaller() {
   return useUpload<MunkiPackageInstallerUploadTarget, MunkiObjectView, PackageUploadVars>({
     mutationKey: ["munki-installer-upload"],
     loadingText: "Uploading installer",
     successText: "Installer uploaded",
     createIntent: ({ file }) =>
-      unwrap(createMunkiPackageInstaller({ body: { filename: file.name } })),
+      unwrap(createMunkiPackageInstallerUpload({ body: { filename: file.name } })),
     uploadRequest: (intent) => uploadRequestFromTarget(intent),
     completeUpload: (intent, _vars, signal) =>
-      unwrap(finalizeMunkiPackageInstaller({ path: { id: intent.object_id }, signal })),
+      unwrap(completeMunkiPackageInstallerUpload({ path: { id: intent.object_id }, signal })),
     cleanupIntent: (intent) => deleteUnclaimedMunkiInstaller(intent.object_id),
   });
 }

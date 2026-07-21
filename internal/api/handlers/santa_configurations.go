@@ -73,8 +73,8 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store, 
 		OperationID: "list-santa-configurations",
 		Method:      http.MethodGet,
 		Path:        "/api/santa/configurations",
-		Tags:        []string{santaTag},
-		Summary:     "List Santa configurations",
+		Tags:        []string{santaConfigurationsTag},
+		Summary:     "List configurations",
 	}, func(ctx context.Context, input *santaConfigurationListInput) (*santaConfigurationListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
@@ -96,8 +96,8 @@ func registerCreateSantaConfiguration(api huma.API, store *configurations.Store,
 		OperationID:   "create-santa-configuration",
 		Method:        http.MethodPost,
 		Path:          "/api/santa/configurations",
-		Tags:          []string{santaTag},
-		Summary:       "Create a Santa configuration",
+		Tags:          []string{santaConfigurationsTag},
+		Summary:       "Create a configuration",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -123,8 +123,8 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store, lo
 		OperationID: "get-santa-configuration",
 		Method:      http.MethodGet,
 		Path:        santaConfigurationIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Get a Santa configuration",
+		Tags:        []string{santaConfigurationsTag},
+		Summary:     "Get a configuration",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.GetByID(ctx, input.ID)
@@ -146,8 +146,8 @@ func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store,
 		OperationID: "update-santa-configuration",
 		Method:      http.MethodPut,
 		Path:        santaConfigurationIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Update a Santa configuration",
+		Tags:        []string{santaConfigurationsTag},
+		Summary:     "Update a configuration",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusNotFound,
@@ -173,8 +173,8 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store,
 		OperationID: "delete-santa-configuration",
 		Method:      http.MethodDelete,
 		Path:        santaConfigurationIDPath,
-		Tags:        []string{santaTag},
-		Summary:     "Delete a Santa configuration",
+		Tags:        []string{santaConfigurationsTag},
+		Summary:     "Delete a configuration",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
 		if err := store.Delete(ctx, input.ID); err != nil {
@@ -195,8 +195,8 @@ func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.S
 		OperationID:   "bulk-delete-santa-configurations",
 		Method:        http.MethodDelete,
 		Path:          "/api/santa/configurations",
-		Tags:          []string{santaTag},
-		Summary:       "Delete Santa configurations",
+		Tags:          []string{santaConfigurationsTag},
+		Summary:       "Delete configurations",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *deleteManyInput) (*struct{}, error) {
@@ -217,8 +217,8 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 		OperationID: "reorder-santa-configurations",
 		Method:      http.MethodPut,
 		Path:        "/api/santa/configurations/order",
-		Tags:        []string{santaTag},
-		Summary:     "Reorder Santa configurations",
+		Tags:        []string{santaConfigurationsTag},
+		Summary:     "Reorder configurations",
 		Errors:      []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *santaConfigurationReorderInput) (*struct{}, error) {
 		if err := store.ReorderConfigurations(ctx, input.Body.OrderedIDs); err != nil {
