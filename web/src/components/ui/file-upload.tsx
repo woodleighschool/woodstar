@@ -1393,5 +1393,6 @@ export {
   FileUploadList,
   type FileUploadProps,
   FileUploadTrigger,
+  formatBytes,
   useStore as useFileUpload,
 };

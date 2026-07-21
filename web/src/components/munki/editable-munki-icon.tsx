@@ -22,9 +22,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { formatBytes } from "@/components/ui/file-upload";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMunkiIcons } from "@/hooks/use-munki-icons";
-import { formatBytes } from "@/lib/utils";
 export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
 
 export type MunkiSoftwareIconValue =

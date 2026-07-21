@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { formatBytes } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -36,7 +37,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@/hooks/use-hosts";
 import type { Host, HostDetail } from "@/lib/api";
 import { emailAddress } from "@/lib/form-validation";
-import { formatBytes, formatDate, formatRelative } from "@/lib/utils";
+import { formatDate, formatRelative } from "@/lib/utils";
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 const certificateSourceLabels: Record<string, string> = {
   system: "System",

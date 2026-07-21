@@ -16,6 +16,7 @@ import { FilterChip } from "@/components/filter-controls";
 import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
+import { formatBytes } from "@/components/ui/file-upload";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -23,7 +24,7 @@ import { useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
 import { useSoftwareTitle } from "@/hooks/use-software";
 import type { Host, SoftwareTitle } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatBytes, formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "online", label: "Online" },

@@ -13,13 +13,14 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryError } from "@/components/query-error";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
+import { formatBytes } from "@/components/ui/file-upload";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteMunkiPackages, useMunkiPackages } from "@/hooks/use-munki-packages";
 import type { MunkiPackage } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatBytes, formatRelative, isOneOf } from "@/lib/utils";
+import { formatRelative, isOneOf } from "@/lib/utils";
 import {
   MUNKI_INSTALLER_TYPE_OPTIONS,
   MUNKI_INSTALLER_TYPE_VALUES,

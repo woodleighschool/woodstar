@@ -12,10 +12,10 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment";
+import { formatBytes } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import type { MunkiObjectView } from "@/lib/api";
 import type { UploadProgress } from "@/lib/upload";
-import { formatBytes } from "@/lib/utils";
 
 import type { ClientResourcesForm } from "./fields";
 

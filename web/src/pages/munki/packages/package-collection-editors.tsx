@@ -24,6 +24,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { formatBytes } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -48,7 +49,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { MunkiPackage } from "@/lib/api";
-import { formatBytes } from "@/lib/utils";
 
 import { MUNKI_INSTALL_ITEM_TYPE_OPTIONS } from "../software/munki-software";
 import type { PackageEditorForm } from "./fields";
