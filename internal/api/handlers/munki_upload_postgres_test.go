@@ -21,6 +21,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -151,6 +152,31 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 	})
 }
 
+func TestClientResourcesUploadsRemainPrefixScoped(t *testing.T) {
+	fixture := newMunkiUploadFixture(t)
+	banner := fixture.beginUpload(t, clientResourcesBannerUploadPath, "banner.png")
+	archive := fixture.beginUpload(t, clientResourcesArchiveUploadPath, "resources.zip")
+
+	wrongArchivePath := fmt.Sprintf("%s/%d", clientResourcesArchiveUploadPath, banner.ObjectID)
+	assertStatus(
+		t,
+		fixture.request(t, http.MethodDelete, wrongArchivePath),
+		http.StatusBadRequest,
+		"delete banner as archive",
+	)
+	if _, err := fixture.objects.GetByID(t.Context(), banner.ObjectID); err != nil {
+		t.Fatalf("get cross-prefix banner: %v", err)
+	}
+
+	archivePath := fmt.Sprintf("%s/%d", clientResourcesArchiveUploadPath, archive.ObjectID)
+	assertStatus(
+		t,
+		fixture.request(t, http.MethodDelete, archivePath),
+		http.StatusNoContent,
+		"delete archive upload",
+	)
+}
+
 type munkiUploadFixture struct {
 	router     *chi.Mux
 	objects    *storage.ObjectStore
@@ -190,8 +216,42 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 		DesiredPackagesChanged: func() {},
 	}), discardLogger())
 	registerIconRoutes(api, softwareStore, objects, uploads, discardLogger())
-	registerCreateClientResourcesBannerUpload(api, uploads, discardLogger())
-	registerDeleteClientResourcesBannerUpload(api, uploads, discardLogger())
+	registerCreateClientResourcesUpload(
+		api,
+		uploads,
+		discardLogger(),
+		clientResourcesBannerUploadPath,
+		clientresources.BannerObjectPrefix,
+		"create-test-client-resources-banner-upload",
+		"Create a banner upload",
+	)
+	registerDeleteClientResourcesUpload(
+		api,
+		uploads,
+		discardLogger(),
+		clientResourcesBannerUploadPath,
+		clientresources.BannerObjectPrefix,
+		"delete-test-client-resources-banner-upload",
+		"Delete a banner upload",
+	)
+	registerCreateClientResourcesUpload(
+		api,
+		uploads,
+		discardLogger(),
+		clientResourcesArchiveUploadPath,
+		clientresources.ArchiveObjectPrefix,
+		"create-test-client-resources-archive-upload",
+		"Create an archive upload",
+	)
+	registerDeleteClientResourcesUpload(
+		api,
+		uploads,
+		discardLogger(),
+		clientResourcesArchiveUploadPath,
+		clientresources.ArchiveObjectPrefix,
+		"delete-test-client-resources-archive-upload",
+		"Delete an archive upload",
+	)
 	registerMunkiContentRoutes(router, objects, storage.NewDelivery(backend), discardLogger())
 	storage.RegisterTransferRoutes(router, backend, discardLogger())
 

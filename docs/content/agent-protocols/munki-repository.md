@@ -6,7 +6,7 @@ description: "The Munki repository surface: manifests, catalogs, artifacts, and 
 
 # Munki Repository
 
-To a Munki client, Woodstar looks like a Munki repository. It serves the same shape of URLs a static repo would, but manifests, catalogs, and client resources are rendered or compiled from the state managed in Woodstar.
+To a Munki client, Woodstar looks like a Munki repository. It serves the same shape of URLs a static repo would: manifests and catalogs are rendered from Woodstar state, while stored artifacts include packages, icons, and either a compiled or uploaded client-resources archive.
 
 | Method | Path                                       | Purpose                                                           |
 | ------ | ------------------------------------------ | ----------------------------------------------------------------- |
@@ -52,7 +52,7 @@ If the path does not match a known package installer or icon in the repository, 
 
 ## Client resources
 
-Saving [Client Resources](../admin/munki#client-resources) compiles the selected banner, optional links, and optional footer into a stored `site_default.zip`. Munki asks for the host-specific `{serial}.zip` first and can fall back to `site_default.zip`; Woodstar serves the same configured archive for either accepted name.
+[Client Resources](../admin/munki#client-resources) publishes one archive, either compiled from the Woodstar builder or supplied as a custom ZIP. Munki asks for the host-specific `{serial}.zip` first and can fall back to `site_default.zip`; Woodstar serves the same configured archive for either accepted name.
 
 The route uses the shared Munki bearer secret and delivers the archive through the same storage path as icons and packages: a presigned redirect on S3, or a Woodstar stream with file storage. Client resources are not replicated to distribution points.
 

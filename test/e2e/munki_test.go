@@ -346,14 +346,15 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		Label:  "Updates",
 		Target: "munki://updates",
 	}}
-	savedResources, err := server.Admin.UpdateMunkiClientResourcesWithResponse(
+	savedResources, err := server.Admin.UpdateMunkiClientResourcesBuilderWithResponse(
 		t.Context(),
-		adminapi.MunkiMutation{
-			BannerObjectId:  bannerTarget.ObjectId,
-			BannerAlignment: "center",
-			Links:           links,
-			FooterText:      "Managed by Woodstar",
-			FooterLinks:     footerLinks,
+		adminapi.MunkiBuilder{
+			BannerObjectId: bannerTarget.ObjectId,
+			BannerFit:      "cover",
+			BannerFocalX:   50,
+			Links:          links,
+			FooterText:     "Managed by Woodstar",
+			FooterLinks:    footerLinks,
 		},
 	)
 	savedResources = requireAPIResponse(t, "save client resources", http.StatusOK, savedResources, err)
@@ -363,12 +364,19 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	clientResources := *savedResources.JSON200
 	bannerSum := sha256.Sum256(bannerBytes)
 	bannerSHA256 := hex.EncodeToString(bannerSum[:])
-	if clientResources.Banner.Id != bannerTarget.ObjectId ||
-		clientResources.Banner.ContentType != "image/png" ||
-		clientResources.Banner.SizeBytes == nil ||
-		*clientResources.Banner.SizeBytes != int64(len(bannerBytes)) ||
-		clientResources.Banner.Sha256 == nil || *clientResources.Banner.Sha256 != bannerSHA256 ||
-		clientResources.BannerAlignment != "center" || clientResources.FooterText != "Managed by Woodstar" {
+	if clientResources.Custom || clientResources.Builder == nil {
+		t.Fatal("saved client resources returned no builder state")
+	}
+	if clientResources.Builder.Banner.Id != bannerTarget.ObjectId ||
+		clientResources.Builder.Banner.ContentType != "image/png" ||
+		clientResources.Builder.Banner.SizeBytes == nil ||
+		*clientResources.Builder.Banner.SizeBytes != int64(len(bannerBytes)) ||
+		clientResources.Builder.Banner.Sha256 == nil ||
+		*clientResources.Builder.Banner.Sha256 != bannerSHA256 ||
+		clientResources.Builder.BannerFit != "cover" ||
+		clientResources.Builder.BannerFocalX != 50 ||
+		clientResources.Builder.FooterText != "Managed by Woodstar" ||
+		clientResources.Archive.ContentType != "application/zip" {
 		t.Fatal("saved client resources did not contain the expected compiled banner state")
 	}
 
@@ -404,19 +412,24 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatal("get client resources returned no JSON body")
 	}
 	rereadClientResources := *rereadResourcesResponse.JSON200
-	if rereadClientResources.Banner.Id != bannerTarget.ObjectId ||
-		rereadClientResources.Banner.ContentUrl != "/api/munki/client-resources/banner-uploads/"+
+	if rereadClientResources.Custom || rereadClientResources.Builder == nil {
+		t.Fatal("re-read client resources returned no builder state")
+	}
+	if rereadClientResources.Builder.Banner.Id != bannerTarget.ObjectId ||
+		rereadClientResources.Builder.Banner.ContentUrl != "/api/munki/client-resources/banner-uploads/"+
 			strconv.FormatInt(bannerTarget.ObjectId, 10)+"/content" ||
-		rereadClientResources.BannerAlignment != "center" ||
-		len(rereadClientResources.Links) != 1 || rereadClientResources.Links[0] != links[0] ||
-		len(rereadClientResources.FooterLinks) != 1 ||
-		rereadClientResources.FooterLinks[0] != footerLinks[0] {
+		rereadClientResources.Builder.BannerFit != "cover" ||
+		rereadClientResources.Builder.BannerFocalX != 50 ||
+		len(rereadClientResources.Builder.Links) != 1 ||
+		rereadClientResources.Builder.Links[0] != links[0] ||
+		len(rereadClientResources.Builder.FooterLinks) != 1 ||
+		rereadClientResources.Builder.FooterLinks[0] != footerLinks[0] {
 		t.Fatal("re-read client resources did not match the saved public state")
 	}
 	bannerContentResponse := getResponse(
 		t,
 		server.AdminHTTP,
-		server.BaseURL+rereadClientResources.Banner.ContentUrl,
+		server.BaseURL+rereadClientResources.Builder.Banner.ContentUrl,
 	)
 	if got := readAndClose(t, bannerContentResponse); bannerContentResponse.StatusCode != http.StatusOK ||
 		!bytes.Equal(got, bannerBytes) {
@@ -626,8 +639,180 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatal("client resources ZIP does not contain the exact uploaded resources/banner.png")
 	}
 	showcase, ok := archiveFiles["templates/showcase_template.html"]
-	if !ok || !strings.Contains(string(showcase), "custom/resources/banner.png") {
+	if !ok || !strings.Contains(string(showcase), "custom/resources/banner.png") ||
+		!strings.Contains(string(showcase), "object-fit: cover") ||
+		!strings.Contains(string(showcase), "object-position: 50% center") {
 		t.Fatalf("client resources ZIP showcase template = %q, want banner reference", showcase)
+	}
+
+	uploadedArchiveBytes := []byte("trusted administrator archive bytes")
+	createdArchive, err := server.Admin.CreateMunkiClientResourcesArchiveUploadWithResponse(
+		t.Context(),
+		adminapi.MunkiUploadRequest{Filename: "school-resources.zip"},
+	)
+	createdArchive = requireAPIResponse(
+		t,
+		"create client resources archive upload",
+		http.StatusCreated,
+		createdArchive,
+		err,
+	)
+	archiveTarget := createdArchive.JSON201
+	if archiveTarget == nil {
+		t.Fatal("create client resources archive upload returned no JSON body")
+	}
+	archiveUploadRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		string(archiveTarget.Upload.Method),
+		archiveTarget.Upload.Url,
+		bytes.NewReader(uploadedArchiveBytes),
+	)
+	if err != nil {
+		t.Fatal("create client resources archive capability request")
+	}
+	if archiveTarget.Upload.Headers != nil {
+		for name, value := range *archiveTarget.Upload.Headers {
+			archiveUploadRequest.Header.Set(name, value)
+		}
+	}
+	archiveUploadResponse, err := transferClient.Do(archiveUploadRequest)
+	if err != nil {
+		t.Fatalf("upload client resources archive: %v", err)
+	}
+	drainAndClose(t, archiveUploadResponse)
+	if archiveUploadResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("archive upload status = %d, want %d", archiveUploadResponse.StatusCode, http.StatusNoContent)
+	}
+
+	publishedArchive, err := server.Admin.PublishMunkiClientResourcesArchiveWithResponse(
+		t.Context(),
+		adminapi.ClientResourcesArchivePutInputBody{ObjectId: archiveTarget.ObjectId},
+	)
+	publishedArchive = requireAPIResponse(
+		t,
+		"publish client resources archive",
+		http.StatusOK,
+		publishedArchive,
+		err,
+	)
+	if publishedArchive.JSON200 == nil {
+		t.Fatal("publish client resources archive returned no JSON body")
+	}
+	uploadedResources := *publishedArchive.JSON200
+	if !uploadedResources.Custom || uploadedResources.Builder == nil ||
+		uploadedResources.Builder.Banner.Id != bannerTarget.ObjectId ||
+		uploadedResources.Archive.Id != archiveTarget.ObjectId ||
+		uploadedResources.Archive.Filename != "school-resources.zip" ||
+		uploadedResources.Archive.SizeBytes == nil ||
+		*uploadedResources.Archive.SizeBytes != int64(len(uploadedArchiveBytes)) {
+		t.Fatalf("published uploaded client resources = %+v", uploadedResources)
+	}
+
+	uploadedAdminResponse := getResponse(
+		t,
+		server.AdminHTTP,
+		server.BaseURL+uploadedResources.Archive.ContentUrl,
+	)
+	if got := readAndClose(t, uploadedAdminResponse); uploadedAdminResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, uploadedArchiveBytes) {
+		t.Fatalf(
+			"uploaded archive admin content status/body = %d/%q, want 200/exact",
+			uploadedAdminResponse.StatusCode,
+			got,
+		)
+	}
+	retainedBannerResponse := getResponse(
+		t,
+		server.AdminHTTP,
+		server.BaseURL+rereadClientResources.Builder.Banner.ContentUrl,
+	)
+	if got := readAndClose(t, retainedBannerResponse); retainedBannerResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, bannerBytes) {
+		t.Fatalf(
+			"retained builder banner status/body = %d/%q, want 200/exact",
+			retainedBannerResponse.StatusCode,
+			got,
+		)
+	}
+
+	uploadedResourcesRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+"/munki/client_resources/"+serial+".zip",
+		nil,
+	)
+	if err != nil {
+		t.Fatal("create uploaded client resources request")
+	}
+	uploadedResourcesRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	uploadedResourcesResponse, err := munkiClient.Do(uploadedResourcesRequest)
+	if err != nil {
+		t.Fatalf("fetch uploaded client resources: %v", err)
+	}
+	if got := readAndClose(t, uploadedResourcesResponse); uploadedResourcesResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, uploadedArchiveBytes) {
+		t.Fatalf(
+			"uploaded client resources status/body = %d/%q, want 200/exact",
+			uploadedResourcesResponse.StatusCode,
+			got,
+		)
+	}
+
+	republishedBuilder, err := server.Admin.UpdateMunkiClientResourcesBuilderWithResponse(
+		t.Context(),
+		adminapi.MunkiBuilder{
+			BannerObjectId: bannerTarget.ObjectId,
+			BannerFit:      "cover",
+			BannerFocalX:   50,
+			Links:          links,
+			FooterText:     "Managed by Woodstar",
+			FooterLinks:    footerLinks,
+		},
+	)
+	republishedBuilder = requireAPIResponse(
+		t,
+		"republish retained client resources builder",
+		http.StatusOK,
+		republishedBuilder,
+		err,
+	)
+	if republishedBuilder.JSON200 == nil || republishedBuilder.JSON200.Custom ||
+		republishedBuilder.JSON200.Builder == nil ||
+		republishedBuilder.JSON200.Builder.Banner.Id != bannerTarget.ObjectId {
+		t.Fatalf("republished builder client resources = %+v", republishedBuilder.JSON200)
+	}
+	replacedArchiveResponse := getResponse(
+		t,
+		server.AdminHTTP,
+		server.BaseURL+uploadedResources.Archive.ContentUrl,
+	)
+	drainAndClose(t, replacedArchiveResponse)
+	if replacedArchiveResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("replaced custom archive status = %d, want 404", replacedArchiveResponse.StatusCode)
+	}
+
+	deletedResources, err := server.Admin.DeleteMunkiClientResourcesWithResponse(t.Context())
+	requireAPIResponse(t, "undeploy client resources", http.StatusNoContent, deletedResources, err)
+	undeployedResources, err := server.Admin.GetMunkiClientResourcesWithResponse(t.Context())
+	requireAPIResponse(t, "get undeployed client resources", http.StatusNotFound, undeployedResources, err)
+
+	undeployedRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+"/munki/client_resources/"+serial+".zip",
+		nil,
+	)
+	if err != nil {
+		t.Fatal("create undeployed client resources request")
+	}
+	undeployedRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	undeployedResponse, err := munkiClient.Do(undeployedRequest)
+	if err != nil {
+		t.Fatalf("fetch undeployed client resources: %v", err)
+	}
+	drainAndClose(t, undeployedResponse)
+	if undeployedResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("undeployed client resources status = %d, want 404", undeployedResponse.StatusCode)
 	}
 }
 

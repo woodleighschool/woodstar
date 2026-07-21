@@ -359,7 +359,7 @@ const sidebar: SidebarsConfig = {
             {
               type: "doc",
               id: "api/delete-munki-client-resources",
-              label: "Delete client resources",
+              label: "Undeploy client resources",
               className: "api-method delete",
               key: "munki-munki-client-resources-api-delete-munki-client-resources",
             },
@@ -372,10 +372,31 @@ const sidebar: SidebarsConfig = {
             },
             {
               type: "doc",
-              id: "api/update-munki-client-resources",
-              label: "Update client resources",
+              id: "api/update-munki-client-resources-builder",
+              label: "Update client resources from the builder",
               className: "api-method put",
-              key: "munki-munki-client-resources-api-update-munki-client-resources",
+              key: "munki-munki-client-resources-api-update-munki-client-resources-builder",
+            },
+            {
+              type: "doc",
+              id: "api/publish-munki-client-resources-archive",
+              label: "Publish a client resources archive",
+              className: "api-method put",
+              key: "munki-munki-client-resources-api-publish-munki-client-resources-archive",
+            },
+            {
+              type: "doc",
+              id: "api/create-munki-client-resources-archive-upload",
+              label: "Create a client resources archive upload",
+              className: "api-method post",
+              key: "munki-munki-client-resources-api-create-munki-client-resources-archive-upload",
+            },
+            {
+              type: "doc",
+              id: "api/delete-munki-client-resources-archive-upload",
+              label: "Delete a client resources archive upload",
+              className: "api-method delete",
+              key: "munki-munki-client-resources-api-delete-munki-client-resources-archive-upload",
             },
             {
               type: "doc",

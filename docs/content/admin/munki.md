@@ -43,17 +43,23 @@ For an installer-backed package, Woodstar reserves an unclaimed installer object
 
 ## Client resources
 
-Client Resources is the singleton builder for Managed Software Center's presentation. Woodstar has no default form state or bundled banner: until you save a configuration, clients use Munki's built-in resources.
+Client Resources controls the single Managed Software Center resources archive served by Woodstar. Until you save a configuration, clients use Munki's built-in resources.
 
-A configuration has:
+You can build the archive in Woodstar or upload a ZIP you maintain yourself.
 
-- One JPEG or PNG banner, up to 5 MiB. Managed Software Center displays the image at a fixed 200-pixel height. **Left** keeps its left edge anchored as the window widens; **Centre** keeps its middle anchored.
+The builder has:
+
+- One JPEG or PNG banner, up to 5 MiB. **Fit** preserves the image at the preview height, while **Fill** crops it to cover the banner area. **Left** and **Centre** control the horizontal focal position.
 - Optional links above the software list. When the list is empty, Managed Software Center shows its normal categories. Adding a link replaces that category list.
 - Optional footer text and links. An empty footer is not included in the archive.
 
 Links keep their displayed order and can use `http`, `https`, `mailto`, or `munki` targets. Only HTTP and HTTPS links can open in the system browser.
 
-The builder is also the preview. It follows the Managed Software Center layout closely, but the native app remains the rendering authority. **Save** validates the banner, compiles a new `site_default.zip`, stores it, and publishes it immediately. **Cancel** restores the last saved values. **Use Munki defaults** removes the configured singleton and its published archive, returning clients to Munki's built-in resources.
+The builder is also the preview. It follows the Managed Software Center layout closely, but the native app remains the rendering authority.
+
+**Upload Custom ZIP** switches the form to an archive attachment. Selecting a file does not upload or publish it; **Save** applies whichever form is visible. For the builder, Woodstar validates the banner and compiles the archive. For a custom ZIP, Woodstar stores and publishes the supplied archive as-is. Switching forms does not discard either form's pending values, and publishing a custom ZIP keeps the saved builder configuration available for switching back later.
+
+**Cancel** restores the last saved values. **Undeploy** removes the configured resources and returns clients to Munki's built-in resources.
 
 ## Distribution points
 

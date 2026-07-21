@@ -1,14 +1,9 @@
 import { useEffect } from "react";
 
+import type { ClientResourceAsset } from "./form-schema";
+
 export const clientResourceImageAccept = "image/jpeg,image/png";
 export const clientResourceImageMaxSize = 5 * 1024 * 1024;
-
-export interface ClientResourceAsset {
-  name: string;
-  url: string;
-  objectID: number | null;
-  file: File | null;
-}
 
 export function validateClientResourceImage(file: File) {
   if (file.size <= 0 || file.size > clientResourceImageMaxSize) {
@@ -17,18 +12,20 @@ export function validateClientResourceImage(file: File) {
   return null;
 }
 
-export function useClientResourceAsset(asset: ClientResourceAsset | null) {
+export function useClientResourceAssetLifecycle(asset: ClientResourceAsset | null) {
   useEffect(
     () => () => {
       if (asset?.file) URL.revokeObjectURL(asset.url);
     },
     [asset],
   );
+}
 
-  return (file: File): ClientResourceAsset => ({
+export function createClientResourceAsset(file: File): ClientResourceAsset {
+  return {
     name: file.name,
     url: URL.createObjectURL(file),
     objectID: null,
     file,
-  });
+  };
 }

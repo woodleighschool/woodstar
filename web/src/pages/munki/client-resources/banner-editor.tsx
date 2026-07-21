@@ -1,21 +1,24 @@
-import { AlignCenter, AlignLeft, ImageIcon, ImageUp } from "lucide-react";
+import { AlignCenter, AlignLeft, ImageIcon, ImageUp, Maximize2, Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@/components/ui/file-upload";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 
-import type { ClientResourcesDraft } from "./client-resources";
+import type { ClientResourceAsset, ClientResourcesFormInput } from "./form-schema";
 import {
-  type ClientResourceAsset,
   clientResourceImageAccept,
   clientResourceImageMaxSize,
   validateClientResourceImage,
 } from "./use-client-resource-asset";
 
-const alignmentOptions = [
-  { value: "left", label: "Left", icon: AlignLeft },
-  { value: "center", label: "Centre", icon: AlignCenter },
+const fitOptions = [
+  { value: "height", label: "Fit", icon: Minimize2 },
+  { value: "cover", label: "Fill", icon: Maximize2 },
+] as const;
+const positionOptions = [
+  { value: 0, label: "Left", icon: AlignLeft },
+  { value: 50, label: "Centre", icon: AlignCenter },
 ] as const;
 
 export function BannerEditor({
@@ -23,19 +26,23 @@ export function BannerEditor({
   error,
   invalid,
   uploading,
-  alignment,
+  fit,
+  focalX,
   onAssetChange,
   onAssetReject,
-  onAlignmentChange,
+  onFitChange,
+  onFocalXChange,
 }: {
   asset: ClientResourceAsset | null;
   error: string | null;
   invalid: boolean;
   uploading: boolean;
-  alignment: ClientResourcesDraft["banner"]["alignment"];
+  fit: ClientResourcesFormInput["banner"]["fit"];
+  focalX: ClientResourcesFormInput["banner"]["focalX"];
   onAssetChange: (file: File) => void;
   onAssetReject: (message: string) => void;
-  onAlignmentChange: (alignment: ClientResourcesDraft["banner"]["alignment"]) => void;
+  onFitChange: (fit: ClientResourcesFormInput["banner"]["fit"]) => void;
+  onFocalXChange: (focalX: ClientResourcesFormInput["banner"]["focalX"]) => void;
 }) {
   return (
     <FileUpload
@@ -51,68 +58,94 @@ export function BannerEditor({
       onFileReject={(_file, message) => onAssetReject(message)}
       onFileValidate={validateClientResourceImage}
     >
-      <FileUploadDropzone className="group h-[200px] min-h-0 overflow-hidden rounded-none border-0 bg-muted p-0 hover:bg-muted data-dragging:bg-accent/40 data-invalid:ring-0">
-        {asset ? (
+      {asset ? (
+        <div className="relative h-[200px] overflow-hidden bg-muted">
           <img
             src={asset.url}
             alt=""
             draggable={false}
             className={cn(
-              `
-                pointer-events-none absolute top-0 h-[200px] w-auto max-w-none
-                select-none
-              `,
-              alignment === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
+              "pointer-events-none absolute top-0 select-none",
+              fit === "cover" ? "left-0 size-full object-cover" : "h-[200px] w-auto max-w-none",
             )}
+            style={
+              fit === "cover"
+                ? { objectPosition: `${focalX}% center` }
+                : { left: `${focalX}%`, transform: `translateX(-${focalX}%)` }
+            }
           />
-        ) : (
-          <FileUploadTrigger
-            render={<Button type="button" variant="outline" disabled={uploading} />}
-          >
-            <ImageIcon data-icon="inline-start" />
-            Add banner
-          </FileUploadTrigger>
-        )}
 
-        {!asset ? <p className="text-xs text-muted-foreground">JPG or PNG · 5 MB max</p> : null}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 border border-dashed border-primary/50"
+          />
 
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"
-        />
-      </FileUploadDropzone>
-
-      {asset ? (
-        <div className="absolute top-2 right-2 flex items-center gap-2">
-          <ToggleGroup
-            value={[alignment]}
-            variant="outline"
-            size="sm"
-            className="bg-background/90 shadow-sm backdrop-blur-sm"
-            onValueChange={(value) => {
-              const selected = alignmentOptions.find((option) => option.value === value[0]);
-              if (selected) onAlignmentChange(selected.value);
-            }}
-          >
-            {alignmentOptions.map((option) => {
-              const Icon = option.icon;
-              return (
-                <ToggleGroupItem key={option.value} value={option.value}>
-                  <Icon />
-                  {option.label}
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
-
-          <FileUploadTrigger
-            render={<Button type="button" variant="secondary" size="sm" disabled={uploading} />}
-          >
-            <ImageUp data-icon="inline-start" />
-            Replace
-          </FileUploadTrigger>
+          <div className="absolute top-2 right-2 flex items-center gap-2">
+            <ButtonGroup aria-label="Banner sizing">
+              {fitOptions.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    size="sm"
+                    variant={fit === option.value ? "default" : "secondary"}
+                    aria-pressed={fit === option.value}
+                    onClick={() => onFitChange(option.value)}
+                  >
+                    <Icon data-icon="inline-start" />
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </ButtonGroup>
+            <ButtonGroup aria-label="Banner position">
+              {positionOptions.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    size="sm"
+                    variant={focalX === option.value ? "default" : "secondary"}
+                    aria-pressed={focalX === option.value}
+                    onClick={() => onFocalXChange(option.value)}
+                  >
+                    <Icon data-icon="inline-start" />
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </ButtonGroup>
+            <FileUploadTrigger
+              render={<Button type="button" variant="secondary" size="sm" disabled={uploading} />}
+            >
+              <ImageUp data-icon="inline-start" />
+              Replace
+            </FileUploadTrigger>
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <FileUploadDropzone className="group h-[200px] min-h-0 rounded-none border-0 bg-muted/50 p-4 data-invalid:ring-0">
+          <div className="flex size-10 items-center justify-center rounded-full border bg-background">
+            <ImageIcon className="size-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1 text-center">
+            <p className="text-sm font-medium">Add banner image</p>
+            <p className="text-xs text-muted-foreground">Drag and drop a JPG or PNG here</p>
+          </div>
+          <FileUploadTrigger
+            render={<Button type="button" variant="outline" size="sm" disabled={uploading} />}
+          >
+            Choose image
+          </FileUploadTrigger>
+          <p className="text-xs text-muted-foreground">5 MB max</p>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"
+          />
+        </FileUploadDropzone>
+      )}
 
       {error ? (
         <p

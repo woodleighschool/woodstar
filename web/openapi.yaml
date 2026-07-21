@@ -88,6 +88,16 @@ components:
         - organizational_unit
         - common_name
       type: object
+    ClientResourcesArchivePutInputBody:
+      additionalProperties: false
+      properties:
+        object_id:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - object_id
+      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -779,19 +789,79 @@ components:
       required:
         - label_id
       type: object
+    MunkiBuilder:
+      additionalProperties: false
+      properties:
+        banner_fit:
+          enum:
+            - height
+            - cover
+          type: string
+        banner_focal_x:
+          format: int64
+          maximum: 100
+          minimum: 0
+          type: integer
+        banner_object_id:
+          format: int64
+          type: integer
+        footer_links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          maxItems: 12
+          type: array
+        footer_text:
+          maxLength: 500
+          type: string
+        links:
+          items:
+            $ref: "#/components/schemas/MunkiLink"
+          maxItems: 12
+          type: array
+      required:
+        - banner_object_id
+        - banner_fit
+        - banner_focal_x
+        - links
+        - footer_text
+        - footer_links
+      type: object
     MunkiClientResources:
+      additionalProperties: false
+      properties:
+        archive:
+          $ref: "#/components/schemas/MunkiObjectView"
+        builder:
+          $ref: "#/components/schemas/MunkiClientResourcesBuilder"
+        created_at:
+          format: date-time
+          type: string
+        custom:
+          type: boolean
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - archive
+        - custom
+        - created_at
+        - updated_at
+      type: object
+    MunkiClientResourcesBuilder:
       additionalProperties: false
       properties:
         banner:
           $ref: "#/components/schemas/MunkiObjectView"
-        banner_alignment:
+        banner_fit:
           enum:
-            - left
-            - center
+            - height
+            - cover
           type: string
-        created_at:
-          format: date-time
-          type: string
+        banner_focal_x:
+          format: int64
+          maximum: 100
+          minimum: 0
+          type: integer
         footer_links:
           items:
             $ref: "#/components/schemas/MunkiLink"
@@ -802,17 +872,13 @@ components:
           items:
             $ref: "#/components/schemas/MunkiLink"
           type: array
-        updated_at:
-          format: date-time
-          type: string
       required:
         - banner
-        - banner_alignment
+        - banner_fit
+        - banner_focal_x
         - links
         - footer_text
         - footer_links
-        - created_at
-        - updated_at
       type: object
     MunkiCreateMutation:
       additionalProperties: false
@@ -1182,37 +1248,6 @@ components:
           type: string
       required:
         - strategy
-      type: object
-    MunkiMutation:
-      additionalProperties: false
-      properties:
-        banner_alignment:
-          enum:
-            - left
-            - center
-          type: string
-        banner_object_id:
-          format: int64
-          type: integer
-        footer_links:
-          items:
-            $ref: "#/components/schemas/MunkiLink"
-          maxItems: 12
-          type: array
-        footer_text:
-          maxLength: 500
-          type: string
-        links:
-          items:
-            $ref: "#/components/schemas/MunkiLink"
-          maxItems: 12
-          type: array
-      required:
-        - banner_object_id
-        - banner_alignment
-        - links
-        - footer_text
-        - footer_links
       type: object
     MunkiObjectMutation:
       additionalProperties: false
@@ -5354,7 +5389,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete client resources
+      summary: Undeploy client resources
       tags:
         - Munki client resources
     get:
@@ -5391,12 +5426,12 @@ paths:
       tags:
         - Munki client resources
     put:
-      operationId: update-munki-client-resources
+      operationId: update-munki-client-resources-builder
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiMutation"
+              $ref: "#/components/schemas/MunkiBuilder"
         required: true
       responses:
         "200":
@@ -5444,7 +5479,178 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update client resources
+      summary: Update client resources from the builder
+      tags:
+        - Munki client resources
+  /api/munki/client-resources/archive:
+    put:
+      operationId: publish-munki-client-resources-archive
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientResourcesArchivePutInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiClientResources"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Publish a client resources archive
+      tags:
+        - Munki client resources
+  /api/munki/client-resources/archive-uploads:
+    post:
+      operationId: create-munki-client-resources-archive-upload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiUploadRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiDirectUploadTarget"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Create a client resources archive upload
+      tags:
+        - Munki client resources
+  /api/munki/client-resources/archive-uploads/{id}:
+    delete:
+      operationId: delete-munki-client-resources-archive-upload
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Delete a client resources archive upload
       tags:
         - Munki client resources
   /api/munki/client-resources/banner-uploads:

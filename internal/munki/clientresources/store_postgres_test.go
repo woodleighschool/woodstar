@@ -15,60 +15,90 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestStoreUpsertAndDeleteRemoveUnreferencedObjects(t *testing.T) {
+func TestStoreTransitionsBetweenBuilderAndUploadedArchive(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	objects := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	store := NewStore(db, objects)
 	banner := createAvailableObject(t, ctx, db, objects, BannerObjectPrefix, "banner.png", "image/png")
-	firstArchive := createAvailableObject(t, ctx, db, objects, ArchiveObjectPrefix, archiveFilename, "application/zip")
+	generatedArchive := createAvailableObject(
+		t,
+		ctx,
+		db,
+		objects,
+		ArchiveObjectPrefix,
+		archiveFilename,
+		"application/zip",
+	)
 
-	first, err := store.Upsert(ctx, storedMutation{
-		Mutation: Mutation{
-			BannerObjectID:  banner.ID,
-			BannerAlignment: BannerAlignmentLeft,
-			Links:           []Link{},
-			FooterLinks:     []Link{},
+	generated, err := store.PublishBuilder(ctx, storedBuilder{
+		Builder: Builder{
+			BannerObjectID: banner.ID,
+			BannerFit:      BannerFitCover,
+			BannerFocalX:   50,
+			Links:          []Link{},
+			FooterLinks:    []Link{},
 		},
-		ArchiveObjectID: firstArchive.ID,
+		ArchiveObjectID: generatedArchive.ID,
 	})
 	if err != nil {
-		t.Fatalf("Upsert: %v", err)
+		t.Fatalf("PublishBuilder: %v", err)
 	}
-	if first.BannerObjectID != banner.ID || first.ArchiveObjectID != firstArchive.ID {
-		t.Fatalf(
-			"Upsert objects = banner %d archive %d",
-			first.BannerObjectID,
-			first.ArchiveObjectID,
-		)
+	if generated.ArchiveObjectID != generatedArchive.ID || generated.Custom || generated.Builder == nil {
+		t.Fatalf("published builder resources = %+v", generated)
 	}
-	if first.BannerAlignment != BannerAlignmentLeft {
-		t.Fatalf("banner alignment = %q, want %q", first.BannerAlignment, BannerAlignmentLeft)
+	if generated.Builder.BannerObjectID != banner.ID ||
+		generated.Builder.BannerFit != BannerFitCover ||
+		generated.Builder.BannerFocalX != 50 {
+		t.Fatalf("published builder = %+v", generated.Builder)
 	}
 
-	secondArchive := createAvailableObject(t, ctx, db, objects, ArchiveObjectPrefix, archiveFilename, "application/zip")
-	second, err := store.Upsert(ctx, storedMutation{
-		Mutation: Mutation{
-			BannerObjectID:  banner.ID,
-			BannerAlignment: BannerAlignmentCenter,
-			Links:           []Link{},
-			FooterLinks:     []Link{},
-		},
-		ArchiveObjectID: secondArchive.ID,
-	})
+	uploadedArchive := createAvailableObject(
+		t,
+		ctx,
+		db,
+		objects,
+		ArchiveObjectPrefix,
+		"school-resources.zip",
+		"application/zip",
+	)
+	uploaded, err := store.PublishArchive(ctx, uploadedArchive.ID)
 	if err != nil {
-		t.Fatalf("second Upsert: %v", err)
+		t.Fatalf("PublishArchive: %v", err)
 	}
-	if second.ArchiveObjectID != secondArchive.ID {
-		t.Fatalf("archive id = %d, want %d", second.ArchiveObjectID, secondArchive.ID)
+	if uploaded.ArchiveObjectID != uploadedArchive.ID || !uploaded.Custom || uploaded.Builder == nil {
+		t.Fatalf("published uploaded resources = %+v", uploaded)
 	}
-	if second.BannerAlignment != BannerAlignmentCenter {
-		t.Fatalf("banner alignment = %q, want %q", second.BannerAlignment, BannerAlignmentCenter)
-	}
-	if _, err := objects.GetByID(ctx, firstArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get old archive error = %v, want ErrNotFound", err)
+	if uploaded.Builder.BannerObjectID != banner.ID {
+		t.Fatalf("retained builder = %+v, want banner %d", uploaded.Builder, banner.ID)
 	}
 	if _, err := objects.GetByID(ctx, banner.ID); err != nil {
 		t.Fatalf("get retained banner: %v", err)
+	}
+	if _, err := objects.GetByID(ctx, generatedArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get replaced generated archive error = %v, want ErrNotFound", err)
+	}
+
+	rebuiltArchive := createAvailableObject(
+		t,
+		ctx,
+		db,
+		objects,
+		ArchiveObjectPrefix,
+		archiveFilename,
+		"application/zip",
+	)
+	rebuilt, err := store.PublishBuilder(ctx, storedBuilder{
+		Builder:         *uploaded.Builder,
+		ArchiveObjectID: rebuiltArchive.ID,
+	})
+	if err != nil {
+		t.Fatalf("republish builder: %v", err)
+	}
+	if rebuilt.Custom || rebuilt.Builder == nil || rebuilt.Builder.BannerObjectID != banner.ID {
+		t.Fatalf("republished builder resources = %+v", rebuilt)
+	}
+	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get replaced uploaded archive error = %v, want ErrNotFound", err)
 	}
 
 	if err := store.Delete(ctx); err != nil {
@@ -77,10 +107,11 @@ func TestStoreUpsertAndDeleteRemoveUnreferencedObjects(t *testing.T) {
 	if _, err := store.Get(ctx); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Get after Delete error = %v, want ErrNotFound", err)
 	}
-	for _, objectID := range []int64{banner.ID, secondArchive.ID} {
-		if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, dbutil.ErrNotFound) {
-			t.Fatalf("get deleted object %d error = %v, want ErrNotFound", objectID, err)
-		}
+	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get undeployed archive error = %v, want ErrNotFound", err)
+	}
+	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get undeployed banner error = %v, want ErrNotFound", err)
 	}
 }
 

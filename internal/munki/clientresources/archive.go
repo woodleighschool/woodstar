@@ -30,7 +30,7 @@ type templateLink struct {
 var (
 	showcaseHTML = template.Must(template.New("showcase").Parse(`<div class="showcase">
     <div class="stage">
-        <img alt="" src="custom/resources/banner.{{.Extension}}" style="{{if .Centered}}left: 50%; transform: translateX(-50%); {{end}}opacity: 1;" />
+        <img alt="" src="custom/resources/banner.{{.Extension}}" style="{{.Style}}" />
     </div>
 </div>
 `))
@@ -59,8 +59,8 @@ var (
 `))
 )
 
-// Compile renders the builder model and banner bytes into a deterministic Munki archive.
-func Compile(mutation Mutation, extension string, banner []byte) ([]byte, error) {
+// Compile renders the builder state and banner bytes into a deterministic Munki archive.
+func Compile(builder Builder, extension string, banner []byte) ([]byte, error) {
 	if len(banner) == 0 {
 		return nil, errors.New("banner is empty")
 	}
@@ -68,10 +68,10 @@ func Compile(mutation Mutation, extension string, banner []byte) ([]byte, error)
 		return nil, fmt.Errorf("unsupported banner extension %q", extension)
 	}
 
-	showcase, err := executeTemplate(showcaseHTML, struct {
-		Extension string
-		Centered  bool
-	}{extension, mutation.BannerAlignment == BannerAlignmentCenter})
+	showcase, err := executeTemplate(showcaseHTML, showcaseTemplateData{
+		Extension: extension,
+		Style:     bannerStyle(builder.BannerFit, builder.BannerFocalX),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -79,18 +79,18 @@ func Compile(mutation Mutation, extension string, banner []byte) ([]byte, error)
 		{name: "resources/banner." + extension, body: banner},
 		{name: "templates/showcase_template.html", body: showcase},
 	}
-	if len(mutation.Links) > 0 {
-		sidebar, err := executeTemplate(sidebarHTML, templateLinks(mutation.Links))
+	if len(builder.Links) > 0 {
+		sidebar, err := executeTemplate(sidebarHTML, templateLinks(builder.Links))
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, archiveEntry{name: "templates/sidebar_template.html", body: sidebar})
 	}
-	if mutation.FooterText != "" || len(mutation.FooterLinks) > 0 {
+	if builder.FooterText != "" || len(builder.FooterLinks) > 0 {
 		footer, err := executeTemplate(footerHTML, struct {
 			Text  string
 			Links []templateLink
-		}{mutation.FooterText, templateLinks(mutation.FooterLinks)})
+		}{builder.FooterText, templateLinks(builder.FooterLinks)})
 		if err != nil {
 			return nil, err
 		}
@@ -127,6 +127,25 @@ func Compile(mutation Mutation, extension string, banner []byte) ([]byte, error)
 		return nil, fmt.Errorf("close client resources archive: %w", err)
 	}
 	return body.Bytes(), nil
+}
+
+type showcaseTemplateData struct {
+	Extension string
+	Style     template.CSS
+}
+
+func bannerStyle(fit BannerFit, focalX int) template.CSS {
+	if fit == BannerFitCover {
+		return template.CSS(fmt.Sprintf( // #nosec G203 -- fit and focal point are validated builder values.
+			"height: 100%%; width: 100%%; object-fit: cover; object-position: %d%% center; opacity: 1;",
+			focalX,
+		))
+	}
+	return template.CSS(fmt.Sprintf( // #nosec G203 -- focal point is a validated builder value.
+		"height: 100%%; width: auto; max-width: none; left: %d%%; transform: translateX(-%d%%); opacity: 1;",
+		focalX,
+		focalX,
+	))
 }
 
 func executeTemplate(tmpl *template.Template, data any) ([]byte, error) {

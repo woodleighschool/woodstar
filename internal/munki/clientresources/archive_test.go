@@ -10,8 +10,9 @@ import (
 
 func TestCompileProducesDeterministicMunkiArchive(t *testing.T) {
 	t.Parallel()
-	mutation := Mutation{
-		BannerAlignment: BannerAlignmentCenter,
+	builder := Builder{
+		BannerFit:    BannerFitHeight,
+		BannerFocalX: 50,
 		Links: []Link{
 			{Label: "Help & support", Target: "https://example.com/help?a=1&b=2", OpenInBrowser: true},
 		},
@@ -20,11 +21,11 @@ func TestCompileProducesDeterministicMunkiArchive(t *testing.T) {
 	}
 	banner := []byte("not decoded by the archive compiler")
 
-	first, err := Compile(mutation, "png", banner)
+	first, err := Compile(builder, "png", banner)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	second, err := Compile(mutation, "png", banner)
+	second, err := Compile(builder, "png", banner)
 	if err != nil {
 		t.Fatalf("Compile second time: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestCompileProducesDeterministicMunkiArchive(t *testing.T) {
 func TestCompileOmitsOptionalTemplatesWhenEmpty(t *testing.T) {
 	t.Parallel()
 	body, err := Compile(
-		Mutation{BannerAlignment: BannerAlignmentLeft},
+		Builder{BannerFit: BannerFitHeight},
 		"jpg",
 		[]byte("banner"),
 	)
@@ -80,8 +81,45 @@ func TestCompileOmitsOptionalTemplatesWhenEmpty(t *testing.T) {
 		t.Fatal("empty footer emitted footer_template.html")
 	}
 	showcase := files.body["templates/showcase_template.html"]
-	if strings.Contains(showcase, "translateX") || !strings.Contains(showcase, `style="opacity: 1;"`) {
+	if !strings.Contains(
+		showcase,
+		"height: 100%; width: auto; max-width: none; left: 0%; transform: translateX(-0%)",
+	) {
 		t.Fatalf("left-aligned showcase template = %q", showcase)
+	}
+}
+
+func TestCompileRendersCoverBannerFocalPoint(t *testing.T) {
+	t.Parallel()
+	body, err := Compile(
+		Builder{BannerFit: BannerFitCover, BannerFocalX: 50},
+		"png",
+		[]byte("banner"),
+	)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	showcase := readArchive(t, body).body["templates/showcase_template.html"]
+	if !strings.Contains(showcase, "object-fit: cover") ||
+		!strings.Contains(showcase, "object-position: 50% center") ||
+		!strings.Contains(showcase, "height: 100%; width: 100%") {
+		t.Fatalf("cover showcase template = %q", showcase)
+	}
+}
+
+func TestCompileRendersHeightBannerFocalPoint(t *testing.T) {
+	t.Parallel()
+	body, err := Compile(
+		Builder{BannerFit: BannerFitHeight, BannerFocalX: 25},
+		"png",
+		[]byte("banner"),
+	)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	showcase := readArchive(t, body).body["templates/showcase_template.html"]
+	if !strings.Contains(showcase, "left: 25%; transform: translateX(-25%)") {
+		t.Fatalf("height showcase template = %q", showcase)
 	}
 }
 

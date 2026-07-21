@@ -31,11 +31,12 @@ type objectIngestor interface {
 
 type resourceStore interface {
 	Get(ctx context.Context) (*ClientResources, error)
-	Upsert(ctx context.Context, mutation storedMutation) (*ClientResources, error)
+	PublishBuilder(ctx context.Context, builder storedBuilder) (*ClientResources, error)
+	PublishArchive(ctx context.Context, archiveObjectID int64) (*ClientResources, error)
 	Delete(ctx context.Context) error
 }
 
-// Service validates builder input, compiles the archive, and publishes the singleton.
+// Service publishes generated or uploaded client resources archives.
 type Service struct {
 	resources resourceStore
 	objects   registry
@@ -56,13 +57,14 @@ func (s *Service) Get(ctx context.Context) (*ClientResources, error) {
 	return s.resources.Get(ctx)
 }
 
-func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources, error) {
-	mutation.normalize()
-	if err := mutation.validate(); err != nil {
+// SaveBuilder validates builder input, compiles its archive, and deploys it.
+func (s *Service) SaveBuilder(ctx context.Context, builder Builder) (*ClientResources, error) {
+	builder.normalize()
+	if err := builder.validate(); err != nil {
 		return nil, err
 	}
 
-	banner, wasPending, err := s.prepareBanner(ctx, mutation.BannerObjectID)
+	banner, wasPending, err := s.prepareBanner(ctx, builder.BannerObjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +80,7 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 		return nil, errors.Join(err, cleanupBanner())
 	}
 	extension, _ := bannerExtension(banner.ContentType)
-	archiveBody, err := Compile(mutation, extension, bannerBody)
+	archiveBody, err := Compile(builder, extension, bannerBody)
 	if err != nil {
 		return nil, errors.Join(err, cleanupBanner())
 	}
@@ -87,8 +89,8 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 		return nil, errors.Join(err, cleanupBanner())
 	}
 
-	resource, err := s.resources.Upsert(ctx, storedMutation{
-		Mutation:        mutation,
+	resource, err := s.resources.PublishBuilder(ctx, storedBuilder{
+		Builder:         builder,
 		ArchiveObjectID: archive.ID,
 	})
 	if err != nil {
@@ -101,36 +103,27 @@ func (s *Service) Save(ctx context.Context, mutation Mutation) (*ClientResources
 	return resource, nil
 }
 
+// PublishArchive finalizes and deploys an uploaded archive.
+func (s *Service) PublishArchive(ctx context.Context, objectID int64) (*ClientResources, error) {
+	archive, wasPending, err := s.prepareArchive(ctx, objectID)
+	if err != nil {
+		return nil, err
+	}
+	resource, err := s.resources.PublishArchive(ctx, archive.ID)
+	if err != nil && wasPending {
+		err = errors.Join(err, cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID))
+	}
+	return resource, err
+}
+
 func (s *Service) Delete(ctx context.Context) error {
 	return s.resources.Delete(ctx)
 }
 
 func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.Object, bool, error) {
-	banner, err := s.objects.GetByID(ctx, objectID)
+	banner, wasPending, err := s.finalizeObject(ctx, objectID, BannerObjectPrefix, "banner")
 	if err != nil {
-		return nil, false, err
-	}
-	if banner.Prefix != BannerObjectPrefix {
-		return nil, false, fmt.Errorf(
-			"%w: banner_object_id must reference a client resources banner",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	wasPending := !banner.Available()
-	if wasPending {
-		banner, err = s.ingestor.Finalize(ctx, objectID, BannerObjectPrefix)
-		if errors.Is(err, storage.ErrObjectNotFound) {
-			return nil, true, errors.Join(
-				fmt.Errorf("%w: uploaded banner does not exist", dbutil.ErrInvalidInput),
-				cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, objectID),
-			)
-		}
-		if err != nil {
-			return nil, true, errors.Join(
-				err,
-				cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, objectID),
-			)
-		}
+		return nil, wasPending, err
 	}
 	if err := validateBanner(banner.ContentType, banner.SizeBytesValue()); err != nil {
 		if wasPending {
@@ -139,6 +132,46 @@ func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.O
 		return nil, wasPending, err
 	}
 	return banner, wasPending, nil
+}
+
+func (s *Service) prepareArchive(ctx context.Context, objectID int64) (*storage.Object, bool, error) {
+	return s.finalizeObject(ctx, objectID, ArchiveObjectPrefix, "archive")
+}
+
+func (s *Service) finalizeObject(
+	ctx context.Context,
+	objectID int64,
+	prefix string,
+	label string,
+) (*storage.Object, bool, error) {
+	object, err := s.objects.GetByID(ctx, objectID)
+	if err != nil {
+		return nil, false, err
+	}
+	if object.Prefix != prefix {
+		return nil, false, fmt.Errorf(
+			"%w: object_id must reference a client resources %s",
+			dbutil.ErrInvalidInput,
+			label,
+		)
+	}
+	wasPending := !object.Available()
+	if wasPending {
+		object, err = s.ingestor.Finalize(ctx, objectID, prefix)
+		if errors.Is(err, storage.ErrObjectNotFound) {
+			return nil, true, errors.Join(
+				fmt.Errorf("%w: uploaded %s does not exist", dbutil.ErrInvalidInput, label),
+				cleanupUploads(ctx, s.ingestor, prefix, objectID),
+			)
+		}
+		if err != nil {
+			return nil, true, errors.Join(
+				err,
+				cleanupUploads(ctx, s.ingestor, prefix, objectID),
+			)
+		}
+	}
+	return object, wasPending, nil
 }
 
 func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte, error) {

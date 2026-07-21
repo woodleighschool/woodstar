@@ -17,7 +17,7 @@ import {
   type ClientResourceLink,
   clientResourceLinkSchema,
   emptyClientResourceLink,
-} from "./client-resources";
+} from "./form-schema";
 
 export function LinkDialog({
   open,

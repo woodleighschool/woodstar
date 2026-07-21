@@ -6,7 +6,7 @@ description: Where Munki files live and how clients get to them.
 
 # Munki Storage
 
-Munki package installers, icons, client-resources banners, and compiled client-resources archives all use Woodstar's storage backends. Their owning metadata stays in Postgres; the bytes live on disk or in a bucket. A file is available only after its storage object has been uploaded and finalized.
+Munki package installers, icons, client-resources banners, and client-resources archives all use Woodstar's storage backends. Their owning metadata stays in Postgres; the bytes live on disk or in a bucket. A file is available only after its storage object has been uploaded and finalized.
 
 ## Backends
 
@@ -34,7 +34,9 @@ On `file`, upload is one raw `PUT` to a Woodstar URL. The file backend has no mu
 
 Canceling an upload aborts an open S3 multipart upload and removes the unclaimed object. Configure the bucket's incomplete-multipart lifecycle rule for abandoned uploads that never reach explicit cancellation.
 
-Icons keep their resource-scoped reserve, upload, and attach lifecycle. Client Resources uses the same scoped upload path for its banner, accepting JPEG and PNG images up to 5 MiB. On **Save**, Woodstar finalizes and validates the banner, builds `site_default.zip` on the server, stores the archive through the selected backend, and replaces the singleton's banner and archive references. The client never uploads a ZIP.
+Icons keep their resource-scoped reserve, upload, and attach lifecycle. The Client Resources builder uses the same scoped upload path for its banner, accepting JPEG and PNG images up to 5 MiB. On **Save**, Woodstar finalizes and validates the banner, builds the archive on the server, and publishes it through the selected backend.
+
+A custom ZIP uses a separate client-resources archive upload. **Save** finalizes and publishes the supplied bytes without validating or rebuilding the archive. Publishing a custom ZIP retains the saved builder configuration and banner, so publishing from the builder again does not require another banner upload. Only the active archive is served to Munki clients.
 
 ### Browser uploads to S3 need bucket CORS
 

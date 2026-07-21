@@ -37,8 +37,12 @@ func registerMunkiContentRoutes(
 	r.Get(munkiIconPath+"/{id}/content", h.object(munkisoftware.IconObjectPrefix, munkiAssetCacheControl))
 	r.Get(munkiPackageInstallerPath+"/{id}/content", h.object(packages.ObjectPrefix, ""))
 	r.Get(
-		clientResourcesBannerPath+"/{id}/content",
+		clientResourcesBannerUploadPath+"/{id}/content",
 		h.object(clientresources.BannerObjectPrefix, munkiAssetCacheControl),
+	)
+	r.Get(
+		clientResourcesArchiveUploadPath+"/{id}/content",
+		h.object(clientresources.ArchiveObjectPrefix, ""),
 	)
 }
 
@@ -114,7 +118,11 @@ func munkiIconContentURL(objectID int64) string {
 }
 
 func clientResourcesBannerContentURL(objectID int64) string {
-	return contentURL(clientResourcesBannerPath, objectID)
+	return contentURL(clientResourcesBannerUploadPath, objectID)
+}
+
+func clientResourcesArchiveContentURL(objectID int64) string {
+	return contentURL(clientResourcesArchiveUploadPath, objectID)
 }
 
 func contentURL(basePath string, objectID int64) string {

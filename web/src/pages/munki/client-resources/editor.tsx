@@ -36,13 +36,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 
 import { BannerEditor } from "./banner-editor";
-import {
-  type ClientResourceLink,
-  type ClientResourcesDraft,
-  type ClientResourcesForm,
-} from "./client-resources";
+import type { ClientResourcesForm } from "./fields";
+import { type ClientResourceLink, type ClientResourcesFormInput } from "./form-schema";
 import { LinkDialog } from "./link-dialog";
-import { useClientResourceAsset } from "./use-client-resource-asset";
+import { createClientResourceAsset } from "./use-client-resource-asset";
 const navigationItems = [
   { label: "Software", icon: AppWindow, active: true },
   { label: "Categories", icon: Folder, active: false },
@@ -68,13 +65,12 @@ export function ClientResourcesEditor({
   bannerUploading,
 }: {
   form: ClientResourcesForm;
-  draft: ClientResourcesDraft;
+  draft: ClientResourcesFormInput;
   bannerUploading: boolean;
 }) {
-  const createBannerAsset = useClientResourceAsset(draft.banner.asset);
   return (
-    <section className="min-w-0">
-      <Alert className="mx-8 w-auto border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+    <section className="flex min-w-0 flex-col gap-5">
+      <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
         <TriangleAlert />
         <AlertDescription className="block text-current">
           <span className="font-medium">Please Note:</span> This web preview provides a close
@@ -82,8 +78,8 @@ export function ClientResourcesEditor({
         </AlertDescription>
       </Alert>
 
-      <div className="min-w-0 overflow-x-auto p-8">
-        <div className="mx-auto max-w-384 min-w-4xl overflow-hidden rounded-2xl border bg-background shadow-lg">
+      <div className="min-w-0 overflow-x-auto pb-2">
+        <div className="mx-auto max-w-384 min-w-4xl overflow-hidden rounded-2xl border bg-background shadow-sm">
           <div className="flex">
             <aside className="w-60 shrink-0 border-r bg-muted/45 px-4 py-5">
               <div className="flex h-7 items-center gap-2 px-2" aria-hidden="true">
@@ -133,14 +129,14 @@ export function ClientResourcesEditor({
                         error={null}
                         invalid={Boolean(control["aria-invalid"])}
                         uploading={bannerUploading}
-                        alignment={draft.banner.alignment}
+                        fit={draft.banner.fit}
+                        focalX={draft.banner.focalX}
                         onAssetChange={(file) => {
-                          field.handleChange(createBannerAsset(file));
+                          field.handleChange(createClientResourceAsset(file));
                         }}
                         onAssetReject={(message) => toast.error(message)}
-                        onAlignmentChange={(alignment) =>
-                          form.setFieldValue("banner.alignment", alignment)
-                        }
+                        onFitChange={(fit) => form.setFieldValue("banner.fit", fit)}
+                        onFocalXChange={(focalX) => form.setFieldValue("banner.focalX", focalX)}
                       />
                     )}
                   </FormField>

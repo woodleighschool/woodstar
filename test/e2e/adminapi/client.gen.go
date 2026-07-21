@@ -229,18 +229,36 @@ func (e LabelMutationLabelMembershipType) Valid() bool {
 	}
 }
 
-// Defines values for MunkiClientResourcesBannerAlignment.
+// Defines values for MunkiBuilderBannerFit.
 const (
-	MunkiClientResourcesBannerAlignmentCenter MunkiClientResourcesBannerAlignment = "center"
-	MunkiClientResourcesBannerAlignmentLeft   MunkiClientResourcesBannerAlignment = "left"
+	MunkiBuilderBannerFitCover  MunkiBuilderBannerFit = "cover"
+	MunkiBuilderBannerFitHeight MunkiBuilderBannerFit = "height"
 )
 
-// Valid indicates whether the value is a known member of the MunkiClientResourcesBannerAlignment enum.
-func (e MunkiClientResourcesBannerAlignment) Valid() bool {
+// Valid indicates whether the value is a known member of the MunkiBuilderBannerFit enum.
+func (e MunkiBuilderBannerFit) Valid() bool {
 	switch e {
-	case MunkiClientResourcesBannerAlignmentCenter:
+	case MunkiBuilderBannerFitCover:
 		return true
-	case MunkiClientResourcesBannerAlignmentLeft:
+	case MunkiBuilderBannerFitHeight:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiClientResourcesBuilderBannerFit.
+const (
+	MunkiClientResourcesBuilderBannerFitCover  MunkiClientResourcesBuilderBannerFit = "cover"
+	MunkiClientResourcesBuilderBannerFitHeight MunkiClientResourcesBuilderBannerFit = "height"
+)
+
+// Valid indicates whether the value is a known member of the MunkiClientResourcesBuilderBannerFit enum.
+func (e MunkiClientResourcesBuilderBannerFit) Valid() bool {
+	switch e {
+	case MunkiClientResourcesBuilderBannerFitCover:
+		return true
+	case MunkiClientResourcesBuilderBannerFitHeight:
 		return true
 	default:
 		return false
@@ -316,24 +334,6 @@ const (
 func (e MunkiMultipartUploadActionStrategy) Valid() bool {
 	switch e {
 	case Multipart:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MunkiMutationBannerAlignment.
-const (
-	MunkiMutationBannerAlignmentCenter MunkiMutationBannerAlignment = "center"
-	MunkiMutationBannerAlignmentLeft   MunkiMutationBannerAlignment = "left"
-)
-
-// Valid indicates whether the value is a known member of the MunkiMutationBannerAlignment enum.
-func (e MunkiMutationBannerAlignment) Valid() bool {
-	switch e {
-	case MunkiMutationBannerAlignmentCenter:
-		return true
-	case MunkiMutationBannerAlignmentLeft:
 		return true
 	default:
 		return false
@@ -1203,6 +1203,11 @@ type CertificateName struct {
 	OrganizationalUnit string `json:"organizational_unit"`
 }
 
+// ClientResourcesArchivePutInputBody defines model for ClientResourcesArchivePutInputBody.
+type ClientResourcesArchivePutInputBody struct {
+	ObjectId int64 `json:"object_id"`
+}
+
 // Criteria defines model for Criteria.
 type Criteria struct {
 	Attribute CriteriaAttribute `json:"attribute"`
@@ -1505,19 +1510,40 @@ type LabelRef struct {
 	LabelId int64 `json:"label_id"`
 }
 
-// MunkiClientResources defines model for MunkiClientResources.
-type MunkiClientResources struct {
-	Banner          MunkiObjectView                     `json:"banner"`
-	BannerAlignment MunkiClientResourcesBannerAlignment `json:"banner_alignment"`
-	CreatedAt       time.Time                           `json:"created_at"`
-	FooterLinks     []MunkiLink                         `json:"footer_links"`
-	FooterText      string                              `json:"footer_text"`
-	Links           []MunkiLink                         `json:"links"`
-	UpdatedAt       time.Time                           `json:"updated_at"`
+// MunkiBuilder defines model for MunkiBuilder.
+type MunkiBuilder struct {
+	BannerFit      MunkiBuilderBannerFit `json:"banner_fit"`
+	BannerFocalX   int64                 `json:"banner_focal_x"`
+	BannerObjectId int64                 `json:"banner_object_id"`
+	FooterLinks    []MunkiLink           `json:"footer_links"`
+	FooterText     string                `json:"footer_text"`
+	Links          []MunkiLink           `json:"links"`
 }
 
-// MunkiClientResourcesBannerAlignment defines model for MunkiClientResources.BannerAlignment.
-type MunkiClientResourcesBannerAlignment string
+// MunkiBuilderBannerFit defines model for MunkiBuilder.BannerFit.
+type MunkiBuilderBannerFit string
+
+// MunkiClientResources defines model for MunkiClientResources.
+type MunkiClientResources struct {
+	Archive   MunkiObjectView              `json:"archive"`
+	Builder   *MunkiClientResourcesBuilder `json:"builder,omitempty"`
+	CreatedAt time.Time                    `json:"created_at"`
+	Custom    bool                         `json:"custom"`
+	UpdatedAt time.Time                    `json:"updated_at"`
+}
+
+// MunkiClientResourcesBuilder defines model for MunkiClientResourcesBuilder.
+type MunkiClientResourcesBuilder struct {
+	Banner       MunkiObjectView                      `json:"banner"`
+	BannerFit    MunkiClientResourcesBuilderBannerFit `json:"banner_fit"`
+	BannerFocalX int64                                `json:"banner_focal_x"`
+	FooterLinks  []MunkiLink                          `json:"footer_links"`
+	FooterText   string                               `json:"footer_text"`
+	Links        []MunkiLink                          `json:"links"`
+}
+
+// MunkiClientResourcesBuilderBannerFit defines model for MunkiClientResourcesBuilder.BannerFit.
+type MunkiClientResourcesBuilderBannerFit string
 
 // MunkiCreateMutation defines model for MunkiCreateMutation.
 type MunkiCreateMutation struct {
@@ -1630,18 +1656,6 @@ type MunkiMultipartUploadAction struct {
 
 // MunkiMultipartUploadActionStrategy defines model for MunkiMultipartUploadAction.Strategy.
 type MunkiMultipartUploadActionStrategy string
-
-// MunkiMutation defines model for MunkiMutation.
-type MunkiMutation struct {
-	BannerAlignment MunkiMutationBannerAlignment `json:"banner_alignment"`
-	BannerObjectId  int64                        `json:"banner_object_id"`
-	FooterLinks     []MunkiLink                  `json:"footer_links"`
-	FooterText      string                       `json:"footer_text"`
-	Links           []MunkiLink                  `json:"links"`
-}
-
-// MunkiMutationBannerAlignment defines model for MunkiMutation.BannerAlignment.
-type MunkiMutationBannerAlignment string
 
 // MunkiObjectView defines model for MunkiObjectView.
 type MunkiObjectView struct {
@@ -2404,8 +2418,14 @@ type CreateAgentSecretJSONRequestBody = AgentSecretCreate
 // CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
 type CreateLabelJSONRequestBody = LabelMutation
 
-// UpdateMunkiClientResourcesJSONRequestBody defines body for UpdateMunkiClientResources for application/json ContentType.
-type UpdateMunkiClientResourcesJSONRequestBody = MunkiMutation
+// UpdateMunkiClientResourcesBuilderJSONRequestBody defines body for UpdateMunkiClientResourcesBuilder for application/json ContentType.
+type UpdateMunkiClientResourcesBuilderJSONRequestBody = MunkiBuilder
+
+// PublishMunkiClientResourcesArchiveJSONRequestBody defines body for PublishMunkiClientResourcesArchive for application/json ContentType.
+type PublishMunkiClientResourcesArchiveJSONRequestBody = ClientResourcesArchivePutInputBody
+
+// CreateMunkiClientResourcesArchiveUploadJSONRequestBody defines body for CreateMunkiClientResourcesArchiveUpload for application/json ContentType.
+type CreateMunkiClientResourcesArchiveUploadJSONRequestBody = MunkiUploadRequest
 
 // CreateMunkiClientResourcesBannerUploadJSONRequestBody defines body for CreateMunkiClientResourcesBannerUpload for application/json ContentType.
 type CreateMunkiClientResourcesBannerUploadJSONRequestBody = MunkiUploadRequest
@@ -2685,24 +2705,57 @@ type ClientInterface interface {
 	// Corresponds with POST /api/labels (the `CreateLabel` operationId).
 	CreateLabel(ctx context.Context, body CreateLabelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteMunkiClientResources Undeploy client resources
+	//
+	// Corresponds with DELETE /api/munki/client-resources (the `DeleteMunkiClientResources` operationId).
+	DeleteMunkiClientResources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetMunkiClientResources Get client resources
 	//
 	// Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
 	GetMunkiClientResources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateMunkiClientResourcesWithBody Update client resources
+	// UpdateMunkiClientResourcesBuilderWithBody Update client resources from the builder
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-	UpdateMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+	UpdateMunkiClientResourcesBuilderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateMunkiClientResources Update client resources
+	// UpdateMunkiClientResourcesBuilder Update client resources from the builder
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-	UpdateMunkiClientResources(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+	UpdateMunkiClientResourcesBuilder(ctx context.Context, body UpdateMunkiClientResourcesBuilderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishMunkiClientResourcesArchiveWithBody Publish a client resources archive
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+	PublishMunkiClientResourcesArchiveWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishMunkiClientResourcesArchive Publish a client resources archive
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+	PublishMunkiClientResourcesArchive(ctx context.Context, body PublishMunkiClientResourcesArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMunkiClientResourcesArchiveUploadWithBody Create a client resources archive upload
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+	CreateMunkiClientResourcesArchiveUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMunkiClientResourcesArchiveUpload Create a client resources archive upload
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+	CreateMunkiClientResourcesArchiveUpload(ctx context.Context, body CreateMunkiClientResourcesArchiveUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateMunkiClientResourcesBannerUploadWithBody Create a banner upload
 	//
@@ -3073,6 +3126,21 @@ func (c *Client) CreateLabel(ctx context.Context, body CreateLabelJSONRequestBod
 	return c.Client.Do(req)
 }
 
+// DeleteMunkiClientResources Undeploy client resources
+//
+// Corresponds with DELETE /api/munki/client-resources (the `DeleteMunkiClientResources` operationId).
+func (c *Client) DeleteMunkiClientResources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMunkiClientResourcesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetMunkiClientResources Get client resources
 //
 // Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
@@ -3088,13 +3156,13 @@ func (c *Client) GetMunkiClientResources(ctx context.Context, reqEditors ...Requ
 	return c.Client.Do(req)
 }
 
-// UpdateMunkiClientResourcesWithBody Update client resources
+// UpdateMunkiClientResourcesBuilderWithBody Update client resources from the builder
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-func (c *Client) UpdateMunkiClientResourcesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateMunkiClientResourcesRequestWithBody(c.Server, contentType, body)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+func (c *Client) UpdateMunkiClientResourcesBuilderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMunkiClientResourcesBuilderRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3105,13 +3173,81 @@ func (c *Client) UpdateMunkiClientResourcesWithBody(ctx context.Context, content
 	return c.Client.Do(req)
 }
 
-// UpdateMunkiClientResources Update client resources
+// UpdateMunkiClientResourcesBuilder Update client resources from the builder
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-func (c *Client) UpdateMunkiClientResources(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateMunkiClientResourcesRequest(c.Server, body)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+func (c *Client) UpdateMunkiClientResourcesBuilder(ctx context.Context, body UpdateMunkiClientResourcesBuilderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMunkiClientResourcesBuilderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishMunkiClientResourcesArchiveWithBody Publish a client resources archive
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+func (c *Client) PublishMunkiClientResourcesArchiveWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishMunkiClientResourcesArchiveRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishMunkiClientResourcesArchive Publish a client resources archive
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+func (c *Client) PublishMunkiClientResourcesArchive(ctx context.Context, body PublishMunkiClientResourcesArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishMunkiClientResourcesArchiveRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMunkiClientResourcesArchiveUploadWithBody Create a client resources archive upload
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+func (c *Client) CreateMunkiClientResourcesArchiveUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMunkiClientResourcesArchiveUploadRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMunkiClientResourcesArchiveUpload Create a client resources archive upload
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+func (c *Client) CreateMunkiClientResourcesArchiveUpload(ctx context.Context, body CreateMunkiClientResourcesArchiveUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMunkiClientResourcesArchiveUploadRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4243,6 +4379,33 @@ func NewCreateLabelRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewDeleteMunkiClientResourcesRequest constructs an http.Request for the DeleteMunkiClientResources method
+func NewDeleteMunkiClientResourcesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/munki/client-resources")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetMunkiClientResourcesRequest constructs an http.Request for the GetMunkiClientResources method
 func NewGetMunkiClientResourcesRequest(server string) (*http.Request, error) {
 	var err error
@@ -4270,19 +4433,19 @@ func NewGetMunkiClientResourcesRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewUpdateMunkiClientResourcesRequest calls the generic UpdateMunkiClientResources builder with application/json body
-func NewUpdateMunkiClientResourcesRequest(server string, body UpdateMunkiClientResourcesJSONRequestBody) (*http.Request, error) {
+// NewUpdateMunkiClientResourcesBuilderRequest calls the generic UpdateMunkiClientResourcesBuilder builder with application/json body
+func NewUpdateMunkiClientResourcesBuilderRequest(server string, body UpdateMunkiClientResourcesBuilderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateMunkiClientResourcesRequestWithBody(server, "application/json", bodyReader)
+	return NewUpdateMunkiClientResourcesBuilderRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewUpdateMunkiClientResourcesRequestWithBody constructs an http.Request for the UpdateMunkiClientResources method, with any body, and a specified content type
-func NewUpdateMunkiClientResourcesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewUpdateMunkiClientResourcesBuilderRequestWithBody constructs an http.Request for the UpdateMunkiClientResourcesBuilder method, with any body, and a specified content type
+func NewUpdateMunkiClientResourcesBuilderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4301,6 +4464,86 @@ func NewUpdateMunkiClientResourcesRequestWithBody(server string, contentType str
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPublishMunkiClientResourcesArchiveRequest calls the generic PublishMunkiClientResourcesArchive builder with application/json body
+func NewPublishMunkiClientResourcesArchiveRequest(server string, body PublishMunkiClientResourcesArchiveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishMunkiClientResourcesArchiveRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPublishMunkiClientResourcesArchiveRequestWithBody constructs an http.Request for the PublishMunkiClientResourcesArchive method, with any body, and a specified content type
+func NewPublishMunkiClientResourcesArchiveRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/munki/client-resources/archive")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateMunkiClientResourcesArchiveUploadRequest calls the generic CreateMunkiClientResourcesArchiveUpload builder with application/json body
+func NewCreateMunkiClientResourcesArchiveUploadRequest(server string, body CreateMunkiClientResourcesArchiveUploadJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMunkiClientResourcesArchiveUploadRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMunkiClientResourcesArchiveUploadRequestWithBody constructs an http.Request for the CreateMunkiClientResourcesArchiveUpload method, with any body, and a specified content type
+func NewCreateMunkiClientResourcesArchiveUploadRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/munki/client-resources/archive-uploads")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -5119,6 +5362,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/labels (the `CreateLabel` operationId).
 	CreateLabelWithResponse(ctx context.Context, body CreateLabelJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLabelResponse, error)
 
+	// DeleteMunkiClientResourcesWithResponse Undeploy client resources
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /api/munki/client-resources (the `DeleteMunkiClientResources` operationId).
+	DeleteMunkiClientResourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteMunkiClientResourcesResponse, error)
+
 	// GetMunkiClientResourcesWithResponse Get client resources
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -5126,19 +5376,47 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/munki/client-resources (the `GetMunkiClientResources` operationId).
 	GetMunkiClientResourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMunkiClientResourcesResponse, error)
 
-	// UpdateMunkiClientResourcesWithBodyWithResponse Update client resources
+	// UpdateMunkiClientResourcesBuilderWithBodyWithResponse Update client resources from the builder
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-	UpdateMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+	UpdateMunkiClientResourcesBuilderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesBuilderResponse, error)
 
-	// UpdateMunkiClientResourcesWithResponse Update client resources
+	// UpdateMunkiClientResourcesBuilderWithResponse Update client resources from the builder
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-	UpdateMunkiClientResourcesWithResponse(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error)
+	// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+	UpdateMunkiClientResourcesBuilderWithResponse(ctx context.Context, body UpdateMunkiClientResourcesBuilderJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesBuilderResponse, error)
+
+	// PublishMunkiClientResourcesArchiveWithBodyWithResponse Publish a client resources archive
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+	PublishMunkiClientResourcesArchiveWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishMunkiClientResourcesArchiveResponse, error)
+
+	// PublishMunkiClientResourcesArchiveWithResponse Publish a client resources archive
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+	PublishMunkiClientResourcesArchiveWithResponse(ctx context.Context, body PublishMunkiClientResourcesArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishMunkiClientResourcesArchiveResponse, error)
+
+	// CreateMunkiClientResourcesArchiveUploadWithBodyWithResponse Create a client resources archive upload
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+	CreateMunkiClientResourcesArchiveUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesArchiveUploadResponse, error)
+
+	// CreateMunkiClientResourcesArchiveUploadWithResponse Create a client resources archive upload
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+	CreateMunkiClientResourcesArchiveUploadWithResponse(ctx context.Context, body CreateMunkiClientResourcesArchiveUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesArchiveUploadResponse, error)
 
 	// CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload
 	//
@@ -6068,6 +6346,68 @@ func (r CreateLabelResponse) ContentType() string {
 	return ""
 }
 
+type DeleteMunkiClientResourcesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r DeleteMunkiClientResourcesResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r DeleteMunkiClientResourcesResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r DeleteMunkiClientResourcesResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r DeleteMunkiClientResourcesResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteMunkiClientResourcesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMunkiClientResourcesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMunkiClientResourcesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteMunkiClientResourcesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetMunkiClientResourcesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -6130,7 +6470,7 @@ func (r GetMunkiClientResourcesResponse) ContentType() string {
 	return ""
 }
 
-type UpdateMunkiClientResourcesResponse struct {
+type UpdateMunkiClientResourcesBuilderResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
@@ -6150,47 +6490,47 @@ type UpdateMunkiClientResourcesResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r UpdateMunkiClientResourcesResponse) GetJSON200() *MunkiClientResources {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetJSON200() *MunkiClientResources {
 	return r.JSON200
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON400() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON400() *ErrorModel {
 	return r.ApplicationproblemJSON400
 }
 
 // GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON401() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON403() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON403() *ErrorModel {
 	return r.ApplicationproblemJSON403
 }
 
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON404() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON404() *ErrorModel {
 	return r.ApplicationproblemJSON404
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r UpdateMunkiClientResourcesResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r UpdateMunkiClientResourcesResponse) GetBody() []byte {
+func (r UpdateMunkiClientResourcesBuilderResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r UpdateMunkiClientResourcesResponse) Status() string {
+func (r UpdateMunkiClientResourcesBuilderResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -6198,7 +6538,7 @@ func (r UpdateMunkiClientResourcesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r UpdateMunkiClientResourcesResponse) StatusCode() int {
+func (r UpdateMunkiClientResourcesBuilderResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6206,7 +6546,166 @@ func (r UpdateMunkiClientResourcesResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r UpdateMunkiClientResourcesResponse) ContentType() string {
+func (r UpdateMunkiClientResourcesBuilderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishMunkiClientResourcesArchiveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MunkiClientResources
+	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
+	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetJSON200() *MunkiClientResources {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON400() *ErrorModel {
+	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r PublishMunkiClientResourcesArchiveResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishMunkiClientResourcesArchiveResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishMunkiClientResourcesArchiveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishMunkiClientResourcesArchiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishMunkiClientResourcesArchiveResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateMunkiClientResourcesArchiveUploadResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *MunkiDirectUploadTarget
+	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
+	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetJSON201() *MunkiDirectUploadTarget {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetApplicationproblemJSON400() *ErrorModel {
+	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMunkiClientResourcesArchiveUploadResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMunkiClientResourcesArchiveUploadResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateMunkiClientResourcesArchiveUploadResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7592,6 +8091,19 @@ func (c *ClientWithResponses) CreateLabelWithResponse(ctx context.Context, body 
 	return ParseCreateLabelResponse(rsp)
 }
 
+// DeleteMunkiClientResourcesWithResponse Undeploy client resources
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /api/munki/client-resources (the `DeleteMunkiClientResources` operationId).
+func (c *ClientWithResponses) DeleteMunkiClientResourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteMunkiClientResourcesResponse, error) {
+	rsp, err := c.DeleteMunkiClientResources(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMunkiClientResourcesResponse(rsp)
+}
+
 // GetMunkiClientResourcesWithResponse Get client resources
 //
 // Returns a wrapper object for the known response body format(s).
@@ -7605,30 +8117,82 @@ func (c *ClientWithResponses) GetMunkiClientResourcesWithResponse(ctx context.Co
 	return ParseGetMunkiClientResourcesResponse(rsp)
 }
 
-// UpdateMunkiClientResourcesWithBodyWithResponse Update client resources
+// UpdateMunkiClientResourcesBuilderWithBodyWithResponse Update client resources from the builder
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-func (c *ClientWithResponses) UpdateMunkiClientResourcesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error) {
-	rsp, err := c.UpdateMunkiClientResourcesWithBody(ctx, contentType, body, reqEditors...)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+func (c *ClientWithResponses) UpdateMunkiClientResourcesBuilderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesBuilderResponse, error) {
+	rsp, err := c.UpdateMunkiClientResourcesBuilderWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateMunkiClientResourcesResponse(rsp)
+	return ParseUpdateMunkiClientResourcesBuilderResponse(rsp)
 }
 
-// UpdateMunkiClientResourcesWithResponse Update client resources
+// UpdateMunkiClientResourcesBuilderWithResponse Update client resources from the builder
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResources` operationId).
-func (c *ClientWithResponses) UpdateMunkiClientResourcesWithResponse(ctx context.Context, body UpdateMunkiClientResourcesJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesResponse, error) {
-	rsp, err := c.UpdateMunkiClientResources(ctx, body, reqEditors...)
+// Corresponds with PUT /api/munki/client-resources (the `UpdateMunkiClientResourcesBuilder` operationId).
+func (c *ClientWithResponses) UpdateMunkiClientResourcesBuilderWithResponse(ctx context.Context, body UpdateMunkiClientResourcesBuilderJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMunkiClientResourcesBuilderResponse, error) {
+	rsp, err := c.UpdateMunkiClientResourcesBuilder(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateMunkiClientResourcesResponse(rsp)
+	return ParseUpdateMunkiClientResourcesBuilderResponse(rsp)
+}
+
+// PublishMunkiClientResourcesArchiveWithBodyWithResponse Publish a client resources archive
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+func (c *ClientWithResponses) PublishMunkiClientResourcesArchiveWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishMunkiClientResourcesArchiveResponse, error) {
+	rsp, err := c.PublishMunkiClientResourcesArchiveWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishMunkiClientResourcesArchiveResponse(rsp)
+}
+
+// PublishMunkiClientResourcesArchiveWithResponse Publish a client resources archive
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/munki/client-resources/archive (the `PublishMunkiClientResourcesArchive` operationId).
+func (c *ClientWithResponses) PublishMunkiClientResourcesArchiveWithResponse(ctx context.Context, body PublishMunkiClientResourcesArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishMunkiClientResourcesArchiveResponse, error) {
+	rsp, err := c.PublishMunkiClientResourcesArchive(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishMunkiClientResourcesArchiveResponse(rsp)
+}
+
+// CreateMunkiClientResourcesArchiveUploadWithBodyWithResponse Create a client resources archive upload
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+func (c *ClientWithResponses) CreateMunkiClientResourcesArchiveUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesArchiveUploadResponse, error) {
+	rsp, err := c.CreateMunkiClientResourcesArchiveUploadWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMunkiClientResourcesArchiveUploadResponse(rsp)
+}
+
+// CreateMunkiClientResourcesArchiveUploadWithResponse Create a client resources archive upload
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/munki/client-resources/archive-uploads (the `CreateMunkiClientResourcesArchiveUpload` operationId).
+func (c *ClientWithResponses) CreateMunkiClientResourcesArchiveUploadWithResponse(ctx context.Context, body CreateMunkiClientResourcesArchiveUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiClientResourcesArchiveUploadResponse, error) {
+	rsp, err := c.CreateMunkiClientResourcesArchiveUpload(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMunkiClientResourcesArchiveUploadResponse(rsp)
 }
 
 // CreateMunkiClientResourcesBannerUploadWithBodyWithResponse Create a banner upload
@@ -8543,6 +9107,56 @@ func ParseCreateLabelResponse(rsp *http.Response) (*CreateLabelResponse, error) 
 	return response, nil
 }
 
+// ParseDeleteMunkiClientResourcesResponse parses an HTTP response from a DeleteMunkiClientResourcesWithResponse call
+func ParseDeleteMunkiClientResourcesResponse(rsp *http.Response) (*DeleteMunkiClientResourcesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMunkiClientResourcesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetMunkiClientResourcesResponse parses an HTTP response from a GetMunkiClientResourcesWithResponse call
 func ParseGetMunkiClientResourcesResponse(rsp *http.Response) (*GetMunkiClientResourcesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8590,15 +9204,15 @@ func ParseGetMunkiClientResourcesResponse(rsp *http.Response) (*GetMunkiClientRe
 	return response, nil
 }
 
-// ParseUpdateMunkiClientResourcesResponse parses an HTTP response from a UpdateMunkiClientResourcesWithResponse call
-func ParseUpdateMunkiClientResourcesResponse(rsp *http.Response) (*UpdateMunkiClientResourcesResponse, error) {
+// ParseUpdateMunkiClientResourcesBuilderResponse parses an HTTP response from a UpdateMunkiClientResourcesBuilderWithResponse call
+func ParseUpdateMunkiClientResourcesBuilderResponse(rsp *http.Response) (*UpdateMunkiClientResourcesBuilderResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &UpdateMunkiClientResourcesResponse{
+	response := &UpdateMunkiClientResourcesBuilderResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -8638,6 +9252,135 @@ func ParseUpdateMunkiClientResourcesResponse(rsp *http.Response) (*UpdateMunkiCl
 			return nil, err
 		}
 		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishMunkiClientResourcesArchiveResponse parses an HTTP response from a PublishMunkiClientResourcesArchiveWithResponse call
+func ParsePublishMunkiClientResourcesArchiveResponse(rsp *http.Response) (*PublishMunkiClientResourcesArchiveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishMunkiClientResourcesArchiveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MunkiClientResources
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMunkiClientResourcesArchiveUploadResponse parses an HTTP response from a CreateMunkiClientResourcesArchiveUploadWithResponse call
+func ParseCreateMunkiClientResourcesArchiveUploadResponse(rsp *http.Response) (*CreateMunkiClientResourcesArchiveUploadResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMunkiClientResourcesArchiveUploadResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest MunkiDirectUploadTarget
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest ErrorModel
