@@ -3,26 +3,14 @@ git_url = "https://github.com/woodleighschool/.github"
 ref = "main"
 configs = ["lefthook.common.toml"]
 
-[pre-commit.commands.lint-go]
-glob = ["*.go"]
-run = '''
-packages=$(
-  for file in {staged_files}; do dirname "$file"; done \
-    | sort -u \
-    | sed -e 's#^\.$#./#' -e '/^\.\//!s#^#./#'
-)
-golangci-lint run --config .golangci.yml $packages
-'''
-
-[pre-commit.commands.format-frontend]
+[pre-commit.commands.format-web]
 glob = ["web/**/*.{ts,tsx,js,jsx,css}", "docs/**/*.{ts,tsx,js,jsx,css}"]
+root = "web/"
 run = "oxfmt {staged_files}"
 stage_fixed = true
 
-[pre-commit.commands.lint-web]
-glob = ["web/**/*.{ts,tsx,js,jsx}"]
-root = "web/"
-run = "oxlint --no-error-on-unmatched-pattern {staged_files}"
-
 [pre-commit.commands.format-yaml]
 exclude = ["**/pnpm-lock.yaml", "web/openapi.yaml"]
+
+[pre-commit.commands.format-json]
+exclude = ["schema/osquery_fleet_schema.json"]
