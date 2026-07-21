@@ -65,15 +65,13 @@ class WoodstarClient:
             return None
         return response.json()
 
-    def attach_object(self, attach_path, file_path, display_name=None):
-        """Upload a file to a resource via the create-first storage lifecycle:
-        create a pending object, PUT the bytes, then adopt it on the resource.
-        Returns the stored object."""
+    def attach_object(self, create_path, attach_path, file_path, display_name=None):
+        """Create an upload, PUT the bytes, then attach it to a resource."""
         file_path = os.path.abspath(file_path)
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
         filename = display_name or os.path.basename(file_path)
-        target = self.post(attach_path, {"filename": filename})
+        target = self.post(create_path, {"filename": filename})
         self.upload_direct_file(target, file_path)
         return self.request(
             "PUT",

@@ -148,6 +148,7 @@ class SoftwareManager:
         if not icon_path or not needs_object(software, "icon", icon_path, force):
             return software, False
         self.client.attach_object(
+            "/api/munki/icons",
             f"/api/munki/software/{software['id']}/icon",
             icon_path,
         )
@@ -390,13 +391,20 @@ class PackageManager:
             "/api/munki/packages",
             {"software_id": software_id, "q": version, "per_page": 1000},
         ):
-            if item.get("software_id") == software_id and item.get("version") == version:
+            if (
+                item["software"]["id"] == software_id
+                and item.get("version") == version
+            ):
                 return item
         return None
 
     @staticmethod
     def package_matches(existing, body):
         for key, value in body.items():
+            if key == "software_id":
+                if existing["software"]["id"] != value:
+                    return False
+                continue
             if key in {"requires", "update_for"}:
                 if reference_ids(existing.get(key)) != reference_ids(value):
                     return False
@@ -495,7 +503,7 @@ class PackageManager:
                 ("minimum_os_version", "minimum_os_version"),
                 ("installer_item_location", "installer_item_location"),
             ):
-                if munki_key in value:
+                if value.get(munki_key):
                     item[woodstar_key] = value[munki_key]
             items.append(item)
         return items
@@ -598,7 +606,7 @@ class PackageReferenceResolver:
             self.software.setdefault(str(item["name"]), []).append(item)
         for package in packages:
             key = (
-                str(package["software_name"]),
+                str(package["software"]["name"]),
                 munki_version(str(package["version"])),
             )
             self.versioned.setdefault(key, []).append(package)
@@ -623,7 +631,7 @@ class PackageReferenceResolver:
         if version:
             candidates = [
                 {
-                    "software_id": package["software_id"],
+                    "software_id": package["software"]["id"],
                     "package_id": package["id"],
                 }
                 for package in self.versioned.get((name, munki_version(version)), [])

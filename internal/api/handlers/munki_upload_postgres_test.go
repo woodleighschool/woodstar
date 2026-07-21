@@ -78,8 +78,7 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	})
 
 	t.Run("delete rejects another object prefix", func(t *testing.T) {
-		iconPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
-		target := fixture.beginUpload(t, iconPath, "icon.png")
+		target := fixture.beginUpload(t, munkiIconPath, "icon.png")
 		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
 		assertStatus(t, fixture.request(t, http.MethodDelete, path), http.StatusBadRequest, "delete icon as installer")
 		if _, err := fixture.objects.GetByID(t.Context(), target.ObjectID); err != nil {
@@ -99,14 +98,14 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	})
 }
 
-func TestMunkiIconUploadLifecycleRemainsResourceScoped(t *testing.T) {
+func TestMunkiIconUploadLifecycle(t *testing.T) {
 	fixture := newMunkiUploadFixture(t)
-	path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
+	attachPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
 	icon := []byte("\x89PNG\r\n\x1a\n")
-	target := fixture.beginUpload(t, path, "icon.png")
+	target := fixture.beginUpload(t, munkiIconPath, "icon.png")
 	fixture.upload(t, target, icon)
 
-	rec := fixture.requestJSON(t, http.MethodPut, path, MunkiObjectMutation{ObjectID: target.ObjectID})
+	rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 	assertStatus(t, rec, http.StatusOK, "attach icon")
 	var view MunkiObjectView
 	decodeJSON(t, rec, &view)
@@ -140,10 +139,10 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 	})
 
 	t.Run("invalid icon content", func(t *testing.T) {
-		path := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
-		target := fixture.beginUpload(t, path, "not-an-icon.txt")
+		attachPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
+		target := fixture.beginUpload(t, munkiIconPath, "not-an-icon.txt")
 		fixture.upload(t, target, []byte("not an image"))
-		rec := fixture.requestJSON(t, http.MethodPut, path, MunkiObjectMutation{ObjectID: target.ObjectID})
+		rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 		assertStatus(t, rec, http.StatusBadRequest, "invalid icon")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
 		if !errors.Is(err, dbutil.ErrNotFound) {
