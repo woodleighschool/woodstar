@@ -6,9 +6,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - ".release-please-manifest.json"
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - ".release-please-manifest.json"
   workflow_dispatch:
 
 concurrency:

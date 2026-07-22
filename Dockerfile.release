@@ -1,9 +1,0 @@
-FROM gcr.io/distroless/static:nonroot
-
-ARG TARGETPLATFORM
-
-WORKDIR /
-COPY ${TARGETPLATFORM}/woodstar /woodstar
-EXPOSE 8080
-USER 65532:65532
-ENTRYPOINT ["/woodstar"]
