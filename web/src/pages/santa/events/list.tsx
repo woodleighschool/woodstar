@@ -10,6 +10,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -74,7 +75,7 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     accessorFn: (row) => row.event.file_path,
     enableSorting: false,
     header: "Path",
-    cell: ({ row }) => row.original.event.file_path || "-",
+    cell: ({ row }) => <PathText value={row.original.event.file_path} />,
     meta: { label: "Path" },
   },
   {

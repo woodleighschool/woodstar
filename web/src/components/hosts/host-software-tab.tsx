@@ -13,6 +13,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EmptyPanel } from "@/components/empty-panel";
+import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
@@ -221,7 +222,7 @@ function InstalledPathCell({
     return "-";
   }
   if (paths.length === 1) {
-    return paths[0].path;
+    return <PathText value={paths[0].path} />;
   }
   return (
     <Dialog>
