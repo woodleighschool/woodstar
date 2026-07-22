@@ -23,7 +23,6 @@ func registerHostMunkiState(
 		"get-host-munki-state",
 		"/api/hosts/{id}/munki",
 		"Get Munki state for a host",
-		"munki state not found",
 		store.LoadHostState,
 		logger,
 	)

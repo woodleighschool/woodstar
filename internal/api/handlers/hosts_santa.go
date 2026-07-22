@@ -35,7 +35,6 @@ func registerHostSantaState(
 		"get-host-santa-state",
 		"/api/hosts/{id}/santa",
 		"Get Santa state for a host",
-		"santa state not found",
 		store.LoadHostState,
 		logger,
 	)

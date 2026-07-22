@@ -21,7 +21,6 @@ func registerHostState[T any](
 	operationID string,
 	path string,
 	summary string,
-	missingMessage string,
 	load func(context.Context, int64) (*T, error),
 	logger *slog.Logger,
 ) {
@@ -38,7 +37,7 @@ func registerHostState[T any](
 			return nil, handlerError(ctx, logger, operationID, err, "host_id", input.ID)
 		}
 		if state == nil {
-			return nil, huma.Error404NotFound(missingMessage)
+			return nil, huma.Error404NotFound("")
 		}
 		return &hostStateOutput[T]{Body: *state}, nil
 	})
