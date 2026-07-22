@@ -32,7 +32,7 @@ func (s *Store) OverwriteResults(
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx,
-			`DELETE FROM report_results WHERE report_id = $1 AND host_id = $2`,
+			`DELETE FROM osquery_report_results WHERE report_id = $1 AND host_id = $2`,
 			reportID, hostID,
 		); err != nil {
 			return err
@@ -42,7 +42,7 @@ func (s *Store) OverwriteResults(
 		}
 		_, err := tx.CopyFrom(
 			ctx,
-			pgx.Identifier{"report_results"},
+			pgx.Identifier{"osquery_report_results"},
 			[]string{"report_id", "host_id", "data", "last_fetched"},
 			pgx.CopyFromRows(copyFromSnapshotRows(reportID, hostID, resultRows)),
 		)
@@ -62,8 +62,8 @@ func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, er
 	}
 	qrows, err := s.db.Pool().Query(ctx, `
 		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
-		FROM report_results rr
-		JOIN reports r ON r.id = rr.report_id
+		FROM osquery_report_results rr
+		JOIN osquery_reports r ON r.id = rr.report_id
 		JOIN hosts h ON h.id = rr.host_id
 		WHERE rr.report_id = $1 AND rr.data IS NOT NULL
 		ORDER BY rr.last_fetched DESC, rr.host_id, rr.id`, reportID)
@@ -204,19 +204,19 @@ func (s *Store) loadHostReportStates(
 		),
 		latest_fetch AS (
 		    SELECT DISTINCT ON (report_id) report_id, last_fetched
-		    FROM report_results rr
+		    FROM osquery_report_results rr
 		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[])
 		    ORDER BY report_id, last_fetched DESC, id DESC
 		),
 		result_counts AS (
 		    SELECT report_id, count(*)::integer AS host_result_count
-		    FROM report_results rr
+		    FROM osquery_report_results rr
 		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
 		    GROUP BY report_id
 		),
 		latest_data AS (
 		    SELECT DISTINCT ON (report_id) report_id, data
-		    FROM report_results rr
+		    FROM osquery_report_results rr
 		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
 		    ORDER BY report_id, last_fetched DESC, id DESC
 		)

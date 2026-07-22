@@ -30,7 +30,7 @@ func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, e
 	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO reports (
+			INSERT INTO osquery_reports (
 				name,
 				description,
 				query,
@@ -66,7 +66,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
-			UPDATE reports
+			UPDATE osquery_reports
 			SET
 				name = @name,
 				description = @description,
@@ -103,7 +103,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM reports WHERE id = $1`, id)
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM osquery_reports WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Report is still referenced")
 	}
@@ -120,7 +120,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	}
 	rows, err := s.db.Pool().Query(
 		ctx,
-		`DELETE FROM reports WHERE id = ANY($1::bigint[]) RETURNING id`,
+		`DELETE FROM osquery_reports WHERE id = ANY($1::bigint[]) RETURNING id`,
 		ids,
 	)
 	if err != nil {
@@ -270,5 +270,5 @@ SELECT
 	r.created_by_user_id,
 	r.created_at,
 	r.updated_at
-FROM reports r`
+FROM osquery_reports r`
 }

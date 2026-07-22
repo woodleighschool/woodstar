@@ -33,7 +33,7 @@ func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, err
 	var id int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO checks (name, description, query, created_by_user_id)
+			INSERT INTO osquery_checks (name, description, query, created_by_user_id)
 			VALUES (@name, @description, @query, @created_by_user_id)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
@@ -57,7 +57,7 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
-			UPDATE checks
+			UPDATE osquery_checks
 			SET
 				name = @name,
 				description = @description,
@@ -99,7 +99,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM checks WHERE id = $1`, id)
+	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM osquery_checks WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Check is still referenced")
 	}
@@ -114,7 +114,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `DELETE FROM checks WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+	rows, err := s.db.Pool().Query(ctx, `DELETE FROM osquery_checks WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
 	if err != nil {
 		return 0, err
 	}
@@ -179,7 +179,7 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 			c.created_by_user_id,
 			c.created_at,
 			c.updated_at
-		FROM checks c
+		FROM osquery_checks c
 		JOIN host_row h ON true
 		WHERE EXISTS (
 				SELECT 1
@@ -209,7 +209,7 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 // UpsertMembership records a check result. A nil passes value means not run.
 func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
 	_, err := s.db.Pool().Exec(ctx, `
-		INSERT INTO check_membership (check_id, host_id, passes, updated_at)
+		INSERT INTO osquery_check_membership (check_id, host_id, passes, updated_at)
 		VALUES ($1, $2, $3, now())
 		ON CONFLICT (check_id, host_id) DO UPDATE SET
 			passes = EXCLUDED.passes,
@@ -226,7 +226,7 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 		rows, err := s.db.Pool().Query(ctx, `
 			WITH check_row AS (
 				SELECT id, name
-				FROM checks c
+				FROM osquery_checks c
 				WHERE c.id = $1
 			)
 			SELECT
@@ -237,7 +237,7 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 				m.passes,
 				m.updated_at
 			FROM check_row c
-			JOIN check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
+			JOIN osquery_check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
 			JOIN hosts h ON h.id = m.host_id
 			ORDER BY lower(h.display_name), h.id`, checkID, passes)
 		if err != nil {
@@ -252,7 +252,7 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 	rows, err := s.db.Pool().Query(ctx, `
 		WITH check_row AS (
 			SELECT id, name
-			FROM checks c
+			FROM osquery_checks c
 			WHERE c.id = $1
 		),
 		host_rows AS (
@@ -268,7 +268,7 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 			m.updated_at
 		FROM check_row c
 		JOIN host_rows h ON true
-		LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
 		WHERE EXISTS (
 				SELECT 1
 				FROM osquery_check_targets ct
@@ -315,9 +315,9 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 			h.display_name AS host_name,
 			m.passes,
 			m.updated_at
-		FROM checks c
+		FROM osquery_checks c
 		JOIN host_row h ON true
-		LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
 		WHERE EXISTS (
 				SELECT 1
 				FROM osquery_check_targets ct
@@ -401,7 +401,7 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 			check_id,
 			COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
 			COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
-		FROM check_membership
+		FROM osquery_check_membership
 		WHERE check_id = ANY($1::bigint[])
 		GROUP BY check_id`, checkIDs)
 	if err != nil {
@@ -508,5 +508,5 @@ SELECT
 	c.created_by_user_id,
 	c.created_at,
 	c.updated_at
-FROM checks c`
+FROM osquery_checks c`
 }

@@ -16,7 +16,7 @@ type resultLogRow struct {
 }
 
 // ingestReportLogs writes per-host snapshot results emitted by osquery's
-// scheduled query log to report_results, replacing the previous snapshot.
+// scheduled query log to osquery_report_results, replacing the previous snapshot.
 func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data json.RawMessage) error {
 	var logs []resultLogRow
 	if err := json.Unmarshal(data, &logs); err != nil {
