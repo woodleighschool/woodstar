@@ -51,8 +51,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: process.env.DOCS_URL || "https://woodstar.docs.localhost",
-  baseUrl: process.env.DOCS_BASE_URL || "/",
+  url: process.env.DOCS_URL || "https://woodleighschool.github.io",
+  baseUrl: process.env.DOCS_BASE_URL || "/woodstar/",
   trailingSlash: false,
 
   organizationName: "woodleighschool",

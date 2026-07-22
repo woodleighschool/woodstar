@@ -36,11 +36,11 @@ docker compose exec woodstar /woodstar user create \
 
 Compose uses the published `rolling` image. Uncomment the build block in [`docker-compose.yml`](docker-compose.yml) to build the current checkout instead.
 
-The [Docker Compose guide](docs/content/getting-started/docker-compose.md) covers certificates, hostnames, storage, and first sign-in.
+The [Docker Compose guide](https://woodleighschool.github.io/woodstar/docs/getting-started/docker-compose) covers certificates, hostnames, storage, and first sign-in.
 
 ## 📚 Documentation
 
-The [Woodstar docs](docs/content/intro.md) cover the web app, configuration, client protocols, AutoPkg, and the API. For code changes, head to the [development setup](docs/content/development/setup.md) and [command reference](docs/content/development/commands.md).
+The [Woodstar docs](https://woodleighschool.github.io/woodstar/) cover the web app, configuration, client protocols, AutoPkg, and the API. For code changes, head to the [development setup](https://woodleighschool.github.io/woodstar/docs/development/setup) and [command reference](https://woodleighschool.github.io/woodstar/docs/development/commands).
 
 ## 🧑‍💻 Development
 

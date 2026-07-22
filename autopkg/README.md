@@ -50,4 +50,4 @@ The importer does not extract icons or accept a separate `uninstaller_pkg_path`.
 - `WoodstarMunkiPackageCleaner` keeps the newest package versions for a software title.
 - `WoodstarMunkiRepoImporter` imports pkginfo, packages, and icons from an existing `MUNKI_REPO`.
 
-See the [AutoPkg documentation](../docs/content/autopkg/overview.md) for examples and the full input reference.
+See the [AutoPkg documentation](https://woodleighschool.github.io/woodstar/docs/autopkg/overview) for examples and the full input reference.
