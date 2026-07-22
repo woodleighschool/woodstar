@@ -10,8 +10,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "account-api-woodstar-api",
+          id: "api/api",
+          key: "account-api-api",
         },
         {
           type: "category",
@@ -58,8 +58,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "agent-secrets-api-woodstar-api",
+          id: "api/api",
+          key: "agent-secrets-api-api",
         },
         {
           type: "category",
@@ -106,8 +106,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "directory-api-woodstar-api",
+          id: "api/api",
+          key: "directory-api-api",
         },
         {
           type: "category",
@@ -189,8 +189,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "hosts-api-woodstar-api",
+          id: "api/api",
+          key: "hosts-api-api",
         },
         {
           type: "category",
@@ -293,8 +293,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "labels-api-woodstar-api",
+          id: "api/api",
+          key: "labels-api-api",
         },
         {
           type: "category",
@@ -348,8 +348,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "munki-api-woodstar-api",
+          id: "api/api",
+          key: "munki-api-api",
         },
         {
           type: "category",
@@ -358,31 +358,17 @@ const sidebar: SidebarsConfig = {
           items: [
             {
               type: "doc",
-              id: "api/delete-munki-client-resources",
-              label: "Undeploy client resources",
-              className: "api-method delete",
-              key: "munki-munki-client-resources-api-delete-munki-client-resources",
-            },
-            {
-              type: "doc",
-              id: "api/get-munki-client-resources",
-              label: "Get client resources",
+              id: "api/list-munki-client-resources",
+              label: "List client resources",
               className: "api-method get",
-              key: "munki-munki-client-resources-api-get-munki-client-resources",
+              key: "munki-munki-client-resources-api-list-munki-client-resources",
             },
             {
               type: "doc",
-              id: "api/update-munki-client-resources-builder",
-              label: "Update client resources from the builder",
-              className: "api-method put",
-              key: "munki-munki-client-resources-api-update-munki-client-resources-builder",
-            },
-            {
-              type: "doc",
-              id: "api/publish-munki-client-resources-archive",
-              label: "Publish a client resources archive",
-              className: "api-method put",
-              key: "munki-munki-client-resources-api-publish-munki-client-resources-archive",
+              id: "api/create-munki-client-resources",
+              label: "Create client resources",
+              className: "api-method post",
+              key: "munki-munki-client-resources-api-create-munki-client-resources",
             },
             {
               type: "doc",
@@ -411,6 +397,27 @@ const sidebar: SidebarsConfig = {
               label: "Delete a banner upload",
               className: "api-method delete",
               key: "munki-munki-client-resources-api-delete-munki-client-resources-banner-upload",
+            },
+            {
+              type: "doc",
+              id: "api/delete-munki-client-resources",
+              label: "Delete client resources",
+              className: "api-method delete",
+              key: "munki-munki-client-resources-api-delete-munki-client-resources",
+            },
+            {
+              type: "doc",
+              id: "api/get-munki-client-resources",
+              label: "Get client resources",
+              className: "api-method get",
+              key: "munki-munki-client-resources-api-get-munki-client-resources",
+            },
+            {
+              type: "doc",
+              id: "api/update-munki-client-resources",
+              label: "Update client resources",
+              className: "api-method put",
+              key: "munki-munki-client-resources-api-update-munki-client-resources",
             },
           ],
         },
@@ -648,8 +655,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "osquery-api-woodstar-api",
+          id: "api/api",
+          key: "osquery-api-api",
         },
         {
           type: "category",
@@ -808,8 +815,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "santa-api-woodstar-api",
+          id: "api/api",
+          key: "santa-api-api",
         },
         {
           type: "category",
@@ -961,8 +968,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "session-api-woodstar-api",
+          id: "api/api",
+          key: "session-api-api",
         },
         {
           type: "category",
@@ -1002,8 +1009,8 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/woodstar-api",
-          key: "software-api-woodstar-api",
+          id: "api/api",
+          key: "software-api-api",
         },
         {
           type: "category",

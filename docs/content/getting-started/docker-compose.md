@@ -1,39 +1,66 @@
 ---
-sidebar_position: 2
-title: Docker Compose
-description: Run the checked-in PostgreSQL service for local Woodstar development.
+sidebar_position: 1
+title: Run Woodstar
+description: Run Woodstar and PostgreSQL with Docker Compose.
 ---
 
-# Docker Compose
+# Run Woodstar
 
-The root `docker-compose.yml` provides PostgreSQL 18 for local development and tests. It is not a Woodstar deployment or production chart; run Woodstar through the [mise development tasks](./local-development).
+The repository includes a Compose file for Woodstar and PostgreSQL. Woodstar uses the published `ghcr.io/woodleighschool/woodstar:rolling` image by default.
 
-## Services
+## Configuration
 
-| Service    | Purpose           | Published Port |
-| ---------- | ----------------- | -------------- |
-| `postgres` | Woodstar database | `5432:5432`    |
-
-## Start PostgreSQL
+Start from the example environment file:
 
 ```bash
-docker compose up -d postgres
+cp .env.example .env
 ```
 
-The default local database URL is:
+Set these values in `.env`:
 
-```text
-postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable
+- `WOODSTAR_URL` to the HTTPS address used by browsers and Macs.
+- `WOODSTAR_TLS_CERT_FILE` and `WOODSTAR_TLS_KEY_FILE` to certificate files on the Docker host.
+- `WOODSTAR_STORAGE_CAPABILITY_KEY` to the output of `openssl rand -hex 32`.
+
+The certificate must match `WOODSTAR_URL` and be trusted by the Macs connecting to Woodstar. Make sure the hostname resolves to the Docker host.
+
+For development on one Mac, the [development setup](../development/setup) can generate a certificate and add the local hostname.
+
+## Start Woodstar
+
+```bash
+docker compose up -d
 ```
 
-Woodstar defaults to file storage during development. The S3 integration test starts its own ephemeral Garage container, so Compose does not carry an object-storage service or development credentials.
+Create the first account:
 
-## Volumes
-
-Compose keeps the database in one named volume:
-
-```text
-postgres-data
+```bash
+docker compose exec woodstar /woodstar user create \
+  --email you@example.com \
+  --name "Your Name" \
+  --role admin
 ```
 
-`docker compose down` preserves it. Use `docker compose down --volumes` only when you intentionally want to discard the local database.
+The command prompts for a password. When the account is ready, open the address set in `WOODSTAR_URL`.
+
+## Run the current checkout
+
+The `woodstar` service contains a commented `build` block and `pull_policy: build`. Uncomment both, then run:
+
+```bash
+docker compose up -d --build
+```
+
+This builds the same Dockerfile used for published images.
+
+## Data
+
+PostgreSQL data is stored in the `postgres-data` volume. Uploaded Munki files are stored in `./data`.
+
+The `data` directory must be writable by container user `65532`. Woodstar exits during startup when `/data/storage` cannot be created.
+
+:::warning
+
+`docker compose down --volumes` deletes the local database and uploaded files.
+
+:::

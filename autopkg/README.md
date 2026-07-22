@@ -1,23 +1,23 @@
-# Woodstar AutoPkg Processors
+# Woodstar AutoPkg processors
 
-Woodstar's AutoPkg processor generates Munki pkginfo and uploads the resulting software, package, installer, optional icon, and targets directly to Woodstar. The normal recipe flow does not use a Munki repository or AutoPkg's `MunkiImporter`.
+The Woodstar processors create Munki pkginfo and upload software, packages, installers, icons, and targets to Woodstar.
 
-Make them available to AutoPkg:
+Add the repository to AutoPkg:
 
 ```sh
 autopkg repo-add woodleighschool/woodstar
 ```
 
-The processors are published under `com.github.woodleighschool.woodstar.processors`.
-
-Set the Woodstar connection once in AutoPkg preferences:
+Set the Woodstar URL and an account API key:
 
 ```sh
 defaults write com.github.autopkg WOODSTAR_URL -string "https://woodstar.example"
 defaults write com.github.autopkg WOODSTAR_API_KEY -string "API_KEY"
 ```
 
-Then replace the usual `MunkiImporter` and Woodstar uploader chain with one processor:
+## Import a package
+
+`WoodstarMunkiImporter` runs Munki's installed `/usr/local/munki/makepkginfo`, then uploads the result directly to Woodstar. No local Munki repository is required.
 
 ```yaml
 Process:
@@ -41,8 +41,13 @@ Process:
               exclude: []
 ```
 
-`pkg_path` is inspected with Munki's installed `/usr/local/munki/makepkginfo` and uploaded from its existing local path. `icon_path` is optional and must point to an already prepared image. The processor also accepts `munkiimport_pkgname`, `munkiimport_appname`, `additional_makepkginfo_options`, `version_comparison_key`, and `metadata_additions` with the same generation meaning as AutoPkg's core importer.
+`icon_path` and `targets` are optional. Omitting `targets` preserves them on existing software and leaves new software untargeted.
 
-The direct importer does not extract icons and does not accept `uninstaller_pkg_path`; Woodstar currently has one installer artifact per package and cannot represent a separate uninstaller package.
+The importer does not extract icons or accept a separate `uninstaller_pkg_path`.
 
-`WoodstarMunkiPackageCleaner` removes older Woodstar package versions after an import. `WoodstarMunkiRepoImporter` remains a separate migration processor for loading an existing `MUNKI_REPO`; repository paths are not part of the normal recipe contract.
+## Other processors
+
+- `WoodstarMunkiPackageCleaner` keeps the newest package versions for a software title.
+- `WoodstarMunkiRepoImporter` imports pkginfo, packages, and icons from an existing `MUNKI_REPO`.
+
+See the [AutoPkg documentation](../docs/content/autopkg/overview.md) for examples and the full input reference.

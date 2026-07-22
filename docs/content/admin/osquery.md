@@ -1,35 +1,25 @@
 ---
 sidebar_position: 2
 title: osquery
-description: Reports, checks, and live queries against the fleet.
+description: Scheduled reports, checks, and live queries.
 ---
 
 # osquery
 
-osquery is how Woodstar asks the fleet questions. It's the replacement for Jamf's Extension Attributes and Smart Groups: write SQL, and either schedule it, turn it into a pass/fail check, or run it right now. It also drives dynamic labels and the software inventory.
-
-This is Fleet's query model. A Woodstar report is a Fleet scheduled query; a Woodstar check is what Fleet calls a policy. The names are ours, the behaviour is theirs.
-
-There are three things you author here.
+Woodstar uses osquery for inventory and SQL queries across enrolled Macs. Queries can run as reports, checks, dynamic labels, or one-off live queries.
 
 ## Reports
 
-A report is a saved osquery query with a schedule and an optional label scope. Woodstar pushes it into the osquery config for the hosts in scope, and the results come back as snapshots you can look at over time.
-
-Use a report when you want a recurring answer: installed apps, profiles, disk encryption status, whatever you'd have built an Extension Attribute for. Scope it with a label to ask only the machines it's relevant to.
+A report is a saved query with a schedule. Reports can run on all hosts or only hosts in selected labels. Woodstar stores each result as a snapshot so changes can be reviewed over time.
 
 ## Checks
 
-A check is a query turned into a pass or fail, the same idea as a Fleet policy. Each host that runs it lands on one side or the other, and Woodstar keeps the aggregate counts so you can see "47 passing, 3 failing" at a glance and drill into the three.
+A check is a query that passes when at least one row is returned and fails when none are returned. Woodstar records the latest result for each host and shows the passing and failing counts.
 
-The query has to return enough for Woodstar to read a pass/fail result from it. The editor in the app is the place to get that shape right; the convention is best learned there rather than memorized from docs.
-
-Use a check for things that should be true: a setting is enforced, an agent is running, a risky app isn't present.
+Use checks for conditions that should remain true, such as encryption being enabled or a required process running.
 
 ## Live queries
 
-A live query is a one-off. You pick a target, fire a query, and watch results stream in as hosts respond. Nothing is saved as a definition; it's for answering a question on the spot.
+A live query runs once against selected hosts or labels. Results appear as hosts respond and are not saved as a report definition.
 
-You can count the matching targets before you run, and stop a query that's still going. Results arrive through osquery's distributed write path and are tracked in memory while the query is live.
-
-Endpoints for all three are in the [API reference](../api/overview). Retention, scheduling cadence, and how distributed reads and writes work on the wire are covered under [Agent Protocols](../agent-protocols/orbit-and-osquery).
+The [Orbit and osquery](../agent-protocols/orbit-and-osquery) page covers enrollment and query transport.

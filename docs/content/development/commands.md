@@ -1,12 +1,12 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 title: Commands
-description: Build, test, lint, format, and generation commands for Woodstar.
+description: Build, test, lint, format, and generate Woodstar.
 ---
 
 # Commands
 
-Use mise tasks as the repo contract. Direct `go test` or `pnpm` commands are fine while narrowing one failure, but handoff should use the broadest relevant task.
+Run repository tasks through mise.
 
 ## Setup
 
@@ -17,84 +17,68 @@ mise run deps
 docker compose up -d postgres
 ```
 
-`mise run deps` downloads Go modules and installs frontend dependencies in `web/`. Compose provides the PostgreSQL service shared by local development and dependency-bearing tests. Woodstar runs through mise; S3 integration starts its own ephemeral Garage dependency.
-
-## Build
-
-```bash
-mise run build
-mise run backend
-mise //web:build
-```
-
-`build` runs the frontend build first, then builds the Go binary at `./woodstar`.
-
-## Development
+## Development and build
 
 ```bash
 mise run dev
 mise run dev-backend
-mise run dev-tls
-mise run dev-tls-trust
-mise //web:dev
+mise run //web:dev
+mise run build
+mise run backend
+mise run //web:build
 ```
 
-`dev` builds the embedded frontend and depends on `dev-tls`, which creates repo-local certificate files. `dev-tls-trust` trusts that CA locally. `dev-backend` loads `.env` if present and starts Air; the web task runs Vite from `web/`.
+`mise run build` builds the frontend and embeds the result in the `woodstar` binary.
 
 ## Tests
 
 ```bash
 mise run test
 mise run test-postgres
-mise run test-integration-storage
 mise run test-integration
+mise run test-e2e
+mise run test-all
+```
+
+`mise run test` runs the dependency-free Go suite. `test-postgres` and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set. The integration lane starts its own S3 test service through testcontainers.
+
+Run one E2E lifecycle with:
+
+```bash
 mise run test-e2e-munki
 mise run test-e2e-osquery
 mise run test-e2e-santa
 mise run test-e2e-mdp
 mise run test-e2e-orbit
-mise run test-e2e
-mise run test-all
 ```
 
-`mise run test` runs `go vet ./...` and the dependency-free Go suite with race detection. It needs neither PostgreSQL nor Docker. Pure validation, mapping, protocol error handling, local file storage, and service behavior with Woodstar-owned fakes belong here.
+The frontend has no test suite. Use its lint, typecheck, generated client, and production build checks.
 
-`mise run test-postgres` selects `//go:build postgres` component tests under `internal/`. Each test creates, migrates, and drops an isolated database on `WOODSTAR_TEST_DATABASE_URL`. The task defaults that URL to the checked-in Compose PostgreSQL service, but it never starts Compose itself.
-
-`mise run test-integration-storage` selects `//go:build integration` and runs the S3 contract against an ephemeral Garage testcontainer. The dependency-free file implementation runs in the normal suite. `mise run test-integration` is the aggregate provider lane.
-
-The E2E tasks select `//go:build e2e`, compile a real Woodstar server, and exercise application lifecycles. The Orbit lane replays representative Orbit and osquery requests from checked-in protocol fixtures. Santa uses the same fixture approach for its protobuf requests while retaining the stateful clean-sync, rule-download, event-upload, checkpoint, and normal-sync exchange. Tagged dependency lanes fail when PostgreSQL or Docker is unavailable; they never turn a requested test into a skip. `mise run test-all` runs every lane.
-
-The frontend has no test runner. Its verification is `mise run //web:lint`, `mise run //web:typecheck`, generated OpenAPI clients, and `mise run //web:build`.
-
-## Lint And Format
+## Lint and format
 
 ```bash
 mise run lint
-mise run go-lint
-mise //web:lint
+mise run fmt-check
 mise run format
-mise run go-format
-mise //web:format
+mise run go-lint
+mise run //web:lint
+mise run //docs:lint
 ```
 
-The split matters. Backend and frontend checks have different tools and should stay runnable independently.
-
-## Generated Artifacts
+## Generated files
 
 ```bash
-mise run openapi
 mise run openapi-types
 mise run generate
+mise run schema-sync
 ```
 
-`generate` regenerates the OpenAPI schema, frontend client, and Go E2E client.
+`openapi-types` regenerates `web/openapi.yaml`, the frontend client, and the Go E2E client. `schema-sync` refreshes the vendored osquery schema data.
 
-## Complete Test Gate
+## Repository checks
 
 ```bash
-docker compose up -d postgres
-mise run test-all
+mise run tidy-check
+mise run workflow-lint
+mise run //docs:build
 ```
-
-The aggregate test gate is intentionally explicit about its dependencies. Use `mise run fmt-check`, `mise run tidy-check`, `mise run lint`, and `mise run build` as separate repository checks.

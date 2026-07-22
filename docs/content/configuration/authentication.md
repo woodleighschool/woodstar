@@ -1,46 +1,45 @@
 ---
 sidebar_position: 3
 title: Authentication
-description: Provision local users and sign in with passwords, OIDC, or API keys.
+description: Accounts, passwords, OIDC, API keys, and agent credentials.
 ---
 
 # Authentication
 
-Every person who signs in to Woodstar is a persisted directory user. Administrators manage users from the Directory page; operators can create or recover them with the Woodstar binary when no administrator can sign in.
+Woodstar accounts can sign in with a local password or a configured OIDC provider. Agent credentials are managed separately.
 
-## Provision a local user
+## Create a local account
 
-Run the user command against the Woodstar database before exposing a fresh server:
+Run the user command with access to the Woodstar database:
 
 ```bash
 woodstar user create \
-  --email admin@example.com \
-  --name Administrator \
+  --email you@example.com \
+  --name "Your Name" \
   --role admin
 ```
 
-The command prompts for the password when `--password` is omitted. Pass `--password` explicitly for non-interactive automation. It reads `WOODSTAR_DATABASE_URL`, or accepts `--database-url`. Email addresses must be lowercase; surrounding whitespace is ignored.
+The command prompts for a password unless `--password` is provided. The database URL comes from `WOODSTAR_DATABASE_URL` by default; use `--database-url` to pass another connection URL.
 
-The release image is distroless but still runs Woodstar subcommands directly. It does not need a shell:
+Email addresses must be lowercase. Woodstar supports two roles: `admin` can make changes, while `viewer` has read-only access.
+
+Use these commands to recover an existing local account:
 
 ```bash
-kubectl exec -it deploy/woodstar -- \
-  /woodstar user create \
-  --email admin@example.com \
-  --name Administrator \
-  --role admin
+woodstar user set-password --email you@example.com
+woodstar user set-role --email you@example.com --role admin
 ```
-
-Use `user set-password --email ...` to replace a local password and `user set-role --email ... --role admin` to restore administrator access. Woodstar permits deleting or demoting the final administrator; the same commands recover that deliberate zero-administrator state.
 
 ## OIDC
 
-Configure an issuer URL, client ID, and client secret to enable OIDC. Only identities whose configured claim exactly matches a Woodstar user's email can sign in, and that user must have an app role. A directory UPN remains metadata rather than a second login identifier. See [Environment](./environment#oidc).
+OIDC is enabled when its issuer URL, client ID, and client secret are set. The configured email claim must exactly match the lowercase email of a Woodstar user with an assigned role.
+
+See [Environment](./environment#oidc) for the settings.
 
 ## API keys
 
-Users can create an API key with the same permissions as their account. [AutoPkg](../autopkg/overview) uses one to upload packages.
+An account can create or rotate its API key from the **Account** page. The key has the same access as the account and can be used by scripts and [AutoPkg](../autopkg/overview).
 
-## Agent secrets
+## Agent credentials
 
-Mac clients use separate [Agent Secrets](../concepts/agent-secrets) to enroll and sync.
+Orbit, osquery, Santa, and Munki use [agent secrets](../concepts/agent-secrets), not account credentials.

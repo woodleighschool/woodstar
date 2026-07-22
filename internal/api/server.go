@@ -436,8 +436,7 @@ func newSensitiveGroup(protected huma.API) *huma.Group {
 
 // humaConfig returns the Huma config shared by serve and openapi.
 func humaConfig(version string) huma.Config {
-	cfg := huma.DefaultConfig("Woodstar API", version)
-	cfg.Info.Description = "Admin API."
+	cfg := huma.DefaultConfig("API", version)
 	cfg.Info.License = &huma.License{Name: "Apache-2.0"}
 	handlers.ConfigureOpenAPI(cfg.OpenAPI)
 

@@ -1,5 +1,30 @@
 ---
 services:
+  woodstar:
+    image: ghcr.io/woodleighschool/woodstar:rolling
+    # Uncomment below to build local source
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # pull_policy: build
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WOODSTAR_PORT: 8080
+      WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
+      WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
+      WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem
+      WOODSTAR_STORAGE_FILE_ROOT: /data/storage
+    ports:
+      - "${WOODSTAR_PORT:-8443}:8080"
+    volumes:
+      - ${WOODSTAR_TLS_CERT_FILE:-./tmp/tls/woodstar.pem}:/tls/woodstar.pem:ro
+      - ${WOODSTAR_TLS_KEY_FILE:-./tmp/tls/woodstar-key.pem}:/tls/woodstar-key.pem:ro
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:18
     restart: unless-stopped
@@ -8,7 +33,7 @@ services:
       POSTGRES_PASSWORD: woodstar
       POSTGRES_DB: woodstar
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:

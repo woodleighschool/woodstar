@@ -44,7 +44,7 @@ const darkCodeTheme: PrismTheme = {
 
 const config: Config = {
   title: "Woodstar",
-  tagline: "Self-hosted macOS management: Munki, Santa, and osquery.",
+  tagline: "Self-hosted Mac management with Munki, Santa, Orbit, and osquery.",
   favicon: "img/favicon.png",
 
   future: {
@@ -174,7 +174,7 @@ const config: Config = {
           title: "Docs",
           items: [
             { label: "Overview", to: "/docs/intro" },
-            { label: "Local development", to: "/docs/getting-started/local-development" },
+            { label: "Run Woodstar", to: "/docs/getting-started/docker-compose" },
             { label: "Configuration", to: "/docs/configuration/environment" },
           ],
         },
@@ -182,8 +182,8 @@ const config: Config = {
           title: "Reference",
           items: [
             { label: "Agent protocols", to: "/docs/agent-protocols/overview" },
-            { label: "Admin API", to: "/docs/api/overview" },
-            { label: "Development", to: "/docs/development/commands" },
+            { label: "API", to: "/docs/api/overview" },
+            { label: "Development", to: "/docs/development/setup" },
           ],
         },
         {

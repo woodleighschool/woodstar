@@ -1,57 +1,38 @@
 ---
 sidebar_position: 2
 title: Orbit and osquery
-description: Enrollment, config, distributed queries, and the Fleet-compatible endpoints.
+description: Enroll Macs and run osquery through Fleet-compatible endpoints.
 ---
 
 # Orbit and osquery
 
-Orbit and osquery are two separate enrolling clients. Both authenticate with a shared enrollment secret the first time, then switch to their own per-host node key for everything after. Orbit speaks the Fleet Orbit protocol, so an off-the-shelf Orbit client works against Woodstar.
+Orbit and osquery enroll with the Orbit agent secret, then use a per-host node key. Woodstar supports the Fleet route and response shapes used by both clients.
 
-Both clients connect to the HTTPS `WOODSTAR_URL`. Development clients must trust the local mkcert CA; Woodstar does not generate insecure Orbit or osquery settings.
+## Configure Orbit
 
-## Orbit endpoints
+Under **Enrollments > Orbit**, create an agent secret and copy the generated package command and configuration profile. The profile sets the Woodstar URL, enrollment secret, and optional MDM user-email value.
 
-| Method | Path                                    | Purpose                                                                                 |
-| ------ | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `POST` | `/api/fleet/orbit/enroll`               | Check the enroll secret, upsert the host by hardware UUID, and issue an Orbit node key. |
-| `POST` | `/api/fleet/orbit/config`               | Validate the node key and return the host's Orbit config.                               |
-| `PUT`  | `/api/fleet/orbit/device_mapping`       | Validate the node key and record an email from the device profile as user affinity.     |
-| `POST` | `/api/fleet/orbit/device_token`         | Rotate the host token used by current Orbit clients to verify server registration.      |
-| `HEAD` | `/api/fleet/orbit/ping`                 | Return `200 OK`.                                                                        |
-| `HEAD` | `/api/latest/fleet/device/{token}/ping` | Validate the host's current device token.                                               |
+## Orbit routes
 
-Orbit responses advertise their capabilities:
+| Method | Path                                    | Purpose                        |
+| ------ | --------------------------------------- | ------------------------------ |
+| `POST` | `/api/fleet/orbit/enroll`               | Enroll and return a node key   |
+| `POST` | `/api/fleet/orbit/config`               | Return the Orbit configuration |
+| `PUT`  | `/api/fleet/orbit/device_mapping`       | Record the assigned user email |
+| `POST` | `/api/fleet/orbit/device_token`         | Rotate the device token        |
+| `HEAD` | `/api/fleet/orbit/ping`                 | Check the server               |
+| `HEAD` | `/api/latest/fleet/device/{token}/ping` | Validate a device token        |
 
-```http
-X-Fleet-Capabilities: orbit_endpoints,token_rotation,end_user_email
-```
+## osquery routes
 
-## osquery endpoints
+| Method | Path                                | Purpose                            |
+| ------ | ----------------------------------- | ---------------------------------- |
+| `POST` | `/api/v1/osquery/enroll`            | Enroll and return a node key       |
+| `POST` | `/api/v1/osquery/config`            | Return schedule and client options |
+| `POST` | `/api/v1/osquery/distributed/read`  | Return queued queries              |
+| `POST` | `/api/v1/osquery/distributed/write` | Receive distributed-query results  |
+| `POST` | `/api/v1/osquery/log`               | Receive scheduled report results   |
 
-Woodstar supports osquery 5.16 and later. The TLS plugin endpoints use Fleet's current `/api/v1/osquery` route family.
+An invalid node key tells osquery to enroll again. Woodstar does not enable file carving or status-log forwarding.
 
-| Method | Path                 | Purpose                                                                                          |
-| ------ | -------------------- | ------------------------------------------------------------------------------------------------ |
-| `POST` | `/enroll`            | Check the enroll secret, parse the host details, upsert the host, and issue an osquery node key. |
-| `POST` | `/config`            | Return the scheduled query config and osquery options.                                           |
-| `POST` | `/distributed/read`  | Hand the host its queued detail queries, label queries, checks, and live queries.                |
-| `POST` | `/distributed/write` | Take the results back.                                                                           |
-| `POST` | `/log`               | Accept osquery logs and scheduled report results.                                                |
-
-A bad node key doesn't break the client. The osquery service returns `node_invalid: true` where the TLS plugin expects it, and the client re-enrolls.
-
-Woodstar does not support file carving or ingest osquery status logs. Its Orbit and osquery configs disable carving and TLS status forwarding instead of advertising endpoints that discard data.
-
-## What distributed writes do
-
-The write endpoint is where most of the inventory work happens. A single batch of results can:
-
-- update the host's detail and inventory
-- project observed software
-- evaluate dynamic labels
-- record check pass/fail membership
-- save report result snapshots
-- return live-query results to the in-memory live-query manager
-
-If a host is missing the Orbit extension tables some queries want, that's just query result state, not a separate mode the server runs in.
+Distributed results update host details, software inventory, dynamic labels, checks, reports, and active live queries.

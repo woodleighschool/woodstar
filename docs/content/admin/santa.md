@@ -1,38 +1,29 @@
 ---
 sidebar_position: 3
 title: Santa
-description: "Execution policy and event visibility: configurations, rules, and events."
+description: Santa configurations, rules, and events.
 ---
 
 # Santa
 
-Santa decides which binaries are allowed to run on a Mac, and reports back what it sees. Woodstar is the sync server: you write the policy here, the Macs pull it down, and the execution events come back for you to look at.
-
-Santa is optional. A host works fine without it; the Santa sections just stay empty until that host starts syncing.
+Woodstar provides the sync server for [Santa](https://github.com/northpolesec/santa). Macs download their configuration and rules, then upload execution and file-access events.
 
 ## Configurations
 
-A configuration is the client policy Santa runs under: client mode, bundle support, transitive rules, event upload, sync interval, batch size, path regexes, removable-media policy, and the link Santa uses for event detail. Configurations are ordered and target labels.
+A configuration contains Santa client settings and targets one or more labels. Configurations are ordered, and a label can belong to only one configuration.
 
-A label can only belong to one configuration. Assign a label that's already taken and Woodstar returns a conflict rather than letting two configurations fight over the same hosts.
+Settings include client mode, sync timing, event upload, bundle handling, path regular expressions, and removable-media policy.
 
 ## Rules
 
-Rules are the allow and block decisions. Each rule has a target type and a policy.
+Rules allow or block binaries, certificates, team IDs, signing IDs, code-directory hashes, or bundles. Each rule includes one label and can exclude other labels.
 
-Target types: `binary`, `certificate`, `teamid`, `signingid`, `cdhash`, and `bundle`. Policies: allowlist, compiler allowlist, blocklist, silent blocklist, and CEL.
-
-A rule attaches its policy to a label through an include, and you can layer excludes to carve hosts back out even when an include would otherwise match. When you're hunting for something to write a rule about, the rule-target search pulls candidates straight from observed execution data, so you can build a rule from a binary you've actually seen run.
-
-You can also look at the effective rule state for a single host, which is the set of rules that machine should be enforcing.
+The rule form can search observed execution events for known targets. A host page shows the rules that apply to that Mac.
 
 ## Events
 
-Events are read-only here. Santa reports two kinds:
+Woodstar stores execution events and file-access events reported by Santa. The event pages are read-only.
 
-- **Execution events**: what tried to run, with the executable's metadata, the user and session, the decision, and timestamps.
-- **File-access events**: access against the paths Santa is watching, with Santa's file-access decision values.
+`WOODSTAR_SANTA_EVENT_RETENTION_DAYS` controls retention. See [Environment](../configuration/environment#santa-event-retention).
 
-Events accumulate, so they're swept on a schedule. Retention is controlled by `WOODSTAR_SANTA_EVENT_RETENTION_DAYS` and the sweep cadence by `WOODSTAR_SANTA_EVENT_SWEEP_INTERVAL` (see [Environment](../configuration/environment)).
-
-The sync protocol itself, including how rules are paged out to clients, is in [Santa Sync](../agent-protocols/santa-sync). Endpoints are in the [API reference](../api/overview).
+See [Santa Sync](../agent-protocols/santa-sync) for client configuration.

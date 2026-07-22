@@ -3895,10 +3895,9 @@ components:
       name: woodstar_session
       type: apiKey
 info:
-  description: Woodstar JSON API.
   license:
     name: Apache-2.0
-  title: Woodstar API
+  title: API
   version: 0.0.0-dev
 openapi: 3.1.0
 paths:

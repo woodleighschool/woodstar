@@ -1,34 +1,36 @@
 ---
 sidebar_position: 0
 title: Overview
-description: The admin API, how it's authenticated, and how this reference is generated.
+description: Authentication and generation for the API reference.
 ---
 
 # API Reference
 
-This is the admin API: the JSON surface the web app runs on, served under `/api`. The pages beside this one are generated from Woodstar's OpenAPI spec and grouped by resource.
+Woodstar's JSON API is served under `/api`. The web app uses the same endpoints documented here.
 
-The Mac clients don't use this API. Their endpoints are a separate surface, documented in [Agent Protocols](../agent-protocols/overview).
+Mac clients use separate [agent protocols](../agent-protocols/overview).
 
-## Authenticating
+## Authentication
 
-Two ways in, both tied to a Woodstar account:
+The API accepts either the `woodstar_session` cookie created during sign-in or an account API key:
 
-- **Session cookie.** Signing in to the app sets `woodstar_session`, and the browser carries it. This is what the SPA uses.
-- **API key.** For scripting, create an account API key and send it instead of using a session. Same permissions as the account it belongs to.
+```http
+Authorization: Bearer <api-key>
+```
 
-See [Authentication](../configuration/authentication) for both.
+An API key has the same access as the associated account. Create or rotate a key from the **Account** page.
 
 ## Errors
 
-Woodstar returns plain Huma error responses with a human-readable `message`. There's no sprawling error-code taxonomy to memorize; the message says what went wrong, and the frontend shows it.
+Errors use `application/problem+json` and include a readable `detail`. Validation errors can also include field-level entries.
 
-## How this reference is generated
+## Generation
 
-The spec is `web/openapi.yaml`, built by the backend itself:
+The backend generates `web/openapi.yaml` from its registered routes. The docs site turns that schema into the operation pages in this section.
 
 ```bash
-go run ./cmd/woodstar openapi --output web/openapi.yaml
+mise run openapi-types
+mise run //docs:gen-api-docs
 ```
 
-The same registration that mounts the routes produces the schema, so the reference can't drift from the server without the spec changing too. Regenerating these pages from the spec is covered in [Docs Site](../development/docs-site#the-api-reference).
+Generated API pages should not be edited by hand.

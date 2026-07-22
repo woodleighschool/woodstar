@@ -12,18 +12,18 @@ type LinkItem = {
 
 const primaryLinks: LinkItem[] = [
   {
-    title: "Run it locally",
-    text: "Bring up Woodstar, Postgres, and the frontend from a checkout with the repo's mise tasks.",
-    to: "/docs/getting-started/local-development",
+    title: "Run Woodstar",
+    text: "Start Woodstar and PostgreSQL with Docker Compose.",
+    to: "/docs/getting-started/docker-compose",
   },
   {
-    title: "How it fits together",
-    text: "Hosts, labels, the four agents, and where the admin app ends and the agent protocols begin.",
+    title: "How Woodstar fits together",
+    text: "Learn how hosts, labels, the web app, and agent protocols relate.",
     to: "/docs/concepts/capability-boundaries",
   },
   {
     title: "Agent protocols",
-    text: "How Orbit, osquery, Santa, and Munki clients enroll, authenticate, and sync.",
+    text: "Configure Orbit, osquery, Santa, and Munki clients.",
     to: "/docs/agent-protocols/overview",
   },
 ];
@@ -31,18 +31,18 @@ const primaryLinks: LinkItem[] = [
 const secondaryLinks: LinkItem[] = [
   {
     title: "Configuration",
-    text: "The WOODSTAR_ settings, what's required, and which features switch on once you set them.",
+    text: "Find every WOODSTAR_ setting and its default.",
     to: "/docs/configuration/environment",
   },
   {
     title: "API reference",
-    text: "Every admin endpoint, generated from the OpenAPI spec the server ships.",
+    text: "Browse the API generated from Woodstar's OpenAPI schema.",
     to: "/docs/api/overview",
   },
   {
     title: "Development",
-    text: "Build, test, generate, and format with the mise tasks.",
-    to: "/docs/development/commands",
+    text: "Set up a checkout, then build and test the repository.",
+    to: "/docs/development/setup",
   },
 ];
 
@@ -59,22 +59,21 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Woodstar documentation"
-      description="Self-hosted macOS management: Munki, Santa, and osquery."
+      description="Documentation for the Woodstar macOS management server."
     >
       <main className={styles.main}>
         <section className={styles.intro}>
           <img src="/img/woodstar.svg" className={styles.logo} alt="Woodstar" />
           <div>
-            <p className={styles.kicker}>Woodstar docs</p>
-            <h1>Self-hosted macOS management: Munki, Santa, and osquery.</h1>
+            <p className={styles.kicker}>Documentation</p>
+            <h1>Woodstar</h1>
             <p className={styles.summary}>
-              Woodstar runs Munki, Santa, and osquery for a fleet of Macs: managed software,
-              execution policy, and inventory. It covers the macOS gaps left by our move from Jamf
-              to Intune.
+              Self-hosted macOS management for the gaps Intune leaves, with Munki, Santa, Orbit, and
+              osquery.
             </p>
             <div className={styles.actions}>
               <Link className={styles.primaryAction} to="/docs/intro">
-                Start reading
+                Read the introduction
               </Link>
               <Link className={styles.secondaryAction} to="/docs/development/commands">
                 Developer commands
