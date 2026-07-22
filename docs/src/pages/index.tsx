@@ -1,4 +1,5 @@
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import Layout from "@theme/Layout";
 import type { ReactNode } from "react";
 
@@ -56,6 +57,8 @@ function LinkPanel({ title, text, to }: LinkItem) {
 }
 
 export default function Home(): ReactNode {
+  const logoUrl = useBaseUrl("/img/woodstar.svg");
+
   return (
     <Layout
       title="Woodstar documentation"
@@ -63,7 +66,7 @@ export default function Home(): ReactNode {
     >
       <main className={styles.main}>
         <section className={styles.intro}>
-          <img src="/img/woodstar.svg" className={styles.logo} alt="Woodstar" />
+          <img src={logoUrl} className={styles.logo} alt="Woodstar" />
           <div>
             <p className={styles.kicker}>Documentation</p>
             <h1>Woodstar</h1>
