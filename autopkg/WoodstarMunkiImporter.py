@@ -54,7 +54,7 @@ class WoodstarMunkiImporter(Processor):
             "description": "PEM CA file for a private Woodstar certificate chain.",
         },
         "pkg_path": {
-            "required": True,
+            "required": False,
             "description": "Local package or disk image to inspect and upload.",
         },
         "pkginfo": {
@@ -205,7 +205,7 @@ class WoodstarMunkiImporter(Processor):
                 raise ProcessorError(f"{key} is not supported: {guidance}")
 
     def local_paths(self):
-        pkg_path = self.local_file("pkg_path", required=True)
+        pkg_path = self.local_file("pkg_path")
         icon_path = self.local_file("icon_path")
         return pkg_path, icon_path
 
@@ -221,7 +221,11 @@ class WoodstarMunkiImporter(Processor):
         return path
 
     def generate_pkginfo(self, pkg_path):
-        args = [MAKEPKGINFO, pkg_path]
+        args = [MAKEPKGINFO]
+        if pkg_path:
+            args.append(pkg_path)
+        else:
+            args.append("--nopkg")
         self.append_option(args, "munkiimport_pkgname", "--pkgname")
         self.append_option(args, "munkiimport_appname", "--appname")
 
@@ -251,13 +255,15 @@ class WoodstarMunkiImporter(Processor):
             self.output(line)
         if result.returncode != 0:
             raise ProcessorError(
-                f"creating pkginfo for {pkg_path} failed: {stderr.strip()}"
+                f"creating pkginfo for {pkg_path or 'nopkg item'} failed: "
+                f"{stderr.strip()}"
             )
         try:
             pkginfo = plistlib.loads(result.stdout)
         except (plistlib.InvalidFileException, ValueError) as err:
             raise ProcessorError(
-                f"makepkginfo returned invalid plist for {pkg_path}: {err}"
+                f"makepkginfo returned invalid plist for "
+                f"{pkg_path or 'nopkg item'}: {err}"
             ) from err
         return self.apply_pkginfo_inputs(pkginfo)
 

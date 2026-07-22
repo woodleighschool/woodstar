@@ -26,7 +26,6 @@ class WoodstarClient:
             }
         )
         self.upload_session = requests.Session()
-        self.upload_session.verify = verify
 
     def get(self, path, query=None):
         return self.request("GET", path, query=query)
