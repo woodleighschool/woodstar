@@ -2,6 +2,10 @@
 
 Self-hosted macOS management for the gaps Intune leaves: Munki for software and patching, Santa for what's allowed to run, and osquery for inventory. Built at Woodleigh to fill the holes after moving Mac management from Jamf to Intune.
 
+> [!WARNING]
+> This project may be unstable or have bugs, use with caution.
+> Also expect breaking changes between releases for now.
+
 ## Quick start
 
 ```bash
