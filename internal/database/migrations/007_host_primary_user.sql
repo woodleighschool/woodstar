@@ -3,8 +3,6 @@
 CREATE TYPE host_primary_user_source AS ENUM ('manual', 'orbit_profile');
 
 CREATE INDEX users_lower_email_idx ON users (lower(email));
-CREATE INDEX users_lower_upn_idx ON users (lower(user_principal_name))
-    WHERE user_principal_name IS NOT NULL;
 
 CREATE TABLE host_primary_user_sources (
     id BIGSERIAL PRIMARY KEY,

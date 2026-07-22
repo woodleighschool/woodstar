@@ -502,13 +502,13 @@ resolved AS (
 		FROM users u
 		WHERE u.deleted_at IS NULL
 		  AND (
-			lower(u.email) = lower(p.email)
+			u.email = p.email
 			OR (
 				u.user_principal_name IS NOT NULL
-				AND lower(u.user_principal_name) = lower(p.email)
+				AND u.user_principal_name = p.email
 			)
 		  )
-		ORDER BY CASE WHEN lower(u.email) = lower(p.email) THEN 0 ELSE 1 END, u.id
+		ORDER BY CASE WHEN u.email = p.email THEN 0 ELSE 1 END, u.id
 		LIMIT 1
 	) u ON true
 )`

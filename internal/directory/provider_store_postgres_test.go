@@ -17,7 +17,7 @@ func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
 	service := newTestUserService(store)
 
 	upnOwner, err := service.Create(ctx, UserCreate{
-		Email:    "upn-owner@example.test",
+		Email:    "UPN.Owner@Example.TEST",
 		Name:     "UPN Owner",
 		Role:     RoleViewer,
 		Password: "correct-password",
@@ -26,7 +26,7 @@ func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
 		t.Fatalf("create UPN owner: %v", err)
 	}
 	mailOwner, err := service.Create(ctx, UserCreate{
-		Email:    "mail-owner@example.test",
+		Email:    "Mail.Owner@Example.TEST",
 		Name:     "Mail Owner",
 		Role:     RoleViewer,
 		Password: "correct-password",
