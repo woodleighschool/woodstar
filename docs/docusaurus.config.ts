@@ -192,7 +192,6 @@ const config: Config = {
           items: [{ label: "Repository", href: "https://github.com/woodleighschool/woodstar" }],
         },
       ],
-      copyright: `Copyright ${new Date().getFullYear()} Woodleigh School`,
     },
     prism: {
       theme: lightCodeTheme,
