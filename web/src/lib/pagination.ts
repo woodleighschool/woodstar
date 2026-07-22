@@ -5,6 +5,8 @@ export const DEFAULT_PAGE_SIZE = 50;
 // Upper bound for "fetch everything" reads (pickers, reorder, label maps).
 export const MAX_PAGE_SIZE = 1000;
 
+export const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 500, MAX_PAGE_SIZE] as const;
+
 export function normalizePage(value: number | undefined): number {
   return Number.isSafeInteger(value) && value !== undefined && value > 0 ? value : 1;
 }
