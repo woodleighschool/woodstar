@@ -45,11 +45,11 @@ func resourceError(
 	return handlerError(ctx, logger, operation, resourceMutationError(resource, err), attrs...)
 }
 
-// resourceMutationError translates store errors into resource-shaped HTTP errors.
+// resourceMutationError translates store errors into HTTP errors.
 func resourceMutationError(resource string, err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrNotFound):
-		return huma.Error404NotFound(resource + " not found")
+		return huma.Error404NotFound("")
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict(resource + " already exists")
 	case errors.Is(err, dbutil.ErrConflict):

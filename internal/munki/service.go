@@ -42,7 +42,7 @@ type objectResolver interface {
 }
 
 type clientResourcesResolver interface {
-	Get(ctx context.Context) (*clientresources.ClientResources, error)
+	GetByID(ctx context.Context, id int64) (*clientresources.ClientResources, error)
 }
 
 // RepositoryService renders the Munki client-facing repository surface.
@@ -222,7 +222,7 @@ func (s *RepositoryService) ResolveIconFile(
 	return obj, nil
 }
 
-// ResolveClientResources resolves a configured archive for Munki's host-specific
+// ResolveClientResources resolves the configured archive for Munki's host-specific
 // request or its site_default.zip fallback.
 func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (storage.Object, error) {
 	if name != "site_default.zip" {
@@ -234,7 +234,8 @@ func (s *RepositoryService) ResolveClientResources(ctx context.Context, name str
 			return storage.Object{}, err
 		}
 	}
-	resource, err := s.deps.ClientResources.Get(ctx)
+	const effectiveClientResourcesID int64 = 1
+	resource, err := s.deps.ClientResources.GetByID(ctx, effectiveClientResourcesID)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return storage.Object{}, ErrNotFound
 	}

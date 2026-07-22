@@ -283,6 +283,18 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		pkg.InstallerFile.Sha256 != installerSHA256 {
 		t.Fatalf("created package = %+v, want finalized installer version", pkg)
 	}
+	initialResources, err := server.Admin.ListMunkiClientResourcesWithResponse(t.Context(), nil)
+	initialResources = requireAPIResponse(
+		t,
+		"list undeployed client resources",
+		http.StatusOK,
+		initialResources,
+		err,
+	)
+	if initialResources.JSON200 == nil || initialResources.JSON200.Count != 0 ||
+		len(initialResources.JSON200.Items) != 0 {
+		t.Fatalf("initial client resources = %+v, want empty page", initialResources.JSON200)
+	}
 
 	bannerBytes, err := base64.StdEncoding.DecodeString(tinyPNGBase64)
 	if err != nil {
@@ -346,25 +358,28 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		Label:  "Updates",
 		Target: "munki://updates",
 	}}
-	savedResources, err := server.Admin.UpdateMunkiClientResourcesBuilderWithResponse(
+	builder := adminapi.MunkiBuilder{
+		BannerObjectId: bannerTarget.ObjectId,
+		BannerFit:      "cover",
+		BannerFocalX:   50,
+		Links:          links,
+		FooterText:     "Managed by Woodstar",
+		FooterLinks:    footerLinks,
+	}
+	savedResources, err := server.Admin.CreateMunkiClientResourcesWithResponse(
 		t.Context(),
-		adminapi.MunkiBuilder{
-			BannerObjectId: bannerTarget.ObjectId,
-			BannerFit:      "cover",
-			BannerFocalX:   50,
-			Links:          links,
-			FooterText:     "Managed by Woodstar",
-			FooterLinks:    footerLinks,
+		adminapi.MunkiClientResourcesMutation{
+			Builder: &builder,
 		},
 	)
-	savedResources = requireAPIResponse(t, "save client resources", http.StatusOK, savedResources, err)
-	if savedResources.JSON200 == nil {
-		t.Fatal("save client resources returned no JSON body")
+	savedResources = requireAPIResponse(t, "create client resources", http.StatusCreated, savedResources, err)
+	if savedResources.JSON201 == nil {
+		t.Fatal("create client resources returned no JSON body")
 	}
-	clientResources := *savedResources.JSON200
+	clientResources := *savedResources.JSON201
 	bannerSum := sha256.Sum256(bannerBytes)
 	bannerSHA256 := hex.EncodeToString(bannerSum[:])
-	if clientResources.Custom || clientResources.Builder == nil {
+	if clientResources.Id != 1 || clientResources.Custom || clientResources.Builder == nil {
 		t.Fatal("saved client resources returned no builder state")
 	}
 	if clientResources.Builder.Banner.Id != bannerTarget.ObjectId ||
@@ -400,7 +415,23 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		rereadSoftware.Targets.Include[0].Actions[0] != "managed_installs" {
 		t.Fatalf("re-read software = %+v, want saved package and all-hosts target", rereadSoftware)
 	}
-	rereadResourcesResponse, err := server.Admin.GetMunkiClientResourcesWithResponse(t.Context())
+	listedResourcesResponse, err := server.Admin.ListMunkiClientResourcesWithResponse(t.Context(), nil)
+	listedResourcesResponse = requireAPIResponse(
+		t,
+		"list client resources",
+		http.StatusOK,
+		listedResourcesResponse,
+		err,
+	)
+	if listedResourcesResponse.JSON200 == nil || listedResourcesResponse.JSON200.Count != 1 ||
+		len(listedResourcesResponse.JSON200.Items) != 1 ||
+		listedResourcesResponse.JSON200.Items[0].Id != clientResources.Id {
+		t.Fatalf("listed client resources = %+v, want only ID 1", listedResourcesResponse.JSON200)
+	}
+	rereadResourcesResponse, err := server.Admin.GetMunkiClientResourcesWithResponse(
+		t.Context(),
+		clientResources.Id,
+	)
 	rereadResourcesResponse = requireAPIResponse(
 		t,
 		"get client resources",
@@ -684,28 +715,29 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("archive upload status = %d, want %d", archiveUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	publishedArchive, err := server.Admin.PublishMunkiClientResourcesArchiveWithResponse(
+	updatedArchive, err := server.Admin.UpdateMunkiClientResourcesWithResponse(
 		t.Context(),
-		adminapi.ClientResourcesArchivePutInputBody{ObjectId: archiveTarget.ObjectId},
+		clientResources.Id,
+		adminapi.MunkiClientResourcesMutation{ArchiveObjectId: new(archiveTarget.ObjectId)},
 	)
-	publishedArchive = requireAPIResponse(
+	updatedArchive = requireAPIResponse(
 		t,
-		"publish client resources archive",
+		"update client resources archive",
 		http.StatusOK,
-		publishedArchive,
+		updatedArchive,
 		err,
 	)
-	if publishedArchive.JSON200 == nil {
-		t.Fatal("publish client resources archive returned no JSON body")
+	if updatedArchive.JSON200 == nil {
+		t.Fatal("update client resources archive returned no JSON body")
 	}
-	uploadedResources := *publishedArchive.JSON200
+	uploadedResources := *updatedArchive.JSON200
 	if !uploadedResources.Custom || uploadedResources.Builder == nil ||
 		uploadedResources.Builder.Banner.Id != bannerTarget.ObjectId ||
 		uploadedResources.Archive.Id != archiveTarget.ObjectId ||
 		uploadedResources.Archive.Filename != "school-resources.zip" ||
 		uploadedResources.Archive.SizeBytes == nil ||
 		*uploadedResources.Archive.SizeBytes != int64(len(uploadedArchiveBytes)) {
-		t.Fatalf("published uploaded client resources = %+v", uploadedResources)
+		t.Fatalf("uploaded client resources = %+v", uploadedResources)
 	}
 
 	uploadedAdminResponse := getResponse(
@@ -758,28 +790,22 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		)
 	}
 
-	republishedBuilder, err := server.Admin.UpdateMunkiClientResourcesBuilderWithResponse(
+	rebuiltBuilder, err := server.Admin.UpdateMunkiClientResourcesWithResponse(
 		t.Context(),
-		adminapi.MunkiBuilder{
-			BannerObjectId: bannerTarget.ObjectId,
-			BannerFit:      "cover",
-			BannerFocalX:   50,
-			Links:          links,
-			FooterText:     "Managed by Woodstar",
-			FooterLinks:    footerLinks,
-		},
+		clientResources.Id,
+		adminapi.MunkiClientResourcesMutation{Builder: &builder},
 	)
-	republishedBuilder = requireAPIResponse(
+	rebuiltBuilder = requireAPIResponse(
 		t,
-		"republish retained client resources builder",
+		"rebuild retained client resources builder",
 		http.StatusOK,
-		republishedBuilder,
+		rebuiltBuilder,
 		err,
 	)
-	if republishedBuilder.JSON200 == nil || republishedBuilder.JSON200.Custom ||
-		republishedBuilder.JSON200.Builder == nil ||
-		republishedBuilder.JSON200.Builder.Banner.Id != bannerTarget.ObjectId {
-		t.Fatalf("republished builder client resources = %+v", republishedBuilder.JSON200)
+	if rebuiltBuilder.JSON200 == nil || rebuiltBuilder.JSON200.Custom ||
+		rebuiltBuilder.JSON200.Builder == nil ||
+		rebuiltBuilder.JSON200.Builder.Banner.Id != bannerTarget.ObjectId {
+		t.Fatalf("rebuilt client resources = %+v", rebuiltBuilder.JSON200)
 	}
 	replacedArchiveResponse := getResponse(
 		t,
@@ -791,10 +817,41 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("replaced custom archive status = %d, want 404", replacedArchiveResponse.StatusCode)
 	}
 
-	deletedResources, err := server.Admin.DeleteMunkiClientResourcesWithResponse(t.Context())
+	deletedResources, err := server.Admin.DeleteMunkiClientResourcesWithResponse(
+		t.Context(),
+		clientResources.Id,
+	)
 	requireAPIResponse(t, "undeploy client resources", http.StatusNoContent, deletedResources, err)
-	undeployedResources, err := server.Admin.GetMunkiClientResourcesWithResponse(t.Context())
-	requireAPIResponse(t, "get undeployed client resources", http.StatusNotFound, undeployedResources, err)
+	undeployedResources, err := server.Admin.ListMunkiClientResourcesWithResponse(t.Context(), nil)
+	undeployedResources = requireAPIResponse(
+		t,
+		"list undeployed client resources",
+		http.StatusOK,
+		undeployedResources,
+		err,
+	)
+	if undeployedResources.JSON200 == nil || undeployedResources.JSON200.Count != 0 ||
+		len(undeployedResources.JSON200.Items) != 0 {
+		t.Fatalf("undeployed client resources = %+v, want empty page", undeployedResources.JSON200)
+	}
+	missingResources, err := server.Admin.GetMunkiClientResourcesWithResponse(
+		t.Context(),
+		clientResources.Id,
+	)
+	missingResources = requireAPIResponse(
+		t,
+		"get deleted client resources",
+		http.StatusNotFound,
+		missingResources,
+		err,
+	)
+	if missingResources.ApplicationproblemJSON404 == nil ||
+		missingResources.ApplicationproblemJSON404.Detail != nil {
+		t.Fatalf(
+			"deleted client resources error = %+v, want 404 without detail",
+			missingResources.ApplicationproblemJSON404,
+		)
+	}
 
 	undeployedRequest, err := http.NewRequestWithContext(
 		t.Context(),

@@ -18,10 +18,11 @@ output-options:
     - create-label
     - create-munki-client-resources-banner-upload
     - create-munki-client-resources-archive-upload
+    - create-munki-client-resources
     - delete-munki-client-resources
     - get-munki-client-resources
-    - publish-munki-client-resources-archive
-    - update-munki-client-resources-builder
+    - list-munki-client-resources
+    - update-munki-client-resources
     - create-munki-distribution-point
     - get-munki-distribution-point
     - create-munki-package-installer-upload

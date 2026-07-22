@@ -61,8 +61,9 @@ type Builder struct {
 	FooterLinks    []Link    `json:"footer_links"               maxItems:"12"`
 }
 
-// ClientResources is the deployed archive and its optional builder state.
+// ClientResources is one deployed archive and its optional retained builder state.
 type ClientResources struct {
+	ID              int64     `json:"id"`
 	ArchiveObjectID int64     `json:"-"`
 	Custom          bool      `json:"custom"`
 	Builder         *Builder  `json:"-"`
@@ -70,10 +71,31 @@ type ClientResources struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-type storedBuilder struct {
-	Builder
+// ClientResourcesMutation selects either builder-generated or uploaded client resources.
+type ClientResourcesMutation struct {
+	Builder         *Builder `json:"builder,omitempty"`
+	ArchiveObjectID *int64   `json:"archive_object_id,omitempty" minimum:"1"`
+}
 
-	ArchiveObjectID int64
+func (m *ClientResourcesMutation) normalize() {
+	if m.Builder != nil {
+		m.Builder.normalize()
+	}
+}
+
+func (m *ClientResourcesMutation) validate() error {
+	switch {
+	case m.Builder != nil && m.ArchiveObjectID != nil:
+		return fmt.Errorf("%w: provide builder or archive_object_id, not both", dbutil.ErrInvalidInput)
+	case m.Builder == nil && m.ArchiveObjectID == nil:
+		return fmt.Errorf("%w: builder or archive_object_id is required", dbutil.ErrInvalidInput)
+	case m.ArchiveObjectID != nil && *m.ArchiveObjectID <= 0:
+		return fmt.Errorf("%w: archive_object_id must be positive", dbutil.ErrInvalidInput)
+	case m.Builder != nil:
+		return m.Builder.validate()
+	default:
+		return nil
+	}
 }
 
 func (b *Builder) normalize() {

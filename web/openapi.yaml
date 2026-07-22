@@ -88,16 +88,6 @@ components:
         - organizational_unit
         - common_name
       type: object
-    ClientResourcesArchivePutInputBody:
-      additionalProperties: false
-      properties:
-        object_id:
-          format: int64
-          minimum: 1
-          type: integer
-      required:
-        - object_id
-      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -838,10 +828,14 @@ components:
           type: string
         custom:
           type: boolean
+        id:
+          format: int64
+          type: integer
         updated_at:
           format: date-time
           type: string
       required:
+        - id
         - archive
         - custom
         - created_at
@@ -879,6 +873,16 @@ components:
         - links
         - footer_text
         - footer_links
+      type: object
+    MunkiClientResourcesMutation:
+      additionalProperties: false
+      properties:
+        archive_object_id:
+          format: int64
+          minimum: 1
+          type: integer
+        builder:
+          $ref: "#/components/schemas/MunkiBuilder"
       type: object
     MunkiCreateMutation:
       additionalProperties: false
@@ -2623,6 +2627,20 @@ components:
         - items
         - count
       type: object
+    PageMunkiClientResources:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiClientResources"
+          type: array
+      required:
+        - items
+        - count
+      type: object
     PageMunkiObjectView:
       additionalProperties: false
       properties:
@@ -3877,7 +3895,7 @@ components:
       name: woodstar_session
       type: apiKey
 info:
-  description: Admin API.
+  description: Woodstar JSON API.
   license:
     name: Apache-2.0
   title: Woodstar API
@@ -5357,49 +5375,35 @@ paths:
       tags:
         - Labels
   /api/munki/client-resources:
-    delete:
-      operationId: delete-munki-client-resources
-      responses:
-        "204":
-          description: No Content
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Undeploy client resources
-      tags:
-        - Munki client resources
     get:
-      operationId: get-munki-client-resources
+      operationId: list-munki-client-resources
+      parameters:
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiClientResources"
+                $ref: "#/components/schemas/PageMunkiClientResources"
           description: OK
         "401":
           content:
@@ -5407,39 +5411,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
-        "404":
+        default:
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
+          description: Error
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get client resources
+      summary: List client resources
       tags:
         - Munki client resources
-    put:
-      operationId: update-munki-client-resources-builder
+    post:
+      operationId: create-munki-client-resources
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiBuilder"
+              $ref: "#/components/schemas/MunkiClientResourcesMutation"
         required: true
       responses:
-        "200":
+        "201":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MunkiClientResources"
-          description: OK
+          description: Created
         "400":
           content:
             application/problem+json:
@@ -5464,6 +5462,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
         "422":
           content:
             application/problem+json:
@@ -5479,65 +5483,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Update client resources from the builder
-      tags:
-        - Munki client resources
-  /api/munki/client-resources/archive:
-    put:
-      operationId: publish-munki-client-resources-archive
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ClientResourcesArchivePutInputBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiClientResources"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Publish a client resources archive
+      summary: Create client resources
       tags:
         - Munki client resources
   /api/munki/client-resources/archive-uploads:
@@ -5764,6 +5710,171 @@ paths:
         - cookieAuth: []
         - bearerAuth: []
       summary: Delete a banner upload
+      tags:
+        - Munki client resources
+  /api/munki/client-resources/{id}:
+    delete:
+      operationId: delete-munki-client-resources
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Delete client resources
+      tags:
+        - Munki client resources
+    get:
+      operationId: get-munki-client-resources
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiClientResources"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Get client resources
+      tags:
+        - Munki client resources
+    put:
+      operationId: update-munki-client-resources
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiClientResourcesMutation"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiClientResources"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Update client resources
       tags:
         - Munki client resources
   /api/munki/distribution-points:

@@ -105,6 +105,7 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
 	availableAt := time.Now()
 	resource := &clientresources.ClientResources{
+		ID:              1,
 		ArchiveObjectID: 9,
 	}
 	archive := storage.Object{
@@ -275,7 +276,10 @@ type serviceClientResourcesStore struct {
 	err      error
 }
 
-func (s serviceClientResourcesStore) Get(context.Context) (*clientresources.ClientResources, error) {
+func (s serviceClientResourcesStore) GetByID(
+	context.Context,
+	int64,
+) (*clientresources.ClientResources, error) {
 	return s.resource, s.err
 }
 

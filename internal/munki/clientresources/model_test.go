@@ -1,9 +1,49 @@
 package clientresources
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
+
+func TestClientResourcesMutationRequiresOneSource(t *testing.T) {
+	t.Parallel()
+	archiveObjectID := int64(7)
+	tests := []struct {
+		name     string
+		mutation ClientResourcesMutation
+		wantErr  bool
+	}{
+		{
+			name:     "builder",
+			mutation: ClientResourcesMutation{Builder: &Builder{BannerObjectID: 3, BannerFit: BannerFitHeight}},
+		},
+		{name: "archive", mutation: ClientResourcesMutation{ArchiveObjectID: &archiveObjectID}},
+		{name: "missing", mutation: ClientResourcesMutation{}, wantErr: true},
+		{
+			name: "both",
+			mutation: ClientResourcesMutation{
+				Builder:         &Builder{BannerObjectID: 3, BannerFit: BannerFitHeight},
+				ArchiveObjectID: &archiveObjectID,
+			},
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.mutation.normalize()
+			err := test.mutation.validate()
+			if test.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
+			}
+			if !test.wantErr && err != nil {
+				t.Fatalf("validate(): %v", err)
+			}
+		})
+	}
+}
 
 func TestBuilderValidateLinks(t *testing.T) {
 	t.Parallel()

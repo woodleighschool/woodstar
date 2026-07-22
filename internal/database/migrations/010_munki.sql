@@ -231,22 +231,19 @@ CREATE INDEX munki_distribution_package_states_package_idx
 -- Client resources -----------------------------------------------------------
 
 CREATE TABLE munki_client_resources (
-    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    -- Client resources are limited to ID 1 until multiple targetable resources are supported.
+    id BIGINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     archive_object_id BIGINT NOT NULL
         REFERENCES storage_objects (id) ON DELETE RESTRICT,
     custom BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE munki_client_resource_builders (
-    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton)
-        REFERENCES munki_client_resources (singleton) ON DELETE CASCADE,
-    banner_object_id BIGINT NOT NULL
+    banner_object_id BIGINT
         REFERENCES storage_objects (id) ON DELETE RESTRICT,
-    banner_fit TEXT NOT NULL CHECK (banner_fit IN ('height', 'cover')),
-    banner_focal_x SMALLINT NOT NULL CHECK (banner_focal_x BETWEEN 0 AND 100),
+    banner_fit TEXT NOT NULL DEFAULT 'height' CHECK (banner_fit IN ('height', 'cover')),
+    banner_focal_x SMALLINT NOT NULL DEFAULT 0 CHECK (banner_focal_x BETWEEN 0 AND 100),
     links JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(links) = 'array'),
     footer_text TEXT NOT NULL DEFAULT '',
-    footer_links JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(footer_links) = 'array')
+    footer_links JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(footer_links) = 'array'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (custom OR banner_object_id IS NOT NULL)
 );

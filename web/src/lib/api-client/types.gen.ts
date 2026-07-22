@@ -38,10 +38,6 @@ export type CertificateName = {
     organizational_unit: string;
 };
 
-export type ClientResourcesArchivePutInputBody = {
-    object_id: number;
-};
-
 export type Criteria = {
     attribute: 'user_department' | 'directory_group' | 'user';
     values: Array<string>;
@@ -325,6 +321,7 @@ export type MunkiClientResources = {
     builder?: MunkiClientResourcesBuilder;
     created_at: string;
     custom: boolean;
+    id: number;
     updated_at: string;
 };
 
@@ -335,6 +332,11 @@ export type MunkiClientResourcesBuilder = {
     footer_links: Array<MunkiLink>;
     footer_text: string;
     links: Array<MunkiLink>;
+};
+
+export type MunkiClientResourcesMutation = {
+    archive_object_id?: number;
+    builder?: MunkiBuilder;
 };
 
 export type MunkiCreateMutation = {
@@ -960,6 +962,11 @@ export type PageHostSoftware = {
 export type PageLabel = {
     count: number;
     items: Array<Label>;
+};
+
+export type PageMunkiClientResources = {
+    count: number;
+    items: Array<MunkiClientResources>;
 };
 
 export type PageMunkiObjectView = {
@@ -2516,84 +2523,47 @@ export type UpdateLabelResponses = {
 
 export type UpdateLabelResponse = UpdateLabelResponses[keyof UpdateLabelResponses];
 
-export type DeleteMunkiClientResourcesData = {
+export type ListMunkiClientResourcesData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        page?: number;
+        per_page?: number;
+        sort?: string;
+    };
     url: '/api/munki/client-resources';
 };
 
-export type DeleteMunkiClientResourcesErrors = {
+export type ListMunkiClientResourcesErrors = {
     /**
      * Unauthorized
      */
     401: ErrorModel;
     /**
-     * Forbidden
+     * Error
      */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
+    default: ErrorModel;
 };
 
-export type DeleteMunkiClientResourcesError = DeleteMunkiClientResourcesErrors[keyof DeleteMunkiClientResourcesErrors];
+export type ListMunkiClientResourcesError = ListMunkiClientResourcesErrors[keyof ListMunkiClientResourcesErrors];
 
-export type DeleteMunkiClientResourcesResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteMunkiClientResourcesResponse = DeleteMunkiClientResourcesResponses[keyof DeleteMunkiClientResourcesResponses];
-
-export type GetMunkiClientResourcesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/munki/client-resources';
-};
-
-export type GetMunkiClientResourcesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetMunkiClientResourcesError = GetMunkiClientResourcesErrors[keyof GetMunkiClientResourcesErrors];
-
-export type GetMunkiClientResourcesResponses = {
+export type ListMunkiClientResourcesResponses = {
     /**
      * OK
      */
-    200: MunkiClientResources;
+    200: PageMunkiClientResources;
 };
 
-export type GetMunkiClientResourcesResponse = GetMunkiClientResourcesResponses[keyof GetMunkiClientResourcesResponses];
+export type ListMunkiClientResourcesResponse = ListMunkiClientResourcesResponses[keyof ListMunkiClientResourcesResponses];
 
-export type UpdateMunkiClientResourcesBuilderData = {
-    body: MunkiBuilder;
+export type CreateMunkiClientResourcesData = {
+    body: MunkiClientResourcesMutation;
     path?: never;
     query?: never;
     url: '/api/munki/client-resources';
 };
 
-export type UpdateMunkiClientResourcesBuilderErrors = {
+export type CreateMunkiClientResourcesErrors = {
     /**
      * Bad Request
      */
@@ -2611,50 +2581,9 @@ export type UpdateMunkiClientResourcesBuilderErrors = {
      */
     404: ErrorModel;
     /**
-     * Unprocessable Entity
+     * Conflict
      */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type UpdateMunkiClientResourcesBuilderError = UpdateMunkiClientResourcesBuilderErrors[keyof UpdateMunkiClientResourcesBuilderErrors];
-
-export type UpdateMunkiClientResourcesBuilderResponses = {
-    /**
-     * OK
-     */
-    200: MunkiClientResources;
-};
-
-export type UpdateMunkiClientResourcesBuilderResponse = UpdateMunkiClientResourcesBuilderResponses[keyof UpdateMunkiClientResourcesBuilderResponses];
-
-export type PublishMunkiClientResourcesArchiveData = {
-    body: ClientResourcesArchivePutInputBody;
-    path?: never;
-    query?: never;
-    url: '/api/munki/client-resources/archive';
-};
-
-export type PublishMunkiClientResourcesArchiveErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
+    409: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -2665,16 +2594,16 @@ export type PublishMunkiClientResourcesArchiveErrors = {
     500: ErrorModel;
 };
 
-export type PublishMunkiClientResourcesArchiveError = PublishMunkiClientResourcesArchiveErrors[keyof PublishMunkiClientResourcesArchiveErrors];
+export type CreateMunkiClientResourcesError = CreateMunkiClientResourcesErrors[keyof CreateMunkiClientResourcesErrors];
 
-export type PublishMunkiClientResourcesArchiveResponses = {
+export type CreateMunkiClientResourcesResponses = {
     /**
-     * OK
+     * Created
      */
-    200: MunkiClientResources;
+    201: MunkiClientResources;
 };
 
-export type PublishMunkiClientResourcesArchiveResponse = PublishMunkiClientResourcesArchiveResponses[keyof PublishMunkiClientResourcesArchiveResponses];
+export type CreateMunkiClientResourcesResponse = CreateMunkiClientResourcesResponses[keyof CreateMunkiClientResourcesResponses];
 
 export type CreateMunkiClientResourcesArchiveUploadData = {
     body: MunkiUploadRequest;
@@ -2859,6 +2788,139 @@ export type DeleteMunkiClientResourcesBannerUploadResponses = {
 };
 
 export type DeleteMunkiClientResourcesBannerUploadResponse = DeleteMunkiClientResourcesBannerUploadResponses[keyof DeleteMunkiClientResourcesBannerUploadResponses];
+
+export type DeleteMunkiClientResourcesData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/client-resources/{id}';
+};
+
+export type DeleteMunkiClientResourcesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiClientResourcesError = DeleteMunkiClientResourcesErrors[keyof DeleteMunkiClientResourcesErrors];
+
+export type DeleteMunkiClientResourcesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiClientResourcesResponse = DeleteMunkiClientResourcesResponses[keyof DeleteMunkiClientResourcesResponses];
+
+export type GetMunkiClientResourcesData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/client-resources/{id}';
+};
+
+export type GetMunkiClientResourcesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetMunkiClientResourcesError = GetMunkiClientResourcesErrors[keyof GetMunkiClientResourcesErrors];
+
+export type GetMunkiClientResourcesResponses = {
+    /**
+     * OK
+     */
+    200: MunkiClientResources;
+};
+
+export type GetMunkiClientResourcesResponse = GetMunkiClientResourcesResponses[keyof GetMunkiClientResourcesResponses];
+
+export type UpdateMunkiClientResourcesData = {
+    body: MunkiClientResourcesMutation;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/client-resources/{id}';
+};
+
+export type UpdateMunkiClientResourcesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateMunkiClientResourcesError = UpdateMunkiClientResourcesErrors[keyof UpdateMunkiClientResourcesErrors];
+
+export type UpdateMunkiClientResourcesResponses = {
+    /**
+     * OK
+     */
+    200: MunkiClientResources;
+};
+
+export type UpdateMunkiClientResourcesResponse = UpdateMunkiClientResourcesResponses[keyof UpdateMunkiClientResourcesResponses];
 
 export type ListMunkiDistributionPointsData = {
     body?: never;

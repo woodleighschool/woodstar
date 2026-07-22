@@ -32,13 +32,14 @@ type objectIngestor interface {
 }
 
 type resourceStore interface {
-	Get(ctx context.Context) (*ClientResources, error)
-	PublishBuilder(ctx context.Context, builder storedBuilder) (*ClientResources, error)
-	PublishArchive(ctx context.Context, archiveObjectID int64) (*ClientResources, error)
-	Delete(ctx context.Context) error
+	List(ctx context.Context, params dbutil.ListParams) ([]ClientResources, int, error)
+	GetByID(ctx context.Context, id int64) (*ClientResources, error)
+	Create(ctx context.Context, next clientResourcesWrite) (*ClientResources, error)
+	Update(ctx context.Context, id int64, next clientResourcesWrite) (*ClientResources, error)
+	Delete(ctx context.Context, id int64) error
 }
 
-// Service publishes generated or uploaded client resources archives.
+// Service manages generated or uploaded client resources archives.
 type Service struct {
 	resources resourceStore
 	objects   registry
@@ -55,71 +56,122 @@ func NewService(
 	return &Service{resources: resources, objects: objects, ingestor: ingestor, backend: backend}
 }
 
-func (s *Service) Get(ctx context.Context) (*ClientResources, error) {
-	return s.resources.Get(ctx)
+func (s *Service) List(
+	ctx context.Context,
+	params dbutil.ListParams,
+) ([]ClientResources, int, error) {
+	return s.resources.List(ctx, params)
 }
 
-// SaveBuilder validates builder input, compiles its archive, and deploys it.
-func (s *Service) SaveBuilder(ctx context.Context, builder Builder) (*ClientResources, error) {
-	builder.normalize()
-	if err := builder.validate(); err != nil {
+func (s *Service) GetByID(ctx context.Context, id int64) (*ClientResources, error) {
+	return s.resources.GetByID(ctx, id)
+}
+
+// Create validates and prepares a client resources configuration before storing it.
+func (s *Service) Create(
+	ctx context.Context,
+	mutation ClientResourcesMutation,
+) (*ClientResources, error) {
+	next, cleanup, err := s.prepareWrite(ctx, mutation)
+	if err != nil {
 		return nil, err
 	}
-
-	banner, wasPending, err := s.prepareBanner(ctx, builder.BannerObjectID)
+	resource, err := s.resources.Create(ctx, next)
 	if err != nil {
-		return nil, err
-	}
-	cleanupBanner := func() error {
-		if wasPending {
-			return cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, banner.ID)
-		}
-		return nil
-	}
-
-	bannerBody, err := s.readBanner(ctx, *banner)
-	if err != nil {
-		return nil, errors.Join(err, cleanupBanner())
-	}
-	extension, _ := bannerExtension(banner.ContentType)
-	archiveBody, err := Compile(builder, extension, bannerBody)
-	if err != nil {
-		return nil, errors.Join(err, cleanupBanner())
-	}
-	archive, err := s.storeArchive(ctx, archiveBody)
-	if err != nil {
-		return nil, errors.Join(err, cleanupBanner())
-	}
-
-	resource, err := s.resources.PublishBuilder(ctx, storedBuilder{
-		Builder:         builder,
-		ArchiveObjectID: archive.ID,
-	})
-	if err != nil {
-		return nil, errors.Join(
-			err,
-			cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID),
-			cleanupBanner(),
-		)
+		return nil, errors.Join(err, cleanup())
 	}
 	return resource, nil
 }
 
-// PublishArchive finalizes and deploys an uploaded archive.
-func (s *Service) PublishArchive(ctx context.Context, objectID int64) (*ClientResources, error) {
-	archive, wasPending, err := s.prepareArchive(ctx, objectID)
+// Update validates and prepares changes to a client resources configuration before storing them.
+func (s *Service) Update(
+	ctx context.Context,
+	id int64,
+	mutation ClientResourcesMutation,
+) (*ClientResources, error) {
+	next, cleanup, err := s.prepareWrite(ctx, mutation)
 	if err != nil {
 		return nil, err
 	}
-	resource, err := s.resources.PublishArchive(ctx, archive.ID)
-	if err != nil && wasPending {
-		err = errors.Join(err, cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID))
+	resource, err := s.resources.Update(ctx, id, next)
+	if err != nil {
+		return nil, errors.Join(err, cleanup())
 	}
-	return resource, err
+	return resource, nil
 }
 
-func (s *Service) Delete(ctx context.Context) error {
-	return s.resources.Delete(ctx)
+func (s *Service) Delete(ctx context.Context, id int64) error {
+	return s.resources.Delete(ctx, id)
+}
+
+func (s *Service) prepareWrite(
+	ctx context.Context,
+	mutation ClientResourcesMutation,
+) (clientResourcesWrite, func() error, error) {
+	mutation.normalize()
+	if err := mutation.validate(); err != nil {
+		return clientResourcesWrite{}, nil, err
+	}
+	if mutation.Builder != nil {
+		return s.prepareBuilderWrite(ctx, *mutation.Builder)
+	}
+	return s.prepareArchiveWrite(ctx, *mutation.ArchiveObjectID)
+}
+
+func (s *Service) prepareBuilderWrite(
+	ctx context.Context,
+	builder Builder,
+) (clientResourcesWrite, func() error, error) {
+	banner, wasPending, err := s.prepareBanner(ctx, builder.BannerObjectID)
+	if err != nil {
+		return clientResourcesWrite{}, nil, err
+	}
+	cleanupBanner := func() error {
+		if !wasPending {
+			return nil
+		}
+		return cleanupUploads(ctx, s.ingestor, BannerObjectPrefix, banner.ID)
+	}
+	bannerBody, err := s.readBanner(ctx, *banner)
+	if err != nil {
+		return clientResourcesWrite{}, nil, errors.Join(err, cleanupBanner())
+	}
+	extension, _ := bannerExtension(banner.ContentType)
+	archiveBody, err := Compile(builder, extension, bannerBody)
+	if err != nil {
+		return clientResourcesWrite{}, nil, errors.Join(err, cleanupBanner())
+	}
+	archive, err := s.storeArchive(ctx, archiveBody)
+	if err != nil {
+		return clientResourcesWrite{}, nil, errors.Join(err, cleanupBanner())
+	}
+	cleanup := func() error {
+		return errors.Join(
+			cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID),
+			cleanupBanner(),
+		)
+	}
+	return clientResourcesWrite{
+		archiveObjectID: archive.ID,
+		builder:         &builder,
+	}, cleanup, nil
+}
+
+func (s *Service) prepareArchiveWrite(
+	ctx context.Context,
+	objectID int64,
+) (clientResourcesWrite, func() error, error) {
+	archive, wasPending, err := s.prepareArchive(ctx, objectID)
+	if err != nil {
+		return clientResourcesWrite{}, nil, err
+	}
+	cleanup := func() error {
+		if !wasPending {
+			return nil
+		}
+		return cleanupUploads(ctx, s.ingestor, ArchiveObjectPrefix, archive.ID)
+	}
+	return clientResourcesWrite{archiveObjectID: archive.ID, custom: true}, cleanup, nil
 }
 
 func (s *Service) prepareBanner(ctx context.Context, objectID int64) (*storage.Object, bool, error) {

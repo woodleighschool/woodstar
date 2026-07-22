@@ -39,6 +39,19 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 	}
 }
 
+func TestResourceMutationErrorOmitsNotFoundDetail(t *testing.T) {
+	t.Parallel()
+
+	mapped := resourceMutationError("Munki client resources", dbutil.ErrNotFound)
+	model, ok := errors.AsType[*huma.ErrorModel](mapped)
+	if !ok {
+		t.Fatalf("error type = %T, want *huma.ErrorModel", mapped)
+	}
+	if model.Detail != "" {
+		t.Fatalf("detail = %q, want empty", model.Detail)
+	}
+}
+
 func TestHandlerErrorLogsInternalErrors(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))

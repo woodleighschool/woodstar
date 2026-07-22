@@ -15,10 +15,18 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestStoreTransitionsBetweenBuilderAndUploadedArchive(t *testing.T) {
+func TestStoreCRUDKeepsEffectiveSingleton(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear CRUD and object lifecycle.
 	db, ctx := testdb.Open(t)
 	objects := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	store := NewStore(db, objects)
+	resources, count, err := store.List(ctx, dbutil.ListParams{})
+	if err != nil {
+		t.Fatalf("List empty: %v", err)
+	}
+	if count != 0 || len(resources) != 0 {
+		t.Fatalf("List empty = %d/%+v, want 0/empty", count, resources)
+	}
+
 	banner := createAvailableObject(t, ctx, db, objects, BannerObjectPrefix, "banner.png", "image/png")
 	generatedArchive := createAvailableObject(
 		t,
@@ -30,26 +38,52 @@ func TestStoreTransitionsBetweenBuilderAndUploadedArchive(t *testing.T) {
 		"application/zip",
 	)
 
-	generated, err := store.PublishBuilder(ctx, storedBuilder{
-		Builder: Builder{
+	generatedWrite := clientResourcesWrite{
+		builder: &Builder{
 			BannerObjectID: banner.ID,
 			BannerFit:      BannerFitCover,
 			BannerFocalX:   50,
 			Links:          []Link{},
 			FooterLinks:    []Link{},
 		},
-		ArchiveObjectID: generatedArchive.ID,
-	})
-	if err != nil {
-		t.Fatalf("PublishBuilder: %v", err)
+		archiveObjectID: generatedArchive.ID,
 	}
-	if generated.ArchiveObjectID != generatedArchive.ID || generated.Custom || generated.Builder == nil {
-		t.Fatalf("published builder resources = %+v", generated)
+	if _, err := db.Pool().Exec(ctx, `
+INSERT INTO munki_client_resources (archive_object_id, custom)
+VALUES ($1, FALSE)`, generatedArchive.ID); err == nil {
+		t.Fatal("insert non-custom client resources without builder succeeded")
+	}
+
+	generated, err := store.Create(ctx, generatedWrite)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if generated.ID != 1 || generated.ArchiveObjectID != generatedArchive.ID ||
+		generated.Custom || generated.Builder == nil {
+		t.Fatalf("generated resources = %+v", generated)
 	}
 	if generated.Builder.BannerObjectID != banner.ID ||
 		generated.Builder.BannerFit != BannerFitCover ||
 		generated.Builder.BannerFocalX != 50 {
-		t.Fatalf("published builder = %+v", generated.Builder)
+		t.Fatalf("generated builder = %+v", generated.Builder)
+	}
+	if _, err := store.Create(ctx, generatedWrite); !errors.Is(err, dbutil.ErrAlreadyExists) {
+		t.Fatalf("second Create error = %v, want ErrAlreadyExists", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+INSERT INTO munki_client_resources (id, archive_object_id, custom, banner_object_id)
+VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
+		t.Fatal("insert client resource ID 2 succeeded")
+	}
+	resources, count, err = store.List(ctx, dbutil.ListParams{})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if count != 1 || len(resources) != 1 || resources[0].ID != 1 {
+		t.Fatalf("List = %d/%+v, want only ID 1", count, resources)
+	}
+	if _, err := store.GetByID(ctx, 2); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("GetByID(2) error = %v, want ErrNotFound", err)
 	}
 
 	uploadedArchive := createAvailableObject(
@@ -61,12 +95,15 @@ func TestStoreTransitionsBetweenBuilderAndUploadedArchive(t *testing.T) {
 		"school-resources.zip",
 		"application/zip",
 	)
-	uploaded, err := store.PublishArchive(ctx, uploadedArchive.ID)
+	uploaded, err := store.Update(ctx, generated.ID, clientResourcesWrite{
+		archiveObjectID: uploadedArchive.ID,
+		custom:          true,
+	})
 	if err != nil {
-		t.Fatalf("PublishArchive: %v", err)
+		t.Fatalf("Update uploaded archive: %v", err)
 	}
 	if uploaded.ArchiveObjectID != uploadedArchive.ID || !uploaded.Custom || uploaded.Builder == nil {
-		t.Fatalf("published uploaded resources = %+v", uploaded)
+		t.Fatalf("uploaded resources = %+v", uploaded)
 	}
 	if uploaded.Builder.BannerObjectID != banner.ID {
 		t.Fatalf("retained builder = %+v, want banner %d", uploaded.Builder, banner.ID)
@@ -87,31 +124,51 @@ func TestStoreTransitionsBetweenBuilderAndUploadedArchive(t *testing.T) {
 		archiveFilename,
 		"application/zip",
 	)
-	rebuilt, err := store.PublishBuilder(ctx, storedBuilder{
-		Builder:         *uploaded.Builder,
-		ArchiveObjectID: rebuiltArchive.ID,
+	rebuilt, err := store.Update(ctx, generated.ID, clientResourcesWrite{
+		builder:         uploaded.Builder,
+		archiveObjectID: rebuiltArchive.ID,
 	})
 	if err != nil {
-		t.Fatalf("republish builder: %v", err)
+		t.Fatalf("rebuild resources: %v", err)
 	}
 	if rebuilt.Custom || rebuilt.Builder == nil || rebuilt.Builder.BannerObjectID != banner.ID {
-		t.Fatalf("republished builder resources = %+v", rebuilt)
+		t.Fatalf("rebuilt resources = %+v", rebuilt)
 	}
 	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get replaced uploaded archive error = %v, want ErrNotFound", err)
 	}
 
-	if err := store.Delete(ctx); err != nil {
+	if err := store.Delete(ctx, generated.ID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if _, err := store.Get(ctx); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("Get after Delete error = %v, want ErrNotFound", err)
+	if _, err := store.GetByID(ctx, generated.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("GetByID after Delete error = %v, want ErrNotFound", err)
 	}
 	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get undeployed archive error = %v, want ErrNotFound", err)
 	}
 	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get undeployed banner error = %v, want ErrNotFound", err)
+	}
+
+	recreatedArchive := createAvailableObject(
+		t,
+		ctx,
+		db,
+		objects,
+		ArchiveObjectPrefix,
+		"recreated.zip",
+		"application/zip",
+	)
+	recreated, err := store.Create(ctx, clientResourcesWrite{
+		archiveObjectID: recreatedArchive.ID,
+		custom:          true,
+	})
+	if err != nil {
+		t.Fatalf("recreate: %v", err)
+	}
+	if recreated.ID != 1 {
+		t.Fatalf("recreated ID = %d, want 1", recreated.ID)
 	}
 }
 

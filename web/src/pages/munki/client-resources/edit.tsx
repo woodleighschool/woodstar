@@ -4,8 +4,8 @@ import { QueryGate } from "@/components/query-gate";
 import {
   useDeleteMunkiClientResources,
   useMunkiClientResources,
-  useSaveMunkiClientResourcesBuilder,
-  useUploadAndPublishMunkiClientResourcesArchive,
+  useSaveMunkiClientResources,
+  useUploadAndSaveMunkiClientResourcesArchive,
   useUploadAndSaveMunkiClientResourcesBanner,
 } from "@/hooks/use-munki-client-resources";
 import type { MunkiClientResources } from "@/lib/api";
@@ -27,16 +27,16 @@ export function MunkiClientResourcesEditPage() {
     );
   }
 
-  const resource = query.data ?? null;
+  const resource = query.data.items[0] ?? null;
   return (
     <MunkiClientResourcesEditForm key={resource?.updated_at ?? "undeployed"} resource={resource} />
   );
 }
 
 function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResources | null }) {
-  const saveBuilder = useSaveMunkiClientResourcesBuilder();
+  const saveResource = useSaveMunkiClientResources();
   const uploadBanner = useUploadAndSaveMunkiClientResourcesBanner();
-  const uploadArchive = useUploadAndPublishMunkiClientResourcesArchive();
+  const uploadArchive = useUploadAndSaveMunkiClientResourcesArchive();
   const undeploy = useDeleteMunkiClientResources();
   const saveBuilderAbort = useRef<AbortController | null>(null);
   const initial = clientResourcesFormFromResource(resource);
@@ -44,7 +44,10 @@ function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResou
   async function save(form: ClientResourcesFormOutput) {
     if (form.custom) {
       if (form.archive_file) {
-        await uploadArchive.upload({ file: form.archive_file });
+        await uploadArchive.upload({
+          file: form.archive_file,
+          clientResourcesID: resource?.id ?? null,
+        });
       }
       return true;
     }
@@ -53,7 +56,11 @@ function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResou
     if (!banner) throw new Error("Validated client resources are missing a banner.");
     const body = clientResourcesBuilderMutation(form);
     if (banner.file) {
-      await uploadBanner.upload({ file: banner.file, body });
+      await uploadBanner.upload({
+        file: banner.file,
+        clientResourcesID: resource?.id ?? null,
+        body,
+      });
       return true;
     }
     if (banner.objectID === null) {
@@ -62,8 +69,9 @@ function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResou
     const abortController = new AbortController();
     saveBuilderAbort.current = abortController;
     try {
-      await saveBuilder.mutateAsync({
-        body: { ...body, banner_object_id: banner.objectID },
+      await saveResource.mutateAsync({
+        clientResourcesID: resource?.id ?? null,
+        body: { builder: { ...body, banner_object_id: banner.objectID } },
         signal: abortController.signal,
       });
     } finally {
@@ -91,10 +99,11 @@ function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResou
         saveBuilderAbort.current?.abort();
       }}
       onUndeploy={async () => {
+        if (resource === null) return;
         uploadArchive.cancel();
         uploadBanner.cancel();
         saveBuilderAbort.current?.abort();
-        await undeploy.mutateAsync();
+        await undeploy.mutateAsync(resource.id);
       }}
     />
   );
