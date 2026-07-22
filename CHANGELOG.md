@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.3.0](https://github.com/woodleighschool/woodstar/compare/0.2.0...0.3.0) (2026-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** Update dependency oxlint-tsgolint (0.25.0 → 7.0.2001) ([#39](https://github.com/woodleighschool/woodstar/issues/39))
+
+### Features
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#38](https://github.com/woodleighschool/woodstar/issues/38)) ([0632fd7](https://github.com/woodleighschool/woodstar/commit/0632fd7f8c5ce2e88f6cfbba9cb6c0bb565fd490))
+* **deps:** Update dependency oxlint-tsgolint (0.25.0 → 7.0.2001) ([#39](https://github.com/woodleighschool/woodstar/issues/39)) ([3babbc5](https://github.com/woodleighschool/woodstar/commit/3babbc513570f22c7e693108dba5298e98001453))
+* **munki:** expose client resources as CRUD ([20233bf](https://github.com/woodleighschool/woodstar/commit/20233bfa9c228624f5effbd2ef363c92cb2887d2))
+
+
+### Bug Fixes
+
+* **autopkg:** allow nopkg and fix ssl cert input ([f7bc94a](https://github.com/woodleighschool/woodstar/commit/f7bc94a7521671c3ec2e57ba6d2ea2832cf45495))
+* **deps:** update dependency react (19.2.7 → 19.2.8) ([#41](https://github.com/woodleighschool/woodstar/issues/41)) ([056ccc6](https://github.com/woodleighschool/woodstar/commit/056ccc6eaefdfe91cf9ccc9844f2758cd2415902))
+* **deps:** update dependency react-dom (19.2.7 → 19.2.8) ([#42](https://github.com/woodleighschool/woodstar/issues/42)) ([1328fe6](https://github.com/woodleighschool/woodstar/commit/1328fe644cfdbe5b832b1c5b5b74a572f7b97268))
+* **storage:** upload directly to object keys ([e9e8758](https://github.com/woodleighschool/woodstar/commit/e9e875829b93f176252aa645b6d1761761605705))
+* **web:** restore larger page size options ([de8d9d4](https://github.com/woodleighschool/woodstar/commit/de8d9d4219b72f84423cf17b97e67a1cc6b8764e))
+* **web:** truncate long table paths ([df36036](https://github.com/woodleighschool/woodstar/commit/df3603634147898741d71a24d4389b5993e205bd))
+
+
+### Documentation
+
+* deploy site to GitHub Pages ([2d4e1f9](https://github.com/woodleighschool/woodstar/commit/2d4e1f98d73243eb504e82ca679ddaf36255d45f))
+* link to published site ([34f2e58](https://github.com/woodleighschool/woodstar/commit/34f2e589f582fe6b1f10e2476f310d9dc878951b))
+* remove footer copyright ([90e2fef](https://github.com/woodleighschool/woodstar/commit/90e2fef418499fb5fd6b46779d43566f92bf5fb1))
+
+
+### Code Refactoring
+
+* **handlers:** remove missing message parameters from host state registration ([451aadf](https://github.com/woodleighschool/woodstar/commit/451aadf61617deec6ec21836e2e9e13184db333b))
+
 ## [0.2.0](https://github.com/woodleighschool/woodstar/compare/v0.1.8...0.2.0) (2026-07-22)
 
 
