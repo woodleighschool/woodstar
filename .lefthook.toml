@@ -14,3 +14,6 @@ exclude = ["**/pnpm-lock.yaml", "web/openapi.yaml"]
 
 [pre-commit.commands.format-json]
 exclude = ["schema/osquery_fleet_schema.json"]
+
+[commit-msg.commands.commitlint]
+run = "commitlint --default-config --edit {1}"

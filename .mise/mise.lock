@@ -83,6 +83,10 @@ url = "https://nodejs.org/dist/v26.5.0/node-v26.5.0-linux-x64.tar.gz"
 checksum = "sha256:ee920559aaa2391569cff4d737e3b83963430e3a14dedd91bfe0ff53171b5af9"
 url = "https://nodejs.org/dist/v26.5.0/node-v26.5.0-darwin-arm64.tar.gz"
 
+[[tools."npm:@commitlint/cli"]]
+version = "21.2.1"
+backend = "npm:@commitlint/cli"
+
 [[tools.oxfmt]]
 version = "0.59.0"
 backend = "npm:oxfmt"

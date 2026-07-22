@@ -10,6 +10,7 @@ lefthook = "2.1.10"
 zizmor = "1.27.0"
 oxfmt = "0.59.0"
 oxlint = "1.74.0"
+"npm:@commitlint/cli" = "21.2.1"
 mkcert = "1.4.4"
 
 [settings]
