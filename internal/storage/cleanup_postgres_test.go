@@ -25,8 +25,8 @@ func TestUploadCleanupRemovesAbandonedDirectUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin direct upload: %v", err)
 	}
-	if err := backend.Put(ctx, stagingKey(object.ID), strings.NewReader("partial"), PutOptions{}); err != nil {
-		t.Fatalf("write staged bytes: %v", err)
+	if err := backend.Put(ctx, object.Key(), strings.NewReader("partial"), PutOptions{}); err != nil {
+		t.Fatalf("write pending bytes: %v", err)
 	}
 	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
 
@@ -35,8 +35,8 @@ func TestUploadCleanupRemovesAbandonedDirectUpload(t *testing.T) {
 	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get expired upload error = %v, want ErrNotFound", err)
 	}
-	if _, _, err := backend.Open(ctx, stagingKey(object.ID)); !errors.Is(err, ErrObjectNotFound) {
-		t.Fatalf("open staged bytes error = %v, want ErrObjectNotFound", err)
+	if _, _, err := backend.Open(ctx, object.Key()); !errors.Is(err, ErrObjectNotFound) {
+		t.Fatalf("open pending bytes error = %v, want ErrObjectNotFound", err)
 	}
 	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 0)
 }
@@ -50,8 +50,8 @@ func TestUploadCleanupLeavesRecentPendingUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin direct upload: %v", err)
 	}
-	if err := backend.Put(ctx, stagingKey(object.ID), strings.NewReader("partial"), PutOptions{}); err != nil {
-		t.Fatalf("write staged bytes: %v", err)
+	if err := backend.Put(ctx, object.Key(), strings.NewReader("partial"), PutOptions{}); err != nil {
+		t.Fatalf("write pending bytes: %v", err)
 	}
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
@@ -59,9 +59,9 @@ func TestUploadCleanupLeavesRecentPendingUpload(t *testing.T) {
 	if _, err := objects.GetByID(ctx, object.ID); err != nil {
 		t.Fatalf("get recent upload: %v", err)
 	}
-	reader, _, err := backend.Open(ctx, stagingKey(object.ID))
+	reader, _, err := backend.Open(ctx, object.Key())
 	if err != nil {
-		t.Fatalf("open recent staged bytes: %v", err)
+		t.Fatalf("open recent pending bytes: %v", err)
 	}
 	if err := reader.Close(); err != nil {
 		t.Fatalf("close recent staged bytes: %v", err)
@@ -70,13 +70,13 @@ func TestUploadCleanupLeavesRecentPendingUpload(t *testing.T) {
 
 func TestUploadCleanupDoesNotClaimInFlightFinalization(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	moveStarted := make(chan struct{})
-	releaseMove := make(chan struct{})
-	defer close(releaseMove)
-	backend := &blockingMoveBackend{
+	openStarted := make(chan struct{})
+	releaseOpen := make(chan struct{})
+	defer close(releaseOpen)
+	backend := &blockingOpenBackend{
 		Backend:     newTestBackend(t),
-		moveStarted: moveStarted,
-		releaseMove: releaseMove,
+		openStarted: openStarted,
+		releaseOpen: releaseOpen,
 	}
 	objects := NewObjectStore(db, backend, testLogger())
 	ingestor := NewIngestor(objects, backend)
@@ -84,8 +84,8 @@ func TestUploadCleanupDoesNotClaimInFlightFinalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin direct upload: %v", err)
 	}
-	if err := backend.Put(ctx, stagingKey(object.ID), strings.NewReader("complete"), PutOptions{}); err != nil {
-		t.Fatalf("write staged bytes: %v", err)
+	if err := backend.Put(ctx, object.Key(), strings.NewReader("complete"), PutOptions{}); err != nil {
+		t.Fatalf("write pending bytes: %v", err)
 	}
 	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
 
@@ -94,14 +94,14 @@ func TestUploadCleanupDoesNotClaimInFlightFinalization(t *testing.T) {
 		_, err := ingestor.Finalize(ctx, object.ID, object.Prefix)
 		finalized <- err
 	}()
-	<-moveStarted
+	<-openStarted
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 	if _, err := objects.GetByID(ctx, object.ID); err != nil {
 		t.Errorf("get in-flight upload: %v", err)
 	}
 
-	releaseMove <- struct{}{}
+	releaseOpen <- struct{}{}
 	if err := <-finalized; err != nil {
 		t.Fatalf("finalize upload: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestUploadCleanupRetriesMultipartFailure(t *testing.T) {
 		t.Fatalf("record multipart upload: %v", err)
 	}
 	if err := backend.Put(ctx, object.Key(), strings.NewReader("assembled"), PutOptions{}); err != nil {
-		t.Fatalf("write canonical bytes: %v", err)
+		t.Fatalf("write object bytes: %v", err)
 	}
 	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
 
@@ -146,7 +146,7 @@ func TestUploadCleanupRetriesMultipartFailure(t *testing.T) {
 		t.Fatalf("multipart abort calls = %d, want 2", backend.abortCalls.Load())
 	}
 	if _, _, err := backend.Open(ctx, object.Key()); !errors.Is(err, ErrObjectNotFound) {
-		t.Fatalf("open canonical bytes error = %v, want ErrObjectNotFound", err)
+		t.Fatalf("open object bytes error = %v, want ErrObjectNotFound", err)
 	}
 }
 
@@ -274,25 +274,20 @@ type multipartCleanupBackend struct {
 	abortCalls atomic.Int32
 }
 
-type blockingMoveBackend struct {
+type blockingOpenBackend struct {
 	Backend
 
-	moveStarted chan struct{}
-	releaseMove chan struct{}
+	openStarted chan struct{}
+	releaseOpen chan struct{}
 }
 
-func (b *blockingMoveBackend) Move(
-	ctx context.Context,
-	sourceKey string,
-	destinationKey string,
-	opts PutOptions,
-) error {
-	close(b.moveStarted)
+func (b *blockingOpenBackend) Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error) {
+	close(b.openStarted)
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
-	case <-b.releaseMove:
-		return b.Backend.Move(ctx, sourceKey, destinationKey, opts)
+		return nil, ObjectInfo{}, ctx.Err()
+	case <-b.releaseOpen:
+		return b.Backend.Open(ctx, key)
 	}
 }
 

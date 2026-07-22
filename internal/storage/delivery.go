@@ -13,7 +13,7 @@ const (
 	deliveryRedirect
 )
 
-// Deliverer sends an authorized canonical object to an HTTP client.
+// Deliverer sends an authorized storage object to an HTTP client.
 type Deliverer interface {
 	Deliver(w http.ResponseWriter, r *http.Request, object Object, opts DeliveryOptions) error
 }
@@ -24,7 +24,7 @@ type DeliveryOptions struct {
 	CacheControl string
 }
 
-// Delivery applies backend-specific HTTP transfer policy to canonical objects.
+// Delivery applies backend-specific HTTP transfer policy to storage objects.
 type Delivery struct {
 	backend Backend
 }

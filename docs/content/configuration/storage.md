@@ -30,7 +30,7 @@ Installer-backed packages use one installer-first lifecycle:
 
 A `pkg` or `copy_from_dmg` package cannot be persisted without its finalized installer. A `nopkg` package has no installer object. Packages are therefore available to catalogs and targeting as soon as they exist; there is no separate eligibility or availability switch.
 
-On `file`, upload is one raw `PUT` to a Woodstar URL. The file backend has no multipart operations. On `s3`, files up to 100 MiB use the existing presigned single `PUT`; larger browser uploads use S3 multipart upload and presigned part `PUT`s. Multipart completion assembles bytes at the immutable canonical object key, then normal finalization streams that object once through Woodstar to calculate Munki's whole-file SHA-256. A multipart ETag is never used as `installer_item_hash`.
+On `file`, upload is one raw `PUT` to a Woodstar URL. The file backend has no multipart operations. On `s3`, files up to 100 MiB use the existing presigned single `PUT`; larger browser uploads use S3 multipart upload and presigned part `PUT`s. Multipart completion assembles the object, then finalization streams it once through Woodstar to calculate Munki's whole-file SHA-256. A multipart ETag is never used as `installer_item_hash`.
 
 Canceling an upload aborts an open S3 multipart upload and removes the unclaimed object. Configure the bucket's incomplete-multipart lifecycle rule for abandoned uploads that never reach explicit cancellation.
 

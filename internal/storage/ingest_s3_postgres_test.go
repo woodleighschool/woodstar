@@ -19,13 +19,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) {
+func TestS3MultipartRetryUsesRecordedUploadAndCompletedObject(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	const body = "whole installer bytes"
 	var mu sync.Mutex
 	createRequests := 0
 	completeRequests := 0
-	canonicalExists := false
+	objectExists := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		switch {
@@ -40,7 +40,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 		case r.Method == http.MethodPost && r.URL.Query().Get("uploadId") == "upload-1":
 			mu.Lock()
 			completeRequests++
-			canonicalExists = true
+			objectExists = true
 			mu.Unlock()
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(
@@ -49,7 +49,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 			)
 		case r.Method == http.MethodGet:
 			mu.Lock()
-			exists := canonicalExists
+			exists := objectExists
 			mu.Unlock()
 			if !exists {
 				w.WriteHeader(http.StatusNotFound)
@@ -111,7 +111,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 	if err := uploads.CompleteMultipart(ctx, object.ID, packages.ObjectPrefix, []storage.CompletedPart{
 		{PartNumber: 1, ETag: `"etag-1"`},
 	}); err != nil {
-		t.Fatalf("complete missing upload with canonical object: %v", err)
+		t.Fatalf("complete multipart upload: %v", err)
 	}
 	mu.Lock()
 	gotCompleteRequests := completeRequests
@@ -127,7 +127,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCanonicalCompletion(t *testing.T) 
 
 	finalized, err := uploads.Finalize(ctx, object.ID, packages.ObjectPrefix)
 	if err != nil {
-		t.Fatalf("finalize canonical multipart object: %v", err)
+		t.Fatalf("finalize multipart object: %v", err)
 	}
 	wantHash := sha256.Sum256([]byte(body))
 	if finalized.SHA256 == nil || *finalized.SHA256 != hex.EncodeToString(wantHash[:]) {

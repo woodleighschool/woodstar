@@ -170,10 +170,8 @@ func (s *Ingestor) deleteExpiredUpload(ctx context.Context, object *Object) erro
 			return fmt.Errorf("abort multipart upload for %q: %w", object.Key(), err)
 		}
 	}
-	for _, key := range []string{stagingKey(object.ID), object.Key()} {
-		if err := s.backend.Delete(ctx, key); err != nil {
-			return fmt.Errorf("delete %q: %w", key, err)
-		}
+	if err := s.backend.Delete(ctx, object.Key()); err != nil {
+		return fmt.Errorf("delete %q: %w", object.Key(), err)
 	}
 	return s.objects.deleteExpiredPending(ctx, object.ID)
 }

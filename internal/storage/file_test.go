@@ -62,7 +62,7 @@ func TestNewBackendRequiresPositiveTransferTTL(t *testing.T) {
 	}
 }
 
-func TestFileStoreDeliversCanonicalObjectDirectly(t *testing.T) {
+func TestFileStoreDeliversObjectDirectly(t *testing.T) {
 	t.Parallel()
 	store := newTestFileStore(t)
 	sha256sum := strings.Repeat("a", 64)

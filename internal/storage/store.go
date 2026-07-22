@@ -37,7 +37,6 @@ type Backend interface {
 	Store
 	Presigner
 	transferRouteRegistrar
-	Move(ctx context.Context, sourceKey, destinationKey string, opts PutOptions) error
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 	TransferOrigin() string
 	deliveryMode() deliveryMode

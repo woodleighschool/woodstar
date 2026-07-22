@@ -33,20 +33,11 @@ func Run(t *testing.T, backend storage.Backend) {
 	}
 	assertObject(t, backend, key, overwritten)
 
-	destinationKey := "contract/moved object with spaces.bin"
-	if err := backend.Move(ctx, key, destinationKey, storage.PutOptions{
-		ContentType: "application/x-woodstar-moved",
-	}); err != nil {
-		t.Fatalf("move object: %v", err)
-	}
-	assertObject(t, backend, destinationKey, overwritten)
-	assertMissing(t, backend, key)
-
-	if err := backend.Delete(ctx, destinationKey); err != nil {
+	if err := backend.Delete(ctx, key); err != nil {
 		t.Fatalf("delete object: %v", err)
 	}
-	assertMissing(t, backend, destinationKey)
-	if err := backend.Delete(ctx, destinationKey); err != nil {
+	assertMissing(t, backend, key)
+	if err := backend.Delete(ctx, key); err != nil {
 		t.Fatalf("delete absent object: %v", err)
 	}
 

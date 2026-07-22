@@ -134,34 +134,6 @@ func (s *fileStore) Put(_ context.Context, key string, r io.Reader, _ PutOptions
 	return nil
 }
 
-func (s *fileStore) Move(
-	_ context.Context,
-	sourceKey string,
-	destinationKey string,
-	_ PutOptions,
-) error {
-	sourcePath, err := s.resolve(sourceKey)
-	if err != nil {
-		return err
-	}
-	destinationPath, err := s.resolve(destinationKey)
-	if err != nil {
-		return err
-	}
-	// #nosec G703 -- both paths come from resolve, which keeps them under root.
-	if err := os.MkdirAll(filepath.Dir(destinationPath), 0o750); err != nil {
-		return fmt.Errorf("create dir for %q: %w", destinationKey, err)
-	}
-	// #nosec G703 -- both paths come from resolve, which keeps them under root.
-	if err := os.Rename(sourcePath, destinationPath); errors.Is(err, os.ErrNotExist) {
-		return ErrObjectNotFound
-	} else if err != nil {
-		return fmt.Errorf("move %q to %q: %w", sourceKey, destinationKey, err)
-	}
-	_ = os.Remove(filepath.Dir(sourcePath))
-	return nil
-}
-
 func (s *fileStore) Delete(_ context.Context, key string) error {
 	path, err := s.resolve(key)
 	if err != nil {

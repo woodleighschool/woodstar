@@ -15,10 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-const stagingPrefix = ".staging/"
-
-// Ingestor owns the complete lifecycle from temporary upload bytes to a
-// classified, immutable object in the registry.
+// Ingestor reserves, uploads, classifies, and finalizes storage objects.
 type Ingestor struct {
 	objects *ObjectStore
 	backend Backend
@@ -30,7 +27,7 @@ type MultipartUpload struct {
 	Key      string
 }
 
-// UploadAction is the backend-selected action for landing an object's bytes.
+// UploadAction is the backend-selected action for uploading an object's bytes.
 type UploadAction interface {
 	isUploadAction()
 }
@@ -63,14 +60,14 @@ func (s *Ingestor) Begin(
 		return nil, nil, err
 	}
 
-	action, err := s.backend.beginUpload(ctx, stagingKey(object.ID))
+	action, err := s.backend.beginUpload(ctx, object.Key())
 	if err != nil {
 		return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
 	return object, action, nil
 }
 
-// BeginDirect reserves an object and returns a direct target for its temporary bytes.
+// BeginDirect reserves an object and returns its direct upload target.
 func (s *Ingestor) BeginDirect(
 	ctx context.Context,
 	prefix string,
@@ -80,7 +77,7 @@ func (s *Ingestor) BeginDirect(
 	if err != nil {
 		return nil, UploadTarget{}, err
 	}
-	target, err := s.backend.PresignPut(ctx, stagingKey(object.ID), 0)
+	target, err := s.backend.PresignPut(ctx, object.Key(), 0)
 	if err != nil {
 		return nil, UploadTarget{}, errors.Join(err, s.Delete(ctx, object.ID, prefix))
 	}
@@ -121,7 +118,7 @@ func (s *Ingestor) Write(
 	return available, nil
 }
 
-// Finalize classifies and hashes landed bytes, then commits the canonical object.
+// Finalize classifies and hashes uploaded bytes, then marks the object available.
 func (s *Ingestor) Finalize(
 	ctx context.Context,
 	objectID int64,
@@ -145,36 +142,9 @@ func (s *Ingestor) Finalize(
 		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", dbutil.ErrInvalidInput)
 	}
 
-	sourceKey := object.Key()
-	metadata, err := s.inspect(ctx, sourceKey)
-	if errors.Is(err, ErrObjectNotFound) {
-		sourceKey = stagingKey(object.ID)
-		metadata, err = s.inspect(ctx, sourceKey)
-	}
+	metadata, err := s.inspect(ctx, object.Key())
 	if err != nil {
 		return nil, err
-	}
-	if sourceKey != object.Key() {
-		moveErr := s.backend.Move(
-			ctx,
-			sourceKey,
-			object.Key(),
-			PutOptions{ContentType: metadata.contentType},
-		)
-		if moveErr != nil && !errors.Is(moveErr, ErrObjectNotFound) {
-			return nil, moveErr
-		}
-		canonicalMetadata, err := s.inspect(ctx, object.Key())
-		if err != nil {
-			return nil, err
-		}
-		if canonicalMetadata != metadata {
-			return nil, errors.Join(
-				fmt.Errorf("%w: uploaded object changed during finalization", dbutil.ErrInvalidInput),
-				s.Delete(ctx, object.ID, prefix),
-			)
-		}
-		metadata = canonicalMetadata
 	}
 	return s.objects.MarkAvailable(
 		ctx,
@@ -198,11 +168,11 @@ func (s *Ingestor) CreateMultipart(
 	if object.MultipartUploadID != nil {
 		return MultipartUpload{UploadID: *object.MultipartUploadID, Key: object.Key()}, nil
 	}
-	canonicalExists, err := s.canonicalObjectExists(ctx, object.Key())
+	objectExists, err := s.objectExists(ctx, object.Key())
 	if err != nil {
 		return MultipartUpload{}, err
 	}
-	if canonicalExists {
+	if objectExists {
 		return MultipartUpload{}, fmt.Errorf(
 			"%w: multipart upload is already completed and ready to finalize",
 			dbutil.ErrInvalidInput,
@@ -245,7 +215,7 @@ func (s *Ingestor) PresignMultipartPart(
 	return backend.PresignMultipartPart(ctx, object.Key(), *object.MultipartUploadID, partNumber, 0)
 }
 
-// CompleteMultipart assembles uploaded parts at the canonical object key.
+// CompleteMultipart assembles uploaded parts at the object's storage key.
 func (s *Ingestor) CompleteMultipart(
 	ctx context.Context,
 	objectID int64,
@@ -260,7 +230,7 @@ func (s *Ingestor) CompleteMultipart(
 		return err
 	}
 	if object.MultipartUploadID == nil {
-		exists, existsErr := s.canonicalObjectExists(ctx, object.Key())
+		exists, existsErr := s.objectExists(ctx, object.Key())
 		if existsErr != nil {
 			return existsErr
 		}
@@ -272,7 +242,7 @@ func (s *Ingestor) CompleteMultipart(
 	uploadID := *object.MultipartUploadID
 	err = backend.CompleteMultipartUpload(ctx, object.Key(), uploadID, parts)
 	if errors.Is(err, ErrMultipartUploadNotFound) {
-		exists, existsErr := s.canonicalObjectExists(ctx, object.Key())
+		exists, existsErr := s.objectExists(ctx, object.Key())
 		if existsErr != nil {
 			return existsErr
 		}
@@ -285,7 +255,7 @@ func (s *Ingestor) CompleteMultipart(
 	return s.objects.ClearMultipartUploadID(ctx, object.ID, uploadID)
 }
 
-// Delete removes a pending upload or a canonical object under prefix.
+// Delete removes an object under prefix and aborts its multipart upload, if any.
 func (s *Ingestor) Delete(ctx context.Context, objectID int64, prefix string) error {
 	object, err := s.objects.GetByID(ctx, objectID)
 	if err != nil {
@@ -311,9 +281,8 @@ func (s *Ingestor) Delete(ctx context.Context, objectID int64, prefix string) er
 		}
 	}
 	if !object.Available() {
-		key := stagingKey(object.ID)
-		if err := s.backend.Delete(ctx, key); err != nil {
-			return fmt.Errorf("delete %q: %w", key, err)
+		if err := s.backend.Delete(ctx, object.Key()); err != nil {
+			return fmt.Errorf("delete %q: %w", object.Key(), err)
 		}
 	}
 	return s.objects.Delete(ctx, object.ID)
@@ -353,7 +322,7 @@ func (s *Ingestor) multipartBackend() (MultipartBackend, error) {
 	return backend, nil
 }
 
-func (s *Ingestor) canonicalObjectExists(ctx context.Context, key string) (bool, error) {
+func (s *Ingestor) objectExists(ctx context.Context, key string) (bool, error) {
 	reader, _, err := s.backend.Open(ctx, key)
 	if errors.Is(err, ErrObjectNotFound) {
 		return false, nil
@@ -420,10 +389,6 @@ func (s *Ingestor) inspect(ctx context.Context, key string) (objectMetadata, err
 		contentType: detected.String(),
 		sha256:      hex.EncodeToString(hash.Sum(nil)),
 	}, nil
-}
-
-func stagingKey(objectID int64) string {
-	return fmt.Sprintf("%s%d", stagingPrefix, objectID)
 }
 
 type byteCount int64

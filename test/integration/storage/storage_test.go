@@ -60,51 +60,9 @@ func TestS3StorageBackend(t *testing.T) {
 	t.Run("presigned", func(t *testing.T) {
 		testS3PresignedTransfers(t, backend, endpoint)
 	})
-	t.Run("move content type", func(t *testing.T) {
-		testS3MoveContentType(t, backend, endpoint)
-	})
 	t.Run("multipart", func(t *testing.T) {
 		testS3MultipartTransfers(t, backend, endpoint)
 	})
-}
-
-func testS3MoveContentType(t *testing.T, backend storage.Backend, endpoint string) {
-	t.Helper()
-
-	const movedContentType = "application/x-woodstar-moved"
-	client := &http.Client{Timeout: storageRequestTimeout}
-	sourceKey := "move/source object with spaces.bin"
-	destinationKey := "move/destination object with spaces.bin"
-	want := []byte("bytes moved inside S3")
-	if err := backend.Put(t.Context(), sourceKey, bytes.NewReader(want), storage.PutOptions{
-		ContentType: "application/x-woodstar-source",
-	}); err != nil {
-		t.Fatalf("put move source: %v", err)
-	}
-	if err := backend.Move(t.Context(), sourceKey, destinationKey, storage.PutOptions{
-		ContentType: movedContentType,
-	}); err != nil {
-		t.Fatalf("move S3 object: %v", err)
-	}
-	assertStorageObjectMissing(t, backend, sourceKey)
-
-	getURL, err := backend.PresignGet(t.Context(), destinationKey, time.Minute, storage.GetOptions{})
-	if err != nil {
-		t.Fatalf("presign moved object: %v", err)
-	}
-	assertPresignedEndpoint(t, getURL, endpoint)
-	response := getS3URL(t, client, getURL)
-	defer func() { _ = response.Body.Close() }()
-	if got := response.Header.Get("Content-Type"); got != movedContentType {
-		t.Fatalf("moved object content type = %q, want %q", got, movedContentType)
-	}
-	got, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Fatalf("read moved object: %v", err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("moved object bytes = %q, want %q", got, want)
-	}
 }
 
 func testS3PresignedTransfers(t *testing.T, backend storage.Backend, endpoint string) {

@@ -240,7 +240,7 @@ func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
 	return &obj, nil
 }
 
-// ETag returns the canonical HTTP entity tag for an available object.
+// ETag returns the SHA-256 entity tag for an available object.
 func (o Object) ETag() string {
 	if o.SHA256 == nil || *o.SHA256 == "" {
 		return ""
