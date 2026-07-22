@@ -1,0 +1,73 @@
+# Changelog
+
+## [0.2.0](https://github.com/woodleighschool/woodstar/compare/v0.1.8...0.2.0) (2026-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** Update Node.js (v20.20.2 → v24.18.0) ([#29](https://github.com/woodleighschool/woodstar/issues/29))
+
+### Features
+
+* **auth:** manage users through the CLI ([ab0e433](https://github.com/woodleighschool/woodstar/commit/ab0e4331c3e0856a2b9e78a9f0b9e7816bcc328b))
+* **auth:** replace setup with configured administrator ([d34bdb1](https://github.com/woodleighschool/woodstar/commit/d34bdb1565484efc2b729c25a0b23d06048403e6))
+* **autopkg:** upload Munki items directly ([8e42906](https://github.com/woodleighschool/woodstar/commit/8e42906440daac89adf36facc9d0bff2b7cc0e72))
+* **cli:** run server from root command ([6989b42](https://github.com/woodleighschool/woodstar/commit/6989b422bc3cb2cefdfa2ed59718b934a814c069))
+* **deps:** update module github.com/testcontainers/testcontainers-go (v0.42.0 → v0.43.0) ([#10](https://github.com/woodleighschool/woodstar/issues/10)) ([5646226](https://github.com/woodleighschool/woodstar/commit/5646226c2a152d0d5538e0abcde16a6d33bbd028))
+* **deps:** update node.js (v20.0.0 → v20.20.2) ([#11](https://github.com/woodleighschool/woodstar/issues/11)) ([1cb8280](https://github.com/woodleighschool/woodstar/commit/1cb8280ba2967f38f94f956ce36a0c6381983adf))
+* **deps:** Update Node.js (v20.20.2 → v24.18.0) ([#29](https://github.com/woodleighschool/woodstar/issues/29)) ([f3628f1](https://github.com/woodleighschool/woodstar/commit/f3628f1b9d24ae5a454860dfedb112911af2b789))
+* **munki:** nest software in package models ([81d77be](https://github.com/woodleighschool/woodstar/commit/81d77be99d93b66d0452d9398f0792b40ded5920))
+* **munki:** support custom client resources ([8be3acc](https://github.com/woodleighschool/woodstar/commit/8be3acce1ce179bb4c7a45c4b6f7e40594087283))
+* **storage:** own object transfer lifecycle ([3720b78](https://github.com/woodleighschool/woodstar/commit/3720b787101b391ab8ef56bb3a89b3f54fc7678f))
+* **web:** unify software icon rendering ([77f904e](https://github.com/woodleighschool/woodstar/commit/77f904e98afbfb39ccda6ebcf6e56caa211ea801))
+
+
+### Bug Fixes
+
+* **api:** enforce generated client contracts ([6c67ef5](https://github.com/woodleighschool/woodstar/commit/6c67ef5b2e46a77172cf0e8afc14ddf84ee791b5))
+* **auth:** rate limit password login ([2e10b19](https://github.com/woodleighschool/woodstar/commit/2e10b19455986adc11fc1b3d6dd5d140fac8f1fc))
+* **autopkg:** batch package cleanup ([bd28822](https://github.com/woodleighschool/woodstar/commit/bd28822ac82cc16379329a489e88543bb3c4d19e))
+* **autopkg:** use icon upload endpoint ([57ddebe](https://github.com/woodleighschool/woodstar/commit/57ddebe0edb4f28065ffd34780548caffc8ae9da))
+* **container:** update image golang (1.26.4 → 1.26.5) ([#1](https://github.com/woodleighschool/woodstar/issues/1)) ([31d7a3b](https://github.com/woodleighschool/woodstar/commit/31d7a3b849bcdeebb0f1a007a49f0dd5fbfa09f7))
+* **dbutil:** normalize JSON slice encoding ([c9a7418](https://github.com/woodleighschool/woodstar/commit/c9a74183dfc193fc0b42638726f6a876ba8d1f15))
+* **deps:** update dependency sass (1.101.0 → 1.101.3) ([#37](https://github.com/woodleighschool/woodstar/issues/37)) ([0d11c26](https://github.com/woodleighschool/woodstar/commit/0d11c26f354c547ae1de271cf85e4509099aa240))
+* **deps:** update dependency shadcn (4.13.0 → 4.13.1) ([#24](https://github.com/woodleighschool/woodstar/issues/24)) ([b9a0e9e](https://github.com/woodleighschool/woodstar/commit/b9a0e9e536bb33c3de97aeb50826912c7857e9d2))
+* **deps:** update dependency vite (8.1.4 → 8.1.5) ([#2](https://github.com/woodleighschool/woodstar/issues/2)) ([f40a3b5](https://github.com/woodleighschool/woodstar/commit/f40a3b59993f8d3483ca19d2489b8d7daf600a82))
+* **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260715141808-2e443f37a544.1 → v1.36.11-20260716230937-b90c682e2e73.1) ([#3](https://github.com/woodleighschool/woodstar/issues/3)) ([f77c7fc](https://github.com/woodleighschool/woodstar/commit/f77c7fc5b9c90cf43c1ed41539342606e68e0b28))
+* **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260716230937-b90c682e2e73.1 → v1.36.11-20260721180550-e61e39a61420.1) ([#34](https://github.com/woodleighschool/woodstar/issues/34)) ([bdc8f87](https://github.com/woodleighschool/woodstar/commit/bdc8f87c056708d76d7767490f39ee60477dfd50))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 (v1.105.1 → v1.105.2) ([#4](https://github.com/woodleighschool/woodstar/issues/4)) ([e9b1fe6](https://github.com/woodleighschool/woodstar/commit/e9b1fe627da40c14f6083ba3d1b4ee77b1d19e46))
+* **deps:** update module github.com/aws/smithy-go (v1.27.3 → v1.27.4) ([#5](https://github.com/woodleighschool/woodstar/issues/5)) ([8c68758](https://github.com/woodleighschool/woodstar/commit/8c68758e813bffe27135e500a44dfd5304ae2163))
+* **deps:** update pnpm (11.13.0 → 11.13.1) ([#6](https://github.com/woodleighschool/woodstar/issues/6)) ([abaf46e](https://github.com/woodleighschool/woodstar/commit/abaf46e57edd9a015101c72864054f5a74a41bca))
+* **deps:** update pnpm (11.15.0 → 11.15.1) ([#27](https://github.com/woodleighschool/woodstar/issues/27)) ([3e5acf3](https://github.com/woodleighschool/woodstar/commit/3e5acf370bdcc988b52f0aeaaec06ed2953429ed))
+* **deps:** update tailwindcss monorepo (4.3.2 → 4.3.3) ([#7](https://github.com/woodleighschool/woodstar/issues/7)) ([a892001](https://github.com/woodleighschool/woodstar/commit/a89200106fee738cf993d24dbb2d3644d25134de))
+* **deps:** update tanstack-query monorepo (5.101.2 → 5.101.4) ([#36](https://github.com/woodleighschool/woodstar/issues/36)) ([6caf0dc](https://github.com/woodleighschool/woodstar/commit/6caf0dc5bcabbda34ad868af0cde2fb04cdd1c64))
+* **directory:** preserve identity casing ([61eef26](https://github.com/woodleighschool/woodstar/commit/61eef265036cdb07c1bbbe0b5afd34ef1862ac46))
+* **munki:** align software and package forms ([0f9e9e8](https://github.com/woodleighschool/woodstar/commit/0f9e9e89a14f002fed339ea7822f35b483e09925))
+* **munki:** make upload strategy contracts total ([441f102](https://github.com/woodleighschool/woodstar/commit/441f102e9a79bc8179f7bcd46711d7a969d294de))
+* **munki:** refresh software-backed projections ([5d9bd7c](https://github.com/woodleighschool/woodstar/commit/5d9bd7c7b38ed831db4fc7b790afe5283a6ed7ba))
+* **persistence:** own cleanup and label refresh lifecycles ([1388e08](https://github.com/woodleighschool/woodstar/commit/1388e0874ce8c6c499663618aee81ec4f19981a3))
+* **santa:** preserve unsigned sync values ([574eb7d](https://github.com/woodleighschool/woodstar/commit/574eb7d950d4c112a09c1bb9e5b4508d0ea5b8df))
+* **security:** enforce browser response policy ([f99c9d9](https://github.com/woodleighschool/woodstar/commit/f99c9d9f9eba2743650ba962cced41f70e62b160))
+* **storage:** own transfer capability keys ([38b0e59](https://github.com/woodleighschool/woodstar/commit/38b0e599452b234e2754670609063fd367c8b7af))
+* **storage:** simplify object cleanup ([7bef771](https://github.com/woodleighschool/woodstar/commit/7bef771e91a1afcab5538b1400920869e8e926f4))
+* **web:** align API and lint contracts ([59b724e](https://github.com/woodleighschool/woodstar/commit/59b724e5a89da53a7d63dec41a00e173914e46a1))
+* **web:** correct table controls and package fields ([fc7bdda](https://github.com/woodleighschool/woodstar/commit/fc7bddae85def62ef7ac1937da3b6651ada8d901))
+* **web:** derive editor contracts from Zod ([9c7aba1](https://github.com/woodleighschool/woodstar/commit/9c7aba197e775569eacfef5600ee9c27cfab9192))
+* **web:** keep dynamic breadcrumbs live ([b18bddf](https://github.com/woodleighschool/woodstar/commit/b18bddf0520329ed3cd102fbf9b759cf5802c583))
+* **web:** normalize form exit behavior ([3106170](https://github.com/woodleighschool/woodstar/commit/3106170f4855454052650c3bfbde4c5f4905d0e2))
+* **web:** remove discard prompts from dialogs ([f2324cf](https://github.com/woodleighschool/woodstar/commit/f2324cf779c62b5cf0596a1df71eb0c83d1f9cf6))
+* **web:** show spinners for pending actions ([313031e](https://github.com/woodleighschool/woodstar/commit/313031e24828c5d3836d68ae2d746adca62bd6b8))
+* **web:** split editor form responsibilities ([6b7cd13](https://github.com/woodleighschool/woodstar/commit/6b7cd13cadb35f0f5e2828832d9b241ba8fd358f))
+
+
+### Code Refactoring
+
+* **api:** declare route transport policy ([13fc982](https://github.com/woodleighschool/woodstar/commit/13fc982df3dcfdf38cc78d3d090cc1d25fd0e8c2))
+* **api:** normalize admin resource routes ([b15f5fe](https://github.com/woodleighschool/woodstar/commit/b15f5fe61f5e6fd072a7688ff99e6128f61ae899))
+* **api:** simplify server composition ([919c2a9](https://github.com/woodleighschool/woodstar/commit/919c2a9670515f8a82d2806345665314bf988c39))
+* inline trivial wrappers ([b4fa6ee](https://github.com/woodleighschool/woodstar/commit/b4fa6ee4b887e4abda594bdc02f882fefe5a0834))
+* split package files by concern ([249876a](https://github.com/woodleighschool/woodstar/commit/249876ab850150cc000d5b0aa3d637c80c9265f9))
+* **web:** remove remote image decoration ([2b3ece8](https://github.com/woodleighschool/woodstar/commit/2b3ece8a96edfd3a85bc426fa3268b04ac545415))
+* **web:** unify route and query boundaries ([0b12f1a](https://github.com/woodleighschool/woodstar/commit/0b12f1ab2da3f04b525c709aed13fb23f3d1b936))
+* **web:** use system theme only ([11bdbff](https://github.com/woodleighschool/woodstar/commit/11bdbff88f3f6b3f260ad6a76af3b48eb907c57a))
+* **web:** use vendored byte formatter ([5d2cf84](https://github.com/woodleighschool/woodstar/commit/5d2cf84f9c9349e2801c425cb13eae2382f868bd))
