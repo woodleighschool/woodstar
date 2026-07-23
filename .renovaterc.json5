@@ -4,12 +4,8 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   packageRules: [
     {
-      matchManagers: ["npm"],
+      matchManagers: ["npm", "mise"],
       minimumReleaseAge: "12 hours",
-    },
-    {
-      matchManagers: ["mise"],
-      minimumReleaseAge: "24 hours",
     },
   ],
 }

@@ -3,13 +3,13 @@ monorepo_root = true
 [tools]
 go = "1.26.5"
 node = "26.5.0"
-pnpm = "11.15.1"
+pnpm = "11.16.0"
 golangci-lint = "2.12.2"
-air = "1.67.1"
+air = "1.67.2"
 lefthook = "2.1.10"
 zizmor = "1.28.0"
 oxfmt = "0.60.0"
-oxlint = "1.74.0"
+oxlint = "1.75.0"
 "npm:@commitlint/cli" = "21.2.1"
 mkcert = "1.4.4"
 
@@ -17,6 +17,7 @@ mkcert = "1.4.4"
 experimental = true
 pin = true
 lockfile = true
+minimum_release_age = "12 hours"
 
 [monorepo]
 config_roots = ["web", "docs"]
