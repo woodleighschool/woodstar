@@ -30,13 +30,7 @@ export function WoodstarMark({ className, size = "sm" }: WoodstarMarkProps) {
         xmlns="http://www.w3.org/2000/svg"
         fill="currentColor"
         viewBox="0 0 1024 1024"
-        className={cn(
-          `
-            text-primary
-            dark:text-white
-          `,
-          iconClass[size],
-        )}
+        className={iconClass[size]}
       >
         <path d="M512,572c-109-174-88-379,0-572,88,193,109,398,0,572Z" />
         <path d="M566,586c79-166,238-226,396-267-87,130-213,250-396,267Z" />

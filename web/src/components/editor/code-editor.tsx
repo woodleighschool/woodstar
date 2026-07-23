@@ -4,7 +4,7 @@ import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { forwardRef, useMemo, useSyncExternalStore } from "react";
+import { forwardRef, useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -22,17 +22,6 @@ interface CodeEditorProps {
 }
 
 const EMPTY_EXTENSIONS: Extension[] = [];
-const DARK_MODE_QUERY = "(prefers-color-scheme: dark)";
-
-function subscribeToColorScheme(onChange: () => void) {
-  const media = window.matchMedia(DARK_MODE_QUERY);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-
-function prefersDarkMode() {
-  return window.matchMedia(DARK_MODE_QUERY).matches;
-}
 
 const editorCompletionKeymap = Prec.highest(
   keymap.of([
@@ -118,23 +107,13 @@ const surfaceTheme = EditorView.theme({
   ".cm-diagnostic-info": { borderLeftColor: "var(--info)" },
 });
 
-const lightHighlight = HighlightStyle.define([
-  { tag: t.keyword, color: "var(--primary)", fontWeight: "600" },
-  { tag: t.string, color: "oklch(0.43 0.08 130)" },
-  { tag: t.number, color: "oklch(0.45 0.11 55)" },
+const syntaxHighlight = HighlightStyle.define([
+  { tag: t.keyword, color: "var(--code-keyword)", fontWeight: "600" },
+  { tag: t.string, color: "var(--code-string)" },
+  { tag: t.number, color: "var(--code-number)" },
   { tag: t.comment, color: "var(--muted-foreground)", fontStyle: "italic" },
   { tag: t.operator, color: "var(--foreground)" },
-  { tag: [t.typeName, t.className], color: "oklch(0.42 0.09 235)" },
-  { tag: t.variableName, color: "var(--foreground)" },
-]);
-
-const darkHighlight = HighlightStyle.define([
-  { tag: t.keyword, color: "oklch(0.8 0.08 150)", fontWeight: "600" },
-  { tag: t.string, color: "oklch(0.78 0.09 130)" },
-  { tag: t.number, color: "oklch(0.78 0.11 70)" },
-  { tag: t.comment, color: "var(--muted-foreground)", fontStyle: "italic" },
-  { tag: t.operator, color: "var(--foreground)" },
-  { tag: [t.typeName, t.className], color: "oklch(0.78 0.08 235)" },
+  { tag: [t.typeName, t.className], color: "var(--code-type)" },
   { tag: t.variableName, color: "var(--foreground)" },
 ]);
 
@@ -153,16 +132,15 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
   },
   ref,
 ) {
-  const isDark = useSyncExternalStore(subscribeToColorScheme, prefersDarkMode);
   const editorExtensions = useMemo(
     () => [
       editorCompletionKeymap,
       ...extensions,
       ...(lineWrapping ? [EditorView.lineWrapping] : []),
       surfaceTheme,
-      syntaxHighlighting(isDark ? darkHighlight : lightHighlight),
+      syntaxHighlighting(syntaxHighlight),
     ],
-    [extensions, isDark, lineWrapping],
+    [extensions, lineWrapping],
   );
 
   return (
