@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3](https://github.com/woodleighschool/woodstar/compare/0.3.2...0.3.3) (2026-07-23)
+
+
+### Features
+
+* **release:** ship binaries and MDP worker ([3eaacdb](https://github.com/woodleighschool/woodstar/commit/3eaacdb782522daa09c98083e027c1cd3638dd05))
+
+
+### Code Refactoring
+
+* **web:** make page titles action-oriented ([177c715](https://github.com/woodleighschool/woodstar/commit/177c7154d60062fae8f01f2f076de6937b42252b))
+
 ## [0.3.2](https://github.com/woodleighschool/woodstar/compare/0.3.1...0.3.2) (2026-07-23)
 
 
