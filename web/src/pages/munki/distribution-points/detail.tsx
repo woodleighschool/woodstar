@@ -1,9 +1,11 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -12,14 +14,6 @@ import { QueryGate } from "@/components/query-gate";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useDeleteMunkiDistributionPoint,
@@ -167,52 +161,50 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
         <CardTitle>Packages</CardTitle>
       </CardHeader>
       <CardContent>
-        {packages.length === 0 ? (
-          <EmptyPanel>No mirrored packages.</EmptyPanel>
-        ) : (
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Error</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {packages.map((pkg) => (
-                  <TableRow key={pkg.package_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <SoftwareArtwork src={pkg.software_icon_url} />
-                        <Link
-                          to="/munki/packages/$id/edit"
-                          params={{ id: String(pkg.package_id) }}
-                          className="min-w-0 truncate font-medium underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:decoration-solid"
-                        >
-                          {pkg.name} {pkg.version}
-                        </Link>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <PackageStatusBadge status={pkg.status} />
-                    </TableCell>
-                    <TableCell>{packageErrorText(pkg.error)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <DataTableStatic
+          columns={packageStateColumns}
+          data={packages}
+          empty={<EmptyPanel>No mirrored packages.</EmptyPanel>}
+        />
       </CardContent>
     </Card>
   );
 }
+
+const packageStateColumns: ColumnDef<MunkiPackageState>[] = [
+  {
+    id: "package",
+    header: () => "Package",
+    cell: ({ row }) => (
+      <div className="flex max-w-xl min-w-0 items-center gap-2">
+        <SoftwareArtwork src={row.original.software_icon_url} />
+        <Link
+          to="/munki/packages/$id/edit"
+          params={{ id: String(row.original.package_id) }}
+          className="min-w-0 truncate font-medium"
+        >
+          {row.original.name} {row.original.version}
+        </Link>
+      </div>
+    ),
+  },
+  {
+    id: "status",
+    header: () => "Status",
+    cell: ({ row }) => <PackageStatusBadge status={row.original.status} />,
+  },
+  {
+    id: "error",
+    header: () => "Error",
+    cell: ({ row }) => packageErrorText(row.original.error),
+  },
+];
+
 function packageErrorText(error: string | undefined) {
   if (error === undefined || error === "") {
     return <span className="text-muted-foreground">-</span>;
   }
-  return error;
+  return <span className="block max-w-xl wrap-break-word whitespace-normal">{error}</span>;
 }
 function DeleteDialog({
   open,

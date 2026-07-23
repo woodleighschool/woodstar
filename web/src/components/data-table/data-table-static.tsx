@@ -23,9 +23,9 @@ export function DataTableStatic<TData>({ columns, data, empty }: DataTableStatic
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="max-h-96 overflow-auto rounded-lg border bg-card *:data-[slot=table-container]:overflow-visible">
       <Table>
-        <TableHeader className="bg-muted/40">
+        <TableHeader className="sticky top-0 z-10 bg-muted">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
