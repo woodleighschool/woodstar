@@ -50,11 +50,11 @@ A distribution point is a local cache for package installers. Woodstar continues
 Each point has:
 
 - An HTTPS URL that its Munki clients can resolve and reach.
-- Client CIDRs that define which request source addresses Woodstar redirects to the point.
+- Client source CIDRs that match the address Woodstar derives from each package request.
 - A position used when more than one point matches.
 - A key shown when the point is created or rotated.
 
-A point with no client CIDRs receives no redirects. Use `0.0.0.0/0` and `::/0` for a catch-all.
+A point with no client CIDRs receives no redirects. Use `0.0.0.0/0` and `::/0` for a catch-all. See [how client matching works](../agent-protocols/munki-distribution#how-client-matching-works) before assigning ranges behind a proxy.
 
 The package list shows whether each installer is pending, syncing, current, or in error. Woodstar selects a point only while the worker is online and the requested package is current. Otherwise, the package comes from Woodstar's primary storage.
 

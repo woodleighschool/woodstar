@@ -73,6 +73,7 @@ export const emptyDistributionPointForm: DistributionPointFormState = {
 };
 const DISTRIBUTION_POINT_DOCS_URL =
   "https://woodleighschool.github.io/woodstar/docs/agent-protocols/munki-distribution";
+const CLIENT_MATCHING_DOCS_URL = `${DISTRIBUTION_POINT_DOCS_URL}#how-client-matching-works`;
 export function DistributionPointForm({
   initial,
   title,
@@ -198,7 +199,7 @@ export function DistributionPointForm({
                   className="gap-4 data-[invalid=true]:text-destructive"
                   data-invalid={error ? true : undefined}
                 >
-                  <FieldLegend variant="label">Client CIDRs</FieldLegend>
+                  <FieldLegend variant="label">Client source CIDRs</FieldLegend>
                   <FieldGroup className="gap-2">
                     <StringArrayRows
                       rows={field.state.value}
@@ -217,8 +218,11 @@ export function DistributionPointForm({
                     </Button>
                   </FieldGroup>
                   <FieldDescription>
-                    Clients in these ranges redirect to this distribution point. Empty matches
-                    nothing.
+                    Matches the client IP Woodstar derives for each package request. Review{" "}
+                    <a href={CLIENT_MATCHING_DOCS_URL} target="_blank" rel="noreferrer">
+                      client-IP handling
+                    </a>{" "}
+                    before using these ranges behind a proxy. Empty matches nothing.
                   </FieldDescription>
                   {error ? <FieldError>{error}</FieldError> : null}
                 </FieldSet>

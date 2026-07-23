@@ -30,7 +30,7 @@ Set `WOODSTAR_SESSION_COOKIE_SECURE=false` only for HTTP development. CORS origi
 
 ## Client IP
 
-Woodstar uses the client IP to select a [Munki distribution point](../agent-protocols/munki-distribution). The default reads the connection address. Choose a proxy-aware source when TLS or HTTP terminates elsewhere.
+Woodstar derives a client IP from each package request to select a [Munki distribution point](../agent-protocols/munki-distribution#how-client-matching-works). The default reads the connection address. Choose a proxy-aware source when TLS or HTTP terminates elsewhere.
 
 | Variable                                      | Default       | Description                                                            |
 | --------------------------------------------- | ------------- | ---------------------------------------------------------------------- |
@@ -40,6 +40,8 @@ Woodstar uses the client IP to select a [Munki distribution point](../agent-prot
 | `WOODSTAR_HTTP_CLIENT_IP_HEADER`              | empty         | Trusted header name for `header`                                       |
 
 Each non-default mode requires its matching setting. Use `xff_trusted_cidrs` for known proxy networks, `xff_trusted_proxies` for a fixed proxy chain, or `header` when the proxy supplies a dedicated client-IP header.
+
+Only trust forwarded addresses when the Woodstar origin is restricted to that proxy path and the proxy replaces or sanitizes the selected header. If clients can reach the origin directly, they can otherwise supply a false source address and affect distribution-point selection.
 
 ## Santa event retention
 
