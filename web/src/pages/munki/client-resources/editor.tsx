@@ -69,7 +69,7 @@ export function ClientResourcesEditor({
   bannerUploading: boolean;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-5">
+    <section className="flex w-full max-w-7xl min-w-0 flex-col gap-5">
       <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
         <TriangleAlert />
         <AlertDescription className="block text-current">
@@ -79,13 +79,13 @@ export function ClientResourcesEditor({
       </Alert>
 
       <div className="min-w-0 overflow-x-auto pb-2">
-        <div className="mx-auto max-w-384 min-w-4xl overflow-hidden rounded-2xl border bg-background shadow-sm">
+        <div className="w-full min-w-4xl overflow-hidden rounded-2xl border bg-background shadow-sm">
           <div className="flex">
             <aside className="w-60 shrink-0 border-r bg-muted/45 px-4 py-5">
               <div className="flex h-7 items-center gap-2 px-2" aria-hidden="true">
-                <span className="size-4 rounded-full" style={{ backgroundColor: "#FF605C" }} />
-                <span className="size-4 rounded-full" style={{ backgroundColor: "#FFBD45" }} />
-                <span className="size-4 rounded-full" style={{ backgroundColor: "#00CA4E" }} />
+                <span className="size-4 rounded-full border border-muted-foreground/50" />
+                <span className="size-4 rounded-full border border-muted-foreground/50" />
+                <span className="size-4 rounded-full border border-muted-foreground/50" />
               </div>
 
               <div className="mt-3 flex h-9 items-center gap-2 rounded-lg border bg-background/55 px-3 text-sm text-muted-foreground shadow-inner">
