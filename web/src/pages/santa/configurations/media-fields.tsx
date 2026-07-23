@@ -1,14 +1,14 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
+  FieldTitle,
 } from "@/components/ui/field";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { firstErrorMessage } from "@/lib/form-validation";
 import {
   isSantaMediaAction,
@@ -29,6 +29,7 @@ export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorFo
             {(flagsField) => (
               <MediaActionField
                 id="santa-removable-media"
+                name={actionField.name}
                 label="Removable Media"
                 action={actionField.state.value}
                 flags={flagsField.state.value}
@@ -49,6 +50,7 @@ export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorFo
             {(flagsField) => (
               <MediaActionField
                 id="santa-encrypted-removable-media"
+                name={actionField.name}
                 label="Encrypted Removable Media"
                 action={actionField.state.value}
                 flags={flagsField.state.value}
@@ -69,8 +71,8 @@ export function ConfigurationMediaFields({ form }: { form: ConfigurationEditorFo
 
 function MediaActionField({
   id,
+  name,
   label,
-  description,
   action,
   flags,
   flagsError,
@@ -78,8 +80,8 @@ function MediaActionField({
   onFlagsChange,
 }: {
   id: string;
+  name: string;
   label: string;
-  description?: string;
   action: SantaMediaAction;
   flags: SantaRemountFlag[];
   flagsError?: string;
@@ -87,24 +89,25 @@ function MediaActionField({
   onFlagsChange: (value: SantaRemountFlag[]) => void;
 }) {
   return (
-    <Field data-invalid={flagsError ? true : undefined}>
-      <FieldLabel>{label}</FieldLabel>
-      <ToggleGroup
-        value={[action]}
-        variant="outline"
-        className="flex-wrap"
+    <FieldSet data-invalid={flagsError ? true : undefined}>
+      <FieldLegend variant="label">{label}</FieldLegend>
+      <RadioGroup
+        name={name}
+        value={action}
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
         onValueChange={(value) => {
-          const nextAction = value[0];
-          if (nextAction && isSantaMediaAction(nextAction)) onActionChange(nextAction);
+          if (isSantaMediaAction(value)) onActionChange(value);
         }}
       >
         {MEDIA_ACTION_OPTIONS.map((option) => (
-          <ToggleGroupItem key={option.value} value={option.value}>
-            {option.label}
-          </ToggleGroupItem>
+          <FieldLabel key={option.value} htmlFor={`${id}-${option.value}`}>
+            <Field orientation="horizontal">
+              <RadioGroupItem id={`${id}-${option.value}`} value={option.value} />
+              <FieldTitle>{option.label}</FieldTitle>
+            </Field>
+          </FieldLabel>
         ))}
-      </ToggleGroup>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+      </RadioGroup>
       {action === "remount" ? (
         <FieldSet aria-invalid={flagsError ? true : undefined}>
           <FieldLegend variant="label">
@@ -127,7 +130,7 @@ function MediaActionField({
         </FieldSet>
       ) : null}
       {flagsError ? <FieldError>{flagsError}</FieldError> : null}
-    </Field>
+    </FieldSet>
   );
 }
 

@@ -193,8 +193,8 @@ export function ReportForm({
         </ScrollableTabsList>
 
         <TabsContent value="options" keepMounted className="data-inactive:hidden">
-          <div className="flex max-w-5xl flex-col gap-6">
-            <FieldGroup className="max-w-3xl">
+          <div className="flex max-w-3xl flex-col gap-6">
+            <FieldGroup>
               <form.Field name="name">
                 {(field) => (
                   <FormField field={field} label="Name" htmlFor="report-name" required>

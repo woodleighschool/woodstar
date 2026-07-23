@@ -9,8 +9,19 @@ import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
 import { DerivedSelector, HostSelector } from "@/components/labels/label-membership-selectors";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -20,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { Label, LabelMutation } from "@/lib/api";
@@ -182,10 +192,9 @@ export function LabelForm({
             const isDynamic = values.label_membership_type === "dynamic";
             const isManual = values.label_membership_type === "manual";
             const isDerived = values.label_membership_type === "derived";
-            const memberOption = LABEL_MEMBERSHIP_TYPES[values.label_membership_type];
             return (
               <>
-                <FieldGroup className="max-w-5xl">
+                <FieldGroup className="max-w-3xl">
                   <form.Field name="name">
                     {(field) => (
                       <FormField field={field} label="Name" htmlFor="label-name" required>
@@ -223,30 +232,39 @@ export function LabelForm({
 
                   <form.Field name="label_membership_type">
                     {(field) => (
-                      <Field>
-                        <FieldLabel>Type</FieldLabel>
-                        <ToggleGroup
-                          value={[field.state.value]}
+                      <FieldSet>
+                        <FieldLegend variant="label">Type</FieldLegend>
+                        <RadioGroup
+                          name={field.name}
+                          value={field.state.value}
                           onValueChange={(value) => {
-                            const membershipType = value[0];
-                            if (!isOneOf(membershipType, LABEL_MEMBERSHIP_VALUES)) return;
-                            field.handleChange(membershipType);
-                            if (membershipType !== "dynamic") setSchemaOpen(false);
+                            if (!isOneOf(value, LABEL_MEMBERSHIP_VALUES)) return;
+                            field.handleChange(value);
+                            if (value !== "dynamic") setSchemaOpen(false);
                           }}
-                          variant="outline"
-                          size="sm"
-                          className="flex-wrap"
+                          className="grid gap-2 md:grid-cols-3"
                         >
                           {LABEL_MEMBERSHIP_OPTIONS.map((option) => (
-                            <ToggleGroupItem key={option.value} value={option.value}>
-                              {option.label}
-                            </ToggleGroupItem>
+                            <FieldLabel
+                              key={option.value}
+                              htmlFor={`label-membership-${option.value}`}
+                            >
+                              <Field orientation="horizontal">
+                                <FieldContent>
+                                  <FieldTitle>{option.label}</FieldTitle>
+                                  <FieldDescription>
+                                    {LABEL_MEMBERSHIP_TYPES[option.value].description}
+                                  </FieldDescription>
+                                </FieldContent>
+                                <RadioGroupItem
+                                  id={`label-membership-${option.value}`}
+                                  value={option.value}
+                                />
+                              </Field>
+                            </FieldLabel>
                           ))}
-                        </ToggleGroup>
-                        {memberOption.description ? (
-                          <FieldDescription>{memberOption.description}</FieldDescription>
-                        ) : null}
-                      </Field>
+                        </RadioGroup>
+                      </FieldSet>
                     )}
                   </form.Field>
 
@@ -317,34 +335,31 @@ export function LabelForm({
                       </form.Field>
                     </FieldGroup>
                   ) : null}
-                </FieldGroup>
 
-                {isDynamic ? (
-                  <form.Field name="query">
-                    {(field) => (
-                      <Field
-                        data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                        className="max-w-3xl"
-                      >
-                        <FieldLabel>
-                          Query
-                          <span className="text-destructive" aria-hidden="true">
-                            *
-                          </span>
-                        </FieldLabel>
-                        <SQLEditor
-                          ref={editorRef}
-                          value={field.state.value}
-                          onChange={field.handleChange}
-                          onTableMetaClick={selectSchemaTable}
-                          placeholder="SELECT ..."
-                          invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                        />
-                        <FieldError errors={field.state.meta.errors} />
-                      </Field>
-                    )}
-                  </form.Field>
-                ) : null}
+                  {isDynamic ? (
+                    <form.Field name="query">
+                      {(field) => (
+                        <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
+                          <FieldLabel>
+                            Query
+                            <span className="text-destructive" aria-hidden="true">
+                              *
+                            </span>
+                          </FieldLabel>
+                          <SQLEditor
+                            ref={editorRef}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onTableMetaClick={selectSchemaTable}
+                            placeholder="SELECT ..."
+                            invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          />
+                          <FieldError errors={field.state.meta.errors} />
+                        </Field>
+                      )}
+                    </form.Field>
+                  ) : null}
+                </FieldGroup>
 
                 {isDynamic ? (
                   <SchemaSidebar
@@ -361,7 +376,7 @@ export function LabelForm({
         </form.Subscribe>
 
         <FormActions
-          className="max-w-5xl"
+          className="max-w-3xl"
           form={form}
           submitLabel={submitLabel}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
