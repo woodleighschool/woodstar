@@ -407,7 +407,7 @@ function VersionRow({ title, version }: { title: SoftwareTitle; version: Softwar
         <Link
           to="/hosts"
           search={{ software_title_id: title.id, software_id: version.id }}
-          className="hover:text-primary hover:underline"
+          className="underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:decoration-solid"
         >
           {version.hosts_count}
         </Link>

@@ -188,7 +188,7 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
                         <Link
                           to="/munki/packages/$packageId/edit"
                           params={{ packageId: String(pkg.package_id) }}
-                          className="min-w-0 truncate font-medium hover:underline"
+                          className="min-w-0 truncate font-medium underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:decoration-solid"
                         >
                           {pkg.name} {pkg.version}
                         </Link>

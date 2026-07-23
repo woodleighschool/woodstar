@@ -28,11 +28,17 @@ export function DataTable<TData>({
   ...props
 }: DataTableProps<TData>) {
   return (
-    <div className={cn("flex w-full flex-col gap-2.5 overflow-auto", className)} {...props}>
-      {children}
-      <div className="overflow-hidden rounded-md border">
+    <div
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm",
+        className,
+      )}
+      {...props}
+    >
+      {children ? <div className="border-b p-2">{children}</div> : null}
+      <div className="max-h-[calc(100svh-23rem)] overflow-auto *:data-[slot=table-container]:overflow-visible">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -73,7 +79,7 @@ export function DataTable<TData>({
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
                           type="button"
-                          className="flex size-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          className="flex size-full cursor-pointer items-center justify-between gap-2 text-left underline decoration-dotted underline-offset-4 select-none hover:decoration-solid focus-visible:decoration-solid focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           {content}
@@ -87,7 +93,7 @@ export function DataTable<TData>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="[&_a:not([data-slot=button])]:underline [&_a:not([data-slot=button])]:decoration-dotted [&_a:not([data-slot=button])]:underline-offset-4 [&_a:not([data-slot=button]):focus-visible]:decoration-solid [&_a:not([data-slot=button]):hover]:decoration-solid [&_button:not([data-slot=button])]:underline [&_button:not([data-slot=button])]:decoration-dotted [&_button:not([data-slot=button])]:underline-offset-4 [&_button:not([data-slot=button]):focus-visible]:decoration-solid [&_button:not([data-slot=button]):hover]:decoration-solid">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
@@ -108,7 +114,7 @@ export function DataTable<TData>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} className="border-t px-3 py-2" />
       {actionBar}
     </div>
   );
