@@ -70,11 +70,11 @@ export function ClientResourcesEditor({
 }) {
   return (
     <section className="flex w-full max-w-7xl min-w-0 flex-col gap-5">
-      <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+      <Alert className="border-warning/30 bg-warning/10 text-warning">
         <TriangleAlert />
-        <AlertDescription className="block text-current">
-          <span className="font-medium">Please Note:</span> This web preview provides a close
-          approximation of Managed Software Center.
+        <AlertDescription className="block text-foreground/80">
+          <strong>Please Note:</strong> This web preview provides a close approximation of Managed
+          Software Center.
         </AlertDescription>
       </Alert>
 
@@ -185,7 +185,7 @@ export function ClientResourcesEditor({
                           <footer
                             {...control}
                             tabIndex={-1}
-                            className="relative flex min-h-12 flex-wrap items-center justify-center gap-y-1 border border-dashed border-primary/50 px-10 py-2 text-[11px] text-muted-foreground"
+                            className="relative flex min-h-12 flex-wrap items-center justify-center gap-y-1 rounded-br-2xl border border-dashed border-primary/50 px-10 py-2 text-[11px] text-muted-foreground"
                           >
                             <Editable
                               value={textField.state.value}

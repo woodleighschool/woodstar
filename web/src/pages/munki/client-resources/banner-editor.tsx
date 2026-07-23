@@ -47,7 +47,7 @@ export function BannerEditor({
   return (
     <FileUpload
       key={asset?.url ?? "empty"}
-      className="relative"
+      className="relative overflow-hidden rounded-tr-2xl"
       accept={clientResourceImageAccept}
       maxFiles={1}
       maxSize={clientResourceImageMaxSize}
@@ -77,7 +77,7 @@ export function BannerEditor({
 
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 border border-dashed border-primary/50"
+            className="pointer-events-none absolute inset-0 rounded-tr-2xl border border-dashed border-primary/50"
           />
 
           <div className="absolute top-2 right-2 flex items-center gap-2">
@@ -126,7 +126,7 @@ export function BannerEditor({
           </div>
         </div>
       ) : (
-        <FileUploadDropzone className="group h-[200px] min-h-0 rounded-none border-0 bg-muted/50 p-4 data-invalid:ring-0">
+        <FileUploadDropzone className="group h-[200px] min-h-0 rounded-tr-2xl border-0 bg-muted/50 p-4 data-invalid:ring-0">
           <div className="flex size-10 items-center justify-center rounded-full border bg-background">
             <ImageIcon className="size-5 text-muted-foreground" />
           </div>
@@ -142,7 +142,7 @@ export function BannerEditor({
           <p className="text-xs text-muted-foreground">5 MB max</p>
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"
+            className="pointer-events-none absolute inset-0 rounded-tr-2xl border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"
           />
         </FileUploadDropzone>
       )}

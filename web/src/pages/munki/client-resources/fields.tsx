@@ -100,9 +100,21 @@ export function MunkiClientResourcesForm({
             context={<DeploymentBadge deployed={deployed} />}
             actions={
               <>
+                {deployed ? (
+                  <PendingButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    isPending={undeploying}
+                    disabled={submitting}
+                    icon={<CloudOff data-icon="inline-start" />}
+                    onClick={() => setConfirmUndeploy(true)}
+                  >
+                    Undeploy
+                  </PendingButton>
+                ) : null}
                 <Button
                   type="button"
-                  variant="secondary"
                   size="sm"
                   disabled={submitting || undeploying}
                   onClick={() => form.setFieldValue("custom", !custom)}
@@ -114,19 +126,6 @@ export function MunkiClientResourcesForm({
                   )}
                   {custom ? "Use Builder" : "Upload Custom ZIP"}
                 </Button>
-                {deployed ? (
-                  <PendingButton
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    isPending={undeploying}
-                    disabled={submitting}
-                    icon={<CloudOff data-icon="inline-start" />}
-                    onClick={() => setConfirmUndeploy(true)}
-                  >
-                    Undeploy
-                  </PendingButton>
-                ) : null}
               </>
             }
           />
