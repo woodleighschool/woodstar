@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.2](https://github.com/woodleighschool/woodstar/compare/0.3.1...0.3.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* **autopkg:** upload packages with curl ([ee2b2dd](https://github.com/woodleighschool/woodstar/commit/ee2b2dd91a97c52be22708377670e6e3e36eec5b))
+* **web:** compose Santa event tabs as links ([c680ae3](https://github.com/woodleighschool/woodstar/commit/c680ae3738624f7e0dd4f18dc684d83f56c78ae3))
+* **web:** correct checkbox disabled state ([b5fa648](https://github.com/woodleighschool/woodstar/commit/b5fa648d760e7a862e4a06cc75ad5fd4d855598b))
+* **web:** keep table pagination from submitting forms ([9150852](https://github.com/woodleighschool/woodstar/commit/915085263f166d248b1725d22fb49bf5133a4ceb))
+
+
+### Code Refactoring
+
+* **labels:** use shared data table ([317de9c](https://github.com/woodleighschool/woodstar/commit/317de9c2ca78c99f958910c9c3f8eef30a1daef2))
+* **web:** use the native sidebar shell ([b78a65c](https://github.com/woodleighschool/woodstar/commit/b78a65cef2f2f749d36f440c9194933ade0db432))
+
 ## [0.3.1](https://github.com/woodleighschool/woodstar/compare/0.3.0...0.3.1) (2026-07-23)
 
 
