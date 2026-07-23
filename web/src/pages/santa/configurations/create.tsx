@@ -17,8 +17,8 @@ export function ConfigurationCreatePage() {
       onSuccess={(id) => {
         if (id !== undefined) {
           void navigate({
-            to: "/santa/configurations/$configurationId",
-            params: { configurationId: String(id) },
+            to: "/santa/configurations/$id",
+            params: { id: String(id) },
           });
         }
       }}

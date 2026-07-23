@@ -257,7 +257,7 @@ export function UserListPage() {
 function userEditLink(userId: number, currentUserId: number | null) {
   return userId === currentUserId
     ? ({ to: "/account" } as const)
-    : ({ to: "/directory/users/$userId/edit", params: { userId: String(userId) } } as const);
+    : ({ to: "/directory/users/$id/edit", params: { id: String(userId) } } as const);
 }
 function UserRowActions({
   user,

@@ -9,7 +9,7 @@ import { ReportForm, reportFromDetail } from "@/pages/osquery/reports/fields";
 export function ReportEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const reportId = params.reportId ?? "";
+  const reportId = params.id ?? "";
   const id = parseRouteID(reportId);
   const detail = useReport(id);
   const update = useUpdateReport(id);
@@ -38,13 +38,13 @@ export function ReportEditPage() {
       title="Edit Report"
       submitLabel="Save"
       resultsReportId={id}
-      headerActions={<LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />}
+      headerActions={<LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />}
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {
           void navigate({
-            to: "/osquery/reports/$reportId",
-            params: { reportId: String(savedID) },
+            to: "/osquery/reports/$id",
+            params: { id: String(savedID) },
           });
         }
       }}

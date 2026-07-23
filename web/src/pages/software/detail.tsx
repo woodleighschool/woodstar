@@ -31,8 +31,8 @@ type ExecutableReference = NonNullable<SantaSoftwareReference["executables"]>[nu
 type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_identities"]>[number];
 type SantaRuleType = SantaRule["rule_type"];
 export function SoftwareDetailPage() {
-  const { softwareId } = useParams({
-    from: "/_authenticated/software/titles/$softwareId",
+  const { id: softwareId } = useParams({
+    from: "/_authenticated/software/titles/$id",
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";

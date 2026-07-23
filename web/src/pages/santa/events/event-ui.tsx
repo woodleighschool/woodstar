@@ -21,11 +21,7 @@ export function FileAccessDecisionBadge({ decision }: { decision: SantaFileAcces
 
 export function HostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link
-      to="/hosts/$hostId"
-      params={{ hostId: String(host.id) }}
-      className="font-medium hover:underline"
-    >
+    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="font-medium hover:underline">
       {host.display_name}
     </Link>
   );

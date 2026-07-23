@@ -5,16 +5,16 @@ import { hostQueryOptions } from "@/lib/queries/hosts";
 import { parseRouteID } from "@/lib/route-params";
 import { HostDetailPage } from "@/pages/hosts/detail";
 
-export const Route = createFileRoute("/_authenticated/hosts/$hostId")({
+export const Route = createFileRoute("/_authenticated/hosts/$id")({
   staticData: { breadcrumb: HostBreadcrumb },
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(hostQueryOptions(parseRouteID(params.hostId)));
+    await context.queryClient.ensureQueryData(hostQueryOptions(parseRouteID(params.id)));
   },
   component: HostDetailPage,
 });
 
 function HostBreadcrumb(): string {
-  const { hostId } = useParams({ from: "/_authenticated/hosts/$hostId" });
-  const { data } = useQuery(hostQueryOptions(parseRouteID(hostId)));
-  return data?.display_name ?? hostId;
+  const { id } = useParams({ from: "/_authenticated/hosts/$id" });
+  const { data } = useQuery(hostQueryOptions(parseRouteID(id)));
+  return data?.display_name ?? id;
 }

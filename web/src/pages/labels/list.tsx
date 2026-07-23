@@ -43,8 +43,8 @@ interface LabelTableRow {
 function LabelNameCell({ row }: CellContext<LabelTableRow, unknown>) {
   return row.original.isAdmin ? (
     <Link
-      to="/labels/$labelId/edit"
-      params={{ labelId: String(row.original.label.id) }}
+      to="/labels/$id/edit"
+      params={{ id: String(row.original.label.id) }}
       className="font-medium hover:underline"
     >
       {row.original.label.name}
@@ -207,7 +207,7 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/labels/$labelId/edit" params={{ labelId: String(label.id) }} />}
+            render={<Link to="/labels/$id/edit" params={{ id: String(label.id) }} />}
           >
             Edit
           </DropdownMenuItem>

@@ -16,7 +16,7 @@ import { UserForm, userFromDetail } from "@/pages/users/fields";
 
 export function UserEditPage() {
   const params = useParams({ strict: false });
-  const userId = params.userId ?? "";
+  const userId = params.id ?? "";
   const userID = parseRouteID(userId);
   const user = useUser(userID);
   const { user: currentUser } = useAuth();
@@ -57,8 +57,8 @@ function UserEdit({ user }: { user: User }) {
         onSuccess={(id) => {
           if (id === undefined) return;
           void navigate({
-            to: "/directory/users/$userId/edit",
-            params: { userId: String(id) },
+            to: "/directory/users/$id/edit",
+            params: { id: String(id) },
           });
         }}
       />

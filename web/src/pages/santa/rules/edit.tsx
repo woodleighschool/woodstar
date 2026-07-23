@@ -9,7 +9,7 @@ import { formFromRule } from "@/pages/santa/rules/form-state";
 export function RuleEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const ruleId = params.ruleId ?? "";
+  const ruleId = params.id ?? "";
   const id = parseRouteID(ruleId);
   const detail = useSantaRule(id);
   const update = useUpdateSantaRule();
@@ -38,7 +38,7 @@ export function RuleEditPage() {
       onSubmit={async (body) => (await update.mutateAsync({ id: rule.id, body })).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {
-          void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(savedID) } });
+          void navigate({ to: "/santa/rules/$id", params: { id: String(savedID) } });
         }
       }}
     />

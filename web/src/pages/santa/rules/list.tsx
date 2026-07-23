@@ -37,8 +37,8 @@ interface RuleTableRow {
 function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
   return row.original.isAdmin ? (
     <Link
-      to="/santa/rules/$ruleId"
-      params={{ ruleId: String(row.original.rule.id) }}
+      to="/santa/rules/$id"
+      params={{ id: String(row.original.rule.id) }}
       className="font-medium hover:underline"
     >
       {row.original.rule.name}

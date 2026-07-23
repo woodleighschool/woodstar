@@ -10,7 +10,7 @@ import { LabelForm, labelFromDetail } from "@/pages/labels/fields";
 export function LabelEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const labelId = params.labelId ?? "";
+  const labelId = params.id ?? "";
   const id = parseRouteID(labelId);
   const detail = useLabel(id);
   const update = useUpdateLabel(id);

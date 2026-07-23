@@ -16,7 +16,7 @@ export function ReportCreatePage() {
       onSubmit={async (value) => (await create.mutateAsync(value)).id}
       onSuccess={(id) => {
         if (id !== undefined) {
-          void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(id) } });
+          void navigate({ to: "/osquery/reports/$id", params: { id: String(id) } });
         }
       }}
     />

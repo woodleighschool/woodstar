@@ -22,7 +22,7 @@ import { formatDateTime, isRecord } from "@/lib/utils";
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
 export function SantaEventDetailPage() {
-  const { eventId } = useParams({ from: "/_authenticated/santa/events/$eventId" });
+  const { id: eventId } = useParams({ from: "/_authenticated/santa/events/$id" });
   const id = Number(eventId);
   const query = useSantaEvent(Number.isFinite(id) ? id : null);
 

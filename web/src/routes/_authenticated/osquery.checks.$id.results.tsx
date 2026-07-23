@@ -7,7 +7,7 @@ const searchSchema = z.object({
   response: z.enum(["pass", "fail"]).optional(),
 });
 
-export const Route = createFileRoute("/_authenticated/osquery/checks/$checkId/results")({
+export const Route = createFileRoute("/_authenticated/osquery/checks/$id/results")({
   staticData: { breadcrumb: "Results" },
   validateSearch: (search) => searchSchema.parse(search),
   component: CheckResultsPage,

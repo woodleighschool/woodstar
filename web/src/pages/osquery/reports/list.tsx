@@ -110,8 +110,8 @@ function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
       cell: ({ row }) =>
         isAdmin ? (
           <Link
-            to="/osquery/reports/$reportId"
-            params={{ reportId: String(row.original.id) }}
+            to="/osquery/reports/$id"
+            params={{ id: String(row.original.id) }}
             className="font-medium hover:underline"
           >
             {row.original.name}

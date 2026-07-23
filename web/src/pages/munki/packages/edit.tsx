@@ -18,7 +18,7 @@ import { PackageForm, packageFormFromPackage, type SoftwareInfo } from "./fields
 
 export function MunkiPackageEditPage() {
   const params = useParams({ strict: false });
-  const validPackageID = parseRouteID(params.packageId);
+  const validPackageID = parseRouteID(params.id);
   const pkg = useMunkiPackage(validPackageID);
 
   if (validPackageID === null) {

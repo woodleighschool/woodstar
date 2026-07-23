@@ -57,8 +57,8 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
     header: () => "Version",
     cell: ({ row }) => (
       <Link
-        to="/munki/packages/$packageId/edit"
-        params={{ packageId: String(row.original.id) }}
+        to="/munki/packages/$id/edit"
+        params={{ id: String(row.original.id) }}
         className="flex min-w-0 items-center gap-3 hover:underline"
       >
         <SoftwareArtwork src={row.original.software.icon_url} size="md" />
@@ -83,7 +83,7 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
 
 export function MunkiSoftwareEditPage() {
   const params = useParams({ strict: false });
-  const softwareID = parseRouteID(params.softwareId);
+  const softwareID = parseRouteID(params.id);
   const query = useMunkiSoftwareDetail(softwareID);
   if (softwareID === null) {
     return (

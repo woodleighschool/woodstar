@@ -16,7 +16,7 @@ export function CheckCreatePage() {
       onSubmit={async (value) => (await create.mutateAsync(value)).id}
       onSuccess={(id) => {
         if (id !== undefined) {
-          void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(id) } });
+          void navigate({ to: "/osquery/checks/$id", params: { id: String(id) } });
         }
       }}
     />

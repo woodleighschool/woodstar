@@ -42,8 +42,8 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
       header: () => "Host",
       cell: ({ row }) => (
         <Link
-          to="/hosts/$hostId"
-          params={{ hostId: String(row.original.hostId) }}
+          to="/hosts/$id"
+          params={{ id: String(row.original.hostId) }}
           className="hover:underline"
         >
           {row.original.hostName}

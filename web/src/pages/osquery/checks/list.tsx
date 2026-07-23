@@ -102,8 +102,8 @@ function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
       cell: ({ row }) =>
         isAdmin ? (
           <Link
-            to="/osquery/checks/$checkId"
-            params={{ checkId: String(row.original.id) }}
+            to="/osquery/checks/$id"
+            params={{ id: String(row.original.id) }}
             className="font-medium hover:underline"
           >
             {row.original.name}
@@ -166,8 +166,8 @@ function HostCount({
 }) {
   return (
     <Link
-      to="/osquery/checks/$checkId/results"
-      params={{ checkId: String(checkId) }}
+      to="/osquery/checks/$id/results"
+      params={{ id: String(checkId) }}
       search={{ response }}
       className="hover:underline"
     >

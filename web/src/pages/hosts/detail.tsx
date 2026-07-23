@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHost, useHostMunkiState, useHostSantaState } from "@/hooks/use-hosts";
 
 export function HostDetailPage() {
-  const { hostId } = useParams({ from: "/_authenticated/hosts/$hostId" });
+  const { id: hostId } = useParams({ from: "/_authenticated/hosts/$id" });
   const hostID = Number(hostId);
   const query = useHost(hostID, { refetchInterval: 30_000 });
   const munkiQuery = useHostMunkiState(hostID);

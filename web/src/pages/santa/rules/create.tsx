@@ -18,7 +18,7 @@ export function RuleCreatePage() {
       onSubmit={async (body) => (await create.mutateAsync(body)).id}
       onSuccess={(id) => {
         if (id !== undefined) {
-          void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(id) } });
+          void navigate({ to: "/santa/rules/$id", params: { id: String(id) } });
         }
       }}
     />

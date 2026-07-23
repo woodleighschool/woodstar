@@ -60,8 +60,8 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     header: "Executable",
     cell: ({ row }) => (
       <Link
-        to="/santa/events/$eventId"
-        params={{ eventId: String(row.original.event.id) }}
+        to="/santa/events/$id"
+        params={{ id: String(row.original.event.id) }}
         className="font-medium hover:underline"
       >
         {row.original.event.executable.file_name || "-"}
@@ -116,8 +116,8 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     header: "Target",
     cell: ({ row }) => (
       <Link
-        to="/santa/events/file-access/$eventId"
-        params={{ eventId: String(row.original.id) }}
+        to="/santa/events/file-access/$id"
+        params={{ id: String(row.original.id) }}
         className="font-medium hover:underline"
       >
         {fileName(row.original.target) || row.original.target}
@@ -397,7 +397,7 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
 }
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="hover:underline">
+    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="hover:underline">
       {host.display_name}
     </Link>
   );

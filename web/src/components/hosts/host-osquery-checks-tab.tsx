@@ -16,8 +16,8 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     header: () => "Check",
     cell: ({ row }) => (
       <Link
-        to="/osquery/checks/$checkId"
-        params={{ checkId: String(row.original.check_id) }}
+        to="/osquery/checks/$id"
+        params={{ id: String(row.original.check_id) }}
         className="hover:underline"
       >
         {row.original.check_name}

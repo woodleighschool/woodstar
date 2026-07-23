@@ -14,7 +14,7 @@ import {
 export function DistributionPointEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const distributionPointId = params.distributionPointId ?? "";
+  const distributionPointId = params.id ?? "";
   const id = parseRouteID(distributionPointId);
   const detail = useMunkiDistributionPoint(id);
   const update = useUpdateMunkiDistributionPoint();
@@ -49,8 +49,8 @@ export function DistributionPointEditPage() {
       onSuccess={(savedID) => {
         if (savedID === undefined) return;
         void navigate({
-          to: "/munki/distribution-points/$distributionPointId",
-          params: { distributionPointId: String(savedID) },
+          to: "/munki/distribution-points/$id",
+          params: { id: String(savedID) },
         });
       }}
     />

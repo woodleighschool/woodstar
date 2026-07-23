@@ -173,8 +173,8 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
       cell: ({ row }) =>
         isAdmin ? (
           <Link
-            to="/munki/distribution-points/$distributionPointId"
-            params={{ distributionPointId: String(row.original.id) }}
+            to="/munki/distribution-points/$id"
+            params={{ id: String(row.original.id) }}
             className="font-medium hover:underline"
           >
             {row.original.name}

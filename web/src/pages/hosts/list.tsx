@@ -172,8 +172,8 @@ const hostColumns: ColumnDef<Host>[] = [
     header: "Name",
     cell: ({ row }) => (
       <Link
-        to="/hosts/$hostId"
-        params={{ hostId: String(row.original.id) }}
+        to="/hosts/$id"
+        params={{ id: String(row.original.id) }}
         className="font-medium hover:underline"
       >
         {row.original.display_name}

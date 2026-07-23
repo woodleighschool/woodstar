@@ -19,7 +19,7 @@ import { formatDateTime } from "@/lib/utils";
 import { FileAccessDecisionBadge, HostLink, Timestamp } from "../events/event-ui";
 
 export function SantaFileAccessEventDetailPage() {
-  const { eventId } = useParams({ from: "/_authenticated/santa/events/file-access/$eventId" });
+  const { id: eventId } = useParams({ from: "/_authenticated/santa/events/file-access/$id" });
   const id = Number(eventId);
   const query = useSantaFileAccessEvent(Number.isFinite(id) ? id : null);
 

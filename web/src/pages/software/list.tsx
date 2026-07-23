@@ -110,8 +110,8 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     header: "Name",
     cell: ({ row }) => (
       <Link
-        to="/software/titles/$softwareId"
-        params={{ softwareId: String(row.original.id) }}
+        to="/software/titles/$id"
+        params={{ id: String(row.original.id) }}
         className="inline-flex items-center gap-2 truncate font-medium hover:underline"
       >
         <SoftwareIcon {...softwareIconProps(row.original.source)} />

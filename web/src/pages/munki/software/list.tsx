@@ -30,8 +30,8 @@ function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
   );
   return user?.role === "admin" ? (
     <Link
-      to="/munki/software/$softwareId"
-      params={{ softwareId: String(row.original.id) }}
+      to="/munki/software/$id"
+      params={{ id: String(row.original.id) }}
       className="flex min-w-0 items-center gap-2 font-medium hover:underline"
     >
       {content}

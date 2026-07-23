@@ -54,8 +54,8 @@ export function ParentSoftwareField({ software }: { software: SoftwareInfo }) {
           <AttachmentDescription>Parent software</AttachmentDescription>
         </AttachmentContent>
         <Link
-          to="/munki/software/$softwareId"
-          params={{ softwareId: String(software.id) }}
+          to="/munki/software/$id"
+          params={{ id: String(software.id) }}
           className="absolute inset-0 z-10 outline-none"
         />
       </Attachment>

@@ -31,12 +31,7 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
           <Button
             size="sm"
             variant="outline"
-            render={
-              <Link
-                to="/osquery/reports/$reportId"
-                params={{ reportId: String(report.report_id) }}
-              />
-            }
+            render={<Link to="/osquery/reports/$id" params={{ id: String(report.report_id) }} />}
             nativeButton={false}
           >
             View Report

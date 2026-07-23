@@ -202,8 +202,8 @@ function configurationColumns(
       cell: ({ row }) =>
         isAdmin ? (
           <Link
-            to="/santa/configurations/$configurationId"
-            params={{ configurationId: String(row.original.id) }}
+            to="/santa/configurations/$id"
+            params={{ id: String(row.original.id) }}
             className="font-medium hover:underline"
           >
             {row.original.name}

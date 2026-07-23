@@ -38,8 +38,8 @@ function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
   );
   return user?.role === "admin" ? (
     <Link
-      to="/munki/packages/$packageId/edit"
-      params={{ packageId: String(row.original.id) }}
+      to="/munki/packages/$id/edit"
+      params={{ id: String(row.original.id) }}
       className="flex min-w-0 items-center gap-2 font-medium hover:underline"
     >
       {content}

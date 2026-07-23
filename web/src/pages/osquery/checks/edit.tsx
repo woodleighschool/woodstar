@@ -9,7 +9,7 @@ import { CheckForm, checkFromDetail } from "@/pages/osquery/checks/fields";
 export function CheckEditPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const checkId = params.checkId ?? "";
+  const checkId = params.id ?? "";
   const id = parseRouteID(checkId);
   const detail = useCheck(id);
   const update = useUpdateCheck(id);
@@ -47,11 +47,11 @@ export function CheckEditPage() {
           </SettingItem>
         </>
       }
-      headerActions={<LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId }} />}
+      headerActions={<LiveRunButton to="/osquery/checks/$id/live" params={{ id: checkId }} />}
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {
-          void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(savedID) } });
+          void navigate({ to: "/osquery/checks/$id", params: { id: String(savedID) } });
         }
       }}
     />
@@ -69,8 +69,8 @@ function HostCount({
 }) {
   return (
     <Link
-      to="/osquery/checks/$checkId/results"
-      params={{ checkId: String(checkId) }}
+      to="/osquery/checks/$id/results"
+      params={{ id: String(checkId) }}
       search={{ response }}
       className="hover:underline"
     >

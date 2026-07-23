@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReport } from "@/hooks/use-reports";
 export function ReportLivePage() {
-  const { reportId } = useParams({ from: "/_authenticated/osquery/reports/$reportId" });
+  const { id: reportId } = useParams({ from: "/_authenticated/osquery/reports/$id" });
   const report = useReport(Number(reportId));
   if (report.error) {
     return (
@@ -37,7 +37,7 @@ export function ReportLivePage() {
         <Button
           variant="outline"
           size="sm"
-          render={<Link to="/osquery/reports/$reportId" params={{ reportId }} />}
+          render={<Link to="/osquery/reports/$id" params={{ id: reportId }} />}
           nativeButton={false}
         >
           Edit Report

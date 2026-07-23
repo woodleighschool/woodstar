@@ -38,8 +38,8 @@ export function DistributionPointCreatePage() {
             const id = created.id;
             setCreated(null);
             void navigate({
-              to: "/munki/distribution-points/$distributionPointId",
-              params: { distributionPointId: String(id) },
+              to: "/munki/distribution-points/$id",
+              params: { id: String(id) },
             });
           }}
         />

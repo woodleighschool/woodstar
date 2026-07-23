@@ -5,18 +5,16 @@ import { munkiSoftwareQueryOptions } from "@/lib/queries/munki";
 import { parseRouteID } from "@/lib/route-params";
 import { MunkiSoftwareEditPage } from "@/pages/munki/software/edit";
 
-export const Route = createFileRoute("/_authenticated/munki/software/$softwareId")({
+export const Route = createFileRoute("/_authenticated/munki/software/$id")({
   staticData: { breadcrumb: SoftwareBreadcrumb },
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(
-      munkiSoftwareQueryOptions(parseRouteID(params.softwareId)),
-    );
+    await context.queryClient.ensureQueryData(munkiSoftwareQueryOptions(parseRouteID(params.id)));
   },
   component: MunkiSoftwareEditPage,
 });
 
 function SoftwareBreadcrumb(): string {
-  const { softwareId } = useParams({ from: "/_authenticated/munki/software/$softwareId" });
-  const { data } = useQuery(munkiSoftwareQueryOptions(parseRouteID(softwareId)));
-  return data?.name ?? softwareId;
+  const { id } = useParams({ from: "/_authenticated/munki/software/$id" });
+  const { data } = useQuery(munkiSoftwareQueryOptions(parseRouteID(id)));
+  return data?.name ?? id;
 }

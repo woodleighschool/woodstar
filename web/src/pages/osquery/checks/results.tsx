@@ -17,8 +17,8 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     header: () => "Host",
     cell: ({ row }) => (
       <Link
-        to="/hosts/$hostId"
-        params={{ hostId: String(row.original.host_id) }}
+        to="/hosts/$id"
+        params={{ id: String(row.original.host_id) }}
         className="font-medium hover:underline"
       >
         {row.original.host_name}
@@ -37,8 +37,8 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   },
 ];
 export function CheckResultsPage() {
-  const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
-  const search = useSearch({ from: "/_authenticated/osquery/checks/$checkId/results" });
+  const { id: checkId } = useParams({ from: "/_authenticated/osquery/checks/$id" });
+  const search = useSearch({ from: "/_authenticated/osquery/checks/$id/results" });
   const id = Number(checkId);
   const check = useCheck(id);
   const results = useCheckResults(id, { response: search.response });
@@ -54,7 +54,7 @@ export function CheckResultsPage() {
           <Button
             variant="outline"
             size="sm"
-            render={<Link to="/osquery/checks/$checkId" params={{ checkId }} />}
+            render={<Link to="/osquery/checks/$id" params={{ id: checkId }} />}
             nativeButton={false}
           >
             Edit Check

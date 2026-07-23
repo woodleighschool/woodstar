@@ -39,8 +39,8 @@ type ReportResultRow = Record<string, string>;
 function ReportHostCell({ row }: CellContext<ReportResultRow, unknown>) {
   return (
     <Link
-      to="/hosts/$hostId"
-      params={{ hostId: row.original.host_id }}
+      to="/hosts/$id"
+      params={{ id: row.original.host_id }}
       className="whitespace-nowrap hover:underline"
     >
       {row.original.host_name}
@@ -64,8 +64,8 @@ const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
     header: "Host",
     cell: ({ row }) => (
       <Link
-        to="/hosts/$hostId"
-        params={{ hostId: String(row.original.host_id) }}
+        to="/hosts/$id"
+        params={{ id: String(row.original.host_id) }}
         className="hover:underline"
       >
         {row.original.host_name}

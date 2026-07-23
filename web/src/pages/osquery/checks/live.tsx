@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
 export function CheckLivePage() {
-  const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
+  const { id: checkId } = useParams({ from: "/_authenticated/osquery/checks/$id" });
   const check = useCheck(Number(checkId));
   if (check.error) {
     return (
@@ -37,7 +37,7 @@ export function CheckLivePage() {
         <Button
           variant="outline"
           size="sm"
-          render={<Link to="/osquery/checks/$checkId" params={{ checkId }} />}
+          render={<Link to="/osquery/checks/$id" params={{ id: checkId }} />}
           nativeButton={false}
         >
           Edit Check

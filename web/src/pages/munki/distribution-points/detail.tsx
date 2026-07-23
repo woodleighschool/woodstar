@@ -35,8 +35,8 @@ import {
 } from "@/pages/munki/distribution-points/distribution-point-badges";
 import { KeyRevealDialog } from "@/pages/munki/distribution-points/key-reveal-dialog";
 export function DistributionPointDetailPage() {
-  const { distributionPointId } = useParams({
-    from: "/_authenticated/munki/distribution-points/$distributionPointId",
+  const { id: distributionPointId } = useParams({
+    from: "/_authenticated/munki/distribution-points/$id",
   });
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -81,8 +81,8 @@ export function DistributionPointDetailPage() {
                 size="sm"
                 render={
                   <Link
-                    to="/munki/distribution-points/$distributionPointId/edit"
-                    params={{ distributionPointId: String(point.id) }}
+                    to="/munki/distribution-points/$id/edit"
+                    params={{ id: String(point.id) }}
                   />
                 }
                 nativeButton={false}
@@ -186,8 +186,8 @@ function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
                       <div className="flex items-center gap-2">
                         <SoftwareArtwork src={pkg.software_icon_url} />
                         <Link
-                          to="/munki/packages/$packageId/edit"
-                          params={{ packageId: String(pkg.package_id) }}
+                          to="/munki/packages/$id/edit"
+                          params={{ id: String(pkg.package_id) }}
                           className="min-w-0 truncate font-medium underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:decoration-solid"
                         >
                           {pkg.name} {pkg.version}
