@@ -5,7 +5,7 @@ import { z } from "zod";
 import { APIKeyCard } from "@/components/account/api-key-card";
 import { EnumBadge } from "@/components/enum-badge";
 import { FormField } from "@/components/form-field";
-import { PageShell } from "@/components/layout/page-layout";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
 import {
@@ -23,7 +23,7 @@ import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { Account } from "@/lib/api";
 import { directorySourceLabel } from "@/lib/directory";
 import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
-import { formatRelative, nonEmpty } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 export function AccountPage() {
   const account = useAccount();
   if (account.error) {
@@ -42,6 +42,7 @@ export function AccountPage() {
   }
   return (
     <PageShell className="max-w-3xl gap-4">
+      <PageHeader title="Account" />
       <AccountProfileCard key={account.data.user.updated_at} account={account.data} />
       <APIKeyCard />
     </PageShell>
@@ -84,7 +85,7 @@ function AccountProfileCard({ account }: { account: Account }) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
+          <CardTitle>Profile</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
             <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />

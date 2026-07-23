@@ -30,7 +30,7 @@ export function MunkiPackageCreatePage() {
   return (
     <PackageForm
       initial={initial}
-      title="New Package"
+      title="Create Package"
       submitLabel="Create"
       softwareInfo={null}
       softwareOptions={softwareRows}

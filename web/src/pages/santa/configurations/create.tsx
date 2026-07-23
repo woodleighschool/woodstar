@@ -10,7 +10,7 @@ export function ConfigurationCreatePage() {
   return (
     <ConfigurationForm
       initial={emptyConfigurationForm}
-      title="New Configuration"
+      title="Create Configuration"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/santa/configurations" })}
       onSubmit={async (body) => (await create.mutateAsync(body)).id}

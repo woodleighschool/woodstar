@@ -8,7 +8,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/munki/packages/new")({
-  staticData: { breadcrumb: "New" },
+  staticData: { breadcrumb: "Create" },
   validateSearch: (search) => searchSchema.parse(search),
   component: MunkiPackageCreatePage,
 });

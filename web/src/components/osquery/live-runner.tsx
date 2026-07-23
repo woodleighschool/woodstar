@@ -95,13 +95,11 @@ const errorResultColumns: ColumnDef<LiveQueryRow>[] = [
 export function LiveRunner({
   kind,
   itemId,
-  name,
   sql,
   editAction,
 }: {
   kind: LiveRunKind;
   itemId: number;
-  name: string;
   sql: string;
   editAction: ReactNode;
 }) {
@@ -175,12 +173,12 @@ export function LiveRunner({
     stop.reset();
   }
   const itemLabel = kind === "report" ? "report" : "check";
-  const title = step === "targets" ? `Run ${name}` : `${name} Live Run`;
+  const title = kind === "report" ? "Run Report" : "Run Check";
   if (!isAdmin) {
     return (
       <PageShell>
         <PageHeader
-          title={name}
+          title={title}
           description={`Live ${itemLabel} execution is admin-only.`}
           actions={<ShowQueryButton sql={sql} />}
         />

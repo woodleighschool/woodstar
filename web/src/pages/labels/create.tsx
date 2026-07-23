@@ -10,7 +10,7 @@ export function LabelCreatePage() {
   return (
     <LabelForm
       initial={emptyLabel}
-      title="New Label"
+      title="Create Label"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/labels" })}
       onSubmit={async (body) => (await create.mutateAsync(body)).id}

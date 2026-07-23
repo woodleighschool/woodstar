@@ -48,7 +48,7 @@ export function CheckResultsPage() {
   return (
     <PageShell>
       <PageHeader
-        title={check.data?.name ? `${check.data.name} Results` : "Check Results"}
+        title="Check Results"
         description={`${responseLabel} check results by host.`}
         actions={
           <Button

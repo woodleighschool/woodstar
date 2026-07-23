@@ -65,7 +65,7 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
   return (
     <PackageForm
       initial={initial}
-      title={`${pkg.software.name} ${pkg.version}`}
+      title="Edit Package"
       submitLabel="Save"
       softwareInfo={softwareInfo}
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}

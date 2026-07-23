@@ -35,6 +35,7 @@ export function CheckEditPage() {
     <CheckForm
       key={check.id}
       initial={checkFromDetail(check)}
+      title="Edit Check"
       submitLabel="Save"
       headerContext={
         <>

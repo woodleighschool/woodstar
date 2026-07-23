@@ -12,7 +12,7 @@ export function RuleCreatePage() {
   return (
     <RuleForm
       initial={formFromSearch(search)}
-      title="New Rule"
+      title="Create Rule"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/santa/rules" })}
       onSubmit={async (body) => (await create.mutateAsync(body)).id}

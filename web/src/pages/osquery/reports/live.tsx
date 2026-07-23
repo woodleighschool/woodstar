@@ -32,7 +32,6 @@ export function ReportLivePage() {
     <LiveRunner
       kind="report"
       itemId={Number(reportId)}
-      name={report.data.name}
       sql={report.data.query}
       editAction={
         <Button

@@ -10,7 +10,7 @@ export function ReportCreatePage() {
   return (
     <ReportForm
       initial={emptyReport}
-      title="New Report"
+      title="Create Report"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/osquery/reports" })}
       onSubmit={async (value) => (await create.mutateAsync(value)).id}

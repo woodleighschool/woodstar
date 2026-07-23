@@ -78,7 +78,7 @@ export function ConfigurationForm({
   onCancel,
 }: {
   initial: ConfigurationFormInput;
-  title?: string;
+  title: string;
   submitLabel: string;
   onSubmit: (body: SantaConfigurationMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
@@ -103,9 +103,7 @@ export function ConfigurationForm({
         />
       }
     >
-      <form.Subscribe selector={(state) => state.values.name}>
-        {(name) => <PageHeader title={title ?? (name || "Configuration")} />}
-      </form.Subscribe>
+      <PageHeader title={title} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollableTabsList>

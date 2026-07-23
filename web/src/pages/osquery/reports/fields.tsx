@@ -121,7 +121,7 @@ export function ReportForm({
   resultsReportId,
 }: {
   initial: OsqueryReportMutation;
-  title?: string;
+  title: string;
   submitLabel: string;
   onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
@@ -180,9 +180,7 @@ export function ReportForm({
         />
       }
     >
-      <form.Subscribe selector={(state) => state.values.name}>
-        {(name) => <PageHeader title={title ?? (name || "Report")} actions={headerActions} />}
-      </form.Subscribe>
+      <PageHeader title={title} actions={headerActions} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollableTabsList>

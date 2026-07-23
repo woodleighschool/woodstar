@@ -78,7 +78,7 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add User</DialogTitle>
+          <DialogTitle>Create User</DialogTitle>
           <DialogDescription>
             Roles control whether the user can manage other users and enrollments.
           </DialogDescription>

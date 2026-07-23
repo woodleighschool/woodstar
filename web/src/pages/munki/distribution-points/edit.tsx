@@ -43,6 +43,7 @@ export function DistributionPointEditPage() {
     <DistributionPointForm
       key={point.id}
       initial={formFromDistributionPoint(point)}
+      title="Edit Distribution Point"
       submitLabel="Save"
       onSubmit={async (body) => (await update.mutateAsync({ id: point.id, body })).id}
       onSuccess={(savedID) => {

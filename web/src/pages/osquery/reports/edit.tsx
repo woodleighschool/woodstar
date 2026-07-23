@@ -35,6 +35,7 @@ export function ReportEditPage() {
     <ReportForm
       key={report.id}
       initial={reportFromDetail(report)}
+      title="Edit Report"
       submitLabel="Save"
       resultsReportId={id}
       headerActions={<LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />}

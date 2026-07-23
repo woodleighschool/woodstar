@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { PageShell } from "@/components/layout/page-layout";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { QueryGate } from "@/components/query-gate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +49,7 @@ function UserEdit({ user }: { user: User }) {
 
   return (
     <PageShell className="max-w-3xl gap-4">
+      <PageHeader title="Edit User" />
       <UserForm
         initial={userFromDetail(user)}
         user={user}

@@ -78,7 +78,7 @@ export function CheckForm({
   headerActions,
 }: {
   initial: OsqueryCheckMutation;
-  title?: string;
+  title: string;
   submitLabel: string;
   onSubmit: (value: OsqueryCheckMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
@@ -132,15 +132,7 @@ export function CheckForm({
         />
       }
     >
-      <form.Subscribe selector={(state) => state.values.name}>
-        {(name) => (
-          <PageHeader
-            title={title ?? (name || "Check")}
-            context={headerContext}
-            actions={headerActions}
-          />
-        )}
-      </form.Subscribe>
+      <PageHeader title={title} context={headerContext} actions={headerActions} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollableTabsList>

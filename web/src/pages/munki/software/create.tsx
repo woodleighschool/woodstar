@@ -80,7 +80,7 @@ export function MunkiSoftwareCreatePage() {
         />
       }
     >
-      <PageHeader title="New Software" />
+      <PageHeader title="Create Software" />
       <ScrollableTabs defaultValue="options">
         <ScrollableTabsList>
           {tabs.map((tab) => (

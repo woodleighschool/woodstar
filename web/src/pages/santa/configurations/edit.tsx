@@ -40,6 +40,7 @@ export function ConfigurationEditPage() {
     <ConfigurationForm
       key={configuration.id}
       initial={formFromConfiguration(configuration)}
+      title="Edit Configuration"
       submitLabel="Save"
       onSubmit={async (body) => (await update.mutateAsync({ id: configuration.id, body })).id}
       onSuccess={(savedID) => {

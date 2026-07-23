@@ -33,7 +33,7 @@ import {
   type UserAccessRole,
   userMutationRole,
 } from "@/lib/users";
-import { formatRelative, isOneOf, nonEmpty } from "@/lib/utils";
+import { formatRelative, isOneOf } from "@/lib/utils";
 interface UserFormState {
   name: string;
   role: UserAccessRole;
@@ -94,7 +94,7 @@ export function UserForm({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
+          <CardTitle>User Details</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
             <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />

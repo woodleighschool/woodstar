@@ -32,7 +32,6 @@ export function CheckLivePage() {
     <LiveRunner
       kind="check"
       itemId={Number(checkId)}
-      name={check.data.name}
       sql={check.data.query}
       editAction={
         <Button

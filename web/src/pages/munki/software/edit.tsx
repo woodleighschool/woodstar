@@ -153,7 +153,6 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
-  const title = software.name;
   function changeTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();
     softwareOptionsForm.setFieldValue("targets.include", numberTargetRows(next));
@@ -254,7 +253,7 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
   ];
   return (
     <PageShell>
-      <PageHeader title={title} />
+      <PageHeader title="Edit Software" />
 
       <form
         className="flex flex-col gap-5"

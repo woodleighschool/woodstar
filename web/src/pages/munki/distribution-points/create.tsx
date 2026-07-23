@@ -17,7 +17,7 @@ export function DistributionPointCreatePage() {
     <>
       <DistributionPointForm
         initial={emptyDistributionPointForm}
-        title="New Distribution Point"
+        title="Create Distribution Point"
         submitLabel="Create"
         onCancel={() => void navigate({ to: "/munki/distribution-points" })}
         onSubmit={async (body) => {

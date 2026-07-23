@@ -33,6 +33,7 @@ export function RuleEditPage() {
     <RuleForm
       key={rule.id}
       initial={formFromRule(rule)}
+      title="Edit Rule"
       submitLabel="Save"
       onSubmit={async (body) => (await update.mutateAsync({ id: rule.id, body })).id}
       onSuccess={(savedID) => {

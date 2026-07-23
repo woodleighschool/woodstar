@@ -54,7 +54,7 @@ export function RuleForm({
   onCancel,
 }: {
   initial: RuleFormState;
-  title?: string;
+  title: string;
   submitLabel: string;
   onSubmit: (body: SantaRuleMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
@@ -93,7 +93,7 @@ export function RuleForm({
       <form.Subscribe selector={(state) => state.values}>
         {(values) => (
           <>
-            <PageHeader title={title ?? (values.name || "Rule")} />
+            <PageHeader title={title} />
 
             <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
               <ScrollableTabsList>

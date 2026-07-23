@@ -10,7 +10,7 @@ export function CheckCreatePage() {
   return (
     <CheckForm
       initial={emptyCheck}
-      title="New Check"
+      title="Create Check"
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/osquery/checks" })}
       onSubmit={async (value) => (await create.mutateAsync(value)).id}

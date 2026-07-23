@@ -72,7 +72,7 @@ export function DistributionPointForm({
   onCancel,
 }: {
   initial: DistributionPointFormState;
-  title?: string;
+  title: string;
   submitLabel: string;
   onSubmit: (body: MunkiDistributionPointMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
@@ -105,9 +105,7 @@ export function DistributionPointForm({
           />
         }
       >
-        <form.Subscribe selector={(state) => state.values.name}>
-          {(name) => <PageHeader title={title ?? (name || "Distribution Point")} />}
-        </form.Subscribe>
+        <PageHeader title={title} />
 
         <FieldGroup className="max-w-3xl">
           <form.Field name="name">
