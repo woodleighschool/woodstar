@@ -73,6 +73,7 @@ export function DataTablePagination<TData>({
         </div>
         <div className="flex items-center gap-2">
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"
@@ -82,6 +83,7 @@ export function DataTablePagination<TData>({
             <ChevronsLeft />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="size-8"
@@ -91,6 +93,7 @@ export function DataTablePagination<TData>({
             <ChevronLeft />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="size-8"
@@ -100,6 +103,7 @@ export function DataTablePagination<TData>({
             <ChevronRight />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"
