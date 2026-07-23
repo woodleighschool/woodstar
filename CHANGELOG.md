@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.4.0](https://github.com/woodleighschool/woodstar/compare/0.3.3...0.4.0) (2026-07-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **munki:** model host software state
+
+### Features
+
+* **deps:** update dependency lucide-react (1.25.0 → 1.26.0) ([#17](https://github.com/woodleighschool/woodstar/issues/17)) ([9e79ca9](https://github.com/woodleighschool/woodstar/commit/9e79ca956c34421867e586954fc1dad487978304))
+* **deps:** update pnpm (11.15.1 → 11.16.0) ([#53](https://github.com/woodleighschool/woodstar/issues/53)) ([9a2ed6a](https://github.com/woodleighschool/woodstar/commit/9a2ed6a95a5984cd364536cdcbc2db455d5aa791))
+* **munki:** model host software state ([8f1ab94](https://github.com/woodleighschool/woodstar/commit/8f1ab940fbf16ab9de8d5e1ca6b8cd3fabe353f5))
+* **munki:** simplify distribution point setup ([8c1bb2f](https://github.com/woodleighschool/woodstar/commit/8c1bb2f708efaed3e9f826b5bfa63670fb40b204))
+
+
+### Bug Fixes
+
+* **deps:** update dependency docusaurus-plugin-llms (0.5.0 → 0.5.1) ([#26](https://github.com/woodleighschool/woodstar/issues/26)) ([15975fb](https://github.com/woodleighschool/woodstar/commit/15975fbecfe6a382778975d84bdc9cb91b02cd60))
+* **deps:** update dependency sass (1.101.3 → 1.101.4) ([#55](https://github.com/woodleighschool/woodstar/issues/55)) ([7eb07df](https://github.com/woodleighschool/woodstar/commit/7eb07df117f8dcd41b95678be95268a871d81958))
+* **deps:** update dependency sass (1.101.4 → 1.101.6) ([#56](https://github.com/woodleighschool/woodstar/issues/56)) ([9aaad3f](https://github.com/woodleighschool/woodstar/commit/9aaad3f1f678565688bd1175aa940d4334432390))
+* **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260721180550-e61e39a61420.1 → v1.36.11-20260723221051-096a321dccc8.1) ([#60](https://github.com/woodleighschool/woodstar/issues/60)) ([94d712e](https://github.com/woodleighschool/woodstar/commit/94d712ebe0b87e0d40138c923838a32b05031f3e))
+* **deps:** update module github.com/gabriel-vasile/mimetype (v1.4.14 → v1.4.15) ([#59](https://github.com/woodleighschool/woodstar/issues/59)) ([0feec09](https://github.com/woodleighschool/woodstar/commit/0feec091b39d356d27a37c605086afea21e3d808))
+* **deps:** update module github.com/pressly/goose/v3 (v3.27.2 → v3.27.3) ([#45](https://github.com/woodleighschool/woodstar/issues/45)) ([5de1b5e](https://github.com/woodleighschool/woodstar/commit/5de1b5eec2e9bab58c7b48cacbb9d97906301854))
+* **web:** bound nested data tables ([b0dd100](https://github.com/woodleighschool/woodstar/commit/b0dd1009b10ceff9658de5292fa73b0107a2ad7a))
+
+
+### Documentation
+
+* **munki:** explain client IP matching ([b99a4b8](https://github.com/woodleighschool/woodstar/commit/b99a4b8e01fef707acb04a11bc73292b068b2c18))
+
+
+### Code Refactoring
+
+* **storage:** use one S3 endpoint ([35b4f42](https://github.com/woodleighschool/woodstar/commit/35b4f42207ee27d4a6de85ffa288ea5cac292122))
+* **web:** use generic route IDs ([4bd17f9](https://github.com/woodleighschool/woodstar/commit/4bd17f9ba07e69d535a0c0431e8166c31d02b4f4))
+
 ## [0.3.3](https://github.com/woodleighschool/woodstar/compare/0.3.2...0.3.3) (2026-07-23)
 
 
