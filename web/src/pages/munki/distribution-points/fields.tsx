@@ -243,7 +243,6 @@ function StringArrayRows({
         <InputGroup key={row.rowID}>
           <InputGroupInput
             aria-invalid={invalid ? true : undefined}
-            className="font-mono"
             value={row.value}
             onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
           />
