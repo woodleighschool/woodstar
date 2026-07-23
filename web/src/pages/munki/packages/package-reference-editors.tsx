@@ -22,7 +22,14 @@ import {
   ComboboxLabel,
   ComboboxList,
 } from "@/components/ui/combobox";
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 
 import type { PackageEditorForm } from "./fields";
@@ -143,6 +150,7 @@ function SoftwareCombobox({
 
 export function PackageReferenceEditor({
   legend,
+  description,
   addLabel,
   rows,
   packageOptions,
@@ -151,6 +159,7 @@ export function PackageReferenceEditor({
   onRemove,
 }: {
   legend: string;
+  description?: string;
   addLabel: string;
   rows: PackageReferenceRow[];
   packageOptions: MunkiPackage[];
@@ -163,6 +172,7 @@ export function PackageReferenceEditor({
   return (
     <FieldSet className="gap-4">
       <FieldLegend variant="label">{legend}</FieldLegend>
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
       <FieldGroup className="gap-2">
         {rows.map((row, index) => (
           <PackageReferenceCombobox

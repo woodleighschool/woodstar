@@ -15,7 +15,7 @@ import {
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -209,6 +209,9 @@ export function CheckForm({
                       placeholder="SELECT ..."
                       invalid={error ? true : undefined}
                     />
+                    <FieldDescription>
+                      One or more returned rows is a pass; no rows is a fail.
+                    </FieldDescription>
                     {error ? <FieldError>{error}</FieldError> : null}
                   </Field>
                 );

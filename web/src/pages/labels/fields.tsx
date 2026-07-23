@@ -99,7 +99,11 @@ const labelFormSchema = z
       } else {
         const syntaxError = sqlSyntaxError(value.query);
         if (syntaxError) {
-          ctx.addIssue({ code: "custom", message: syntaxError, path: ["query"] });
+          ctx.addIssue({
+            code: "custom",
+            message: syntaxError,
+            path: ["query"],
+          });
         }
       }
     }
@@ -121,7 +125,10 @@ function toBody(value: LabelFormValue): LabelMutation {
     host_ids: cleaned.label_membership_type === "manual" ? cleaned.host_ids : undefined,
     criteria:
       cleaned.label_membership_type === "derived"
-        ? { attribute: cleaned.derived_attribute, values: cleaned.derived_values }
+        ? {
+            attribute: cleaned.derived_attribute,
+            values: cleaned.derived_values,
+          }
         : undefined,
   };
 }
@@ -145,7 +152,10 @@ export function LabelForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
     validators: { onDynamic: labelFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const id = await onSubmit(toBody(value));
@@ -163,7 +173,9 @@ export function LabelForm({
       form.setFieldValue("query", (current) => `${current} ${snippet}`);
       return;
     }
-    view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
+    view.dispatch({
+      changes: { from: view.state.selection.main.from, insert: snippet },
+    });
   }
   const selectSchemaTable = useCallback(
     (tableName: string) => {
@@ -287,6 +299,7 @@ export function LabelForm({
                           <Field>
                             <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
                             <Select
+                              items={LABEL_DERIVED_ATTRIBUTE_OPTIONS}
                               value={field.state.value}
                               onValueChange={(value) => {
                                 if (!isOneOf(value, LABEL_DERIVED_ATTRIBUTE_VALUES)) return;
@@ -354,6 +367,9 @@ export function LabelForm({
                             placeholder="SELECT ..."
                             invalid={field.state.meta.errors.length > 0 ? true : undefined}
                           />
+                          <FieldDescription>
+                            A returned row adds the host to this label; no rows removes it.
+                          </FieldDescription>
                           <FieldError errors={field.state.meta.errors} />
                         </Field>
                       )}

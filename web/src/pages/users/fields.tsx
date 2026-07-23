@@ -70,7 +70,10 @@ export function UserForm({
   const isLocal = user.source === "local";
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
     validators: { onDynamic: userFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const id = await onSubmit({
@@ -136,6 +139,7 @@ export function UserForm({
                   <FormField field={field} label="Role" htmlFor="user-role">
                     {(control) => (
                       <Select
+                        items={USER_ACCESS_ROLE_OPTIONS}
                         value={field.state.value}
                         onValueChange={(value) => {
                           if (isOneOf(value, USER_ACCESS_ROLE_VALUES)) field.handleChange(value);

@@ -37,8 +37,16 @@ export function UserFormDialog({ open, onOpenChange }: Props) {
 function UserFormBody({ onClose }: { onClose: () => void }) {
   const create = useCreateUser();
   const form = useForm({
-    defaultValues: { email: "", name: "", role: "viewer" as UserRole, password: "" },
-    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    defaultValues: {
+      email: "",
+      name: "",
+      role: "viewer" as UserRole,
+      password: "",
+    },
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
     validators: {
       onDynamic: z.object({
         email: emailAddress(),
@@ -126,6 +134,7 @@ function UserFormBody({ onClose }: { onClose: () => void }) {
                 <FormField field={field} label="Role" htmlFor="user-role">
                   {(control) => (
                     <Select
+                      items={USER_ROLE_OPTIONS}
                       value={field.state.value}
                       onValueChange={(value) => {
                         if (isOneOf(value, USER_ROLE_VALUES)) field.handleChange(value);

@@ -4,7 +4,7 @@ import { CodeEditor } from "@/components/editor/code-editor";
 import { FormField } from "@/components/form-field";
 import type { FormTabDefinition } from "@/components/form-tabs";
 import { ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import type { MunkiPackage, MunkiSoftware } from "@/lib/api";
 import { assertNever } from "@/lib/utils";
@@ -193,17 +193,14 @@ function BasicInfoTab({
       ) : null}
 
       <VersionField form={form} />
-      <div className="grid gap-4 md:grid-cols-2">
-        <InstallerTypeField form={form} />
-        <div className="flex items-end pb-2">
-          <FormCheckboxField
-            form={form}
-            name="on_demand"
-            id="munki-package-on-demand"
-            label="On demand"
-          />
-        </div>
-      </div>
+      <InstallerTypeField form={form} />
+      <FormCheckboxField
+        form={form}
+        name="on_demand"
+        id="munki-package-on-demand"
+        label="On demand"
+        description="Use with Optional Installs for repeatable maintenance actions; Munki never considers the item installed."
+      />
       <form.Subscribe selector={(state) => state.values.installer_type}>
         {(installerType) =>
           installerType === "nopkg" ? null : (
@@ -225,36 +222,50 @@ function BasicInfoTab({
         name="force_install_after_date"
         id="munki-package-force-install-after"
         label="Force Install After"
+        description="Client-local deadline that can force logout or restart after it passes."
         type="datetime-local"
       />
-      <FormTextareaField form={form} name="notes" id="munki-package-notes" label="Notes" />
+      <FormTextareaField
+        form={form}
+        name="notes"
+        id="munki-package-notes"
+        label="Notes"
+        description="Admin notes excluded from Munki catalogs."
+      />
 
       <FieldSet>
         <FieldLegend>Behavior</FieldLegend>
+        <FieldDescription>
+          Controls how Munki installs, removes, and retires this package.
+        </FieldDescription>
         <FieldGroup data-slot="checkbox-group">
           <FormCheckboxField
             form={form}
             name="unattended_install"
             id="munki-package-unattended-install"
             label="Unattended install"
+            description="Munki can install without notifying the current GUI user."
           />
           <FormCheckboxField
             form={form}
             name="unattended_uninstall"
             id="munki-package-unattended-uninstall"
             label="Unattended uninstall"
+            description="Munki can uninstall without notifying the current GUI user."
           />
           <FormCheckboxField
             form={form}
             name="autoremove"
             id="munki-package-autoremove"
             label="Autoremove"
+            description="Remove the item from hosts where it is not a managed install."
           />
           <FormCheckboxField
             form={form}
             name="uninstallable"
             id="munki-package-uninstallable"
             label="Uninstallable"
+            description="Allow removal using the configured uninstall method."
           />
         </FieldGroup>
       </FieldSet>
@@ -317,6 +328,7 @@ function RequirementsTab({
               <div {...control} tabIndex={-1}>
                 <PackageReferenceEditor
                   legend="Requires"
+                  description="Installs these packages first."
                   addLabel="Add requirement"
                   rows={field.state.value}
                   packageOptions={packageOptions}
@@ -336,6 +348,7 @@ function RequirementsTab({
               <div {...control} tabIndex={-1}>
                 <PackageReferenceEditor
                   legend="Update For"
+                  description="Treats this package as an update for the selected packages."
                   addLabel="Add update target"
                   rows={field.state.value}
                   packageOptions={packageOptions}
@@ -350,6 +363,7 @@ function RequirementsTab({
       </form.Field>
       <FieldSet>
         <FieldLegend>Compatibility</FieldLegend>
+        <FieldDescription>Restricts installation to matching client versions.</FieldDescription>
         <FieldGroup className="grid gap-4 md:grid-cols-3">
           <FormTextField
             form={form}
@@ -375,6 +389,7 @@ function RequirementsTab({
           name="installable_condition"
           id="munki-package-installable-condition"
           label="Installable Condition"
+          description="NSPredicate evaluated on the client; false prevents installation."
           minHeight="[&_.cm-content]:min-h-32"
         />
       </FieldSet>
@@ -405,12 +420,16 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
       <BlockingApplicationsEditor form={form} />
       <FieldSet>
         <FieldLegend>Blocking Application Handling</FieldLegend>
+        <FieldDescription>
+          Controls how Munki handles applications that must close before installation.
+        </FieldDescription>
         <FieldGroup>
           <FormCheckboxField
             form={form}
             name="blocking_applications_manual_quit_only"
             id="munki-package-blocking-applications-manual-quit-only"
             label="Require manual quit"
+            description="Prevent Munki from attempting to quit blocking applications."
           />
           <FormCodeField
             form={form}
@@ -433,7 +452,12 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
 
       <form.Field name="installer_choices_xml">
         {(field) => (
-          <FormField field={field} label="Installer Choices XML" htmlFor="installer-choices-xml">
+          <FormField
+            field={field}
+            label="Installer Choices XML"
+            htmlFor="installer-choices-xml"
+            description="ChoiceChangesXML applied when installing an Apple metapackage."
+          >
             {(control) => (
               <div {...control} tabIndex={-1}>
                 <CodeEditor
@@ -571,12 +595,14 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             name="package_path"
             id="munki-package-package-path"
             label="Package Path"
+            description="Package location inside the mounted disk image."
           />
           <FormTextField
             form={form}
             name="installed_size"
             id="munki-package-installed-size"
             label="Installed Size"
+            description="Kilobytes used for the client free-space check."
             type="number"
             inputMode="numeric"
           />
@@ -607,18 +633,21 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             name="precache"
             id="munki-package-precache"
             label="Precache"
+            description="Download an Optional Install before the user selects it."
           />
           <FormCheckboxField
             form={form}
             name="apple_item"
             id="munki-package-apple-item"
             label="Apple item"
+            description="Treat this package as an Apple update."
           />
           <FormCheckboxField
             form={form}
             name="suppress_bundle_relocation"
             id="munki-package-suppress-bundle-relocation"
             label="Suppress bundle relocation"
+            description="Prevent legacy bundle packages from updating a moved copy."
           />
         </FieldGroup>
       </FieldSet>

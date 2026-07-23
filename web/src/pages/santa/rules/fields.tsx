@@ -11,7 +11,7 @@ import {
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,7 +26,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
 import type { SantaRuleMutation } from "@/lib/api";
-import { RULE_TYPE_OPTIONS, RULE_TYPE_VALUES } from "@/lib/santa-rules";
+import { RULE_TYPES, RULE_TYPE_OPTIONS, RULE_TYPE_VALUES } from "@/lib/santa-rules";
 import { isOneOf } from "@/lib/utils";
 
 import {
@@ -63,7 +63,10 @@ export function RuleForm({
   const [activeTab, setActiveTab] = useState("options");
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
     validators: { onDynamic: ruleFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const id = await onSubmit(ruleBody(ruleFormSchema.parse(value)));
@@ -141,6 +144,7 @@ export function RuleForm({
                       <Field>
                         <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
                         <Select
+                          items={RULE_TYPE_OPTIONS}
                           value={field.state.value}
                           onValueChange={(ruleType) => {
                             if (!isOneOf(ruleType, RULE_TYPE_VALUES)) return;
@@ -161,6 +165,9 @@ export function RuleForm({
                             </SelectGroup>
                           </SelectContent>
                         </Select>
+                        <FieldDescription>
+                          {RULE_TYPES[field.state.value].description}
+                        </FieldDescription>
                       </Field>
                     )}
                   </form.Field>
@@ -188,7 +195,12 @@ export function RuleForm({
                   </form.Field>
                   <form.Field name="custom_url">
                     {(field) => (
-                      <FormField field={field} label="Custom URL" htmlFor="santa-rule-custom-url">
+                      <FormField
+                        field={field}
+                        label="Custom URL"
+                        htmlFor="santa-rule-custom-url"
+                        description="Opens from the Santa block notification when this rule matches."
+                      >
                         {(control) => (
                           <Input
                             {...control}
@@ -207,6 +219,7 @@ export function RuleForm({
                         field={field}
                         label="Custom Message"
                         htmlFor="santa-rule-custom-message"
+                        description="Replaces the default block message when this rule matches."
                       >
                         {(control) => (
                           <Textarea
@@ -234,7 +247,10 @@ export function RuleForm({
                             include={field.state.value.include}
                             excludeLabelIDs={field.state.value.exclude.map((ref) => ref.label_id)}
                             onChange={(include) =>
-                              field.handleChange({ ...field.state.value, include })
+                              field.handleChange({
+                                ...field.state.value,
+                                include,
+                              })
                             }
                           />
                           <Separator />
@@ -246,7 +262,10 @@ export function RuleForm({
                             crossListLabelIDs={selectedIncludeLabelIDs(field.state.value.include)}
                             includeBuiltins={false}
                             onChange={(exclude) =>
-                              field.handleChange({ ...field.state.value, exclude })
+                              field.handleChange({
+                                ...field.state.value,
+                                exclude,
+                              })
                             }
                           />
                         </FieldGroup>

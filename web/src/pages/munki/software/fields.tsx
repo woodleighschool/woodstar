@@ -118,7 +118,13 @@ export function MunkiSoftwareOptionsFields({
       <div className="grid gap-4 md:grid-cols-2">
         <form.Field name="name">
           {(field) => (
-            <FormField field={field} label="Name" htmlFor="munki-software-name" required>
+            <FormField
+              field={field}
+              label="Name"
+              htmlFor="munki-software-name"
+              required
+              description="Repository identity used by manifests and package relationships."
+            >
               {(control) => (
                 <Input
                   {...control}
@@ -134,7 +140,12 @@ export function MunkiSoftwareOptionsFields({
         </form.Field>
         <form.Field name="display_name">
           {(field) => (
-            <FormField field={field} label="Display Name" htmlFor="munki-software-display-name">
+            <FormField
+              field={field}
+              label="Display Name"
+              htmlFor="munki-software-display-name"
+              description="Name shown in Managed Software Center."
+            >
               {(control) => (
                 <Input
                   {...control}
@@ -150,7 +161,12 @@ export function MunkiSoftwareOptionsFields({
       </div>
       <form.Field name="description">
         {(field) => (
-          <FormField field={field} htmlFor="munki-software-description" label="Description">
+          <FormField
+            field={field}
+            htmlFor="munki-software-description"
+            label="Description"
+            description="Shown with the item in Managed Software Center."
+          >
             {(control) => (
               <Textarea
                 {...control}

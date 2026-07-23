@@ -232,6 +232,7 @@ function SantaIncludeDialog({
               <FormField field={field} label="Policy" htmlFor="santa-include-policy" required>
                 {(control) => (
                   <Select
+                    items={POLICY_OPTIONS}
                     value={field.state.value}
                     onValueChange={(policy) => {
                       if (isOneOf(policy, POLICY_VALUES)) field.handleChange(policy);

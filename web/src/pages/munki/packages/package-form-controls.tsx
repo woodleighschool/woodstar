@@ -12,8 +12,10 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
+  FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -25,8 +27,11 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiPackageAlert } from "@/lib/api";
+import { isOneOf } from "@/lib/utils";
 import {
+  MUNKI_INSTALLER_TYPES,
   MUNKI_INSTALLER_TYPE_OPTIONS,
+  MUNKI_INSTALLER_TYPE_VALUES,
   MUNKI_RESTART_ACTION_OPTIONS,
   MUNKI_UNINSTALL_METHOD_OPTIONS,
 } from "@/pages/munki/software/munki-software";
@@ -67,6 +72,7 @@ export function FormTextField({
   name,
   id,
   label,
+  description,
   required,
   type = "text",
   inputMode,
@@ -75,6 +81,7 @@ export function FormTextField({
   name: StringPackageFieldName;
   id: string;
   label: string;
+  description?: string;
   required?: boolean;
   type?: string;
   inputMode?: "text" | "numeric" | "decimal" | "tel" | "search" | "email" | "url";
@@ -82,7 +89,13 @@ export function FormTextField({
   return (
     <form.Field name={name}>
       {(field) => (
-        <FormField field={field} label={label} htmlFor={id} required={required}>
+        <FormField
+          field={field}
+          label={label}
+          htmlFor={id}
+          required={required}
+          description={description}
+        >
           {(control) => (
             <Input
               {...control}
@@ -106,16 +119,18 @@ export function FormTextareaField({
   name,
   id,
   label,
+  description,
 }: {
   form: PackageEditorForm;
   name: StringPackageFieldName;
   id: string;
   label: string;
+  description?: string;
 }) {
   return (
     <form.Field name={name}>
       {(field) => (
-        <FormField field={field} label={label} htmlFor={id}>
+        <FormField field={field} label={label} htmlFor={id} description={description}>
           {(control) => (
             <Textarea
               {...control}
@@ -137,18 +152,20 @@ export function FormCodeField({
   name,
   id,
   label,
+  description,
   minHeight = "[&_.cm-content]:min-h-40",
 }: {
   form: PackageEditorForm;
   name: StringPackageFieldName;
   id: string;
   label: string;
+  description?: string;
   minHeight?: string;
 }) {
   return (
     <form.Field name={name}>
       {(field) => (
-        <FormField field={field} label={label} htmlFor={id}>
+        <FormField field={field} label={label} htmlFor={id} description={description}>
           {() => (
             <CodeEditor
               value={field.state.value}
@@ -166,30 +183,34 @@ export function InstallerTypeField({ form }: { form: PackageEditorForm }) {
   return (
     <form.Field name="installer_type">
       {(field) => (
-        <FormField field={field} label="Installer Type" htmlFor="munki-package-installer-type">
-          {() => (
-            <Select
-              items={MUNKI_INSTALLER_TYPE_OPTIONS}
-              value={field.state.value}
-              onValueChange={(value) => {
-                if (value !== null) field.handleChange(value);
-              }}
-            >
-              <SelectTrigger id="munki-package-installer-type" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {MUNKI_INSTALLER_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          )}
-        </FormField>
+        <FieldSet>
+          <FieldLegend variant="label">Installer Type</FieldLegend>
+          <RadioGroup
+            name={field.name}
+            value={field.state.value}
+            className="grid gap-2 md:grid-cols-3"
+            onValueChange={(value) => {
+              if (isOneOf(value, MUNKI_INSTALLER_TYPE_VALUES)) field.handleChange(value);
+            }}
+          >
+            {MUNKI_INSTALLER_TYPE_OPTIONS.map((option) => (
+              <FieldLabel key={option.value} htmlFor={`munki-installer-type-${option.value}`}>
+                <Field orientation="horizontal">
+                  <RadioGroupItem
+                    id={`munki-installer-type-${option.value}`}
+                    value={option.value}
+                  />
+                  <FieldContent>
+                    <FieldTitle>{option.label}</FieldTitle>
+                    <FieldDescription>
+                      {MUNKI_INSTALLER_TYPES[option.value].description}
+                    </FieldDescription>
+                  </FieldContent>
+                </Field>
+              </FieldLabel>
+            ))}
+          </RadioGroup>
+        </FieldSet>
       )}
     </form.Field>
   );
@@ -237,7 +258,12 @@ export function UninstallMethodField({ form }: { form: PackageEditorForm }) {
   return (
     <form.Field name="uninstall_method">
       {(field) => (
-        <FormField field={field} label="Uninstall Method" htmlFor="munki-package-uninstall-method">
+        <FormField
+          field={field}
+          label="Uninstall Method"
+          htmlFor="munki-package-uninstall-method"
+          description="How Munki removes this package from a client."
+        >
           {() => (
             <Select
               items={uninstallMethodItems}
@@ -269,11 +295,13 @@ export function FormSwitchField({
   name,
   id,
   label,
+  description,
 }: {
   form: PackageEditorForm;
   name: BooleanPackageFieldName;
   id: string;
   label: string;
+  description?: string;
 }) {
   return (
     <form.Field name={name}>
@@ -281,6 +309,7 @@ export function FormSwitchField({
         <SwitchControl
           id={id}
           label={label}
+          description={description}
           checked={field.state.value}
           onChange={field.handleChange}
         />
@@ -294,11 +323,13 @@ export function FormCheckboxField({
   name,
   id,
   label,
+  description,
 }: {
   form: PackageEditorForm;
   name: BooleanPackageFieldName;
   id: string;
   label: string;
+  description?: string;
 }) {
   return (
     <form.Field name={name}>
@@ -306,6 +337,7 @@ export function FormCheckboxField({
         <CheckboxControl
           id={id}
           label={label}
+          description={description}
           checked={field.state.value}
           onChange={field.handleChange}
         />

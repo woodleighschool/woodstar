@@ -136,6 +136,7 @@ export function DistributionPointForm({
               <BoolField
                 id="munki-distribution-point-enabled"
                 label="Enabled"
+                description="Makes this distribution point eligible for matching clients."
                 value={field.state.value}
                 onChange={field.handleChange}
               />
@@ -143,7 +144,12 @@ export function DistributionPointForm({
           </form.Field>
           <form.Field name="client_base_url">
             {(field) => (
-              <FormField field={field} label="Base URL" htmlFor="munki-distribution-point-base-url">
+              <FormField
+                field={field}
+                label="Base URL"
+                htmlFor="munki-distribution-point-base-url"
+                description="Client-facing HTTPS origin for catalogs and package downloads."
+              >
                 {(control) => (
                   <Input
                     {...control}

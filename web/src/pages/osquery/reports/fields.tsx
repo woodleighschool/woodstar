@@ -25,7 +25,7 @@ import {
   resultValue,
 } from "@/components/reports/query-results";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -50,19 +50,19 @@ import {
 } from "@/lib/targeting";
 import { cn, nonEmpty } from "@/lib/utils";
 const FREQUENCY_OPTIONS: {
-  value: number;
+  value: string;
   label: string;
 }[] = [
-  { value: 0, label: "Off" },
-  { value: 300, label: "5 Minutes" },
-  { value: 600, label: "10 Minutes" },
-  { value: 900, label: "15 Minutes" },
-  { value: 1800, label: "30 Minutes" },
-  { value: 3600, label: "1 Hour" },
-  { value: 21600, label: "6 Hours" },
-  { value: 43200, label: "12 Hours" },
-  { value: 86400, label: "1 Day" },
-  { value: 604800, label: "1 Week" },
+  { value: "0", label: "Off" },
+  { value: "300", label: "5 Minutes" },
+  { value: "600", label: "10 Minutes" },
+  { value: "900", label: "15 Minutes" },
+  { value: "1800", label: "30 Minutes" },
+  { value: "3600", label: "1 Hour" },
+  { value: "21600", label: "6 Hours" },
+  { value: "43200", label: "12 Hours" },
+  { value: "86400", label: "1 Day" },
+  { value: "604800", label: "1 Week" },
 ];
 export const emptyReport: OsqueryReportMutation = {
   name: "",
@@ -135,7 +135,10 @@ export function ReportForm({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
-    validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
     validators: { onDynamic: reportFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const id = await onSubmit(trimReport(value));
@@ -150,7 +153,9 @@ export function ReportForm({
       form.setFieldValue("query", (current) => `${current} ${snippet}`);
       return;
     }
-    view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
+    view.dispatch({
+      changes: { from: view.state.selection.main.from, insert: snippet },
+    });
   }
   const selectSchemaTable = useCallback(
     (tableName: string) => {
@@ -232,9 +237,15 @@ export function ReportForm({
               <div className="grid gap-4 md:grid-cols-2">
                 <form.Field name="schedule_interval">
                   {(field) => (
-                    <FormField field={field} label="Interval" htmlFor="report-interval">
+                    <FormField
+                      field={field}
+                      label="Interval"
+                      htmlFor="report-interval"
+                      description="Runs the query on targeted hosts at this cadence. Off keeps it out of the schedule."
+                    >
                       {(control) => (
                         <Select
+                          items={FREQUENCY_OPTIONS}
                           value={String(field.state.value ?? 0)}
                           onValueChange={(value) => field.handleChange(Number(value))}
                         >
@@ -244,7 +255,7 @@ export function ReportForm({
                           <SelectContent>
                             <SelectGroup>
                               {FREQUENCY_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={String(option.value)}>
+                                <SelectItem key={option.value} value={option.value}>
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -262,6 +273,7 @@ export function ReportForm({
                       field={field}
                       label="Minimum Osquery Version"
                       htmlFor="report-min-version"
+                      description="Runs only on hosts with this osquery version or newer."
                     >
                       {(control) => (
                         <Input
@@ -298,6 +310,9 @@ export function ReportForm({
                       placeholder="SELECT ..."
                       invalid={error ? true : undefined}
                     />
+                    <FieldDescription>
+                      Stores the latest result rows returned by each targeted host.
+                    </FieldDescription>
                     {error ? <FieldError>{error}</FieldError> : null}
                   </Field>
                 );

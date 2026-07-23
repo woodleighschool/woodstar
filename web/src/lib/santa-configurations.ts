@@ -62,10 +62,22 @@ export const MEDIA_ACTION_VALUES = [
 ] as const satisfies readonly SantaMediaAction[];
 
 export const MEDIA_ACTIONS = {
-  none: { name: "No Policy" },
-  allow: { name: "Allow" },
-  block: { name: "Block" },
-  remount: { name: "Remount" },
+  none: {
+    name: "No Policy",
+    description: "Woodstar sends no policy for this volume type.",
+  },
+  allow: {
+    name: "Allow",
+    description: "Allow the volume to mount normally.",
+  },
+  block: {
+    name: "Block",
+    description: "Prevent the volume from mounting.",
+  },
+  remount: {
+    name: "Remount",
+    description: "Mount the volume again with selected restrictions.",
+  },
 } satisfies EnumMetadataMap<SantaMediaAction>;
 
 export const MEDIA_ACTION_OPTIONS = enumOptions(MEDIA_ACTIONS, MEDIA_ACTION_VALUES);
@@ -77,9 +89,18 @@ export const FILE_ACCESS_ACTION_VALUES = [
 ] as const satisfies readonly SantaFileAccessAction[];
 
 export const FILE_ACCESS_ACTIONS = {
-  none: { name: "No Override" },
-  audit_only: { name: "Audit Only" },
-  disable: { name: "Disable" },
+  none: {
+    name: "No Override",
+    description: "Enforce each file access rule using its configured policy.",
+  },
+  audit_only: {
+    name: "Audit Only",
+    description: "Log file access violations without blocking them.",
+  },
+  disable: {
+    name: "Disable",
+    description: "Neither log nor block file access policy violations.",
+  },
 } satisfies EnumMetadataMap<SantaFileAccessAction>;
 
 export const FILE_ACCESS_ACTION_OPTIONS = enumOptions(

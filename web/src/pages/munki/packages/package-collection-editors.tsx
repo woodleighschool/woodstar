@@ -150,6 +150,9 @@ export function ArchitectureEditor({
   return (
     <FieldSet>
       <FieldLegend>Supported Architectures</FieldLegend>
+      <FieldDescription>
+        Restricts installation to clients with a selected architecture.
+      </FieldDescription>
       <FieldGroup data-slot="checkbox-group">
         <CheckboxControl
           id="munki-package-arch-arm64"
@@ -179,6 +182,10 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                 <div {...control} tabIndex={-1}>
                   <FieldSet className="gap-4">
                     <FieldLegend variant="label">Blocking Applications</FieldLegend>
+                    <FieldDescription>
+                      Skip unattended work while a listed application is running and ask the user to
+                      quit it in Managed Software Center.
+                    </FieldDescription>
                     <FieldGroup className="gap-2">
                       <form.Field name="blocking_applications_none">
                         {(noneField) => (
@@ -328,6 +335,9 @@ export function InstallsTable({
   return (
     <FieldSet className="min-w-0 gap-4">
       <FieldLegend variant="label">Installs</FieldLegend>
+      <FieldDescription>
+        Files and bundles Munki uses to determine installed state and version.
+      </FieldDescription>
       {rows.length > 0 ? (
         <div className="overflow-x-auto rounded-md border">
           <Table>
@@ -448,6 +458,7 @@ export function ReceiptsTable({
   return (
     <FieldSet className="min-w-0 gap-4">
       <FieldLegend variant="label">Receipts</FieldLegend>
+      <FieldDescription>Package receipts Munki uses to determine installed state.</FieldDescription>
       {rows.length > 0 ? (
         <div className="overflow-x-auto rounded-md border">
           <Table>

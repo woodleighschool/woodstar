@@ -18,7 +18,25 @@ export const MUNKI_INSTALLER_TYPE_VALUES = [
   "copy_from_dmg",
 ] as const satisfies readonly MunkiInstallerType[];
 
-export const MUNKI_INSTALLER_TYPE_OPTIONS = rawEnumOptions(MUNKI_INSTALLER_TYPE_VALUES);
+export const MUNKI_INSTALLER_TYPES = {
+  pkg: {
+    name: "pkg",
+    description: "Installs an Apple installer package.",
+  },
+  nopkg: {
+    name: "nopkg",
+    description: "Uses package metadata and scripts without an installer payload.",
+  },
+  copy_from_dmg: {
+    name: "copy_from_dmg",
+    description: "Copies the configured items from a mounted disk image.",
+  },
+} satisfies EnumMetadataMap<MunkiInstallerType>;
+
+export const MUNKI_INSTALLER_TYPE_OPTIONS = enumOptions(
+  MUNKI_INSTALLER_TYPES,
+  MUNKI_INSTALLER_TYPE_VALUES,
+);
 
 export const MUNKI_RESTART_ACTION_VALUES = [
   "RequireLogout",
