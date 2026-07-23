@@ -28,7 +28,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,7 +40,7 @@ export function AppSidebar() {
     select: (state) => state.location.pathname,
   });
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar variant="floating" collapsible="icon">
       <SidebarHeader>
         <SidebarBrand />
       </SidebarHeader>
@@ -53,7 +52,6 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarUserMenu />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   );
 }
@@ -95,7 +93,7 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
           <span>{item.label}</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
         </CollapsibleTrigger>
-        <CollapsibleContent className="sidebar-subnav-collapsible">
+        <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden opacity-100 transition-[height,opacity] duration-200 ease-out data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
           <SidebarMenuSub>
             {item.items.map((child) => (
               <SidebarMenuSubItem key={child.to ?? child.label}>

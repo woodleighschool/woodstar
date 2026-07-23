@@ -2,7 +2,6 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { type ComponentProps, type ReactNode } from "react";
 
-import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { cn } from "@/lib/utils";
 
 function PageShell({
@@ -15,13 +14,11 @@ function PageShell({
     defaultTagName: "div",
     props: mergeProps<"div">(
       {
-        className: cn("flex min-w-0 flex-col gap-5 p-6", className),
-        children: (
-          <>
-            <AppBreadcrumbs className="-mb-1" />
-            {children}
-          </>
+        className: cn(
+          "mx-auto flex w-full min-w-0 flex-col gap-6 px-4 py-5 sm:p-6 lg:px-8 lg:py-7",
+          className,
         ),
+        children,
       },
       props,
     ),
@@ -53,7 +50,7 @@ function PageHeader({
         {leading ? <div className="shrink-0">{leading}</div> : null}
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
             {context ? (
               <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div>
             ) : null}

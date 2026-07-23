@@ -8,7 +8,7 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="w-auto min-w-0">
+      <SidebarInset className="min-h-svh w-auto min-w-0 overflow-hidden">
         <AppTopbar />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Outlet />
