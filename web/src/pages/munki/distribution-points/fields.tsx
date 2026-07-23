@@ -1,5 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { Trash2 } from "lucide-react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import { z } from "zod";
 
 import { FormActions } from "@/components/form-actions";
@@ -34,18 +34,26 @@ interface StringRow {
 interface DistributionPointFormState {
   name: string;
   enabled: boolean;
-  client_base_url: string;
+  client_domain: string;
   client_cidrs: StringRow[];
 }
 const cidrSchema = z.union([z.cidrv4(), z.cidrv6()]);
+const hostnameSchema = z.hostname();
+const portSchema = z
+  .string()
+  .regex(/^[1-9]\d{0,4}$/)
+  .refine((value) => Number(value) <= 65_535);
 const distributionPointFormSchema = z
   .object({
     name: requiredString("Name"),
     enabled: z.boolean(),
-    client_base_url: z
+    client_domain: z
       .string()
       .trim()
-      .refine((value) => value === "" || isHTTPSOrigin(value), "Base URL must be an HTTPS origin."),
+      .refine(
+        (value) => value === "" || isClientDomain(value),
+        "Enter a valid domain with an optional port.",
+      ),
     client_cidrs: z
       .array(z.object({ rowID: z.string(), value: z.string() }))
       .refine(
@@ -53,16 +61,18 @@ const distributionPointFormSchema = z
         "Enter a valid IPv4 or IPv6 CIDR.",
       ),
   })
-  .refine((value) => !value.enabled || value.client_base_url.length > 0, {
-    path: ["client_base_url"],
-    message: "Base URL is required to enable a distribution point.",
+  .refine((value) => !value.enabled || value.client_domain.length > 0, {
+    path: ["client_domain"],
+    message: "A domain is required to enable a distribution point.",
   });
 export const emptyDistributionPointForm: DistributionPointFormState = {
   name: "",
   enabled: true,
-  client_base_url: "",
+  client_domain: "",
   client_cidrs: [],
 };
+const DISTRIBUTION_POINT_DOCS_URL =
+  "https://woodleighschool.github.io/woodstar/docs/agent-protocols/munki-distribution";
 export function DistributionPointForm({
   initial,
   title,
@@ -105,7 +115,23 @@ export function DistributionPointForm({
           />
         }
       >
-        <PageHeader title={title} />
+        <PageHeader
+          title={title}
+          actions={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              render={
+                <a href={DISTRIBUTION_POINT_DOCS_URL} target="_blank" rel="noreferrer">
+                  <ExternalLink data-icon="inline-start" />
+                  Worker setup
+                </a>
+              }
+              nativeButton={false}
+            />
+          }
+        />
 
         <FieldGroup className="max-w-3xl">
           <form.Field name="name">
@@ -140,22 +166,26 @@ export function DistributionPointForm({
               />
             )}
           </form.Field>
-          <form.Field name="client_base_url">
+          <form.Field name="client_domain">
             {(field) => (
               <FormField
                 field={field}
-                label="Base URL"
-                htmlFor="munki-distribution-point-base-url"
-                description="Client-facing HTTPS origin for catalogs and package downloads."
+                label="Domain"
+                htmlFor="munki-distribution-point-domain"
+                description="Hostname clients use for catalogs and package downloads."
               >
                 {(control) => (
-                  <Input
-                    {...control}
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                  />
+                  <InputGroup>
+                    <InputGroupInput
+                      {...control}
+                      name={field.name}
+                      placeholder="mdp.example.com"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                    <InputGroupAddon>https://</InputGroupAddon>
+                  </InputGroup>
                 )}
               </FormField>
             )}
@@ -247,6 +277,7 @@ function StringArrayRows({
         <InputGroup key={row.rowID}>
           <InputGroupInput
             aria-invalid={invalid ? true : undefined}
+            placeholder="10.0.0.0/8"
             value={row.value}
             onChange={(event) => onReplace(index, { ...row, value: event.target.value })}
           />
@@ -271,7 +302,7 @@ export function formFromDistributionPoint(
   return {
     name: point.name,
     enabled: point.enabled,
-    client_base_url: point.client_base_url,
+    client_domain: domainFromHTTPSOrigin(point.client_base_url),
     client_cidrs: stringRows(point.client_cidrs),
   };
 }
@@ -279,7 +310,7 @@ function distributionPointBody(form: DistributionPointFormState): MunkiDistribut
   return {
     name: form.name.trim(),
     enabled: form.enabled,
-    client_base_url: form.client_base_url.trim(),
+    client_base_url: httpsOriginFromDomain(form.client_domain),
     client_cidrs: cleanStringRows(form.client_cidrs),
   };
 }
@@ -295,21 +326,18 @@ function cleanStringRows(rows: StringRow[]): string[] {
 function rowID(): string {
   return crypto.randomUUID();
 }
-function isHTTPSOrigin(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" &&
-      url.host !== "" &&
-      url.username === "" &&
-      url.password === "" &&
-      url.pathname === "/" &&
-      url.search === "" &&
-      url.hash === "" &&
-      !value.includes("?") &&
-      !value.includes("#")
-    );
-  } catch {
-    return false;
-  }
+function isClientDomain(value: string): boolean {
+  const [hostname, port, extra] = value.split(":");
+  return (
+    extra === undefined &&
+    hostnameSchema.safeParse(hostname).success &&
+    (port === undefined || portSchema.safeParse(port).success)
+  );
+}
+function httpsOriginFromDomain(value: string): string {
+  const domain = value.trim();
+  return domain === "" ? "" : `https://${domain}`;
+}
+function domainFromHTTPSOrigin(value: string): string {
+  return value.trim().replace(/^https:\/\//i, "");
 }
