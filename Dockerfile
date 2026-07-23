@@ -27,11 +27,13 @@ COPY --from=web /workspace/web/dist web/dist
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION}" -o woodstar ./cmd/woodstar
+RUN mkdir /data
 
 FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
 COPY --from=builder /workspace/woodstar /woodstar
+COPY --from=builder --chown=65532:65532 /data /data
 EXPOSE 8080
 USER 65532:65532
 ENTRYPOINT ["/woodstar"]

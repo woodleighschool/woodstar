@@ -14,16 +14,42 @@ services:
       WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
       WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
       WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem
-      WOODSTAR_STORAGE_FILE_ROOT: /data/storage
+      WOODSTAR_STORAGE_FILE_ROOT: /data
     ports:
       - "${WOODSTAR_PORT:-8443}:8080"
     volumes:
       - ${WOODSTAR_TLS_CERT_FILE:-./tmp/tls/woodstar.pem}:/tls/woodstar.pem:ro
       - ${WOODSTAR_TLS_KEY_FILE:-./tmp/tls/woodstar-key.pem}:/tls/woodstar-key.pem:ro
-      - ./data:/data
+      - woodstar-data:/data
     depends_on:
       postgres:
         condition: service_healthy
+
+  mdp:
+    profiles:
+      - mdp
+    image: ghcr.io/woodleighschool/woodstar:rolling
+    command:
+      - mdp
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WOODSTAR_MDP_SERVER_URL: https://woodstar:8080
+      WOODSTAR_MDP_SERVER_CA_FILE: /tls/woodstar-ca.pem
+      WOODSTAR_MDP_DATA_DIR: /data
+      WOODSTAR_MDP_LISTEN_ADDR: :8080
+      WOODSTAR_MDP_TLS_CERT_FILE: /tls/mdp.pem
+      WOODSTAR_MDP_TLS_KEY_FILE: /tls/mdp-key.pem
+    ports:
+      - "${WOODSTAR_MDP_PORT:-8090}:8080"
+    volumes:
+      - ${WOODSTAR_MDP_SERVER_CA_FILE:-./tmp/tls/ca/rootCA.pem}:/tls/woodstar-ca.pem:ro
+      - ${WOODSTAR_MDP_TLS_CERT_FILE:-./tmp/tls/woodstar.pem}:/tls/mdp.pem:ro
+      - ${WOODSTAR_MDP_TLS_KEY_FILE:-./tmp/tls/woodstar-key.pem}:/tls/mdp-key.pem:ro
+      - mdp-data:/data
+    depends_on:
+      woodstar:
+        condition: service_started
 
   postgres:
     image: postgres:18
@@ -43,4 +69,6 @@ services:
       retries: 20
 
 volumes:
+  mdp-data:
   postgres-data:
+  woodstar-data:

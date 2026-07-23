@@ -43,6 +43,16 @@ docker compose exec woodstar /woodstar user create \
 
 The command prompts for a password. When the account is ready, open the address set in `WOODSTAR_URL`.
 
+## Start a distribution point worker
+
+The Compose file includes the separate `woodstar mdp` worker under the `mdp` profile. After creating a distribution point, set `WOODSTAR_MDP_KEY` in `.env` and make sure its HTTPS URL matches the worker certificate, then start the profile:
+
+```bash
+docker compose --profile mdp up -d
+```
+
+The profile is disabled during an ordinary `docker compose up`. It stores cached installers in the `mdp-data` volume and publishes the worker on host port `8090`; set `WOODSTAR_MDP_PORT` to change that port.
+
 ## Run the current checkout
 
 The `woodstar` service contains a commented `build` block and `pull_policy: build`. Uncomment both, then run:
@@ -55,12 +65,10 @@ This builds the same Dockerfile used for published images.
 
 ## Data
 
-PostgreSQL data is stored in the `postgres-data` volume. Uploaded Munki files are stored in `./data`.
-
-The `data` directory must be writable by container user `65532`. Woodstar exits during startup when `/data/storage` cannot be created.
+PostgreSQL data is stored in the `postgres-data` volume. Uploaded Munki files are stored in the `woodstar-data` volume, and distribution point cache data is stored in the `mdp-data` volume.
 
 :::warning
 
-`docker compose down --volumes` deletes the local database and uploaded files.
+`docker compose down --volumes` deletes the local database, uploaded files, and distribution point cache.
 
 :::

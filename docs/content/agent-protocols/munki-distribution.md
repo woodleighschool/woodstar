@@ -29,6 +29,8 @@ Only assign client CIDRs that can resolve and connect to the configured URL over
 
 ## Run the worker
 
+Download the archive for the worker host from [GitHub Releases](https://github.com/woodleighschool/woodstar/releases), extract it, and place `woodstar` on `PATH`. Releases include Linux and macOS archives for AMD64 and ARM64.
+
 ```bash
 WOODSTAR_MDP_SERVER_URL=https://woodstar.example.com
 WOODSTAR_MDP_KEY=<distribution-point-key>
@@ -39,6 +41,14 @@ woodstar mdp
 ```
 
 The worker listens on `:8080` by default. Set both worker TLS files for direct HTTPS, or leave both empty behind a reverse proxy.
+
+The repository Compose file can run the same worker from the published image. Set the worker values in `.env`, then enable its profile:
+
+```bash
+docker compose --profile mdp up -d
+```
+
+The `mdp` profile is disabled during an ordinary `docker compose up`.
 
 See [Environment](../configuration/environment#distribution-point-worker) for every worker setting.
 

@@ -1,0 +1,45 @@
+---
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+project_name: woodstar
+
+before:
+  hooks:
+    - mise run tidy-check
+    - mise run //web:build
+
+builds:
+  - id: woodstar
+    main: ./cmd/woodstar
+    binary: woodstar
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Version={{ .Version }}
+
+archives:
+  - ids:
+      - woodstar
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+release:
+  mode: keep-existing
+
+changelog:
+  disable: true
