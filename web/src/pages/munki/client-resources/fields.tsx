@@ -1,6 +1,6 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
-import { Brush, CloudOff, Upload } from "lucide-react";
+import { Brush, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -103,11 +103,11 @@ export function MunkiClientResourcesForm({
                 {deployed ? (
                   <PendingButton
                     type="button"
-                    variant="secondary"
+                    variant="destructive"
                     size="sm"
                     isPending={undeploying}
                     disabled={submitting}
-                    icon={<CloudOff data-icon="inline-start" />}
+                    icon={<Trash2 data-icon="inline-start" />}
                     onClick={() => setConfirmUndeploy(true)}
                   >
                     Undeploy
