@@ -33,13 +33,12 @@ type FileConfig struct {
 
 // S3Config holds the settings for the S3 backend.
 type S3Config struct {
-	Bucket         string
-	Region         string
-	Endpoint       string
-	PublicEndpoint string
-	AccessKey      string
-	SecretKey      string
-	PathStyle      bool
+	Bucket    string
+	Region    string
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	PathStyle bool
 }
 
 // New builds the configured backend.

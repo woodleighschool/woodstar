@@ -411,13 +411,12 @@ func storageConfig(cfg config.Config) storage.Config {
 			CapabilityKeyHex: cfg.StorageCapabilityKey,
 		},
 		S3: storage.S3Config{
-			Bucket:         cfg.StorageS3Bucket,
-			Region:         cfg.StorageS3Region,
-			Endpoint:       cfg.StorageS3Endpoint,
-			PublicEndpoint: cfg.StorageS3PublicEndpoint,
-			AccessKey:      cfg.StorageS3AccessKey,
-			SecretKey:      cfg.StorageS3SecretKey,
-			PathStyle:      cfg.StorageS3PathStyle,
+			Bucket:    cfg.StorageS3Bucket,
+			Region:    cfg.StorageS3Region,
+			Endpoint:  cfg.StorageS3Endpoint,
+			AccessKey: cfg.StorageS3AccessKey,
+			SecretKey: cfg.StorageS3SecretKey,
+			PathStyle: cfg.StorageS3PathStyle,
 		},
 	}
 }

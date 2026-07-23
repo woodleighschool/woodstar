@@ -41,13 +41,12 @@ func TestS3StorageBackend(t *testing.T) {
 		Kind:        storage.KindS3,
 		TransferTTL: time.Minute,
 		S3: storage.S3Config{
-			Bucket:         garageBucket,
-			Region:         garageRegion,
-			Endpoint:       endpoint,
-			PublicEndpoint: endpoint,
-			AccessKey:      garageAccessKey,
-			SecretKey:      garageSecretKey,
-			PathStyle:      true,
+			Bucket:    garageBucket,
+			Region:    garageRegion,
+			Endpoint:  endpoint,
+			AccessKey: garageAccessKey,
+			SecretKey: garageSecretKey,
+			PathStyle: true,
 		},
 	})
 	if err != nil {

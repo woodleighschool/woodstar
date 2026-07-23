@@ -223,7 +223,6 @@ func TestConfigReadsStorageS3Environment(t *testing.T) {
 	t.Setenv("WOODSTAR_STORAGE_S3_BUCKET", "woodstar")
 	t.Setenv("WOODSTAR_STORAGE_S3_REGION", "ap-southeast-2")
 	t.Setenv("WOODSTAR_STORAGE_S3_ENDPOINT", " https://storage.example ")
-	t.Setenv("WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT", " https://downloads.example ")
 	t.Setenv("WOODSTAR_STORAGE_S3_ACCESS_KEY", "access")
 	t.Setenv("WOODSTAR_STORAGE_S3_SECRET_KEY", "secret")
 	t.Setenv("WOODSTAR_STORAGE_S3_PATH_STYLE", "true")
@@ -239,9 +238,6 @@ func TestConfigReadsStorageS3Environment(t *testing.T) {
 	}
 	if cfg.StorageS3Endpoint != "https://storage.example" {
 		t.Fatalf("StorageS3Endpoint = %q", cfg.StorageS3Endpoint)
-	}
-	if cfg.StorageS3PublicEndpoint != "https://downloads.example" {
-		t.Fatalf("StorageS3PublicEndpoint = %q", cfg.StorageS3PublicEndpoint)
 	}
 	if cfg.StorageTransferTTL.String() != "10m0s" {
 		t.Fatalf("StorageTransferTTL = %s", cfg.StorageTransferTTL)
@@ -261,16 +257,14 @@ func TestConfigRejectsPartialStorageS3Config(t *testing.T) {
 	}
 }
 
-func TestConfigRequiresHTTPSForEffectivePublicS3Endpoint(t *testing.T) {
+func TestConfigRequiresHTTPSForS3Endpoint(t *testing.T) {
 	for _, tc := range []struct {
-		name           string
-		endpoint       string
-		publicEndpoint string
-		wantError      bool
+		name      string
+		endpoint  string
+		wantError bool
 	}{
-		{name: "HTTP effective endpoint", endpoint: "http://garage:3900", wantError: true},
-		{name: "HTTP explicit public endpoint", endpoint: "https://garage:3900", publicEndpoint: "http://downloads.example", wantError: true},
-		{name: "HTTPS public endpoint", endpoint: "http://garage:3900", publicEndpoint: "https://downloads.example"},
+		{name: "HTTP endpoint", endpoint: "http://garage:3900", wantError: true},
+		{name: "HTTPS endpoint", endpoint: "https://garage.example"},
 		{name: "AWS default endpoint"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -282,7 +276,6 @@ func TestConfigRequiresHTTPSForEffectivePublicS3Endpoint(t *testing.T) {
 			cfg.StorageS3AccessKey = "access"
 			cfg.StorageS3SecretKey = "secret"
 			cfg.StorageS3Endpoint = tc.endpoint
-			cfg.StorageS3PublicEndpoint = tc.publicEndpoint
 			err := cfg.Validate()
 			if (err != nil) != tc.wantError {
 				t.Fatalf("Validate error = %v, wantError %t", err, tc.wantError)

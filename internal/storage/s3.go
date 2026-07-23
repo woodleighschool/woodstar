@@ -45,12 +45,7 @@ func newS3Store(ctx context.Context, cfg S3Config, transferTTL time.Duration) (*
 		return nil, fmt.Errorf("load storage s3 config: %w", err)
 	}
 	client := newS3Client(awsCfg, cfg.Endpoint, cfg.PathStyle)
-	presignEndpoint := cfg.PublicEndpoint
-	if presignEndpoint == "" {
-		presignEndpoint = cfg.Endpoint
-	}
-	presignClient := newS3Client(awsCfg, presignEndpoint, cfg.PathStyle)
-	presigner := s3.NewPresignClient(presignClient)
+	presigner := s3.NewPresignClient(client)
 	origin, err := presignedTransferOrigin(ctx, presigner, cfg.Bucket)
 	if err != nil {
 		return nil, err

@@ -77,19 +77,18 @@ See [Directory](../admin/directory) for the data Woodstar imports.
 
 ## Storage
 
-| Variable                              | Default             | Description                                          |
-| ------------------------------------- | ------------------- | ---------------------------------------------------- |
-| `WOODSTAR_STORAGE_KIND`               | `file`              | `file` or `s3`                                       |
-| `WOODSTAR_STORAGE_FILE_ROOT`          | `data/storage`      | Storage directory for `file`                         |
-| `WOODSTAR_STORAGE_CAPABILITY_KEY`     | required for `file` | 32 random bytes encoded as 64 hexadecimal characters |
-| `WOODSTAR_STORAGE_TRANSFER_TTL`       | `15m`               | Lifetime of file capabilities and S3 presigned URLs  |
-| `WOODSTAR_STORAGE_S3_BUCKET`          | empty               | S3 bucket                                            |
-| `WOODSTAR_STORAGE_S3_REGION`          | empty               | S3 region                                            |
-| `WOODSTAR_STORAGE_S3_ENDPOINT`        | empty               | S3 endpoint; leave empty for AWS                     |
-| `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` | empty               | HTTPS endpoint used in presigned URLs                |
-| `WOODSTAR_STORAGE_S3_ACCESS_KEY`      | empty               | S3 access key                                        |
-| `WOODSTAR_STORAGE_S3_SECRET_KEY`      | empty               | S3 secret key                                        |
-| `WOODSTAR_STORAGE_S3_PATH_STYLE`      | `false`             | Use path-style bucket URLs                           |
+| Variable                          | Default             | Description                                          |
+| --------------------------------- | ------------------- | ---------------------------------------------------- |
+| `WOODSTAR_STORAGE_KIND`           | `file`              | `file` or `s3`                                       |
+| `WOODSTAR_STORAGE_FILE_ROOT`      | `data/storage`      | Storage directory for `file`                         |
+| `WOODSTAR_STORAGE_CAPABILITY_KEY` | required for `file` | 32 random bytes encoded as 64 hexadecimal characters |
+| `WOODSTAR_STORAGE_TRANSFER_TTL`   | `15m`               | Lifetime of file capabilities and S3 presigned URLs  |
+| `WOODSTAR_STORAGE_S3_BUCKET`      | empty               | S3 bucket                                            |
+| `WOODSTAR_STORAGE_S3_REGION`      | empty               | S3 region                                            |
+| `WOODSTAR_STORAGE_S3_ENDPOINT`    | empty               | S3 endpoint; leave empty for AWS                     |
+| `WOODSTAR_STORAGE_S3_ACCESS_KEY`  | empty               | S3 access key                                        |
+| `WOODSTAR_STORAGE_S3_SECRET_KEY`  | empty               | S3 secret key                                        |
+| `WOODSTAR_STORAGE_S3_PATH_STYLE`  | `false`             | Use path-style bucket URLs                           |
 
 Generate a file-storage key with:
 

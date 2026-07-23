@@ -57,17 +57,16 @@ type Config struct {
 	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
 	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     validate:"gt=0"                                          envDefault:"1h"`
 
-	StorageKind             string        `env:"STORAGE_KIND"               envDefault:"file"         validate:"required,oneof=file s3"`
-	StorageFileRoot         string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage" validate:"required_if=StorageKind file"`
-	StorageCapabilityKey    string        `env:"STORAGE_CAPABILITY_KEY"                               validate:"required_if=StorageKind file"`
-	StorageTransferTTL      time.Duration `env:"STORAGE_TRANSFER_TTL"       envDefault:"15m"          validate:"gt=0"`
-	StorageS3Bucket         string        `env:"STORAGE_S3_BUCKET"                                    validate:"required_if=StorageKind s3"`
-	StorageS3Region         string        `env:"STORAGE_S3_REGION"                                    validate:"required_if=StorageKind s3"`
-	StorageS3Endpoint       string        `env:"STORAGE_S3_ENDPOINT"                                  validate:"omitempty,url"`
-	StorageS3PublicEndpoint string        `env:"STORAGE_S3_PUBLIC_ENDPOINT"                           validate:"omitempty,url"`
-	StorageS3AccessKey      string        `env:"STORAGE_S3_ACCESS_KEY"                                validate:"required_if=StorageKind s3"`
-	StorageS3SecretKey      string        `env:"STORAGE_S3_SECRET_KEY"                                validate:"required_if=StorageKind s3"`
-	StorageS3PathStyle      bool          `env:"STORAGE_S3_PATH_STYLE"`
+	StorageKind          string        `env:"STORAGE_KIND"               envDefault:"file"         validate:"required,oneof=file s3"`
+	StorageFileRoot      string        `env:"STORAGE_FILE_ROOT"          envDefault:"data/storage" validate:"required_if=StorageKind file"`
+	StorageCapabilityKey string        `env:"STORAGE_CAPABILITY_KEY"                               validate:"required_if=StorageKind file"`
+	StorageTransferTTL   time.Duration `env:"STORAGE_TRANSFER_TTL"       envDefault:"15m"          validate:"gt=0"`
+	StorageS3Bucket      string        `env:"STORAGE_S3_BUCKET"                                    validate:"required_if=StorageKind s3"`
+	StorageS3Region      string        `env:"STORAGE_S3_REGION"                                    validate:"required_if=StorageKind s3"`
+	StorageS3Endpoint    string        `env:"STORAGE_S3_ENDPOINT"                                  validate:"omitempty,url"`
+	StorageS3AccessKey   string        `env:"STORAGE_S3_ACCESS_KEY"                                validate:"required_if=StorageKind s3"`
+	StorageS3SecretKey   string        `env:"STORAGE_S3_SECRET_KEY"                                validate:"required_if=StorageKind s3"`
+	StorageS3PathStyle   bool          `env:"STORAGE_S3_PATH_STYLE"`
 
 	// ClientIPSource selects how the real client IP is derived behind proxies.
 	// The companion fields are required only for the matching source.
@@ -146,13 +145,9 @@ func (cfg *Config) Validate() error {
 	if err := validation.Struct(cfg); err != nil {
 		return err
 	}
-	publicStorageEndpoint := cfg.StorageS3PublicEndpoint
-	if publicStorageEndpoint == "" {
-		publicStorageEndpoint = cfg.StorageS3Endpoint
-	}
-	if cfg.StorageKind == "s3" && publicStorageEndpoint != "" &&
-		!validation.IsHTTPSOrigin(publicStorageEndpoint) {
-		return errors.New("StorageS3PublicEndpoint must resolve to an HTTPS origin")
+	if cfg.StorageKind == "s3" && cfg.StorageS3Endpoint != "" &&
+		!validation.IsHTTPSOrigin(cfg.StorageS3Endpoint) {
+		return errors.New("StorageS3Endpoint must resolve to an HTTPS origin")
 	}
 	return nil
 }
@@ -228,7 +223,6 @@ func (cfg *Config) normalizeStorage() {
 	cfg.StorageS3Bucket = strings.TrimSpace(cfg.StorageS3Bucket)
 	cfg.StorageS3Region = strings.TrimSpace(cfg.StorageS3Region)
 	cfg.StorageS3Endpoint = normalizeOrigin(cfg.StorageS3Endpoint)
-	cfg.StorageS3PublicEndpoint = normalizeOrigin(cfg.StorageS3PublicEndpoint)
 	cfg.StorageS3AccessKey = strings.TrimSpace(cfg.StorageS3AccessKey)
 }
 

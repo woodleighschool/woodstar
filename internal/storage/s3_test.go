@@ -17,15 +17,14 @@ func TestS3StoreTransferOriginMatchesPresignedPart(t *testing.T) {
 		cfg  S3Config
 	}{
 		{
-			name: "public endpoint",
+			name: "custom endpoint",
 			cfg: S3Config{
-				Bucket:         "woodstar",
-				Region:         "ap-southeast-2",
-				Endpoint:       "https://garage.internal.example",
-				PublicEndpoint: "https://uploads.example",
-				AccessKey:      "test-access-key",
-				SecretKey:      "test-secret-key",
-				PathStyle:      true,
+				Bucket:    "woodstar",
+				Region:    "ap-southeast-2",
+				Endpoint:  "https://uploads.example",
+				AccessKey: "test-access-key",
+				SecretKey: "test-secret-key",
+				PathStyle: true,
 			},
 		},
 		{
@@ -70,12 +69,12 @@ func TestS3StoreTransferOriginMatchesPresignedPart(t *testing.T) {
 func TestS3StoreUsesConfiguredTransferTTL(t *testing.T) {
 	t.Parallel()
 	store, err := newS3Store(t.Context(), S3Config{
-		Bucket:         "woodstar",
-		Region:         "ap-southeast-2",
-		PublicEndpoint: "https://uploads.example",
-		AccessKey:      "test-access-key",
-		SecretKey:      "test-secret-key",
-		PathStyle:      true,
+		Bucket:    "woodstar",
+		Region:    "ap-southeast-2",
+		Endpoint:  "https://uploads.example",
+		AccessKey: "test-access-key",
+		SecretKey: "test-secret-key",
+		PathStyle: true,
 	}, testS3TransferTTL)
 	if err != nil {
 		t.Fatalf("newS3Store: %v", err)

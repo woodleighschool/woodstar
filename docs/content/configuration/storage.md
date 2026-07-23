@@ -22,7 +22,7 @@ Woodstar writes the files below the configured root and serves them through shor
 
 ## S3 storage
 
-Set `WOODSTAR_STORAGE_KIND=s3` with a bucket, region, access key, and secret key. An endpoint can be supplied for services such as Garage, MinIO, or Cloudflare R2. Use `WOODSTAR_STORAGE_S3_PUBLIC_ENDPOINT` when the public download endpoint differs from the one Woodstar connects to.
+Set `WOODSTAR_STORAGE_KIND=s3` with a bucket, region, access key, and secret key. An endpoint can be supplied for services such as Garage, MinIO, or Cloudflare R2. Woodstar uses that endpoint for its own S3 requests and presigned transfer URLs.
 
 Woodstar uses multipart upload with presigned part URLs for S3 uploads. Downloads use presigned URLs.
 

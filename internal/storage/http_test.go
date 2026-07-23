@@ -219,12 +219,12 @@ func TestTransferRoutesAreNotMountedForS3(t *testing.T) {
 		Kind:        KindS3,
 		TransferTTL: time.Minute,
 		S3: S3Config{
-			Bucket:         "woodstar",
-			Region:         "ap-southeast-2",
-			PublicEndpoint: "https://uploads.example",
-			AccessKey:      "test-access-key",
-			SecretKey:      "test-secret-key",
-			PathStyle:      true,
+			Bucket:    "woodstar",
+			Region:    "ap-southeast-2",
+			Endpoint:  "https://uploads.example",
+			AccessKey: "test-access-key",
+			SecretKey: "test-secret-key",
+			PathStyle: true,
 		},
 	})
 	if err != nil {
