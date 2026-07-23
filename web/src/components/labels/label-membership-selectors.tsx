@@ -1,26 +1,18 @@
 import {
   type ColumnDef,
-  flexRender,
   getCoreRowModel,
   type PaginationState,
+  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { selectColumn } from "@/components/data-table/select-column";
 import { EmptyPanel } from "@/components/empty-panel";
 import { QueryError } from "@/components/query-error";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useGroups } from "@/hooks/use-groups";
@@ -28,6 +20,7 @@ import { useHosts } from "@/hooks/use-hosts";
 import { useUserDepartments, useUsers } from "@/hooks/use-users";
 import type { Department, Group, Host, User } from "@/lib/api";
 import type { LabelDerivedAttribute } from "@/lib/labels";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { assertNever } from "@/lib/utils";
 
 export function HostSelector({
@@ -279,7 +272,10 @@ interface SelectorControls {
 function useSelectorControls(defaultSorting: SortingState): SelectorControls {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<SelectionFilter>("all");
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
 
   function resetPage() {
@@ -319,9 +315,8 @@ interface SelectorTableProps<TData> {
   emptyTitle: string;
 }
 
-// Server-paginated multi-select picker with local (non-URL) state. Selection is
-// kept externally as id strings so it survives paging; row checkboxes read/write
-// that set directly rather than TanStack's page-scoped rowSelection.
+// Server-paginated multi-select picker with local (non-URL) state. Selection
+// remains externally owned so it survives paging and selected-only filtering.
 function SelectorTable<TData>({
   columns,
   data,
@@ -336,17 +331,31 @@ function SelectorTable<TData>({
   getRowId,
   emptyTitle,
 }: SelectorTableProps<TData>) {
+  const rowSelection = Object.fromEntries(
+    selectedRowIds.map((id) => [id, true]),
+  ) satisfies RowSelectionState;
+  const selectorColumns = useMemo(() => [selectColumn<TData>(), ...columns], [columns]);
   const table = useReactTable({
-    data,
-    columns,
+    data: isLoading ? [] : data,
+    columns: selectorColumns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => getRowId(row),
     manualPagination: true,
     manualSorting: true,
     enableMultiSort: false,
+    enableRowSelection: true,
     pageCount: Math.max(1, Math.ceil(totalCount / controls.pagination.pageSize)),
-    state: { pagination: controls.pagination, sorting: controls.sorting },
+    rowCount: totalCount,
+    state: {
+      pagination: controls.pagination,
+      rowSelection,
+      sorting: controls.sorting,
+    },
     onPaginationChange: controls.setPagination,
+    onRowSelectionChange: (updater) => {
+      const next = typeof updater === "function" ? updater(rowSelection) : updater;
+      onSelectedRowIdsChange(Object.keys(next).filter((id) => next[id]));
+    },
     onSortingChange: (updater) => {
       controls.setSorting((prev) =>
         singleSort(typeof updater === "function" ? updater(prev) : updater),
@@ -354,27 +363,21 @@ function SelectorTable<TData>({
     },
   });
 
-  const selectedSet = new Set(selectedRowIds);
-  const pageRows = table.getRowModel().rows;
-  const pageIds = pageRows.map((row) => getRowId(row.original));
-  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedSet.has(id));
-  const pageCount = Math.max(1, Math.ceil(totalCount / controls.pagination.pageSize));
-
-  function togglePage(checked: boolean) {
-    if (checked) onSelectedRowIdsChange([...new Set([...selectedRowIds, ...pageIds])]);
-    else onSelectedRowIdsChange(selectedRowIds.filter((id) => !pageIds.includes(id)));
-  }
-  function toggleRow(id: string, checked: boolean) {
-    if (checked) onSelectedRowIdsChange([...selectedRowIds, id]);
-    else onSelectedRowIdsChange(selectedRowIds.filter((existing) => existing !== id));
-  }
-
   if (error) {
     return <QueryError title="Failed to load options" error={{ message: error }} />;
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <DataTable
+      table={table}
+      empty={
+        isLoading ? (
+          <div className="h-24 text-center leading-24 text-muted-foreground">Loading...</div>
+        ) : (
+          <EmptyPanel>{emptyTitle}</EmptyPanel>
+        )
+      }
+    >
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={controls.q}
@@ -395,93 +398,7 @@ function SelectorTable<TData>({
           <ToggleGroupItem value="selected">Selected {selectedCount}</ToggleGroupItem>
         </ToggleGroup>
       </div>
-
-      <div className="overflow-x-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                <TableHead className="w-10">
-                  <Checkbox checked={allPageSelected} onCheckedChange={togglePage} />
-                </TableHead>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {!isLoading && pageRows.length ? (
-              pageRows.map((row) => {
-                const id = getRowId(row.original);
-                return (
-                  <TableRow key={row.id} data-state={selectedSet.has(id) ? "selected" : undefined}>
-                    <TableCell className="w-10">
-                      <Checkbox
-                        checked={selectedSet.has(id)}
-                        onCheckedChange={(value) => toggleRow(id, value)}
-                      />
-                    </TableCell>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length + 1} className="p-0">
-                  {isLoading ? (
-                    <div className="h-24 text-center leading-24 text-muted-foreground">
-                      Loading...
-                    </div>
-                  ) : (
-                    <EmptyPanel>{emptyTitle}</EmptyPanel>
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">{totalCount} total</span>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={controls.pagination.pageIndex <= 0}
-            onClick={() =>
-              controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }))
-            }
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {controls.pagination.pageIndex + 1} of {pageCount}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={controls.pagination.pageIndex >= pageCount - 1}
-            onClick={() =>
-              controls.setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex + 1 }))
-            }
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-    </div>
+    </DataTable>
   );
 }
 
