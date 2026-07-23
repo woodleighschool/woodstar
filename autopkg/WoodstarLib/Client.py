@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import subprocess
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
@@ -17,6 +18,7 @@ class WoodstarClient:
     def __init__(self, base_url, api_key, ca_file=None):
         self.base_url = validate_base_url(base_url)
         verify = validate_ca_file(ca_file)
+        self.ca_file = verify if isinstance(verify, str) else None
         self.session = requests.Session()
         self.session.verify = verify
         self.session.headers.update(
@@ -25,7 +27,6 @@ class WoodstarClient:
                 "Accept": "application/json",
             }
         )
-        self.upload_session = requests.Session()
 
     def get(self, path, query=None):
         return self.request("GET", path, query=query)
@@ -127,7 +128,7 @@ class WoodstarClient:
                 target = self.post(
                     f"/api/munki/package-installers/{object_id}/multipart/parts/{part_number}"
                 )
-                response = self.upload_to_target(
+                response_headers = self.upload_to_target(
                     {
                         "url": target["upload_url"],
                         "method": target["method"],
@@ -136,7 +137,7 @@ class WoodstarClient:
                     chunk,
                     len(chunk),
                 )
-                etag = response.headers.get("ETag")
+                etag = response_headers.get("etag")
                 if not etag:
                     raise ProcessorError(
                         f"multipart part {part_number} did not return an ETag"
@@ -157,23 +158,64 @@ class WoodstarClient:
             raise ProcessorError(f"upload URL must use HTTPS: {safe_url(url)}")
         headers = dict(target.get("headers") or {})
         headers.setdefault("Content-Length", str(size))
+        headers.setdefault("Expect", "")
+        command = [
+            "/usr/bin/curl",
+            "--silent",
+            "--show-error",
+            "--request",
+            method,
+            "--data-binary",
+            "@-",
+            "--dump-header",
+            "-",
+            "--output",
+            "/dev/null",
+            "--connect-timeout",
+            str(UPLOAD_TIMEOUT[0]),
+            "--max-time",
+            str(UPLOAD_TIMEOUT[1]),
+            "--proto",
+            "=https",
+        ]
+        if self.ca_file and same_origin(self.base_url, url):
+            command.extend(["--cacert", self.ca_file])
+        for name, value in headers.items():
+            command.extend(["--header", f"{name}: {value}"])
+        command.extend(["--url", url])
+
         try:
-            response = self.upload_session.request(
-                method,
-                url,
-                data=body,
-                headers=headers,
-                timeout=UPLOAD_TIMEOUT,
+            run_args = {
+                "args": command,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "check": False,
+            }
+            if hasattr(body, "read"):
+                run_args["stdin"] = body
+            else:
+                run_args["input"] = body
+            result = subprocess.run(
+                **run_args,
             )
-        except requests.RequestException as err:
+        except OSError as err:
             raise ProcessorError(
-                f"upload to {safe_url(url)} failed: {type(err).__name__}"
+                f"upload to {safe_url(url)} failed: could not run curl"
             ) from err
-        if response.status_code < 200 or response.status_code >= 300:
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            detail = detail.replace(url, safe_url(url))
+            suffix = f": {detail}" if detail else ""
             raise ProcessorError(
-                f"upload to {safe_url(url)} failed: HTTP {response.status_code}"
+                f"upload to {safe_url(url)} failed: curl exit {result.returncode}{suffix}"
             )
-        return response
+
+        status_code, response_headers = parse_curl_headers(result.stdout)
+        if status_code < 200 or status_code >= 300:
+            raise ProcessorError(
+                f"upload to {safe_url(url)} failed: HTTP {status_code}"
+            )
+        return response_headers
 
 
 def safe_url(value):
@@ -188,6 +230,51 @@ def safe_url(value):
         return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
     except ValueError:
         return "<invalid URL>"
+
+
+def same_origin(left, right):
+    try:
+        left_url = urlsplit(left)
+        right_url = urlsplit(right)
+        return (
+            left_url.scheme.lower(),
+            (left_url.hostname or "").lower(),
+            effective_port(left_url),
+        ) == (
+            right_url.scheme.lower(),
+            (right_url.hostname or "").lower(),
+            effective_port(right_url),
+        )
+    except ValueError:
+        return False
+
+
+def effective_port(parsed_url):
+    if parsed_url.port is not None:
+        return parsed_url.port
+    return 443 if parsed_url.scheme.lower() == "https" else 80
+
+
+def parse_curl_headers(raw_headers):
+    status_code = 0
+    headers = {}
+    normalized = raw_headers.replace(b"\r\n", b"\n")
+    for block in normalized.split(b"\n\n"):
+        lines = block.splitlines()
+        if not lines or not lines[0].startswith(b"HTTP/"):
+            continue
+        try:
+            status_code = int(lines[0].split(None, 2)[1])
+        except (IndexError, ValueError):
+            status_code = 0
+        headers = {}
+        for line in lines[1:]:
+            name, separator, value = line.partition(b":")
+            if separator:
+                headers[name.decode("ascii", errors="ignore").lower()] = value.decode(
+                    "iso-8859-1"
+                ).strip()
+    return status_code, headers
 
 
 def needs_object(resource, kind, file_path, force=False):
