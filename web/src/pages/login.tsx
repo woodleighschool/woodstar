@@ -2,8 +2,8 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { FormField } from "@/components/form-field";
+import { Logo } from "@/components/logo";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,7 @@ export function LoginPage() {
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
       <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
-          <WoodstarMark size="md" />
+          <Logo size="md" />
           <CardTitle>Log In to Woodstar</CardTitle>
         </CardHeader>
         <CardContent>

@@ -1,8 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
 
-import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
+import { Logo } from "@/components/logo";
 import { Pending } from "@/components/pending";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -60,7 +60,7 @@ function SidebarBrand() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" render={<Link to="/hosts" />}>
-          <WoodstarMark />
+          <Logo />
           <div className="grid flex-1 text-left text-sm/tight">
             <span className="truncate font-semibold">Woodstar</span>
             <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>

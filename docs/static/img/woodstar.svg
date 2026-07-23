@@ -5,10 +5,23 @@
       .logo { fill: #ffffff; }
     }
   </style>
-  <path class="logo" d="M512,572c-109-174-88-379,0-572,88,193,109,398,0,572Z" />
-  <path class="logo" d="M566,586c79-166,238-226,396-267-87,130-213,250-396,267Z" />
-  <path class="logo" d="M458,586c-79-166-238-227-395-266,88,131,213,249,395,266Z" />
-  <path class="logo" d="M558,644c180-49,342,37,466,163-181,24-346-13-466-163Z" />
-  <path class="logo" d="M466,645c-180-49-342,36-466,162,181,25,346-12,466-162Z" />
-  <path class="logo" d="M512,664c70,124,56,237,0,360-56-123-70-236,0-360Z" />
+  <defs>
+    <path
+      id="petal"
+      d="
+        M512 110
+        C586 240, 580 365, 512 470
+        C444 365, 438 240, 512 110
+        Z
+      "
+    />
+  </defs>
+  <g class="logo">
+    <use href="#petal" />
+    <use href="#petal" transform="rotate(60 512 512)" />
+    <use href="#petal" transform="rotate(120 512 512)" />
+    <use href="#petal" transform="rotate(180 512 512)" />
+    <use href="#petal" transform="rotate(240 512 512)" />
+    <use href="#petal" transform="rotate(300 512 512)" />
+  </g>
 </svg>
