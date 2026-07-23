@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/woodleighschool/woodstar/compare/0.3.0...0.3.1) (2026-07-23)
+
+
+### Features
+
+* **deps:** update dependency shadcn (4.13.1 → 4.14.0) ([#49](https://github.com/woodleighschool/woodstar/issues/49)) ([056d5e7](https://github.com/woodleighschool/woodstar/commit/056d5e716ab7a7e7b7ec0291d58143d8599fe2f6))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @vitejs/plugin-react (6.0.3 → 6.0.4) ([#46](https://github.com/woodleighschool/woodstar/issues/46)) ([155d6d7](https://github.com/woodleighschool/woodstar/commit/155d6d72de41527ce4b04f3a09ab19fa0653e50b))
+* **deps:** update module github.com/gabriel-vasile/mimetype (v1.4.13 → v1.4.14) ([#44](https://github.com/woodleighschool/woodstar/issues/44)) ([3ff07cc](https://github.com/woodleighschool/woodstar/commit/3ff07ccb62031a83eafbcb539783d3e8ffd8a55b))
+* **web:** constrain client resources preview ([0a90b4d](https://github.com/woodleighschool/woodstar/commit/0a90b4d3fe9da2be040881362b05531610060afc))
+
 ## [0.3.0](https://github.com/woodleighschool/woodstar/compare/0.2.0...0.3.0) (2026-07-22)
 
 
