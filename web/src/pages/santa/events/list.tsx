@@ -244,12 +244,17 @@ function EventListNav({
   return (
     <Tabs value={active}>
       <TabsList>
-        <TabsTrigger value="execution" render={<Link to="/santa/events" search={search} />}>
+        <TabsTrigger
+          value="execution"
+          render={<Link to="/santa/events" search={search} />}
+          nativeButton={false}
+        >
           Execution
         </TabsTrigger>
         <TabsTrigger
           value="file-access"
           render={<Link to="/santa/events/file-access" search={search} />}
+          nativeButton={false}
         >
           File Access
         </TabsTrigger>
