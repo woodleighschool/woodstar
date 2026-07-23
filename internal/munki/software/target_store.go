@@ -191,8 +191,6 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 // packages store, which owns that projection.
 type effectivePackageRow struct {
 	PackageID        int64    `db:"package_id"`
-	TargetID         int64    `db:"target_id"`
-	TargetSoftwareID int64    `db:"target_software_id"`
 	Actions          []string `db:"actions"`
 	PackageSelection string   `db:"package_selection"`
 	PinnedPackageID  *int64   `db:"pinned_package_id"`
@@ -203,29 +201,16 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	qrows, err := s.db.Pool().Query(ctx, `
 SELECT
 	p.id AS package_id,
-	(a.position + 1)::bigint AS target_id,
-	a.software_id AS target_software_id,
-	a.actions::text[] AS actions,
-	a.package_selection::text AS package_selection,
-	a.pinned_package_id
-FROM munki_software_targets a
-JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
-JOIN munki_packages p ON p.software_id = a.software_id
+	resolved.actions,
+	resolved.package_selection,
+	resolved.pinned_package_id
+FROM munki_resolved_software_for_host($1) resolved
+JOIN munki_packages p ON p.software_id = resolved.software_id
 	AND (
-		(a.package_selection = 'latest' AND a.pinned_package_id IS NULL)
-		OR (a.package_selection = 'specific' AND p.id = a.pinned_package_id)
+		(resolved.package_selection = 'latest' AND resolved.pinned_package_id IS NULL)
+		OR (resolved.package_selection = 'specific' AND p.id = resolved.pinned_package_id)
 	)
-	WHERE a.direction = 'include'
-	  AND NOT EXISTS (
-      SELECT 1
-      FROM munki_software_targets excluded
-      JOIN label_membership excluded_lm
-        ON excluded_lm.label_id = excluded.label_id
-       AND excluded_lm.host_id = $1
-      WHERE excluded.software_id = a.software_id
-        AND excluded.direction = 'exclude'
-  )
-ORDER BY a.software_id, a.position, p.id`,
+ORDER BY resolved.software_id, p.id`,
 		hostID,
 	)
 	if err != nil {
@@ -259,13 +244,12 @@ ORDER BY a.software_id, a.position, p.id`,
 			continue
 		}
 		effective = append(effective, EffectivePackage{
-			TargetID: row.TargetID,
 			Actions:  actionsFromStorage(row.Actions),
 			Package:  pkg,
 			Selector: packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 		})
 	}
-	return ResolveEffectivePackages(effective), nil
+	return effective, nil
 }
 
 type softwareTargetWrite struct {

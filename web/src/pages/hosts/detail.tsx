@@ -36,11 +36,6 @@ export function HostDetailPage() {
     );
   }
 
-  const showMunkiTab =
-    munkiQuery.data !== null && (munkiQuery.data !== undefined || munkiQuery.error);
-  const showSantaTab =
-    santaQuery.data !== null && (santaQuery.data !== undefined || santaQuery.error);
-
   return (
     <PageShell className="gap-6">
       <HostHeader host={host} />
@@ -51,8 +46,8 @@ export function HostDetailPage() {
           <TabsTrigger value="software">Software</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="checks">Checks</TabsTrigger>
-          {showMunkiTab ? <TabsTrigger value="munki">Munki</TabsTrigger> : null}
-          {showSantaTab ? <TabsTrigger value="santa">Santa</TabsTrigger> : null}
+          <TabsTrigger value="munki">Munki</TabsTrigger>
+          <TabsTrigger value="santa">Santa</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
@@ -79,33 +74,23 @@ export function HostDetailPage() {
           <HostOsqueryChecksTab hostId={hostID} />
         </TabsContent>
 
-        {showMunkiTab ? (
-          <TabsContent value="munki">
-            {munkiQuery.error ? (
-              <QueryGate
-                title="Failed to load Munki state"
-                error={munkiQuery.error}
-                onRetry={() => void munkiQuery.refetch()}
-              />
-            ) : munkiQuery.data ? (
-              <HostMunkiTab munki={munkiQuery.data} />
-            ) : null}
-          </TabsContent>
-        ) : null}
+        <TabsContent value="munki">
+          <HostMunkiTab
+            hostId={hostID}
+            munki={munkiQuery.data}
+            stateError={munkiQuery.error}
+            onStateRetry={() => void munkiQuery.refetch()}
+          />
+        </TabsContent>
 
-        {showSantaTab ? (
-          <TabsContent value="santa">
-            {santaQuery.error ? (
-              <QueryGate
-                title="Failed to load Santa state"
-                error={santaQuery.error}
-                onRetry={() => void santaQuery.refetch()}
-              />
-            ) : santaQuery.data ? (
-              <HostSantaTab hostId={hostID} santa={santaQuery.data} />
-            ) : null}
-          </TabsContent>
-        ) : null}
+        <TabsContent value="santa">
+          <HostSantaTab
+            hostId={hostID}
+            santa={santaQuery.data}
+            stateError={santaQuery.error}
+            onStateRetry={() => void santaQuery.refetch()}
+          />
+        </TabsContent>
       </Tabs>
     </PageShell>
   );

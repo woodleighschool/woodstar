@@ -8,6 +8,7 @@ import type {
   OsqueryCheckHostStatus,
   OsqueryHostReport,
   PageHost,
+  PageHostManifestSoftware,
   PageHostSoftware,
   PageRuleStatus,
   SantaHostState,
@@ -18,6 +19,7 @@ import {
   deleteHost,
   getHostMunkiState,
   getHostSantaState,
+  listHostMunkiSoftware,
   listHostOsqueryChecks,
   listHostOsqueryReports,
   listHosts,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/api";
 import type {
   ListHostSantaRulesData,
+  ListHostMunkiSoftwareData,
   ListHostsData,
   ListHostSoftwareData,
 } from "@/lib/api-client/types.gen";
@@ -40,6 +43,7 @@ import { detailPath } from "@/lib/route-params";
 const HOST_SANTA_RULES_PAGE_SIZE = 100;
 const HOST_REFRESH_MS = 30_000;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
+type HostMunkiSoftwareParams = NonNullable<ListHostMunkiSoftwareData["query"]>;
 
 interface HostPrimaryUserMutation {
   email: string;
@@ -81,6 +85,24 @@ export function useHostMunkiState(id: number | null) {
     queryKey: queryKeys.hostMunkiState(id),
     queryFn: ({ signal }) => nullOn404(getHostMunkiState({ path: detailPath(id), signal })),
     enabled: id !== null,
+    refetchInterval: HOST_REFRESH_MS,
+  });
+}
+
+export function useHostMunkiSoftware(id: number | null, params: HostMunkiSoftwareParams = {}) {
+  const queryParams = baseListParams(params);
+  return useQuery<PageHostManifestSoftware, ApiError>({
+    queryKey: queryKeys.hostMunkiSoftware(id, queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
+        listHostMunkiSoftware({
+          path: detailPath(id),
+          query: queryParams,
+          signal,
+        }),
+      ),
+    enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }

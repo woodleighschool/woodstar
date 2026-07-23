@@ -543,7 +543,7 @@ function CellInput({
 }) {
   const text = String(value);
   return (
-    <Editable value={text} onValueChange={onValueChange} placeholder="—" className="gap-0">
+    <Editable value={text} onValueChange={onValueChange} placeholder="-" className="gap-0">
       <EditableArea className="block">
         <EditablePreview className="h-8 rounded-none px-2 focus-visible:ring-inset" />
         <EditableInput

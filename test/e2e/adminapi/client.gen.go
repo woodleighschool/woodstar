@@ -295,30 +295,90 @@ func (e MunkiDirectUploadActionStrategy) Valid() bool {
 	}
 }
 
+// Defines values for MunkiHostManifestLatestPackageStrategy.
+const (
+	MunkiHostManifestLatestPackageStrategyLatest MunkiHostManifestLatestPackageStrategy = "latest"
+)
+
+// Valid indicates whether the value is a known member of the MunkiHostManifestLatestPackageStrategy enum.
+func (e MunkiHostManifestLatestPackageStrategy) Valid() bool {
+	switch e {
+	case MunkiHostManifestLatestPackageStrategyLatest:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiHostManifestSoftwareActions.
+const (
+	MunkiHostManifestSoftwareActionsDefaultInstalls   MunkiHostManifestSoftwareActions = "default_installs"
+	MunkiHostManifestSoftwareActionsFeaturedItems     MunkiHostManifestSoftwareActions = "featured_items"
+	MunkiHostManifestSoftwareActionsManagedInstalls   MunkiHostManifestSoftwareActions = "managed_installs"
+	MunkiHostManifestSoftwareActionsManagedUninstalls MunkiHostManifestSoftwareActions = "managed_uninstalls"
+	MunkiHostManifestSoftwareActionsManagedUpdates    MunkiHostManifestSoftwareActions = "managed_updates"
+	MunkiHostManifestSoftwareActionsOptionalInstalls  MunkiHostManifestSoftwareActions = "optional_installs"
+)
+
+// Valid indicates whether the value is a known member of the MunkiHostManifestSoftwareActions enum.
+func (e MunkiHostManifestSoftwareActions) Valid() bool {
+	switch e {
+	case MunkiHostManifestSoftwareActionsDefaultInstalls:
+		return true
+	case MunkiHostManifestSoftwareActionsFeaturedItems:
+		return true
+	case MunkiHostManifestSoftwareActionsManagedInstalls:
+		return true
+	case MunkiHostManifestSoftwareActionsManagedUninstalls:
+		return true
+	case MunkiHostManifestSoftwareActionsManagedUpdates:
+		return true
+	case MunkiHostManifestSoftwareActionsOptionalInstalls:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiHostManifestSpecificPackageStrategy.
+const (
+	MunkiHostManifestSpecificPackageStrategySpecific MunkiHostManifestSpecificPackageStrategy = "specific"
+)
+
+// Valid indicates whether the value is a known member of the MunkiHostManifestSpecificPackageStrategy enum.
+func (e MunkiHostManifestSpecificPackageStrategy) Valid() bool {
+	switch e {
+	case MunkiHostManifestSpecificPackageStrategySpecific:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MunkiIncludeActions.
 const (
-	DefaultInstalls   MunkiIncludeActions = "default_installs"
-	FeaturedItems     MunkiIncludeActions = "featured_items"
-	ManagedInstalls   MunkiIncludeActions = "managed_installs"
-	ManagedUninstalls MunkiIncludeActions = "managed_uninstalls"
-	ManagedUpdates    MunkiIncludeActions = "managed_updates"
-	OptionalInstalls  MunkiIncludeActions = "optional_installs"
+	MunkiIncludeActionsDefaultInstalls   MunkiIncludeActions = "default_installs"
+	MunkiIncludeActionsFeaturedItems     MunkiIncludeActions = "featured_items"
+	MunkiIncludeActionsManagedInstalls   MunkiIncludeActions = "managed_installs"
+	MunkiIncludeActionsManagedUninstalls MunkiIncludeActions = "managed_uninstalls"
+	MunkiIncludeActionsManagedUpdates    MunkiIncludeActions = "managed_updates"
+	MunkiIncludeActionsOptionalInstalls  MunkiIncludeActions = "optional_installs"
 )
 
 // Valid indicates whether the value is a known member of the MunkiIncludeActions enum.
 func (e MunkiIncludeActions) Valid() bool {
 	switch e {
-	case DefaultInstalls:
+	case MunkiIncludeActionsDefaultInstalls:
 		return true
-	case FeaturedItems:
+	case MunkiIncludeActionsFeaturedItems:
 		return true
-	case ManagedInstalls:
+	case MunkiIncludeActionsManagedInstalls:
 		return true
-	case ManagedUninstalls:
+	case MunkiIncludeActionsManagedUninstalls:
 		return true
-	case ManagedUpdates:
+	case MunkiIncludeActionsManagedUpdates:
 		return true
-	case OptionalInstalls:
+	case MunkiIncludeActionsOptionalInstalls:
 		return true
 	default:
 		return false
@@ -498,16 +558,16 @@ func (e MunkiPackageInstallItemType) Valid() bool {
 
 // Defines values for MunkiPackageSelectorStrategy.
 const (
-	Latest   MunkiPackageSelectorStrategy = "latest"
-	Specific MunkiPackageSelectorStrategy = "specific"
+	MunkiPackageSelectorStrategyLatest   MunkiPackageSelectorStrategy = "latest"
+	MunkiPackageSelectorStrategySpecific MunkiPackageSelectorStrategy = "specific"
 )
 
 // Valid indicates whether the value is a known member of the MunkiPackageSelectorStrategy enum.
 func (e MunkiPackageSelectorStrategy) Valid() bool {
 	switch e {
-	case Latest:
+	case MunkiPackageSelectorStrategyLatest:
 		return true
-	case Specific:
+	case MunkiPackageSelectorStrategySpecific:
 		return true
 	default:
 		return false
@@ -1600,16 +1660,57 @@ type MunkiDistributionPointMutation struct {
 	Name          string   `json:"name"`
 }
 
+// MunkiHostManifestLatestPackage defines model for MunkiHostManifestLatestPackage.
+type MunkiHostManifestLatestPackage struct {
+	Strategy MunkiHostManifestLatestPackageStrategy `json:"strategy"`
+}
+
+// MunkiHostManifestLatestPackageStrategy defines model for MunkiHostManifestLatestPackage.Strategy.
+type MunkiHostManifestLatestPackageStrategy string
+
+// MunkiHostManifestSoftware defines model for MunkiHostManifestSoftware.
+type MunkiHostManifestSoftware struct {
+	Actions     []MunkiHostManifestSoftwareActions    `json:"actions"`
+	Observation *MunkiHostManifestSoftwareObservation `json:"observation,omitempty"`
+	Package     MunkiHostManifestSoftware_Package     `json:"package"`
+	Software    MunkiPackageSoftware                  `json:"software"`
+}
+
+// MunkiHostManifestSoftwareActions defines model for MunkiHostManifestSoftware.Actions.
+type MunkiHostManifestSoftwareActions string
+
+// MunkiHostManifestSoftware_Package defines model for MunkiHostManifestSoftware.Package.
+type MunkiHostManifestSoftware_Package struct {
+	union json.RawMessage
+}
+
+// MunkiHostManifestSoftwareObservation defines model for MunkiHostManifestSoftwareObservation.
+type MunkiHostManifestSoftwareObservation struct {
+	DisplayName      string `json:"display_name"`
+	Installed        bool   `json:"installed"`
+	InstalledVersion string `json:"installed_version"`
+	TargetVersion    string `json:"target_version"`
+}
+
+// MunkiHostManifestSpecificPackage defines model for MunkiHostManifestSpecificPackage.
+type MunkiHostManifestSpecificPackage struct {
+	Id       int64                                    `json:"id"`
+	Strategy MunkiHostManifestSpecificPackageStrategy `json:"strategy"`
+	Version  string                                   `json:"version"`
+}
+
+// MunkiHostManifestSpecificPackageStrategy defines model for MunkiHostManifestSpecificPackage.Strategy.
+type MunkiHostManifestSpecificPackageStrategy string
+
 // MunkiHostState defines model for MunkiHostState.
 type MunkiHostState struct {
-	Errors          []string    `json:"errors"`
-	Items           []MunkiItem `json:"items"`
-	ManifestName    string      `json:"manifest_name"`
-	ProblemInstalls []string    `json:"problem_installs"`
-	RunEndedAt      *time.Time  `json:"run_ended_at,omitempty"`
-	RunStartedAt    *time.Time  `json:"run_started_at,omitempty"`
-	Version         string      `json:"version"`
-	Warnings        []string    `json:"warnings"`
+	Errors          []string   `json:"errors"`
+	ManifestName    string     `json:"manifest_name"`
+	ProblemInstalls []string   `json:"problem_installs"`
+	RunEndedAt      *time.Time `json:"run_ended_at,omitempty"`
+	RunStartedAt    *time.Time `json:"run_started_at,omitempty"`
+	Version         string     `json:"version"`
+	Warnings        []string   `json:"warnings"`
 }
 
 // MunkiIconFile defines model for MunkiIconFile.
@@ -1635,13 +1736,6 @@ type MunkiInstallerFile struct {
 	InstallerItemLocation string `json:"installer_item_location"`
 	Sha256                string `json:"sha256"`
 	SizeBytes             int64  `json:"size_bytes"`
-}
-
-// MunkiItem defines model for MunkiItem.
-type MunkiItem struct {
-	Installed        bool   `json:"installed"`
-	InstalledVersion string `json:"installed_version"`
-	Name             string `json:"name"`
 }
 
 // MunkiLink defines model for MunkiLink.
@@ -1997,6 +2091,12 @@ type PageExecutionEvent struct {
 type PageHost struct {
 	Count int64  `json:"count"`
 	Items []Host `json:"items"`
+}
+
+// PageHostManifestSoftware defines model for PageHostManifestSoftware.
+type PageHostManifestSoftware struct {
+	Count int64                       `json:"count"`
+	Items []MunkiHostManifestSoftware `json:"items"`
 }
 
 // PageHostSoftware defines model for PageHostSoftware.
@@ -2372,6 +2472,14 @@ type ListHostsParams struct {
 // ListHostsParamsStatus defines parameters for ListHosts.
 type ListHostsParamsStatus string
 
+// ListHostMunkiSoftwareParams defines parameters for ListHostMunkiSoftware.
+type ListHostMunkiSoftwareParams struct {
+	Q       *string `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int32  `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int32  `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort    *string `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
 // ListHostSantaRulesParams defines parameters for ListHostSantaRules.
 type ListHostSantaRulesParams struct {
 	Q       *string `form:"q,omitempty" json:"q,omitempty"`
@@ -2471,6 +2579,107 @@ type CreateSessionJSONRequestBody = SessionCreateInputBody
 
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = UserCreate
+
+// AsMunkiHostManifestLatestPackage returns the union data inside the MunkiHostManifestSoftware_Package as a MunkiHostManifestLatestPackage
+func (t MunkiHostManifestSoftware_Package) AsMunkiHostManifestLatestPackage() (MunkiHostManifestLatestPackage, error) {
+	var body MunkiHostManifestLatestPackage
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMunkiHostManifestLatestPackage overwrites any union data inside the MunkiHostManifestSoftware_Package as the provided MunkiHostManifestLatestPackage
+func (t *MunkiHostManifestSoftware_Package) FromMunkiHostManifestLatestPackage(v MunkiHostManifestLatestPackage) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"latest"}`))
+	t.union = b
+	return err
+}
+
+// MergeMunkiHostManifestLatestPackage performs a merge with any union data inside the MunkiHostManifestSoftware_Package, using the provided MunkiHostManifestLatestPackage
+func (t *MunkiHostManifestSoftware_Package) MergeMunkiHostManifestLatestPackage(v MunkiHostManifestLatestPackage) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"latest"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMunkiHostManifestSpecificPackage returns the union data inside the MunkiHostManifestSoftware_Package as a MunkiHostManifestSpecificPackage
+func (t MunkiHostManifestSoftware_Package) AsMunkiHostManifestSpecificPackage() (MunkiHostManifestSpecificPackage, error) {
+	var body MunkiHostManifestSpecificPackage
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMunkiHostManifestSpecificPackage overwrites any union data inside the MunkiHostManifestSoftware_Package as the provided MunkiHostManifestSpecificPackage
+func (t *MunkiHostManifestSoftware_Package) FromMunkiHostManifestSpecificPackage(v MunkiHostManifestSpecificPackage) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"specific"}`))
+	t.union = b
+	return err
+}
+
+// MergeMunkiHostManifestSpecificPackage performs a merge with any union data inside the MunkiHostManifestSoftware_Package, using the provided MunkiHostManifestSpecificPackage
+func (t *MunkiHostManifestSoftware_Package) MergeMunkiHostManifestSpecificPackage(v MunkiHostManifestSpecificPackage) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"specific"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MunkiHostManifestSoftware_Package) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"strategy"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t MunkiHostManifestSoftware_Package) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "latest":
+		return t.AsMunkiHostManifestLatestPackage()
+	case "specific":
+		return t.AsMunkiHostManifestSpecificPackage()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t MunkiHostManifestSoftware_Package) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MunkiHostManifestSoftware_Package) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // AsMunkiDirectUploadAction returns the union data inside the MunkiPackageInstallerUploadTarget_Upload as a MunkiDirectUploadAction
 func (t MunkiPackageInstallerUploadTarget_Upload) AsMunkiDirectUploadAction() (MunkiDirectUploadAction, error) {
@@ -2685,6 +2894,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /api/hosts/{id}/munki (the `GetHostMunkiState` operationId).
 	GetHostMunkiState(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHostMunkiSoftware List Munki software for a host
+	//
+	// Corresponds with GET /api/hosts/{id}/munki/software (the `ListHostMunkiSoftware` operationId).
+	ListHostMunkiSoftware(ctx context.Context, id int64, params *ListHostMunkiSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHostSantaState Get Santa state for a host
 	//
@@ -3042,6 +3256,21 @@ func (c *Client) GetHost(ctx context.Context, id int64, reqEditors ...RequestEdi
 // Corresponds with GET /api/hosts/{id}/munki (the `GetHostMunkiState` operationId).
 func (c *Client) GetHostMunkiState(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetHostMunkiStateRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHostMunkiSoftware List Munki software for a host
+//
+// Corresponds with GET /api/hosts/{id}/munki/software (the `ListHostMunkiSoftware` operationId).
+func (c *Client) ListHostMunkiSoftware(ctx context.Context, id int64, params *ListHostMunkiSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHostMunkiSoftwareRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -4010,6 +4239,103 @@ func NewGetHostMunkiStateRequest(server string, id int64) (*http.Request, error)
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListHostMunkiSoftwareRequest constructs an http.Request for the ListHostMunkiSoftware method
+func NewListHostMunkiSoftwareRequest(server string, id int64, params *ListHostMunkiSoftwareParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: "int64"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/hosts/%s/munki/software", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "per_page", *params.PerPage, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -5454,6 +5780,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/hosts/{id}/munki (the `GetHostMunkiState` operationId).
 	GetHostMunkiStateWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*GetHostMunkiStateResponse, error)
 
+	// ListHostMunkiSoftwareWithResponse List Munki software for a host
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/hosts/{id}/munki/software (the `ListHostMunkiSoftware` operationId).
+	ListHostMunkiSoftwareWithResponse(ctx context.Context, id int64, params *ListHostMunkiSoftwareParams, reqEditors ...RequestEditorFn) (*ListHostMunkiSoftwareResponse, error)
+
 	// GetHostSantaStateWithResponse Get Santa state for a host
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6122,6 +6455,82 @@ func (r GetHostMunkiStateResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetHostMunkiStateResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHostMunkiSoftwareResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageHostManifestSoftware
+	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
+	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHostMunkiSoftwareResponse) GetJSON200() *PageHostManifestSoftware {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
+func (r ListHostMunkiSoftwareResponse) GetApplicationproblemJSON400() *ErrorModel {
+	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r ListHostMunkiSoftwareResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r ListHostMunkiSoftwareResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r ListHostMunkiSoftwareResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r ListHostMunkiSoftwareResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHostMunkiSoftwareResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHostMunkiSoftwareResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHostMunkiSoftwareResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHostMunkiSoftwareResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -8237,6 +8646,19 @@ func (c *ClientWithResponses) GetHostMunkiStateWithResponse(ctx context.Context,
 	return ParseGetHostMunkiStateResponse(rsp)
 }
 
+// ListHostMunkiSoftwareWithResponse List Munki software for a host
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/hosts/{id}/munki/software (the `ListHostMunkiSoftware` operationId).
+func (c *ClientWithResponses) ListHostMunkiSoftwareWithResponse(ctx context.Context, id int64, params *ListHostMunkiSoftwareParams, reqEditors ...RequestEditorFn) (*ListHostMunkiSoftwareResponse, error) {
+	rsp, err := c.ListHostMunkiSoftware(ctx, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHostMunkiSoftwareResponse(rsp)
+}
+
 // GetHostSantaStateWithResponse Get Santa state for a host
 //
 // Returns a wrapper object for the known response body format(s).
@@ -9026,6 +9448,67 @@ func ParseGetHostMunkiStateResponse(rsp *http.Response) (*GetHostMunkiStateRespo
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHostMunkiSoftwareResponse parses an HTTP response from a ListHostMunkiSoftwareWithResponse call
+func ParseListHostMunkiSoftwareResponse(rsp *http.Response) (*ListHostMunkiSoftwareResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHostMunkiSoftwareResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageHostManifestSoftware
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest ErrorModel

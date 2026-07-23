@@ -29,6 +29,8 @@ export const queryKeys = {
   hostSoftware: (id: number | null, params?: QueryParams) =>
     ["hosts", "detail", id, "software", "list", params ?? {}] as const,
   hostMunkiState: (id: number | null) => ["hosts", "detail", id, "munki"] as const,
+  hostMunkiSoftware: (id: number | null, params?: QueryParams) =>
+    ["hosts", "detail", id, "munki", "software", "list", params ?? {}] as const,
   hostOsqueryReports: (id: number | null) => ["hosts", "detail", id, "osquery", "reports"] as const,
   hostOsqueryChecks: (id: number | null) => ["hosts", "detail", id, "osquery", "checks"] as const,
   hostSantaState: (id: number | null) => ["hosts", "detail", id, "santa"] as const,

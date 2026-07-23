@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHostSantaRules } from "@/hooks/use-hosts";
-import type { SantaHostState, SantaRuleStatus } from "@/lib/api";
+import type { ApiError, SantaHostState, SantaRuleStatus } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { clientModeLabel } from "@/lib/santa-configurations";
 import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
@@ -56,7 +56,14 @@ const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
   },
 ];
 
-export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHostState }) {
+interface HostSantaTabProps {
+  hostId: number;
+  santa: SantaHostState | null | undefined;
+  stateError: ApiError | null;
+  onStateRetry: () => void;
+}
+
+export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSantaTabProps) {
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
@@ -75,41 +82,50 @@ export function HostSantaTab({ hostId, santa }: { hostId: number; santa: SantaHo
   ) : undefined;
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent>
-          <div className="mb-5 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link to="/santa/events" search={{ host_id: hostId }} />}
-              nativeButton={false}
-            >
-              <Activity data-icon="inline-start" />
-              View Execution Events
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link to="/santa/events/file-access" search={{ host_id: hostId }} />}
-              nativeButton={false}
-            >
-              <FolderLock data-icon="inline-start" />
-              View File Access Events
-            </Button>
-          </div>
-          <KeyValueGrid>
-            <KeyValueItem label="Version" value={santa.version} />
-            <KeyValueItem label="Client Mode" value={clientModeLabel(santa.client_mode_reported)} />
-            <KeyValueItem label="Configuration" value={configurationValue} />
-            <KeyValueItem label="Last Sync" value={formatRelative(santa.last_seen_at)} />
-            <KeyValueItem
-              label="Rule Sync"
-              value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
-            />
-            <KeyValueItem label="Pending Rules" value={santa.rule_sync.pending_count} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      {stateError ? (
+        <QueryError title="Failed to load Santa state" error={stateError} onRetry={onStateRetry} />
+      ) : santa === null ? (
+        <EmptyPanel>No Santa sync reported</EmptyPanel>
+      ) : santa ? (
+        <Card>
+          <CardContent>
+            <div className="mb-5 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link to="/santa/events" search={{ host_id: hostId }} />}
+                nativeButton={false}
+              >
+                <Activity data-icon="inline-start" />
+                View Execution Events
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link to="/santa/events/file-access" search={{ host_id: hostId }} />}
+                nativeButton={false}
+              >
+                <FolderLock data-icon="inline-start" />
+                View File Access Events
+              </Button>
+            </div>
+            <KeyValueGrid>
+              <KeyValueItem label="Version" value={santa.version} />
+              <KeyValueItem
+                label="Client Mode"
+                value={clientModeLabel(santa.client_mode_reported)}
+              />
+              <KeyValueItem label="Configuration" value={configurationValue} />
+              <KeyValueItem label="Last Sync" value={formatRelative(santa.last_seen_at)} />
+              <KeyValueItem
+                label="Rule Sync"
+                value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
+              />
+              <KeyValueItem label="Pending Rules" value={santa.rule_sync.pending_count} />
+            </KeyValueGrid>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="gap-4 py-4">
         <CardHeader className="flex flex-row items-center justify-between gap-3">

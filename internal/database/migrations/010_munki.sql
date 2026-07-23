@@ -27,8 +27,10 @@ CREATE TABLE munki_host_status (
 CREATE TABLE munki_host_items (
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
     installed BOOLEAN NOT NULL DEFAULT FALSE,
     installed_version TEXT NOT NULL DEFAULT '',
+    target_version TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (host_id, name)
 );
 
@@ -196,6 +198,67 @@ CREATE INDEX munki_software_targets_label_idx
     ON munki_software_targets (label_id);
 CREATE INDEX munki_software_targets_pinned_package_idx
     ON munki_software_targets (pinned_package_id);
+
+CREATE FUNCTION munki_resolved_software_for_host(_host_id BIGINT)
+RETURNS TABLE (
+    software_id BIGINT,
+    name TEXT,
+    actions TEXT[],
+    package_selection TEXT,
+    pinned_package_id BIGINT
+)
+LANGUAGE sql
+STABLE
+AS $$
+WITH host_labels AS (
+    SELECT label_id
+    FROM label_membership
+    WHERE host_id = _host_id
+),
+matching_includes AS (
+    SELECT
+        s.id AS software_id,
+        s.name,
+        include_target.actions,
+        include_target.package_selection,
+        include_target.pinned_package_id,
+        row_number() OVER (
+            PARTITION BY s.id
+            ORDER BY include_target.position
+        ) AS include_rank
+    FROM munki_software s
+    JOIN munki_software_targets include_target
+        ON include_target.software_id = s.id
+       AND include_target.direction = 'include'
+    JOIN host_labels include_label
+        ON include_label.label_id = include_target.label_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM munki_software_targets exclude_target
+        JOIN host_labels exclude_label
+            ON exclude_label.label_id = exclude_target.label_id
+        WHERE exclude_target.software_id = s.id
+          AND exclude_target.direction = 'exclude'
+    )
+      AND EXISTS (
+        SELECT 1
+        FROM munki_packages package
+        WHERE package.software_id = s.id
+          AND (
+              include_target.package_selection = 'latest'
+              OR package.id = include_target.pinned_package_id
+          )
+    )
+)
+SELECT
+    software_id,
+    name,
+    actions::TEXT[],
+    package_selection::TEXT,
+    pinned_package_id
+FROM matching_includes
+WHERE include_rank = 1
+$$;
 
 -- Distribution ---------------------------------------------------------------
 

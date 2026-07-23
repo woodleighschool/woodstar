@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { MunkiInclude, MunkiSoftwareDetail } from "@/lib/api";
 import { requiredString } from "@/lib/form-validation";
+import { MUNKI_SOFTWARE_ACTION_VALUES } from "@/lib/munki-software-actions";
 
-import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "./munki-software";
+import { MUNKI_PACKAGE_STRATEGY_VALUES } from "./munki-software";
 
 const munkiName = requiredString("Name")
   .refine((value) => !value.includes("/"), "Name cannot contain a slash")

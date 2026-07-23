@@ -3,7 +3,6 @@ package munki
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -72,7 +71,7 @@ func (s *Store) ClearHostObservation(ctx context.Context, hostID int64) error {
 	})
 }
 
-func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item) error {
+func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []ItemObservation) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM munki_host_items WHERE host_id = $1`, hostID); err != nil {
 			return err
@@ -82,23 +81,31 @@ func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item
 INSERT INTO munki_host_items (
 	host_id,
 	name,
+	display_name,
 	installed,
-	installed_version
+	installed_version,
+	target_version
 )
 VALUES (
 	@host_id,
 	@name,
+	@display_name,
 	@installed,
-	@installed_version
+	@installed_version,
+	@target_version
 )
 ON CONFLICT (host_id, name) DO UPDATE SET
+	display_name = EXCLUDED.display_name,
 	installed = EXCLUDED.installed,
-	installed_version = EXCLUDED.installed_version`,
+	installed_version = EXCLUDED.installed_version,
+	target_version = EXCLUDED.target_version`,
 				pgx.NamedArgs{
 					"host_id":           hostID,
 					"name":              item.Name,
+					"display_name":      item.DisplayName,
 					"installed":         item.Installed,
 					"installed_version": item.InstalledVersion,
+					"target_version":    item.TargetVersion,
 				}); err != nil {
 				return err
 			}
@@ -107,18 +114,9 @@ ON CONFLICT (host_id, name) DO UPDATE SET
 	})
 }
 
+// LoadHostState returns the latest Munki run summary reported for a host.
 func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	type statusRow struct {
-		Version         string     `db:"version"`
-		ManifestName    string     `db:"manifest_name"`
-		Errors          []string   `db:"errors"`
-		Warnings        []string   `db:"warnings"`
-		ProblemInstalls []string   `db:"problem_installs"`
-		RunStartedAt    *time.Time `db:"run_started_at"`
-		RunEndedAt      *time.Time `db:"run_ended_at"`
-	}
-
-	statusRows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.db.Pool().Query(ctx, `
 		SELECT version, manifest_name, errors, warnings, problem_installs,
 		       run_started_at, run_ended_at
 		FROM munki_host_status
@@ -128,47 +126,15 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	if err != nil {
 		return nil, err
 	}
-	status, err := pgx.CollectExactlyOneRow(statusRows, pgx.RowToStructByName[statusRow])
+	state, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[HostState])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-
-	itemRows, err := s.db.Pool().Query(ctx, `
-		SELECT host_id, name, installed, installed_version
-		FROM munki_host_items
-		WHERE host_id = $1
-		ORDER BY lower(name), name`,
-		hostID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	type itemRow struct {
-		HostID           int64  `db:"host_id"`
-		Name             string `db:"name"`
-		Installed        bool   `db:"installed"`
-		InstalledVersion string `db:"installed_version"`
-	}
-	scannedItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[itemRow])
-	if err != nil {
-		return nil, err
-	}
-	items := make([]Item, len(scannedItems))
-	for i, row := range scannedItems {
-		items[i] = Item(row)
-	}
-
-	return &HostState{
-		Version:         status.Version,
-		ManifestName:    status.ManifestName,
-		Errors:          dbutil.NonNilSlice(status.Errors),
-		Warnings:        dbutil.NonNilSlice(status.Warnings),
-		ProblemInstalls: dbutil.NonNilSlice(status.ProblemInstalls),
-		RunStartedAt:    status.RunStartedAt,
-		RunEndedAt:      status.RunEndedAt,
-		Items:           items,
-	}, nil
+	state.Errors = dbutil.NonNilSlice(state.Errors)
+	state.Warnings = dbutil.NonNilSlice(state.Warnings)
+	state.ProblemInstalls = dbutil.NonNilSlice(state.ProblemInstalls)
+	return &state, nil
 }

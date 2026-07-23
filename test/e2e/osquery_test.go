@@ -68,8 +68,9 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		enrollSecret   = "osquery-integration-secret-0123456789abcdef"
 		hostIdentifier = "osquery-integration-mac"
 		hardwareUUID   = "8D7A0410-6313-4EBD-A563-20EF6F2FD32C"
-		softwareName   = "Woodstar Integration App"
-		bundleID       = "school.woodleigh.woodstar-integration"
+		softwareName   = "Visual Studio Code"
+		munkiName      = "VisualStudioCode"
+		bundleID       = "com.microsoft.VSCode"
 		reportUnixTime = int64(1778848496)
 	)
 
@@ -108,6 +109,52 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	if allHostsLabelID == 0 {
 		t.Fatalf("builtin labels = %+v, want all-hosts", labels.Items)
+	}
+
+	munkiSoftwareResponse, err := server.Admin.CreateMunkiSoftwareWithResponse(
+		t.Context(),
+		adminapi.MunkiCreateMutation{
+			Name: munkiName,
+			Targets: adminapi.MunkiTargets{
+				Include: []adminapi.MunkiInclude{{
+					LabelId: allHostsLabelID,
+					Package: adminapi.MunkiPackageSelector{Strategy: "latest"},
+					Actions: []adminapi.MunkiIncludeActions{"managed_updates"},
+				}},
+				Exclude: []adminapi.LabelRef{},
+			},
+		},
+	)
+	munkiSoftwareResponse = requireAPIResponse(
+		t,
+		"create Munki software",
+		http.StatusCreated,
+		munkiSoftwareResponse,
+		err,
+	)
+	if munkiSoftwareResponse.JSON201 == nil {
+		t.Fatal("create Munki software returned no JSON body")
+	}
+	munkiSoftware := *munkiSoftwareResponse.JSON201
+	nopkg := adminapi.MunkiPackageCreateMutationInstallerType("nopkg")
+	munkiPackageResponse, err := server.Admin.CreateMunkiPackageWithResponse(
+		t.Context(),
+		adminapi.MunkiPackageCreateMutation{
+			SoftwareId:    munkiSoftware.Id,
+			Version:       "1.130.0",
+			InstallerType: &nopkg,
+			OnDemand:      new(true),
+		},
+	)
+	munkiPackageResponse = requireAPIResponse(
+		t,
+		"create Munki package",
+		http.StatusCreated,
+		munkiPackageResponse,
+		err,
+	)
+	if munkiPackageResponse.JSON201 == nil {
+		t.Fatal("create Munki package returned no JSON body")
 	}
 
 	minOsqueryVersion := "5.12.0"
@@ -281,22 +328,22 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 			requiredOverlays[suffix] = true
 		case "software_macos":
 			queryRows[name] = []map[string]string{{
-				"name": softwareName, "version": "1.2.3", "source": "apps",
-				"bundle_identifier": bundleID, "installed_path": "/Applications/Woodstar Integration App.app",
+				"name": softwareName, "version": "1.129.1", "source": "apps",
+				"bundle_identifier": bundleID, "installed_path": "/Applications/Visual Studio Code.app",
 			}}
 			requiredOverlays[suffix] = true
 		case "software_macos_codesign":
 			queryRows[name] = []map[string]string{
 				{
-					"path":            "/Applications/Woodstar Integration App.app",
+					"path":            "/Applications/Visual Studio Code.app",
 					"team_identifier": "WOODSTAR01",
 					"cdhash_sha256":   "cdhash",
 				},
 			}
 		case "software_macos_executable_sha256":
 			queryRows[name] = []map[string]string{{
-				"path": "/Applications/Woodstar Integration App.app", "executable_sha256": "executable-hash",
-				"executable_path": "/Applications/Woodstar Integration App.app/Contents/MacOS/WoodstarIntegrationApp",
+				"path": "/Applications/Visual Studio Code.app", "executable_sha256": "executable-hash",
+				"executable_path": "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
 			}}
 		case "munki_info":
 			queryRows[name] = []map[string]string{{
@@ -307,7 +354,8 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 			}}
 		case "munki_installs":
 			queryRows[name] = []map[string]string{{
-				"name": "GoogleChrome", "installed": "true", "installed_version": "148.0",
+				"name": munkiName, "display_name": softwareName,
+				"installed": "false", "installed_version": "", "version_to_install": "1.130.0",
 			}}
 		}
 	}
@@ -474,10 +522,10 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		t.Fatalf("host software = %+v, want projected integration app", software)
 	}
 	installed := software.Items[0].InstalledVersions[0]
-	if installed.Version != "1.2.3" || installed.BundleIdentifier != bundleID ||
+	if installed.Version != "1.129.1" || installed.BundleIdentifier != bundleID ||
 		len(
 			installed.InstalledPaths,
-		) != 1 || installed.InstalledPaths[0] != "/Applications/Woodstar Integration App.app" ||
+		) != 1 || installed.InstalledPaths[0] != "/Applications/Visual Studio Code.app" ||
 		len(installed.SignatureInformation) != 1 ||
 		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
 		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
@@ -494,10 +542,43 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	if munki.Version != "7.1.2.5700" || munki.ManifestName != "site_default" ||
 		len(munki.Errors) != 2 || munki.Errors[0] != "first error" || munki.Errors[1] != "second error" ||
 		len(munki.Warnings) != 1 || munki.Warnings[0] != "first warning" ||
-		len(munki.ProblemInstalls) != 1 || munki.ProblemInstalls[0] != "Broken App" ||
-		len(munki.Items) != 1 || munki.Items[0].Name != "GoogleChrome" || !munki.Items[0].Installed ||
-		munki.Items[0].InstalledVersion != "148.0" {
+		len(munki.ProblemInstalls) != 1 || munki.ProblemInstalls[0] != "Broken App" {
 		t.Fatalf("host Munki state = %+v, want projected osquery Munki rows", munki)
+	}
+
+	munkiSoftwareListResponse, err := server.Admin.ListHostMunkiSoftwareWithResponse(
+		t.Context(),
+		host.Id,
+		nil,
+	)
+	munkiSoftwareListResponse = requireAPIResponse(
+		t,
+		"list host Munki software",
+		http.StatusOK,
+		munkiSoftwareListResponse,
+		err,
+	)
+	if munkiSoftwareListResponse.JSON200 == nil {
+		t.Fatal("list host Munki software returned no JSON body")
+	}
+	hostMunkiSoftware := *munkiSoftwareListResponse.JSON200
+	if hostMunkiSoftware.Count != 1 || len(hostMunkiSoftware.Items) != 1 {
+		t.Fatalf("host Munki software = %+v, want one resolved manifest item", hostMunkiSoftware)
+	}
+	vscode := hostMunkiSoftware.Items[0]
+	latestPackage, err := vscode.Package.AsMunkiHostManifestLatestPackage()
+	if err != nil {
+		t.Fatalf("host Munki VisualStudioCode package = %+v, want latest package: %v", vscode.Package, err)
+	}
+	if vscode.Software.Name != munkiName ||
+		len(vscode.Actions) != 1 || vscode.Actions[0] != "managed_updates" ||
+		latestPackage.Strategy != adminapi.MunkiHostManifestLatestPackageStrategyLatest ||
+		vscode.Observation == nil ||
+		vscode.Observation.DisplayName != softwareName ||
+		vscode.Observation.Installed ||
+		vscode.Observation.InstalledVersion != "" ||
+		vscode.Observation.TargetVersion != "1.130.0" {
+		t.Fatalf("host Munki VisualStudioCode = %+v, want exact pending update observation", vscode)
 	}
 
 	resultsResponse, err := server.Admin.ListOsqueryReportResultsWithResponse(t.Context(), report.Id)

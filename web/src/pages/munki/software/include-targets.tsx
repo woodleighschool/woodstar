@@ -52,6 +52,13 @@ import {
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import type { MunkiInclude, MunkiPackage } from "@/lib/api";
+import {
+  MUNKI_ASSIGNMENT_ACTION_VALUES,
+  MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES,
+  MUNKI_SOFTWARE_ACTION_OPTIONS,
+  MUNKI_SOFTWARE_ACTION_VALUES,
+  MUNKI_SOFTWARE_ACTIONS,
+} from "@/lib/munki-software-actions";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import {
@@ -60,13 +67,6 @@ import {
   targetPackageFromValue,
   targetPackageValue,
 } from "./fields";
-import {
-  MUNKI_ASSIGNMENT_ACTION_VALUES,
-  MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES,
-  MUNKI_SOFTWARE_ACTION_OPTIONS,
-  MUNKI_SOFTWARE_ACTION_VALUES,
-  MUNKI_SOFTWARE_ACTIONS,
-} from "./munki-software";
 export interface MunkiSoftwareTargetRow {
   id: number;
   label_id: number | null;

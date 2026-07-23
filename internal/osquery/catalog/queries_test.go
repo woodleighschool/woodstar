@@ -182,33 +182,6 @@ func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
 	}
 }
 
-func TestMunkiQueriesProjectStatusShape(t *testing.T) {
-	infoSQL := DetailQueries()[QueryMunkiInfo].SQL
-	for _, want := range []string{
-		"version",
-		"errors",
-		"warnings",
-		"problem_installs",
-		"start_time",
-		"end_time",
-		"manifest_name",
-	} {
-		if !strings.Contains(infoSQL, want) {
-			t.Fatalf("munki_info SQL missing %q: %s", want, infoSQL)
-		}
-	}
-
-	installsSQL := DetailQueries()[QueryMunkiInstalls].SQL
-	for _, want := range []string{"name", "installed", "installed_version"} {
-		if !strings.Contains(installsSQL, want) {
-			t.Fatalf("munki_installs SQL missing %q: %s", want, installsSQL)
-		}
-	}
-	if strings.Contains(installsSQL, "end_time") {
-		t.Fatalf("munki_installs SQL includes report-level end_time: %s", installsSQL)
-	}
-}
-
 func TestRootDiskQueryUsesOrbitDiskSpace(t *testing.T) {
 	sql := DetailQueries()[QueryRootDiskDarwin].SQL
 	if !strings.Contains(sql, "FROM disk_space") {

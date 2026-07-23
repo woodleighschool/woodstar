@@ -1111,9 +1111,10 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 	}
 }
 
-func TestHostStatusUpsertAndDetail(t *testing.T) {
+func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *testing.T) { //nolint:cyclop,funlen // One desired/observed database lifecycle.
 	db, ctx := testdb.Open(t)
 	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -1130,6 +1131,42 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		t.Fatalf("absent munki detail = %+v, want nil", detail)
 	}
 
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	vscodeIcon := createMunkiStorageObject(
+		t,
+		ctx,
+		stores,
+		munkisoftware.IconObjectPrefix,
+		"VisualStudioCode.png",
+		"b",
+	)
+	vscode, err := stores.software.Create(
+		ctx,
+		munkisoftware.CreateMutation{
+			Name:         "VisualStudioCode",
+			IconObjectID: &vscodeIcon.ID,
+		},
+	)
+	if err != nil {
+		t.Fatalf("create VisualStudioCode: %v", err)
+	}
+	vscodePackage := createMunkiPackage(t, ctx, stores, vscode.ID, vscode.Name, "1.130.0")
+	replaceTargets(t, ctx, stores, vscode, []munkisoftware.Include{
+		includeSpecificTarget(
+			allHostsID,
+			munkisoftware.ActionManagedUpdates,
+			vscodePackage.ID,
+		),
+	})
+	chrome, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "GoogleChrome"})
+	if err != nil {
+		t.Fatalf("create GoogleChrome: %v", err)
+	}
+	createMunkiPackage(t, ctx, stores, chrome.ID, chrome.Name, "148.0")
+	replaceTargets(t, ctx, stores, chrome, []munkisoftware.Include{
+		includeTarget(allHostsID, munkisoftware.ActionManagedInstalls),
+	})
+
 	runStartedAt := time.Date(2026, 5, 31, 9, 23, 0, 0, time.UTC)
 	runEndedAt := time.Date(2026, 5, 31, 9, 24, 14, 0, time.UTC)
 	if err := stores.hoststate.UpsertHostObservation(ctx, munki.HostObservation{
@@ -1144,9 +1181,19 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert munki host status: %v", err)
 	}
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.Item{
-		{Name: "GoogleChrome", Installed: true, InstalledVersion: "148.0"},
-		{Name: "Optional App", Installed: false},
+	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{
+		{
+			Name:          "NotGoogleChrome",
+			DisplayName:   "GoogleChrome",
+			TargetVersion: "148.0",
+		},
+		{
+			Name:             "VisualStudioCode",
+			DisplayName:      "Visual Studio Code",
+			Installed:        false,
+			InstalledVersion: "",
+			TargetVersion:    "1.130.0",
+		},
 	}); err != nil {
 		t.Fatalf("replace munki host items: %v", err)
 	}
@@ -1161,26 +1208,79 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	if detail.Version != "7.1.2.5700" || detail.ManifestName != "site_default" {
 		t.Fatalf("detail = %+v, want version and manifest", detail)
 	}
-	if len(detail.Items) != 2 || detail.Items[0].Name != "GoogleChrome" || !detail.Items[0].Installed {
-		t.Fatalf("items = %+v", detail.Items)
-	}
 	if detail.RunStartedAt == nil || !detail.RunStartedAt.Equal(runStartedAt) ||
 		detail.RunEndedAt == nil || !detail.RunEndedAt.Equal(runEndedAt) {
 		t.Fatalf("detail run times = %v/%v, want stored timestamps", detail.RunStartedAt, detail.RunEndedAt)
 	}
-	if err := stores.hoststate.ReplaceHostItems(
+
+	desired, count, err := stores.software.ListForHost(
 		ctx,
 		host.ID,
-		[]munki.Item{{Name: "Replacement", Installed: true}},
-	); err != nil {
-		t.Fatalf("replace munki host items again: %v", err)
-	}
-	detail, err = stores.hoststate.LoadHostState(ctx, host.ID)
+		munkisoftware.HostManifestSoftwareListParams{},
+	)
 	if err != nil {
-		t.Fatalf("load munki detail after replace: %v", err)
+		t.Fatalf("list host Munki software: %v", err)
 	}
-	if len(detail.Items) != 1 || detail.Items[0].Name != "Replacement" {
-		t.Fatalf("items after replace = %+v", detail.Items)
+	if count != 2 || len(desired) != 2 {
+		t.Fatalf("desired software = %+v count %d, want two manifest items", desired, count)
+	}
+	if desired[0].Software.Name != "GoogleChrome" || desired[0].Observation != nil {
+		t.Fatalf(
+			"GoogleChrome = %+v, want no observation from matching display_name",
+			desired[0],
+		)
+	}
+	vscodeState := desired[1]
+	if vscodeState.Software.Name != "VisualStudioCode" ||
+		vscodeState.Software.IconURL != munkisoftware.IconURL(&vscodeIcon.ID) ||
+		!slices.Equal(vscodeState.Actions, []munkisoftware.Action{munkisoftware.ActionManagedUpdates}) ||
+		vscodeState.Package.Strategy != munkisoftware.PackageSpecific ||
+		vscodeState.Package.ID == nil ||
+		*vscodeState.Package.ID != vscodePackage.ID ||
+		vscodeState.Package.Version != "1.130.0" ||
+		vscodeState.Observation == nil ||
+		vscodeState.Observation.DisplayName != "Visual Studio Code" ||
+		vscodeState.Observation.Installed ||
+		vscodeState.Observation.InstalledVersion != "" ||
+		vscodeState.Observation.TargetVersion != "1.130.0" {
+		t.Fatalf("VisualStudioCode = %+v, want exact pending update observation", vscodeState)
+	}
+
+	nextVSCodePackage := createMunkiPackage(t, ctx, stores, vscode.ID, vscode.Name, "1.131.0")
+	replaceTargets(t, ctx, stores, vscode, []munkisoftware.Include{
+		includeSpecificTarget(
+			allHostsID,
+			munkisoftware.ActionManagedUpdates,
+			nextVSCodePackage.ID,
+		),
+	})
+	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{{
+		Name:             "VisualStudioCode",
+		DisplayName:      "Visual Studio Code",
+		Installed:        true,
+		InstalledVersion: "1.130.0",
+	}}); err != nil {
+		t.Fatalf("replace Munki items with satisfied prior target: %v", err)
+	}
+	desired, _, err = stores.software.ListForHost(
+		ctx,
+		host.ID,
+		munkisoftware.HostManifestSoftwareListParams{},
+	)
+	if err != nil {
+		t.Fatalf("list host Munki software after retargeting: %v", err)
+	}
+	vscodeState = desired[1]
+	if vscodeState.Package.ID == nil ||
+		*vscodeState.Package.ID != nextVSCodePackage.ID ||
+		vscodeState.Package.Version != "1.131.0" ||
+		vscodeState.Observation == nil ||
+		!vscodeState.Observation.Installed ||
+		vscodeState.Observation.InstalledVersion != "1.130.0" {
+		t.Fatalf(
+			"VisualStudioCode after retargeting = %+v, want new desired target and unchanged prior observation",
+			vscodeState,
+		)
 	}
 
 	if err := stores.hoststate.ClearHostObservation(ctx, host.ID); err != nil {
@@ -1190,6 +1290,17 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		t.Fatalf("load cleared munki detail: %v", err)
 	} else if detail != nil {
 		t.Fatalf("cleared munki detail = %+v, want nil", detail)
+	}
+	desired, _, err = stores.software.ListForHost(
+		ctx,
+		host.ID,
+		munkisoftware.HostManifestSoftwareListParams{},
+	)
+	if err != nil {
+		t.Fatalf("list desired software after clearing observations: %v", err)
+	}
+	if desired[1].Observation != nil {
+		t.Fatalf("VisualStudioCode after clear = %+v, want desired row without observation", desired[1])
 	}
 }
 

@@ -403,9 +403,36 @@ export type MunkiDistributionPointReorderBody = {
     ordered_ids: Array<number>;
 };
 
+export type MunkiHostManifestLatestPackage = {
+    strategy: 'latest';
+};
+
+export type MunkiHostManifestSoftware = {
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+    observation?: MunkiHostManifestSoftwareObservation;
+    package: ({
+        strategy: 'latest';
+    } & MunkiHostManifestLatestPackage) | ({
+        strategy: 'specific';
+    } & MunkiHostManifestSpecificPackage);
+    software: MunkiPackageSoftware;
+};
+
+export type MunkiHostManifestSoftwareObservation = {
+    display_name: string;
+    installed: boolean;
+    installed_version: string;
+    target_version: string;
+};
+
+export type MunkiHostManifestSpecificPackage = {
+    id: number;
+    strategy: 'specific';
+    version: string;
+};
+
 export type MunkiHostState = {
     errors: Array<string>;
-    items: Array<MunkiItem>;
     manifest_name: string;
     problem_installs: Array<string>;
     run_ended_at?: string;
@@ -431,12 +458,6 @@ export type MunkiInstallerFile = {
     installer_item_location: string;
     sha256: string;
     size_bytes: number;
-};
-
-export type MunkiItem = {
-    installed: boolean;
-    installed_version: string;
-    name: string;
 };
 
 export type MunkiLink = {
@@ -952,6 +973,11 @@ export type PageGroup = {
 export type PageHost = {
     count: number;
     items: Array<Host>;
+};
+
+export type PageHostManifestSoftware = {
+    count: number;
+    items: Array<MunkiHostManifestSoftware>;
 };
 
 export type PageHostSoftware = {
@@ -2004,6 +2030,54 @@ export type GetHostMunkiStateResponses = {
 };
 
 export type GetHostMunkiStateResponse = GetHostMunkiStateResponses[keyof GetHostMunkiStateResponses];
+
+export type ListHostMunkiSoftwareData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+    };
+    url: '/api/hosts/{id}/munki/software';
+};
+
+export type ListHostMunkiSoftwareErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostMunkiSoftwareError = ListHostMunkiSoftwareErrors[keyof ListHostMunkiSoftwareErrors];
+
+export type ListHostMunkiSoftwareResponses = {
+    /**
+     * OK
+     */
+    200: PageHostManifestSoftware;
+};
+
+export type ListHostMunkiSoftwareResponse = ListHostMunkiSoftwareResponses[keyof ListHostMunkiSoftwareResponses];
 
 export type ListHostOsqueryChecksData = {
     body?: never;

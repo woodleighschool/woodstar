@@ -43,6 +43,7 @@ type distributionPointConnections interface {
 // point endpoints.
 func RegisterMunki(deps MunkiHandlerDeps) {
 	registerHostMunkiState(deps.API, deps.HostState, deps.Logger)
+	registerHostMunkiSoftware(deps.API, deps.Software, deps.Logger)
 	registerMunkiSoftware(
 		deps.API,
 		deps.Software,

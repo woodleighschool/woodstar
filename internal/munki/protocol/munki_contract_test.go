@@ -88,10 +88,11 @@ func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
 		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
-				TargetID: 10,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+				Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector: munkisoftware.PackageSelector{
+					Strategy: munkisoftware.PackageLatest,
+				},
+				Package: staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
 	})
@@ -126,16 +127,18 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
-				TargetID: 10,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
+				Actions: []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector: munkisoftware.PackageSelector{
+					Strategy: munkisoftware.PackageLatest,
+				},
+				Package: staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
 			},
 			{
-				TargetID: 10,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(21, "GoogleChrome", "149.0.0.1"),
+				Actions: []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
+				Selector: munkisoftware.PackageSelector{
+					Strategy: munkisoftware.PackageLatest,
+				},
+				Package: staticMunkiPackage(21, "GoogleChrome", "149.0.0.1"),
 			},
 		}),
 	)
@@ -180,64 +183,16 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
-			{
-				TargetID: 10,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(20, "OverlapApp", "1.0"),
-			},
-			{
-				TargetID: 11,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionOptionalInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(21, "OverlapApp", "1.1"),
-			},
-			{
-				TargetID: 12,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedUninstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageLatest},
-				Package:  staticMunkiPackage(22, "OverlapApp", "1.2"),
-			},
-		}),
-	)
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
-	req.Header.Set("Authorization", "Bearer munki-secret")
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	var decoded struct {
-		ManagedInstalls   []string `plist:"managed_installs"`
-		ManagedUninstalls []string `plist:"managed_uninstalls"`
-		OptionalInstalls  []string `plist:"optional_installs"`
-	}
-	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
-		t.Fatalf("response is not a manifest plist: %v", err)
-	}
-	if !slices.Equal(decoded.ManagedInstalls, []string{"OverlapApp"}) {
-		t.Fatalf("managed_installs = %v, want [OverlapApp]", decoded.ManagedInstalls)
-	}
-	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
-		t.Fatalf("manifest still has later conflicting rows: %+v", decoded)
-	}
-}
-
 func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages([]munkisoftware.EffectivePackage{
 			{
-				TargetID: 10,
-				Actions:  []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector: munkisoftware.PackageSelector{Strategy: munkisoftware.PackageSpecific},
-				Package:  staticMunkiPackage(20, "PinnedApp", "1.0"),
+				Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+				Selector: munkisoftware.PackageSelector{
+					Strategy: munkisoftware.PackageSpecific,
+				},
+				Package: staticMunkiPackage(20, "PinnedApp", "1.0"),
 			},
 		}),
 	)
@@ -572,7 +527,7 @@ func (r staticPackageResolver) EffectivePackagesForHost(
 	_ context.Context,
 	_ int64,
 ) ([]munkisoftware.EffectivePackage, error) {
-	return munkisoftware.ResolveEffectivePackages(r.packages), nil
+	return r.packages, nil
 }
 
 func (r staticPackageResolver) ListRepositoryPackages(

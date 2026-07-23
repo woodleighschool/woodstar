@@ -1,4 +1,4 @@
-// Package munki coordinates client observations and desired package state.
+// Package munki coordinates Munki client observations and repository delivery.
 package munki
 
 import "time"
@@ -15,22 +15,23 @@ type HostObservation struct {
 	RunEndedAt      *time.Time
 }
 
-// Item is one Munki-managed item observed on a host.
-type Item struct {
-	HostID           int64  `json:"-"`
-	Name             string `json:"name"`
-	Installed        bool   `json:"installed"`
-	InstalledVersion string `json:"installed_version"`
+// ItemObservation is one Munki-managed item reported by a host.
+type ItemObservation struct {
+	HostID           int64
+	Name             string
+	DisplayName      string
+	Installed        bool
+	InstalledVersion string
+	TargetVersion    string
 }
 
-// HostState is the Munki sub-object attached to host detail responses.
+// HostState is the latest Munki run summary reported for a host.
 type HostState struct {
-	Version         string     `json:"version"`
-	ManifestName    string     `json:"manifest_name"`
-	Errors          []string   `json:"errors"`
-	Warnings        []string   `json:"warnings"`
-	ProblemInstalls []string   `json:"problem_installs"`
-	RunStartedAt    *time.Time `json:"run_started_at,omitempty"`
-	RunEndedAt      *time.Time `json:"run_ended_at,omitempty"`
-	Items           []Item     `json:"items"`
+	Version         string     `db:"version"          json:"version"`
+	ManifestName    string     `db:"manifest_name"    json:"manifest_name"`
+	Errors          []string   `db:"errors"           json:"errors"`
+	Warnings        []string   `db:"warnings"         json:"warnings"`
+	ProblemInstalls []string   `db:"problem_installs" json:"problem_installs"`
+	RunStartedAt    *time.Time `db:"run_started_at"   json:"run_started_at,omitempty"`
+	RunEndedAt      *time.Time `db:"run_ended_at"     json:"run_ended_at,omitempty"`
 }

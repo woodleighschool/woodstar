@@ -6,7 +6,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 type hostMunkiStateLoader interface {
@@ -24,6 +26,29 @@ func registerHostMunkiState(
 		"/api/hosts/{id}/munki",
 		"Get Munki state for a host",
 		store.LoadHostState,
+		logger,
+	)
+}
+
+func registerHostMunkiSoftware(
+	api huma.API,
+	store *munkisoftware.Store,
+	logger *slog.Logger,
+) {
+	registerHostPage(
+		api,
+		"list-host-munki-software",
+		"/api/hosts/{id}/munki/software",
+		"List Munki software for a host",
+		func(
+			ctx context.Context,
+			hostID int64,
+			params dbutil.ListParams,
+		) ([]munkisoftware.HostManifestSoftware, int, error) {
+			return store.ListForHost(ctx, hostID, munkisoftware.HostManifestSoftwareListParams{
+				ListParams: params,
+			})
+		},
 		logger,
 	)
 }

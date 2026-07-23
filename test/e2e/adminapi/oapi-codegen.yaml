@@ -14,6 +14,7 @@ output-options:
     - get-host
     - list-host-software
     - get-host-munki-state
+    - list-host-munki-software
     - list-labels
     - create-label
     - create-munki-client-resources-banner-upload
