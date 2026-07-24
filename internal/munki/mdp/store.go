@@ -360,7 +360,7 @@ ORDER BY c.position, c.id`,
 		return nil, err
 	}
 	for _, row := range rows {
-		if s.presence.Online(row.ID) {
+		if worker, ok := s.presence.Worker(row.ID); ok && worker.Compatible {
 			return &ResolvedPoint{ID: row.ID, Key: row.Key, ClientBaseURL: row.ClientBaseURL}, nil
 		}
 	}
@@ -476,6 +476,10 @@ func clientCIDRs(cidrs []string) []string {
 }
 
 func (s *Store) distributionPointFromRow(row distributionPointRow) DistributionPoint {
+	var worker *DistributionPointWorker
+	if current, ok := s.presence.Worker(row.ID); ok {
+		worker = &current
+	}
 	return DistributionPoint{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -483,7 +487,7 @@ func (s *Store) distributionPointFromRow(row distributionPointRow) DistributionP
 		Position:      row.Position,
 		ClientCIDRs:   row.ClientCidrs,
 		ClientBaseURL: row.ClientBaseURL,
-		Online:        s.presence.Online(row.ID),
+		Worker:        worker,
 		CreatedAt:     row.CreatedAt,
 		UpdatedAt:     row.UpdatedAt,
 	}

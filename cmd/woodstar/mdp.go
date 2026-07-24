@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/worker"
 )
@@ -36,7 +37,7 @@ func runMDP(parent context.Context) error {
 		return fmt.Errorf("parse mdp log level: %w", err)
 	}
 	logger := logging.New(os.Stderr, logLevel)
-	mdp, err := worker.New(cfg, logger)
+	mdp, err := worker.New(cfg, buildinfo.Version, logger)
 	if err != nil {
 		return fmt.Errorf("init mdp worker: %w", err)
 	}

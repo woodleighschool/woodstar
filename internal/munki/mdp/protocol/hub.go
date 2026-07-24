@@ -12,24 +12,10 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 )
 
 const (
-	// messageHello is sent once when a distribution point connects: its identity.
-	// The desired set follows in its own message so a large list never blocks the
-	// hello handshake.
-	messageHello = "hello"
-	// messageDesiredSet is the full authoritative installer list. It is sent on
-	// connect and re-sent whenever the desired set changes, so a worker always
-	// reconciles against current truth and ordering of deltas never matters.
-	messageDesiredSet = "desired_set"
-
-	// Worker-to-server package events. Only a current event with a matching hash
-	// makes a point current; syncing and error are advisory for the admin view.
-	eventPackageSyncing = "package_syncing"
-	eventPackageCurrent = "package_current"
-	eventPackageError   = "package_error"
-
 	pingInterval = 20 * time.Second
 	pingTimeout  = 10 * time.Second
 
@@ -41,39 +27,6 @@ const (
 
 // errHubClosed is returned by Serve when the hub is shutting down.
 var errHubClosed = errors.New("hub closed")
-
-type pointIdentity struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-type helloMessage struct {
-	Type              string        `json:"type"`
-	DistributionPoint pointIdentity `json:"distribution_point"`
-}
-
-type desiredSetMessage struct {
-	Type     string                  `json:"type"`
-	Packages []desiredPackageMessage `json:"packages"`
-}
-
-// desiredPackageMessage is one installer the worker should mirror. It carries no
-// download URL: the worker requests a fresh one per job as it starts.
-type desiredPackageMessage struct {
-	PackageID int64  `json:"package_id"`
-	Filename  string `json:"filename"`
-	SHA256    string `json:"sha256"`
-	SizeBytes int64  `json:"size_bytes"`
-}
-
-// packageEvent is one package's mirror state, reported by the worker as each job
-// settles. It is the inbound half of the protocol.
-type packageEvent struct {
-	Type      string `json:"type"`
-	PackageID int64  `json:"package_id"`
-	SHA256    string `json:"sha256"`
-	Error     string `json:"error"`
-}
 
 // Hub tracks live distribution point connections. It is the writer of presence
 // and the ordered fan-out for desired-set changes.
@@ -92,8 +45,9 @@ type Hub struct {
 }
 
 type presenceWriter interface {
-	Connect(pointID int64)
+	Connect(pointID int64, worker mdp.DistributionPointWorker)
 	Disconnect(pointID int64)
+	Clear(pointID int64)
 }
 
 type connection struct {
@@ -144,7 +98,12 @@ func (h *Hub) Close() {
 // Serve runs one distribution point connection: it sends hello and the desired
 // set, relays later desired-set changes outbound, and records reported package
 // state inbound, until the connection closes.
-func (h *Hub) Serve(parent context.Context, ws *websocket.Conn, dp *mdp.DistributionPoint) error {
+func (h *Hub) Serve(
+	parent context.Context,
+	ws *websocket.Conn,
+	dp *mdp.DistributionPoint,
+	worker mdp.DistributionPointWorker,
+) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
@@ -153,7 +112,7 @@ func (h *Hub) Serve(parent context.Context, ws *websocket.Conn, dp *mdp.Distribu
 	}
 
 	conn := &connection{ws: ws, send: make(chan []byte, sendBuffer)}
-	if !h.register(dp.ID, conn) {
+	if !h.register(dp.ID, conn, worker) {
 		return errHubClosed
 	}
 	defer h.unregister(dp.ID, conn)
@@ -171,9 +130,9 @@ func (h *Hub) Serve(parent context.Context, ws *websocket.Conn, dp *mdp.Distribu
 }
 
 func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *mdp.DistributionPoint) error {
-	return writeJSON(ctx, ws, helloMessage{
-		Type:              messageHello,
-		DistributionPoint: pointIdentity{ID: dp.ID, Name: dp.Name},
+	return writeJSON(ctx, ws, wire.ServerMessage{
+		Type:              wire.MessageHello,
+		DistributionPoint: wire.PointIdentity{ID: dp.ID, Name: dp.Name},
 	})
 }
 
@@ -183,7 +142,7 @@ func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64) erro
 		if err != nil {
 			return err
 		}
-		var event packageEvent
+		var event wire.PackageEvent
 		if err := json.Unmarshal(data, &event); err != nil {
 			return fmt.Errorf("decode package event: %w", err)
 		}
@@ -274,11 +233,11 @@ func (h *Hub) desiredSetBytes(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	packages := make([]desiredPackageMessage, len(desired))
+	packages := make([]wire.DesiredPackage, len(desired))
 	for i, d := range desired {
-		packages[i] = desiredPackageMessage(d)
+		packages[i] = wire.DesiredPackage(d)
 	}
-	return json.Marshal(desiredSetMessage{Type: messageDesiredSet, Packages: packages})
+	return json.Marshal(wire.ServerMessage{Type: wire.MessageDesiredSet, Packages: packages})
 }
 
 // enqueue hands a message to a connection's writer, closing a connection whose
@@ -291,7 +250,11 @@ func (h *Hub) enqueue(c *connection, msg []byte) {
 	}
 }
 
-func (h *Hub) register(id int64, conn *connection) bool {
+func (h *Hub) register(
+	id int64,
+	conn *connection,
+	worker mdp.DistributionPointWorker,
+) bool {
 	h.mu.Lock()
 	if h.closed {
 		h.mu.Unlock()
@@ -299,7 +262,7 @@ func (h *Hub) register(id int64, conn *connection) bool {
 	}
 	old := h.conns[id]
 	h.conns[id] = conn
-	h.presence.Connect(id)
+	h.presence.Connect(id, worker)
 	h.mu.Unlock()
 	if old != nil {
 		_ = old.ws.Close(websocket.StatusPolicyViolation, "replaced by a new connection")
@@ -326,22 +289,23 @@ func (h *Hub) Disconnect(id int64) {
 	h.mu.Lock()
 	conn := h.conns[id]
 	if conn == nil {
+		h.presence.Clear(id)
 		h.mu.Unlock()
 		return
 	}
 	delete(h.conns, id)
-	h.presence.Disconnect(id)
+	h.presence.Clear(id)
 	h.mu.Unlock()
 	_ = conn.ws.Close(websocket.StatusPolicyViolation, "distribution point credentials changed")
 }
 
 func statusForEvent(eventType string) (mdp.PackageStatus, bool) {
 	switch eventType {
-	case eventPackageSyncing:
+	case wire.EventPackageSyncing:
 		return mdp.PackageStatusSyncing, true
-	case eventPackageCurrent:
+	case wire.EventPackageCurrent:
 		return mdp.PackageStatusCurrent, true
-	case eventPackageError:
+	case wire.EventPackageError:
 		return mdp.PackageStatusError, true
 	default:
 		return "", false

@@ -23,9 +23,9 @@ import {
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@/lib/api";
 import {
   BoolBadge,
-  ConnectionBadge,
   MirrorBadge,
   PackageStatusBadge,
+  WorkerStatus,
 } from "@/pages/munki/distribution-points/distribution-point-badges";
 import { KeyRevealDialog } from "@/pages/munki/distribution-points/key-reveal-dialog";
 export function DistributionPointDetailPage() {
@@ -66,7 +66,7 @@ export function DistributionPointDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title={point.name}
-        context={<ConnectionBadge online={point.online} />}
+        context={<WorkerStatus worker={point.worker} />}
         actions={
           isAdmin ? (
             <>
@@ -111,6 +111,12 @@ export function DistributionPointDetailPage() {
               value={<BoolBadge value={point.enabled} label="Enabled" />}
             />
             <KeyValueItem label="Mirror" value={<MirrorBadge packages={point.packages} />} />
+            <KeyValueItem
+              label="Worker Version"
+              value={
+                point.worker?.build_version ?? <span className="text-muted-foreground">-</span>
+              }
+            />
             <KeyValueItem label="Base URL" value={point.client_base_url} />
             <KeyValueItem
               label="Client CIDRs"

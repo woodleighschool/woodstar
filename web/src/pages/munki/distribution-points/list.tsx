@@ -38,7 +38,7 @@ import type { MunkiDistributionPoint } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
 import {
   BoolBadge,
-  ConnectionBadge,
+  WorkerStatus,
 } from "@/pages/munki/distribution-points/distribution-point-badges";
 
 const routeApi = getRouteApi("/_authenticated/munki/distribution-points/");
@@ -139,7 +139,7 @@ export function DistributionPointListPage() {
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={5} />
+        <DataTableSkeleton columnCount={6} />
       ) : (
         <DataTable table={table} empty={emptyState}>
           <div className="flex items-start justify-between gap-2 p-1">
@@ -205,12 +205,19 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
       meta: { label: "Enabled" },
     },
     {
-      id: "online",
-      accessorKey: "online",
+      id: "worker",
       header: () => "Connection",
       enableSorting: false,
-      cell: ({ row }) => <ConnectionBadge online={row.original.online} />,
+      cell: ({ row }) => <WorkerStatus worker={row.original.worker} />,
       meta: { label: "Connection" },
+    },
+    {
+      id: "worker_version",
+      header: () => "Worker Version",
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.worker?.build_version ?? <span className="text-muted-foreground">-</span>,
+      meta: { label: "Worker Version" },
     },
     {
       id: "client_base_url",
@@ -276,6 +283,7 @@ function DistributionPointReorder({
                 <TableHead>Name</TableHead>
                 <TableHead>Enabled</TableHead>
                 <TableHead>Connection</TableHead>
+                <TableHead>Worker Version</TableHead>
                 <TableHead>Base URL</TableHead>
               </TableRow>
             </TableHeader>
@@ -293,7 +301,10 @@ function DistributionPointReorder({
                     <BoolBadge value={row.enabled} label="Enabled" />
                   </TableCell>
                   <TableCell>
-                    <ConnectionBadge online={row.online} />
+                    <WorkerStatus worker={row.worker} />
+                  </TableCell>
+                  <TableCell>
+                    {row.worker?.build_version ?? <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>
                     {row.client_base_url || <span className="text-muted-foreground">-</span>}

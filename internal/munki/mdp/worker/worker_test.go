@@ -13,7 +13,21 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 )
+
+const (
+	testWorkerVersion = "worker-test"
+	testServerVersion = "server-test"
+)
+
+func TestNewRejectsInvalidBuildVersion(t *testing.T) {
+	worker, err := New(Config{}, " invalid ", discardLogger())
+	if err == nil || worker != nil {
+		t.Fatalf("New = (%v, %v), want nil worker and error", worker, err)
+	}
+}
 
 func newTestWorker(t *testing.T, serverURL string) *Worker {
 	t.Helper()
@@ -22,7 +36,7 @@ func newTestWorker(t *testing.T, serverURL string) *Worker {
 		Key:                 "dp-key",
 		DataDir:             t.TempDir(),
 		DownloadConcurrency: 2,
-	}, discardLogger())
+	}, testWorkerVersion, discardLogger())
 	if err != nil {
 		t.Fatalf("New worker: %v", err)
 	}
@@ -58,7 +72,7 @@ func fakeWoodstar(t *testing.T, storage http.HandlerFunc) *httptest.Server {
 }
 
 // waitEvent reads the session's event stream until the wanted type appears.
-func waitEvent(t *testing.T, events <-chan packageEvent, want string) packageEvent {
+func waitEvent(t *testing.T, events <-chan wire.PackageEvent, want string) wire.PackageEvent {
 	t.Helper()
 	deadline := time.After(3 * time.Second)
 	for {
@@ -99,11 +113,11 @@ func TestSessionRejectsCorruptDownload(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet(t.Context(), []desiredPackage{
+	sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
 		{PackageID: 7, Filename: "Chrome.pkg", SHA256: sha256Hex([]byte("expected")), SizeBytes: 8},
 	})
 
-	if event := waitEvent(t, sess.events, eventPackageError); event.PackageID != 7 || event.Error == "" {
+	if event := waitEvent(t, sess.events, wire.EventPackageError); event.PackageID != 7 || event.Error == "" {
 		t.Fatalf("error event = %+v, want package 7 with message", event)
 	}
 
@@ -126,7 +140,7 @@ func TestSessionRetriesUntilDownloadSucceeds(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet(t.Context(), []desiredPackage{
+	sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
 		{
 			PackageID: 7,
 			Filename:  "Chrome.pkg",
@@ -135,7 +149,7 @@ func TestSessionRetriesUntilDownloadSucceeds(t *testing.T) {
 		},
 	})
 
-	if event := waitEvent(t, sess.events, eventPackageCurrent); event.PackageID != 7 {
+	if event := waitEvent(t, sess.events, wire.EventPackageCurrent); event.PackageID != 7 {
 		t.Fatalf("current event = %+v, want package 7 after retries", event)
 	}
 	if _, ok := sess.mirror.get(7); !ok {
@@ -175,20 +189,20 @@ func TestConnectOnceReportsCurrentForMirroredPackage(t *testing.T) {
 	sha := sha256Hex(content)
 	size := int64(len(content))
 
-	gotCurrent := make(chan packageEvent, 1)
+	gotCurrent := make(chan wire.PackageEvent, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := websocket.Accept(w, r, nil)
+		ws, err := acceptTestWorker(t, w, r)
 		if err != nil {
 			return
 		}
 		defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
-		send(t, r.Context(), ws, serverMessage{
-			Type:              messageHello,
-			DistributionPoint: pointIdentity{ID: 1, Name: "test"},
+		send(t, r.Context(), ws, wire.ServerMessage{
+			Type:              wire.MessageHello,
+			DistributionPoint: wire.PointIdentity{ID: 1, Name: "test"},
 		})
-		send(t, r.Context(), ws, serverMessage{
-			Type: messageDesiredSet,
-			Packages: []desiredPackage{
+		send(t, r.Context(), ws, wire.ServerMessage{
+			Type: wire.MessageDesiredSet,
+			Packages: []wire.DesiredPackage{
 				{PackageID: 7, Filename: "Chrome.pkg", SHA256: sha, SizeBytes: size},
 			},
 		})
@@ -197,9 +211,9 @@ func TestConnectOnceReportsCurrentForMirroredPackage(t *testing.T) {
 			if err != nil {
 				return
 			}
-			var event packageEvent
+			var event wire.PackageEvent
 			if err := json.Unmarshal(raw, &event); err == nil &&
-				event.Type == eventPackageCurrent && event.PackageID == 7 {
+				event.Type == wire.EventPackageCurrent && event.PackageID == 7 {
 				gotCurrent <- event
 				return
 			}
@@ -239,16 +253,16 @@ func TestConnectOnceReadinessFollowsControlSession(t *testing.T) {
 	accepted := make(chan struct{})
 	sendHello := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := websocket.Accept(w, r, nil)
+		ws, err := acceptTestWorker(t, w, r)
 		if err != nil {
 			return
 		}
 		defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 		close(accepted)
 		<-sendHello
-		if err := writeJSON(r.Context(), ws, serverMessage{
-			Type:              messageHello,
-			DistributionPoint: pointIdentity{ID: 1, Name: "test"},
+		if err := writeJSON(r.Context(), ws, wire.ServerMessage{
+			Type:              wire.MessageHello,
+			DistributionPoint: wire.PointIdentity{ID: 1, Name: "test"},
 		}); err != nil {
 			return
 		}
@@ -284,7 +298,7 @@ func TestConnectOnceReadinessFollowsControlSession(t *testing.T) {
 
 func TestConnectOnceRejectsUnexpectedMessage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := websocket.Accept(w, r, nil)
+		ws, err := acceptTestWorker(t, w, r)
 		if err != nil {
 			return
 		}
@@ -299,6 +313,37 @@ func TestConnectOnceRejectsUnexpectedMessage(t *testing.T) {
 	err := worker.connectOnce(context.Background())
 	if err == nil || !strings.Contains(err.Error(), `unexpected message type "unknown"`) {
 		t.Fatalf("connectOnce error = %v, want unexpected message type", err)
+	}
+}
+
+func TestConnectLoopStopsOnProtocolMismatch(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		w.Header().Set(wire.ProtocolHeader, "woodstar-mdp.v2")
+		w.Header().Set(wire.BuildVersionHeader, "server-next")
+		http.Error(w, "incompatible MDP protocol", http.StatusUpgradeRequired)
+	}))
+	defer srv.Close()
+
+	err := newTestWorker(t, srv.URL).connectLoop(t.Context())
+	if !errors.Is(err, errProtocolMismatch) {
+		t.Fatalf("connectLoop error = %v, want protocol mismatch", err)
+	}
+	if got := attempts.Load(); got != 1 {
+		t.Fatalf("connection attempts = %d, want 1", got)
+	}
+}
+
+func TestConnectOnceRetriesUnmarkedUpgradeRequired(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upgrade required", http.StatusUpgradeRequired)
+	}))
+	defer srv.Close()
+
+	err := newTestWorker(t, srv.URL).connectOnce(t.Context())
+	if err == nil || errors.Is(err, errProtocolMismatch) {
+		t.Fatalf("connectOnce error = %v, want retryable handshake error", err)
 	}
 }
 
@@ -346,7 +391,7 @@ func TestMirrorSnapshotRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadMirror: %v", err)
 	}
-	mirror.setIdentity(pointIdentity{ID: 3, Name: "Melbourne"})
+	mirror.setIdentity(wire.PointIdentity{ID: 3, Name: "Melbourne"})
 	mirror.put(7, packageState{Filename: "Chrome.pkg", SHA256: sha256Hex([]byte("x")), SizeBytes: 1})
 	if err := mirror.save(); err != nil {
 		t.Fatalf("save: %v", err)
@@ -364,7 +409,7 @@ func TestMirrorSnapshotRoundTrips(t *testing.T) {
 	}
 }
 
-func send(t *testing.T, ctx context.Context, ws *websocket.Conn, msg serverMessage) {
+func send(t *testing.T, ctx context.Context, ws *websocket.Conn, msg wire.ServerMessage) {
 	t.Helper()
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -373,4 +418,15 @@ func send(t *testing.T, ctx context.Context, ws *websocket.Conn, msg serverMessa
 	if err := ws.Write(ctx, websocket.MessageText, data); err != nil {
 		t.Fatalf("write server message: %v", err)
 	}
+}
+
+func acceptTestWorker(t *testing.T, w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
+	t.Helper()
+	if got := r.Header.Get(wire.BuildVersionHeader); got != testWorkerVersion {
+		t.Errorf("worker version = %q, want %q", got, testWorkerVersion)
+	}
+	w.Header().Set(wire.BuildVersionHeader, testServerVersion)
+	return websocket.Accept(w, r, &websocket.AcceptOptions{
+		Subprotocols: []string{wire.Subprotocol},
+	})
 }

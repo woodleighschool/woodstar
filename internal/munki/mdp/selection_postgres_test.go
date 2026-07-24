@@ -20,7 +20,7 @@ func TestSelectRedirectFallsBackWithoutEligiblePoint(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
-	presence.Connect(point.ID)
+	presence.Connect(point.ID, testWorker())
 	if _, ok := store.SelectRedirect(
 		ctx,
 		mdp.SelectionRequest{PackageID: pkg, SHA256: sha, SizeBytes: 4096},

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 )
 
 // eventBuffer holds package events between the jobs that emit them and the
@@ -29,12 +31,12 @@ type session struct {
 	client     *woodstarClient
 	logger     *slog.Logger
 	sem        chan struct{}
-	events     chan packageEvent
-	desiredCh  chan []desiredPackage
+	events     chan wire.PackageEvent
+	desiredCh  chan []wire.DesiredPackage
 	retryDelay time.Duration
 
 	mu      sync.Mutex
-	desired map[int64]desiredPackage
+	desired map[int64]wire.DesiredPackage
 	jobs    map[int64]*jobHandle
 	wg      sync.WaitGroup
 }
@@ -62,17 +64,17 @@ func newSession(
 		client:     client,
 		logger:     logger,
 		sem:        make(chan struct{}, concurrency),
-		events:     make(chan packageEvent, eventBuffer),
-		desiredCh:  make(chan []desiredPackage, 1),
+		events:     make(chan wire.PackageEvent, eventBuffer),
+		desiredCh:  make(chan []wire.DesiredPackage, 1),
 		retryDelay: retryDelay,
-		desired:    map[int64]desiredPackage{},
+		desired:    map[int64]wire.DesiredPackage{},
 		jobs:       map[int64]*jobHandle{},
 	}
 }
 
 // submitDesired hands the latest desired set to the reconcile loop without
 // blocking the read loop. A pending set is replaced: only the newest matters.
-func (s *session) submitDesired(pkgs []desiredPackage) {
+func (s *session) submitDesired(pkgs []wire.DesiredPackage) {
 	select {
 	case s.desiredCh <- pkgs:
 	default:
@@ -124,9 +126,9 @@ func (s *session) wait() {
 // applyDesiredSet reconciles the mirror against the full desired list: it starts
 // or restarts jobs for missing or changed packages, re-advertises packages it
 // already holds, and prunes everything no longer wanted.
-func (s *session) applyDesiredSet(ctx context.Context, pkgs []desiredPackage) {
+func (s *session) applyDesiredSet(ctx context.Context, pkgs []wire.DesiredPackage) {
 	wanted := make(map[int64]bool, len(pkgs))
-	var current, start []desiredPackage
+	var current, start []wire.DesiredPackage
 
 	s.mu.Lock()
 	for _, pkg := range pkgs {
@@ -152,7 +154,9 @@ func (s *session) applyDesiredSet(ctx context.Context, pkgs []desiredPackage) {
 	for _, pkg := range current {
 		s.logger.DebugContext(ctx, "package already current",
 			"package_id", pkg.PackageID, "filename", pkg.Filename)
-		s.emit(ctx, packageEvent{Type: eventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256})
+		s.emit(ctx, wire.PackageEvent{
+			Type: wire.EventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256,
+		})
 	}
 	for _, id := range prune {
 		s.logger.DebugContext(ctx, "pruning package", "package_id", id)
@@ -197,7 +201,7 @@ func (s *session) cancelJobLocked(packageID int64) {
 
 // ensureJobLocked starts a mirror job for a package unless one targeting the
 // same bytes is already running; a job for different bytes is cancelled first.
-func (s *session) ensureJobLocked(ctx context.Context, pkg desiredPackage) {
+func (s *session) ensureJobLocked(ctx context.Context, pkg wire.DesiredPackage) {
 	if handle, ok := s.jobs[pkg.PackageID]; ok {
 		if handle.sha == pkg.SHA256 && handle.size == pkg.SizeBytes {
 			return
@@ -214,13 +218,13 @@ func (s *session) ensureJobLocked(ctx context.Context, pkg desiredPackage) {
 // runJob mirrors one package, retrying on failure until it succeeds, the package
 // changes, or the connection ends. It emits syncing once, an error per failed
 // attempt, and current when the verified bytes land.
-func (s *session) runJob(ctx context.Context, pkg desiredPackage) {
+func (s *session) runJob(ctx context.Context, pkg wire.DesiredPackage) {
 	defer s.wg.Done()
 	defer s.finishJob(pkg)
 
 	s.logger.DebugContext(ctx, "mirroring package",
 		"package_id", pkg.PackageID, "filename", pkg.Filename, "size_bytes", pkg.SizeBytes)
-	s.emit(ctx, packageEvent{Type: eventPackageSyncing, PackageID: pkg.PackageID})
+	s.emit(ctx, wire.PackageEvent{Type: wire.EventPackageSyncing, PackageID: pkg.PackageID})
 
 	delay := s.retryDelay
 	for attempt := 1; ; attempt++ {
@@ -230,14 +234,14 @@ func (s *session) runJob(ctx context.Context, pkg desiredPackage) {
 		if err := s.fetchOnce(ctx, pkg); err == nil {
 			s.logger.InfoContext(ctx, "package mirrored",
 				"package_id", pkg.PackageID, "filename", pkg.Filename, "size_bytes", pkg.SizeBytes)
-			s.emit(ctx, packageEvent{
-				Type: eventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256,
+			s.emit(ctx, wire.PackageEvent{
+				Type: wire.EventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256,
 			})
 			return
 		} else if ctx.Err() == nil {
 			s.logFailure(ctx, pkg.PackageID, attempt, err)
-			s.emit(ctx, packageEvent{
-				Type: eventPackageError, PackageID: pkg.PackageID, Error: err.Error(),
+			s.emit(ctx, wire.PackageEvent{
+				Type: wire.EventPackageError, PackageID: pkg.PackageID, Error: err.Error(),
 			})
 		}
 		select {
@@ -261,7 +265,7 @@ func (s *session) logFailure(ctx context.Context, packageID int64, attempt int, 
 		"package_id", packageID, "attempt", attempt, "err", err)
 }
 
-func (s *session) finishJob(pkg desiredPackage) {
+func (s *session) finishJob(pkg wire.DesiredPackage) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if handle, ok := s.jobs[pkg.PackageID]; ok &&
@@ -273,7 +277,7 @@ func (s *session) finishJob(pkg desiredPackage) {
 // fetchOnce downloads and verifies one package. It holds a transfer slot for the
 // whole attempt so the URL it fetches is used immediately rather than queued
 // behind other downloads until it expires.
-func (s *session) fetchOnce(ctx context.Context, pkg desiredPackage) error {
+func (s *session) fetchOnce(ctx context.Context, pkg wire.DesiredPackage) error {
 	select {
 	case s.sem <- struct{}{}:
 	case <-ctx.Done():
@@ -325,7 +329,7 @@ func (s *session) save(ctx context.Context) {
 
 // emit hands a package event to the writer, dropping it if the connection has
 // already ended (its replacement reconciles from a fresh desired set).
-func (s *session) emit(ctx context.Context, event packageEvent) {
+func (s *session) emit(ctx context.Context, event wire.PackageEvent) {
 	select {
 	case s.events <- event:
 	case <-ctx.Done():

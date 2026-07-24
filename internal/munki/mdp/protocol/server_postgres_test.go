@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,8 +20,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
+)
+
+const (
+	testServerVersion = "server-test"
+	testWorkerVersion = "worker-test"
 )
 
 type fakeDelivery struct{}
@@ -43,17 +50,14 @@ func discardLogger() *slog.Logger {
 func agentRouter(
 	t *testing.T,
 	store *mdp.Store,
-	delivery interface {
-		DownloadURL(
-			context.Context,
-			storage.Object,
-			time.Duration,
-			storage.DeliveryOptions,
-		) (string, error)
-	},
 ) chi.Router {
 	t.Helper()
-	server := mdpprotocol.NewServer(t.Context(), store, delivery, discardLogger())
+	server, err := mdpprotocol.NewServer(
+		t.Context(), store, fakeDelivery{}, testServerVersion, discardLogger(),
+	)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
 	t.Cleanup(server.Close)
 	r := chi.NewRouter()
 	server.RegisterRoutes(r, r)
@@ -111,7 +115,7 @@ func seedAvailablePackage(
 func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	db, _ := testdb.Open(t)
 	store, _ := newStore(db)
-	router := agentRouter(t, store, fakeDelivery{})
+	router := agentRouter(t, store)
 
 	cases := []struct {
 		name   string
@@ -135,6 +139,98 @@ func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	}
 }
 
+func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store, presence := newStore(db)
+	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	router := agentRouter(t, store)
+
+	cases := []struct {
+		name        string
+		subprotocol string
+		version     string
+		wantWorker  *mdp.DistributionPointWorker
+	}{
+		{
+			name:    "missing protocol",
+			version: testWorkerVersion,
+			wantWorker: &mdp.DistributionPointWorker{
+				BuildVersion: testWorkerVersion,
+			},
+		},
+		{
+			name:        "old protocol",
+			subprotocol: "woodstar-mdp.v0",
+			version:     testWorkerVersion,
+			wantWorker: &mdp.DistributionPointWorker{
+				ProtocolVersion: new(0),
+				BuildVersion:    testWorkerVersion,
+			},
+		},
+		{
+			name:        "new protocol",
+			subprotocol: "woodstar-mdp.v2",
+			version:     testWorkerVersion,
+			wantWorker: &mdp.DistributionPointWorker{
+				ProtocolVersion: new(2),
+				BuildVersion:    testWorkerVersion,
+			},
+		},
+		{
+			name:        "multiple protocols",
+			subprotocol: wire.Subprotocol + ", woodstar-mdp.v2",
+			version:     testWorkerVersion,
+			wantWorker: &mdp.DistributionPointWorker{
+				BuildVersion: testWorkerVersion,
+			},
+		},
+		{
+			name:        "missing build version",
+			subprotocol: wire.Subprotocol,
+			wantWorker: &mdp.DistributionPointWorker{
+				ProtocolVersion: new(wire.ProtocolVersion),
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			presence.Disconnect(point.ID)
+			req := httptest.NewRequestWithContext(
+				t.Context(), http.MethodGet, "/api/munki/distribution/connect", nil,
+			)
+			req.Header.Set("Authorization", "Bearer worker-key")
+			if tc.subprotocol != "" {
+				req.Header.Set("Sec-WebSocket-Protocol", tc.subprotocol)
+			}
+			if tc.version != "" {
+				req.Header.Set(wire.BuildVersionHeader, tc.version)
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusUpgradeRequired {
+				t.Fatalf("status = %d, want 426", rec.Code)
+			}
+			if got := rec.Header().Get(wire.ProtocolHeader); got != wire.Subprotocol {
+				t.Fatalf("required protocol = %q, want %q", got, wire.Subprotocol)
+			}
+			if got := rec.Header().Get(wire.BuildVersionHeader); got != testServerVersion {
+				t.Fatalf("server version = %q, want %q", got, testServerVersion)
+			}
+			worker, observed := presence.Worker(point.ID)
+			if tc.wantWorker == nil {
+				if observed {
+					t.Fatalf("worker = %+v, want no classified worker", worker)
+				}
+			} else if !observed || !reflect.DeepEqual(worker, *tc.wantWorker) {
+				t.Fatalf("worker = (%+v, %t), want %+v", worker, observed, *tc.wantWorker)
+			}
+		})
+	}
+}
+
 func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
@@ -143,25 +239,36 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	router := agentRouter(t, store, fakeDelivery{})
+	router := agentRouter(t, store)
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	ws, _, err := websocket.Dial( //nolint:bodyclose // websocket.Dial owns its handshake response body.
-		ctx, wsURL(srv.URL), &websocket.DialOptions{
-			HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
-		})
+	ws, response, err := dialWorker( //nolint:bodyclose // websocket.Dial always closes the handshake response body.
+		ctx, wsURL(srv.URL), "worker-key",
+	)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
 	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
+	assertNegotiated(t, ws, response)
 	readJSON(t, ctx, ws, new(struct{}))
-	eventually(t, func() bool { return presence.Online(point.ID) })
+	eventually(t, func() bool { return connected(presence, point.ID) })
+	worker, _ := presence.Worker(point.ID)
+	if !worker.Compatible || worker.ProtocolVersion == nil ||
+		*worker.ProtocolVersion != wire.ProtocolVersion ||
+		worker.BuildVersion != testWorkerVersion {
+		t.Fatalf(
+			"worker = %+v, want connected protocol %d and build %q",
+			worker,
+			wire.ProtocolVersion,
+			testWorkerVersion,
+		)
+	}
 
 	if err := ws.Write(ctx, websocket.MessageText, []byte(`{"type":"not-an-event"}`)); err != nil {
 		t.Fatalf("write unexpected message: %v", err)
 	}
-	eventually(t, func() bool { return !presence.Online(point.ID) })
+	eventually(t, func() bool { return !connected(presence, point.ID) })
 }
 
 func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
@@ -172,27 +279,32 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	protocol := mdpprotocol.NewServer(t.Context(), store, fakeDelivery{}, discardLogger())
+	protocol, err := mdpprotocol.NewServer(
+		t.Context(), store, fakeDelivery{}, testServerVersion, discardLogger(),
+	)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
 	t.Cleanup(protocol.Close)
 	router := chi.NewRouter()
 	protocol.RegisterRoutes(router, router)
 	httpServer := httptest.NewServer(router)
 	defer httpServer.Close()
 
-	ws, _, err := websocket.Dial( //nolint:bodyclose // websocket.Dial owns its handshake response body.
-		ctx, wsURL(httpServer.URL), &websocket.DialOptions{
-			HTTPHeader: http.Header{"Authorization": {"Bearer worker-key"}},
-		})
+	ws, response, err := dialWorker( //nolint:bodyclose // websocket.Dial always closes the handshake response body.
+		ctx, wsURL(httpServer.URL), "worker-key",
+	)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
 	defer func() { _ = ws.CloseNow() }()
+	assertNegotiated(t, ws, response)
 	readJSON(t, ctx, ws, new(struct{}))
 	readJSON(t, ctx, ws, new(struct{}))
-	eventually(t, func() bool { return presence.Online(point.ID) })
+	eventually(t, func() bool { return connected(presence, point.ID) })
 
 	protocol.Disconnect(point.ID)
-	eventually(t, func() bool { return !presence.Online(point.ID) })
+	eventually(t, func() bool { return !connected(presence, point.ID) })
 	readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if _, _, err := ws.Read(readCtx); websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
@@ -220,7 +332,7 @@ RETURNING id`).Scan(&nopkgID); err != nil {
 	if _, err := store.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	router := agentRouter(t, store, fakeDelivery{})
+	router := agentRouter(t, store)
 
 	path := "/api/munki/distribution/packages/" + strconv.FormatInt(pkg, 10) + "/download-url"
 
@@ -264,6 +376,35 @@ RETURNING id`).Scan(&nopkgID); err != nil {
 
 func wsURL(httpURL string) string {
 	return "ws" + strings.TrimPrefix(httpURL, "http") + "/api/munki/distribution/connect"
+}
+
+func dialWorker(
+	ctx context.Context,
+	url string,
+	key string,
+) (*websocket.Conn, *http.Response, error) {
+	return websocket.Dial(ctx, url, &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"Authorization":         {"Bearer " + key},
+			wire.BuildVersionHeader: {testWorkerVersion},
+		},
+		Subprotocols: []string{wire.Subprotocol},
+	})
+}
+
+func assertNegotiated(t *testing.T, ws *websocket.Conn, response *http.Response) {
+	t.Helper()
+	if got := ws.Subprotocol(); got != wire.Subprotocol {
+		t.Fatalf("selected protocol = %q, want %q", got, wire.Subprotocol)
+	}
+	if got := response.Header.Get(wire.BuildVersionHeader); got != testServerVersion {
+		t.Fatalf("server version = %q, want %q", got, testServerVersion)
+	}
+}
+
+func connected(presence *mdp.Presence, id int64) bool {
+	worker, ok := presence.Worker(id)
+	return ok && worker.Compatible
 }
 
 func readJSON(t *testing.T, ctx context.Context, ws *websocket.Conn, v any) {

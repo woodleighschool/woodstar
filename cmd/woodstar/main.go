@@ -272,12 +272,16 @@ func buildDependencies(
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
 	munkiDistribution := mdp.NewStore(db, objectStore, munkiDistributionLogger)
-	munkiDistributionProtocol := mdpprotocol.NewServer(
+	munkiDistributionProtocol, err := mdpprotocol.NewServer(
 		ctx,
 		munkiDistribution,
 		storageDelivery,
+		buildinfo.Version,
 		munkiDistributionLogger,
 	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("configure MDP protocol: %w", err)
+	}
 	munkiPackageService := munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               packageStore,
 		DesiredPackagesChanged: munkiDistributionProtocol.RefreshDesiredPackages,

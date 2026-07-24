@@ -961,14 +961,14 @@ components:
           type: integer
         name:
           type: string
-        online:
-          type: boolean
         position:
           format: int32
           type: integer
         updated_at:
           format: date-time
           type: string
+        worker:
+          $ref: "#/components/schemas/MunkiDistributionPointWorker"
       required:
         - id
         - name
@@ -976,7 +976,6 @@ components:
         - position
         - client_cidrs
         - client_base_url
-        - online
         - created_at
         - updated_at
       type: object
@@ -999,8 +998,6 @@ components:
           type: integer
         name:
           type: string
-        online:
-          type: boolean
         packages:
           items:
             $ref: "#/components/schemas/MunkiPackageState"
@@ -1011,6 +1008,8 @@ components:
         updated_at:
           format: date-time
           type: string
+        worker:
+          $ref: "#/components/schemas/MunkiDistributionPointWorker"
       required:
         - packages
         - id
@@ -1019,7 +1018,6 @@ components:
         - position
         - client_cidrs
         - client_base_url
-        - online
         - created_at
         - updated_at
       type: object
@@ -1062,6 +1060,19 @@ components:
           type: array
       required:
         - ordered_ids
+      type: object
+    MunkiDistributionPointWorker:
+      additionalProperties: false
+      properties:
+        build_version:
+          type: string
+        compatible:
+          type: boolean
+        protocol_version:
+          format: int64
+          type: integer
+      required:
+        - compatible
       type: object
     MunkiHostManifestLatestPackage:
       additionalProperties: false
@@ -2050,14 +2061,14 @@ components:
           type: string
         name:
           type: string
-        online:
-          type: boolean
         position:
           format: int32
           type: integer
         updated_at:
           format: date-time
           type: string
+        worker:
+          $ref: "#/components/schemas/MunkiDistributionPointWorker"
       required:
         - key
         - id
@@ -2066,7 +2077,6 @@ components:
         - position
         - client_cidrs
         - client_base_url
-        - online
         - created_at
         - updated_at
       type: object

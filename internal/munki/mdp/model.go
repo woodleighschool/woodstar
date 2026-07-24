@@ -47,15 +47,23 @@ func (PackageStatus) Schema(_ huma.Registry) *huma.Schema {
 // key is never part of this model: it is revealed once on create and rotate,
 // read by the resolver to sign grants, and matched for worker bearer auth.
 type DistributionPoint struct {
-	ID            int64     `json:"id"`
-	Name          string    `json:"name"`
-	Enabled       bool      `json:"enabled"`
-	Position      int32     `json:"position"`
-	ClientCIDRs   []string  `json:"client_cidrs"`
-	ClientBaseURL string    `json:"client_base_url"`
-	Online        bool      `json:"online"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            int64                    `json:"id"`
+	Name          string                   `json:"name"`
+	Enabled       bool                     `json:"enabled"`
+	Position      int32                    `json:"position"`
+	ClientCIDRs   []string                 `json:"client_cidrs"`
+	ClientBaseURL string                   `json:"client_base_url"`
+	Worker        *DistributionPointWorker `json:"worker,omitempty"`
+	CreatedAt     time.Time                `json:"created_at"`
+	UpdatedAt     time.Time                `json:"updated_at"`
+}
+
+// DistributionPointWorker describes the latest worker state known by the
+// current Woodstar process.
+type DistributionPointWorker struct {
+	Compatible      bool   `json:"compatible"`
+	ProtocolVersion *int   `json:"protocol_version,omitempty"`
+	BuildVersion    string `json:"build_version,omitempty"`
 }
 
 // DistributionPointDetail adds the per-package mirror state to the admin view.

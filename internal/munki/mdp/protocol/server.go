@@ -4,10 +4,12 @@ package protocol
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -16,6 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -29,6 +32,7 @@ type Server struct {
 	store    *mdp.Store
 	hub      *Hub
 	delivery objectDelivery
+	version  string
 	logger   *slog.Logger
 }
 
@@ -38,6 +42,7 @@ type workerHandler struct {
 	store    *mdp.Store
 	hub      *Hub
 	delivery objectDelivery
+	version  string
 	logger   *slog.Logger
 }
 
@@ -59,20 +64,27 @@ func NewServer(
 	ctx context.Context,
 	store *mdp.Store,
 	delivery objectDelivery,
+	version string,
 	logger *slog.Logger,
-) *Server {
+) (*Server, error) {
+	if !wire.ValidBuildVersion(version) {
+		return nil, fmt.Errorf("invalid Woodstar build version %q", version)
+	}
 	return &Server{
 		store:    store,
 		hub:      newHub(ctx, store, store.Presence(), logger),
 		delivery: delivery,
+		version:  version,
 		logger:   logger,
-	}
+	}, nil
 }
 
 // RegisterRoutes mounts the download endpoint on ordinary and the worker
 // WebSocket endpoint on websocket.
 func (s *Server) RegisterRoutes(ordinary chi.Router, websocket chi.Router) {
-	h := workerHandler{store: s.store, hub: s.hub, delivery: s.delivery, logger: s.logger}
+	h := workerHandler{
+		store: s.store, hub: s.hub, delivery: s.delivery, version: s.version, logger: s.logger,
+	}
 	websocket.Get("/api/munki/distribution/connect", h.connect)
 	ordinary.Get("/api/munki/distribution/packages/{id}/download-url", h.downloadURL)
 }
@@ -100,17 +112,74 @@ func (h workerHandler) connect(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ws, err := websocket.Accept(w, r, nil)
+	worker, ok := h.negotiate(w, r, dp.ID)
+	if !ok {
+		return
+	}
+	w.Header().Set(wire.BuildVersionHeader, h.version)
+	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		Subprotocols: []string{wire.Subprotocol},
+	})
 	if err != nil {
 		h.log(r, "connect", err)
 		return
 	}
-	if err := h.hub.Serve(r.Context(), ws, dp); err != nil && !isExpectedClose(err) {
+	if err := h.hub.Serve(r.Context(), ws, dp, worker); err != nil && !isExpectedClose(err) {
 		h.log(r, "connect", err)
 		_ = ws.Close(websocket.StatusInternalError, "serve error")
 		return
 	}
 	_ = ws.Close(websocket.StatusNormalClosure, "")
+}
+
+func (h workerHandler) negotiate(
+	w http.ResponseWriter,
+	r *http.Request,
+	pointID int64,
+) (mdp.DistributionPointWorker, bool) {
+	w.Header().Set(wire.BuildVersionHeader, h.version)
+
+	protocols := offeredSubprotocols(r.Header)
+	versionHeaders := r.Header.Values(wire.BuildVersionHeader)
+	if len(protocols) != 1 || protocols[0] != wire.Subprotocol ||
+		len(versionHeaders) != 1 || !wire.ValidBuildVersion(versionHeaders[0]) {
+		w.Header().Set(wire.ProtocolHeader, wire.Subprotocol)
+		h.store.Presence().Reject(pointID, incompatibleWorker(protocols, versionHeaders))
+		http.Error(w, "incompatible MDP protocol", http.StatusUpgradeRequired)
+		return mdp.DistributionPointWorker{}, false
+	}
+	protocolVersion := wire.ProtocolVersion
+	return mdp.DistributionPointWorker{
+		Compatible:      true,
+		ProtocolVersion: &protocolVersion,
+		BuildVersion:    versionHeaders[0],
+	}, true
+}
+
+func incompatibleWorker(
+	protocols []string,
+	versionHeaders []string,
+) mdp.DistributionPointWorker {
+	worker := mdp.DistributionPointWorker{}
+	if len(versionHeaders) == 1 && wire.ValidBuildVersion(versionHeaders[0]) {
+		worker.BuildVersion = versionHeaders[0]
+	}
+	if len(protocols) == 1 {
+		if version, ok := wire.ParseSubprotocolVersion(protocols[0]); ok {
+			worker.ProtocolVersion = &version
+		}
+	}
+	return worker
+}
+
+func offeredSubprotocols(header http.Header) []string {
+	var protocols []string
+	for _, value := range header.Values("Sec-WebSocket-Protocol") {
+		for protocol := range strings.SplitSeq(value, ",") {
+			protocols = append(protocols, strings.TrimSpace(protocol))
+		}
+	}
+	return protocols
 }
 
 // downloadURL mints a fresh, short-lived URL for an authenticated worker to pull

@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
@@ -412,7 +413,13 @@ func observeMDPState(
 
 	point := *response.JSON200
 	state := mdpStateSummary(point, packageID)
-	ready := point.Online && mdpPackageIsCurrent(point.Packages, packageID)
+	ready := point.Worker != nil &&
+		point.Worker.Compatible &&
+		point.Worker.ProtocolVersion != nil &&
+		*point.Worker.ProtocolVersion == int64(wire.ProtocolVersion) &&
+		point.Worker.BuildVersion != nil &&
+		*point.Worker.BuildVersion != "" &&
+		mdpPackageIsCurrent(point.Packages, packageID)
 	return point, state, ready
 }
 
@@ -426,6 +433,23 @@ func mdpPackageIsCurrent(states []adminapi.MunkiPackageState, packageID int64) b
 }
 
 func mdpStateSummary(point adminapi.MunkiDistributionPointDetail, packageID int64) string {
+	connection := "offline"
+	if point.Worker != nil {
+		buildVersion := "-"
+		if point.Worker.BuildVersion != nil {
+			buildVersion = *point.Worker.BuildVersion
+		}
+		protocolVersion := "-"
+		if point.Worker.ProtocolVersion != nil {
+			protocolVersion = fmt.Sprintf("v%d", *point.Worker.ProtocolVersion)
+		}
+		connection = fmt.Sprintf(
+			"worker_compatible=%t protocol=%s build=%s",
+			point.Worker.Compatible,
+			protocolVersion,
+			buildVersion,
+		)
+	}
 	status := "missing"
 	for _, state := range point.Packages {
 		if state.PackageId == packageID {
@@ -433,7 +457,7 @@ func mdpStateSummary(point adminapi.MunkiDistributionPointDetail, packageID int6
 			break
 		}
 	}
-	return fmt.Sprintf("online=%t package=%s", point.Online, status)
+	return fmt.Sprintf("%s package=%s", connection, status)
 }
 
 func requireMDPRedirect(

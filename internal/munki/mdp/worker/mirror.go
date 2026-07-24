@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 )
 
 const snapshotFilename = "state.json"
@@ -20,12 +22,6 @@ var (
 	errSizeMismatch   = errors.New("size mismatch")
 	errSHA256Mismatch = errors.New("sha256 mismatch")
 )
-
-// pointIdentity is the distribution point a worker learns from Woodstar.
-type pointIdentity struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
 
 // packageState is a verified local mirror entry. The map of these is an
 // optimization to skip re-hashing on boot; the filesystem and the desired set
@@ -38,7 +34,7 @@ type packageState struct {
 }
 
 type snapshot struct {
-	DistributionPoint pointIdentity          `json:"distribution_point"`
+	DistributionPoint wire.PointIdentity     `json:"distribution_point"`
 	Packages          map[int64]packageState `json:"packages"`
 }
 
@@ -47,7 +43,7 @@ type snapshot struct {
 type mirror struct {
 	dataDir  string
 	mu       sync.RWMutex
-	identity pointIdentity
+	identity wire.PointIdentity
 	packages map[int64]packageState
 }
 
@@ -89,7 +85,7 @@ func (m *mirror) get(packageID int64) (packageState, bool) {
 	return state, ok
 }
 
-func (m *mirror) setIdentity(identity pointIdentity) {
+func (m *mirror) setIdentity(identity wire.PointIdentity) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.identity = identity

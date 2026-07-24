@@ -1,14 +1,24 @@
+import { EnumStatus } from "@/components/enum-status";
 import { Badge } from "@/components/ui/badge";
 import { Status, StatusIndicator, StatusLabel } from "@/components/ui/status";
-import type { MunkiPackageState } from "@/lib/api";
+import type { MunkiDistributionPointWorker, MunkiPackageState } from "@/lib/api";
+import type { StatusMetadataMap } from "@/lib/enum-metadata";
 
-export function ConnectionBadge({ online }: { online: boolean }) {
-  return (
-    <Status variant={online ? "success" : "default"}>
-      <StatusIndicator className={online ? undefined : "before:hidden"} />
-      <StatusLabel>{online ? "Online" : "Offline"}</StatusLabel>
-    </Status>
-  );
+type WorkerStatusValue = "offline" | "online" | "incompatible";
+
+const WORKER_STATUSES = {
+  offline: { name: "Offline" },
+  online: { name: "Online", variant: "success" },
+  incompatible: {
+    name: "Incompatible",
+    description: "This worker does not support the server's protocol version.",
+    variant: "warning",
+  },
+} satisfies StatusMetadataMap<WorkerStatusValue>;
+
+export function WorkerStatus({ worker }: { worker?: MunkiDistributionPointWorker }) {
+  const status = !worker ? "offline" : worker.compatible ? "online" : "incompatible";
+  return <EnumStatus value={status} metadata={WORKER_STATUSES} />;
 }
 
 export function MirrorBadge({ packages }: { packages: MunkiPackageState[] }) {

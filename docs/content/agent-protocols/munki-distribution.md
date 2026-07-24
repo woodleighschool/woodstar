@@ -84,6 +84,8 @@ See [Environment](../configuration/environment#distribution-point-worker) for ev
 
 The worker keeps a WebSocket connection to Woodstar and receives the complete desired package list. Missing or changed installers are cached and checked by size and SHA-256. Installers no longer wanted are removed.
 
+The WebSocket upgrade requires an exact protocol match. Woodstar rejects mismatched workers instead of attempting compatibility, and the UI marks them as incompatible. The server and worker also exchange their Woodstar build versions for diagnostics; build versions do not control protocol compatibility. Run the same Woodstar release for both processes.
+
 Cache state is kept in the data directory, and downloads resume after a restart. The Woodstar UI reports each package as pending, syncing, current, or in error.
 
 The worker uses the distribution-point key to connect and request short-lived download URLs. Database and storage credentials stay on the server.

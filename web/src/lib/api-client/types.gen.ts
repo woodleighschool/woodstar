@@ -370,9 +370,9 @@ export type MunkiDistributionPoint = {
     enabled: boolean;
     id: number;
     name: string;
-    online: boolean;
     position: number;
     updated_at: string;
+    worker?: MunkiDistributionPointWorker;
 };
 
 export type MunkiDistributionPointDetail = {
@@ -382,10 +382,10 @@ export type MunkiDistributionPointDetail = {
     enabled: boolean;
     id: number;
     name: string;
-    online: boolean;
     packages: Array<MunkiPackageState>;
     position: number;
     updated_at: string;
+    worker?: MunkiDistributionPointWorker;
 };
 
 export type MunkiDistributionPointKeyBody = {
@@ -401,6 +401,12 @@ export type MunkiDistributionPointMutation = {
 
 export type MunkiDistributionPointReorderBody = {
     ordered_ids: Array<number>;
+};
+
+export type MunkiDistributionPointWorker = {
+    build_version?: string;
+    compatible: boolean;
+    protocol_version?: number;
 };
 
 export type MunkiHostManifestLatestPackage = {
@@ -753,9 +759,9 @@ export type MunkiRevealedDistributionPoint = {
     id: number;
     key: string;
     name: string;
-    online: boolean;
     position: number;
     updated_at: string;
+    worker?: MunkiDistributionPointWorker;
 };
 
 export type MunkiSoftware = {

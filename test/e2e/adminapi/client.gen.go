@@ -1640,16 +1640,16 @@ type MunkiDirectUploadTarget struct {
 
 // MunkiDistributionPointDetail defines model for MunkiDistributionPointDetail.
 type MunkiDistributionPointDetail struct {
-	ClientBaseUrl string              `json:"client_base_url"`
-	ClientCidrs   []string            `json:"client_cidrs"`
-	CreatedAt     time.Time           `json:"created_at"`
-	Enabled       bool                `json:"enabled"`
-	Id            int64               `json:"id"`
-	Name          string              `json:"name"`
-	Online        bool                `json:"online"`
-	Packages      []MunkiPackageState `json:"packages"`
-	Position      int32               `json:"position"`
-	UpdatedAt     time.Time           `json:"updated_at"`
+	ClientBaseUrl string                        `json:"client_base_url"`
+	ClientCidrs   []string                      `json:"client_cidrs"`
+	CreatedAt     time.Time                     `json:"created_at"`
+	Enabled       bool                          `json:"enabled"`
+	Id            int64                         `json:"id"`
+	Name          string                        `json:"name"`
+	Packages      []MunkiPackageState           `json:"packages"`
+	Position      int32                         `json:"position"`
+	UpdatedAt     time.Time                     `json:"updated_at"`
+	Worker        *MunkiDistributionPointWorker `json:"worker,omitempty"`
 }
 
 // MunkiDistributionPointMutation defines model for MunkiDistributionPointMutation.
@@ -1658,6 +1658,13 @@ type MunkiDistributionPointMutation struct {
 	ClientCidrs   []string `json:"client_cidrs"`
 	Enabled       bool     `json:"enabled"`
 	Name          string   `json:"name"`
+}
+
+// MunkiDistributionPointWorker defines model for MunkiDistributionPointWorker.
+type MunkiDistributionPointWorker struct {
+	BuildVersion    *string `json:"build_version,omitempty"`
+	Compatible      bool    `json:"compatible"`
+	ProtocolVersion *int64  `json:"protocol_version,omitempty"`
 }
 
 // MunkiHostManifestLatestPackage defines model for MunkiHostManifestLatestPackage.
@@ -2001,16 +2008,16 @@ type MunkiPackageStateStatus string
 
 // MunkiRevealedDistributionPoint defines model for MunkiRevealedDistributionPoint.
 type MunkiRevealedDistributionPoint struct {
-	ClientBaseUrl string    `json:"client_base_url"`
-	ClientCidrs   []string  `json:"client_cidrs"`
-	CreatedAt     time.Time `json:"created_at"`
-	Enabled       bool      `json:"enabled"`
-	Id            int64     `json:"id"`
-	Key           string    `json:"key"`
-	Name          string    `json:"name"`
-	Online        bool      `json:"online"`
-	Position      int32     `json:"position"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ClientBaseUrl string                        `json:"client_base_url"`
+	ClientCidrs   []string                      `json:"client_cidrs"`
+	CreatedAt     time.Time                     `json:"created_at"`
+	Enabled       bool                          `json:"enabled"`
+	Id            int64                         `json:"id"`
+	Key           string                        `json:"key"`
+	Name          string                        `json:"name"`
+	Position      int32                         `json:"position"`
+	UpdatedAt     time.Time                     `json:"updated_at"`
+	Worker        *MunkiDistributionPointWorker `json:"worker,omitempty"`
 }
 
 // MunkiSoftwareDetail defines model for MunkiSoftwareDetail.

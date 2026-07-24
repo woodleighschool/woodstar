@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 )
 
 const (
@@ -34,21 +36,27 @@ const (
 	initialJobRetry = 5 * time.Second
 )
 
+var errProtocolMismatch = errors.New("MDP protocol mismatch")
+
 // Worker is the woodstar mdp face: a WebSocket control channel that mirrors
 // installers on demand and a serve node that hands them to redirected Munki
 // clients.
 type Worker struct {
-	cfg    Config
-	logger *slog.Logger
-	mirror *mirror
-	client *woodstarClient
-	server *server
+	cfg     Config
+	version string
+	logger  *slog.Logger
+	mirror  *mirror
+	client  *woodstarClient
+	server  *server
 
 	controlConnected atomic.Bool
 }
 
 // New restores the worker's mirror and wires its collaborators.
-func New(cfg Config, logger *slog.Logger) (*Worker, error) {
+func New(cfg Config, version string, logger *slog.Logger) (*Worker, error) {
+	if !wire.ValidBuildVersion(version) {
+		return nil, errors.New("invalid Woodstar build version")
+	}
 	m, err := loadMirror(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -58,17 +66,19 @@ func New(cfg Config, logger *slog.Logger) (*Worker, error) {
 		return nil, fmt.Errorf("configure Woodstar client: %w", err)
 	}
 	return &Worker{
-		cfg:    cfg,
-		logger: logger,
-		mirror: m,
-		client: client,
-		server: &server{mirror: m, key: []byte(cfg.Key), logger: logger},
+		cfg:     cfg,
+		version: version,
+		logger:  logger,
+		mirror:  m,
+		client:  client,
+		server:  &server{mirror: m, key: []byte(cfg.Key), logger: logger},
 	}, nil
 }
 
 // Run starts the serve node and the Woodstar connection loop. It returns when
-// ctx is cancelled or the serve node exits on its own; a serve-node failure
-// stops the connection loop so the worker never lingers half-up.
+// ctx is cancelled, the serve node exits, or the control connection encounters
+// a terminal protocol error. Failure in either half stops the other so the
+// worker never lingers partially available.
 func (w *Worker) Run(ctx context.Context) error {
 	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", w.cfg.ListenAddr)
 	if err != nil {
@@ -96,22 +106,31 @@ func (w *Worker) Run(ctx context.Context) error {
 
 	connCtx, cancelConn := context.WithCancel(ctx)
 	defer cancelConn()
-	loopDone := make(chan struct{})
+	loopDone := make(chan error, 1)
 	go func() {
-		defer close(loopDone)
-		w.connectLoop(connCtx)
+		loopDone <- w.connectLoop(connCtx)
 	}()
 
-	var runErr error
+	var (
+		runErr       error
+		loopFinished bool
+	)
 	select {
 	case <-ctx.Done():
 	case err := <-serveErr:
 		runErr = fmt.Errorf("serve node: %w", err)
+	case err := <-loopDone:
+		loopFinished = true
+		if err != nil {
+			runErr = fmt.Errorf("control connection: %w", err)
+		}
 	}
 
 	w.logger.InfoContext(ctx, "shutting down")
 	cancelConn()
-	<-loopDone
+	if !loopFinished {
+		<-loopDone
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
@@ -128,16 +147,19 @@ func (w *Worker) Run(ctx context.Context) error {
 
 // connectLoop keeps a Woodstar connection up, reconnecting with capped backoff.
 // Each reconnect receives the whole desired set, so a missed change is recovered.
-func (w *Worker) connectLoop(ctx context.Context) {
+func (w *Worker) connectLoop(ctx context.Context) error {
 	backoff := initialReconnectDelay
 	for {
 		if ctx.Err() != nil {
-			return
+			return nil //nolint:nilerr // Parent cancellation is a clean worker shutdown.
 		}
 		start := time.Now()
 		err := w.connectOnce(ctx)
 		if ctx.Err() != nil {
-			return
+			return nil //nolint:nilerr // Parent cancellation supersedes the connection error.
+		}
+		if errors.Is(err, errProtocolMismatch) {
+			return err
 		}
 		if time.Since(start) >= connectionStableAfter {
 			backoff = initialReconnectDelay
@@ -145,7 +167,7 @@ func (w *Worker) connectLoop(ctx context.Context) {
 		w.logger.WarnContext(ctx, "connection lost", "retry_in", backoff.String(), "err", err)
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-time.After(backoff):
 		}
 		backoff = min(backoff*2, maxReconnectDelay)
@@ -159,19 +181,45 @@ func (w *Worker) connectLoop(ctx context.Context) {
 func (w *Worker) connectOnce(ctx context.Context) error {
 	w.logger.DebugContext(ctx, "connecting", "url", w.connectURL())
 	dialCtx, cancelDial := context.WithTimeout(ctx, websocketHandshakeTimeout)
-	//nolint:bodyclose // websocket.Dial owns the handshake response body even when dialing fails.
-	ws, _, err := websocket.Dial(dialCtx, w.connectURL(), &websocket.DialOptions{
-		HTTPClient: w.client.websocketHTTP,
-		HTTPHeader: http.Header{"Authorization": {"Bearer " + w.cfg.Key}},
-	})
+	ws, response, err := websocket.Dial( //nolint:bodyclose // websocket.Dial always closes the handshake response body.
+		dialCtx, w.connectURL(), &websocket.DialOptions{
+			HTTPClient: w.client.websocketHTTP,
+			HTTPHeader: http.Header{
+				"Authorization":         {"Bearer " + w.cfg.Key},
+				wire.BuildVersionHeader: {w.version},
+			},
+			Subprotocols: []string{wire.Subprotocol},
+		})
 	cancelDial()
 	if err != nil {
+		if isProtocolMismatchResponse(response) {
+			return fmt.Errorf(
+				"%w: worker protocol %q, server protocol %q, server version %q",
+				errProtocolMismatch,
+				wire.Subprotocol,
+				response.Header.Get(wire.ProtocolHeader),
+				response.Header.Get(wire.BuildVersionHeader),
+			)
+		}
 		return err
 	}
 	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 	defer w.controlConnected.Store(false)
+	serverVersion := response.Header.Get(wire.BuildVersionHeader)
+	if ws.Subprotocol() != wire.Subprotocol || !wire.ValidBuildVersion(serverVersion) {
+		return fmt.Errorf(
+			"%w: selected protocol %q, server version %q",
+			errProtocolMismatch,
+			ws.Subprotocol(),
+			serverVersion,
+		)
+	}
 	ws.SetReadLimit(maxMessageBytes)
-	w.logger.InfoContext(ctx, "connected", "server_url", w.cfg.ServerURL)
+	w.logger.InfoContext(ctx, "connected",
+		"server_url", w.cfg.ServerURL,
+		"protocol_version", wire.ProtocolVersion,
+		"server_version", serverVersion,
+	)
 
 	connCtx, cancel := context.WithCancel(ctx)
 	session := newSession(w.mirror, w.client, w.logger, w.cfg.DownloadConcurrency, initialJobRetry)
@@ -187,22 +235,30 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var msg serverMessage
+		var msg wire.ServerMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
 			return fmt.Errorf("decode server message: %w", err)
 		}
 		switch msg.Type {
-		case messageHello:
+		case wire.MessageHello:
 			w.logger.DebugContext(connCtx, "received identity",
 				"id", msg.DistributionPoint.ID, "name", msg.DistributionPoint.Name)
 			w.mirror.setIdentity(msg.DistributionPoint)
 			w.controlConnected.Store(true)
-		case messageDesiredSet:
+		case wire.MessageDesiredSet:
 			session.submitDesired(msg.Packages)
 		default:
 			return fmt.Errorf("unexpected message type %q", msg.Type)
 		}
 	}
+}
+
+func isProtocolMismatchResponse(response *http.Response) bool {
+	if response == nil || response.StatusCode != http.StatusUpgradeRequired {
+		return false
+	}
+	_, protocolOK := wire.ParseSubprotocolVersion(response.Header.Get(wire.ProtocolHeader))
+	return protocolOK && wire.ValidBuildVersion(response.Header.Get(wire.BuildVersionHeader))
 }
 
 func (w *Worker) connectURL() string {

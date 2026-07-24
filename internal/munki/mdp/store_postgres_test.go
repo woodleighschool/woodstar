@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -18,10 +19,19 @@ import (
 )
 
 // newStore returns a store and the presence set the hub would normally write, so
-// tests can mark a point online without standing up a live connection.
+// tests can connect a point without standing up a live worker.
 func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
 	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 	return store, store.Presence()
+}
+
+func testWorker() mdp.DistributionPointWorker {
+	protocolVersion := 1
+	return mdp.DistributionPointWorker{
+		Compatible:      true,
+		ProtocolVersion: &protocolVersion,
+		BuildVersion:    "worker-test",
+	}
 }
 
 func discardLogger() *slog.Logger {
@@ -154,7 +164,7 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 	}
 }
 
-func TestListMarksOnlineFromPresence(t *testing.T) {
+func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
 
@@ -163,17 +173,17 @@ func TestListMarksOnlineFromPresence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if points[0].Online {
-		t.Fatal("Online = true without presence")
+	if points[0].Worker != nil {
+		t.Fatalf("Worker = %+v without presence, want nil", points[0].Worker)
 	}
 
-	presence.Connect(pointID)
+	presence.Connect(pointID, testWorker())
 	points, _, err = store.List(ctx, mdp.DistributionPointListParams{})
 	if err != nil {
-		t.Fatalf("List online: %v", err)
+		t.Fatalf("List connected: %v", err)
 	}
-	if !points[0].Online {
-		t.Fatal("Online = false with presence")
+	if points[0].Worker == nil || !reflect.DeepEqual(*points[0].Worker, testWorker()) {
+		t.Fatalf("Worker = %+v, want %+v", points[0].Worker, testWorker())
 	}
 }
 
@@ -188,7 +198,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
-	presence.Connect(point.ID)
+	presence.Connect(point.ID, testWorker())
 
 	inside := mustAddr(t, "10.1.2.3")
 	resolved, err := store.ResolveForClient(ctx, inside, pkg)
@@ -231,7 +241,11 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("offline point resolved %+v, want nil", got)
 	}
-	presence.Connect(point.ID)
+	presence.Reject(point.ID, mdp.DistributionPointWorker{})
+	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
+		t.Fatalf("incompatible point resolved %+v, want nil", got)
+	}
+	presence.Connect(point.ID, testWorker())
 
 	if _, err := store.Update(ctx, point.ID, mdp.DistributionPointMutation{
 		Name:          "Melbourne",
@@ -262,7 +276,7 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
-	presence.Connect(point.ID)
+	presence.Connect(point.ID, testWorker())
 
 	if got := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg); got != nil {
 		t.Fatalf("point with empty client_base_url resolved %+v, want nil", got)
