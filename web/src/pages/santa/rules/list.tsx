@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus } from "lucide-react";
 import * as React from "react";
@@ -23,8 +23,9 @@ import { useLabels } from "@/hooks/use-labels";
 import { useBulkDeleteSantaRules, useSantaRules } from "@/hooks/use-santa-rules";
 import type { SantaRule } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
-import { RULE_TYPE_OPTIONS, RULE_TYPE_VALUES, ruleTypeLabel } from "@/lib/santa-rules";
-import { isOneOf } from "@/lib/utils";
+import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
+
+const routeApi = getRouteApi("/_authenticated/santa/rules/");
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
 
 interface RuleTableRow {
@@ -91,11 +92,16 @@ const ruleColumns: ColumnDef<RuleTableRow>[] = [
 ];
 
 export function RuleListPage() {
-  const tableSearch = useDataTableSearch(RULE_TYPE_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: RULE_TYPE_FILTER_KEYS,
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const rawRuleType = tableSearch.filters.rule_type?.[0];
-  const ruleType = isOneOf(rawRuleType, RULE_TYPE_VALUES) ? rawRuleType : undefined;
+  const ruleType = search.rule_type;
   const query = useSantaRules({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -117,7 +123,6 @@ export function RuleListPage() {
   }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || !!ruleType;
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
@@ -166,7 +171,7 @@ export function RuleListPage() {
           empty={
             <DataTableEmpty
               icon={<ListChecks />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No execution rules"
               description="Create a rule, then attach label targets."
               filteredDescription="No rules matched these filters."
@@ -175,7 +180,11 @@ export function RuleListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("rule_type")}
                 title="Rule Type"

@@ -1,8 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
 import { ConfigurationListPage } from "@/pages/santa/configurations/list";
 
-// Pure list route: q, page, per_page, and sort are nuqs-owned.
+const searchSchema = createListSearchSchema(["name", "description", "position", "updated_at"]);
+
 export const Route = createFileRoute("/_authenticated/santa/configurations/")({
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
   component: ConfigurationListPage,
 });

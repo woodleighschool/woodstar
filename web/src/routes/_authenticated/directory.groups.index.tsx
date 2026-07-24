@@ -1,9 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
 import { GroupListPage } from "@/pages/groups/list";
 
-// Pure list route: q, page, per_page, and sort are nuqs-owned, so there are no
-// semantic search params to validate.
+const searchSchema = createListSearchSchema([
+  "display_name",
+  "mail_nickname",
+  "member_count",
+  "source",
+]);
+
 export const Route = createFileRoute("/_authenticated/directory/groups/")({
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
   component: GroupListPage,
 });

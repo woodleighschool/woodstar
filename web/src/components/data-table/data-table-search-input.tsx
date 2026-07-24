@@ -1,4 +1,3 @@
-import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
@@ -8,31 +7,29 @@ interface DataTableSearchInputProps extends Omit<
   React.ComponentProps<typeof Input>,
   "value" | "onChange"
 > {
+  value: string;
+  onValueChange: (value: string | undefined) => void;
   debounceMs?: number;
 }
 
-// Standalone server search bound to the nuqs `q` key. A local draft keeps the
-// input responsive while the URL (and therefore the fetch) updates debounced.
-// Writing `q` resets `page` to its default, mirroring the facet-filter behaviour.
 export function DataTableSearchInput({
+  value,
+  onValueChange,
   debounceMs = 300,
   placeholder = "Search",
   ...props
 }: DataTableSearchInputProps) {
-  const [{ q }, setSearch] = useQueryStates({
-    q: parseAsString.withDefault(""),
-    page: parseAsInteger.withDefault(1),
-  });
-  const [draft, setDraft] = React.useState(q);
-  const [prev, setPrev] = React.useState(q);
+  const [draft, setDraft] = React.useState(value);
+  const [previousValue, setPreviousValue] = React.useState(value);
 
-  if (prev !== q) {
-    setPrev(q);
-    setDraft(q);
+  if (previousValue !== value) {
+    setPreviousValue(value);
+    setDraft(value);
   }
 
-  const write = useDebouncedCallback((value: string) => {
-    void setSearch({ q: value.trim() === "" ? null : value, page: null });
+  const write = useDebouncedCallback((nextValue: string) => {
+    const trimmed = nextValue.trim();
+    onValueChange(trimmed === "" ? undefined : trimmed);
   }, debounceMs);
 
   return (

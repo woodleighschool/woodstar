@@ -1,5 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useSearch } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { FormField } from "@/components/form-field";
@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useLogin, useSession } from "@/hooks/use-auth";
 import { emailAddress, requiredString } from "@/lib/form-validation";
+
+const routeApi = getRouteApi("/login");
+
 export function LoginPage() {
   const { session } = useSession();
-  const search: {
-    sso_error?: string;
-  } = useSearch({ strict: false });
+  const search = routeApi.useSearch();
   const ssoEnabled = session?.sso_enabled ?? false;
   const login = useLogin();
   const form = useForm({

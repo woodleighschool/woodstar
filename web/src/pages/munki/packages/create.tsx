@@ -1,4 +1,4 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { encodeSort } from "@/hooks/use-data-table-search";
@@ -10,11 +10,12 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { emptyPackageForm, PackageForm } from "./fields";
 
+const routeApi = getRouteApi("/_authenticated/munki/packages/new");
+
 export function MunkiPackageCreatePage() {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false });
-  const initialSoftwareID =
-    typeof search.software_id === "number" && search.software_id > 0 ? search.software_id : null;
+  const search = routeApi.useSearch();
+  const initialSoftwareID = search.software_id ?? null;
   const create = useCreateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
   const cancelled = useRef(false);

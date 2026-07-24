@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
-import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableEmpty } from "@/components/data-table/data-table-empty";
@@ -23,17 +22,12 @@ import type {
   SantaHostSummary,
 } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatDateTime, formatRelative, isOneOf } from "@/lib/utils";
+import { formatDateTime, formatRelative } from "@/lib/utils";
 
-import {
-  DECISION_FILTERS,
-  DECISION_FILTER_VALUES,
-  FILE_ACCESS_DECISION_FILTERS,
-  FILE_ACCESS_DECISION_VALUES,
-  fileName,
-} from "./decisions";
+import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./decisions";
 import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
-const DECISION_FILTER_KEYS = [{ id: "decision" }] as const;
+const executionRouteApi = getRouteApi("/_authenticated/santa/events/");
+const fileAccessRouteApi = getRouteApi("/_authenticated/santa/events/file-access/");
 
 interface ExecutionEventTableRow {
   event: SantaEvent;
@@ -166,7 +160,8 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
 ];
 
 export function SantaEventListPage() {
-  const [deepLink, setDeepLink] = useQueryStates({ host_id: parseAsInteger, user: parseAsString });
+  const search = executionRouteApi.useSearch();
+  const navigate = executionRouteApi.useNavigate();
   return (
     <PageShell>
       <PageHeader
@@ -174,23 +169,25 @@ export function SantaEventListPage() {
         description="Review Santa execution and file access activity."
         context={
           <EventContextChips
-            hostId={deepLink.host_id}
-            user={deepLink.user}
-            onClearHost={() => void setDeepLink({ host_id: null })}
-            onClearUser={() => void setDeepLink({ user: null })}
+            hostId={search.host_id ?? null}
+            user={search.user}
+            onClearHost={() =>
+              void navigate({ search: (previous) => ({ ...previous, host_id: undefined }) })
+            }
+            onClearUser={() =>
+              void navigate({ search: (previous) => ({ ...previous, user: undefined }) })
+            }
           />
         }
       />
-      <EventListNav active="execution" hostId={deepLink.host_id} />
-      <ExecutionEventsTable
-        hostId={deepLink.host_id ?? undefined}
-        user={deepLink.user ?? undefined}
-      />
+      <EventListNav active="execution" hostId={search.host_id ?? null} />
+      <ExecutionEventsTable hostId={search.host_id} user={search.user} />
     </PageShell>
   );
 }
 export function SantaFileAccessEventListPage() {
-  const [deepLink, setDeepLink] = useQueryStates({ host_id: parseAsInteger });
+  const search = fileAccessRouteApi.useSearch();
+  const navigate = fileAccessRouteApi.useNavigate();
   return (
     <PageShell>
       <PageHeader
@@ -198,13 +195,15 @@ export function SantaFileAccessEventListPage() {
         description="Review Santa execution and file access activity."
         context={
           <EventContextChips
-            hostId={deepLink.host_id}
-            onClearHost={() => void setDeepLink({ host_id: null })}
+            hostId={search.host_id ?? null}
+            onClearHost={() =>
+              void navigate({ search: (previous) => ({ ...previous, host_id: undefined }) })
+            }
           />
         }
       />
-      <EventListNav active="file-access" hostId={deepLink.host_id} />
-      <FileAccessEventsTable hostId={deepLink.host_id ?? undefined} />
+      <EventListNav active="file-access" hostId={search.host_id ?? null} />
+      <FileAccessEventsTable hostId={search.host_id} />
     </PageShell>
   );
 }
@@ -263,10 +262,15 @@ function EventListNav({
   );
 }
 function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string }) {
-  const tableSearch = useDataTableSearch(DECISION_FILTER_KEYS);
-  const decisions = (tableSearch.filters.decision ?? []).filter((value) =>
-    isOneOf(value, DECISION_FILTER_VALUES),
-  );
+  const search = executionRouteApi.useSearch();
+  const navigate = executionRouteApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: [{ id: "decision", multiple: true }],
+    scopeKeys: ["host_id", "user"],
+  });
+  const decisions = search.decision ?? [];
   const query = useSantaEvents({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -283,8 +287,6 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters =
-    !!tableSearch.q || hostId !== undefined || user !== undefined || decisions.length > 0;
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
@@ -309,12 +311,14 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   return (
     <DataTable
       table={table}
-      empty={<EventsEmptyState hasFilters={hasFilters} noun="execution events" />}
+      empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="execution events" />}
     >
       <div className="flex flex-wrap items-center gap-2 p-1">
         <DataTableSearchInput
           className="h-8 w-56 lg:w-72"
           placeholder="Search executable, path, host, user"
+          value={tableSearch.q ?? ""}
+          onValueChange={tableSearch.onQueryChange}
         />
         <DataTableFacetedFilter
           column={table.getColumn("decision")}
@@ -327,10 +331,15 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   );
 }
 function FileAccessEventsTable({ hostId }: { hostId?: number }) {
-  const tableSearch = useDataTableSearch(DECISION_FILTER_KEYS);
-  const decisions = (tableSearch.filters.decision ?? []).filter((value) =>
-    isOneOf(value, FILE_ACCESS_DECISION_VALUES),
-  );
+  const search = fileAccessRouteApi.useSearch();
+  const navigate = fileAccessRouteApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: [{ id: "decision", multiple: true }],
+    scopeKeys: ["host_id"],
+  });
+  const decisions = search.decision ?? [];
   const query = useSantaFileAccessEvents({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -342,7 +351,6 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   const events = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || hostId !== undefined || decisions.length > 0;
   const table = useDataTable({
     tableState: tableSearch,
     data: events,
@@ -367,12 +375,14 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   return (
     <DataTable
       table={table}
-      empty={<EventsEmptyState hasFilters={hasFilters} noun="file access events" />}
+      empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="file access events" />}
     >
       <div className="flex flex-wrap items-center gap-2 p-1">
         <DataTableSearchInput
           className="h-8 w-56 lg:w-72"
           placeholder="Search target, process, host, signer"
+          value={tableSearch.q ?? ""}
+          onValueChange={tableSearch.onQueryChange}
         />
         <DataTableFacetedFilter
           column={table.getColumn("decision")}

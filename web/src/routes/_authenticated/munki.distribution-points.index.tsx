@@ -1,8 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
 import { DistributionPointListPage } from "@/pages/munki/distribution-points/list";
 
-// Pure list route: q, page, per_page, and sort are nuqs-owned.
+const searchSchema = createListSearchSchema(["name", "position"]);
+
 export const Route = createFileRoute("/_authenticated/munki/distribution-points/")({
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
   component: DistributionPointListPage,
 });

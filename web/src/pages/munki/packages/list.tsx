@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { PackageCheck, Plus } from "lucide-react";
 
@@ -20,13 +20,11 @@ import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteMunkiPackages, useMunkiPackages } from "@/hooks/use-munki-packages";
 import type { MunkiPackage } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatRelative, isOneOf } from "@/lib/utils";
-import {
-  MUNKI_INSTALLER_TYPE_OPTIONS,
-  MUNKI_INSTALLER_TYPE_VALUES,
-} from "@/pages/munki/software/munki-software";
+import { formatRelative } from "@/lib/utils";
+import { MUNKI_INSTALLER_TYPE_OPTIONS } from "@/pages/munki/software/munki-software";
 
-const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type" }] as const;
+const routeApi = getRouteApi("/_authenticated/munki/packages/");
+const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type", multiple: true }] as const;
 
 function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
   const { user } = useAuth();
@@ -94,12 +92,16 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
 ];
 
 export function MunkiPackageListPage() {
-  const tableSearch = useDataTableSearch(PACKAGE_TYPE_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: PACKAGE_TYPE_FILTER_KEYS,
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const packageTypes = (tableSearch.filters.type ?? []).filter((value) =>
-    isOneOf(value, MUNKI_INSTALLER_TYPE_VALUES),
-  );
+  const packageTypes = search.type ?? [];
   const query = useMunkiPackages({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -110,7 +112,6 @@ export function MunkiPackageListPage() {
   const packages = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || packageTypes.length > 0;
   const table = useDataTable({
     tableState: tableSearch,
     data: packages,
@@ -158,7 +159,7 @@ export function MunkiPackageListPage() {
           empty={
             <DataTableEmpty
               icon={<PackageCheck />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               filteredTitle="No matching packages"
               title="No packages"
               description="Create package versions for Munki software."
@@ -168,7 +169,11 @@ export function MunkiPackageListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("type")}
                 title="Type"

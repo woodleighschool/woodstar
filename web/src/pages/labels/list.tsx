@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import * as React from "react";
@@ -25,13 +25,11 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useDeleteLabel, useLabels } from "@/hooks/use-labels";
 import type { Label } from "@/lib/api";
-import {
-  LABEL_MEMBERSHIP_OPTIONS,
-  LABEL_MEMBERSHIP_VALUES,
-  labelMembershipLabel,
-} from "@/lib/labels";
+import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatRelative, isOneOf } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
+
+const routeApi = getRouteApi("/_authenticated/labels/");
 const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
 
 interface LabelTableRow {
@@ -103,12 +101,17 @@ const labelColumns: ColumnDef<LabelTableRow>[] = [
 const labelViewerColumns = labelColumns.filter((column) => column.id !== "actions");
 
 export function LabelListPage() {
-  const tableSearch = useDataTableSearch(MEMBERSHIP_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: MEMBERSHIP_FILTER_KEYS,
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleting, setDeleting] = React.useState<Label | null>(null);
-  const rawMembership = tableSearch.filters.label_membership_type?.[0];
-  const membership = isOneOf(rawMembership, LABEL_MEMBERSHIP_VALUES) ? rawMembership : undefined;
+  const membership = search.label_membership_type;
   const query = useLabels(
     {
       q: tableSearch.q,
@@ -128,7 +131,6 @@ export function LabelListPage() {
   }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || !!membership;
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
@@ -166,7 +168,7 @@ export function LabelListPage() {
           empty={
             <DataTableEmpty
               icon={<Tags />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No labels"
               description="Create labels for host targeting."
               filteredDescription="No labels matched the current filters."
@@ -175,7 +177,11 @@ export function LabelListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("label_membership_type")}
                 title="Membership"

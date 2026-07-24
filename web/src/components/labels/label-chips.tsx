@@ -12,7 +12,7 @@ export function LabelChips({ labels, className }: { labels: LabelChip[]; classNa
           size="xs"
           variant="outline"
           className="font-normal"
-          render={<Link to="/hosts" search={{ label_id: String(label.id) }} />}
+          render={<Link to="/hosts" search={{ label_id: label.id }} />}
           nativeButton={false}
         >
           {label.name}

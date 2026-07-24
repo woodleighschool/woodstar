@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileBarChart2, Plus } from "lucide-react";
 import * as React from "react";
@@ -19,8 +19,16 @@ import { useBulkDeleteReports, useReports } from "@/hooks/use-reports";
 import type { OsqueryReport } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatInterval } from "@/lib/utils";
+
+const routeApi = getRouteApi("/_authenticated/osquery/reports/");
+
 export function ReportListPage() {
-  const tableSearch = useDataTableSearch();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const query = useReports({
@@ -32,7 +40,6 @@ export function ReportListPage() {
   const reports = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q;
   const columns = React.useMemo<ColumnDef<OsqueryReport>[]>(
     () => reportColumns(isAdmin),
     [isAdmin],
@@ -83,7 +90,7 @@ export function ReportListPage() {
           empty={
             <DataTableEmpty
               icon={<FileBarChart2 />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No saved queries"
               description="Create a report from SQL."
               filteredDescription="No reports matched the current search."
@@ -92,7 +99,11 @@ export function ReportListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
             </div>
           </div>
         </DataTable>

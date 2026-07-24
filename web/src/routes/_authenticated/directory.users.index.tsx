@@ -1,16 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { DIRECTORY_SOURCE_VALUES } from "@/lib/directory";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
+import { USER_ACCESS_ROLE_VALUES } from "@/lib/users";
 import { UserListPage } from "@/pages/users/list";
 
-// Table state (q, page, per_page, sort, role + source facets) is nuqs-owned; the
-// route only validates the semantic group_id deep-link and stays loose so the
-// nuqs keys survive validation on a bookmarked load.
-const searchSchema = z.looseObject({
-  group_id: z.coerce.number().int().positive().optional(),
+const searchSchema = createListSearchSchema([
+  "name",
+  "email",
+  "role",
+  "department",
+  "created_at",
+  "updated_at",
+]).extend({
+  role: z.enum(USER_ACCESS_ROLE_VALUES).optional().catch(undefined),
+  source: z.enum(DIRECTORY_SOURCE_VALUES).optional().catch(undefined),
+  group_id: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/directory/users/")({
-  validateSearch: (search) => searchSchema.parse(search),
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
   component: UserListPage,
 });

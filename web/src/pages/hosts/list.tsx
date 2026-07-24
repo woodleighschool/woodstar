@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ServerCog } from "lucide-react";
-import { parseAsInteger, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
@@ -21,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteHosts, useHosts } from "@/hooks/use-hosts";
+import { useLabel } from "@/hooks/use-labels";
 import { useSoftwareTitle } from "@/hooks/use-software";
 import type { Host, SoftwareTitle } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
@@ -32,30 +32,27 @@ const STATUS_OPTIONS = [
 ] satisfies { value: Host["status"]; label: string }[];
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
-
-// Deep-link filters set by other pages. Read and cleared via nuqs so chip
-// removal stays reactive and does not clobber the nuqs-owned table state; the
-// hosts route declares them in validateSearch for type-safe cross-page Links.
-const deepLinkParsers = {
-  label_id: parseAsInteger,
-  software_title_id: parseAsInteger,
-  software_id: parseAsInteger,
-};
+const routeApi = getRouteApi("/_authenticated/hosts/");
 
 export function HostListPage() {
-  const tableSearch = useDataTableSearch(STATUS_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: STATUS_FILTER_KEYS,
+    scopeKeys: ["label_id", "software_title_id", "software_id"],
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [deepLink, setDeepLink] = useQueryStates(deepLinkParsers);
 
-  const softwareTitle = useSoftwareTitle(deepLink.software_title_id);
+  const label = useLabel(search.label_id ?? null);
+  const softwareTitle = useSoftwareTitle(search.software_title_id ?? null);
   const softwareLabel = softwareFilterLabel({
     title: softwareTitle.data,
-    softwareID: deepLink.software_id ?? undefined,
-    softwareTitleID: deepLink.software_title_id ?? undefined,
+    softwareID: search.software_id,
+    softwareTitleID: search.software_title_id,
   });
-
-  const status = parseHostStatus(tableSearch.filters.status?.[0]);
 
   const query = useHosts(
     {
@@ -63,10 +60,10 @@ export function HostListPage() {
       page: tableSearch.page,
       per_page: tableSearch.per_page,
       sort: tableSearch.sort,
-      status,
-      label_id: deepLink.label_id ?? undefined,
-      software_title_id: deepLink.software_title_id ?? undefined,
-      software_id: deepLink.software_id ?? undefined,
+      status: search.status,
+      label_id: search.label_id,
+      software_title_id: search.software_title_id,
+      software_id: search.software_id,
     },
     { refetchInterval: 30_000 },
   );
@@ -74,13 +71,6 @@ export function HostListPage() {
   const hosts = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters =
-    !!tableSearch.q ||
-    !!status ||
-    deepLink.label_id != null ||
-    deepLink.software_id != null ||
-    deepLink.software_title_id != null;
-
   const columns = React.useMemo<ColumnDef<Host>[]>(() => hostColumns, []);
 
   const table = useDataTable({
@@ -100,13 +90,22 @@ export function HostListPage() {
         title="Hosts"
         description="Track enrolled hosts, inventory, checks, reports, and Santa state."
         context={
-          softwareLabel ? (
-            <FilterChip
-              label="Software"
-              value={softwareLabel}
-              onRemove={() => void setDeepLink({ software_id: null, software_title_id: null })}
-            />
-          ) : null
+          <>
+            {search.label_id !== undefined ? (
+              <FilterChip
+                label="Label"
+                value={label.data?.name ?? `#${search.label_id}`}
+                onRemove={() => tableSearch.clearSearchKeys(["label_id"])}
+              />
+            ) : null}
+            {softwareLabel ? (
+              <FilterChip
+                label="Software"
+                value={softwareLabel}
+                onRemove={() => tableSearch.clearSearchKeys(["software_id", "software_title_id"])}
+              />
+            ) : null}
+          </>
         }
       />
 
@@ -134,7 +133,7 @@ export function HostListPage() {
           empty={
             <DataTableEmpty
               icon={<ServerCog />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No enrolled devices"
               description="Create an Orbit enrollment, then install the package on a host."
               filteredDescription="No hosts matched the current filters."
@@ -143,7 +142,11 @@ export function HostListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("status")}
                 title="Status"
@@ -158,10 +161,6 @@ export function HostListPage() {
       )}
     </PageShell>
   );
-}
-
-function parseHostStatus(value: string | undefined): Host["status"] | undefined {
-  return value === "online" || value === "offline" ? value : undefined;
 }
 
 const hostColumns: ColumnDef<Host>[] = [

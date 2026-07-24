@@ -1,12 +1,14 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 
 import { useCreateSantaRule } from "@/hooks/use-santa-rules";
 import { RuleForm } from "@/pages/santa/rules/fields";
 import { formFromSearch } from "@/pages/santa/rules/form-state";
 
+const routeApi = getRouteApi("/_authenticated/santa/rules/new");
+
 export function RuleCreatePage() {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false });
+  const search = routeApi.useSearch();
   const create = useCreateSantaRule();
 
   return (

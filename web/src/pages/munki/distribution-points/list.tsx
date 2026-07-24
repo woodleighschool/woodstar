@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { GripVertical, HardDrive, Plus } from "lucide-react";
 import * as React from "react";
@@ -40,8 +40,16 @@ import {
   BoolBadge,
   ConnectionBadge,
 } from "@/pages/munki/distribution-points/distribution-point-badges";
+
+const routeApi = getRouteApi("/_authenticated/munki/distribution-points/");
+
 export function DistributionPointListPage() {
-  const tableSearch = useDataTableSearch();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
@@ -59,9 +67,8 @@ export function DistributionPointListPage() {
   const serverRows = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
-  const canEnableReorder = isAdmin && !hasFilters && totalCount > 1 && !query.isLoading;
+  const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<ColumnDef<MunkiDistributionPoint>[]>(
     () => distributionPointColumns(isAdmin),
     [isAdmin],
@@ -78,7 +85,7 @@ export function DistributionPointListPage() {
   const emptyState = (
     <DataTableEmpty
       icon={<HardDrive />}
-      filtered={hasFilters}
+      filtered={tableSearch.isFiltered}
       title="No distribution points"
       description="Create a distribution point for Munki clients."
       filteredDescription="No distribution points matched the current filters."
@@ -137,7 +144,11 @@ export function DistributionPointListPage() {
         <DataTable table={table} empty={emptyState}>
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
             </div>
           </div>
         </DataTable>

@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, UserPlus, Users } from "lucide-react";
-import { parseAsInteger, useQueryStates } from "nuqs";
 import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -29,19 +28,12 @@ import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useGroup } from "@/hooks/use-groups";
 import { useUsers } from "@/hooks/use-users";
 import type { User } from "@/lib/api";
-import {
-  DIRECTORY_SOURCE_OPTIONS,
-  DIRECTORY_SOURCES,
-  DIRECTORY_SOURCE_VALUES,
-} from "@/lib/directory";
+import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@/lib/directory";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import {
-  USER_ACCESS_ROLE_OPTIONS,
-  USER_ACCESS_ROLES,
-  USER_ACCESS_ROLE_VALUES,
-  userAccessRole,
-} from "@/lib/users";
-import { isOneOf, nonEmpty } from "@/lib/utils";
+import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
+import { nonEmpty } from "@/lib/utils";
+
+const routeApi = getRouteApi("/_authenticated/directory/users/");
 const USER_FILTER_KEYS = [{ id: "role" }, { id: "source" }] as const;
 
 interface UserTableRow {
@@ -134,17 +126,21 @@ const userColumns: ColumnDef<UserTableRow>[] = [
 const userViewerColumns = userColumns.filter((column) => column.id !== "actions");
 
 export function UserListPage() {
-  const tableSearch = useDataTableSearch(USER_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: USER_FILTER_KEYS,
+    scopeKeys: ["group_id"],
+  });
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === "admin";
   const [createOpen, setCreateOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<User | null>(null);
-  const [deepLink, setDeepLink] = useQueryStates({ group_id: parseAsInteger });
-  const rawRole = tableSearch.filters.role?.[0];
-  const role = isOneOf(rawRole, USER_ACCESS_ROLE_VALUES) ? rawRole : undefined;
-  const rawSource = tableSearch.filters.source?.[0];
-  const source = isOneOf(rawSource, DIRECTORY_SOURCE_VALUES) ? rawSource : undefined;
-  const groupID = deepLink.group_id ?? undefined;
+  const role = search.role;
+  const source = search.source;
+  const groupID = search.group_id;
   const group = useGroup(groupID ?? null);
   const query = useUsers({
     q: tableSearch.q,
@@ -164,7 +160,6 @@ export function UserListPage() {
   }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || !!role || !!source || groupID !== undefined;
   const groupLabel =
     groupID === undefined ? undefined : (group.data?.display_name ?? `Group #${groupID}`);
   const table = useDataTable({
@@ -186,7 +181,7 @@ export function UserListPage() {
             <FilterChip
               label="Group"
               value={groupLabel}
-              onRemove={() => void setDeepLink({ group_id: null })}
+              onRemove={() => tableSearch.clearSearchKeys(["group_id"])}
             />
           ) : null
         }
@@ -214,7 +209,7 @@ export function UserListPage() {
           empty={
             <DataTableEmpty
               icon={<Users />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No users"
               description="Create a local user or configure directory sync."
               filteredDescription="No users matched the current filters."
@@ -223,7 +218,11 @@ export function UserListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("role")}
                 title="Role"

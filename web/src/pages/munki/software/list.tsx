@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { PackageSearch, Plus } from "lucide-react";
 
@@ -19,6 +19,8 @@ import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "@/hooks/use-munki-
 import type { MunkiSoftware } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
+
+const routeApi = getRouteApi("/_authenticated/munki/software/");
 
 function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
   const { user } = useAuth();
@@ -75,7 +77,12 @@ const softwareColumns: ColumnDef<MunkiSoftware>[] = [
 ];
 
 export function MunkiSoftwareListPage() {
-  const tableSearch = useDataTableSearch();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const query = useMunkiSoftware({
@@ -87,7 +94,6 @@ export function MunkiSoftwareListPage() {
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q;
   const table = useDataTable({
     tableState: tableSearch,
     data: software,
@@ -137,7 +143,7 @@ export function MunkiSoftwareListPage() {
           empty={
             <DataTableEmpty
               icon={<PackageSearch />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               filteredTitle="No matching software"
               title="No software"
               description="Create software to manage Munki packages."
@@ -147,7 +153,11 @@ export function MunkiSoftwareListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
             </div>
           </div>
         </DataTable>

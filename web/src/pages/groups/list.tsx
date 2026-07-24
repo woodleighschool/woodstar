@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UsersRound } from "lucide-react";
 
@@ -16,6 +16,8 @@ import type { Group } from "@/lib/api";
 import { DIRECTORY_SOURCES } from "@/lib/directory";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { nonEmpty } from "@/lib/utils";
+
+const routeApi = getRouteApi("/_authenticated/directory/groups/");
 
 const groupColumns: ColumnDef<Group>[] = [
   {
@@ -58,7 +60,12 @@ const groupColumns: ColumnDef<Group>[] = [
 ];
 
 export function GroupListPage() {
-  const tableSearch = useDataTableSearch();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+  });
 
   const query = useGroups({
     q: tableSearch.q,
@@ -70,8 +77,6 @@ export function GroupListPage() {
   const groups = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q;
-
   const table = useDataTable({
     tableState: tableSearch,
     data: groups,
@@ -100,7 +105,7 @@ export function GroupListPage() {
           empty={
             <DataTableEmpty
               icon={<UsersRound />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No groups"
               description="Groups appear after directory sync."
               filteredDescription="No groups matched the current search."
@@ -109,7 +114,11 @@ export function GroupListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
             </div>
           </div>
         </DataTable>

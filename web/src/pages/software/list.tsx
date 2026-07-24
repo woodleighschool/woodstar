@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package } from "lucide-react";
 import * as React from "react";
@@ -23,12 +23,19 @@ import {
   versionsSummaryLabel,
 } from "@/pages/software/software-source-labels";
 
-const SOURCE_FILTER_KEYS = [{ id: "source" }] as const;
+const routeApi = getRouteApi("/_authenticated/software/");
+const SOURCE_FILTER_KEYS = [{ id: "source", multiple: true }] as const;
 
 export function SoftwareListPage() {
-  const tableSearch = useDataTableSearch(SOURCE_FILTER_KEYS);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: SOURCE_FILTER_KEYS,
+  });
 
-  const sources = tableSearch.filters.source ?? [];
+  const sources = search.source ?? [];
 
   const query = useSoftware(
     {
@@ -44,8 +51,6 @@ export function SoftwareListPage() {
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const hasFilters = !!tableSearch.q || sources.length > 0;
-
   const columns = React.useMemo<ColumnDef<SoftwareTitle>[]>(() => softwareColumns, []);
 
   const table = useDataTable({
@@ -79,7 +84,7 @@ export function SoftwareListPage() {
           empty={
             <DataTableEmpty
               icon={<Package />}
-              filtered={hasFilters}
+              filtered={tableSearch.isFiltered}
               title="No observed software"
               description="Inventory appears after hosts refresh."
               filteredDescription="No titles matched the current filters."
@@ -88,7 +93,11 @@ export function SoftwareListPage() {
         >
           <div className="flex items-start justify-between gap-2 p-1">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput className="h-8 w-40 lg:w-56" />
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
               <DataTableFacetedFilter
                 column={table.getColumn("source")}
                 title="Type"
