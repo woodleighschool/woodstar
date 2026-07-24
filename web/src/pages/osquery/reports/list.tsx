@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileBarChart2, Plus } from "lucide-react";
 import * as React from "react";
@@ -10,6 +10,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,7 +19,7 @@ import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteReports, useReports } from "@/hooks/use-reports";
 import type { OsqueryReport } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { formatInterval } from "@/lib/utils";
+import { formatInterval, formatRelative } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/osquery/reports/");
 
@@ -74,7 +75,7 @@ export function ReportListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={3} />
+        <DataTableSkeleton columnCount={4} />
       ) : (
         <DataTable
           table={table}
@@ -123,7 +124,7 @@ function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
           <Link
             to="/osquery/reports/$id"
             params={{ id: String(row.original.id) }}
-            className="font-medium hover:underline"
+            className="font-medium"
           >
             {row.original.name}
           </Link>
@@ -142,6 +143,13 @@ function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
           ? `Every ${formatInterval(row.original.schedule_interval)}`
           : "Off",
       meta: { label: "Interval" },
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+      meta: { label: "Updated" },
     },
   ];
   return columns;

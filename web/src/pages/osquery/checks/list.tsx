@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleAlert, CircleCheck, Plus, ShieldCheck } from "lucide-react";
 import * as React from "react";
@@ -10,6 +10,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,6 +19,7 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import type { OsqueryCheck } from "@/lib/api";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { formatRelative } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/osquery/checks/");
 
@@ -70,7 +72,7 @@ export function CheckListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={4} />
+        <DataTableSkeleton columnCount={5} />
       ) : (
         <DataTable
           table={table}
@@ -115,7 +117,7 @@ function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
           <Link
             to="/osquery/checks/$id"
             params={{ id: String(row.original.id) }}
-            className="font-medium hover:underline"
+            className="font-medium"
           >
             {row.original.name}
           </Link>
@@ -163,6 +165,13 @@ function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
       ),
       meta: { label: "Fail" },
     },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+      meta: { label: "Updated" },
+    },
   ];
   return columns;
 }
@@ -176,12 +185,7 @@ function HostCount({
   value: number;
 }) {
   return (
-    <Link
-      to="/osquery/checks/$id/results"
-      params={{ id: String(checkId) }}
-      search={{ response }}
-      className="hover:underline"
-    >
+    <Link to="/osquery/checks/$id/results" params={{ id: String(checkId) }} search={{ response }}>
       {value} {value === 1 ? "host" : "hosts"}
     </Link>
   );
