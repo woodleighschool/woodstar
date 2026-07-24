@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { FormField } from "@/components/form-field";
+import { Link } from "@/components/link";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import {
   Attachment,

@@ -248,6 +248,35 @@
     border-color: var(--border);
   }
 
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]) {
+    background-image:
+      linear-gradient(currentColor, currentColor),
+      linear-gradient(
+        color-mix(in oklch, currentColor 35%, transparent),
+        color-mix(in oklch, currentColor 35%, transparent)
+      );
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size:
+      0 1px,
+      100% 1px;
+    text-decoration: none;
+    transition: background-size 180ms ease-out;
+  }
+
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):hover,
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):focus-visible {
+    background-size:
+      100% 1px,
+      100% 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-link] {
+      transition: none;
+    }
+  }
+
   body {
     background: var(--background);
     color: var(--foreground);

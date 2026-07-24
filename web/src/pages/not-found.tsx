@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
 
+import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import {
   Empty,

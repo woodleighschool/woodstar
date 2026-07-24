@@ -38,7 +38,7 @@ export function DataTableStatic<TData>({ columns, data, empty }: DataTableStatic
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody className="[&_a:not([data-slot=button])]:underline [&_a:not([data-slot=button])]:decoration-dotted [&_a:not([data-slot=button])]:underline-offset-4 [&_a:not([data-slot=button]):focus-visible]:decoration-solid [&_a:not([data-slot=button]):hover]:decoration-solid [&_button:not([data-slot=button])]:underline [&_button:not([data-slot=button])]:decoration-dotted [&_button:not([data-slot=button])]:underline-offset-4 [&_button:not([data-slot=button]):focus-visible]:decoration-solid [&_button:not([data-slot=button]):hover]:decoration-solid">
+        <TableBody>
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>

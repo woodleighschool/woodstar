@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { GripVertical, HardDrive, Plus } from "lucide-react";
 import * as React from "react";
@@ -15,6 +15,7 @@ import {
   DraggableTableRows,
 } from "@/components/data-table/draggable-table-rows";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
@@ -186,7 +187,7 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
           <Link
             to="/munki/distribution-points/$id"
             params={{ id: String(row.original.id) }}
-            className="font-medium hover:underline"
+            className="font-medium"
           >
             {row.original.name}
           </Link>

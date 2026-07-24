@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
+import { Link } from "@/components/link";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { QueryError } from "@/components/query-error";
 import { useHostOsqueryChecks } from "@/hooks/use-hosts";
@@ -15,11 +15,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "check_name",
     header: () => "Check",
     cell: ({ row }) => (
-      <Link
-        to="/osquery/checks/$id"
-        params={{ id: String(row.original.check_id) }}
-        className="hover:underline"
-      >
+      <Link to="/osquery/checks/$id" params={{ id: String(row.original.check_id) }}>
         {row.original.check_name}
       </Link>
     ),

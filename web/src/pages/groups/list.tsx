@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UsersRound } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDataTableSearch } from "@/hooks/use-data-table-search";
@@ -25,11 +26,7 @@ const groupColumns: ColumnDef<Group>[] = [
     accessorKey: "display_name",
     header: "Name",
     cell: ({ row }) => (
-      <Link
-        to="/directory/users"
-        search={{ group_id: row.original.id }}
-        className="font-medium hover:underline"
-      >
+      <Link to="/directory/users" search={{ group_id: row.original.id }} className="font-medium">
         {row.original.display_name}
       </Link>
     ),

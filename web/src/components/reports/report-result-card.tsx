@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-
+import { Link } from "@/components/link";
 import { resultValue } from "@/components/reports/query-results";
 import { Button } from "@/components/ui/button";
 import {

@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, UserPlus, Users } from "lucide-react";
 import * as React from "react";
@@ -11,6 +11,7 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EnumBadge } from "@/components/enum-badge";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +50,7 @@ function UserNameCell({ row }: CellContext<UserTableRow, unknown>) {
     return (
       <Link
         {...userEditLink(row.original.user.id, row.original.currentUserId)}
-        className="font-medium hover:underline"
+        className="font-medium"
       >
         {label}
       </Link>

@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,7 +57,7 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
       <Link
         to="/santa/events/$id"
         params={{ id: String(row.original.event.id) }}
-        className="font-medium hover:underline"
+        className="font-medium"
       >
         {row.original.event.executable.file_name || "-"}
       </Link>
@@ -112,7 +113,7 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
       <Link
         to="/santa/events/file-access/$id"
         params={{ id: String(row.original.id) }}
-        className="font-medium hover:underline"
+        className="font-medium"
       >
         {fileName(row.original.target) || row.original.target}
       </Link>
@@ -407,7 +408,7 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
 }
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="hover:underline">
+    <Link to="/hosts/$id" params={{ id: String(host.id) }}>
       {host.display_name}
     </Link>
   );
@@ -415,7 +416,7 @@ function EventHostLink({ host }: { host: SantaHostSummary }) {
 function EventUserLink({ user, hostId }: { user: string; hostId?: number }) {
   if (!user) return "-";
   return (
-    <Link to="/santa/events" search={{ host_id: hostId, user }} className="hover:underline">
+    <Link to="/santa/events" search={{ host_id: hostId, user }}>
       {user}
     </Link>
   );

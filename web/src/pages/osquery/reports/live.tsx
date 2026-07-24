@@ -1,6 +1,7 @@
-import { Link, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 
 import { PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { LiveRunner } from "@/components/osquery/live-runner";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";

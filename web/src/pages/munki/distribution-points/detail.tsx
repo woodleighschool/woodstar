@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { PendingButton } from "@/components/pending-button";
 import { QueryGate } from "@/components/query-gate";
 import { SoftwareArtwork } from "@/components/software/software-icon";

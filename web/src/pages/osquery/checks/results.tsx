@@ -1,9 +1,10 @@
-import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,7 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "host_name",
     header: () => "Host",
     cell: ({ row }) => (
-      <Link
-        to="/hosts/$id"
-        params={{ id: String(row.original.host_id) }}
-        className="font-medium hover:underline"
-      >
+      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }} className="font-medium">
         {row.original.host_name}
       </Link>
     ),

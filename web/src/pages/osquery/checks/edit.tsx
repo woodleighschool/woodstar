@@ -1,5 +1,6 @@
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 
+import { Link } from "@/components/link";
 import { LiveRunButton, SettingItem } from "@/components/queries/query-ui";
 import { QueryGate } from "@/components/query-gate";
 import { useCheck, useUpdateCheck } from "@/hooks/use-checks";
@@ -68,12 +69,7 @@ function HostCount({
   value: number;
 }) {
   return (
-    <Link
-      to="/osquery/checks/$id/results"
-      params={{ id: String(checkId) }}
-      search={{ response }}
-      className="hover:underline"
-    >
+    <Link to="/osquery/checks/$id/results" params={{ id: String(checkId) }} search={{ response }}>
       {value}
     </Link>
   );

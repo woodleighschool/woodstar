@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { Link } from "@/components/link";
 import type { OsqueryReportResult } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
@@ -41,11 +41,7 @@ export function reportTableColumns(): ColumnDef<ReportTableRow>[] {
       accessorKey: "hostName",
       header: () => "Host",
       cell: ({ row }) => (
-        <Link
-          to="/hosts/$id"
-          params={{ id: String(row.original.hostId) }}
-          className="hover:underline"
-        >
+        <Link to="/hosts/$id" params={{ id: String(row.original.hostId) }}>
           {row.original.hostName}
         </Link>
       ),

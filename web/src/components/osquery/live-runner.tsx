@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Check, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -8,6 +7,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { PendingButton } from "@/components/pending-button";
 import { ShowQueryButton } from "@/components/queries/query-ui";
@@ -38,11 +38,7 @@ type ReportResultRow = Record<string, string>;
 
 function ReportHostCell({ row }: CellContext<ReportResultRow, unknown>) {
   return (
-    <Link
-      to="/hosts/$id"
-      params={{ id: row.original.host_id }}
-      className="whitespace-nowrap hover:underline"
-    >
+    <Link to="/hosts/$id" params={{ id: row.original.host_id }} className="whitespace-nowrap">
       {row.original.host_name}
     </Link>
   );
@@ -63,11 +59,7 @@ const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
     accessorKey: "host_name",
     header: "Host",
     cell: ({ row }) => (
-      <Link
-        to="/hosts/$id"
-        params={{ id: String(row.original.host_id) }}
-        className="hover:underline"
-      >
+      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
         {row.original.host_name}
       </Link>
     ),

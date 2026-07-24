@@ -43,25 +43,35 @@ export function DataTable<TData>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const direction = header.column.getIsSorted();
-                  const content = (
-                    <>
-                      <span className="truncate">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </span>
-                      {direction === "asc" ? (
-                        <ChevronUpIcon
-                          className="shrink-0 opacity-60"
-                          size={16}
-                          aria-hidden="true"
-                        />
-                      ) : direction === "desc" ? (
-                        <ChevronDownIcon
-                          className="shrink-0 opacity-60"
-                          size={16}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                    </>
+                  const label = (
+                    <span className="truncate">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </span>
+                  );
+
+                  const sortIndicator = (
+                    <span className="flex shrink-0 flex-col -space-y-1.5" aria-hidden="true">
+                      <ChevronUpIcon
+                        className={cn(
+                          "size-3",
+                          direction === "asc"
+                            ? "text-foreground"
+                            : direction === "desc"
+                              ? "text-muted-foreground/25"
+                              : "text-muted-foreground/60",
+                        )}
+                      />
+                      <ChevronDownIcon
+                        className={cn(
+                          "size-3",
+                          direction === "desc"
+                            ? "text-foreground"
+                            : direction === "asc"
+                              ? "text-muted-foreground/25"
+                              : "text-muted-foreground/60",
+                        )}
+                      />
+                    </span>
                   );
 
                   return (
@@ -79,13 +89,14 @@ export function DataTable<TData>({
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
                           type="button"
-                          className="flex size-full cursor-pointer items-center justify-between gap-2 text-left underline decoration-dotted underline-offset-4 select-none hover:decoration-solid focus-visible:decoration-solid focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          className="flex size-full cursor-pointer items-center justify-between gap-2 text-left select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                           onClick={header.column.getToggleSortingHandler()}
                         >
-                          {content}
+                          {label}
+                          {sortIndicator}
                         </button>
                       ) : (
-                        content
+                        label
                       )}
                     </TableHead>
                   );
@@ -93,7 +104,7 @@ export function DataTable<TData>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="[&_a:not([data-slot=button])]:underline [&_a:not([data-slot=button])]:decoration-dotted [&_a:not([data-slot=button])]:underline-offset-4 [&_a:not([data-slot=button]):focus-visible]:decoration-solid [&_a:not([data-slot=button]):hover]:decoration-solid [&_button:not([data-slot=button])]:underline [&_button:not([data-slot=button])]:decoration-dotted [&_button:not([data-slot=button])]:underline-offset-4 [&_button:not([data-slot=button]):focus-visible]:decoration-solid [&_button:not([data-slot=button]):hover]:decoration-solid">
+          <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>

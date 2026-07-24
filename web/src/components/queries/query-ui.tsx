@@ -1,7 +1,7 @@
-import { Link } from "@tanstack/react-router";
 import { FileCode2, Play } from "lucide-react";
 import { lazy, type ReactNode, Suspense } from "react";
 
+import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

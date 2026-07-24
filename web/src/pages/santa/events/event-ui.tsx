@@ -1,6 +1,5 @@
-import { Link } from "@tanstack/react-router";
-
 import { EnumStatus } from "@/components/enum-status";
+import { Link } from "@/components/link";
 import type { SantaHostSummary } from "@/lib/api";
 import { formatDateTime, formatRelative } from "@/lib/utils";
 
@@ -21,7 +20,7 @@ export function FileAccessDecisionBadge({ decision }: { decision: SantaFileAcces
 
 export function HostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="font-medium hover:underline">
+    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="font-medium">
       {host.display_name}
     </Link>
   );

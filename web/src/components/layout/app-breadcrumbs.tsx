@@ -1,6 +1,7 @@
-import { Link, useMatches } from "@tanstack/react-router";
+import { useMatches } from "@tanstack/react-router";
 import { Fragment } from "react";
 
+import { Link } from "@/components/link";
 import {
   Breadcrumb,
   BreadcrumbItem,

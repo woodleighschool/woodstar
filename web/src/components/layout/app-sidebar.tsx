@@ -1,7 +1,8 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
 
 import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
+import { Link } from "@/components/link";
 import { Logo } from "@/components/logo";
 import { Pending } from "@/components/pending";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
