@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.1](https://github.com/woodleighschool/woodstar/compare/0.5.0...0.5.1) (2026-07-24)
+
+
+### Features
+
+* **mdp:** version the worker protocol ([1bef41e](https://github.com/woodleighschool/woodstar/commit/1bef41e3c5dc14e0533032704431007673454f3a))
+
+
+### Bug Fixes
+
+* **deps:** update dependency shadcn (4.14.0 → 4.14.1) ([#62](https://github.com/woodleighschool/woodstar/issues/62)) ([375f262](https://github.com/woodleighschool/woodstar/commit/375f262451c29bac4139fbd4f82c7fdf2f2f891c))
+* **web:** make routes own list search state ([09bcdf9](https://github.com/woodleighschool/woodstar/commit/09bcdf9560c956478d4d0f2bd73d7ba9beaf30a4))
+
 ## [0.5.0](https://github.com/woodleighschool/woodstar/compare/0.4.0...0.5.0) (2026-07-24)
 
 
