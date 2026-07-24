@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ServerCog } from "lucide-react";
 import * as React from "react";
@@ -14,6 +14,7 @@ import { selectColumn } from "@/components/data-table/select-column";
 import { FilterChip } from "@/components/filter-controls";
 import { HostStatus } from "@/components/hosts/host-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { formatBytes } from "@/components/ui/file-upload";
 import { useAuth } from "@/hooks/use-auth";
@@ -79,7 +80,10 @@ export function HostListPage() {
     columns,
     pageCount,
     rowCount: totalCount,
-    initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
+      columnVisibility: { "hardware.uuid": false },
+    },
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
@@ -170,11 +174,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.display_name,
     header: "Name",
     cell: ({ row }) => (
-      <Link
-        to="/hosts/$id"
-        params={{ id: String(row.original.id) }}
-        className="font-medium hover:underline"
-      >
+      <Link to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
         {row.original.display_name}
       </Link>
     ),

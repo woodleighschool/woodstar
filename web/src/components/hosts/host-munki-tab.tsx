@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   CircleCheck,
@@ -6,14 +5,13 @@ import {
   Download,
   PackageOpen,
   RefreshCw,
-  Star,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Badge } from "@/components/ui/badge";
@@ -24,15 +22,6 @@ import type { ApiError, MunkiHostManifestSoftware, MunkiHostState } from "@/lib/
 import { MUNKI_SOFTWARE_ACTIONS, type MunkiSoftwareAction } from "@/lib/munki-software-actions";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
-
-const actionIcons: Record<MunkiSoftwareAction, LucideIcon> = {
-  managed_installs: Download,
-  managed_uninstalls: Trash2,
-  managed_updates: RefreshCw,
-  optional_installs: PackageOpen,
-  featured_items: Star,
-  default_installs: Download,
-};
 
 const softwareColumns: ColumnDef<MunkiHostManifestSoftware>[] = [
   {
@@ -153,32 +142,24 @@ function MunkiSoftwareCell({ software }: { software: MunkiHostManifestSoftware }
       : software.software.name;
 
   return (
-    <Link
-      to="/munki/software/$id"
-      params={{ id: String(software.software.id) }}
-      className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-    >
+    <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={software.software.icon_url} />
-      <span className="truncate">{label}</span>
-    </Link>
+      <Link
+        to="/munki/software/$id"
+        params={{ id: String(software.software.id) }}
+        className="min-w-0 truncate font-medium"
+      >
+        {label}
+      </Link>
+    </div>
   );
 }
 
 function MunkiActionBadge({ action }: { action: MunkiSoftwareAction }) {
-  const presentation = MUNKI_SOFTWARE_ACTIONS[action];
-  const Icon = actionIcons[action];
-  const badge = (
-    <Badge variant="secondary">
-      <Icon data-icon="inline-start" />
-      {presentation.name}
-    </Badge>
-  );
-
   return (
-    <Tooltip>
-      <TooltipTrigger render={badge} />
-      <TooltipContent className="max-w-72 text-left">{presentation.description}</TooltipContent>
-    </Tooltip>
+    <Badge variant="secondary" className="font-normal">
+      {MUNKI_SOFTWARE_ACTIONS[action].name}
+    </Badge>
   );
 }
 

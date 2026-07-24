@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -13,6 +12,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { EmptyPanel } from "@/components/empty-panel";
+import { Link } from "@/components/link";
 import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
@@ -28,11 +28,7 @@ import { Input } from "@/components/ui/input";
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { useHostSoftware } from "@/hooks/use-hosts";
-import type {
-  HostSoftware,
-  HostSoftwareInstalledVersion,
-  PathSignatureInformation,
-} from "@/lib/api";
+import type { HostSoftware, HostSoftwareInstalledVersion } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 import {
   expandSoftwareSourceFilters,
@@ -47,14 +43,16 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <Link
-        to="/software/titles/$id"
-        params={{ id: String(row.original.id) }}
-        className="inline-flex items-center gap-2 truncate font-medium hover:underline"
-      >
+      <div className="flex min-w-0 items-center gap-2">
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
-        <span className="truncate">{row.original.name}</span>
-      </Link>
+        <Link
+          to="/software/titles/$id"
+          params={{ id: String(row.original.id) }}
+          className="min-w-0 truncate font-medium"
+        >
+          {row.original.name}
+        </Link>
+      </div>
     ),
     meta: { label: "Name" },
   },
@@ -102,13 +100,6 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
       );
     },
     meta: { label: "File path" },
-  },
-  {
-    id: "hash",
-    header: () => "Hash",
-    enableSorting: false,
-    cell: ({ row }) => singleHash(installedPathsFor(row.original.installed_versions)),
-    meta: { label: "Hash" },
   },
 ];
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
@@ -176,7 +167,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       />
     );
   }
-  if (query.isLoading) return <DataTableSkeleton columnCount={6} filterCount={1} />;
+  if (query.isLoading) return <DataTableSkeleton columnCount={5} filterCount={1} />;
   return (
     <DataTable
       table={table}
@@ -205,7 +196,6 @@ function singleSort(sorting: SortingState): SortingState {
 interface InstalledPath {
   path: string;
   version: string;
-  signature?: PathSignatureInformation;
 }
 function InstalledPathCell({
   row,
@@ -259,18 +249,12 @@ function InstalledPathCell({
   );
 }
 function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledPath[] {
-  return versions.flatMap((version) => {
-    const signatures = buildSignatureIndex(version.signature_information);
-    return version.installed_paths.map((path) => ({
+  return versions.flatMap((version) =>
+    version.installed_paths.map((path) => ({
       path,
       version: version.version,
-      signature: signatures.get(path),
-    }));
-  });
-}
-function singleHash(paths: InstalledPath[]): string {
-  if (paths.length !== 1) return "-";
-  return paths[0].signature?.hash_sha256 ?? "-";
+    })),
+  );
 }
 function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string | undefined {
   let latest: string | undefined;
@@ -282,13 +266,4 @@ function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string 
     if (!latest || time > new Date(latest).getTime()) latest = value;
   }
   return latest;
-}
-function buildSignatureIndex(
-  rows: PathSignatureInformation[],
-): Map<string, PathSignatureInformation> {
-  const map = new Map<string, PathSignatureInformation>();
-  for (const row of rows) {
-    map.set(row.installed_path, row);
-  }
-  return map;
 }
