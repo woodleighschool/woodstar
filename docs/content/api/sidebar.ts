@@ -234,6 +234,13 @@ const sidebar: SidebarsConfig = {
             },
             {
               type: "doc",
+              id: "api/list-host-munki-software",
+              label: "List Munki software for a host",
+              className: "api-method get",
+              key: "hosts-hosts-api-list-host-munki-software",
+            },
+            {
+              type: "doc",
               id: "api/list-host-osquery-checks",
               label: "List checks for a host",
               className: "api-method get",
