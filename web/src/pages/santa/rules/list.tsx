@@ -1,7 +1,6 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus } from "lucide-react";
-import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
@@ -10,20 +9,20 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
-import type { LabelChip } from "@/components/labels/label-chip-utils";
+import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
+import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
-import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
-import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useLabels } from "@/hooks/use-labels";
+import { useDataTableSearch } from "@/hooks/use-data-table-search";
 import { useBulkDeleteSantaRules, useSantaRules } from "@/hooks/use-santa-rules";
 import type { SantaRule } from "@/lib/api";
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
-import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { RULE_TYPES, RULE_TYPE_OPTIONS } from "@/lib/santa-rules";
+import { formatRelative } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/santa/rules/");
 const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
@@ -32,7 +31,6 @@ interface RuleTableRow {
   id: number;
   rule: SantaRule;
   isAdmin: boolean;
-  labelsByID: ReadonlyMap<number, LabelChip>;
 }
 
 function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
@@ -40,20 +38,12 @@ function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
     <Link
       to="/santa/rules/$id"
       params={{ id: String(row.original.rule.id) }}
-      className="font-medium hover:underline"
+      className="font-medium"
     >
       {row.original.rule.name}
     </Link>
   ) : (
     <span className="font-medium">{row.original.rule.name}</span>
-  );
-}
-
-function RuleTargetsCell({ row }: CellContext<RuleTableRow, unknown>) {
-  return row.original.rule.targets.include.length ? (
-    <TargetLabelsCell targets={row.original.rule.targets} labelsByID={row.original.labelsByID} />
-  ) : (
-    <Badge variant="secondary">Inactive</Badge>
   );
 }
 
@@ -71,7 +61,7 @@ const ruleColumns: ColumnDef<RuleTableRow>[] = [
     id: "rule_type",
     accessorFn: (row) => row.rule.rule_type,
     header: "Rule Type",
-    cell: ({ row }) => ruleTypeLabel(row.original.rule.rule_type),
+    cell: ({ row }) => <EnumBadge value={row.original.rule.rule_type} metadata={RULE_TYPES} />,
     meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
     enableColumnFilter: true,
   },
@@ -79,15 +69,15 @@ const ruleColumns: ColumnDef<RuleTableRow>[] = [
     id: "identifier",
     accessorFn: (row) => row.rule.identifier,
     header: "Identifier",
-    cell: ({ row }) => row.original.rule.identifier,
+    cell: ({ row }) => <PathText value={row.original.rule.identifier} />,
     meta: { label: "Identifier" },
   },
   {
-    id: "targets",
-    header: () => "Targets",
-    enableSorting: false,
-    cell: RuleTargetsCell,
-    meta: { label: "Targets" },
+    id: "updated_at",
+    accessorFn: (row) => row.rule.updated_at,
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.rule.updated_at),
+    meta: { label: "Updated" },
   },
 ];
 
@@ -109,17 +99,11 @@ export function RuleListPage() {
     sort: tableSearch.sort,
     rule_type: ruleType,
   });
-  const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
-  const labelsByID = React.useMemo<ReadonlyMap<number, LabelChip>>(
-    () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
-    [labels.data?.items],
-  );
   const rules = query.data?.items ?? [];
   const tableRows: RuleTableRow[] = rules.map((rule) => ({
     id: rule.id,
     rule,
     isAdmin,
-    labelsByID,
   }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;

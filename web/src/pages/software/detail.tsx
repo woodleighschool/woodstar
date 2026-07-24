@@ -1,10 +1,12 @@
-import { Link, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { EmptyPanel } from "@/components/empty-panel";
+import { EnumBadge } from "@/components/enum-badge";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { QueryGate } from "@/components/query-gate";
 import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
@@ -23,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAuth } from "@/hooks/use-auth";
 import { useSoftwareSantaReference, useSoftwareTitle } from "@/hooks/use-software";
 import type { SantaRule, SantaSoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
-import { ruleTypeLabel } from "@/lib/santa-rules";
+import { RULE_TYPES, ruleTypeLabel } from "@/lib/santa-rules";
 import { softwareSourceLabel } from "@/pages/software/software-source-labels";
 type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
 type CertificateReference = NonNullable<SantaSoftwareReference["certificates"]>[number];
@@ -250,9 +252,7 @@ function SantaSigningTable({
         <TableRow key={`${identity.rule_type}:${identity.identifier}`}>
           <TableCell className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
-              <Badge variant="secondary" className="font-normal">
-                {ruleTypeLabel(identity.rule_type)}
-              </Badge>
+              <EnumBadge value={identity.rule_type} metadata={RULE_TYPES} />
               <span className="truncate font-medium">{identity.identifier}</span>
             </div>
           </TableCell>
@@ -404,11 +404,7 @@ function VersionRow({ title, version }: { title: SoftwareTitle; version: Softwar
     <TableRow>
       <TableCell className="font-medium">{version.version || "-"}</TableCell>
       <TableCell className="text-right tabular-nums">
-        <Link
-          to="/hosts"
-          search={{ software_title_id: title.id, software_id: version.id }}
-          className="underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:decoration-solid"
-        >
+        <Link to="/hosts" search={{ software_title_id: title.id, software_id: version.id }}>
           {version.hosts_count}
         </Link>
       </TableCell>

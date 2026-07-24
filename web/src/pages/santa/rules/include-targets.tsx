@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 
 import { CodeEditor } from "@/components/editor/code-editor";
 import { EmptyPanel } from "@/components/empty-panel";
+import { EnumBadge } from "@/components/enum-badge";
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
 import { focusFirstInvalidField } from "@/components/form-tabs";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { TargetSection } from "@/components/targeting/target-section";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -38,11 +38,10 @@ import {
 import { encodeSort } from "@/hooks/use-data-table-search";
 import { useLabels } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { POLICY_OPTIONS, POLICY_VALUES } from "@/lib/santa-rules";
+import { POLICIES, POLICY_OPTIONS, POLICY_VALUES } from "@/lib/santa-rules";
 import { isOneOf } from "@/lib/utils";
 
 import { type RuleIncludeForm, santaRuleIncludeSchema } from "./form-state";
-const POLICY_LABELS = new Map(POLICY_OPTIONS.map((option) => [option.value, option.label]));
 type DialogState =
   | {
       mode: "add";
@@ -107,9 +106,7 @@ export function SantaIncludeTargets({
                   <TableCell>{includeLabel(row, labelsByID)}</TableCell>
                   <TableCell className="max-w-md">
                     <div className="flex min-w-0 items-center gap-2">
-                      <Badge variant="secondary" className="font-normal">
-                        {POLICY_LABELS.get(row.policy) ?? row.policy}
-                      </Badge>
+                      <EnumBadge value={row.policy} metadata={POLICIES} />
                       {row.policy === "cel" && row.cel_expression ? (
                         <code className="min-w-0 truncate text-xs text-muted-foreground">
                           {row.cel_expression}

@@ -1,60 +1,76 @@
-import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, FolderLock } from "lucide-react";
+import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
+import { EnumBadge } from "@/components/enum-badge";
+import { EnumStatus } from "@/components/enum-status";
 import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
+import { Link } from "@/components/link";
+import { PathText } from "@/components/path-text";
 import { QueryError } from "@/components/query-error";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/use-auth";
 import { useHostSantaRules } from "@/hooks/use-hosts";
 import type { ApiError, SantaHostState, SantaRuleStatus } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { clientModeLabel } from "@/lib/santa-configurations";
-import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
+import { CLIENT_MODES } from "@/lib/santa-configurations";
+import { POLICIES, RULE_TYPES } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
 
-const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
-  {
-    accessorKey: "name",
-    header: () => "Name",
-    cell: ({ row }) => row.original.name,
-  },
-  {
-    accessorKey: "identifier",
-    header: () => "Identifier",
-    cell: ({ row }) => row.original.identifier,
-  },
-  {
-    accessorKey: "rule_type",
-    header: () => "Type",
-    cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
-  },
-  {
-    accessorKey: "policy",
-    header: () => "Policy",
-    cell: ({ row }) => policyLabel(row.original.policy),
-  },
-  {
-    accessorKey: "applied",
-    header: () => "Status",
-    cell: ({ row }) => (
-      <Badge variant={!row.original.applied ? "secondary" : "outline"} className="gap-1.5">
-        <span
-          className={
-            !row.original.applied
-              ? "size-1.5 rounded-full bg-warning"
-              : "size-1.5 rounded-full bg-status-online"
-          }
+const RULE_APPLICATION_STATUSES = {
+  applied: { name: "Applied", variant: "success" },
+  pending: { name: "Pending", variant: "warning" },
+} as const;
+
+function santaRuleColumns(isAdmin: boolean): ColumnDef<SantaRuleStatus>[] {
+  return [
+    {
+      accessorKey: "name",
+      header: () => "Name",
+      cell: ({ row }) =>
+        isAdmin ? (
+          <Link
+            to="/santa/rules/$id"
+            params={{ id: String(row.original.rule_id) }}
+            className="font-medium"
+          >
+            {row.original.name}
+          </Link>
+        ) : (
+          row.original.name
+        ),
+    },
+    {
+      accessorKey: "rule_type",
+      header: () => "Rule Type",
+      cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
+    },
+    {
+      accessorKey: "identifier",
+      header: () => "Identifier",
+      cell: ({ row }) => <PathText value={row.original.identifier} />,
+    },
+    {
+      accessorKey: "policy",
+      header: () => "Policy",
+      cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
+    },
+    {
+      accessorKey: "applied",
+      header: () => "Status",
+      cell: ({ row }) => (
+        <EnumStatus
+          value={row.original.applied ? "applied" : "pending"}
+          metadata={RULE_APPLICATION_STATUSES}
         />
-        {row.original.applied ? "Applied" : "Pending"}
-      </Badge>
-    ),
-  },
-];
+      ),
+    },
+  ];
+}
 
 interface HostSantaTabProps {
   hostId: number;
@@ -64,22 +80,12 @@ interface HostSantaTabProps {
 }
 
 export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSantaTabProps) {
+  const { user } = useAuth();
+  const columns = useMemo(() => santaRuleColumns(user?.role === "admin"), [user?.role]);
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
-  const matchedLabelName = santa?.configuration?.matched_via_label?.name;
-  const configurationValue = santa?.configuration?.name ? (
-    matchedLabelName ? (
-      <Tooltip>
-        <TooltipTrigger render={<span />}>{santa.configuration.name}</TooltipTrigger>
-        <TooltipContent>
-          <div>{`Matched via label: ${matchedLabelName}`}</div>
-        </TooltipContent>
-      </Tooltip>
-    ) : (
-      santa.configuration.name
-    )
-  ) : undefined;
+  const configuration = santa?.configuration;
   return (
     <div className="flex flex-col gap-4">
       {stateError ? (
@@ -113,9 +119,14 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
               <KeyValueItem label="Version" value={santa.version} />
               <KeyValueItem
                 label="Client Mode"
-                value={clientModeLabel(santa.client_mode_reported)}
+                value={<EnumStatus value={santa.client_mode_reported} metadata={CLIENT_MODES} />}
               />
-              <KeyValueItem label="Configuration" value={configurationValue} />
+              <KeyValueItem
+                label="Configuration"
+                value={
+                  configuration ? <SantaConfigurationLink configuration={configuration} /> : null
+                }
+              />
               <KeyValueItem label="Last Sync" value={formatRelative(santa.last_seen_at)} />
               <KeyValueItem
                 label="Rule Sync"
@@ -141,10 +152,37 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
           ) : rules.isLoading ? null : totalCount === 0 ? (
             <EmptyPanel>No matching rules</EmptyPanel>
           ) : (
-            <DataTableStatic columns={santaRuleColumns} data={items} />
+            <DataTableStatic columns={columns} data={items} />
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SantaConfigurationLink({
+  configuration,
+}: {
+  configuration: NonNullable<SantaHostState["configuration"]>;
+}) {
+  const link = (
+    <Link
+      to="/santa/configurations/$id"
+      params={{ id: String(configuration.id) }}
+      className="font-medium"
+    >
+      {configuration.name}
+    </Link>
+  );
+
+  return configuration.matched_via_label ? (
+    <Tooltip>
+      <TooltipTrigger render={link} />
+      <TooltipContent>
+        <div>{`Matched via label: ${configuration.matched_via_label.name}`}</div>
+      </TooltipContent>
+    </Tooltip>
+  ) : (
+    link
   );
 }

@@ -1,10 +1,5 @@
 import type { SantaRule } from "@/lib/api";
-import {
-  enumLabel,
-  type EnumMetadataMap,
-  enumOptions,
-  type StatusMetadataMap,
-} from "@/lib/enum-metadata";
+import { enumLabel, type EnumMetadataMap, enumOptions } from "@/lib/enum-metadata";
 
 export type SantaRuleType = SantaRule["rule_type"];
 export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
@@ -22,26 +17,32 @@ export const RULE_TYPES = {
   binary: {
     name: "Binary",
     description: "A rule keyed to one executable SHA-256 hash.",
+    variant: "info",
   },
   certificate: {
     name: "Certificate",
     description: "A rule keyed to a signing certificate SHA-256 fingerprint.",
+    variant: "success",
   },
   teamid: {
     name: "Team ID",
     description: "A rule keyed to an Apple Developer Team ID.",
+    variant: "warning",
   },
   signingid: {
     name: "Signing ID",
     description: "A rule keyed to a Team ID and bundle identifier pair.",
+    variant: "default",
   },
   cdhash: {
     name: "CDHash",
     description: "A rule keyed to a Mach-O code directory hash.",
+    variant: "error",
   },
   bundle: {
     name: "Bundle",
     description: "A server-side rule expanded to the collected executables in a Santa bundle.",
+    variant: "secondary",
   },
 } satisfies EnumMetadataMap<SantaRuleType>;
 
@@ -92,9 +93,9 @@ export const POLICIES = {
   cel: {
     name: "CEL",
     description: "Use a Santa CEL expression to decide whether the rule applies.",
-    variant: "default",
+    variant: "warning",
   },
-} satisfies StatusMetadataMap<SantaRulePolicy>;
+} satisfies EnumMetadataMap<SantaRulePolicy>;
 
 export const POLICY_OPTIONS = enumOptions(POLICIES, POLICY_VALUES);
 
@@ -127,8 +128,4 @@ export const RULE_IDENTIFIER_RULES: Record<SantaRuleType, { pattern: RegExp; hin
 
 export function ruleTypeLabel(ruleType: SantaRuleType) {
   return enumLabel(RULE_TYPES, ruleType);
-}
-
-export function policyLabel(policy: SantaRulePolicy) {
-  return enumLabel(POLICIES, policy);
 }
