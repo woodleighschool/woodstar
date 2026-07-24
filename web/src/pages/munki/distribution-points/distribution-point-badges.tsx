@@ -32,7 +32,7 @@ export function MirrorBadge({ packages }: { packages: MunkiPackageState[] }) {
   if (failed) {
     return (
       <Status variant="error">
-        <StatusIndicator className="before:hidden" />
+        <StatusIndicator />
         <StatusLabel>Error</StatusLabel>
       </Status>
     );
@@ -40,7 +40,7 @@ export function MirrorBadge({ packages }: { packages: MunkiPackageState[] }) {
 
   return (
     <Status variant={current ? "success" : syncing ? "info" : "default"}>
-      <StatusIndicator className="before:hidden" />
+      <StatusIndicator />
       <StatusLabel>{current ? "Current" : syncing ? "Syncing" : "Pending"}</StatusLabel>
     </Status>
   );
@@ -52,7 +52,7 @@ export function PackageStatusBadge({ status }: { status: MunkiPackageState["stat
   const failed = status === "error";
   return (
     <Status variant={current ? "success" : syncing ? "info" : failed ? "error" : "default"}>
-      <StatusIndicator className="before:hidden" />
+      <StatusIndicator />
       <StatusLabel>
         {current ? "Current" : syncing ? "Syncing" : failed ? "Error" : "Pending"}
       </StatusLabel>
