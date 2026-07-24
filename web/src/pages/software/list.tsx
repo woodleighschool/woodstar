@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package } from "lucide-react";
 import * as React from "react";
@@ -9,6 +9,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableSearchInput } from "@/components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { SoftwareIcon, softwareIconProps } from "@/components/software/software-icon";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -118,14 +119,16 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <Link
-        to="/software/titles/$id"
-        params={{ id: String(row.original.id) }}
-        className="inline-flex items-center gap-2 truncate font-medium hover:underline"
-      >
+      <div className="flex min-w-0 items-center gap-2">
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
-        <span className="truncate">{row.original.name}</span>
-      </Link>
+        <Link
+          to="/software/titles/$id"
+          params={{ id: String(row.original.id) }}
+          className="min-w-0 truncate font-medium"
+        >
+          {row.original.name}
+        </Link>
+      </div>
     ),
     enableHiding: false,
     meta: { label: "Name" },

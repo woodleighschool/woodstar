@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { PackageCheck, Plus } from "lucide-react";
 
@@ -10,6 +10,7 @@ import { DataTableSearchInput } from "@/components/data-table/data-table-search-
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { selectColumn } from "@/components/data-table/select-column";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { QueryError } from "@/components/query-error";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import { Button } from "@/components/ui/button";
@@ -28,22 +29,21 @@ const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type", multiple: true }] as const;
 
 function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
   const { user } = useAuth();
-  const content = (
-    <>
+  return (
+    <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.software.icon_url} />
-      <span className="truncate">{row.original.software.name}</span>
-    </>
-  );
-  return user?.role === "admin" ? (
-    <Link
-      to="/munki/packages/$id/edit"
-      params={{ id: String(row.original.id) }}
-      className="flex min-w-0 items-center gap-2 font-medium hover:underline"
-    >
-      {content}
-    </Link>
-  ) : (
-    <span className="flex min-w-0 items-center gap-2 font-medium">{content}</span>
+      {user?.role === "admin" ? (
+        <Link
+          to="/munki/packages/$id/edit"
+          params={{ id: String(row.original.id) }}
+          className="min-w-0 truncate font-medium"
+        >
+          {row.original.software.name}
+        </Link>
+      ) : (
+        <span className="min-w-0 truncate font-medium">{row.original.software.name}</span>
+      )}
+    </div>
   );
 }
 

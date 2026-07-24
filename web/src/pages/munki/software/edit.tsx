@@ -1,4 +1,4 @@
-import { Link, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -14,6 +14,7 @@ import {
 } from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
+import { Link } from "@/components/link";
 import { QueryGate } from "@/components/query-gate";
 import { SoftwareArtwork } from "@/components/software/software-icon";
 import { LabelAssignmentList } from "@/components/targeting/label-assignment-list";
@@ -56,14 +57,16 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
     accessorKey: "version",
     header: () => "Version",
     cell: ({ row }) => (
-      <Link
-        to="/munki/packages/$id/edit"
-        params={{ id: String(row.original.id) }}
-        className="flex min-w-0 items-center gap-3 hover:underline"
-      >
+      <div className="flex min-w-0 items-center gap-3">
         <SoftwareArtwork src={row.original.software.icon_url} size="md" />
-        <span className="truncate font-medium">{row.original.version}</span>
-      </Link>
+        <Link
+          to="/munki/packages/$id/edit"
+          params={{ id: String(row.original.id) }}
+          className="min-w-0 truncate font-medium"
+        >
+          {row.original.version}
+        </Link>
+      </div>
     ),
   },
   {
