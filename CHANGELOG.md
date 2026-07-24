@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/woodleighschool/woodstar/compare/0.4.0...0.5.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** expose probes at root
+
+### Features
+
+* **server:** expose probes at root ([5213851](https://github.com/woodleighschool/woodstar/commit/52138518e65fdd7506b6fc49ebe0caa3d1c91a9c))
+
+
+### Bug Fixes
+
+* **deps:** update github.com/leodido/go-urn to v1.5.0 ([9044b26](https://github.com/woodleighschool/woodstar/commit/9044b264479edafdca644190671ff037b1e76588))
+
 ## [0.4.0](https://github.com/woodleighschool/woodstar/compare/0.3.3...0.4.0) (2026-07-23)
 
 
