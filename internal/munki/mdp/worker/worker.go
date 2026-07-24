@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -42,6 +43,8 @@ type Worker struct {
 	mirror *mirror
 	client *woodstarClient
 	server *server
+
+	controlConnected atomic.Bool
 }
 
 // New restores the worker's mirror and wires its collaborators.
@@ -72,7 +75,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		return fmt.Errorf("listen %s: %w", w.cfg.ListenAddr, err)
 	}
 
-	httpServer := &http.Server{Handler: w.server.handler(), ReadHeaderTimeout: 10 * time.Second}
+	httpServer := &http.Server{Handler: w.handler(), ReadHeaderTimeout: 10 * time.Second}
 	transport := "http"
 	serve := func() error { return httpServer.Serve(listener) }
 	if w.cfg.TLSConfigured() {
@@ -166,6 +169,7 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
+	defer w.controlConnected.Store(false)
 	ws.SetReadLimit(maxMessageBytes)
 	w.logger.InfoContext(ctx, "connected", "server_url", w.cfg.ServerURL)
 
@@ -192,6 +196,7 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 			w.logger.DebugContext(connCtx, "received identity",
 				"id", msg.DistributionPoint.ID, "name", msg.DistributionPoint.Name)
 			w.mirror.setIdentity(msg.DistributionPoint)
+			w.controlConnected.Store(true)
 		case messageDesiredSet:
 			session.submitDesired(msg.Packages)
 		default:

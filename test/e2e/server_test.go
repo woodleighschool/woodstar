@@ -457,7 +457,7 @@ func waitForHealth(
 	backoff := 10 * time.Millisecond
 	var lastErr error
 	for {
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/healthz", nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/healthz", nil)
 		if err != nil {
 			return fmt.Errorf("create health request: %w", err)
 		}

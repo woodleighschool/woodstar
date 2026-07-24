@@ -22,6 +22,35 @@ func sha256Hex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func TestServeNodeProbes(t *testing.T) {
+	handler := (&Worker{server: &server{logger: discardLogger()}}).handler()
+
+	for _, tc := range []struct {
+		path     string
+		wantCode int
+		wantBody string
+	}{
+		{path: "/healthz", wantCode: http.StatusOK, wantBody: "alive\n"},
+		{path: "/readyz", wantCode: http.StatusServiceUnavailable, wantBody: "not ready\n"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil)
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tc.wantCode || rec.Body.String() != tc.wantBody {
+				t.Fatalf(
+					"%s response = %d %q, want %d %q",
+					tc.path,
+					rec.Code,
+					rec.Body.String(),
+					tc.wantCode,
+					tc.wantBody,
+				)
+			}
+		})
+	}
+}
+
 func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 	dir := t.TempDir()
 	mirror, err := loadMirror(dir)
@@ -39,7 +68,9 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 	mirror.put(9, packageState{Filename: "Gone.pkg", SHA256: sha, SizeBytes: size})
 
 	key := []byte("dp-key")
-	handler := (&server{mirror: mirror, key: key, logger: discardLogger()}).handler()
+	handler := (&Worker{
+		server: &server{mirror: mirror, key: key, logger: discardLogger()},
+	}).handler()
 	now := time.Now()
 	const installerItemLocation = "packages/7/installer/Chrome.pkg"
 	token := func(packageID int64, location string, sha string, size int64, exp time.Time) string {

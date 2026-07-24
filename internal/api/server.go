@@ -203,10 +203,10 @@ func routes(deps *Dependencies) (http.Handler, error) {
 	r.Use(corsMiddleware(deps.Config))
 
 	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression)
-	ordinary.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	ordinary.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("alive\n"))
 	})
-	ordinary.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
+	ordinary.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
 		if err := deps.DB.Ping(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return

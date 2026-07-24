@@ -235,6 +235,53 @@ func TestConnectOnceReportsCurrentForMirroredPackage(t *testing.T) {
 	<-done
 }
 
+func TestConnectOnceReadinessFollowsControlSession(t *testing.T) {
+	accepted := make(chan struct{})
+	sendHello := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ws, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
+		close(accepted)
+		<-sendHello
+		if err := writeJSON(r.Context(), ws, serverMessage{
+			Type:              messageHello,
+			DistributionPoint: pointIdentity{ID: 1, Name: "test"},
+		}); err != nil {
+			return
+		}
+		_, _, _ = ws.Read(r.Context())
+	}))
+	defer srv.Close()
+
+	worker := newTestWorker(t, srv.URL)
+	handler := worker.handler()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = worker.connectOnce(ctx)
+	}()
+
+	select {
+	case <-accepted:
+	case <-time.After(3 * time.Second):
+		t.Fatal("worker did not open control WebSocket")
+	}
+	assertProbeResponse(t, handler, "/readyz", http.StatusServiceUnavailable, "not ready\n")
+
+	close(sendHello)
+	waitForProbeStatus(t, handler, "/readyz", http.StatusOK)
+	assertProbeResponse(t, handler, "/readyz", http.StatusOK, "ready\n")
+
+	cancel()
+	<-done
+	assertProbeResponse(t, handler, "/readyz", http.StatusServiceUnavailable, "not ready\n")
+}
+
 func TestConnectOnceRejectsUnexpectedMessage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := websocket.Accept(w, r, nil)
@@ -252,6 +299,44 @@ func TestConnectOnceRejectsUnexpectedMessage(t *testing.T) {
 	err := worker.connectOnce(context.Background())
 	if err == nil || !strings.Contains(err.Error(), `unexpected message type "unknown"`) {
 		t.Fatalf("connectOnce error = %v, want unexpected message type", err)
+	}
+}
+
+func assertProbeResponse(t *testing.T, handler http.Handler, path string, wantCode int, wantBody string) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+	handler.ServeHTTP(rec, req)
+	if rec.Code != wantCode || rec.Body.String() != wantBody {
+		t.Fatalf(
+			"%s response = %d %q, want %d %q",
+			path,
+			rec.Code,
+			rec.Body.String(),
+			wantCode,
+			wantBody,
+		)
+	}
+}
+
+func waitForProbeStatus(t *testing.T, handler http.Handler, path string, want int) {
+	t.Helper()
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		handler.ServeHTTP(rec, req)
+		if rec.Code == want {
+			return
+		}
+		select {
+		case <-timer.C:
+			t.Fatalf("%s status remained %d, want %d", path, rec.Code, want)
+		case <-ticker.C:
+		}
 	}
 }
 

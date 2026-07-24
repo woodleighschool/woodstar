@@ -19,10 +19,24 @@ type server struct {
 	logger *slog.Logger
 }
 
-func (s *server) handler() http.Handler {
+func (w *Worker) handler() http.Handler {
 	r := chi.NewRouter()
-	r.Get("/munki/pkgs/*", s.serve)
+	r.Get("/healthz", healthz)
+	r.Get("/readyz", w.readyz)
+	r.Get("/munki/pkgs/*", w.server.serve)
 	return r
+}
+
+func healthz(w http.ResponseWriter, _ *http.Request) {
+	_, _ = w.Write([]byte("alive\n"))
+}
+
+func (w *Worker) readyz(response http.ResponseWriter, _ *http.Request) {
+	if !w.controlConnected.Load() {
+		http.Error(response, "not ready", http.StatusServiceUnavailable)
+		return
+	}
+	_, _ = response.Write([]byte("ready\n"))
 }
 
 // serve streams a mirrored installer to a Munki client after verifying its

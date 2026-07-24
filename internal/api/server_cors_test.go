@@ -17,7 +17,7 @@ func TestCORSDisabledByDefault(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	req.Header.Set("Origin", "https://panel.example.com")
 	handler.ServeHTTP(rec, req)
 
