@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileSliders, GripVertical, Plus } from "lucide-react";
 import * as React from "react";
@@ -17,11 +17,10 @@ import {
 } from "@/components/data-table/draggable-table-rows";
 import { selectColumn } from "@/components/data-table/select-column";
 import { EnumStatus } from "@/components/enum-status";
-import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Link } from "@/components/link";
 import { PendingButton } from "@/components/pending-button";
 import { QueryError } from "@/components/query-error";
-import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -35,7 +34,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useDataTable } from "@/hooks/use-data-table";
 import { encodeSort, useDataTableSearch } from "@/hooks/use-data-table-search";
-import { useLabels } from "@/hooks/use-labels";
 import {
   useBulkDeleteSantaConfigurations,
   useReorderSantaConfigurations,
@@ -69,19 +67,14 @@ export function ConfigurationListPage() {
           sort: tableSearch.sort,
         },
   );
-  const labels = useLabels({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
-  const labelsByID = React.useMemo<ReadonlyMap<number, LabelChip>>(
-    () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
-    [labels.data?.items],
-  );
   const serverRows = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(
-    () => configurationColumns(labelsByID, isAdmin),
-    [isAdmin, labelsByID],
+    () => configurationColumns(isAdmin),
+    [isAdmin],
   );
   const table = useDataTable({
     tableState: tableSearch,
@@ -145,13 +138,12 @@ export function ConfigurationListPage() {
         <ConfigurationReorder
           key={serverRows.map((row) => row.id).join(",")}
           rows={serverRows}
-          labelsByID={labelsByID}
           truncated={reorderTruncated}
           totalCount={totalCount}
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={6} />
+        <DataTableSkeleton columnCount={5} />
       ) : (
         <DataTable
           table={table}
@@ -192,10 +184,7 @@ export function ConfigurationListPage() {
     </PageShell>
   );
 }
-function configurationColumns(
-  labelsByID: ReadonlyMap<number, LabelChip>,
-  isAdmin: boolean,
-): ColumnDef<SantaConfiguration>[] {
+function configurationColumns(isAdmin: boolean): ColumnDef<SantaConfiguration>[] {
   const columns: ColumnDef<SantaConfiguration>[] = [
     selectColumn<SantaConfiguration>(),
     {
@@ -215,7 +204,7 @@ function configurationColumns(
           <Link
             to="/santa/configurations/$id"
             params={{ id: String(row.original.id) }}
-            className="font-medium hover:underline"
+            className="font-medium"
           >
             {row.original.name}
           </Link>
@@ -234,15 +223,6 @@ function configurationColumns(
       meta: { label: "Client Mode" },
     },
     {
-      id: "labels",
-      header: () => "Targets",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />
-      ),
-      meta: { label: "Targets" },
-    },
-    {
       id: "updated_at",
       accessorKey: "updated_at",
       header: () => "Updated",
@@ -255,13 +235,11 @@ function configurationColumns(
 }
 function ConfigurationReorder({
   rows,
-  labelsByID,
   truncated,
   totalCount,
   onDone,
 }: {
   rows: SantaConfiguration[];
-  labelsByID: ReadonlyMap<number, LabelChip>;
   truncated: boolean;
   totalCount: number;
   onDone: () => void;
@@ -307,7 +285,6 @@ function ConfigurationReorder({
                 <TableHead className="w-20">Order</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Client Mode</TableHead>
-                <TableHead>Targets</TableHead>
                 <TableHead>Updated</TableHead>
               </TableRow>
             </TableHeader>
@@ -323,9 +300,6 @@ function ConfigurationReorder({
                   <TableCell className="font-medium">{row.name}</TableCell>
                   <TableCell>
                     <EnumStatus value={row.client_mode} metadata={CLIENT_MODES} />
-                  </TableCell>
-                  <TableCell>
-                    <TargetLabelsCell targets={row.targets} labelsByID={labelsByID} />
                   </TableCell>
                   <TableCell>{formatRelative(row.updated_at)}</TableCell>
                 </DraggableTableRow>
