@@ -22,7 +22,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-playground/validator/v10 v10.30.3
-	github.com/google/cel-go v0.29.2
+	github.com/google/cel-go v0.30.0
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/oapi-codegen/runtime v1.6.0
