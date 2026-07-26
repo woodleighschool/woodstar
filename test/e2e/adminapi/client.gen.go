@@ -2130,12 +2130,20 @@ type PageRuleStatus struct {
 	Items []SantaRuleStatus `json:"items"`
 }
 
+// PageSoftwareTitle defines model for PageSoftwareTitle.
+type PageSoftwareTitle struct {
+	Count int64           `json:"count"`
+	Items []SoftwareTitle `json:"items"`
+}
+
 // PathSignatureInformation defines model for PathSignatureInformation.
 type PathSignatureInformation struct {
 	ExecutablePath   string `json:"executable_path"`
 	ExecutableSha256 string `json:"executable_sha256"`
 	HashSha256       string `json:"hash_sha256"`
+	Identifier       string `json:"identifier"`
 	InstalledPath    string `json:"installed_path"`
+	SigningAuthority string `json:"signing_authority"`
 	TeamIdentifier   string `json:"team_identifier"`
 }
 
@@ -2427,6 +2435,47 @@ type SessionCreateInputBody struct {
 	Password string              `json:"password"`
 }
 
+// SoftwareSigningIdentity defines model for SoftwareSigningIdentity.
+type SoftwareSigningIdentity struct {
+	Authorities    []string `json:"authorities"`
+	HostsCount     int32    `json:"hosts_count"`
+	Identifier     string   `json:"identifier"`
+	TeamIdentifier string   `json:"team_identifier"`
+}
+
+// SoftwareSigningIdentityList defines model for SoftwareSigningIdentityList.
+type SoftwareSigningIdentityList struct {
+	Count int32                     `json:"count"`
+	Items []SoftwareSigningIdentity `json:"items"`
+}
+
+// SoftwareTitle defines model for SoftwareTitle.
+type SoftwareTitle struct {
+	Browser           string                      `json:"browser"`
+	BundleIdentifier  *string                     `json:"bundle_identifier,omitempty"`
+	ExtensionFor      string                      `json:"extension_for"`
+	HostsCount        int32                       `json:"hosts_count"`
+	Id                int64                       `json:"id"`
+	Name              string                      `json:"name"`
+	SigningIdentities SoftwareSigningIdentityList `json:"signing_identities"`
+	Source            string                      `json:"source"`
+	Versions          SoftwareVersionList         `json:"versions"`
+}
+
+// SoftwareVersion defines model for SoftwareVersion.
+type SoftwareVersion struct {
+	BundleIdentifier *string `json:"bundle_identifier,omitempty"`
+	HostsCount       int32   `json:"hosts_count"`
+	Id               int64   `json:"id"`
+	Version          string  `json:"version"`
+}
+
+// SoftwareVersionList defines model for SoftwareVersionList.
+type SoftwareVersionList struct {
+	Count int32             `json:"count"`
+	Items []SoftwareVersion `json:"items"`
+}
+
 // User defines model for User.
 type User struct {
 	CanLogin          bool                `json:"can_login"`
@@ -2541,6 +2590,15 @@ type ListSantaEventsParams struct {
 
 // ListSantaEventsParamsDecisions defines parameters for ListSantaEvents.
 type ListSantaEventsParamsDecisions string
+
+// ListSoftwareParams defines parameters for ListSoftware.
+type ListSoftwareParams struct {
+	Q       *string   `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int32    `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int32    `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort    *string   `form:"sort,omitempty" json:"sort,omitempty"`
+	Source  *[]string `form:"source,omitempty" json:"source,omitempty"`
+}
 
 // CreateAgentSecretJSONRequestBody defines body for CreateAgentSecret for application/json ContentType.
 type CreateAgentSecretJSONRequestBody = AgentSecretCreate
@@ -3148,6 +3206,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSession(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSoftware List software titles
+	//
+	// Corresponds with GET /api/software (the `ListSoftware` operationId).
+	ListSoftware(ctx context.Context, params *ListSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateUserWithBody Create a user
 	//
@@ -3900,6 +3963,21 @@ func (c *Client) CreateSessionWithBody(ctx context.Context, contentType string, 
 // Corresponds with POST /api/session (the `CreateSession` operationId).
 func (c *Client) CreateSession(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSoftware List software titles
+//
+// Corresponds with GET /api/software (the `ListSoftware` operationId).
+func (c *Client) ListSoftware(ctx context.Context, params *ListSoftwareParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSoftwareRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5654,6 +5732,108 @@ func NewCreateSessionRequestWithBody(server string, contentType string, body io.
 	return req, nil
 }
 
+// NewListSoftwareRequest constructs an http.Request for the ListSoftware method
+func NewListSoftwareRequest(server string, params *ListSoftwareParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/software")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "per_page", *params.PerPage, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Source != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "source", *params.Source, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateUserRequest calls the generic CreateUser builder with application/json body
 func NewCreateUserRequest(server string, body CreateUserJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6059,6 +6239,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /api/session (the `CreateSession` operationId).
 	CreateSessionWithResponse(ctx context.Context, body CreateSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
+
+	// ListSoftwareWithResponse List software titles
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/software (the `ListSoftware` operationId).
+	ListSoftwareWithResponse(ctx context.Context, params *ListSoftwareParams, reqEditors ...RequestEditorFn) (*ListSoftwareResponse, error)
 
 	// CreateUserWithBodyWithResponse Create a user
 	//
@@ -8479,6 +8666,61 @@ func (r CreateSessionResponse) ContentType() string {
 	return ""
 }
 
+type ListSoftwareResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageSoftwareTitle
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSONDefault the response for an HTTP default `application/problem+json` response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSoftwareResponse) GetJSON200() *PageSoftwareTitle {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r ListSoftwareResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSONDefault returns the response for an HTTP default `application/problem+json` response
+func (r ListSoftwareResponse) GetApplicationproblemJSONDefault() *ErrorModel {
+	return r.ApplicationproblemJSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSoftwareResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSoftwareResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSoftwareResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSoftwareResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateUserResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9158,6 +9400,19 @@ func (c *ClientWithResponses) CreateSessionWithResponse(ctx context.Context, bod
 		return nil, err
 	}
 	return ParseCreateSessionResponse(rsp)
+}
+
+// ListSoftwareWithResponse List software titles
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/software (the `ListSoftware` operationId).
+func (c *ClientWithResponses) ListSoftwareWithResponse(ctx context.Context, params *ListSoftwareParams, reqEditors ...RequestEditorFn) (*ListSoftwareResponse, error) {
+	rsp, err := c.ListSoftware(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSoftwareResponse(rsp)
 }
 
 // CreateUserWithBodyWithResponse Create a user
@@ -11114,6 +11369,46 @@ func ParseCreateSessionResponse(rsp *http.Response) (*CreateSessionResponse, err
 			headers.RetryAfter = value
 		}
 		response.Headers429 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListSoftwareResponse parses an HTTP response from a ListSoftwareWithResponse call
+func ParseListSoftwareResponse(rsp *http.Response) (*ListSoftwareResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSoftwareResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageSoftwareTitle
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
 	}
 
 	return response, nil

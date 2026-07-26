@@ -31,11 +31,12 @@ import {
   ruleBody,
   ruleFormSchema,
   type RuleFormState,
-  ruleIdentifierHint,
+  ruleIdentifierPlaceholder,
   selectedIncludeLabelIDs,
 } from "./form-state";
 import { SantaIncludeTargets } from "./include-targets";
 import { RULE_TYPES, RULE_TYPE_OPTIONS, RULE_TYPE_VALUES } from "./metadata";
+import { RuleNameCombobox } from "./rule-name-combobox";
 const ruleFormTabs = [
   {
     value: "options",
@@ -113,15 +114,20 @@ export function RuleForm({
                         label="Name"
                         htmlFor="santa-rule-name"
                         required
+                        description="Enter a name or search by signing identifier."
                       >
                         {(control) => (
-                          <Input
-                            {...control}
+                          <RuleNameCombobox
+                            id="santa-rule-name"
                             name={field.name}
-                            required
                             value={field.state.value}
+                            invalid={control["aria-invalid"] === true}
                             onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onChange={field.handleChange}
+                            onSelect={(candidate) => {
+                              form.setFieldValue("rule_type", candidate.ruleType);
+                              form.setFieldValue("identifier", candidate.identifier);
+                            }}
                           />
                         )}
                       </ValidatedFormField>
@@ -186,13 +192,14 @@ export function RuleForm({
                         label="Identifier"
                         htmlFor="santa-rule-identifier"
                         required
-                        description={ruleIdentifierHint(values.rule_type)}
+                        description="Identifier for the selected rule type."
                       >
                         {(control) => (
                           <Input
                             {...control}
                             name={field.name}
                             required
+                            placeholder={ruleIdentifierPlaceholder(values.rule_type)}
                             value={field.state.value}
                             onBlur={field.handleBlur}
                             onChange={(event) => field.handleChange(event.target.value)}

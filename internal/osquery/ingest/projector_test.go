@@ -102,6 +102,11 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 		},
 	}
 	enrichment := softwareEnrichmentByPath([]map[string]string{{
+		"path":              "/Applications/Example.app",
+		"identifier":        "com.example.app",
+		"team_identifier":   "ABCD123456",
+		"signing_authority": "Developer ID Application: Example",
+	}}, []map[string]string{{
 		"path":            "/Applications/Example.app",
 		"team_identifier": "ABCD123456",
 		"cdhash_sha256":   "cdhash",
@@ -116,7 +121,9 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("len = %d, want 1", len(got))
 	}
-	if got[0].TeamIdentifier != "ABCD123456" || got[0].CDHashSHA256 != "cdhash" ||
+	if got[0].Identifier != "com.example.app" ||
+		got[0].SigningAuthority != "Developer ID Application: Example" ||
+		got[0].TeamIdentifier != "ABCD123456" || got[0].CDHashSHA256 != "cdhash" ||
 		got[0].ExecutableSHA256 != "executable-hash" ||
 		got[0].ExecutablePath != "/Applications/Example.app/Contents/MacOS/Example" {
 		t.Fatalf("enrichment parsed incorrectly: %#v", got[0])

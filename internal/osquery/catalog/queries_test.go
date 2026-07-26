@@ -174,6 +174,13 @@ func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
 		}
 	}
 
+	signatureSQL := DetailQueries()[QuerySoftwareMacOSSignature].SQL
+	for _, want := range []string{"path", "s.identifier", "team_identifier", "signing_authority"} {
+		if !strings.Contains(signatureSQL, want) {
+			t.Fatalf("signature SQL missing %q: %s", want, signatureSQL)
+		}
+	}
+
 	hashSQL := DetailQueries()[QuerySoftwareMacOSExecutableHash].SQL
 	for _, want := range []string{"path", "executable_path", "executable_sha256"} {
 		if !strings.Contains(hashSQL, want) {

@@ -145,7 +145,7 @@ func validateRuleIdentifier(ruleType RuleType, identifier string) error {
 	case RuleTypeSigningID:
 		if !signingIDIdentifierRE.MatchString(identifier) {
 			return fmt.Errorf(
-				"%w: identifier must be TEAMID:bundle.identifier or platform:bundle.identifier",
+				"%w: identifier must be TEAMID:signing.identifier or platform:signing.identifier",
 				dbutil.ErrInvalidInput,
 			)
 		}

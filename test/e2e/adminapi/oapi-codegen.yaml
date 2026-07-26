@@ -13,6 +13,7 @@ output-options:
     - list-hosts
     - get-host
     - list-host-software
+    - list-software
     - get-host-munki-state
     - list-host-munki-software
     - list-labels

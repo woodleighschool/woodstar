@@ -2845,12 +2845,18 @@ components:
           type: string
         hash_sha256:
           type: string
+        identifier:
+          type: string
         installed_path:
+          type: string
+        signing_authority:
           type: string
         team_identifier:
           type: string
       required:
         - installed_path
+        - identifier
+        - signing_authority
         - team_identifier
         - hash_sha256
         - executable_sha256
@@ -3665,6 +3671,40 @@ components:
         - email
         - password
       type: object
+    SoftwareSigningIdentity:
+      additionalProperties: false
+      properties:
+        authorities:
+          items:
+            type: string
+          type: array
+        hosts_count:
+          format: int32
+          type: integer
+        identifier:
+          type: string
+        team_identifier:
+          type: string
+      required:
+        - identifier
+        - team_identifier
+        - authorities
+        - hosts_count
+      type: object
+    SoftwareSigningIdentityList:
+      additionalProperties: false
+      properties:
+        count:
+          format: int32
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/SoftwareSigningIdentity"
+          type: array
+      required:
+        - items
+        - count
+      type: object
     SoftwareTitle:
       additionalProperties: false
       properties:
@@ -3682,6 +3722,8 @@ components:
           type: integer
         name:
           type: string
+        signing_identities:
+          $ref: "#/components/schemas/SoftwareSigningIdentityList"
         source:
           type: string
         versions:
@@ -3694,6 +3736,7 @@ components:
         - browser
         - hosts_count
         - versions
+        - signing_identities
       type: object
     SoftwareVersion:
       additionalProperties: false

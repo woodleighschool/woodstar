@@ -98,6 +98,7 @@ func (p *Projector) IngestSoftware(
 		return nil
 	}
 	enrichment := softwareEnrichmentByPath(
+		queryRows[catalog.QuerySoftwareMacOSSignature],
 		queryRows[catalog.QuerySoftwareMacOSCodesign],
 		queryRows[catalog.QuerySoftwareMacOSExecutableHash],
 	)
@@ -112,6 +113,7 @@ func (p *Projector) IngestSoftware(
 		"host_id", hostID,
 		"row_count", len(rows),
 		"entry_count", len(entries),
+		"signature_count", len(queryRows[catalog.QuerySoftwareMacOSSignature]),
 		"codesign_count", len(queryRows[catalog.QuerySoftwareMacOSCodesign]),
 		"executable_hash_count", len(queryRows[catalog.QuerySoftwareMacOSExecutableHash]),
 	)
@@ -378,14 +380,31 @@ func parseFloat64Ptr(value string) *float64 {
 type softwareEnrichment map[string]softwarePathEnrichment
 
 type softwarePathEnrichment struct {
+	Identifier       string
+	SigningAuthority string
 	TeamIdentifier   string
 	CDHashSHA256     string
 	ExecutableSHA256 string
 	ExecutablePath   string
 }
 
-func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows []map[string]string) softwareEnrichment {
+func softwareEnrichmentByPath(
+	signatureRows []map[string]string,
+	codesignRows []map[string]string,
+	executableRows []map[string]string,
+) softwareEnrichment {
 	enrichment := make(softwareEnrichment)
+	for _, row := range signatureRows {
+		path := row["path"]
+		if path == "" {
+			continue
+		}
+		info := enrichment[path]
+		info.Identifier = row["identifier"]
+		info.SigningAuthority = row["signing_authority"]
+		info.TeamIdentifier = row["team_identifier"]
+		enrichment[path] = info
+	}
 	for _, row := range codesignRows {
 		path := row["path"]
 		if path == "" {
@@ -393,7 +412,9 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 		}
 		// Read-modify-write preserves fields set by the other row source for the same path.
 		info := enrichment[path]
-		info.TeamIdentifier = row["team_identifier"]
+		if info.TeamIdentifier == "" {
+			info.TeamIdentifier = row["team_identifier"]
+		}
 		info.CDHashSHA256 = row["cdhash_sha256"]
 		enrichment[path] = info
 	}
@@ -431,6 +452,8 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 			Arch:             row["arch"],
 			Release:          row["release"],
 			InstalledPath:    installedPath,
+			Identifier:       pathEnrichment.Identifier,
+			SigningAuthority: pathEnrichment.SigningAuthority,
 			TeamIdentifier:   pathEnrichment.TeamIdentifier,
 			CDHashSHA256:     pathEnrichment.CDHashSHA256,
 			ExecutableSHA256: pathEnrichment.ExecutableSHA256,

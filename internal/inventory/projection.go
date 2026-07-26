@@ -51,20 +51,25 @@ ON CONFLICT (host_id, software_id) DO UPDATE SET
 	}
 	_, err = tx.Exec(ctx, `
 INSERT INTO host_software_installed_paths (
-    host_id, software_id, installed_path, team_identifier,
+    host_id, software_id, installed_path,
+    identifier, signing_authority, team_identifier,
     cdhash_sha256, executable_sha256, executable_path
 )
 VALUES (
-    $1, $2, $3, $4,
-    NULLIF($5::text, ''), NULLIF($6::text, ''), NULLIF($7::text, '')
+    $1, $2, $3,
+    $4, $5, $6,
+    NULLIF($7::text, ''), NULLIF($8::text, ''), NULLIF($9::text, '')
 )
 ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
+    identifier = EXCLUDED.identifier,
+    signing_authority = EXCLUDED.signing_authority,
     team_identifier = EXCLUDED.team_identifier,
     cdhash_sha256 = EXCLUDED.cdhash_sha256,
     executable_sha256 = EXCLUDED.executable_sha256,
     executable_path = EXCLUDED.executable_path`,
 		hostID, softwareID,
-		entry.InstalledPath, entry.TeamIdentifier,
+		entry.InstalledPath,
+		entry.Identifier, entry.SigningAuthority, entry.TeamIdentifier,
 		entry.CDHashSHA256, entry.ExecutableSHA256, entry.ExecutablePath,
 	)
 	return err

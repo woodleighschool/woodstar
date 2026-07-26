@@ -1045,7 +1045,9 @@ export type PathSignatureInformation = {
     executable_path: string;
     executable_sha256: string;
     hash_sha256: string;
+    identifier: string;
     installed_path: string;
+    signing_authority: string;
     team_identifier: string;
 };
 
@@ -1305,6 +1307,18 @@ export type SessionCreateInputBody = {
     password: string;
 };
 
+export type SoftwareSigningIdentity = {
+    authorities: Array<string>;
+    hosts_count: number;
+    identifier: string;
+    team_identifier: string;
+};
+
+export type SoftwareSigningIdentityList = {
+    count: number;
+    items: Array<SoftwareSigningIdentity>;
+};
+
 export type SoftwareTitle = {
     browser: string;
     bundle_identifier?: string;
@@ -1312,6 +1326,7 @@ export type SoftwareTitle = {
     hosts_count: number;
     id: number;
     name: string;
+    signing_identities: SoftwareSigningIdentityList;
     source: string;
     versions: SoftwareVersionList;
 };

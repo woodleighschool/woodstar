@@ -25,6 +25,8 @@ type HostSoftwareEntry struct {
 	Arch             string
 	Release          string
 	InstalledPath    string
+	Identifier       string
+	SigningAuthority string
 	TeamIdentifier   string
 	CDHashSHA256     string
 	ExecutableSHA256 string
@@ -46,9 +48,25 @@ type SoftwareVersionList struct {
 	Count int32             `json:"count"`
 }
 
+// SoftwareSigningIdentity is one code-signing identity observed for a software title.
+type SoftwareSigningIdentity struct {
+	Identifier     string   `json:"identifier"`
+	TeamIdentifier string   `json:"team_identifier"`
+	Authorities    []string `json:"authorities" nullable:"false"`
+	HostsCount     int32    `json:"hosts_count"`
+}
+
+// SoftwareSigningIdentityList is the signing identities observed for one software title.
+type SoftwareSigningIdentityList struct {
+	Items []SoftwareSigningIdentity `json:"items" nullable:"false"`
+	Count int32                     `json:"count"`
+}
+
 // PathSignatureInformation is signing/hash data for one path.
 type PathSignatureInformation struct {
 	InstalledPath    string `json:"installed_path"`
+	Identifier       string `json:"identifier"`
+	SigningAuthority string `json:"signing_authority"`
 	TeamIdentifier   string `json:"team_identifier"`
 	CDHashSHA256     string `json:"hash_sha256"`
 	ExecutableSHA256 string `json:"executable_sha256"`
@@ -75,16 +93,17 @@ type HostSoftware struct {
 
 // SoftwareTitle is an aggregate software title row.
 type SoftwareTitle struct {
-	ID               int64               `db:"id"                json:"id"`
-	Name             string              `db:"name"              json:"name"`
-	Source           string              `db:"source"            json:"source"`
-	ExtensionFor     string              `db:"extension_for"     json:"extension_for"`
-	Browser          string              `db:"-"                 json:"browser"`
-	BundleIdentifier string              `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
-	Vendor           string              `db:"vendor"            json:"-"`
-	HostsCount       int32               `db:"hosts_count"       json:"hosts_count"`
-	VersionsCount    int32               `db:"versions_count"    json:"-"`
-	Versions         SoftwareVersionList `db:"-"                 json:"versions"`
+	ID                int64                       `db:"id"                json:"id"`
+	Name              string                      `db:"name"              json:"name"`
+	Source            string                      `db:"source"            json:"source"`
+	ExtensionFor      string                      `db:"extension_for"     json:"extension_for"`
+	Browser           string                      `db:"-"                 json:"browser"`
+	BundleIdentifier  string                      `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
+	Vendor            string                      `db:"vendor"            json:"-"`
+	HostsCount        int32                       `db:"hosts_count"       json:"hosts_count"`
+	VersionsCount     int32                       `db:"versions_count"    json:"-"`
+	Versions          SoftwareVersionList         `db:"-"                 json:"versions"`
+	SigningIdentities SoftwareSigningIdentityList `db:"-" json:"signing_identities"`
 }
 
 // SoftwareTitleListParams controls software title list filtering and sorting.

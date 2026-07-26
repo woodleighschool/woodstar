@@ -34,6 +34,7 @@ const (
 	QuerySoftwareGoBinaries          = "software_go_binaries"
 	QuerySoftwarePythonPackages      = "software_python_packages"
 	QuerySoftwareMacOSCodesign       = "software_macos_codesign"
+	QuerySoftwareMacOSSignature      = "software_macos_signature"
 	QuerySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
 )
 
@@ -51,6 +52,7 @@ var tableDiscoverySQL = map[string]string{
 	"munki_info":        tableDiscovery("munki_info"),
 	"munki_installs":    tableDiscovery("munki_installs"),
 	"orbit_info":        tableDiscovery("orbit_info"),
+	"signature":         tableDiscovery("signature"),
 	"vscode_extensions": tableDiscovery("vscode_extensions"),
 }
 
@@ -201,6 +203,12 @@ func softwareDetailQueries() map[string]DetailQuery {
 		QuerySoftwareMacOSCodesign: {
 			SQL:       mustQuery("queries/software_macos_codesign.sql"),
 			Discovery: tableExistsSQL("codesign"),
+			Optional:  true,
+			Ingest:    IngestSoftwareEnrichment,
+		},
+		QuerySoftwareMacOSSignature: {
+			SQL:       mustQuery("queries/software_macos_signature.sql"),
+			Discovery: tableExistsSQL("signature"),
 			Optional:  true,
 			Ingest:    IngestSoftwareEnrichment,
 		},

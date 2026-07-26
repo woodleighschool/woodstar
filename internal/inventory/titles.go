@@ -22,6 +22,9 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, 0, err
 	}
+	if err := s.loadSoftwareTitleSigningIdentities(ctx, titles); err != nil {
+		return nil, 0, err
+	}
 	return titles, total, nil
 }
 
@@ -34,6 +37,9 @@ func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) 
 	titles := []SoftwareTitle{title}
 	setSoftwareTitleBrowsers(titles)
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
+		return nil, err
+	}
+	if err := s.loadSoftwareTitleSigningIdentities(ctx, titles); err != nil {
 		return nil, err
 	}
 	return &titles[0], nil
@@ -50,6 +56,17 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 			OR EXISTS (
 				SELECT 1 FROM software s
 				WHERE s.title_id = st.id AND s.version ILIKE ` + search + `
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM software s
+				JOIN host_software_installed_paths paths ON paths.software_id = s.id
+				WHERE s.title_id = st.id
+					AND (
+						paths.team_identifier ILIKE ` + search + `
+						OR paths.identifier ILIKE ` + search + `
+						OR paths.signing_authority ILIKE ` + search + `
+					)
 			)
 		)`)
 	}
@@ -164,6 +181,77 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 			BundleIdentifier: row.BundleIdentifier,
 			HostsCount:       row.HostsCount,
 		})
+	}
+	return nil
+}
+
+type softwareTitleSigningIdentityRow struct {
+	TitleID        int64    `db:"title_id"`
+	Identifier     string   `db:"identifier"`
+	TeamIdentifier string   `db:"team_identifier"`
+	Authorities    []string `db:"authorities"`
+	HostsCount     int32    `db:"hosts_count"`
+}
+
+const softwareTitleSigningIdentitiesSQL = `
+SELECT
+	s.title_id,
+	paths.identifier,
+	paths.team_identifier,
+	COALESCE(
+		array_agg(DISTINCT paths.signing_authority ORDER BY paths.signing_authority)
+			FILTER (WHERE paths.signing_authority <> ''),
+		ARRAY[]::text[]
+	) AS authorities,
+	COUNT(DISTINCT paths.host_id)::integer AS hosts_count
+FROM host_software_installed_paths paths
+JOIN software s ON s.id = paths.software_id
+WHERE s.title_id = ANY($1::bigint[])
+	AND paths.team_identifier <> ''
+GROUP BY s.title_id, paths.team_identifier, paths.identifier
+ORDER BY
+	array_position($1::bigint[], s.title_id),
+	lower(paths.team_identifier),
+	lower(paths.identifier)`
+
+func (s *Store) loadSoftwareTitleSigningIdentities(ctx context.Context, titles []SoftwareTitle) error {
+	if len(titles) == 0 {
+		return nil
+	}
+	titleIDs := make([]int64, len(titles))
+	titleIndex := make(map[int64]int, len(titles))
+	for i := range titles {
+		titleIDs[i] = titles[i].ID
+		titleIndex[titles[i].ID] = i
+		titles[i].SigningIdentities = SoftwareSigningIdentityList{
+			Items: []SoftwareSigningIdentity{},
+		}
+	}
+
+	qrows, err := s.db.Pool().Query(ctx, softwareTitleSigningIdentitiesSQL, titleIDs)
+	if err != nil {
+		return err
+	}
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[softwareTitleSigningIdentityRow])
+	if err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		i, ok := titleIndex[row.TitleID]
+		if !ok {
+			continue
+		}
+		titles[i].SigningIdentities.Items = append(
+			titles[i].SigningIdentities.Items,
+			SoftwareSigningIdentity{
+				Identifier:     row.Identifier,
+				TeamIdentifier: row.TeamIdentifier,
+				Authorities:    row.Authorities,
+				HostsCount:     row.HostsCount,
+			},
+		)
+		titles[i].SigningIdentities.Count++
 	}
 	return nil
 }

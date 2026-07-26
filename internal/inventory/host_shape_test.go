@@ -17,3 +17,22 @@ func TestBuildHostSoftwaresInitializesPathCollections(t *testing.T) {
 		t.Fatal("SignatureInformation is nil, want empty array")
 	}
 }
+
+func TestBuildHostSoftwaresExposesExactSigningIdentity(t *testing.T) {
+	software := buildHostSoftwares([]hostSoftwareScanRow{{
+		TitleID:          1,
+		TitleName:        "Example",
+		SoftwareID:       2,
+		Version:          "1.0",
+		InstalledPath:    "/Applications/Example.app",
+		TeamIdentifier:   "TEAMID1234",
+		Identifier:       "com.example.app",
+		SigningAuthority: "Developer ID Application: Example",
+	}})
+
+	got := software[0].InstalledVersions[0].SignatureInformation[0]
+	if got.Identifier != "com.example.app" ||
+		got.SigningAuthority != "Developer ID Application: Example" {
+		t.Fatalf("signature information = %+v, want exact signing identity", got)
+	}
+}

@@ -44,6 +44,7 @@ export function SoftwareDetailPage() {
     <PageShell className="gap-6">
       <SoftwareHeader title={title} />
       <SoftwareOverview title={title} />
+      <SoftwareSigningIdentities title={title} />
       <SoftwareVersions title={title} />
     </PageShell>
   );
@@ -99,6 +100,36 @@ function SoftwareOverview({ title }: { title: SoftwareTitle }) {
         value={<span className="tabular-nums">{title.versions.count}</span>}
       />
     </KeyValueSection>
+  );
+}
+
+function SoftwareSigningIdentities({ title }: { title: SoftwareTitle }) {
+  const identities = title.signing_identities.items;
+  if (identities.length === 0) return null;
+
+  return (
+    <TableSurface heading="Signing identities">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Identifier</TableHead>
+            <TableHead>Team ID</TableHead>
+            <TableHead>Authority</TableHead>
+            <TableHead className="text-right">Hosts</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {identities.map((identity) => (
+            <TableRow key={`${identity.team_identifier}:${identity.identifier}`}>
+              <TableCell className="font-medium">{identity.identifier || "-"}</TableCell>
+              <TableCell>{identity.team_identifier}</TableCell>
+              <TableCell>{identity.authorities.join(", ") || "-"}</TableCell>
+              <TableCell className="text-right tabular-nums">{identity.hosts_count}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableSurface>
   );
 }
 

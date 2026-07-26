@@ -123,6 +123,8 @@ CREATE TABLE host_software_installed_paths (
     software_id BIGINT NOT NULL REFERENCES software (id) ON DELETE CASCADE,
     installed_path TEXT NOT NULL,
     team_identifier TEXT NOT NULL DEFAULT '',
+    identifier TEXT NOT NULL DEFAULT '',
+    signing_authority TEXT NOT NULL DEFAULT '',
     cdhash_sha256 TEXT,
     executable_sha256 TEXT,
     executable_path TEXT,
@@ -131,3 +133,11 @@ CREATE TABLE host_software_installed_paths (
 
 CREATE INDEX host_software_installed_paths_host_software_idx
     ON host_software_installed_paths (host_id, software_id);
+
+CREATE INDEX host_software_installed_paths_team_identifier_idx
+    ON host_software_installed_paths (team_identifier)
+    WHERE team_identifier <> '';
+
+CREATE INDEX host_software_installed_paths_identifier_idx
+    ON host_software_installed_paths (team_identifier, identifier)
+    WHERE team_identifier <> '' AND identifier <> '';

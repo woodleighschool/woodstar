@@ -340,6 +340,15 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 					"cdhash_sha256":   "cdhash",
 				},
 			}
+		case "software_macos_signature":
+			queryRows[name] = []map[string]string{
+				{
+					"path":              "/Applications/Visual Studio Code.app",
+					"identifier":        bundleID,
+					"team_identifier":   "WOODSTAR01",
+					"signing_authority": "Developer ID Application: Microsoft Corporation",
+				},
+			}
 		case "software_macos_executable_sha256":
 			queryRows[name] = []map[string]string{{
 				"path": "/Applications/Visual Studio Code.app", "executable_sha256": "executable-hash",
@@ -527,10 +536,47 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 			installed.InstalledPaths,
 		) != 1 || installed.InstalledPaths[0] != "/Applications/Visual Studio Code.app" ||
 		len(installed.SignatureInformation) != 1 ||
+		installed.SignatureInformation[0].Identifier != bundleID ||
+		installed.SignatureInformation[0].SigningAuthority !=
+			"Developer ID Application: Microsoft Corporation" ||
 		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
 		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
 		installed.SignatureInformation[0].ExecutableSha256 != "executable-hash" {
 		t.Fatalf("installed software = %+v, want version, path, and signature projection", installed)
+	}
+
+	softwareSearch := "Microsoft Corporation"
+	softwareTitlesResponse, err := server.Admin.ListSoftwareWithResponse(
+		t.Context(),
+		&adminapi.ListSoftwareParams{Q: &softwareSearch},
+	)
+	softwareTitlesResponse = requireAPIResponse(
+		t,
+		"search software by signing authority",
+		http.StatusOK,
+		softwareTitlesResponse,
+		err,
+	)
+	if softwareTitlesResponse.JSON200 == nil {
+		t.Fatal("software search returned no JSON body")
+	}
+	softwareTitles := *softwareTitlesResponse.JSON200
+	if softwareTitles.Count != 1 || len(softwareTitles.Items) != 1 {
+		t.Fatalf("software search = %+v, want one matching title", softwareTitles)
+	}
+	softwareTitle := softwareTitles.Items[0]
+	if softwareTitle.Name != softwareName ||
+		softwareTitle.SigningIdentities.Count != 1 ||
+		len(softwareTitle.SigningIdentities.Items) != 1 {
+		t.Fatalf("software title = %+v, want one signing identity", softwareTitle)
+	}
+	signingIdentity := softwareTitle.SigningIdentities.Items[0]
+	if signingIdentity.Identifier != bundleID ||
+		signingIdentity.TeamIdentifier != "WOODSTAR01" ||
+		signingIdentity.HostsCount != 1 ||
+		len(signingIdentity.Authorities) != 1 ||
+		signingIdentity.Authorities[0] != "Developer ID Application: Microsoft Corporation" {
+		t.Fatalf("software signing identity = %+v, want exact observed identity", signingIdentity)
 	}
 
 	munkiResponse, err := server.Admin.GetHostMunkiStateWithResponse(t.Context(), host.Id)

@@ -16,7 +16,10 @@ export const softwareKeys = {
 
 export type SoftwareListParams = NonNullable<ListSoftwareData["query"]>;
 
-type RefetchOptions = { refetchInterval?: number | false };
+type RefetchOptions = {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+};
 
 export function softwareTitleQueryOptions(id: number | null, options: RefetchOptions = {}) {
   return queryOptions<SoftwareTitle, ApiError>({
@@ -36,6 +39,7 @@ export function useSoftware(params: SoftwareListParams = {}, options: RefetchOpt
   return useQuery<PageSoftwareTitle, ApiError>({
     queryKey: softwareKeys.list(queryParams),
     queryFn: ({ signal }) => unwrap(listSoftware({ query: queryParams, signal })),
+    enabled: options.enabled,
     placeholderData: keepPreviousData,
     refetchInterval: options.refetchInterval,
   });

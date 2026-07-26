@@ -183,6 +183,7 @@ export function MunkiSoftwareOptionsFields({
             <ValidatedFormField field={field} label="Category" htmlFor="munki-software-category">
               {(control) => (
                 <FreeTextCombobox
+                  mode="create"
                   id={control.id}
                   name={field.name}
                   value={field.state.value}
@@ -202,6 +203,7 @@ export function MunkiSoftwareOptionsFields({
             <ValidatedFormField field={field} label="Developer" htmlFor="munki-software-developer">
               {(control) => (
                 <FreeTextCombobox
+                  mode="create"
                   id={control.id}
                   name={field.name}
                   value={field.state.value}

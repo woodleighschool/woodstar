@@ -70,7 +70,7 @@ export const ruleFormSchema = z
     if (!rule.pattern.test(value.identifier)) {
       ctx.addIssue({
         code: "custom",
-        message: rule.hint,
+        message: "Identifier is invalid for the selected rule type.",
         path: ["identifier"],
       });
     }
@@ -97,7 +97,7 @@ export interface RuleFormState {
 }
 
 export const emptyRuleForm: RuleFormState = {
-  rule_type: "binary",
+  rule_type: "signingid",
   identifier: "",
   name: "",
   description: "",
@@ -173,8 +173,8 @@ export function selectedIncludeLabelIDs(includeRows: RuleIncludeForm[]) {
   return includeRows.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
 }
 
-export function ruleIdentifierHint(ruleType: SantaRuleType) {
-  return RULE_IDENTIFIER_RULES[ruleType].hint;
+export function ruleIdentifierPlaceholder(ruleType: SantaRuleType) {
+  return RULE_IDENTIFIER_RULES[ruleType].placeholder;
 }
 
 function isHTTPSURL(value: string) {

@@ -68,6 +68,8 @@ SELECT
     s.bundle_identifier,
     hs.last_opened_at,
     COALESCE(paths.installed_path, '') AS installed_path,
+    COALESCE(paths.identifier, '') AS identifier,
+    COALESCE(paths.signing_authority, '') AS signing_authority,
     COALESCE(paths.team_identifier, '') AS team_identifier,
     COALESCE(paths.cdhash_sha256, '') AS cdhash_sha256,
     COALESCE(paths.executable_sha256, '') AS executable_sha256,
@@ -127,6 +129,8 @@ func (acc *hostSoftwareAccumulator) add(row hostSoftwareScanRow) {
 	version.InstalledPaths = append(version.InstalledPaths, row.InstalledPath)
 	version.SignatureInformation = append(version.SignatureInformation, PathSignatureInformation{
 		InstalledPath:    row.InstalledPath,
+		Identifier:       row.Identifier,
+		SigningAuthority: row.SigningAuthority,
 		TeamIdentifier:   row.TeamIdentifier,
 		CDHashSHA256:     row.CDHashSHA256,
 		ExecutableSHA256: row.ExecutableSHA256,
@@ -233,7 +237,12 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 				FROM host_software_installed_paths paths
 				WHERE paths.host_id = hs.host_id
 					AND paths.software_id = hs.software_id
-					AND paths.installed_path ILIKE ` + search + `
+					AND (
+						paths.installed_path ILIKE ` + search + `
+						OR paths.team_identifier ILIKE ` + search + `
+						OR paths.identifier ILIKE ` + search + `
+						OR paths.signing_authority ILIKE ` + search + `
+					)
 			)
 		)`)
 	}
@@ -253,6 +262,8 @@ type hostSoftwareScanRow struct {
 	BundleIdentifier string     `db:"bundle_identifier"`
 	LastOpenedAt     *time.Time `db:"last_opened_at"`
 	InstalledPath    string     `db:"installed_path"`
+	Identifier       string     `db:"identifier"`
+	SigningAuthority string     `db:"signing_authority"`
 	TeamIdentifier   string     `db:"team_identifier"`
 	CDHashSHA256     string     `db:"cdhash_sha256"`
 	ExecutableSHA256 string     `db:"executable_sha256"`

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import {
@@ -10,23 +10,7 @@ import {
   ComboboxSeparator,
 } from "@components/ui/combobox";
 
-export function FreeTextCombobox<TItem>({
-  id,
-  name,
-  value,
-  items,
-  placeholder,
-  invalid,
-  disabled,
-  itemToStringValue,
-  freeTextItem,
-  itemKey,
-  itemDisabled,
-  renderItem,
-  onBlur,
-  onChange,
-  onSelectItem,
-}: {
+type FreeTextComboboxCommonProps<TItem> = {
   id?: string;
   name?: string;
   value: string;
@@ -34,53 +18,103 @@ export function FreeTextCombobox<TItem>({
   placeholder?: string;
   invalid?: boolean;
   disabled?: boolean;
+  filterItems?: boolean;
   itemToStringValue: (item: TItem) => string;
-  freeTextItem: (value: string) => TItem;
   itemKey?: (item: TItem) => string;
   itemDisabled?: (item: TItem) => boolean;
   renderItem?: (item: TItem) => ReactNode;
   onBlur?: () => void;
   onChange: (value: string) => void;
   onSelectItem?: (item: TItem) => void;
-}) {
+};
+
+type FreeTextComboboxProps<TItem> =
+  | (FreeTextComboboxCommonProps<TItem> & {
+      mode: "create";
+      freeTextItem: (value: string) => TItem;
+    })
+  | (FreeTextComboboxCommonProps<TItem> & {
+      mode: "free-text";
+      freeTextItem?: never;
+    });
+
+export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
+  const {
+    mode,
+    id,
+    name,
+    value,
+    items,
+    placeholder,
+    invalid,
+    disabled,
+    filterItems = true,
+    itemToStringValue,
+    itemKey,
+    itemDisabled,
+    renderItem,
+    onBlur,
+    onChange,
+    onSelectItem,
+  } = props;
+
   const [addedItems, setAddedItems] = useState<TItem[]>([]);
+
+  const itemToKey = itemKey ?? itemToStringValue;
+
+  // The public value is the string returned by itemToStringValue, so that
+  // string must also define uniqueness within this component.
   const options = useMemo(
     () => uniqueItems([...items, ...addedItems], itemToStringValue),
     [addedItems, itemToStringValue, items],
   );
-  const selected = useMemo(
-    () => options.find((item) => itemToStringValue(item) === value) ?? null,
-    [itemToStringValue, options, value],
-  );
+
+  const selected = options.find((item) => itemToStringValue(item) === value) ?? null;
+
   const newValue = value.trim();
+
   const addItem =
-    newValue !== "" && !options.some((item) => itemToStringValue(item) === newValue)
-      ? freeTextItem(newValue)
+    mode === "create" &&
+    newValue !== "" &&
+    !options.some((item) => itemToStringValue(item) === newValue)
+      ? props.freeTextItem(newValue)
       : null;
+
   const renderedOptions = addItem ? [...options, addItem] : options;
-  const hasRenderedOptions = renderedOptions.length > 0;
 
   return (
     <Combobox
-      items={renderedOptions.map(itemToStringValue)}
-      value={selected ? itemToStringValue(selected) : null}
+      items={renderedOptions}
+      filter={filterItems ? undefined : null}
+      disabled={disabled}
+      itemToStringLabel={itemToStringValue}
+      itemToStringValue={itemToStringValue}
+      isItemEqualToValue={(item, selectedItem) => itemToKey(item) === itemToKey(selectedItem)}
+      value={mode === "create" ? selected : null}
       inputValue={value}
-      onInputValueChange={onChange}
+      onInputValueChange={(next, eventDetails) => {
+        // Selection is handled by onValueChange so that onSelectItem receives
+        // the selected TItem.
+        if (eventDetails.reason !== "item-press") {
+          onChange(next);
+        }
+      }}
       onValueChange={(next) => {
         if (!next) {
           return;
         }
-        const item =
-          renderedOptions.find((candidate) => itemToStringValue(candidate) === next) ??
-          freeTextItem(next);
-        const itemValue = itemToStringValue(item);
 
-        if (!options.some((candidate) => itemToStringValue(candidate) === itemValue)) {
-          setAddedItems((current) => uniqueItems([...current, item], itemToStringValue));
+        const itemValue = itemToStringValue(next);
+
+        if (
+          mode === "create" &&
+          !options.some((candidate) => itemToStringValue(candidate) === itemValue)
+        ) {
+          setAddedItems((current) => uniqueItems([...current, next], itemToStringValue));
         }
 
         onChange(itemValue);
-        onSelectItem?.(item);
+        onSelectItem?.(next);
       }}
     >
       <ComboboxInput
@@ -93,29 +127,30 @@ export function FreeTextCombobox<TItem>({
         onBlur={onBlur}
         showClear={value !== ""}
       />
-      {hasRenderedOptions ? (
+
+      {renderedOptions.length > 0 ? (
         <ComboboxContent>
           <ComboboxList>
-            {options.map((item) => {
+            {(item: TItem, index: number) => {
+              if (item === addItem) {
+                return (
+                  <Fragment key={`create:${newValue}`}>
+                    {index > 0 ? <ComboboxSeparator /> : null}
+                    <ComboboxItem value={item}>
+                      <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
+                    </ComboboxItem>
+                  </Fragment>
+                );
+              }
+
               const itemValue = itemToStringValue(item);
+
               return (
-                <ComboboxItem
-                  key={itemKey?.(item) ?? itemValue}
-                  value={itemValue}
-                  disabled={itemDisabled?.(item)}
-                >
+                <ComboboxItem key={itemToKey(item)} value={item} disabled={itemDisabled?.(item)}>
                   {renderItem?.(item) ?? itemValue}
                 </ComboboxItem>
               );
-            })}
-            {addItem ? (
-              <>
-                {options.length > 0 ? <ComboboxSeparator /> : null}
-                <ComboboxItem value={newValue}>
-                  <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
-                </ComboboxItem>
-              </>
-            ) : null}
+            }}
           </ComboboxList>
         </ComboboxContent>
       ) : null}
@@ -123,13 +158,16 @@ export function FreeTextCombobox<TItem>({
   );
 }
 
-function uniqueItems<TItem>(items: TItem[], itemToStringValue: (item: TItem) => string): TItem[] {
+function uniqueItems<TItem>(items: TItem[], getValue: (item: TItem) => string): TItem[] {
   const seen = new Set<string>();
+
   return items.filter((item) => {
-    const value = itemToStringValue(item);
+    const value = getValue(item);
+
     if (seen.has(value)) {
       return false;
     }
+
     seen.add(value);
     return true;
   });
