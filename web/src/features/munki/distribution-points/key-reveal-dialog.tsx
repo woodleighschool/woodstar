@@ -1,6 +1,5 @@
 import { Copy, Eye, EyeOff } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@components/ui/button";
 import {
@@ -17,6 +16,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@components/ui/input-group";
+import { toast } from "@components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 const KEY_MASK = "••••••••••••••••••••••••";
 export function KeyRevealDialog({
@@ -36,9 +36,9 @@ export function KeyRevealDialog({
   async function copyKey() {
     try {
       await navigator.clipboard.writeText(value);
-      toast.success("Key copied.");
+      toast.add({ title: "Key copied.", type: "success" });
     } catch {
-      toast.error("Could not copy to clipboard.");
+      toast.add({ title: "Could not copy to clipboard.", type: "error" });
     }
   }
   return (

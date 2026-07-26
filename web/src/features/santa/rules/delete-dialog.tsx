@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { SantaRule } from "@lib/api";
 
 import { useDeleteSantaRule } from "./queries";
@@ -22,7 +21,7 @@ export function RuleDeleteDialog({
     if (!rule) return;
     await remove.mutateAsync(rule.id);
     onOpenChange(false);
-    toast.success("Rule deleted");
+    toast.add({ title: "Rule deleted", type: "success" });
     onDeleted?.();
   }
 

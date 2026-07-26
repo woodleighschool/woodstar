@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { EnumBadge } from "@components/enum-badge";
@@ -8,6 +7,7 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { QueryError } from "@components/query-error";
 import { Field, FieldGroup, FieldLabel } from "@components/ui/field";
 import { Input } from "@components/ui/input";
+import { toast } from "@components/ui/toast";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { APIKeySection } from "@features/account/api-key-section";
 import { useAccount, useUpdateAccount } from "@features/account/queries";
@@ -61,7 +61,7 @@ function AccountForm({ account }: { account: Account }) {
       });
       // Re-baseline so the saved values count as unchanged.
       form.reset({ name: value.name, password: "" });
-      toast.success("Account saved");
+      toast.add({ title: "Account saved", type: "success" });
     },
   });
   const exitGuard = usePageFormExitGuard({

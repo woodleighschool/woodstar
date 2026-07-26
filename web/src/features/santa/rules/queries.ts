@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import type { ApiError, PageRule, SantaRule, SantaRuleMutation } from "@lib/api";
 import {
   bulkDeleteSantaRules,
@@ -61,7 +61,7 @@ export function useCreateSantaRule() {
   return useMutation<SantaRule, ApiError, SantaRuleMutation>({
     mutationFn: (body) => unwrap(createSantaRule({ body })),
     onSuccess: async () => {
-      toast.success("Rule created");
+      toast.add({ title: "Rule created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
     },
   });
@@ -72,7 +72,7 @@ export function useUpdateSantaRule() {
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateSantaRule({ path: { id }, body })),
     onSuccess: async () => {
-      toast.success("Rule saved");
+      toast.add({ title: "Rule saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
     },
   });

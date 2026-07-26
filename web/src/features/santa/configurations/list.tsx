@@ -2,7 +2,6 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileSliders, GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { AsyncButton } from "@components/async-button";
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
@@ -41,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
+import { toast } from "@components/ui/toast";
 import { useAuth } from "@features/auth/queries";
 import type { SantaConfiguration } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
@@ -322,7 +322,7 @@ function ConfigurationReorder({
       ordered.map((row) => row.id),
       {
         onSuccess: () => {
-          toast.success("Saved order");
+          toast.add({ title: "Saved order", type: "success" });
           onDone();
         },
         onError: () => setOrdered(rows),

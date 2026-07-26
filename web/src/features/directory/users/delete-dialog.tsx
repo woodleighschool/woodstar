@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import { useDeleteUser } from "@features/directory/users/queries";
 import type { User } from "@lib/api";
 import { nonEmpty } from "@lib/utils";
@@ -26,7 +25,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
     if (!user) return;
     await remove.mutateAsync(user.id);
     onOpenChange(false);
-    toast.success("User deleted");
+    toast.add({ title: "User deleted", type: "success" });
     onDeleted?.();
   }
 

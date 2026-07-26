@@ -1,7 +1,6 @@
 import type { Table as TanStackTable } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { BulkDeleteDialog } from "@components/bulk-delete-dialog";
 import {
@@ -11,6 +10,7 @@ import {
   ActionBarSelection,
   ActionBarSeparator,
 } from "@components/ui/action-bar";
+import { toast } from "@components/ui/toast";
 
 interface BulkDeleteMutation {
   mutate: (ids: number[], options?: { onSuccess?: () => void }) => void;
@@ -41,7 +41,10 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
     const count = ids.length;
     bulkDelete.mutate(ids, {
       onSuccess: () => {
-        toast.success(`Deleted ${count} ${count === 1 ? noun : plural}`);
+        toast.add({
+          title: `Deleted ${count} ${count === 1 ? noun : plural}`,
+          type: "success",
+        });
         table.toggleAllRowsSelected(false);
         setOpen(false);
       },

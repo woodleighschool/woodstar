@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import { sessionQueryOptions } from "@features/auth/queries";
 import { groupKeys } from "@features/directory/groups/queries";
 import type { ApiError, PageDepartment, PageUser, User, UserCreate, UserMutation } from "@lib/api";
@@ -94,7 +94,7 @@ export function useCreateUser() {
   return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(createUser({ body })),
     onSuccess: async () => {
-      toast.success("User created");
+      toast.add({ title: "User created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
@@ -123,7 +123,7 @@ export function useUpdateUser() {
         }),
       ),
     onSuccess: async (user, variables) => {
-      toast.success("User saved");
+      toast.add({ title: "User saved", type: "success" });
       queryClient.setQueryData(userKeys.detail(variables.id), user);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: userKeys.all }),

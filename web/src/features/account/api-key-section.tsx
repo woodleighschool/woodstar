@@ -1,6 +1,5 @@
 import { Copy, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { AsyncButton } from "@components/async-button";
 import { ConfirmDialog } from "@components/confirm-dialog";
@@ -10,6 +9,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@components/ui/input-group";
+import { toast } from "@components/ui/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@components/ui/tooltip";
 import { useRevokeAPIKey, useRotateAPIKey } from "@features/account/queries";
 import type { Account } from "@lib/api";
@@ -26,20 +26,20 @@ export function APIKeySection({ account }: { account: Account }) {
     if (!apiKey) return;
     try {
       await navigator.clipboard.writeText(apiKey);
-      toast.success("Copied");
+      toast.add({ title: "Copied", type: "success" });
     } catch {
-      toast.error("Copy failed");
+      toast.add({ title: "Copy failed", type: "error" });
     }
   }
   async function handleRotate() {
     await rotate.mutateAsync();
     setConfirmRotate(false);
-    toast.success("API key rotated");
+    toast.add({ title: "API key rotated", type: "success" });
   }
   async function handleRevoke() {
     await revoke.mutateAsync();
     setConfirmRevoke(false);
-    toast.success("API key revoked");
+    toast.add({ title: "API key revoked", type: "success" });
   }
   return (
     <section className="flex max-w-3xl flex-col gap-4 border-t pt-6">

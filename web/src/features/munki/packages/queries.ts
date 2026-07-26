@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import { useUpload } from "@hooks/use-upload";
 import type {
   ApiError,
@@ -82,7 +82,7 @@ export function useCreateMunkiPackage() {
   >({
     mutationFn: ({ body, signal }) => unwrap(createMunkiPackage({ body, signal })),
     onSuccess: async () => {
-      toast.success("Package created");
+      toast.add({ title: "Package created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiRoot });
     },
   });
@@ -98,7 +98,7 @@ export function useUpdateMunkiPackage() {
     mutationFn: ({ id, body, signal }) =>
       unwrap(updateMunkiPackage({ path: { id }, body, signal })),
     onSuccess: async () => {
-      toast.success("Package saved");
+      toast.add({ title: "Package saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiRoot });
     },
   });

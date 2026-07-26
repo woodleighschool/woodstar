@@ -1,5 +1,6 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+
+import { toast } from "@components/ui/toast";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,7 +16,10 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.inlineError || mutation.options.onError) return;
-      toast.error(error instanceof Error ? error.message : "Request failed");
+      toast.add({
+        title: error instanceof Error ? error.message : "Request failed",
+        type: "error",
+      });
     },
   }),
 });

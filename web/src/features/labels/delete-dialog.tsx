@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import { useDeleteLabel } from "@features/labels/queries";
 import type { Label } from "@lib/api";
 
@@ -21,7 +20,7 @@ export function LabelDeleteDialog({
     if (!label) return;
     await remove.mutateAsync(label.id);
     onOpenChange(false);
-    toast.success("Label deleted");
+    toast.add({ title: "Label deleted", type: "success" });
     onDeleted?.();
   }
 

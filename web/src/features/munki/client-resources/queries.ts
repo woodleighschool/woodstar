@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import { useUpload } from "@hooks/use-upload";
 import type {
   ApiError,
@@ -57,7 +57,7 @@ export function useSaveMunkiClientResources() {
   return useMutation<MunkiClientResources, ApiError, SaveVariables>({
     mutationFn: saveClientResources,
     onSuccess: async () => {
-      toast.success("Client resources saved");
+      toast.add({ title: "Client resources saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiClientResourceKeys.root });
     },
   });
@@ -112,7 +112,7 @@ export function useDeleteMunkiClientResources() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiClientResources({ path: { id } })),
     onSuccess: async () => {
-      toast.success("Client resources undeployed");
+      toast.add({ title: "Client resources undeployed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiClientResourceKeys.root });
     },
   });

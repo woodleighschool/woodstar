@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { OsqueryCheck } from "@lib/api";
 
 import { useDeleteCheck } from "./queries";
@@ -24,7 +23,7 @@ export function CheckDeleteDialog({
     if (!check) return;
     await remove.mutateAsync(check.id);
     onOpenChange(false);
-    toast.success("Check deleted");
+    toast.add({ title: "Check deleted", type: "success" });
     onDeleted?.();
   }
 

@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import type {
   ApiError,
   OsqueryCheck,
@@ -85,7 +85,7 @@ export function useCreateCheck() {
   return useMutation<OsqueryCheck, ApiError, OsqueryCheckMutation>({
     mutationFn: (body) => unwrap(createOsqueryCheck({ body })),
     onSuccess: async () => {
-      toast.success("Check created");
+      toast.add({ title: "Check created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: checkKeys.all });
     },
   });
@@ -102,7 +102,7 @@ export function useUpdateCheck(id: number | null) {
         }),
       ),
     onSuccess: async () => {
-      toast.success("Check saved");
+      toast.add({ title: "Check saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: checkKeys.all });
     },
   });

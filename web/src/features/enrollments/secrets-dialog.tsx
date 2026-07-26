@@ -1,7 +1,6 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { Copy, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { AsyncButton } from "@components/async-button";
@@ -37,6 +36,7 @@ import {
 } from "@components/ui/input-group";
 import { Skeleton } from "@components/ui/skeleton";
 import { Spinner } from "@components/ui/spinner";
+import { toast } from "@components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { ValidatedFormField } from "@components/validated-form-field";
 import {
@@ -62,9 +62,9 @@ const secretValueSchema = z
 async function copyAgentSecret(secret: AgentSecret) {
   try {
     await navigator.clipboard.writeText(secret.value);
-    toast.success("Enrollment secret copied.");
+    toast.add({ title: "Enrollment secret copied.", type: "success" });
   } catch {
-    toast.error("Could not copy to clipboard.");
+    toast.add({ title: "Could not copy to clipboard.", type: "error" });
   }
 }
 
@@ -156,7 +156,10 @@ export function AgentSecretsDialog({
             const secret = await create.mutateAsync({ agent: integration, value });
             setCreatingValue(null);
             setVisibleSecrets((current) => ({ ...current, [secret.id]: true }));
-            toast.success(`${integrationLabel(integration)} enrollment secret created.`);
+            toast.add({
+              title: `${integrationLabel(integration)} enrollment secret created.`,
+              type: "success",
+            });
           }}
         />
       ) : null}
@@ -180,7 +183,10 @@ export function AgentSecretsDialog({
             const next = await update.mutateAsync({ id: editing.id, body: { value } });
             setEditing(null);
             setVisibleSecrets((current) => ({ ...current, [next.id]: true }));
-            toast.success(`${integrationLabel(editing.agent)} enrollment secret updated.`);
+            toast.add({
+              title: `${integrationLabel(editing.agent)} enrollment secret updated.`,
+              type: "success",
+            });
           }}
         />
       ) : null}
@@ -199,7 +205,10 @@ export function AgentSecretsDialog({
           if (!deleting) return;
           await remove.mutateAsync(deleting.id);
           setDeleting(null);
-          toast.success(`${integrationLabel(deleting.agent)} enrollment secret deleted.`);
+          toast.add({
+            title: `${integrationLabel(deleting.agent)} enrollment secret deleted.`,
+            type: "success",
+          });
         }}
       />
     </>

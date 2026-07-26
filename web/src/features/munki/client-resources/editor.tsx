@@ -11,7 +11,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@components/ui/alert";
 import { Badge } from "@components/ui/badge";
@@ -30,6 +29,7 @@ import {
   SortableItem,
   SortableItemHandle,
 } from "@components/ui/sortable";
+import { toast } from "@components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -143,7 +143,7 @@ export function ClientResourcesEditor({
                         onAssetChange={(file) => {
                           field.handleChange(createClientResourceAsset(file));
                         }}
-                        onAssetReject={(message) => toast.error(message)}
+                        onAssetReject={(message) => toast.add({ title: message, type: "error" })}
                         onFitChange={(fit) => {
                           if (editable) {
                             form.setFieldValue("banner.fit", fit);

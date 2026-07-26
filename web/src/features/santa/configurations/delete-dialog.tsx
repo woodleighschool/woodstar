@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { SantaConfiguration } from "@lib/api";
 
 import { useDeleteSantaConfiguration } from "./queries";
@@ -22,7 +21,7 @@ export function ConfigurationDeleteDialog({
     if (!configuration) return;
     await remove.mutateAsync(configuration.id);
     onOpenChange(false);
-    toast.success("Configuration deleted");
+    toast.add({ title: "Configuration deleted", type: "success" });
     onDeleted?.();
   }
 

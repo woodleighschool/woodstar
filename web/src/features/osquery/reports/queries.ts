@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import type {
   ApiError,
   OsqueryReport,
@@ -84,7 +84,7 @@ export function useCreateReport() {
   return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) => unwrap(createOsqueryReport({ body })),
     onSuccess: async () => {
-      toast.success("Report created");
+      toast.add({ title: "Report created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });
@@ -101,7 +101,7 @@ export function useUpdateReport(id: number | null) {
         }),
       ),
     onSuccess: async () => {
-      toast.success("Report saved");
+      toast.add({ title: "Report saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });

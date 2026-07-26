@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { MunkiDistributionPoint } from "@lib/api";
 
 import { useDeleteMunkiDistributionPoint } from "./queries";
@@ -22,7 +21,7 @@ export function DistributionPointDeleteDialog({
     if (!point) return;
     await remove.mutateAsync(point.id);
     onOpenChange(false);
-    toast.success("Distribution point deleted");
+    toast.add({ title: "Distribution point deleted", type: "success" });
     onDeleted?.();
   }
 

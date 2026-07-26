@@ -2,7 +2,6 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
@@ -12,6 +11,7 @@ import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
+import { toast } from "@components/ui/toast";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@lib/api";
@@ -50,7 +50,7 @@ export function DistributionPointDetailPage() {
   async function rotateKey() {
     const result = await rotate.mutateAsync(point.id);
     setRotatedKey(result.key);
-    toast.success("Key rotated");
+    toast.add({ title: "Key rotated", type: "success" });
   }
   return (
     <PageShell className="gap-6">

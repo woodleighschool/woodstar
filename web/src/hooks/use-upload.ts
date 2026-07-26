@@ -1,7 +1,7 @@
 import { type MutationKey, useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import { type UploadProgress, type UploadRequest, uploadWithProgress } from "@lib/upload";
 
 type UploadText = string | ((file: File) => string);
@@ -48,12 +48,22 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
       setProgress({ loaded: 0, total: file.size, percent: 0 });
 
       const loadingTitle = uploadText(loadingText, file, "Uploading");
-      const toastID = toast.loading(loadingTitle, { description: "Preparing upload" });
+      const toastID = toast.add({
+        title: loadingTitle,
+        description: "Preparing upload",
+        type: "loading",
+        timeout: 0,
+      });
 
       let intent: TIntent | undefined;
       try {
         intent = await createIntent(vars);
-        toast.loading(loadingTitle, { id: toastID, description: "0%" });
+        toast.update(toastID, {
+          title: loadingTitle,
+          description: "0%",
+          type: "loading",
+          timeout: 0,
+        });
         await uploadWithProgress({
           ...uploadRequest(intent, vars),
           file,
@@ -62,28 +72,42 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
             setProgress(next);
             if (lastToastPercent.current === next.percent) return;
             lastToastPercent.current = next.percent;
-            toast.loading(loadingTitle, {
-              id: toastID,
+            toast.update(toastID, {
+              title: loadingTitle,
               description: next.percent > 0 ? `${next.percent}%` : "Uploading",
+              type: "loading",
+              timeout: 0,
             });
           },
         });
         setProgress({ loaded: file.size, total: file.size, percent: 100 });
-        toast.loading(loadingTitle, { id: toastID, description: "Finalizing" });
+        toast.update(toastID, {
+          title: loadingTitle,
+          description: "Finalizing",
+          type: "loading",
+          timeout: 0,
+        });
         const result = await completeUpload(intent, vars, abortController.signal);
-        toast.success(uploadText(successText, file, "Upload complete"), { id: toastID });
+        toast.update(toastID, {
+          title: uploadText(successText, file, "Upload complete"),
+          description: undefined,
+          type: "success",
+          timeout: 5000,
+        });
         return result;
       } catch (error) {
         if (intent !== undefined) {
           await cleanupIntent?.(intent, vars).catch(() => undefined);
         }
         if (errorSurface === "toast") {
-          toast.error(uploadText(errorText, file, "Upload failed"), {
-            id: toastID,
+          toast.update(toastID, {
+            title: uploadText(errorText, file, "Upload failed"),
             description: error instanceof Error ? error.message : "Unknown upload error.",
+            type: "error",
+            timeout: 5000,
           });
         } else {
-          toast.dismiss(toastID);
+          toast.close(toastID);
         }
         throw error;
       } finally {

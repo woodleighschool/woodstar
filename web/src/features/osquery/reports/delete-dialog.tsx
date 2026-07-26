@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { OsqueryReport } from "@lib/api";
 
 import { useDeleteReport } from "./queries";
@@ -24,7 +23,7 @@ export function ReportDeleteDialog({
     if (!report) return;
     await remove.mutateAsync(report.id);
     onOpenChange(false);
-    toast.success("Report deleted");
+    toast.add({ title: "Report deleted", type: "success" });
     onDeleted?.();
   }
 

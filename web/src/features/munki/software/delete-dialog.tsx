@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { MunkiSoftware } from "@lib/api";
 
 import { useDeleteMunkiSoftware } from "./queries";
@@ -22,7 +21,7 @@ export function MunkiSoftwareDeleteDialog({
     if (!software) return;
     await remove.mutateAsync(software.id);
     onOpenChange(false);
-    toast.success("Software deleted");
+    toast.add({ title: "Software deleted", type: "success" });
     onDeleted?.();
   }
 

@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import { hostKeys } from "@features/hosts/queries";
 import type { ApiError, Label, LabelMutation, PageLabel } from "@lib/api";
 import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@lib/api";
@@ -58,7 +58,7 @@ export function useCreateLabel() {
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(createLabel({ body })),
     onSuccess: async () => {
-      toast.success("Label created");
+      toast.add({ title: "Label created", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: labelKeys.all }),
         queryClient.invalidateQueries({ queryKey: hostKeys.all }),
@@ -72,7 +72,7 @@ export function useUpdateLabel(id: number | null) {
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(updateLabel({ path: detailPath(id), body })),
     onSuccess: async () => {
-      toast.success("Label saved");
+      toast.add({ title: "Label saved", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: labelKeys.all }),
         queryClient.invalidateQueries({ queryKey: hostKeys.all }),

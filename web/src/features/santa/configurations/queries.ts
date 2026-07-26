@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import type {
   ApiError,
   PageConfiguration,
@@ -64,7 +64,7 @@ export function useCreateSantaConfiguration() {
   return useMutation<SantaConfiguration, ApiError, SantaConfigurationMutation>({
     mutationFn: (body) => unwrap(createSantaConfiguration({ body })),
     onSuccess: async () => {
-      toast.success("Configuration created");
+      toast.add({ title: "Configuration created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: configurationKeys.all });
     },
   });
@@ -85,7 +85,7 @@ export function useUpdateSantaConfiguration() {
         }),
       ),
     onSuccess: async () => {
-      toast.success("Configuration saved");
+      toast.add({ title: "Configuration saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: configurationKeys.all });
     },
   });

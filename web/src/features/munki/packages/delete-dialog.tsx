@@ -1,6 +1,5 @@
-import { toast } from "sonner";
-
 import { ConfirmDialog } from "@components/confirm-dialog";
+import { toast } from "@components/ui/toast";
 import type { MunkiPackage } from "@lib/api";
 
 import { useDeleteMunkiPackage } from "./queries";
@@ -22,7 +21,7 @@ export function MunkiPackageDeleteDialog({
     if (!pkg) return;
     await remove.mutateAsync(pkg.id);
     onOpenChange(false);
-    toast.success("Package deleted");
+    toast.add({ title: "Package deleted", type: "success" });
     onDeleted?.();
   }
 

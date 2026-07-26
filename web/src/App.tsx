@@ -2,8 +2,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { Toaster } from "sonner";
 
+import { Toaster } from "@components/ui/toast";
 import { TooltipProvider } from "@components/ui/tooltip";
 import { expireSession } from "@features/auth/session-expiry";
 import { setUnauthorizedHandler } from "@lib/api";
@@ -30,7 +30,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delay={150}>
         <RouterProvider router={router} />
-        <Toaster theme="system" richColors closeButton position="bottom-right" />
+        <Toaster />
       </TooltipProvider>
       {import.meta.env.DEV ? (
         <>

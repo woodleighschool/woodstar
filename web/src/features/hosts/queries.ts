@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { toast } from "@components/ui/toast";
 import type {
   ApiError,
   HostDetail,
@@ -168,7 +168,7 @@ export function useSetHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, { id: number; body: HostPrimaryUserMutation }>({
     mutationFn: ({ id, body }) => unwrap(setHostPrimaryUser({ path: { id }, body })),
     onSuccess: async (host) => {
-      toast.success("Primary user set");
+      toast.add({ title: "Primary user set", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },
@@ -180,7 +180,7 @@ export function useClearHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, number>({
     mutationFn: (id) => unwrap(clearHostPrimaryUser({ path: { id } })),
     onSuccess: async (host) => {
-      toast.success("Primary user cleared");
+      toast.add({ title: "Primary user cleared", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },
