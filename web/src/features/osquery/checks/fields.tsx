@@ -25,7 +25,6 @@ import type { OsqueryCheck, OsqueryCheckMutation } from "@lib/api";
 import { firstErrorMessage, requiredString } from "@lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@lib/sql-validation";
 import { emptyLabelTargetSet, labelTargetSetSchema, normalizeLabelTargetSet } from "@lib/targeting";
-import { cn } from "@lib/utils";
 export const emptyCheck: OsqueryCheckMutation = {
   name: "",
   description: "",
@@ -114,125 +113,132 @@ export function CheckForm({
     [setSchemaOpen],
   );
   return (
-    <PageShell
-      className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && `pr-84`)}
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit().then(() => {
-              revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
-              return undefined;
-            });
-          }}
-        />
-      }
-    >
-      <PageHeader title={title} />
+    <div className="flex min-h-full w-full min-w-0">
+      <PageShell
+        className="h-full min-w-0 flex-1"
+        render={
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit().then(() => {
+                revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
+                return undefined;
+              });
+            }}
+          />
+        }
+      >
+        <PageHeader title={title} />
 
-      <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
-        <ScrollableTabsList>
-          <FormTabTrigger form={form} tab={checkFormTabs[0]}>
-            Options
-          </FormTabTrigger>
-          <FormTabTrigger form={form} tab={checkFormTabs[1]}>
-            Targets
-          </FormTabTrigger>
-        </ScrollableTabsList>
+        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+          <ScrollableTabsList>
+            <FormTabTrigger form={form} tab={checkFormTabs[0]}>
+              Options
+            </FormTabTrigger>
+            <FormTabTrigger form={form} tab={checkFormTabs[1]}>
+              Targets
+            </FormTabTrigger>
+          </ScrollableTabsList>
 
-        <TabsContent value="options" keepMounted className="data-inactive:hidden">
-          <div className="flex max-w-3xl flex-col gap-6">
-            <FieldGroup>
-              <form.Field name="name">
-                {(field) => (
-                  <ValidatedFormField field={field} label="Name" htmlFor="check-name" required>
-                    {(control) => (
-                      <Input
-                        {...control}
-                        name={field.name}
-                        required
+          <TabsContent value="options" keepMounted className="data-inactive:hidden">
+            <div className="flex max-w-3xl flex-col gap-6">
+              <FieldGroup>
+                <form.Field name="name">
+                  {(field) => (
+                    <ValidatedFormField field={field} label="Name" htmlFor="check-name" required>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          name={field.name}
+                          required
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                      )}
+                    </ValidatedFormField>
+                  )}
+                </form.Field>
+
+                <form.Field name="description">
+                  {(field) => (
+                    <ValidatedFormField
+                      field={field}
+                      label="Description"
+                      htmlFor="check-description"
+                    >
+                      {(control) => (
+                        <Textarea
+                          {...control}
+                          name={field.name}
+                          rows={3}
+                          value={field.state.value ?? ""}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                      )}
+                    </ValidatedFormField>
+                  )}
+                </form.Field>
+              </FieldGroup>
+
+              <form.Field name="query">
+                {(field) => {
+                  const error = firstErrorMessage(field.state.meta.errors);
+                  return (
+                    <Field data-invalid={error ? true : undefined}>
+                      <FieldLabel>
+                        Query
+                        <span className="text-destructive" aria-hidden="true">
+                          *
+                        </span>
+                      </FieldLabel>
+                      <SQLEditor
+                        ref={editorRef}
                         value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
+                        onChange={field.handleChange}
+                        onTableMetaClick={selectSchemaTable}
+                        placeholder="SELECT ..."
+                        invalid={error ? true : undefined}
                       />
-                    )}
-                  </ValidatedFormField>
-                )}
+                      <FieldDescription>
+                        One or more returned rows is a pass; no rows is a fail.
+                      </FieldDescription>
+                      {error ? <FieldError>{error}</FieldError> : null}
+                    </Field>
+                  );
+                }}
               </form.Field>
+            </div>
+          </TabsContent>
 
-              <form.Field name="description">
-                {(field) => (
-                  <ValidatedFormField field={field} label="Description" htmlFor="check-description">
-                    {(control) => (
-                      <Textarea
-                        {...control}
-                        name={field.name}
-                        rows={3}
-                        value={field.state.value ?? ""}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
+          <TabsContent value="targets" keepMounted className="data-inactive:hidden">
+            <form.Field name="targets">
+              {(field) => (
+                <ValidatedFormField field={field}>
+                  {(control) => (
+                    <div {...control} tabIndex={-1}>
+                      <LabelTargetSetEditor
+                        value={normalizeLabelTargetSet(field.state.value)}
+                        onChange={field.handleChange}
                       />
-                    )}
-                  </ValidatedFormField>
-                )}
-              </form.Field>
-            </FieldGroup>
-
-            <form.Field name="query">
-              {(field) => {
-                const error = firstErrorMessage(field.state.meta.errors);
-                return (
-                  <Field data-invalid={error ? true : undefined}>
-                    <FieldLabel>
-                      Query
-                      <span className="text-destructive" aria-hidden="true">
-                        *
-                      </span>
-                    </FieldLabel>
-                    <SQLEditor
-                      ref={editorRef}
-                      value={field.state.value}
-                      onChange={field.handleChange}
-                      onTableMetaClick={selectSchemaTable}
-                      placeholder="SELECT ..."
-                      invalid={error ? true : undefined}
-                    />
-                    <FieldDescription>
-                      One or more returned rows is a pass; no rows is a fail.
-                    </FieldDescription>
-                    {error ? <FieldError>{error}</FieldError> : null}
-                  </Field>
-                );
-              }}
+                    </div>
+                  )}
+                </ValidatedFormField>
+              )}
             </form.Field>
-          </div>
-        </TabsContent>
+          </TabsContent>
+        </ScrollableTabs>
 
-        <TabsContent value="targets" keepMounted className="data-inactive:hidden">
-          <form.Field name="targets">
-            {(field) => (
-              <ValidatedFormField field={field}>
-                {(control) => (
-                  <div {...control} tabIndex={-1}>
-                    <LabelTargetSetEditor
-                      value={normalizeLabelTargetSet(field.state.value)}
-                      onChange={field.handleChange}
-                    />
-                  </div>
-                )}
-              </ValidatedFormField>
-            )}
-          </form.Field>
-        </TabsContent>
-      </ScrollableTabs>
+        <FormActions
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
 
-      <FormActions
-        form={form}
-        submitLabel={submitLabel}
-        onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-      />
-
+        {exitGuard.dialog}
+      </PageShell>
       <SchemaSidebar
         open={schemaOpen}
         onOpenChange={setSchemaOpen}
@@ -240,7 +246,6 @@ export function CheckForm({
         selectedTable={selectedSchemaTable}
         onSelectedTableChange={setSelectedSchemaTable}
       />
-      {exitGuard.dialog}
-    </PageShell>
+    </div>
   );
 }

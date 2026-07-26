@@ -49,7 +49,7 @@ import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { Label, LabelMutation } from "@lib/api";
 import { requiredString, selectedIDArray } from "@lib/form-validation";
 import { sqlSyntaxError } from "@lib/sql-validation";
-import { cn, isOneOf } from "@lib/utils";
+import { isOneOf } from "@lib/utils";
 interface LabelFormValue {
   name: string;
   description: string;
@@ -189,26 +189,26 @@ export function LabelForm({
   );
   return (
     <>
-      <PageShell
-        className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && `pr-84`)}
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit();
-            }}
-          />
-        }
-      >
-        <PageHeader title={title} />
-        <form.Subscribe selector={(state) => state.values}>
-          {(values) => {
-            const isDynamic = values.label_membership_type === "dynamic";
-            const isManual = values.label_membership_type === "manual";
-            const isDerived = values.label_membership_type === "derived";
-            return (
-              <>
+      <div className="flex min-h-full w-full min-w-0">
+        <PageShell
+          className="h-full min-w-0 flex-1"
+          render={
+            <form
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault();
+                void form.handleSubmit();
+              }}
+            />
+          }
+        >
+          <PageHeader title={title} />
+          <form.Subscribe selector={(state) => state.values}>
+            {(values) => {
+              const isDynamic = values.label_membership_type === "dynamic";
+              const isManual = values.label_membership_type === "manual";
+              const isDerived = values.label_membership_type === "derived";
+              return (
                 <FieldGroup className="max-w-3xl">
                   <form.Field name="name">
                     {(field) => (
@@ -383,28 +383,31 @@ export function LabelForm({
                     </form.Field>
                   ) : null}
                 </FieldGroup>
+              );
+            }}
+          </form.Subscribe>
 
-                {isDynamic ? (
-                  <SchemaSidebar
-                    open={schemaOpen}
-                    onOpenChange={setSchemaOpen}
-                    onInsertColumn={insertAtCursor}
-                    selectedTable={selectedSchemaTable}
-                    onSelectedTableChange={setSelectedSchemaTable}
-                  />
-                ) : null}
-              </>
-            );
-          }}
+          <FormActions
+            className="max-w-3xl"
+            form={form}
+            submitLabel={submitLabel}
+            onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+          />
+        </PageShell>
+        <form.Subscribe selector={(state) => state.values.label_membership_type === "dynamic"}>
+          {(isDynamic) =>
+            isDynamic ? (
+              <SchemaSidebar
+                open={schemaOpen}
+                onOpenChange={setSchemaOpen}
+                onInsertColumn={insertAtCursor}
+                selectedTable={selectedSchemaTable}
+                onSelectedTableChange={setSelectedSchemaTable}
+              />
+            ) : null
+          }
         </form.Subscribe>
-
-        <FormActions
-          className="max-w-3xl"
-          form={form}
-          submitLabel={submitLabel}
-          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
-      </PageShell>
+      </div>
       {exitGuard.dialog}
     </>
   );

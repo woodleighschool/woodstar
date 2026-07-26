@@ -45,7 +45,6 @@ export function SchemaSidebar({
           `
             fixed top-20 z-40 rounded-l-md border border-r-0 bg-card p-2
             shadow-sm
-            md:top-6
           `,
           `
             transition-[right,color,border-color] duration-200 ease-out
@@ -99,35 +98,44 @@ function SchemaPanel({
     <aside
       className={cn(
         `
-          fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l bg-card
-          shadow-lg
-          md:top-0
+          fixed top-16 right-0 bottom-0 z-30 flex w-80 flex-col overflow-hidden
+          border-l bg-card shadow-lg
+          max-lg:group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:sticky
+          lg:top-0 lg:right-auto lg:bottom-auto lg:z-auto
+          lg:h-[calc(100svh-4rem)] lg:shrink-0
+          lg:shadow-none
+          group-has-data-[collapsible=icon]/sidebar-wrapper:lg:h-[calc(100svh-3rem)]
         `,
-        "transition-transform duration-200 ease-out",
-        open ? "translate-x-0" : "translate-x-full",
+        `
+          transition-[transform,width] duration-200 ease-out
+          motion-reduce:transition-none
+        `,
+        open ? "translate-x-0 lg:w-80" : "translate-x-full lg:w-0 lg:translate-x-0 lg:border-l-0",
       )}
     >
-      <div className="flex items-center justify-between gap-2 p-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">Tables</h2>
-          <Badge variant="secondary" className="rounded-full px-2 text-[11px] font-normal">
-            {tables.length}
-          </Badge>
+      <div className="flex h-full w-80 shrink-0 flex-col">
+        <div className="flex items-center justify-between gap-2 p-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Tables</h2>
+            <Badge variant="secondary" className="rounded-full px-2 text-[11px] font-normal">
+              {tables.length}
+            </Badge>
+          </div>
         </div>
-      </div>
 
-      <div className="p-4">
-        <TableSelector tables={tables} value={table?.name ?? null} onChange={selectTable} />
-      </div>
+        <div className="p-4">
+          <TableSelector tables={tables} value={table?.name ?? null} onChange={selectTable} />
+        </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {schema.isLoading ? (
-          <div className="p-4 text-sm text-muted-foreground">Loading Schema...</div>
-        ) : schema.error ? (
-          <div className="p-4 text-sm text-muted-foreground">Schema unavailable</div>
-        ) : table ? (
-          <TableDetail table={table} onInsertColumn={onInsertColumn} />
-        ) : null}
+        <div className="flex-1 overflow-y-auto">
+          {schema.isLoading ? (
+            <div className="p-4 text-sm text-muted-foreground">Loading Schema...</div>
+          ) : schema.error ? (
+            <div className="p-4 text-sm text-muted-foreground">Schema unavailable</div>
+          ) : table ? (
+            <TableDetail table={table} onInsertColumn={onInsertColumn} />
+          ) : null}
+        </div>
       </div>
     </aside>
   );
