@@ -43,18 +43,17 @@ export function HostListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: STATUS_FILTER_KEYS,
-    scopeKeys: ["label_id", "software_title_id", "software_id"],
+    scopeKeys: ["label_id", "software_title_id"],
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const softwareID = search.software_title_id === undefined ? undefined : search.software_id;
 
   const label = useLabel(search.label_id ?? null);
   const softwareTitle = useSoftwareTitle(search.software_title_id ?? null);
-  const softwareLabel = softwareFilterLabel({
-    title: softwareTitle.data,
-    softwareID: search.software_id,
-    softwareTitleID: search.software_title_id,
-  });
+  const softwareLabel = softwareTitle.data
+    ? softwareFilterLabel(softwareTitle.data, softwareID)
+    : undefined;
 
   const query = useHosts(
     {
@@ -65,7 +64,7 @@ export function HostListPage() {
       status: search.status,
       label_id: search.label_id,
       software_title_id: search.software_title_id,
-      software_id: search.software_id,
+      software_id: softwareID,
     },
     { refetchInterval: 30_000 },
   );
@@ -101,7 +100,7 @@ export function HostListPage() {
         status: search.status,
         label_id: search.label_id,
         software_title_id: search.software_title_id,
-        software_id: search.software_id,
+        software_id: softwareID,
       }),
   };
 
@@ -328,19 +327,9 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
   },
 ];
 
-function softwareFilterLabel({
-  title,
-  softwareID,
-  softwareTitleID,
-}: {
-  title: SoftwareTitle | undefined;
-  softwareID: number | undefined;
-  softwareTitleID: number | undefined;
-}) {
-  if (softwareID === undefined && softwareTitleID === undefined) return undefined;
-  const titleName = title?.name;
-  if (softwareID !== undefined && titleName) return `${titleName} version`;
-  if (titleName) return titleName;
-  if (softwareID !== undefined) return `Version #${softwareID}`;
-  return `Title #${softwareTitleID}`;
+function softwareFilterLabel(title: SoftwareTitle, softwareID: number | undefined) {
+  if (softwareID === undefined) return title.name;
+  const version = title.versions.items.find((item) => item.id === softwareID);
+  if (!version) throw new Error(`Software version ${softwareID} is not in ${title.name}`);
+  return `${title.name}: ${version.version}`;
 }
