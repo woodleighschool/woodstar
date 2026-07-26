@@ -2,10 +2,8 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { AccountPage } from "@features/account/page";
 import { useAuth } from "@features/auth/queries";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
@@ -48,32 +46,21 @@ function UserEdit({ user }: { user: User }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
-    <PageShell className="max-w-3xl gap-4">
-      <PageHeader title="Edit User" />
+    <>
       <UserForm
         initial={userFromDetail(user)}
         user={user}
-        onSubmit={async (body) => (await update.mutateAsync({ id: user.id, body })).id}
-        onSuccess={(id) => {
-          if (id === undefined) return;
-          void navigate({
-            to: "/directory/users/$id/edit",
-            params: { id: String(id) },
-          });
-        }}
-      />
-
-      <Card className="gap-4 py-4">
-        <CardHeader className="px-4">
-          <CardTitle>Delete User</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4">
-          <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+        actions={
+          <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 data-icon="inline-start" />
             Delete
           </Button>
-        </CardContent>
-      </Card>
+        }
+        onSubmit={async (body) => {
+          await update.mutateAsync({ id: user.id, body });
+        }}
+        onCancel={() => void navigate({ to: "/directory/users" })}
+      />
 
       <UserDeleteDialog
         open={deleteOpen}
@@ -81,6 +68,6 @@ function UserEdit({ user }: { user: User }) {
         user={user}
         onDeleted={() => void navigate({ to: "/directory/users" })}
       />
-    </PageShell>
+    </>
   );
 }

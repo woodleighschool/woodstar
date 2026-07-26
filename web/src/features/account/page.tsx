@@ -2,28 +2,20 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { AsyncButton } from "@components/async-button";
 import { EnumBadge } from "@components/enum-badge";
+import { FormActions } from "@components/form-actions";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { QueryError } from "@components/query-error";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@components/ui/card";
-import { FieldGroup } from "@components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import { ValidatedFormField } from "@components/validated-form-field";
-import { APIKeyCard } from "@features/account/api-key-card";
+import { APIKeySection } from "@features/account/api-key-section";
 import { useAccount, useUpdateAccount } from "@features/account/queries";
-import { directorySourceLabel } from "@features/directory/source";
+import { DIRECTORY_SOURCES } from "@features/directory/source";
 import { USER_ACCESS_ROLES, userAccessRole } from "@features/directory/users/metadata";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { Account } from "@lib/api";
-import { formatRelative } from "@lib/utils";
+
 export function AccountPage() {
   const account = useAccount();
   if (account.error) {
@@ -40,15 +32,10 @@ export function AccountPage() {
   if (!account.data) {
     return null;
   }
-  return (
-    <PageShell className="max-w-3xl gap-4">
-      <PageHeader title="Account" />
-      <AccountProfileCard key={account.data.user.updated_at} account={account.data} />
-      <APIKeyCard />
-    </PageShell>
-  );
+  return <AccountForm key={account.data.user.updated_at} account={account.data} />;
 }
-function AccountProfileCard({ account }: { account: Account }) {
+
+function AccountForm({ account }: { account: Account }) {
   const user = account.user;
   const update = useUpdateAccount();
   const isLocal = user.source === "local";
@@ -83,95 +70,83 @@ function AccountProfileCard({ account }: { account: Account }) {
   });
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription className="flex flex-wrap items-center gap-2">
-            <span>{user.email}</span>
-            <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />
-          </CardDescription>
-        </CardHeader>
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
-          <CardContent>
-            <FieldGroup className="gap-4">
-              <form.Field name="name">
-                {(field) => (
-                  <ValidatedFormField
-                    field={field}
-                    label="Display Name"
-                    htmlFor="account-name"
-                    description={
-                      !isLocal ? `Managed by ${directorySourceLabel(user.source)}.` : undefined
-                    }
-                  >
-                    {(control) => (
-                      <Input
-                        {...control}
-                        type="text"
-                        autoComplete="name"
-                        disabled={!isLocal}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                      />
-                    )}
-                  </ValidatedFormField>
-                )}
-              </form.Field>
+      <PageShell
+        render={
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
+          />
+        }
+      >
+        <PageHeader
+          title="Account"
+          context={
+            <>
+              <EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />
+              <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />
+            </>
+          }
+        />
 
-              <form.Field name="password">
-                {(field) => (
-                  <ValidatedFormField
-                    field={field}
-                    label="Password"
-                    htmlFor="account-password"
-                    description={
-                      isLocal
-                        ? "Set a new password."
-                        : `${directorySourceLabel(user.source)} accounts do not use local passwords.`
-                    }
-                  >
-                    {(control) => (
-                      <Input
-                        {...control}
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={12}
-                        disabled={!isLocal}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                      />
-                    )}
-                  </ValidatedFormField>
+        <FieldGroup className="max-w-3xl">
+          <Field>
+            <FieldLabel htmlFor="account-email">Email</FieldLabel>
+            <Input id="account-email" type="email" value={user.email} disabled />
+          </Field>
+
+          <form.Field name="name">
+            {(field) => (
+              <ValidatedFormField field={field} label="Display Name" htmlFor="account-name">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    autoComplete="name"
+                    disabled={!isLocal}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
                 )}
-              </form.Field>
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className="flex justify-between gap-3 pt-6">
-            <p
-              className="text-xs text-muted-foreground"
-              title={new Date(user.updated_at).toLocaleString()}
-            >
-              Updated {formatRelative(user.updated_at)}
-            </p>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <AsyncButton isPending={isSubmitting} type="submit" size="sm">
-                  Save
-                </AsyncButton>
+              </ValidatedFormField>
+            )}
+          </form.Field>
+
+          {isLocal ? (
+            <form.Field name="password">
+              {(field) => (
+                <ValidatedFormField
+                  field={field}
+                  label="Password"
+                  htmlFor="account-password"
+                  description="Leave blank to keep the current password."
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={12}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  )}
+                </ValidatedFormField>
               )}
-            </form.Subscribe>
-          </CardFooter>
-        </form>
-      </Card>
-      {exitGuard.dialog}
+            </form.Field>
+          ) : null}
+        </FieldGroup>
+
+        <FormActions form={form} submitLabel="Save" onCancel={exitGuard.requestDiscard} />
+
+        <APIKeySection account={account} />
+
+        {exitGuard.dialog}
+      </PageShell>
     </>
   );
 }
