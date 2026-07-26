@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { AppWindow, Package as PackageIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Link } from "@components/link";
@@ -17,7 +17,6 @@ import {
   ComboboxGroup,
   ComboboxInput,
   ComboboxItem,
-  ComboboxLabel,
   ComboboxList,
 } from "@components/ui/combobox";
 import {
@@ -121,9 +120,17 @@ function SoftwareCombobox({
   return (
     <Combobox
       items={rows.map((item) => String(item.id))}
+      itemToStringLabel={(value) =>
+        rows.find((candidate) => String(candidate.id) === value)?.name ?? value
+      }
+      itemToStringValue={(value) => value}
       value={selected ? String(selected.id) : null}
       inputValue={inputValue}
-      onInputValueChange={setInputValue}
+      onInputValueChange={(next, eventDetails) => {
+        if (eventDetails.reason !== "item-press") {
+          setInputValue(next);
+        }
+      }}
       onValueChange={(next) => {
         const item = rows.find((candidate) => String(candidate.id) === next);
         onChange(item?.id ?? null);
@@ -220,9 +227,15 @@ function PackageReferenceCombobox({
         packageReferenceSoftwareValue(group.softwareID),
         ...group.packages.map((pkg) => packageReferencePackageValue(pkg.id)),
       ])}
+      itemToStringLabel={(value) => packageReferenceSelection(value, packageGroups)?.label ?? value}
+      itemToStringValue={(value) => value}
       value={selectedValue || null}
       inputValue={inputValue}
-      onInputValueChange={setInputValue}
+      onInputValueChange={(next, eventDetails) => {
+        if (eventDetails.reason !== "item-press") {
+          setInputValue(next);
+        }
+      }}
       onValueChange={(value) => {
         const selection = packageReferenceSelection(value, packageGroups);
         if (!selection) return;
@@ -230,7 +243,7 @@ function PackageReferenceCombobox({
         setInputValue(selection.label);
       }}
     >
-      <ComboboxInput className="w-full" placeholder="Select Package">
+      <ComboboxInput className="w-full" placeholder="Select software or a version">
         <Button
           type="button"
           variant="ghost"
@@ -250,13 +263,24 @@ function PackageReferenceCombobox({
         <ComboboxList>
           {packageGroups.map((group) => (
             <ComboboxGroup key={group.softwareID}>
-              <ComboboxLabel>{group.softwareTitle}</ComboboxLabel>
-              <ComboboxItem value={packageReferenceSoftwareValue(group.softwareID)}>
-                All versions
+              <ComboboxItem
+                className="py-2"
+                value={packageReferenceSoftwareValue(group.softwareID)}
+              >
+                <SoftwareArtwork src={group.softwareIconURL} fallbackIcon={AppWindow} />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{group.softwareTitle}</span>
+                  <span className="text-xs text-muted-foreground">All versions</span>
+                </span>
               </ComboboxItem>
               {group.packages.map((option) => (
-                <ComboboxItem key={option.id} value={packageReferencePackageValue(option.id)}>
-                  {packageLabel(option)}
+                <ComboboxItem
+                  key={option.id}
+                  className="py-2 pl-8"
+                  value={packageReferencePackageValue(option.id)}
+                >
+                  <PackageIcon />
+                  <span className="min-w-0 flex-1 truncate">Version {option.version}</span>
                 </ComboboxItem>
               ))}
             </ComboboxGroup>
@@ -327,12 +351,18 @@ function packageReferenceSelection(
 function packageReferenceGroups(packages: MunkiPackage[]) {
   const groups = new Map<
     number,
-    { softwareID: number; softwareTitle: string; packages: MunkiPackage[] }
+    {
+      softwareID: number;
+      softwareTitle: string;
+      softwareIconURL?: string;
+      packages: MunkiPackage[];
+    }
   >();
   for (const pkg of packages) {
     const group = groups.get(pkg.software.id) ?? {
       softwareID: pkg.software.id,
       softwareTitle: pkg.software.name,
+      softwareIconURL: pkg.software.icon_url,
       packages: [],
     };
     group.packages.push(pkg);
@@ -342,5 +372,5 @@ function packageReferenceGroups(packages: MunkiPackage[]) {
 }
 
 function packageLabel(pkg: MunkiPackage) {
-  return `${pkg.software.name} ${pkg.version}`;
+  return `${pkg.software.name} — ${pkg.version}`;
 }

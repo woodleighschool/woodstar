@@ -131,7 +131,7 @@ export function MunkiPackageDetailPage() {
 function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
   if (values.length === 0) return "-";
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col items-start gap-1">
       {values.map((reference) => (
         <Link
           key={`${reference.software_id}:${reference.package_id ?? "latest"}`}
