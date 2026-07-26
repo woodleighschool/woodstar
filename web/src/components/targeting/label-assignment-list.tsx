@@ -3,6 +3,7 @@ import { MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
+import { TableSurface } from "@components/data-table/table-surface";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { FormActions } from "@components/form-actions";
 import { focusFirstInvalidField } from "@components/form-tabs";
@@ -78,7 +79,7 @@ export function LabelAssignmentList({
       }
     >
       {rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -103,7 +104,7 @@ export function LabelAssignmentList({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       ) : (
         <PanelEmptyState>{emptyText}</PanelEmptyState>
       )}

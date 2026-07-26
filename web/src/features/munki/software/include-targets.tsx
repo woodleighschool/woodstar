@@ -7,6 +7,7 @@ import {
   DraggableTableRowHandle,
   DraggableTableRows,
 } from "@components/data-table/draggable-table-rows";
+import { TableSurface } from "@components/data-table/table-surface";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { FormActions } from "@components/form-actions";
 import { focusFirstInvalidField } from "@components/form-tabs";
@@ -130,7 +131,7 @@ export function MunkiIncludeTargets({
           }
           getRowId={(row) => row.id}
         >
-          <div className="overflow-x-auto rounded-md border">
+          <TableSurface>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -176,7 +177,7 @@ export function MunkiIncludeTargets({
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </TableSurface>
         </DraggableTableRows>
       ) : (
         <PanelEmptyState>No includes yet</PanelEmptyState>

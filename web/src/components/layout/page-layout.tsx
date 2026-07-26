@@ -34,31 +34,41 @@ function PageHeader({
   description,
   actions,
   context,
-  leading,
+  icon,
+  meta,
   className,
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
   context?: ReactNode;
-  leading?: ReactNode;
+  icon?: ReactNode;
+  meta?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
-      <div className="flex min-w-0 items-start gap-4">
-        {leading ? <div className="shrink-0">{leading}</div> : null}
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
-            {context ? (
-              <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold tracking-tight sm:text-2xl">
+            {icon ? (
+              <span
+                aria-hidden="true"
+                className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground *:max-h-full *:max-w-full [&>svg]:size-5"
+              >
+                {icon}
+              </span>
             ) : null}
-          </div>
-          {description ? (
-            <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
+            <span className="min-w-0 wrap-break-word">{title}</span>
+          </h1>
+          {context ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div>
           ) : null}
         </div>
+        {description ? (
+          <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
+        ) : null}
+        {meta ? <div className="text-sm text-muted-foreground">{meta}</div> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>

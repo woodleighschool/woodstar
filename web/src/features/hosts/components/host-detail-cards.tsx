@@ -6,10 +6,9 @@ import { z } from "zod";
 
 import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,14 +20,7 @@ import {
 import { FieldGroup } from "@components/ui/field";
 import { formatBytes } from "@components/ui/file-upload";
 import { Input } from "@components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@components/ui/table";
+import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { useAuth } from "@features/auth/queries";
 import { manualPrimaryUserSource } from "@features/hosts/primary-user";
@@ -48,58 +40,52 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   const orbitVersion = host.agents.orbit.version;
   const battery = host.batteries?.[0];
   return (
-    <Card>
-      <CardContent>
-        <KeyValueGrid>
-          {orbitVersion ? <KeyValueItem label="Orbit Version" value={orbitVersion} /> : null}
-          {osqueryVersion ? <KeyValueItem label="osquery Version" value={osqueryVersion} /> : null}
-          {battery?.health ? (
-            <KeyValueItem label="Battery Condition" value={battery.health} />
-          ) : null}
-          {host.storage.boot_volume.available_bytes != null ? (
-            <KeyValueItem
-              label="Disk Space Available"
-              value={`${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`}
-            />
-          ) : null}
-          <KeyValueItem
-            label="Enrolled"
-            value={
-              host.enrollment.enrolled_at ? (
-                <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
-                  {formatRelative(host.enrollment.enrolled_at)}
-                </span>
-              ) : null
-            }
-          />
-          <KeyValueItem label="Hardware Model" value={host.hardware.model_identifier} />
-          {host.timestamps.last_restarted_at ? (
-            <KeyValueItem
-              label="Last Restarted"
-              value={
-                <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
-                  {formatRelative(host.timestamps.last_restarted_at)}
-                </span>
-              }
-            />
-          ) : null}
-          <KeyValueItem label="MAC Address" value={host.network.primary_mac} />
-          {host.hardware.memory_bytes > 0 ? (
-            <KeyValueItem label="Memory" value={formatBytes(host.hardware.memory_bytes)} />
-          ) : null}
-          <KeyValueItem label="Operating System" value={osDisplayName(host)} />
-          <KeyValueItem label="Private IP Address" value={host.network.primary_ip} />
-          {host.hardware.cpu.brand ? (
-            <KeyValueItem label="Processor" value={host.hardware.cpu.brand} />
-          ) : null}
-          {host.hardware.cpu.architecture ? (
-            <KeyValueItem label="Architecture" value={host.hardware.cpu.architecture} />
-          ) : null}
-          <KeyValueItem label="Public IP Address" value={host.network.last_remote_ip} />
-          <KeyValueItem label="Serial Number" value={host.hardware.serial} />
-        </KeyValueGrid>
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Overview">
+      {orbitVersion ? <KeyValueRow label="Orbit Version" value={orbitVersion} /> : null}
+      {osqueryVersion ? <KeyValueRow label="osquery Version" value={osqueryVersion} /> : null}
+      {battery?.health ? <KeyValueRow label="Battery Condition" value={battery.health} /> : null}
+      {host.storage.boot_volume.available_bytes != null ? (
+        <KeyValueRow
+          label="Disk Space Available"
+          value={`${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`}
+        />
+      ) : null}
+      <KeyValueRow
+        label="Enrolled"
+        value={
+          host.enrollment.enrolled_at ? (
+            <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
+              {formatRelative(host.enrollment.enrolled_at)}
+            </span>
+          ) : null
+        }
+      />
+      <KeyValueRow label="Hardware Model" value={host.hardware.model_identifier} />
+      {host.timestamps.last_restarted_at ? (
+        <KeyValueRow
+          label="Last Restarted"
+          value={
+            <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
+              {formatRelative(host.timestamps.last_restarted_at)}
+            </span>
+          }
+        />
+      ) : null}
+      <KeyValueRow label="MAC Address" value={host.network.primary_mac} />
+      {host.hardware.memory_bytes > 0 ? (
+        <KeyValueRow label="Memory" value={formatBytes(host.hardware.memory_bytes)} />
+      ) : null}
+      <KeyValueRow label="Operating System" value={osDisplayName(host)} />
+      <KeyValueRow label="Private IP Address" value={host.network.primary_ip} />
+      {host.hardware.cpu.brand ? (
+        <KeyValueRow label="Processor" value={host.hardware.cpu.brand} />
+      ) : null}
+      {host.hardware.cpu.architecture ? (
+        <KeyValueRow label="Architecture" value={host.hardware.cpu.architecture} />
+      ) : null}
+      <KeyValueRow label="Public IP Address" value={host.network.last_remote_ip} />
+      <KeyValueRow label="Serial Number" value={host.hardware.serial} />
+    </KeyValueSection>
   );
 }
 export function HostIdentityCard({ host }: { host: HostDetail }) {
@@ -109,90 +95,80 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
   const canEdit = user?.role === "admin";
   const hasManualSource = manualPrimaryUserSource(host.primary_user_sources) !== null;
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>Primary User</CardTitle>
-        {canEdit ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-            {hasManualSource ? <Pencil /> : <UserPlus />}
-            {hasManualSource ? "Edit user" : "Set user"}
-          </Button>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <KeyValueGrid>
-          <KeyValueItem label="Name" value={primaryUser?.name} />
-          <KeyValueItem label="Username" value={primaryUser?.username} />
-          <KeyValueItem label="Email" value={primaryUser?.email} />
-          <KeyValueItem label="Department" value={primaryUser?.department} />
-          <KeyValueItem
-            label="Source"
-            value={primaryUser ? primaryUserSourceLabel(primaryUser.source) : undefined}
-          />
-          <KeyValueItem
-            label="Groups"
-            value={
-              primaryUser?.groups && primaryUser.groups.length > 0 ? (
-                <UserGroups groups={primaryUser.groups} />
-              ) : undefined
-            }
-            className="sm:col-span-2"
-          />
-        </KeyValueGrid>
-      </CardContent>
+    <>
+      <KeyValueSection
+        title="Primary User"
+        actions={
+          canEdit ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+              {hasManualSource ? <Pencil /> : <UserPlus />}
+              {hasManualSource ? "Edit user" : "Set user"}
+            </Button>
+          ) : null
+        }
+      >
+        <KeyValueRow label="Name" value={primaryUser?.name} />
+        <KeyValueRow label="Username" value={primaryUser?.username} />
+        <KeyValueRow label="Email" value={primaryUser?.email} />
+        <KeyValueRow label="Department" value={primaryUser?.department} />
+        <KeyValueRow
+          label="Source"
+          value={primaryUser ? primaryUserSourceLabel(primaryUser.source) : undefined}
+        />
+        <KeyValueRow
+          label="Groups"
+          value={
+            primaryUser?.groups && primaryUser.groups.length > 0 ? (
+              <UserGroups groups={primaryUser.groups} />
+            ) : undefined
+          }
+        />
+      </KeyValueSection>
       {dialogOpen ? <HostPrimaryUserDialog host={host} onOpenChange={setDialogOpen} /> : null}
-    </Card>
+    </>
   );
 }
 export function HostLabelsCard({ host }: { host: HostDetail }) {
   const labels = (host.labels ?? []).filter((l) => l.label_type === "regular");
   if (labels.length === 0) return null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Labels</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="flex min-w-0 flex-col gap-3">
+      <h2 className="text-base/snug font-medium text-foreground">Labels</h2>
+      <Separator />
+      <div className="px-4 py-1">
         <LabelChips labels={labels} />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 export function HostUsersCard({ host }: { host: HostDetail }) {
   const users = (host.users ?? []).filter((u) => u.username);
   if (users.length === 0) return null;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Local User Accounts</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Directory</TableHead>
-                <TableHead>Shell</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.uid || u.username}>
-                  <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell>{u.type || "-"}</TableCell>
-                  <TableCell>{u.directory || "-"}</TableCell>
-                  <TableCell>{u.shell || "-"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <DataTableStatic heading="Local User Accounts" columns={userColumns} data={users} />;
 }
+
+const userColumns: ColumnDef<NonNullable<HostDetail["users"]>[number]>[] = [
+  {
+    accessorKey: "username",
+    header: () => "Username",
+    cell: ({ row }) => <span className="font-medium">{row.original.username}</span>,
+  },
+  {
+    accessorKey: "type",
+    header: () => "Type",
+    cell: ({ row }) => row.original.type || "-",
+  },
+  {
+    accessorKey: "directory",
+    header: () => "Directory",
+    cell: ({ row }) => row.original.directory || "-",
+  },
+  {
+    accessorKey: "shell",
+    header: () => "Shell",
+    cell: ({ row }) => row.original.shell || "-",
+  },
+];
 function UserGroups({ groups }: { groups: readonly string[] }) {
   const uniqueGroups = [...new Set(groups)];
   if (uniqueGroups.length === 0) return <span>-</span>;
@@ -343,18 +319,13 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
   );
   if (certificates.length === 0) return null;
   return (
-    <Card className="gap-4 py-4">
-      <CardHeader>
-        <CardTitle>Certificates</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DataTableStatic columns={columns} data={certificates} />
-        <CertificateDetailsDialog
-          certificate={selectedCertificate}
-          onOpenChange={setSelectedCertificate}
-        />
-      </CardContent>
-    </Card>
+    <>
+      <DataTableStatic heading="Certificates" columns={columns} data={certificates} />
+      <CertificateDetailsDialog
+        certificate={selectedCertificate}
+        onOpenChange={setSelectedCertificate}
+      />
+    </>
   );
 }
 function certificateColumns(
@@ -476,14 +447,11 @@ function CertificateDetailSection({
   return (
     <section className="grid gap-2">
       <h3 className="text-sm font-medium">{title}</h3>
-      <dl className="grid grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+      <KeyValueRows>
         {visibleRows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 wrap-break-word">{value}</dd>
-          </div>
+          <KeyValueRow key={label} label={label} value={value} />
         ))}
-      </dl>
+      </KeyValueRows>
     </section>
   );
 }

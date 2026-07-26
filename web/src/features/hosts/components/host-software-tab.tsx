@@ -12,6 +12,7 @@ import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { encodeSort } from "@components/data-table/use-data-table-search";
+import { KeyValueRow, KeyValueRows } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { PathText } from "@components/path-text";
@@ -230,12 +231,10 @@ function InstalledPathCell({
             <div className="font-medium">
               Current version{versionLabel.endsWith("versions") ? "s" : ""}:
             </div>
-            <dl className="mt-2 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1">
-              <dt className="text-muted-foreground">Version</dt>
-              <dd>{versionLabel}</dd>
-              <dt className="text-muted-foreground">Type</dt>
-              <dd>{typeLabel}</dd>
-            </dl>
+            <KeyValueRows className="mt-2">
+              <KeyValueRow label="Version" value={versionLabel} />
+              <KeyValueRow label="Type" value={typeLabel} />
+            </KeyValueRows>
           </div>
           <div className="flex max-h-[60vh] flex-col gap-3 overflow-auto pr-1">
             {paths.map((item) => (

@@ -1,10 +1,12 @@
-import { useParams } from "@tanstack/react-router";
+import { useParams, useSearch } from "@tanstack/react-router";
 
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { TableSurface } from "@components/data-table/table-surface";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
+import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
-import { Card, CardContent } from "@components/ui/card";
 import {
   Table,
   TableBody,
@@ -13,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { formatDateTime } from "@lib/utils";
 
 import { FileAccessDecisionBadge, HostLink, Timestamp } from "./event-ui";
@@ -21,6 +23,9 @@ import { useSantaFileAccessEvent } from "./queries";
 
 export function SantaFileAccessEventDetailPage() {
   const { id: eventId } = useParams({
+    from: "/_authenticated/santa/events/file-access/$id",
+  });
+  const search = useSearch({
     from: "/_authenticated/santa/events/file-access/$id",
   });
   const id = Number(eventId);
@@ -38,51 +43,66 @@ export function SantaFileAccessEventDetailPage() {
 
   const event = query.data;
   const processChain = event.process_chain ?? [];
+  const activeView = search.view === "process-chain" ? "process-chain" : "overview";
 
   return (
     <PageShell className="gap-6">
       <PageHeader title="File Access" description={event.target} />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem
+      <ScrollableTabs value={activeView}>
+        <StickyTabsList>
+          <TabsTrigger
+            value="overview"
+            render={
+              <Link
+                to="/santa/events/file-access/$id"
+                params={{ id: eventId }}
+                search={(previous) => ({ ...previous, view: undefined })}
+              />
+            }
+            nativeButton={false}
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="process-chain"
+            render={
+              <Link
+                to="/santa/events/file-access/$id"
+                params={{ id: eventId }}
+                search={(previous) => ({ ...previous, view: "process-chain" })}
+              />
+            }
+            nativeButton={false}
+          >
+            Process Chain
+          </TabsTrigger>
+        </StickyTabsList>
+
+        <TabsContent value="overview" className="flex flex-col gap-5">
+          <KeyValueSection title="Overview">
+            <KeyValueRow
               label="Decision"
               value={<FileAccessDecisionBadge decision={event.decision} />}
             />
-            <KeyValueItem label="Host" value={<HostLink host={event.host} />} />
-            <KeyValueItem label="Rule Name" value={event.rule_name} />
-            <KeyValueItem label="Rule Version" value={event.rule_version} />
-            <KeyValueItem label="Occurred" value={<Timestamp value={event.occurred_at} />} />
-            <KeyValueItem label="Ingested" value={formatDateTime(event.ingested_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+            <KeyValueRow label="Host" value={<HostLink host={event.host} />} />
+            <KeyValueRow label="Rule Name" value={event.rule_name} />
+            <KeyValueRow label="Rule Version" value={event.rule_version} />
+            <KeyValueRow label="Occurred" value={<Timestamp value={event.occurred_at} />} />
+            <KeyValueRow label="Ingested" value={formatDateTime(event.ingested_at)} />
+          </KeyValueSection>
 
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="process">Process Chain</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="rounded-md border">
-            <Table>
-              <TableBody>
-                <DetailRow label="Target" value={event.target} />
-                <DetailRow label="Rule Name" value={event.rule_name} />
-                <DetailRow label="Rule Version" value={event.rule_version} />
-                <DetailRow label="Primary Process" value={event.primary_process.file_name} />
-              </TableBody>
-            </Table>
-          </div>
+          <KeyValueSection title="Process">
+            <KeyValueRow label="Target" value={event.target} />
+            <KeyValueRow label="Primary Process" value={event.primary_process.file_name} />
+          </KeyValueSection>
         </TabsContent>
 
-        <TabsContent value="process">
+        <TabsContent value="process-chain">
           {processChain.length === 0 ? (
             <PanelEmptyState>No process chain</PanelEmptyState>
           ) : (
-            <div className="rounded-md border">
+            <TableSurface>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -107,19 +127,10 @@ export function SantaFileAccessEventDetailPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </TableSurface>
           )}
         </TabsContent>
-      </Tabs>
+      </ScrollableTabs>
     </PageShell>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value?: string }) {
-  return (
-    <TableRow>
-      <TableCell className="w-48">{label}</TableCell>
-      <TableCell>{value ?? "-"}</TableCell>
-    </TableRow>
   );
 }

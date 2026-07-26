@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/ui/select";
-import { Separator } from "@components/ui/separator";
 import { TabsContent } from "@components/ui/tabs";
 import { Textarea } from "@components/ui/textarea";
 import { ValidatedFormField } from "@components/validated-form-field";
@@ -262,7 +261,6 @@ export function RuleForm({
                               })
                             }
                           />
-                          <Separator />
                           <LabelAssignmentList
                             title="Exclude"
                             addLabel="Add Exclude"

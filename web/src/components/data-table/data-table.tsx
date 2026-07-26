@@ -3,6 +3,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type * as React from "react";
 
 import { DataTablePagination } from "@components/data-table/data-table-pagination";
+import { TableSurface } from "@components/data-table/table-surface";
 import {
   Table,
   TableBody,
@@ -17,28 +18,28 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>;
   actionBar?: React.ReactNode;
   empty?: React.ReactNode;
+  heading?: React.ReactNode;
 }
 
 export function DataTable<TData>({
   table,
   actionBar,
   empty,
+  heading,
   children,
   className,
   ...props
 }: DataTableProps<TData>) {
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm",
-        className,
-      )}
-      {...props}
-    >
-      {children ? <div className="border-b p-2">{children}</div> : null}
-      <div className="max-h-[calc(100svh-23rem)] overflow-auto *:data-[slot=table-container]:overflow-visible">
+    <div className={cn("min-w-0", className)} {...props}>
+      <TableSurface
+        heading={heading}
+        toolbar={children}
+        viewportClassName="max-h-[calc(100svh-23rem)]"
+        footer={<DataTablePagination table={table} className="border-t px-3 py-2" />}
+      >
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
+          <TableHeader className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -124,8 +125,7 @@ export function DataTable<TData>({
             )}
           </TableBody>
         </Table>
-      </div>
-      <DataTablePagination table={table} className="border-t px-3 py-2" />
+      </TableSurface>
       {actionBar}
     </div>
   );

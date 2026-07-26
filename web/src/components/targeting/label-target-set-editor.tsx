@@ -1,5 +1,4 @@
 import { LabelAssignmentList } from "@components/targeting/label-assignment-list";
-import { Separator } from "@components/ui/separator";
 import { type LabelTargetSet, normalizeLabelTargetSet } from "@lib/targeting";
 
 export function LabelTargetSetEditor({
@@ -26,7 +25,6 @@ export function LabelTargetSetEditor({
         includeBuiltins={includeBuiltins}
         onChange={(include) => onChange({ ...targetSet, include })}
       />
-      <Separator />
       <LabelAssignmentList
         title="Exclude"
         addLabel="Add Exclude"

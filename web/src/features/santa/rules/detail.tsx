@@ -2,8 +2,8 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { EnumBadge } from "@components/enum-badge";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { TableSurface } from "@components/data-table/table-surface";
+import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -26,7 +26,7 @@ import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
 import { RuleDeleteDialog } from "./delete-dialog";
-import { POLICIES, RULE_TYPES } from "./metadata";
+import { POLICIES, ruleTypeLabel } from "./metadata";
 import { useSantaRule } from "./queries";
 
 export function RuleDetailPage() {
@@ -61,7 +61,7 @@ export function RuleDetailPage() {
       <PageHeader
         title="Rule Details"
         description={rule.description || undefined}
-        context={<EnumBadge value={rule.rule_type} metadata={RULE_TYPES} />}
+        meta={`Edited ${formatRelative(rule.updated_at)}`}
         actions={
           isAdmin ? (
             <>
@@ -87,26 +87,13 @@ export function RuleDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={rule.name} />
-            <KeyValueItem
-              label="Identifier"
-              value={<PathText value={rule.identifier} />}
-              className="sm:col-span-2"
-            />
-            <KeyValueItem label="Custom URL" value={rule.custom_url} className="sm:col-span-2" />
-            <KeyValueItem
-              label="Custom Message"
-              value={rule.custom_message}
-              className="sm:col-span-2"
-            />
-            <KeyValueItem label="Created" value={formatRelative(rule.created_at)} />
-            <KeyValueItem label="Updated" value={formatRelative(rule.updated_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={rule.name} />
+        <KeyValueRow label="Rule Type" value={ruleTypeLabel(rule.rule_type)} />
+        <KeyValueRow label="Identifier" value={<PathText value={rule.identifier} />} />
+        <KeyValueRow label="Custom URL" value={rule.custom_url} />
+        <KeyValueRow label="Custom Message" value={rule.custom_message} />
+      </KeyValueSection>
 
       <RuleTargetsCard rule={rule} />
 
@@ -128,11 +115,11 @@ function RuleTargetsCard({ rule }: { rule: SantaRule }) {
       <CardHeader>
         <CardTitle>Targets</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-5 px-0">
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-muted-foreground">Include</h3>
+          <h3 className="px-4 text-xs font-semibold text-muted-foreground">Include</h3>
           {rule.targets.include.length ? (
-            <div className="overflow-x-auto rounded-md border">
+            <TableSurface variant="embedded">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -153,12 +140,10 @@ function RuleTargetsCard({ rule }: { rule: SantaRule }) {
                           {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
                         </Link>
                       </TableCell>
-                      <TableCell>
-                        <EnumBadge value={target.policy} metadata={POLICIES} />
-                      </TableCell>
+                      <TableCell>{POLICIES[target.policy].name}</TableCell>
                       <TableCell>
                         {target.cel_expression ? (
-                          <code className="font-mono text-xs">{target.cel_expression}</code>
+                          <span className="wrap-break-word">{target.cel_expression}</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
@@ -167,20 +152,20 @@ function RuleTargetsCard({ rule }: { rule: SantaRule }) {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </TableSurface>
           ) : (
             <PanelEmptyState>No included labels.</PanelEmptyState>
           )}
         </div>
 
-        <KeyValueGrid>
-          <KeyValueItem
+        <KeyValueRows className="px-4">
+          <KeyValueRow
             label="Exclude"
             value={
               <LabelRefList labelIDs={rule.targets.exclude.map((target) => target.label_id)} />
             }
           />
-        </KeyValueGrid>
+        </KeyValueRows>
       </CardContent>
     </Card>
   );

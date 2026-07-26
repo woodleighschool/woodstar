@@ -6,14 +6,13 @@ import { useState } from "react";
 import { DataTableClient } from "@components/data-table/data-table-client";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent } from "@components/ui/card";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
 import { CHECK_RESULT_STATUSES, checkResultStatus } from "@features/osquery/checks/model";
@@ -113,6 +112,7 @@ export function CheckDetailPage() {
       <PageHeader
         title="Check Details"
         description={check.data.description || undefined}
+        meta={`Edited ${formatRelative(check.data.updated_at)}`}
         actions={
           <>
             {isAdmin ? (
@@ -142,16 +142,11 @@ export function CheckDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={check.data.name} />
-            <KeyValueItem label="Passing" value={formatHostCount(check.data.passing_host_count)} />
-            <KeyValueItem label="Failing" value={formatHostCount(check.data.failing_host_count)} />
-            <KeyValueItem label="Updated" value={formatRelative(check.data.updated_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={check.data.name} />
+        <KeyValueRow label="Passing" value={formatHostCount(check.data.passing_host_count)} />
+        <KeyValueRow label="Failing" value={formatHostCount(check.data.failing_host_count)} />
+      </KeyValueSection>
 
       {results.error ? (
         <QueryError
@@ -163,6 +158,7 @@ export function CheckDetailPage() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <DataTableClient
+          title="Results"
           columns={resultColumns}
           data={rows}
           initialSorting={[{ id: "host_name", desc: false }]}

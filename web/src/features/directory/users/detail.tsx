@@ -3,12 +3,11 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { EnumBadge } from "@components/enum-badge";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent } from "@components/ui/card";
 import { useAuth } from "@features/auth/queries";
 import { DIRECTORY_SOURCES } from "@features/directory/source";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
@@ -55,7 +54,7 @@ export function UserDetailPage() {
       <PageShell>
         <PageHeader
           title="User Details"
-          context={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}
+          meta={`Edited ${formatRelative(user.updated_at)}`}
           actions={
             isSelf || isAdmin ? (
               <>
@@ -79,29 +78,27 @@ export function UserDetailPage() {
           }
         />
 
-        <Card>
-          <CardContent>
-            <KeyValueGrid>
-              <KeyValueItem label="Name" value={nonEmpty(user.name) ?? "-"} />
-              <KeyValueItem label="Email" value={user.email} />
-              <KeyValueItem
-                label="Role"
-                value={<EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />}
-              />
-              <KeyValueItem label="Can Login" value={user.can_login ? "Yes" : "No"} />
-              <KeyValueItem label="Department" value={nonEmpty(user.department) ?? "-"} />
-              <KeyValueItem label="Given Name" value={nonEmpty(user.given_name) ?? "-"} />
-              <KeyValueItem label="Family Name" value={nonEmpty(user.family_name) ?? "-"} />
-              <KeyValueItem
-                label="User Principal Name"
-                value={nonEmpty(user.user_principal_name) ?? "-"}
-              />
-              <KeyValueItem label="External ID" value={nonEmpty(user.external_id) ?? "-"} />
-              <KeyValueItem label="Updated" value={formatRelative(user.updated_at)} />
-              <KeyValueItem label="Created" value={formatRelative(user.created_at)} />
-            </KeyValueGrid>
-          </CardContent>
-        </Card>
+        <KeyValueSection title="Overview">
+          <KeyValueRow label="Name" value={nonEmpty(user.name) ?? "-"} />
+          <KeyValueRow label="Email" value={user.email} />
+          <KeyValueRow
+            label="Source"
+            value={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}
+          />
+          <KeyValueRow
+            label="Role"
+            value={<EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />}
+          />
+          <KeyValueRow label="Can Login" value={user.can_login ? "Yes" : "No"} />
+          <KeyValueRow label="Department" value={nonEmpty(user.department) ?? "-"} />
+          <KeyValueRow label="Given Name" value={nonEmpty(user.given_name) ?? "-"} />
+          <KeyValueRow label="Family Name" value={nonEmpty(user.family_name) ?? "-"} />
+          <KeyValueRow
+            label="User Principal Name"
+            value={nonEmpty(user.user_principal_name) ?? "-"}
+          />
+          <KeyValueRow label="External ID" value={nonEmpty(user.external_id) ?? "-"} />
+        </KeyValueSection>
       </PageShell>
 
       <UserDeleteDialog

@@ -1,6 +1,7 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 
 import { ScrollBar } from "@components/ui/scroll-area";
+import { Separator } from "@components/ui/separator";
 import { Tabs, TabsList } from "@components/ui/tabs";
 import { cn } from "@lib/utils";
 
@@ -35,5 +36,14 @@ export function ScrollableTabsList({
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar orientation="horizontal" />
     </ScrollAreaPrimitive.Root>
+  );
+}
+
+export function StickyTabsList(props: React.ComponentProps<typeof ScrollableTabsList>) {
+  return (
+    <div className="sticky top-0 z-20 bg-background/95 pt-1 backdrop-blur-sm">
+      <ScrollableTabsList {...props} />
+      <Separator />
+    </div>
   );
 }

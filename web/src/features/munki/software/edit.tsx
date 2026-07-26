@@ -1,4 +1,4 @@
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,7 +18,6 @@ import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { LabelAssignmentList } from "@components/targeting/label-assignment-list";
 import { Button } from "@components/ui/button";
-import { Separator } from "@components/ui/separator";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -109,7 +108,11 @@ export function MunkiSoftwareEditPage() {
   );
 }
 function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }) {
-  const titles = useMunkiSoftware({ per_page: MAX_PAGE_SIZE, sort: encodeSort("name") });
+  const navigate = useNavigate();
+  const titles = useMunkiSoftware({
+    per_page: MAX_PAGE_SIZE,
+    sort: encodeSort("name"),
+  });
   const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiIcon();
   const [activeTab, setActiveTab] = useState("options");
@@ -138,10 +141,18 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
         },
       });
       if (value.icon.kind === "upload") {
-        await iconUpload.upload({ softwareId: software.id, file: value.icon.file });
+        await iconUpload.upload({
+          softwareId: software.id,
+          file: value.icon.file,
+        });
       }
       return software.id;
     },
+    (savedID) =>
+      void navigate({
+        to: "/munki/software/$id",
+        params: { id: String(savedID) },
+      }),
   );
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
   const categoryOptions = useMemo(
@@ -164,14 +175,13 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
     updateSoftware.reset();
     softwareOptionsForm.setFieldValue("targets.exclude", next);
   }
-  function resetTargetPage() {
-    updateSoftware.reset();
-    iconUpload.reset();
-    softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
-  }
   const exitGuard = usePageFormExitGuard({
     form: softwareOptionsForm,
-    onDiscard: resetTargetPage,
+    onDiscard: () =>
+      void navigate({
+        to: "/munki/software/$id",
+        params: { id: String(software.id) },
+      }),
   });
   const tabs = [
     {
@@ -206,7 +216,6 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
                       packages={packages}
                       onChange={changeTargets}
                     />
-                    <Separator />
                     <LabelAssignmentList
                       title="Exclude"
                       addLabel="Add Exclude"

@@ -1,15 +1,15 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { Package as PackageIcon, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
+import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackageReference } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
@@ -46,7 +46,11 @@ export function MunkiPackageDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Package Details"
+        icon={
+          <SoftwareArtwork src={pkg.software.icon_url} fallbackIcon={PackageIcon} loading="eager" />
+        }
         description={pkg.notes || undefined}
+        meta={`Edited ${formatRelative(pkg.updated_at)}`}
         actions={
           isAdmin ? (
             <>
@@ -72,66 +76,47 @@ export function MunkiPackageDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem
-              label="Software"
-              value={
-                <Link
-                  to="/munki/software/$id"
-                  params={{ id: String(pkg.software.id) }}
-                  className="font-medium"
-                >
-                  {pkg.software.name}
-                </Link>
-              }
-            />
-            <KeyValueItem label="Version" value={pkg.version} />
-            <KeyValueItem label="Installer" value={pkg.installer_type} />
-            <KeyValueItem
-              label="Installer File"
-              value={
-                pkg.installer_file
-                  ? `${pkg.installer_file.filename} · ${formatBytes(pkg.installer_file.size_bytes)}`
-                  : "-"
-              }
-            />
-            <KeyValueItem label="Minimum macOS" value={pkg.minimum_os_version || "Any"} />
-            <KeyValueItem label="Maximum macOS" value={pkg.maximum_os_version || "Any"} />
-            <KeyValueItem label="Architecture" value={valueList(pkg.supported_architectures)} />
-            <KeyValueItem label="Updated" value={formatRelative(pkg.updated_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow
+          label="Software"
+          value={
+            <Link
+              to="/munki/software/$id"
+              params={{ id: String(pkg.software.id) }}
+              className="font-medium"
+            >
+              {pkg.software.name}
+            </Link>
+          }
+        />
+        <KeyValueRow label="Version" value={pkg.version} />
+        <KeyValueRow label="Installer" value={pkg.installer_type} />
+        <KeyValueRow
+          label="Installer File"
+          value={
+            pkg.installer_file
+              ? `${pkg.installer_file.filename} · ${formatBytes(pkg.installer_file.size_bytes)}`
+              : "-"
+          }
+        />
+        <KeyValueRow label="Minimum macOS" value={pkg.minimum_os_version || "Any"} />
+        <KeyValueRow label="Maximum macOS" value={pkg.maximum_os_version || "Any"} />
+        <KeyValueRow label="Architecture" value={valueList(pkg.supported_architectures)} />
+      </KeyValueSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Behaviour</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="On Demand" value={yesNo(pkg.on_demand)} />
-            <KeyValueItem label="Precache" value={yesNo(pkg.precache)} />
-            <KeyValueItem label="Unattended Install" value={yesNo(pkg.unattended_install)} />
-            <KeyValueItem label="Unattended Uninstall" value={yesNo(pkg.unattended_uninstall)} />
-            <KeyValueItem label="Uninstallable" value={yesNo(pkg.uninstallable)} />
-            <KeyValueItem label="Restart Action" value={pkg.restart_action || "None"} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Behaviour">
+        <KeyValueRow label="On Demand" value={yesNo(pkg.on_demand)} />
+        <KeyValueRow label="Precache" value={yesNo(pkg.precache)} />
+        <KeyValueRow label="Unattended Install" value={yesNo(pkg.unattended_install)} />
+        <KeyValueRow label="Unattended Uninstall" value={yesNo(pkg.unattended_uninstall)} />
+        <KeyValueRow label="Uninstallable" value={yesNo(pkg.uninstallable)} />
+        <KeyValueRow label="Restart Action" value={pkg.restart_action || "None"} />
+      </KeyValueSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Relationships</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Requires" value={<PackageReferences values={pkg.requires} />} />
-            <KeyValueItem label="Updates" value={<PackageReferences values={pkg.update_for} />} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Relationships">
+        <KeyValueRow label="Requires" value={<PackageReferences values={pkg.requires} />} />
+        <KeyValueRow label="Updates" value={<PackageReferences values={pkg.update_for} />} />
+      </KeyValueSection>
 
       <MunkiPackageDeleteDialog
         pkg={pkg}

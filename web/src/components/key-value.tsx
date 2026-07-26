@@ -1,27 +1,19 @@
 import type { ReactNode } from "react";
 
+import { Separator } from "@components/ui/separator";
 import { cn } from "@lib/utils";
 
-export function KeyValueGrid({
+export function KeyValueRows({
   className,
   children,
 }: {
   className?: string;
   children?: ReactNode;
 }) {
-  return (
-    <dl
-      className={cn(
-        "grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5",
-        className,
-      )}
-    >
-      {children}
-    </dl>
-  );
+  return <dl className={cn("min-w-0", className)}>{children}</dl>;
 }
 
-export function KeyValueItem({
+export function KeyValueRow({
   label,
   value,
   className,
@@ -35,12 +27,40 @@ export function KeyValueItem({
   const displayValue = normalizeValue(value);
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+    <div
+      className={cn(
+        "grid min-w-0 gap-1 rounded-md px-4 py-3 even:bg-muted/50 sm:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)] sm:gap-6",
+        className,
+      )}
+    >
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className={cn("min-w-0 text-sm wrap-break-word text-foreground", valueClassName)}>
         {displayValue}
       </dd>
     </div>
+  );
+}
+
+export function KeyValueSection({
+  title,
+  actions,
+  className,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <section className={cn("flex min-w-0 flex-col gap-3", className)}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base/snug font-medium text-foreground">{title}</h2>
+        {actions}
+      </div>
+      <Separator />
+      <KeyValueRows>{children}</KeyValueRows>
+    </section>
   );
 }
 

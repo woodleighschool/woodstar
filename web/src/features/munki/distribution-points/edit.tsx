@@ -40,6 +40,12 @@ export function DistributionPointEditPage() {
       initial={formFromDistributionPoint(point)}
       title="Edit Distribution Point"
       submitLabel="Save"
+      onCancel={() =>
+        void navigate({
+          to: "/munki/distribution-points/$id",
+          params: { id: String(point.id) },
+        })
+      }
       onSubmit={async (body) => (await update.mutateAsync({ id: point.id, body })).id}
       onSuccess={(savedID) => {
         if (savedID === undefined) return;

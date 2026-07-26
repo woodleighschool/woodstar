@@ -1,11 +1,12 @@
-import { useParams } from "@tanstack/react-router";
-import { Check, FileCode2, X } from "lucide-react";
+import { useParams, useSearch } from "@tanstack/react-router";
+import { Check, X } from "lucide-react";
 
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { TableSurface } from "@components/data-table/table-surface";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
+import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
-import { Badge } from "@components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import type { SantaExecutionEvent } from "@lib/api";
 import { formatDateTime, isRecord } from "@lib/utils";
 
@@ -25,6 +26,7 @@ export function SantaEventDetailPage() {
   const { id: eventId } = useParams({
     from: "/_authenticated/santa/events/$id",
   });
+  const search = useSearch({ from: "/_authenticated/santa/events/$id" });
   const id = Number(eventId);
   const query = useSantaEvent(Number.isFinite(id) ? id : null);
 
@@ -47,6 +49,10 @@ export function SantaEventDetailPage() {
   const hasSigningChain = signingChain.length > 0;
   const hasEntitlements = entitlements.length > 0;
   const hasTabs = hasSigningChain || hasEntitlements;
+  const activeView = executionDetailView(search.view, {
+    hasSigningChain,
+    hasEntitlements,
+  });
   const hasBundle = Boolean(
     executable.file_bundle_hash ||
     executable.file_bundle_id ||
@@ -55,37 +61,70 @@ export function SantaEventDetailPage() {
   );
   const detailsContent = (
     <div className="flex flex-col gap-5">
-      <ExecutionCard event={event} />
-      <div className="grid gap-5 xl:grid-cols-2">
-        <BinaryCard event={event} />
-        {hasBundle ? <BundleCard event={event} /> : null}
-        <SessionsCard event={event} />
-      </div>
+      <ExecutionSection event={event} />
+      <BinarySection event={event} />
+      {hasBundle ? <BundleSection event={event} /> : null}
+      <SessionsSection event={event} />
     </div>
   );
 
   return (
     <PageShell className="gap-6">
-      <PageHeader
-        leading={
-          <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40">
-            <FileCode2 className="size-6 text-muted-foreground" />
-          </div>
-        }
-        title="Execution"
-        description={event.file_path}
-        context={<ExecutionDecisionBadge decision={event.decision} />}
-      />
+      <PageHeader title="Execution" description={event.file_path} />
 
       {hasTabs ? (
-        <Tabs defaultValue="details">
-          <TabsList>
-            <TabsTrigger value="details">Details</TabsTrigger>
+        <ScrollableTabs value={activeView}>
+          <StickyTabsList>
+            <TabsTrigger
+              value="details"
+              render={
+                <Link
+                  to="/santa/events/$id"
+                  params={{ id: eventId }}
+                  search={(previous) => ({ ...previous, view: undefined })}
+                />
+              }
+              nativeButton={false}
+            >
+              Details
+            </TabsTrigger>
             {hasSigningChain ? (
-              <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger>
+              <TabsTrigger
+                value="signing-chain"
+                render={
+                  <Link
+                    to="/santa/events/$id"
+                    params={{ id: eventId }}
+                    search={(previous) => ({
+                      ...previous,
+                      view: "signing-chain",
+                    })}
+                  />
+                }
+                nativeButton={false}
+              >
+                Signing Chain
+              </TabsTrigger>
             ) : null}
-            {hasEntitlements ? <TabsTrigger value="entitlements">Entitlements</TabsTrigger> : null}
-          </TabsList>
+            {hasEntitlements ? (
+              <TabsTrigger
+                value="entitlements"
+                render={
+                  <Link
+                    to="/santa/events/$id"
+                    params={{ id: eventId }}
+                    search={(previous) => ({
+                      ...previous,
+                      view: "entitlements",
+                    })}
+                  />
+                }
+                nativeButton={false}
+              >
+                Entitlements
+              </TabsTrigger>
+            ) : null}
+          </StickyTabsList>
 
           <TabsContent value="details">{detailsContent}</TabsContent>
 
@@ -100,7 +139,7 @@ export function SantaEventDetailPage() {
               <EntitlementsTable entitlements={entitlements} />
             </TabsContent>
           ) : null}
-        </Tabs>
+        </ScrollableTabs>
       ) : (
         detailsContent
       )}
@@ -108,104 +147,73 @@ export function SantaEventDetailPage() {
   );
 }
 
-function ExecutionCard({ event }: { event: SantaExecutionEvent }) {
+function ExecutionSection({ event }: { event: SantaExecutionEvent }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Execution</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <KeyValueGrid>
-          <KeyValueItem label="Host" value={<HostLink host={event.host} />} />
-          <KeyValueItem label="Executing User" value={event.executing_user} />
-          <KeyValueItem label="PID" value={formatNumber(event.pid)} />
-          <KeyValueItem label="Parent PID" value={formatNumber(event.ppid)} />
-          <KeyValueItem label="Parent Process" value={event.parent_name} />
-          <KeyValueItem label="Occurred" value={<Timestamp value={event.occurred_at} />} />
-          <KeyValueItem label="Ingested" value={formatDateTime(event.ingested_at)} />
-        </KeyValueGrid>
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Execution">
+      <KeyValueRow label="Decision" value={<ExecutionDecisionBadge decision={event.decision} />} />
+      <KeyValueRow label="Host" value={<HostLink host={event.host} />} />
+      <KeyValueRow label="Executing User" value={event.executing_user} />
+      <KeyValueRow label="PID" value={formatNumber(event.pid)} />
+      <KeyValueRow label="Parent PID" value={formatNumber(event.ppid)} />
+      <KeyValueRow label="Parent Process" value={event.parent_name} />
+      <KeyValueRow label="Occurred" value={<Timestamp value={event.occurred_at} />} />
+      <KeyValueRow label="Ingested" value={formatDateTime(event.ingested_at)} />
+    </KeyValueSection>
   );
 }
 
-function BinaryCard({ event }: { event: SantaExecutionEvent }) {
+function BinarySection({ event }: { event: SantaExecutionEvent }) {
   const executable = event.executable;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Binary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <KeyValueGrid>
-          <KeyValueItem label="File Name" value={executable.file_name} />
-          <KeyValueItem label="Path" value={event.file_path} />
-          <KeyValueItem label="SHA-256" value={executable.sha256} />
-          <KeyValueItem label="CDHash" value={executable.cdhash} />
-          <KeyValueItem label="Signing ID" value={executable.signing_id} />
-          <KeyValueItem label="Team ID" value={executable.team_id} />
-          <KeyValueItem label="Signing Status" value={formatEnumValue(executable.signing_status)} />
-          <KeyValueItem
-            label="CS Flags"
-            value={formatCodeSigningFlags(executable.codesigning_flags)}
-          />
-          <KeyValueItem
-            label="Secure Signing Time"
-            value={formatDateTime(executable.secure_signing_time)}
-          />
-          <KeyValueItem label="Signing Time" value={formatDateTime(executable.signing_time)} />
-        </KeyValueGrid>
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Binary">
+      <KeyValueRow label="File Name" value={executable.file_name} />
+      <KeyValueRow label="Path" value={event.file_path} />
+      <KeyValueRow label="SHA-256" value={executable.sha256} />
+      <KeyValueRow label="CDHash" value={executable.cdhash} />
+      <KeyValueRow label="Signing ID" value={executable.signing_id} />
+      <KeyValueRow label="Team ID" value={executable.team_id} />
+      <KeyValueRow label="Signing Status" value={formatEnumValue(executable.signing_status)} />
+      <KeyValueRow label="CS Flags" value={formatCodeSigningFlags(executable.codesigning_flags)} />
+      <KeyValueRow
+        label="Secure Signing Time"
+        value={formatDateTime(executable.secure_signing_time)}
+      />
+      <KeyValueRow label="Signing Time" value={formatDateTime(executable.signing_time)} />
+    </KeyValueSection>
   );
 }
 
-function BundleCard({ event }: { event: SantaExecutionEvent }) {
+function BundleSection({ event }: { event: SantaExecutionEvent }) {
   const executable = event.executable;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Bundle</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <KeyValueGrid>
-          <KeyValueItem label="Bundle ID" value={executable.file_bundle_id} />
-          <KeyValueItem label="Name" value={executable.file_bundle_name} />
-          <KeyValueItem label="Path" value={executable.file_bundle_path} />
-          <KeyValueItem
-            label="Executable Rel Path"
-            value={executable.file_bundle_executable_rel_path}
-          />
-          <KeyValueItem label="Version" value={executable.file_bundle_version} />
-          <KeyValueItem label="Version String" value={executable.file_bundle_version_string} />
-          <KeyValueItem label="Bundle Hash" value={executable.file_bundle_hash} />
-          <KeyValueItem
-            label="Binary Count"
-            value={formatNumber(executable.file_bundle_binary_count)}
-          />
-          <KeyValueItem
-            label="Hash Time"
-            value={formatMillis(executable.file_bundle_hash_millis)}
-          />
-        </KeyValueGrid>
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Bundle">
+      <KeyValueRow label="Bundle ID" value={executable.file_bundle_id} />
+      <KeyValueRow label="Name" value={executable.file_bundle_name} />
+      <KeyValueRow label="Path" value={executable.file_bundle_path} />
+      <KeyValueRow label="Executable Rel Path" value={executable.file_bundle_executable_rel_path} />
+      <KeyValueRow label="Version" value={executable.file_bundle_version} />
+      <KeyValueRow label="Version String" value={executable.file_bundle_version_string} />
+      <KeyValueRow label="Bundle Hash" value={executable.file_bundle_hash} />
+      <KeyValueRow label="Binary Count" value={formatNumber(executable.file_bundle_binary_count)} />
+      <KeyValueRow label="Hash Time" value={formatMillis(executable.file_bundle_hash_millis)} />
+    </KeyValueSection>
   );
 }
 
-function SessionsCard({ event }: { event: SantaExecutionEvent }) {
+function SessionsSection({ event }: { event: SantaExecutionEvent }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sessions</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <SessionGroup label="Logged-In Users" values={event.logged_in_users ?? []} />
-        <SessionGroup label="Current Sessions" values={event.current_sessions ?? []} />
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Sessions">
+      <KeyValueRow
+        label="Logged-In Users"
+        value={<ValueList values={event.logged_in_users ?? []} />}
+      />
+      <KeyValueRow
+        label="Current Sessions"
+        value={<ValueList values={event.current_sessions ?? []} />}
+      />
+    </KeyValueSection>
   );
 }
 
@@ -215,9 +223,9 @@ function SigningChainTable({
   signingChain: NonNullable<SantaExecutionEvent["executable"]["signing_chain"]>;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <TableSurface>
       <Table>
-        <TableHeader className="bg-muted">
+        <TableHeader>
           <TableRow>
             <TableHead>Certificate</TableHead>
             <TableHead>Organization</TableHead>
@@ -248,15 +256,15 @@ function SigningChainTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </TableSurface>
   );
 }
 
 function EntitlementsTable({ entitlements }: { entitlements: EntitlementEntry[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <TableSurface>
       <Table>
-        <TableHeader className="bg-muted">
+        <TableHeader>
           <TableRow>
             <TableHead>Entitlement</TableHead>
             <TableHead>Value</TableHead>
@@ -275,16 +283,7 @@ function EntitlementsTable({ entitlements }: { entitlements: EntitlementEntry[] 
           ))}
         </TableBody>
       </Table>
-    </div>
-  );
-}
-
-function SessionGroup({ label, values }: { label: string; values: string[] }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <ValueBadges values={values} />
-    </div>
+    </TableSurface>
   );
 }
 
@@ -297,18 +296,10 @@ function ValueText({ value }: { value?: string }) {
   );
 }
 
-function ValueBadges({ values }: { values: string[] }) {
+function ValueList({ values }: { values: string[] }) {
   const cleaned = values.filter(Boolean);
   if (cleaned.length === 0) return <span className="text-sm text-muted-foreground">-</span>;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {cleaned.map((value) => (
-        <Badge key={value} variant="outline" className="font-normal">
-          {value}
-        </Badge>
-      ))}
-    </div>
-  );
+  return <span className="wrap-break-word">{cleaned.join(", ")}</span>;
 }
 
 function formatNumber(value?: number) {
@@ -350,7 +341,7 @@ function EntitlementValue({ value }: { value: unknown }) {
   }
 
   if (Array.isArray(normalized)) {
-    return <ValueBadges values={normalized.map(formatEntitlementChip)} />;
+    return <ValueList values={normalized.map(formatEntitlementValue)} />;
   }
 
   if (typeof normalized === "string" || typeof normalized === "number") {
@@ -359,9 +350,9 @@ function EntitlementValue({ value }: { value: unknown }) {
 
   if (isRecord(normalized)) {
     return (
-      <ValueBadges
+      <ValueList
         values={Object.entries(normalized).map(
-          ([key, entryValue]) => `${key}: ${formatEntitlementChip(entryValue)}`,
+          ([key, entryValue]) => `${key}: ${formatEntitlementValue(entryValue)}`,
         )}
       />
     );
@@ -407,11 +398,11 @@ function normalizeEntitlementValue(value: unknown): unknown {
   }
 }
 
-function formatEntitlementChip(value: unknown): string {
+function formatEntitlementValue(value: unknown): string {
   const normalized = normalizeEntitlementValue(value);
   if (normalized === null || normalized === undefined) return "";
   if (Array.isArray(normalized))
-    return normalized.map(formatEntitlementChip).filter(Boolean).join(", ");
+    return normalized.map(formatEntitlementValue).filter(Boolean).join(", ");
   if (
     typeof normalized === "string" ||
     typeof normalized === "number" ||
@@ -424,4 +415,13 @@ function formatEntitlementChip(value: unknown): string {
     if (typeof identifier === "string") return identifier;
   }
   return JSON.stringify(normalized);
+}
+
+function executionDetailView(
+  value: unknown,
+  availability: { hasSigningChain: boolean; hasEntitlements: boolean },
+) {
+  if (value === "signing-chain" && availability.hasSigningChain) return value;
+  if (value === "entitlements" && availability.hasEntitlements) return value;
+  return "details";
 }

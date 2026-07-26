@@ -2,9 +2,10 @@ import { useParams } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { TableSurface } from "@components/data-table/table-surface";
 import { EnumBadge } from "@components/enum-badge";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
-import { PageShell } from "@components/layout/page-layout";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
+import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -63,54 +64,46 @@ export function SoftwareDetailPage() {
 function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   const typeLabel = softwareSourceLabel(title.source, title.extension_for);
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-4">
-        <SoftwareIcon {...softwareIconProps(title.source)} size="lg" />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-semibold text-foreground" title={title.name}>
-              {title.name}
-            </h1>
-            <Badge variant="secondary" className="font-normal">
-              {typeLabel}
-            </Badge>
-          </div>
-        </div>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        render={<Link to="/hosts" search={{ software_title_id: title.id }} />}
-        nativeButton={false}
-      >
-        View hosts
-      </Button>
-    </div>
+    <PageHeader
+      title={title.name}
+      icon={<SoftwareIcon {...softwareIconProps(title.source)} />}
+      context={
+        <Badge variant="secondary" className="font-normal">
+          {typeLabel}
+        </Badge>
+      }
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          render={<Link to="/hosts" search={{ software_title_id: title.id }} />}
+          nativeButton={false}
+        >
+          View hosts
+        </Button>
+      }
+    />
   );
 }
 function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
   return (
-    <Card>
-      <CardContent>
-        <KeyValueGrid>
-          {title.browser ? <KeyValueItem label="Browser" value={title.browser} /> : null}
-          {title.bundle_identifier ? (
-            <KeyValueItem label="Bundle Identifier" value={title.bundle_identifier} />
-          ) : null}
-          {title.extension_for ? (
-            <KeyValueItem label="Extension for" value={title.extension_for} />
-          ) : null}
-          <KeyValueItem
-            label="Hosts"
-            value={<span className="tabular-nums">{title.hosts_count}</span>}
-          />
-          <KeyValueItem
-            label="Versions"
-            value={<span className="tabular-nums">{title.versions_count}</span>}
-          />
-        </KeyValueGrid>
-      </CardContent>
-    </Card>
+    <KeyValueSection title="Overview">
+      {title.browser ? <KeyValueRow label="Browser" value={title.browser} /> : null}
+      {title.bundle_identifier ? (
+        <KeyValueRow label="Bundle Identifier" value={title.bundle_identifier} />
+      ) : null}
+      {title.extension_for ? (
+        <KeyValueRow label="Extension for" value={title.extension_for} />
+      ) : null}
+      <KeyValueRow
+        label="Hosts"
+        value={<span className="tabular-nums">{title.hosts_count}</span>}
+      />
+      <KeyValueRow
+        label="Versions"
+        value={<span className="tabular-nums">{title.versions_count}</span>}
+      />
+    </KeyValueSection>
   );
 }
 function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boolean }) {
@@ -145,7 +138,7 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
         <CardTitle>Santa</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] divide-x border-y">
           <SantaMetric label="Executions" value={ref.execution_count} />
           <SantaMetric label="Blocks" value={ref.block_count} />
           <SantaMetric label="Bundles" value={bundles.length} />
@@ -167,7 +160,7 @@ function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boo
 }
 function SantaMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border px-3 py-2">
+    <div className="px-3 py-2">
       <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold text-foreground tabular-nums">{value}</div>
     </div>
@@ -327,11 +320,11 @@ function SantaReferenceTable({
     <div className="flex min-w-0 flex-col gap-2">
       <h2 className="text-sm font-medium">{title}</h2>
       {count > 0 ? (
-        <div className="rounded-md border">
+        <TableSurface variant="embedded">
           <Table>
             <TableBody>{children}</TableBody>
           </Table>
-        </div>
+        </TableSurface>
       ) : (
         <PanelEmptyState>{empty}</PanelEmptyState>
       )}
@@ -370,33 +363,30 @@ function QuickAddRuleButton({
 }
 function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
   const versions = title.versions ?? [];
+  if (versions.length === 0) {
+    return (
+      <section className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-base/snug font-medium">Versions</h2>
+        <PanelEmptyState>No versions yet</PanelEmptyState>
+      </section>
+    );
+  }
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Versions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {versions.length === 0 ? (
-          <PanelEmptyState>No versions yet</PanelEmptyState>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Version</TableHead>
-                  <TableHead className="text-right">Hosts</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {versions.map((v) => (
-                  <VersionRow key={v.id} title={title} version={v} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <TableSurface heading="Versions">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Version</TableHead>
+            <TableHead className="text-right">Hosts</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {versions.map((v) => (
+            <VersionRow key={v.id} title={title} version={v} />
+          ))}
+        </TableBody>
+      </Table>
+    </TableSurface>
   );
 }
 function VersionRow({ title, version }: { title: SoftwareTitle; version: SoftwareVersion }) {

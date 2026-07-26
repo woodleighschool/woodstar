@@ -103,12 +103,20 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
         }
         return true;
       }}
-      onSuccess={() => void navigate({ to: "/munki/packages" })}
+      onSuccess={() =>
+        void navigate({
+          to: "/munki/packages/$id",
+          params: { id: String(packageID) },
+        })
+      }
       onCancel={() => {
         cancelled.current = true;
         installerUpload.cancel();
         packageMutationAbort.current?.abort();
-        void navigate({ to: "/munki/packages" });
+        void navigate({
+          to: "/munki/packages/$id",
+          params: { id: String(packageID) },
+        });
       }}
     />
   );

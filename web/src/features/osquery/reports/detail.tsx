@@ -4,14 +4,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent } from "@components/ui/card";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
@@ -79,6 +78,7 @@ export function ReportDetailPage() {
       <PageHeader
         title="Report Details"
         description={report.data.description || undefined}
+        meta={`Edited ${formatRelative(report.data.updated_at)}`}
         actions={
           <>
             {isAdmin ? (
@@ -108,26 +108,18 @@ export function ReportDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={report.data.name} />
-            <KeyValueItem
-              label="Interval"
-              value={
-                report.data.schedule_interval
-                  ? `Every ${formatInterval(report.data.schedule_interval)}`
-                  : "Off"
-              }
-            />
-            <KeyValueItem
-              label="Minimum Osquery"
-              value={report.data.min_osquery_version || "Any"}
-            />
-            <KeyValueItem label="Updated" value={formatRelative(report.data.updated_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={report.data.name} />
+        <KeyValueRow
+          label="Interval"
+          value={
+            report.data.schedule_interval
+              ? `Every ${formatInterval(report.data.schedule_interval)}`
+              : "Off"
+          }
+        />
+        <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
+      </KeyValueSection>
 
       {results.error ? (
         <QueryError
@@ -139,6 +131,7 @@ export function ReportDetailPage() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <DataTableClient
+          title="Results"
           columns={columns}
           data={rows}
           initialSorting={[{ id: "hostName", desc: false }]}

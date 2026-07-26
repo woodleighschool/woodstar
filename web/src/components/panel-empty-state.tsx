@@ -13,8 +13,8 @@ export function PanelEmptyState({
     <div
       className={cn(
         `
-          flex min-h-32 w-full items-center justify-center rounded-lg border
-          border-dashed px-6 text-center text-sm text-muted-foreground
+          flex min-h-24 w-full items-center justify-center bg-muted/20 px-6
+          text-center text-sm text-muted-foreground
         `,
         className,
       )}

@@ -50,6 +50,12 @@ import { Route as AuthenticatedDirectoryGroupsIndexRouteImport } from './routes/
 import { Route as AuthenticatedDirectoryUsersIndexRouteImport } from './routes/_authenticated/directory.users.index'
 import { Route as AuthenticatedDirectoryUsersIdRouteImport } from './routes/_authenticated/directory.users.$id'
 import { Route as AuthenticatedDirectoryUsersNewRouteImport } from './routes/_authenticated/directory.users.new'
+import { Route as AuthenticatedHostsIdIndexRouteImport } from './routes/_authenticated/hosts.$id.index'
+import { Route as AuthenticatedHostsIdChecksRouteImport } from './routes/_authenticated/hosts.$id.checks'
+import { Route as AuthenticatedHostsIdMunkiRouteImport } from './routes/_authenticated/hosts.$id.munki'
+import { Route as AuthenticatedHostsIdReportsRouteImport } from './routes/_authenticated/hosts.$id.reports'
+import { Route as AuthenticatedHostsIdSantaRouteImport } from './routes/_authenticated/hosts.$id.santa'
+import { Route as AuthenticatedHostsIdSoftwareRouteImport } from './routes/_authenticated/hosts.$id.software'
 import { Route as AuthenticatedLabelsIdIndexRouteImport } from './routes/_authenticated/labels.$id.index'
 import { Route as AuthenticatedLabelsIdEditRouteImport } from './routes/_authenticated/labels.$id.edit'
 import { Route as AuthenticatedMunkiDistributionPointsIndexRouteImport } from './routes/_authenticated/munki.distribution-points.index'
@@ -324,6 +330,42 @@ const AuthenticatedDirectoryUsersNewRoute =
     id: '/new',
     path: '/new',
     getParentRoute: () => AuthenticatedDirectoryUsersRoute,
+  } as any)
+const AuthenticatedHostsIdIndexRoute =
+  AuthenticatedHostsIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdChecksRoute =
+  AuthenticatedHostsIdChecksRouteImport.update({
+    id: '/checks',
+    path: '/checks',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdMunkiRoute =
+  AuthenticatedHostsIdMunkiRouteImport.update({
+    id: '/munki',
+    path: '/munki',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdReportsRoute =
+  AuthenticatedHostsIdReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdSantaRoute =
+  AuthenticatedHostsIdSantaRouteImport.update({
+    id: '/santa',
+    path: '/santa',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdSoftwareRoute =
+  AuthenticatedHostsIdSoftwareRouteImport.update({
+    id: '/software',
+    path: '/software',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
   } as any)
 const AuthenticatedLabelsIdIndexRoute =
   AuthenticatedLabelsIdIndexRouteImport.update({
@@ -625,7 +667,7 @@ export interface FileRoutesByFullPath {
   '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/hosts/$id': typeof AuthenticatedHostsIdRoute
+  '/hosts/$id': typeof AuthenticatedHostsIdRouteWithChildren
   '/labels/$id': typeof AuthenticatedLabelsIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
@@ -647,6 +689,11 @@ export interface FileRoutesByFullPath {
   '/software/': typeof AuthenticatedSoftwareIndexRoute
   '/directory/users/$id': typeof AuthenticatedDirectoryUsersIdRouteWithChildren
   '/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/hosts/$id/checks': typeof AuthenticatedHostsIdChecksRoute
+  '/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
+  '/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
+  '/hosts/$id/santa': typeof AuthenticatedHostsIdSantaRoute
+  '/hosts/$id/software': typeof AuthenticatedHostsIdSoftwareRoute
   '/labels/$id/edit': typeof AuthenticatedLabelsIdEditRoute
   '/munki/distribution-points/$id': typeof AuthenticatedMunkiDistributionPointsIdRouteWithChildren
   '/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
@@ -667,6 +714,7 @@ export interface FileRoutesByFullPath {
   '/software/titles/$id': typeof AuthenticatedSoftwareTitlesIdRoute
   '/directory/groups/': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/directory/users/': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/hosts/$id/': typeof AuthenticatedHostsIdIndexRoute
   '/labels/$id/': typeof AuthenticatedLabelsIdIndexRoute
   '/munki/distribution-points/': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/munki/packages/': typeof AuthenticatedMunkiPackagesIndexRoute
@@ -704,7 +752,6 @@ export interface FileRoutesByTo {
   '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/hosts/$id': typeof AuthenticatedHostsIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/directory': typeof AuthenticatedDirectoryIndexRoute
@@ -716,6 +763,11 @@ export interface FileRoutesByTo {
   '/santa': typeof AuthenticatedSantaIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
   '/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/hosts/$id/checks': typeof AuthenticatedHostsIdChecksRoute
+  '/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
+  '/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
+  '/hosts/$id/santa': typeof AuthenticatedHostsIdSantaRoute
+  '/hosts/$id/software': typeof AuthenticatedHostsIdSoftwareRoute
   '/labels/$id/edit': typeof AuthenticatedLabelsIdEditRoute
   '/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
   '/munki/packages/new': typeof AuthenticatedMunkiPackagesNewRoute
@@ -728,6 +780,7 @@ export interface FileRoutesByTo {
   '/software/titles/$id': typeof AuthenticatedSoftwareTitlesIdRoute
   '/directory/groups': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/directory/users': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/hosts/$id': typeof AuthenticatedHostsIdIndexRoute
   '/labels/$id': typeof AuthenticatedLabelsIdIndexRoute
   '/munki/distribution-points': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/munki/packages': typeof AuthenticatedMunkiPackagesIndexRoute
@@ -777,7 +830,7 @@ export interface FileRoutesById {
   '/_authenticated/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/_authenticated/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/_authenticated/hosts/$id': typeof AuthenticatedHostsIdRoute
+  '/_authenticated/hosts/$id': typeof AuthenticatedHostsIdRouteWithChildren
   '/_authenticated/labels/$id': typeof AuthenticatedLabelsIdRouteWithChildren
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
   '/_authenticated/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
@@ -799,6 +852,11 @@ export interface FileRoutesById {
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
   '/_authenticated/directory/users/$id': typeof AuthenticatedDirectoryUsersIdRouteWithChildren
   '/_authenticated/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/_authenticated/hosts/$id/checks': typeof AuthenticatedHostsIdChecksRoute
+  '/_authenticated/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
+  '/_authenticated/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
+  '/_authenticated/hosts/$id/santa': typeof AuthenticatedHostsIdSantaRoute
+  '/_authenticated/hosts/$id/software': typeof AuthenticatedHostsIdSoftwareRoute
   '/_authenticated/labels/$id/edit': typeof AuthenticatedLabelsIdEditRoute
   '/_authenticated/munki/distribution-points/$id': typeof AuthenticatedMunkiDistributionPointsIdRouteWithChildren
   '/_authenticated/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
@@ -819,6 +877,7 @@ export interface FileRoutesById {
   '/_authenticated/software/titles/$id': typeof AuthenticatedSoftwareTitlesIdRoute
   '/_authenticated/directory/groups/': typeof AuthenticatedDirectoryGroupsIndexRoute
   '/_authenticated/directory/users/': typeof AuthenticatedDirectoryUsersIndexRoute
+  '/_authenticated/hosts/$id/': typeof AuthenticatedHostsIdIndexRoute
   '/_authenticated/labels/$id/': typeof AuthenticatedLabelsIdIndexRoute
   '/_authenticated/munki/distribution-points/': typeof AuthenticatedMunkiDistributionPointsIndexRoute
   '/_authenticated/munki/packages/': typeof AuthenticatedMunkiPackagesIndexRoute
@@ -890,6 +949,11 @@ export interface FileRouteTypes {
     | '/software/'
     | '/directory/users/$id'
     | '/directory/users/new'
+    | '/hosts/$id/checks'
+    | '/hosts/$id/munki'
+    | '/hosts/$id/reports'
+    | '/hosts/$id/santa'
+    | '/hosts/$id/software'
     | '/labels/$id/edit'
     | '/munki/distribution-points/$id'
     | '/munki/distribution-points/new'
@@ -910,6 +974,7 @@ export interface FileRouteTypes {
     | '/software/titles/$id'
     | '/directory/groups/'
     | '/directory/users/'
+    | '/hosts/$id/'
     | '/labels/$id/'
     | '/munki/distribution-points/'
     | '/munki/packages/'
@@ -947,7 +1012,6 @@ export interface FileRouteTypes {
     | '/enrollments/munki'
     | '/enrollments/orbit'
     | '/enrollments/santa'
-    | '/hosts/$id'
     | '/labels/new'
     | '/munki/client-resources'
     | '/directory'
@@ -959,6 +1023,11 @@ export interface FileRouteTypes {
     | '/santa'
     | '/software'
     | '/directory/users/new'
+    | '/hosts/$id/checks'
+    | '/hosts/$id/munki'
+    | '/hosts/$id/reports'
+    | '/hosts/$id/santa'
+    | '/hosts/$id/software'
     | '/labels/$id/edit'
     | '/munki/distribution-points/new'
     | '/munki/packages/new'
@@ -971,6 +1040,7 @@ export interface FileRouteTypes {
     | '/software/titles/$id'
     | '/directory/groups'
     | '/directory/users'
+    | '/hosts/$id'
     | '/labels/$id'
     | '/munki/distribution-points'
     | '/munki/packages'
@@ -1041,6 +1111,11 @@ export interface FileRouteTypes {
     | '/_authenticated/software/'
     | '/_authenticated/directory/users/$id'
     | '/_authenticated/directory/users/new'
+    | '/_authenticated/hosts/$id/checks'
+    | '/_authenticated/hosts/$id/munki'
+    | '/_authenticated/hosts/$id/reports'
+    | '/_authenticated/hosts/$id/santa'
+    | '/_authenticated/hosts/$id/software'
     | '/_authenticated/labels/$id/edit'
     | '/_authenticated/munki/distribution-points/$id'
     | '/_authenticated/munki/distribution-points/new'
@@ -1061,6 +1136,7 @@ export interface FileRouteTypes {
     | '/_authenticated/software/titles/$id'
     | '/_authenticated/directory/groups/'
     | '/_authenticated/directory/users/'
+    | '/_authenticated/hosts/$id/'
     | '/_authenticated/labels/$id/'
     | '/_authenticated/munki/distribution-points/'
     | '/_authenticated/munki/packages/'
@@ -1386,6 +1462,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/directory/users/new'
       preLoaderRoute: typeof AuthenticatedDirectoryUsersNewRouteImport
       parentRoute: typeof AuthenticatedDirectoryUsersRoute
+    }
+    '/_authenticated/hosts/$id/': {
+      id: '/_authenticated/hosts/$id/'
+      path: '/'
+      fullPath: '/hosts/$id/'
+      preLoaderRoute: typeof AuthenticatedHostsIdIndexRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/checks': {
+      id: '/_authenticated/hosts/$id/checks'
+      path: '/checks'
+      fullPath: '/hosts/$id/checks'
+      preLoaderRoute: typeof AuthenticatedHostsIdChecksRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/munki': {
+      id: '/_authenticated/hosts/$id/munki'
+      path: '/munki'
+      fullPath: '/hosts/$id/munki'
+      preLoaderRoute: typeof AuthenticatedHostsIdMunkiRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/reports': {
+      id: '/_authenticated/hosts/$id/reports'
+      path: '/reports'
+      fullPath: '/hosts/$id/reports'
+      preLoaderRoute: typeof AuthenticatedHostsIdReportsRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/santa': {
+      id: '/_authenticated/hosts/$id/santa'
+      path: '/santa'
+      fullPath: '/hosts/$id/santa'
+      preLoaderRoute: typeof AuthenticatedHostsIdSantaRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/software': {
+      id: '/_authenticated/hosts/$id/software'
+      path: '/software'
+      fullPath: '/hosts/$id/software'
+      preLoaderRoute: typeof AuthenticatedHostsIdSoftwareRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
     }
     '/_authenticated/labels/$id/': {
       id: '/_authenticated/labels/$id/'
@@ -1812,13 +1930,34 @@ const AuthenticatedEnrollmentsRouteWithChildren =
     AuthenticatedEnrollmentsRouteChildren,
   )
 
+interface AuthenticatedHostsIdRouteChildren {
+  AuthenticatedHostsIdChecksRoute: typeof AuthenticatedHostsIdChecksRoute
+  AuthenticatedHostsIdMunkiRoute: typeof AuthenticatedHostsIdMunkiRoute
+  AuthenticatedHostsIdReportsRoute: typeof AuthenticatedHostsIdReportsRoute
+  AuthenticatedHostsIdSantaRoute: typeof AuthenticatedHostsIdSantaRoute
+  AuthenticatedHostsIdSoftwareRoute: typeof AuthenticatedHostsIdSoftwareRoute
+  AuthenticatedHostsIdIndexRoute: typeof AuthenticatedHostsIdIndexRoute
+}
+
+const AuthenticatedHostsIdRouteChildren: AuthenticatedHostsIdRouteChildren = {
+  AuthenticatedHostsIdChecksRoute: AuthenticatedHostsIdChecksRoute,
+  AuthenticatedHostsIdMunkiRoute: AuthenticatedHostsIdMunkiRoute,
+  AuthenticatedHostsIdReportsRoute: AuthenticatedHostsIdReportsRoute,
+  AuthenticatedHostsIdSantaRoute: AuthenticatedHostsIdSantaRoute,
+  AuthenticatedHostsIdSoftwareRoute: AuthenticatedHostsIdSoftwareRoute,
+  AuthenticatedHostsIdIndexRoute: AuthenticatedHostsIdIndexRoute,
+}
+
+const AuthenticatedHostsIdRouteWithChildren =
+  AuthenticatedHostsIdRoute._addFileChildren(AuthenticatedHostsIdRouteChildren)
+
 interface AuthenticatedHostsRouteChildren {
-  AuthenticatedHostsIdRoute: typeof AuthenticatedHostsIdRoute
+  AuthenticatedHostsIdRoute: typeof AuthenticatedHostsIdRouteWithChildren
   AuthenticatedHostsIndexRoute: typeof AuthenticatedHostsIndexRoute
 }
 
 const AuthenticatedHostsRouteChildren: AuthenticatedHostsRouteChildren = {
-  AuthenticatedHostsIdRoute: AuthenticatedHostsIdRoute,
+  AuthenticatedHostsIdRoute: AuthenticatedHostsIdRouteWithChildren,
   AuthenticatedHostsIndexRoute: AuthenticatedHostsIndexRoute,
 }
 

@@ -17,6 +17,7 @@ import {
   DraggableTableRows,
 } from "@components/data-table/draggable-table-rows";
 import { selectColumn } from "@components/data-table/select-column";
+import { TableSurface } from "@components/data-table/table-surface";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
@@ -346,7 +347,7 @@ function ConfigurationReorder({
       </div>
 
       <DraggableTableRows value={ordered} onValueChange={setOrdered} getRowId={(row) => row.id}>
-        <div className="overflow-hidden rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -375,7 +376,7 @@ function ConfigurationReorder({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       </DraggableTableRows>
 
       {truncated ? (

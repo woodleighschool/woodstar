@@ -1,3 +1,4 @@
+import { KeyValueRow, KeyValueRows } from "@components/key-value";
 import { Link } from "@components/link";
 import { Button } from "@components/ui/button";
 import {
@@ -40,7 +41,17 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
       </CardHeader>
       <CardContent>
         {values.length > 0 ? (
-          <ReportValueGrid values={values} />
+          <KeyValueRows className="-mx-4">
+            {values.map((item) => (
+              <KeyValueRow
+                key={item.key}
+                label={item.key}
+                value={resultValue(item.value)}
+                className="rounded-none px-4"
+                valueClassName="tabular-nums"
+              />
+            ))}
+          </KeyValueRows>
         ) : (
           <p className="text-sm text-muted-foreground">
             {report.last_fetched
@@ -50,22 +61,6 @@ export function ReportResultCard({ report }: ReportResultCardProps) {
         )}
       </CardContent>
     </Card>
-  );
-}
-function ReportValueGrid({ values }: { values: ReportResultValue[] }) {
-  return (
-    <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-x-8 gap-y-5">
-      {values.map((item) => (
-        <div key={item.key} className="flex min-w-0 flex-col gap-1">
-          <dt className="truncate text-xs font-semibold text-muted-foreground" title={item.key}>
-            {item.key}
-          </dt>
-          <dd className="truncate text-sm text-foreground tabular-nums" title={item.value}>
-            {resultValue(item.value)}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 interface ReportResultValue {

@@ -2,6 +2,7 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { TableSurface } from "@components/data-table/table-surface";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { CodeEditor } from "@components/editor/code-editor";
 import { EnumBadge } from "@components/enum-badge";
@@ -89,7 +90,7 @@ export function SantaIncludeTargets({
       }
     >
       {include.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -124,7 +125,7 @@ export function SantaIncludeTargets({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       ) : (
         <PanelEmptyState>No includes yet</PanelEmptyState>
       )}

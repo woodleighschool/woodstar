@@ -4,13 +4,13 @@ import { Activity, FolderLock } from "lucide-react";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { EnumBadge } from "@components/enum-badge";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Separator } from "@components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useHostSantaRules } from "@features/hosts/queries";
 import { CLIENT_MODES } from "@features/santa/configurations/metadata";
@@ -75,7 +75,6 @@ interface HostSantaTabProps {
 export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSantaTabProps) {
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
-  const totalCount = rules.data?.count ?? 0;
   const configuration = santa?.configuration;
   return (
     <div className="flex flex-col gap-4">
@@ -84,9 +83,10 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
       ) : santa === null ? (
         <PanelEmptyState>No Santa sync reported</PanelEmptyState>
       ) : santa ? (
-        <Card>
-          <CardContent>
-            <div className="mb-5 flex flex-wrap gap-2">
+        <KeyValueSection
+          title="Overview"
+          actions={
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -106,49 +106,48 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
                 View File Access Events
               </Button>
             </div>
-            <KeyValueGrid>
-              <KeyValueItem label="Version" value={santa.version} />
-              <KeyValueItem
-                label="Client Mode"
-                value={
-                  <EnumStatusIndicator value={santa.client_mode_reported} metadata={CLIENT_MODES} />
-                }
-              />
-              <KeyValueItem
-                label="Configuration"
-                value={
-                  configuration ? <SantaConfigurationLink configuration={configuration} /> : null
-                }
-              />
-              <KeyValueItem label="Last Sync" value={formatRelative(santa.last_seen_at)} />
-              <KeyValueItem
-                label="Rule Sync"
-                value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
-              />
-              <KeyValueItem label="Pending Rules" value={santa.rule_sync.pending_count} />
-            </KeyValueGrid>
-          </CardContent>
-        </Card>
+          }
+        >
+          <KeyValueRow label="Version" value={santa.version} />
+          <KeyValueRow
+            label="Client Mode"
+            value={
+              <EnumStatusIndicator value={santa.client_mode_reported} metadata={CLIENT_MODES} />
+            }
+          />
+          <KeyValueRow
+            label="Configuration"
+            value={configuration ? <SantaConfigurationLink configuration={configuration} /> : null}
+          />
+          <KeyValueRow label="Last Sync" value={formatRelative(santa.last_seen_at)} />
+          <KeyValueRow
+            label="Rule Sync"
+            value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
+          />
+          <KeyValueRow label="Pending Rules" value={santa.rule_sync.pending_count} />
+        </KeyValueSection>
       ) : null}
 
-      <Card className="gap-4 py-4">
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Rules</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {rules.error ? (
+      {rules.error ? (
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base/snug font-medium text-foreground">Rules</h2>
+          <Separator />
+          <div className="px-3">
             <QueryError
               title="Failed to load rules"
               error={rules.error}
               onRetry={() => void rules.refetch()}
             />
-          ) : rules.isLoading ? null : totalCount === 0 ? (
-            <PanelEmptyState>No matching rules</PanelEmptyState>
-          ) : (
-            <DataTableStatic columns={santaRuleColumns} data={items} />
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </section>
+      ) : rules.isLoading ? null : (
+        <DataTableStatic
+          heading="Rules"
+          columns={santaRuleColumns}
+          data={items}
+          empty={<PanelEmptyState>No matching rules</PanelEmptyState>}
+        />
+      )}
     </div>
   );
 }

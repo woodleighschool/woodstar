@@ -37,6 +37,12 @@ export function ReportEditPage() {
       initial={reportFromDetail(report)}
       title="Edit Report"
       submitLabel="Save"
+      onCancel={() =>
+        void navigate({
+          to: "/osquery/reports/$id",
+          params: { id: String(report.id) },
+        })
+      }
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {

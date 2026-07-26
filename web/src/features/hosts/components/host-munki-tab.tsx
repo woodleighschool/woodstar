@@ -9,12 +9,12 @@ import {
 } from "lucide-react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { Badge } from "@components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Separator } from "@components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useHostMunkiSoftware } from "@features/hosts/queries";
 import { MUNKI_SOFTWARE_ACTIONS, type MunkiSoftwareAction } from "@features/munki/software/actions";
@@ -53,6 +53,24 @@ const softwareColumns: ColumnDef<MunkiHostManifestSoftware>[] = [
   },
 ];
 
+interface ProblemRow {
+  kind: string;
+  value: string;
+}
+
+const problemColumns: ColumnDef<ProblemRow>[] = [
+  {
+    accessorKey: "kind",
+    header: () => "Type",
+    cell: ({ row }) => <Badge variant="secondary">{row.original.kind}</Badge>,
+  },
+  {
+    accessorKey: "value",
+    header: () => "Message",
+    cell: ({ row }) => <span className="wrap-break-word">{row.original.value}</span>,
+  },
+];
+
 interface HostMunkiTabProps {
   hostId: number;
   munki: MunkiHostState | null | undefined;
@@ -77,60 +95,39 @@ export function HostMunkiTab({ hostId, munki, stateError, onStateRetry }: HostMu
       ) : munki === null ? (
         <PanelEmptyState>No Munki run reported</PanelEmptyState>
       ) : munki ? (
-        <Card>
-          <CardContent>
-            <KeyValueGrid>
-              <KeyValueItem label="Version" value={munki.version} />
-              <KeyValueItem label="Manifest" value={munki.manifest_name} />
-              <KeyValueItem label="Status" value={<MunkiStatusBadge munki={munki} />} />
-              <KeyValueItem label="Last Run Started" value={formatRelative(munki.run_started_at)} />
-              <KeyValueItem label="Last Run Ended" value={formatRelative(munki.run_ended_at)} />
-            </KeyValueGrid>
-          </CardContent>
-        </Card>
+        <KeyValueSection title="Overview">
+          <KeyValueRow label="Version" value={munki.version} />
+          <KeyValueRow label="Manifest" value={munki.manifest_name} />
+          <KeyValueRow label="Status" value={<MunkiStatusBadge munki={munki} />} />
+          <KeyValueRow label="Last Run Started" value={formatRelative(munki.run_started_at)} />
+          <KeyValueRow label="Last Run Ended" value={formatRelative(munki.run_ended_at)} />
+        </KeyValueSection>
       ) : null}
 
       {problems.length > 0 ? (
-        <Card className="gap-4 py-4">
-          <CardHeader>
-            <CardTitle>Problems</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              {problems.map((problem) => (
-                <div
-                  key={`${problem.kind}-${problem.value}`}
-                  className="flex min-w-0 items-start gap-3"
-                >
-                  <Badge variant="secondary" className="shrink-0">
-                    {problem.kind}
-                  </Badge>
-                  <span className="min-w-0 text-sm wrap-break-word">{problem.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <DataTableStatic heading="Problems" columns={problemColumns} data={problems} />
       ) : null}
 
-      <Card className="gap-4 py-4">
-        <CardHeader>
-          <CardTitle>Software</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {software.error ? (
+      {software.error ? (
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base/snug font-medium text-foreground">Software</h2>
+          <Separator />
+          <div className="px-3">
             <QueryError
               title="Failed to load Munki software"
               error={software.error}
               onRetry={() => void software.refetch()}
             />
-          ) : software.isLoading ? null : software.data?.count === 0 ? (
-            <PanelEmptyState>No software in this host&apos;s manifest</PanelEmptyState>
-          ) : (
-            <DataTableStatic columns={softwareColumns} data={software.data?.items ?? []} />
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </section>
+      ) : software.isLoading ? null : (
+        <DataTableStatic
+          heading="Software"
+          columns={softwareColumns}
+          data={software.data?.items ?? []}
+          empty={<PanelEmptyState>No software in this host&apos;s manifest</PanelEmptyState>}
+        />
+      )}
     </div>
   );
 }
@@ -271,6 +268,6 @@ function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
   return <Badge variant="outline">OK</Badge>;
 }
 
-function problemRows(kind: string, values: string[]) {
+function problemRows(kind: string, values: string[]): ProblemRow[] {
   return values.map((value) => ({ kind, value }));
 }

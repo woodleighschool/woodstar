@@ -1,6 +1,7 @@
 import { Disc3, FileArchive, Package, Trash2 } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 
+import { TableSurface } from "@components/data-table/table-surface";
 import {
   Attachment,
   AttachmentAction,
@@ -339,7 +340,7 @@ export function InstallsTable({
         Files and bundles Munki uses to determine installed state and version.
       </FieldDescription>
       {rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -435,7 +436,7 @@ export function InstallsTable({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       ) : null}
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
         Add install item
@@ -460,7 +461,7 @@ export function ReceiptsTable({
       <FieldLegend variant="label">Receipts</FieldLegend>
       <FieldDescription>Package receipts Munki uses to determine installed state.</FieldDescription>
       {rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -521,7 +522,7 @@ export function ReceiptsTable({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       ) : null}
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
         Add receipt

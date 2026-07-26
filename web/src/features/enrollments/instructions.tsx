@@ -7,7 +7,14 @@ import type { ReactNode } from "react";
 
 import { CodeEditor } from "@components/editor/code-editor";
 import { Button } from "@components/ui/button";
-import { Card } from "@components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@components/ui/card";
 import type { Integration } from "@features/enrollments/metadata";
 import { cn } from "@lib/utils";
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
@@ -128,17 +135,15 @@ function DeploymentArtifact({
 }) {
   const titleID = deploymentArtifactTitleID(title);
   return (
-    <Card className="grid min-w-0 gap-3 rounded-lg p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 id={titleID} className="text-base font-medium">
-            {title}
-          </h2>
-          <p className="max-w-3xl text-sm/relaxed text-muted-foreground">{description}</p>
-        </div>
-        {action}
-      </div>
-      <DeploymentExample value={value} extensions={extensions} multiline={multiline} />
+    <Card className="min-w-0">
+      <CardHeader>
+        <CardTitle id={titleID}>{title}</CardTitle>
+        <CardDescription className="max-w-3xl text-sm/relaxed">{description}</CardDescription>
+        {action ? <CardAction>{action}</CardAction> : null}
+      </CardHeader>
+      <CardContent>
+        <DeploymentExample value={value} extensions={extensions} multiline={multiline} />
+      </CardContent>
     </Card>
   );
 }

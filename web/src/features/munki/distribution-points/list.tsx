@@ -15,6 +15,7 @@ import {
   DraggableTableRowHandle,
   DraggableTableRows,
 } from "@components/data-table/draggable-table-rows";
+import { TableSurface } from "@components/data-table/table-surface";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -332,7 +333,7 @@ function DistributionPointReorder({
       </div>
 
       <DraggableTableRows value={ordered} onValueChange={setOrdered} getRowId={(row) => row.id}>
-        <div className="overflow-hidden rounded-md border">
+        <TableSurface>
           <Table>
             <TableHeader>
               <TableRow>
@@ -371,7 +372,7 @@ function DistributionPointReorder({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableSurface>
       </DraggableTableRows>
 
       {truncated ? (

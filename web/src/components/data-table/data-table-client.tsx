@@ -22,6 +22,7 @@ interface DataTableClientProps<TData> {
   empty?: ReactNode;
   initialSorting?: SortingState;
   searchPlaceholder?: string;
+  title?: ReactNode;
   toolbar?: (table: Table<TData>) => ReactNode;
 }
 
@@ -31,6 +32,7 @@ export function DataTableClient<TData>({
   empty,
   initialSorting = [],
   searchPlaceholder,
+  title,
   toolbar,
 }: DataTableClientProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
@@ -59,10 +61,11 @@ export function DataTableClient<TData>({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  const showSearch = Boolean(searchPlaceholder);
   const controls =
-    searchPlaceholder || toolbar ? (
+    showSearch || toolbar ? (
       <div className="flex flex-wrap items-center gap-2">
-        {searchPlaceholder ? (
+        {showSearch ? (
           <Input
             value={globalFilter}
             onChange={(event) => setGlobalFilter(event.target.value)}
@@ -75,7 +78,7 @@ export function DataTableClient<TData>({
     ) : null;
 
   return (
-    <DataTable table={table} empty={empty}>
+    <DataTable table={table} empty={empty} heading={title}>
       {controls}
     </DataTable>
   );

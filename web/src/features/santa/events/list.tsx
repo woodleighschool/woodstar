@@ -11,10 +11,11 @@ import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
-import { Tabs, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { TabsTrigger } from "@components/ui/tabs";
 import { useHost } from "@features/hosts/queries";
 import type { SantaExecutionEvent, SantaFileAccessEvent, SantaHostSummary } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
@@ -244,8 +245,8 @@ function EventListNav({
 }) {
   const search = hostId != null ? { host_id: hostId } : {};
   return (
-    <Tabs value={active}>
-      <TabsList>
+    <ScrollableTabs value={active}>
+      <StickyTabsList>
         <TabsTrigger
           value="execution"
           render={<Link to="/santa/events" search={search} />}
@@ -260,8 +261,8 @@ function EventListNav({
         >
           File Access
         </TabsTrigger>
-      </TabsList>
-    </Tabs>
+      </StickyTabsList>
+    </ScrollableTabs>
   );
 }
 function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string }) {

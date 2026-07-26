@@ -1,16 +1,15 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Trash2 } from "lucide-react";
+import { AppWindow, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackage } from "@lib/api";
@@ -83,7 +82,8 @@ export function MunkiSoftwareDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Software Details"
-        description={software.description || undefined}
+        icon={<SoftwareArtwork src={software.icon_url} fallbackIcon={AppWindow} loading="eager" />}
+        meta={`Edited ${formatRelative(software.updated_at)}`}
         actions={
           isAdmin ? (
             <>
@@ -109,33 +109,23 @@ export function MunkiSoftwareDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={software.name} />
-            <KeyValueItem label="Display Name" value={software.display_name || "-"} />
-            <KeyValueItem label="Category" value={software.category} />
-            <KeyValueItem label="Developer" value={software.developer} />
-            <KeyValueItem label="Packages" value={software.packages.length} />
-            <KeyValueItem label="Updated" value={formatRelative(software.updated_at)} />
-            <KeyValueItem label="Includes" value={software.targets.include.length} />
-            <KeyValueItem label="Excludes" value={software.targets.exclude.length} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={software.name} />
+        <KeyValueRow label="Display Name" value={software.display_name || "-"} />
+        <KeyValueRow label="Description" value={software.description} />
+        <KeyValueRow label="Category" value={software.category} />
+        <KeyValueRow label="Developer" value={software.developer} />
+        <KeyValueRow label="Packages" value={software.packages.length} />
+        <KeyValueRow label="Includes" value={software.targets.include.length} />
+        <KeyValueRow label="Excludes" value={software.targets.exclude.length} />
+      </KeyValueSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Packages</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTableStatic
-            columns={packageColumns}
-            data={software.packages}
-            empty={<PanelEmptyState>No packages yet</PanelEmptyState>}
-          />
-        </CardContent>
-      </Card>
+      <DataTableStatic
+        heading="Packages"
+        columns={packageColumns}
+        data={software.packages}
+        empty={<PanelEmptyState>No packages yet</PanelEmptyState>}
+      />
 
       <MunkiSoftwareDeleteDialog
         software={software}

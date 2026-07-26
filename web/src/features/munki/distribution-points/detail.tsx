@@ -6,13 +6,12 @@ import { toast } from "sonner";
 
 import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@lib/api";
@@ -57,7 +56,6 @@ export function DistributionPointDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Distribution Point Details"
-        context={<WorkerStatus worker={point.worker} />}
         actions={
           isAdmin ? (
             <>
@@ -98,32 +96,20 @@ export function DistributionPointDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={point.name} />
-            <KeyValueItem
-              label="Enabled"
-              value={<BoolBadge value={point.enabled} label="Enabled" />}
-            />
-            <KeyValueItem label="Mirror" value={<MirrorBadge packages={point.packages} />} />
-            <KeyValueItem
-              label="Worker Version"
-              value={
-                point.worker?.build_version ?? <span className="text-muted-foreground">-</span>
-              }
-            />
-            <KeyValueItem label="Base URL" value={point.client_base_url} />
-            <KeyValueItem
-              label="Client CIDRs"
-              value={<CidrList cidrs={point.client_cidrs} />}
-              className="sm:col-span-2"
-            />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={point.name} />
+        <KeyValueRow label="Worker Status" value={<WorkerStatus worker={point.worker} />} />
+        <KeyValueRow label="Enabled" value={<BoolBadge value={point.enabled} label="Enabled" />} />
+        <KeyValueRow label="Mirror" value={<MirrorBadge packages={point.packages} />} />
+        <KeyValueRow
+          label="Worker Version"
+          value={point.worker?.build_version ?? <span className="text-muted-foreground">-</span>}
+        />
+        <KeyValueRow label="Base URL" value={point.client_base_url} />
+        <KeyValueRow label="Client CIDRs" value={<CidrList cidrs={point.client_cidrs} />} />
+      </KeyValueSection>
 
-      <PackageStateCard packages={point.packages} />
+      <PackageStateTable packages={point.packages} />
 
       <KeyRevealDialog
         title="Rotated Distribution Point Key"
@@ -149,27 +135,21 @@ function CidrList({ cidrs }: { cidrs: MunkiDistributionPointDetail["client_cidrs
   return (
     <div className="flex flex-wrap gap-1.5">
       {cidrs.map((cidr) => (
-        <code key={cidr} className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
+        <span key={cidr} className="text-sm">
           {cidr}
-        </code>
+        </span>
       ))}
     </div>
   );
 }
-function PackageStateCard({ packages }: { packages: MunkiPackageState[] }) {
+function PackageStateTable({ packages }: { packages: MunkiPackageState[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Packages</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DataTableStatic
-          columns={packageStateColumns}
-          data={packages}
-          empty={<PanelEmptyState>No mirrored packages.</PanelEmptyState>}
-        />
-      </CardContent>
-    </Card>
+    <DataTableStatic
+      heading="Packages"
+      columns={packageStateColumns}
+      data={packages}
+      empty={<PanelEmptyState>No mirrored packages.</PanelEmptyState>}
+    />
   );
 }
 

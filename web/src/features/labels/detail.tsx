@@ -2,15 +2,18 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Separator } from "@components/ui/separator";
 import { useAuth } from "@features/auth/queries";
+import { useGroups } from "@features/directory/groups/queries";
+import { useUsers } from "@features/directory/users/queries";
 import { labelDerivedAttributeSelectorLabel, labelMembershipLabel } from "@features/labels/model";
 import type { Label } from "@lib/api";
+import { MAX_PAGE_SIZE } from "@lib/pagination";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
@@ -52,6 +55,7 @@ export function LabelDetailPage() {
       <PageHeader
         title="Label Details"
         description={label.description || undefined}
+        meta={`Edited ${formatRelative(label.updated_at)}`}
         actions={
           isAdmin && mutable ? (
             <>
@@ -77,28 +81,19 @@ export function LabelDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent>
-          <KeyValueGrid>
-            <KeyValueItem label="Name" value={label.name} />
-            <KeyValueItem
-              label="Membership"
-              value={labelMembershipLabel(label.label_membership_type)}
-            />
-            <KeyValueItem label="Type" value={mutable ? "Regular" : "Built-In"} />
-            <KeyValueItem
-              label="Hosts"
-              value={
-                <Link to="/hosts" search={{ label_id: label.id }} className="font-medium">
-                  {formatHostCount(label.hosts_count)}
-                </Link>
-              }
-            />
-            <KeyValueItem label="Created" value={formatRelative(label.created_at)} />
-            <KeyValueItem label="Updated" value={formatRelative(label.updated_at)} />
-          </KeyValueGrid>
-        </CardContent>
-      </Card>
+      <KeyValueSection title="Overview">
+        <KeyValueRow label="Name" value={label.name} />
+        <KeyValueRow label="Membership" value={labelMembershipLabel(label.label_membership_type)} />
+        <KeyValueRow label="Type" value={mutable ? "Regular" : "Built-In"} />
+        <KeyValueRow
+          label="Hosts"
+          value={
+            <Link to="/hosts" search={{ label_id: label.id }} className="font-medium">
+              {formatHostCount(label.hosts_count)}
+            </Link>
+          }
+        />
+      </KeyValueSection>
 
       <MembershipCard label={label} />
 
@@ -116,50 +111,37 @@ function MembershipCard({ label }: { label: Label }) {
   switch (label.label_membership_type) {
     case "dynamic":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Query</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CodeBlock value={label.query} />
-          </CardContent>
-        </Card>
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base/snug font-medium">Query</h2>
+          <Separator />
+          <CodeBlock value={label.query} />
+        </section>
       );
     case "manual":
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Hosts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HostLinks hostIDs={label.host_ids ?? []} />
-          </CardContent>
-        </Card>
-      );
+      return null;
     case "derived":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Criteria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <KeyValueGrid>
-              <KeyValueItem
-                label="Attribute"
-                value={
-                  label.criteria
-                    ? labelDerivedAttributeSelectorLabel(label.criteria.attribute)
-                    : undefined
-                }
-              />
-              <KeyValueItem
-                label="Values"
-                value={<ValueList values={label.criteria?.values ?? []} />}
-                className="sm:col-span-2"
-              />
-            </KeyValueGrid>
-          </CardContent>
-        </Card>
+        <KeyValueSection title="Criteria">
+          <KeyValueRow
+            label="Attribute"
+            value={
+              label.criteria
+                ? labelDerivedAttributeSelectorLabel(label.criteria.attribute)
+                : undefined
+            }
+          />
+          <KeyValueRow
+            label="Values"
+            value={
+              label.criteria ? (
+                <CriteriaValues
+                  attribute={label.criteria.attribute}
+                  values={label.criteria.values}
+                />
+              ) : null
+            }
+          />
+        </KeyValueSection>
       );
   }
 
@@ -169,40 +151,59 @@ function MembershipCard({ label }: { label: Label }) {
 function CodeBlock({ value }: { value: string | undefined }) {
   if (!value) return <span className="text-muted-foreground">-</span>;
   return (
-    <pre className="overflow-x-auto rounded-md border bg-muted/30 p-3 font-mono text-xs">
+    <pre className="overflow-x-auto border-y bg-muted/20 px-3 py-2.5 font-mono text-xs">
       <code>{value}</code>
     </pre>
   );
 }
 
-function HostLinks({ hostIDs }: { hostIDs: readonly number[] }) {
-  if (hostIDs.length === 0) return <span className="text-muted-foreground">-</span>;
+function CriteriaValues({
+  attribute,
+  values,
+}: {
+  attribute: "user_department" | "directory_group" | "user";
+  values: readonly string[];
+}) {
+  if (attribute === "directory_group") return <GroupValues values={values} />;
+  if (attribute === "user") return <UserValues values={values} />;
+  return <PlainValues values={values} />;
+}
+
+function GroupValues({ values }: { values: readonly string[] }) {
+  const query = useGroups({ values: [...values], per_page: MAX_PAGE_SIZE });
+  const names = new Map(
+    (query.data?.items ?? []).map((group) => [group.external_id, group.display_name]),
+  );
+  return <PlainValues values={values.map((value) => names.get(value) ?? value)} />;
+}
+
+function UserValues({ values }: { values: readonly string[] }) {
+  const query = useUsers({ values: [...values], per_page: MAX_PAGE_SIZE });
+  const users = new Map((query.data?.items ?? []).map((user) => [String(user.id), user]));
+
+  if (values.length === 0) return <span className="text-muted-foreground">-</span>;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {hostIDs.map((hostID) => (
-        <Button
-          key={hostID}
-          size="xs"
-          variant="outline"
-          className="font-normal"
-          render={<Link to="/hosts/$id" params={{ id: String(hostID) }} />}
-          nativeButton={false}
-        >
-          Host {hostID}
-        </Button>
-      ))}
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {values.map((value) => {
+        const user = users.get(value);
+        return user ? (
+          <Link key={value} to="/directory/users/$id" params={{ id: value }}>
+            {user.name}
+          </Link>
+        ) : (
+          <span key={value}>{value}</span>
+        );
+      })}
     </div>
   );
 }
 
-function ValueList({ values }: { values: readonly string[] }) {
+function PlainValues({ values }: { values: readonly string[] }) {
   if (values.length === 0) return <span className="text-muted-foreground">-</span>;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
       {values.map((value) => (
-        <code key={value} className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
-          {value}
-        </code>
+        <span key={value}>{value}</span>
       ))}
     </div>
   );

@@ -37,6 +37,12 @@ export function CheckEditPage() {
       initial={checkFromDetail(check)}
       title="Edit Check"
       submitLabel="Save"
+      onCancel={() =>
+        void navigate({
+          to: "/osquery/checks/$id",
+          params: { id: String(check.id) },
+        })
+      }
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {

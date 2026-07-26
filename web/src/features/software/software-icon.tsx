@@ -83,6 +83,7 @@ export function SoftwareIcon({ icon: Icon, size = "sm", className }: SoftwareIco
 
 interface SoftwareArtworkProps {
   src?: string;
+  fallbackIcon?: SoftwareIconDefinition["icon"];
   size?: SoftwareIconSize;
   className?: string;
   loading?: "eager" | "lazy";
@@ -90,6 +91,7 @@ interface SoftwareArtworkProps {
 
 export function SoftwareArtwork({
   src,
+  fallbackIcon = DEFAULT_ICON.icon,
   size = "sm",
   className,
   loading = "lazy",
@@ -101,7 +103,7 @@ export function SoftwareArtwork({
   }, [src]);
 
   if (!src || failedSrc === src) {
-    return <SoftwareIcon {...DEFAULT_ICON} size={size} className={className} />;
+    return <SoftwareIcon icon={fallbackIcon} size={size} className={className} />;
   }
 
   return (

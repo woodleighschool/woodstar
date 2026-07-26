@@ -8,11 +8,11 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="min-h-svh w-auto min-w-0 overflow-hidden">
+      <SidebarInset className="h-svh min-h-0 w-auto min-w-0 overflow-hidden">
         <AppTopbar />
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           <Outlet />
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

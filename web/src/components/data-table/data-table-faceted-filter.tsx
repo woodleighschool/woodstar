@@ -117,7 +117,7 @@ export function DataTableFacetedFilter<TData, TValue>({
               {option.icon ? <option.icon /> : null}
               <span className="truncate">{option.label}</span>
               {option.count !== undefined ? (
-                <span className="ml-auto pr-5 font-mono text-xs">{option.count}</span>
+                <span className="ml-auto pr-5 text-xs tabular-nums">{option.count}</span>
               ) : null}
             </ComboboxItem>
           ))}
