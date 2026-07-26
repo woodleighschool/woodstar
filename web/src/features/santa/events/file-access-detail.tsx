@@ -3,7 +3,7 @@ import { useParams, useSearch } from "@tanstack/react-router";
 import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
@@ -50,7 +50,7 @@ export function SantaFileAccessEventDetailPage() {
       <PageHeader title="File Access" description={event.target} />
 
       <ScrollableTabs value={activeView}>
-        <StickyTabsList>
+        <ScrollableTabsList>
           <TabsTrigger
             value="overview"
             render={
@@ -77,7 +77,7 @@ export function SantaFileAccessEventDetailPage() {
           >
             Process Chain
           </TabsTrigger>
-        </StickyTabsList>
+        </ScrollableTabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-5">
           <KeyValueSection title="Overview">

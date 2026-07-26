@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import {
@@ -74,7 +74,7 @@ export function SantaEventDetailPage() {
 
       {hasTabs ? (
         <ScrollableTabs value={activeView}>
-          <StickyTabsList>
+          <ScrollableTabsList>
             <TabsTrigger
               value="details"
               render={
@@ -124,7 +124,7 @@ export function SantaEventDetailPage() {
                 Entitlements
               </TabsTrigger>
             ) : null}
-          </StickyTabsList>
+          </ScrollableTabsList>
 
           <TabsContent value="details">{detailsContent}</TabsContent>
 

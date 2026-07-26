@@ -1,7 +1,7 @@
 import { Outlet, useParams, useRouterState } from "@tanstack/react-router";
 
 import { PageShell } from "@components/layout/page-layout";
-import { ScrollableTabs, StickyTabsList } from "@components/layout/scrollable-tabs";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { TabsTrigger } from "@components/ui/tabs";
@@ -127,7 +127,7 @@ function HostSectionNav({ hostID }: { hostID: number }) {
 
   return (
     <ScrollableTabs value={active}>
-      <StickyTabsList>
+      <ScrollableTabsList>
         {hostSections.map((section) => (
           <TabsTrigger
             key={section.value}
@@ -138,7 +138,7 @@ function HostSectionNav({ hostID }: { hostID: number }) {
             {section.label}
           </TabsTrigger>
         ))}
-      </StickyTabsList>
+      </ScrollableTabsList>
     </ScrollableTabs>
   );
 }
