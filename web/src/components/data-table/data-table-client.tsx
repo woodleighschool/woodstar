@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
+import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { Input } from "@components/ui/input";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 
@@ -20,6 +21,7 @@ interface DataTableClientProps<TData> {
   columns: ColumnDef<TData>[];
   data: TData[];
   empty?: ReactNode;
+  exportOptions?: DataTableExportOptions<TData>;
   initialSorting?: SortingState;
   searchPlaceholder?: string;
   title?: ReactNode;
@@ -30,6 +32,7 @@ export function DataTableClient<TData>({
   columns,
   data,
   empty,
+  exportOptions,
   initialSorting = [],
   searchPlaceholder,
   title,
@@ -78,7 +81,7 @@ export function DataTableClient<TData>({
     ) : null;
 
   return (
-    <DataTable table={table} empty={empty} heading={title}>
+    <DataTable table={table} empty={empty} exportOptions={exportOptions} heading={title}>
       {controls}
     </DataTable>
   );

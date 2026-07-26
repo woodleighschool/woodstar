@@ -36,12 +36,7 @@ export function DataTableViewOptions<TData>({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto hidden h-8 font-normal lg:flex"
-            disabled={disabled}
-          />
+          <Button variant="outline" size="sm" className="h-8 font-normal" disabled={disabled} />
         }
       >
         <Settings2 className="text-muted-foreground" />

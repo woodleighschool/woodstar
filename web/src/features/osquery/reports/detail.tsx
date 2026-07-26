@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
+import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -65,13 +66,25 @@ export function ReportDetailPage() {
   }
 
   const rows = reportRows(results.data);
-  const resultColumns: ColumnDef<ReportTableRow>[] = resultColumnNames(rows).map((name) => ({
+  const columnNames = resultColumnNames(rows);
+  const resultColumns: ColumnDef<ReportTableRow>[] = columnNames.map((name) => ({
     id: name,
     accessorFn: (row) => row.columns[name] ?? "",
     header: () => name,
     cell: ({ row }) => resultValue(row.original.columns[name]),
   }));
   const columns = [...reportTableColumns(), ...resultColumns];
+  const exportOptions: DataTableExportOptions<ReportTableRow> = {
+    filename: `osquery-report-${id}-results`,
+    columns: [
+      { header: "Host", value: (row) => row.hostName },
+      { header: "Last Fetched", value: (row) => row.lastFetched },
+      ...columnNames.map((name) => ({
+        header: name,
+        value: (row: ReportTableRow) => row.columns[name],
+      })),
+    ],
+  };
 
   return (
     <PageShell>
@@ -134,6 +147,7 @@ export function ReportDetailPage() {
           title="Results"
           columns={columns}
           data={rows}
+          exportOptions={exportOptions}
           initialSorting={[{ id: "hostName", desc: false }]}
           searchPlaceholder="Search report results"
           empty={<PanelEmptyState>No report results yet</PanelEmptyState>}

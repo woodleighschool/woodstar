@@ -2,6 +2,10 @@ import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type * as React from "react";
 
+import {
+  DataTableExport,
+  type DataTableExportOptions,
+} from "@components/data-table/data-table-export";
 import { DataTablePagination } from "@components/data-table/data-table-pagination";
 import { TableSurface } from "@components/data-table/table-surface";
 import {
@@ -18,23 +22,40 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>;
   actionBar?: React.ReactNode;
   empty?: React.ReactNode;
+  exportOptions?: DataTableExportOptions<TData>;
   heading?: React.ReactNode;
+  toolbarActions?: React.ReactNode;
 }
 
 export function DataTable<TData>({
   table,
   actionBar,
   empty,
+  exportOptions,
   heading,
+  toolbarActions,
   children,
   className,
   ...props
 }: DataTableProps<TData>) {
+  const toolbar =
+    toolbarActions || exportOptions ? (
+      <div className="flex flex-wrap items-start justify-between gap-2 p-1">
+        {children ? <div className="min-w-0 flex-1">{children}</div> : null}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {toolbarActions}
+          {exportOptions ? <DataTableExport table={table} options={exportOptions} /> : null}
+        </div>
+      </div>
+    ) : (
+      children
+    );
+
   return (
     <div className={cn("min-w-0", className)} {...props}>
       <TableSurface
         heading={heading}
-        toolbar={children}
+        toolbar={toolbar}
         viewportClassName="max-h-[calc(100svh-23rem)]"
         footer={<DataTablePagination table={table} className="border-t px-3 py-2" />}
       >

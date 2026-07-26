@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
+import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
@@ -50,6 +51,12 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     header: () => "Last Evaluated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
   },
+];
+
+const resultExportColumns: DataTableExportOptions<OsqueryCheckHostStatus>["columns"] = [
+  { header: "Host", value: (row) => row.host_name },
+  { header: "Status", value: (row) => row.response },
+  { header: "Last Evaluated", value: (row) => row.updated_at },
 ];
 
 function CheckResultsToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
@@ -161,6 +168,10 @@ export function CheckDetailPage() {
           title="Results"
           columns={resultColumns}
           data={rows}
+          exportOptions={{
+            filename: `osquery-check-${id}-results`,
+            columns: resultExportColumns,
+          }}
           initialSorting={[{ id: "host_name", desc: false }]}
           searchPlaceholder="Search check results"
           toolbar={renderCheckResultsToolbar}

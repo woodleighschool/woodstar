@@ -1,0 +1,89 @@
+import type { Table } from "@tanstack/react-table";
+import { DownloadIcon } from "lucide-react";
+import * as React from "react";
+
+import { Button } from "@components/ui/button";
+import { Spinner } from "@components/ui/spinner";
+import { toast } from "@components/ui/toast";
+
+type CSVValue = string | number | boolean | null | undefined;
+
+export interface DataTableExportColumn<TData> {
+  header: string;
+  value: (row: TData) => CSVValue;
+}
+
+export interface DataTableExportOptions<TData> {
+  filename: string;
+  columns: DataTableExportColumn<TData>[];
+  loadRows?: () => Promise<TData[]>;
+}
+
+export function DataTableExport<TData>({
+  table,
+  options,
+}: {
+  table: Table<TData>;
+  options: DataTableExportOptions<TData>;
+}) {
+  const [isExporting, setIsExporting] = React.useState(false);
+  const hasRows = table.getRowCount() > 0;
+
+  async function exportCSV() {
+    setIsExporting(true);
+
+    try {
+      const selectedRows = table.getSelectedRowModel().rows;
+      const rows =
+        selectedRows.length > 0
+          ? selectedRows.map((row) => row.original)
+          : options.loadRows
+            ? await options.loadRows()
+            : table.getFilteredRowModel().rows.map((row) => row.original);
+
+      const { default: Papa } = await import("papaparse");
+      const csv = Papa.unparse({
+        fields: options.columns.map((column) => column.header),
+        data: rows.map((row) =>
+          options.columns.map((column) => {
+            const value = column.value(row);
+            return value ?? "";
+          }),
+        ),
+      });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `${options.filename}-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.hidden = true;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.add({ title: "Failed to export CSV", type: "error" });
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-8 font-normal"
+      disabled={!hasRows || isExporting}
+      onClick={() => void exportCSV()}
+    >
+      {isExporting ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <DownloadIcon data-icon="inline-start" />
+      )}
+      Export
+    </Button>
+  );
+}

@@ -6,6 +6,7 @@ import * as React from "react";
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
+import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
@@ -20,7 +21,7 @@ import { QueryError } from "@components/query-error";
 import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
 import { HostStatus } from "@features/hosts/components/host-status";
-import { useBulkDeleteHosts, useHosts } from "@features/hosts/queries";
+import { listAllHosts, useBulkDeleteHosts, useHosts } from "@features/hosts/queries";
 import { useLabel } from "@features/labels/queries";
 import { useSoftwareTitle } from "@features/software/queries";
 import type { Host, SoftwareTitle } from "@lib/api";
@@ -90,6 +91,19 @@ export function HostListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
+  const exportOptions: DataTableExportOptions<Host> = {
+    filename: "hosts",
+    columns: hostExportColumns,
+    loadRows: () =>
+      listAllHosts({
+        q: tableSearch.q,
+        sort: tableSearch.sort,
+        status: search.status,
+        label_id: search.label_id,
+        software_title_id: search.software_title_id,
+        software_id: search.software_id,
+      }),
+  };
 
   return (
     <PageShell>
@@ -123,10 +137,12 @@ export function HostListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={8} filterCount={1} />
+        <DataTableSkeleton columnCount={8} filterCount={1} withExport />
       ) : (
         <DataTable
           table={table}
+          exportOptions={exportOptions}
+          toolbarActions={<DataTableViewOptions table={table} align="end" />}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -147,22 +163,17 @@ export function HostListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("status")}
-                title="Status"
-                options={STATUS_OPTIONS}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <DataTableViewOptions table={table} align="end" />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DataTableSearchInput
+              className="h-8 w-40 lg:w-56"
+              value={tableSearch.q ?? ""}
+              onValueChange={tableSearch.onQueryChange}
+            />
+            <DataTableFacetedFilter
+              column={table.getColumn("status")}
+              title="Status"
+              options={STATUS_OPTIONS}
+            />
           </div>
         </DataTable>
       )}
@@ -289,6 +300,36 @@ const hostColumns: ColumnDef<Host>[] = [
 ];
 
 const hostViewerColumns = hostColumns.filter((column) => column.id !== "select");
+
+const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
+  { header: "Name", value: (host) => host.display_name },
+  { header: "Status", value: (host) => host.status },
+  { header: "OS", value: (host) => host.os.version },
+  { header: "Model", value: (host) => host.hardware.model_identifier },
+  { header: "Serial", value: (host) => host.hardware.serial },
+  {
+    header: "Disk Free",
+    value: (host) =>
+      host.storage.boot_volume.available_bytes
+        ? formatBytes(host.storage.boot_volume.available_bytes)
+        : "",
+  },
+  { header: "User Email", value: (host) => host.primary_user?.email },
+  { header: "Last Seen", value: (host) => host.timestamps.last_seen_at },
+  { header: "UUID", value: (host) => host.hardware.uuid },
+  { header: "Private IP", value: (host) => host.network.primary_ip },
+  { header: "Public IP", value: (host) => host.network.last_remote_ip },
+  {
+    header: "Memory",
+    value: (host) =>
+      host.hardware.memory_bytes > 0 ? formatBytes(host.hardware.memory_bytes) : "",
+  },
+  { header: "Osquery Version", value: (host) => host.agents.osquery.version },
+  {
+    header: "Last Restarted",
+    value: (host) => host.timestamps.last_restarted_at,
+  },
+];
 
 function softwareFilterLabel({
   title,

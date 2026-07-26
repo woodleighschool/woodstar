@@ -9,6 +9,7 @@ import {
 import { toast } from "@components/ui/toast";
 import type {
   ApiError,
+  Host,
   HostDetail,
   MunkiHostState,
   OsqueryCheckHostStatus,
@@ -42,7 +43,7 @@ import type {
   ListHostSoftwareData,
   ListHostsData,
 } from "@lib/api-client/types.gen";
-import { baseListParams } from "@lib/pagination";
+import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
@@ -76,6 +77,17 @@ interface HostPrimaryUserMutation {
   email: string;
 }
 
+function hostListQueryParams(params: HostListParams) {
+  return {
+    ...baseListParams(params),
+    status: params.status,
+    label_id: params.label_id,
+    software_title_id: params.software_title_id,
+    software_id: params.software_id,
+    ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
+  };
+}
+
 export function hostQueryOptions(id: number | null, options: RefetchOptions = {}) {
   return queryOptions<HostDetail, ApiError>({
     queryKey: hostKeys.detail(id),
@@ -86,14 +98,7 @@ export function hostQueryOptions(id: number | null, options: RefetchOptions = {}
 }
 
 export function useHosts(params: HostListParams = {}, options: RefetchOptions = {}) {
-  const queryParams = {
-    ...baseListParams(params),
-    status: params.status,
-    label_id: params.label_id,
-    software_title_id: params.software_title_id,
-    software_id: params.software_id,
-    ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
-  };
+  const queryParams = hostListQueryParams(params);
 
   return useQuery<PageHost, ApiError>({
     queryKey: hostKeys.list(queryParams),
@@ -101,6 +106,35 @@ export function useHosts(params: HostListParams = {}, options: RefetchOptions = 
     placeholderData: keepPreviousData,
     refetchInterval: options.refetchInterval,
   });
+}
+
+export async function listAllHosts(params: HostListParams = {}): Promise<Host[]> {
+  const firstPage = await unwrap(
+    listHosts({
+      query: hostListQueryParams({
+        ...params,
+        page: 1,
+        per_page: MAX_PAGE_SIZE,
+      }),
+    }),
+  );
+  const hosts = [...firstPage.items];
+  const pageCount = Math.ceil(firstPage.count / MAX_PAGE_SIZE);
+
+  for (let page = 2; page <= pageCount; page += 1) {
+    const response = await unwrap(
+      listHosts({
+        query: hostListQueryParams({
+          ...params,
+          page,
+          per_page: MAX_PAGE_SIZE,
+        }),
+      }),
+    );
+    hosts.push(...response.items);
+  }
+
+  return hosts;
 }
 
 export function useHost(id: number | null, options: RefetchOptions = {}) {

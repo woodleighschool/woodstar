@@ -16,6 +16,7 @@ interface DataTableSkeletonProps extends React.ComponentProps<"div"> {
   rowCount?: number;
   filterCount?: number;
   cellWidths?: string[];
+  withExport?: boolean;
   withViewOptions?: boolean;
   withPagination?: boolean;
   shrinkZero?: boolean;
@@ -27,6 +28,7 @@ export function DataTableSkeleton({
   rowCount = 10,
   filterCount = 0,
   cellWidths = ["auto"],
+  withExport = false,
   withViewOptions = true,
   withPagination = true,
   shrinkZero = false,
@@ -66,7 +68,12 @@ export function DataTableSkeleton({
                 ))
               : null}
           </div>
-          {withViewOptions ? <Skeleton className="ml-auto hidden h-7 w-18 lg:flex" /> : null}
+          {withViewOptions || withExport ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {withViewOptions ? <Skeleton className="h-7 w-18" /> : null}
+              {withExport ? <Skeleton className="h-7 w-18" /> : null}
+            </div>
+          ) : null}
         </div>
       }
       footer={
