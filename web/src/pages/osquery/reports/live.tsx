@@ -34,14 +34,14 @@ export function ReportLivePage() {
       kind="report"
       itemId={Number(reportId)}
       sql={report.data.query}
-      editAction={
+      detailAction={
         <Button
           variant="outline"
           size="sm"
           render={<Link to="/osquery/reports/$id" params={{ id: reportId }} />}
           nativeButton={false}
         >
-          Edit Report
+          View Report
         </Button>
       }
     />

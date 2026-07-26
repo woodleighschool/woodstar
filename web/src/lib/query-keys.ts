@@ -43,8 +43,7 @@ export const queryKeys = {
   reportResults: (id: number | null) => ["reports", "detail", id, "results"] as const,
   checks: (params?: QueryParams) => ["checks", "list", params ?? {}] as const,
   check: (id: number | null) => ["checks", "detail", id] as const,
-  checkResults: (id: number | null, params?: QueryParams) =>
-    ["checks", "detail", id, "results", params ?? {}] as const,
+  checkResults: (id: number | null) => ["checks", "detail", id, "results"] as const,
   software: (params?: QueryParams) => ["software", "list", params ?? {}] as const,
   softwareTitle: (id: number | null) => ["software", "detail", id] as const,
   softwareSantaReference: (id: number | null) => ["software", "detail", id, "santa"] as const,

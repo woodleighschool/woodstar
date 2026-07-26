@@ -34,14 +34,14 @@ export function CheckLivePage() {
       kind="check"
       itemId={Number(checkId)}
       sql={check.data.query}
-      editAction={
+      detailAction={
         <Button
           variant="outline"
           size="sm"
           render={<Link to="/osquery/checks/$id" params={{ id: checkId }} />}
           nativeButton={false}
         >
-          Edit Check
+          View Check
         </Button>
       }
     />

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ReportEditPage } from "@/pages/osquery/reports/edit";
+import { ReportDetailPage } from "@/pages/osquery/reports/detail";
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/$id/")({
-  component: ReportEditPage,
+  component: ReportDetailPage,
 });

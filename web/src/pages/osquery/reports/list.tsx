@@ -1,7 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileBarChart2, Plus } from "lucide-react";
-import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
@@ -41,14 +40,10 @@ export function ReportListPage() {
   const reports = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo<ColumnDef<OsqueryReport>[]>(
-    () => reportColumns(isAdmin),
-    [isAdmin],
-  );
   const table = useDataTable({
     tableState: tableSearch,
     data: reports,
-    columns,
+    columns: reportColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -112,45 +107,39 @@ export function ReportListPage() {
     </PageShell>
   );
 }
-function reportColumns(isAdmin: boolean): ColumnDef<OsqueryReport>[] {
-  const columns: ColumnDef<OsqueryReport>[] = [
-    selectColumn<OsqueryReport>(),
-    {
-      id: "name",
-      accessorKey: "name",
-      header: "Name",
-      cell: ({ row }) =>
-        isAdmin ? (
-          <Link
-            to="/osquery/reports/$id"
-            params={{ id: String(row.original.id) }}
-            className="font-medium"
-          >
-            {row.original.name}
-          </Link>
-        ) : (
-          <span className="font-medium">{row.original.name}</span>
-        ),
-      enableHiding: false,
-      meta: { label: "Name" },
-    },
-    {
-      id: "schedule_interval",
-      accessorKey: "schedule_interval",
-      header: "Interval",
-      cell: ({ row }) =>
-        row.original.schedule_interval
-          ? `Every ${formatInterval(row.original.schedule_interval)}`
-          : "Off",
-      meta: { label: "Interval" },
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-      meta: { label: "Updated" },
-    },
-  ];
-  return columns;
-}
+const reportColumns: ColumnDef<OsqueryReport>[] = [
+  selectColumn<OsqueryReport>(),
+  {
+    id: "name",
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/osquery/reports/$id"
+        params={{ id: String(row.original.id) }}
+        className="font-medium"
+      >
+        {row.original.name}
+      </Link>
+    ),
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "schedule_interval",
+    accessorKey: "schedule_interval",
+    header: "Interval",
+    cell: ({ row }) =>
+      row.original.schedule_interval
+        ? `Every ${formatInterval(row.original.schedule_interval)}`
+        : "Off",
+    meta: { label: "Interval" },
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+    meta: { label: "Updated" },
+  },
+];

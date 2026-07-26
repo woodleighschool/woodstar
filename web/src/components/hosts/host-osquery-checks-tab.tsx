@@ -3,11 +3,12 @@ import { useMemo } from "react";
 
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
+import { EnumStatus } from "@/components/enum-status";
 import { Link } from "@/components/link";
-import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { QueryError } from "@/components/query-error";
 import { useHostOsqueryChecks } from "@/hooks/use-hosts";
 import type { OsqueryCheckHostStatus } from "@/lib/api";
+import { CHECK_RESULT_STATUSES, checkResultStatus } from "@/lib/osquery-checks";
 import { formatRelative } from "@/lib/utils";
 
 const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
@@ -23,7 +24,12 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "response",
     header: () => "Status",
-    cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
+    cell: ({ row }) => (
+      <EnumStatus
+        value={checkResultStatus(row.original.response)}
+        metadata={CHECK_RESULT_STATUSES}
+      />
+    ),
   },
   {
     accessorKey: "updated_at",

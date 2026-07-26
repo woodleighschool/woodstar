@@ -1,13 +1,10 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
-import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
-import { EmptyPanel } from "@/components/empty-panel";
 import { FormActions } from "@/components/form-actions";
 import { FormField } from "@/components/form-field";
 import {
@@ -17,13 +14,6 @@ import {
 } from "@/components/form-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@/components/layout/scrollable-tabs";
-import {
-  reportRows,
-  reportTableColumns,
-  type ReportTableRow,
-  resultColumnNames,
-  resultValue,
-} from "@/components/reports/query-results";
 import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -35,10 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePageFormExitGuard } from "@/hooks/use-page-form-exit-guard";
-import { useReportResults } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import type { OsqueryReport, OsqueryReportMutation } from "@/lib/api";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
@@ -117,8 +106,6 @@ export function ReportForm({
   onSubmit,
   onSuccess,
   onCancel,
-  headerActions,
-  resultsReportId,
 }: {
   initial: OsqueryReportMutation;
   title: string;
@@ -126,8 +113,6 @@ export function ReportForm({
   onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
-  headerActions?: ReactNode;
-  resultsReportId?: number;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
@@ -180,7 +165,7 @@ export function ReportForm({
         />
       }
     >
-      <PageHeader title={title} actions={headerActions} />
+      <PageHeader title={title} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollableTabsList>
@@ -190,9 +175,6 @@ export function ReportForm({
           <FormTabTrigger form={form} tab={reportFormTabs[1]}>
             Targets
           </FormTabTrigger>
-          {resultsReportId !== undefined ? (
-            <TabsTrigger value="results">Results</TabsTrigger>
-          ) : null}
         </ScrollableTabsList>
 
         <TabsContent value="options" keepMounted className="data-inactive:hidden">
@@ -335,14 +317,6 @@ export function ReportForm({
             )}
           </form.Field>
         </TabsContent>
-
-        {resultsReportId !== undefined ? (
-          <TabsContent value="results">
-            <form.Subscribe selector={(state) => state.values.name}>
-              {() => <ReportResults reportId={resultsReportId} />}
-            </form.Subscribe>
-          </TabsContent>
-        ) : null}
       </ScrollableTabs>
 
       <FormActions
@@ -361,18 +335,4 @@ export function ReportForm({
       {exitGuard.dialog}
     </PageShell>
   );
-}
-function ReportResults({ reportId }: { reportId: number }) {
-  const results = useReportResults(reportId);
-  const rows = reportRows(results.data);
-  const resultColumns: ColumnDef<ReportTableRow>[] = resultColumnNames(rows).map((name) => ({
-    id: name,
-    accessorFn: (row) => row.columns[name] ?? "",
-    header: () => name,
-    cell: ({ row }) => resultValue(row.original.columns[name]),
-  }));
-  const columns = [...reportTableColumns(), ...resultColumns];
-  if (results.isLoading) return null;
-  if (rows.length === 0) return <EmptyPanel>No results yet</EmptyPanel>;
-  return <DataTableStatic columns={columns} data={rows} />;
 }

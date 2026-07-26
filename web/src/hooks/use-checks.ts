@@ -17,17 +17,13 @@ import {
   unwrap,
   updateOsqueryCheck,
 } from "@/lib/api";
-import type {
-  ListOsqueryCheckResultsData,
-  ListOsqueryChecksData,
-} from "@/lib/api-client/types.gen";
+import type { ListOsqueryChecksData } from "@/lib/api-client/types.gen";
 import { baseListParams } from "@/lib/pagination";
 import { checkQueryOptions } from "@/lib/queries/osquery";
 import { queryKeys } from "@/lib/query-keys";
 import { detailPath } from "@/lib/route-params";
 
 export type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
-export type CheckResultsParams = NonNullable<ListOsqueryCheckResultsData["query"]>;
 
 const CHECK_REFRESH_MS = 30_000;
 
@@ -46,18 +42,13 @@ export function useCheck(id: number | null) {
   return useQuery(checkQueryOptions(id));
 }
 
-export function useCheckResults(id: number | null, params: CheckResultsParams = {}) {
-  const queryParams = {
-    response: params.response,
-  };
-
+export function useCheckResults(id: number | null) {
   return useQuery<OsqueryCheckHostStatus[], ApiError>({
-    queryKey: queryKeys.checkResults(id, queryParams),
+    queryKey: queryKeys.checkResults(id),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryCheckResults({
           path: detailPath(id),
-          query: queryParams,
           signal,
         }),
       ),

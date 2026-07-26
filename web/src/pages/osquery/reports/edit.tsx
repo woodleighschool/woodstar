@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import { LiveRunButton } from "@/components/queries/query-ui";
 import { QueryGate } from "@/components/query-gate";
 import { useReport, useUpdateReport } from "@/hooks/use-reports";
 import { parseRouteID } from "@/lib/route-params";
@@ -37,8 +36,6 @@ export function ReportEditPage() {
       initial={reportFromDetail(report)}
       title="Edit Report"
       submitLabel="Save"
-      resultsReportId={id}
-      headerActions={<LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />}
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {

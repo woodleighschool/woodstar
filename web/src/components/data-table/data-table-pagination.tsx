@@ -26,7 +26,9 @@ export function DataTablePagination<TData>({
 }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageRowCount = table.getRowModel().rows.length;
-  const rowCount = table.getRowCount();
+  const rowCount = table.options.manualPagination
+    ? table.getRowCount()
+    : table.getPrePaginationRowModel().rows.length;
   const firstRow = pageRowCount === 0 ? 0 : pageIndex * pageSize + 1;
   const lastRow = pageRowCount === 0 ? 0 : Math.min(rowCount, firstRow + pageRowCount - 1);
 

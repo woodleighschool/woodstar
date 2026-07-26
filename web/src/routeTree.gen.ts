@@ -77,9 +77,10 @@ import { Route as AuthenticatedMunkiDistributionPointsIdIndexRouteImport } from 
 import { Route as AuthenticatedMunkiDistributionPointsIdEditRouteImport } from './routes/_authenticated/munki.distribution-points.$id.edit'
 import { Route as AuthenticatedMunkiPackagesIdEditRouteImport } from './routes/_authenticated/munki.packages.$id.edit'
 import { Route as AuthenticatedOsqueryChecksIdIndexRouteImport } from './routes/_authenticated/osquery.checks.$id.index'
+import { Route as AuthenticatedOsqueryChecksIdEditRouteImport } from './routes/_authenticated/osquery.checks.$id.edit'
 import { Route as AuthenticatedOsqueryChecksIdLiveRouteImport } from './routes/_authenticated/osquery.checks.$id.live'
-import { Route as AuthenticatedOsqueryChecksIdResultsRouteImport } from './routes/_authenticated/osquery.checks.$id.results'
 import { Route as AuthenticatedOsqueryReportsIdIndexRouteImport } from './routes/_authenticated/osquery.reports.$id.index'
+import { Route as AuthenticatedOsqueryReportsIdEditRouteImport } from './routes/_authenticated/osquery.reports.$id.edit'
 import { Route as AuthenticatedOsqueryReportsIdLiveRouteImport } from './routes/_authenticated/osquery.reports.$id.live'
 import { Route as AuthenticatedSantaEventsFileAccessIndexRouteImport } from './routes/_authenticated/santa.events.file-access.index'
 import { Route as AuthenticatedSantaEventsFileAccessIdRouteImport } from './routes/_authenticated/santa.events.file-access.$id'
@@ -474,22 +475,28 @@ const AuthenticatedOsqueryChecksIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedOsqueryChecksIdRoute,
   } as any)
+const AuthenticatedOsqueryChecksIdEditRoute =
+  AuthenticatedOsqueryChecksIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedOsqueryChecksIdRoute,
+  } as any)
 const AuthenticatedOsqueryChecksIdLiveRoute =
   AuthenticatedOsqueryChecksIdLiveRouteImport.update({
     id: '/live',
     path: '/live',
     getParentRoute: () => AuthenticatedOsqueryChecksIdRoute,
   } as any)
-const AuthenticatedOsqueryChecksIdResultsRoute =
-  AuthenticatedOsqueryChecksIdResultsRouteImport.update({
-    id: '/results',
-    path: '/results',
-    getParentRoute: () => AuthenticatedOsqueryChecksIdRoute,
-  } as any)
 const AuthenticatedOsqueryReportsIdIndexRoute =
   AuthenticatedOsqueryReportsIdIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthenticatedOsqueryReportsIdRoute,
+  } as any)
+const AuthenticatedOsqueryReportsIdEditRoute =
+  AuthenticatedOsqueryReportsIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
     getParentRoute: () => AuthenticatedOsqueryReportsIdRoute,
   } as any)
 const AuthenticatedOsqueryReportsIdLiveRoute =
@@ -577,8 +584,9 @@ export interface FileRoutesByFullPath {
   '/directory/users/$id/edit': typeof AuthenticatedDirectoryUsersIdEditRoute
   '/munki/distribution-points/$id/edit': typeof AuthenticatedMunkiDistributionPointsIdEditRoute
   '/munki/packages/$id/edit': typeof AuthenticatedMunkiPackagesIdEditRoute
+  '/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
-  '/osquery/checks/$id/results': typeof AuthenticatedOsqueryChecksIdResultsRoute
+  '/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
   '/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/munki/distribution-points/$id/': typeof AuthenticatedMunkiDistributionPointsIdIndexRoute
@@ -630,8 +638,9 @@ export interface FileRoutesByTo {
   '/directory/users/$id/edit': typeof AuthenticatedDirectoryUsersIdEditRoute
   '/munki/distribution-points/$id/edit': typeof AuthenticatedMunkiDistributionPointsIdEditRoute
   '/munki/packages/$id/edit': typeof AuthenticatedMunkiPackagesIdEditRoute
+  '/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
-  '/osquery/checks/$id/results': typeof AuthenticatedOsqueryChecksIdResultsRoute
+  '/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
   '/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/munki/distribution-points/$id': typeof AuthenticatedMunkiDistributionPointsIdIndexRoute
@@ -707,8 +716,9 @@ export interface FileRoutesById {
   '/_authenticated/directory/users/$id/edit': typeof AuthenticatedDirectoryUsersIdEditRoute
   '/_authenticated/munki/distribution-points/$id/edit': typeof AuthenticatedMunkiDistributionPointsIdEditRoute
   '/_authenticated/munki/packages/$id/edit': typeof AuthenticatedMunkiPackagesIdEditRoute
+  '/_authenticated/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/_authenticated/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
-  '/_authenticated/osquery/checks/$id/results': typeof AuthenticatedOsqueryChecksIdResultsRoute
+  '/_authenticated/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/_authenticated/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
   '/_authenticated/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/_authenticated/munki/distribution-points/$id/': typeof AuthenticatedMunkiDistributionPointsIdIndexRoute
@@ -784,8 +794,9 @@ export interface FileRouteTypes {
     | '/directory/users/$id/edit'
     | '/munki/distribution-points/$id/edit'
     | '/munki/packages/$id/edit'
+    | '/osquery/checks/$id/edit'
     | '/osquery/checks/$id/live'
-    | '/osquery/checks/$id/results'
+    | '/osquery/reports/$id/edit'
     | '/osquery/reports/$id/live'
     | '/santa/events/file-access/$id'
     | '/munki/distribution-points/$id/'
@@ -837,8 +848,9 @@ export interface FileRouteTypes {
     | '/directory/users/$id/edit'
     | '/munki/distribution-points/$id/edit'
     | '/munki/packages/$id/edit'
+    | '/osquery/checks/$id/edit'
     | '/osquery/checks/$id/live'
-    | '/osquery/checks/$id/results'
+    | '/osquery/reports/$id/edit'
     | '/osquery/reports/$id/live'
     | '/santa/events/file-access/$id'
     | '/munki/distribution-points/$id'
@@ -913,8 +925,9 @@ export interface FileRouteTypes {
     | '/_authenticated/directory/users/$id/edit'
     | '/_authenticated/munki/distribution-points/$id/edit'
     | '/_authenticated/munki/packages/$id/edit'
+    | '/_authenticated/osquery/checks/$id/edit'
     | '/_authenticated/osquery/checks/$id/live'
-    | '/_authenticated/osquery/checks/$id/results'
+    | '/_authenticated/osquery/reports/$id/edit'
     | '/_authenticated/osquery/reports/$id/live'
     | '/_authenticated/santa/events/file-access/$id'
     | '/_authenticated/munki/distribution-points/$id/'
@@ -1407,6 +1420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOsqueryChecksIdIndexRouteImport
       parentRoute: typeof AuthenticatedOsqueryChecksIdRoute
     }
+    '/_authenticated/osquery/checks/$id/edit': {
+      id: '/_authenticated/osquery/checks/$id/edit'
+      path: '/edit'
+      fullPath: '/osquery/checks/$id/edit'
+      preLoaderRoute: typeof AuthenticatedOsqueryChecksIdEditRouteImport
+      parentRoute: typeof AuthenticatedOsqueryChecksIdRoute
+    }
     '/_authenticated/osquery/checks/$id/live': {
       id: '/_authenticated/osquery/checks/$id/live'
       path: '/live'
@@ -1414,18 +1434,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOsqueryChecksIdLiveRouteImport
       parentRoute: typeof AuthenticatedOsqueryChecksIdRoute
     }
-    '/_authenticated/osquery/checks/$id/results': {
-      id: '/_authenticated/osquery/checks/$id/results'
-      path: '/results'
-      fullPath: '/osquery/checks/$id/results'
-      preLoaderRoute: typeof AuthenticatedOsqueryChecksIdResultsRouteImport
-      parentRoute: typeof AuthenticatedOsqueryChecksIdRoute
-    }
     '/_authenticated/osquery/reports/$id/': {
       id: '/_authenticated/osquery/reports/$id/'
       path: '/'
       fullPath: '/osquery/reports/$id/'
       preLoaderRoute: typeof AuthenticatedOsqueryReportsIdIndexRouteImport
+      parentRoute: typeof AuthenticatedOsqueryReportsIdRoute
+    }
+    '/_authenticated/osquery/reports/$id/edit': {
+      id: '/_authenticated/osquery/reports/$id/edit'
+      path: '/edit'
+      fullPath: '/osquery/reports/$id/edit'
+      preLoaderRoute: typeof AuthenticatedOsqueryReportsIdEditRouteImport
       parentRoute: typeof AuthenticatedOsqueryReportsIdRoute
     }
     '/_authenticated/osquery/reports/$id/live': {
@@ -1651,17 +1671,17 @@ const AuthenticatedMunkiRouteWithChildren =
   AuthenticatedMunkiRoute._addFileChildren(AuthenticatedMunkiRouteChildren)
 
 interface AuthenticatedOsqueryChecksIdRouteChildren {
+  AuthenticatedOsqueryChecksIdEditRoute: typeof AuthenticatedOsqueryChecksIdEditRoute
   AuthenticatedOsqueryChecksIdLiveRoute: typeof AuthenticatedOsqueryChecksIdLiveRoute
-  AuthenticatedOsqueryChecksIdResultsRoute: typeof AuthenticatedOsqueryChecksIdResultsRoute
   AuthenticatedOsqueryChecksIdIndexRoute: typeof AuthenticatedOsqueryChecksIdIndexRoute
 }
 
 const AuthenticatedOsqueryChecksIdRouteChildren: AuthenticatedOsqueryChecksIdRouteChildren =
   {
+    AuthenticatedOsqueryChecksIdEditRoute:
+      AuthenticatedOsqueryChecksIdEditRoute,
     AuthenticatedOsqueryChecksIdLiveRoute:
       AuthenticatedOsqueryChecksIdLiveRoute,
-    AuthenticatedOsqueryChecksIdResultsRoute:
-      AuthenticatedOsqueryChecksIdResultsRoute,
     AuthenticatedOsqueryChecksIdIndexRoute:
       AuthenticatedOsqueryChecksIdIndexRoute,
   }
@@ -1691,12 +1711,15 @@ const AuthenticatedOsqueryChecksRouteWithChildren =
   )
 
 interface AuthenticatedOsqueryReportsIdRouteChildren {
+  AuthenticatedOsqueryReportsIdEditRoute: typeof AuthenticatedOsqueryReportsIdEditRoute
   AuthenticatedOsqueryReportsIdLiveRoute: typeof AuthenticatedOsqueryReportsIdLiveRoute
   AuthenticatedOsqueryReportsIdIndexRoute: typeof AuthenticatedOsqueryReportsIdIndexRoute
 }
 
 const AuthenticatedOsqueryReportsIdRouteChildren: AuthenticatedOsqueryReportsIdRouteChildren =
   {
+    AuthenticatedOsqueryReportsIdEditRoute:
+      AuthenticatedOsqueryReportsIdEditRoute,
     AuthenticatedOsqueryReportsIdLiveRoute:
       AuthenticatedOsqueryReportsIdLiveRoute,
     AuthenticatedOsqueryReportsIdIndexRoute:

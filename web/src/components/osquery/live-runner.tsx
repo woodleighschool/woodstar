@@ -6,13 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTableStatic } from "@/components/data-table/data-table-static";
 import { EmptyPanel } from "@/components/empty-panel";
+import { EnumStatus } from "@/components/enum-status";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Link } from "@/components/link";
-import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { PendingButton } from "@/components/pending-button";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { encodeSort } from "@/hooks/use-data-table-search";
@@ -31,6 +32,7 @@ import {
 } from "@/hooks/use-live-queries";
 import type { Host, Label } from "@/lib/api";
 import { isAllHostsLabel } from "@/lib/labels";
+import { CHECK_RESULT_STATUSES, checkResultStatus } from "@/lib/osquery-checks";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
@@ -67,7 +69,12 @@ const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
   {
     accessorKey: "response",
     header: "Result",
-    cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
+    cell: ({ row }) => (
+      <EnumStatus
+        value={checkResultStatus(row.original.response)}
+        metadata={CHECK_RESULT_STATUSES}
+      />
+    ),
   },
 ];
 
@@ -88,12 +95,12 @@ export function LiveRunner({
   kind,
   itemId,
   sql,
-  editAction,
+  detailAction,
 }: {
   kind: LiveRunKind;
   itemId: number;
   sql: string;
-  editAction: ReactNode;
+  detailAction: ReactNode;
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -190,7 +197,7 @@ export function LiveRunner({
         actions={
           <>
             <ShowQueryButton sql={sql} />
-            {editAction}
+            {detailAction}
           </>
         }
       />
@@ -349,7 +356,10 @@ function RunResults({
     <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
-          <h2 className="text-base font-semibold">{runHeading(status, stopped)}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">{runHeading(status, stopped)}</h2>
+            {isRunning ? <Spinner className="size-3.5 text-muted-foreground" /> : null}
+          </div>
           <p className="text-sm text-muted-foreground">
             {respondedCount} of {targetCount} online host{targetCount === 1 ? "" : "s"} responded.
           </p>

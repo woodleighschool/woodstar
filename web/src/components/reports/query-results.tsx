@@ -6,7 +6,6 @@ import { formatRelative } from "@/lib/utils";
 
 export type ReportTableRow = {
   id: string;
-  reportId: number;
   hostId: number;
   hostName: string;
   lastFetched?: string;
@@ -16,7 +15,6 @@ export type ReportTableRow = {
 export function reportRows(rows: OsqueryReportResult[] | null | undefined): ReportTableRow[] {
   return (rows ?? []).map((row, index) => ({
     id: `${row.report_id}-${row.host_id}-${index}`,
-    reportId: row.report_id,
     hostId: row.host_id,
     hostName: row.host_name,
     lastFetched: row.last_fetched,

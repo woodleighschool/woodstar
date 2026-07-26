@@ -1,5 +1,5 @@
 import { FileCode2, Play } from "lucide-react";
-import { lazy, type ReactNode, Suspense } from "react";
+import { lazy, Suspense } from "react";
 
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -11,31 +11,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
+
 const LazySQLEditor = lazy(() =>
   import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
 );
-export function DetailSettings({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("border-y bg-muted/20 px-4 py-3", className)}>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">{children}</div>
-    </div>
-  );
-}
-export function SettingItem({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground">{label}:</span>
-      <div className="font-medium">{children}</div>
-    </div>
-  );
-}
+
 export function ShowQueryButton({ sql }: { sql: string }) {
   return (
     <Dialog>

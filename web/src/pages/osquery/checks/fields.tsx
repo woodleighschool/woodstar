@@ -1,6 +1,6 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
@@ -74,8 +74,6 @@ export function CheckForm({
   onSubmit,
   onSuccess,
   onCancel,
-  headerContext,
-  headerActions,
 }: {
   initial: OsqueryCheckMutation;
   title: string;
@@ -83,8 +81,6 @@ export function CheckForm({
   onSubmit: (value: OsqueryCheckMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
-  headerContext?: ReactNode;
-  headerActions?: ReactNode;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
@@ -132,7 +128,7 @@ export function CheckForm({
         />
       }
     >
-      <PageHeader title={title} context={headerContext} actions={headerActions} />
+      <PageHeader title={title} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollableTabsList>

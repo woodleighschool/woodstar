@@ -1,7 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleAlert, CircleCheck, Plus, ShieldCheck } from "lucide-react";
-import * as React from "react";
 
 import { BulkDeleteActionBar } from "@/components/bulk-delete-action-bar";
 import { DataTable } from "@/components/data-table/data-table";
@@ -41,11 +40,10 @@ export function CheckListPage() {
   const checks = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo<ColumnDef<OsqueryCheck>[]>(() => checkColumns(isAdmin), [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
     data: checks,
-    columns,
+    columns: checkColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -105,88 +103,59 @@ export function CheckListPage() {
     </PageShell>
   );
 }
-function checkColumns(isAdmin: boolean): ColumnDef<OsqueryCheck>[] {
-  const columns: ColumnDef<OsqueryCheck>[] = [
-    selectColumn<OsqueryCheck>(),
-    {
-      id: "name",
-      accessorKey: "name",
-      header: "Name",
-      cell: ({ row }) =>
-        isAdmin ? (
-          <Link
-            to="/osquery/checks/$id"
-            params={{ id: String(row.original.id) }}
-            className="font-medium"
-          >
-            {row.original.name}
-          </Link>
-        ) : (
-          <span className="font-medium">{row.original.name}</span>
-        ),
-      enableHiding: false,
-      meta: { label: "Name" },
-    },
-    {
-      id: "passing_host_count",
-      accessorKey: "passing_host_count",
-      enableSorting: false,
-      header: () => (
-        <span className="flex items-center gap-1.5">
-          <CircleCheck className="size-4 text-status-online" />
-          Pass
-        </span>
-      ),
-      cell: ({ row }) => (
-        <HostCount
-          checkId={row.original.id}
-          response="pass"
-          value={row.original.passing_host_count}
-        />
-      ),
-      meta: { label: "Pass" },
-    },
-    {
-      id: "failing_host_count",
-      accessorKey: "failing_host_count",
-      enableSorting: false,
-      header: () => (
-        <span className="flex items-center gap-1.5">
-          <CircleAlert className="size-4 text-muted-foreground" />
-          Fail
-        </span>
-      ),
-      cell: ({ row }) => (
-        <HostCount
-          checkId={row.original.id}
-          response="fail"
-          value={row.original.failing_host_count}
-        />
-      ),
-      meta: { label: "Fail" },
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-      meta: { label: "Updated" },
-    },
-  ];
-  return columns;
-}
-function HostCount({
-  checkId,
-  response,
-  value,
-}: {
-  checkId: number;
-  response: "pass" | "fail";
-  value: number;
-}) {
-  return (
-    <Link to="/osquery/checks/$id/results" params={{ id: String(checkId) }} search={{ response }}>
-      {value} {value === 1 ? "host" : "hosts"}
-    </Link>
-  );
+const checkColumns: ColumnDef<OsqueryCheck>[] = [
+  selectColumn<OsqueryCheck>(),
+  {
+    id: "name",
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/osquery/checks/$id"
+        params={{ id: String(row.original.id) }}
+        className="font-medium"
+      >
+        {row.original.name}
+      </Link>
+    ),
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "passing_host_count",
+    accessorKey: "passing_host_count",
+    enableSorting: false,
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <CircleCheck className="size-4 text-status-online" />
+        Pass
+      </span>
+    ),
+    cell: ({ row }) => formatHostCount(row.original.passing_host_count),
+    meta: { label: "Pass" },
+  },
+  {
+    id: "failing_host_count",
+    accessorKey: "failing_host_count",
+    enableSorting: false,
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <CircleAlert className="size-4 text-muted-foreground" />
+        Fail
+      </span>
+    ),
+    cell: ({ row }) => formatHostCount(row.original.failing_host_count),
+    meta: { label: "Fail" },
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+    meta: { label: "Updated" },
+  },
+];
+
+function formatHostCount(count: number) {
+  return `${count} ${count === 1 ? "host" : "hosts"}`;
 }
