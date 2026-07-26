@@ -13,6 +13,7 @@ interface EnumLabel {
 
 export interface EnumMetadata extends EnumLabel {
   variant?: BadgeVariant;
+  badgeClassName?: string;
 }
 
 export interface StatusMetadata extends EnumLabel {

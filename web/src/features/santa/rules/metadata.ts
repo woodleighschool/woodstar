@@ -32,7 +32,8 @@ export const RULE_TYPES = {
   signingid: {
     name: "Signing ID",
     description: "A rule keyed to a Team ID and bundle identifier pair.",
-    variant: "default",
+    variant: "outline",
+    badgeClassName: "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
   cdhash: {
     name: "CDHash",
@@ -42,7 +43,7 @@ export const RULE_TYPES = {
   bundle: {
     name: "Bundle",
     description: "A server-side rule expanded to the collected executables in a Santa bundle.",
-    variant: "secondary",
+    variant: "outline",
   },
 } satisfies EnumMetadataMap<SantaRuleType>;
 

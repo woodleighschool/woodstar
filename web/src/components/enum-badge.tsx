@@ -10,7 +10,11 @@ export function EnumBadge<T extends string>({
   metadata: EnumMetadataMap<T>;
 }) {
   const item = metadata[value];
-  const badge = <Badge variant={item.variant ?? "secondary"}>{item.name}</Badge>;
+  const badge = (
+    <Badge variant={item.variant ?? "secondary"} className={item.badgeClassName}>
+      {item.name}
+    </Badge>
+  );
 
   if (!item.description) return badge;
 
