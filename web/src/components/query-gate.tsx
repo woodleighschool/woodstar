@@ -1,5 +1,5 @@
-import { PageShell } from "@/components/layout/page-layout";
-import { QueryError } from "@/components/query-error";
+import { PageShell } from "@components/layout/page-layout";
+import { QueryError } from "@components/query-error";
 
 export function QueryGate({
   title,

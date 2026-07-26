@@ -3,14 +3,14 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { BulkDeleteDialog } from "@/components/bulk-delete-dialog";
+import { BulkDeleteDialog } from "@components/bulk-delete-dialog";
 import {
   ActionBar,
   ActionBarGroup,
   ActionBarItem,
   ActionBarSelection,
   ActionBarSeparator,
-} from "@/components/ui/action-bar";
+} from "@components/ui/action-bar";
 
 interface BulkDeleteMutation {
   mutate: (ids: number[], options?: { onSuccess?: () => void }) => void;

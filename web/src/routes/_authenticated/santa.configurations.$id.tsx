@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { santaConfigurationQueryOptions } from "@/lib/queries/santa";
-import { parseRouteID } from "@/lib/route-params";
-import { ConfigurationEditPage } from "@/pages/santa/configurations/edit";
+import { ConfigurationEditPage } from "@features/santa/configurations/edit";
+import { santaConfigurationQueryOptions } from "@features/santa/configurations/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/santa/configurations/$id")({
   staticData: { breadcrumb: ConfigurationBreadcrumb },

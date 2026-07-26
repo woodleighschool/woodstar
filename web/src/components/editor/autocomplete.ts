@@ -1,6 +1,6 @@
 import type { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 
-import type { OsqueryColumn, OsqueryTable } from "@/lib/schema";
+import type { OsqueryColumn, OsqueryTable } from "@features/osquery/schema/model";
 
 const SQL_KEYWORDS = [
   "SELECT",

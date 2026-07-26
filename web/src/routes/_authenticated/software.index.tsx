@@ -1,8 +1,8 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { SoftwareListPage } from "@/pages/software/list";
+import { SoftwareListPage } from "@features/software/list";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const sourceValues = [
   "apps",

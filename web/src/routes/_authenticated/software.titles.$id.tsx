@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { softwareTitleQueryOptions } from "@/lib/queries/software";
-import { parseRouteID } from "@/lib/route-params";
-import { SoftwareDetailPage } from "@/pages/software/detail";
+import { SoftwareDetailPage } from "@features/software/detail";
+import { softwareTitleQueryOptions } from "@features/software/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/software/titles/$id")({
   staticData: { breadcrumb: SoftwareBreadcrumb },

@@ -1,6 +1,6 @@
-import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { AppBreadcrumbs } from "@components/layout/app-breadcrumbs";
+import { Separator } from "@components/ui/separator";
+import { SidebarTrigger } from "@components/ui/sidebar";
 
 export function AppTopbar() {
   return (

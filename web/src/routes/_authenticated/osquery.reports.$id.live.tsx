@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ReportLivePage } from "@/pages/osquery/reports/live";
+import { ReportLivePage } from "@features/osquery/reports/live";
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/$id/live")({
   staticData: { breadcrumb: "Live" },

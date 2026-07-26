@@ -1,8 +1,8 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { HostListPage } from "@/pages/hosts/list";
+import { HostListPage } from "@features/hosts/list";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "display_name",

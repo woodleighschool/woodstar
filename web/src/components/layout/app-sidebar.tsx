@@ -1,12 +1,12 @@
 import { useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
 
-import { type NavItem, type NavMenu, navSections } from "@/components/layout/nav-config";
-import { Link } from "@/components/link";
-import { Logo } from "@/components/logo";
-import { Pending } from "@/components/pending";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
+import { Link } from "@components/link";
+import { Logo } from "@components/logo";
+import { Pending } from "@components/pending";
+import { Avatar, AvatarFallback } from "@components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -30,12 +30,12 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
-import { useAuth, useLogout } from "@/hooks/use-auth";
-import { runtime } from "@/lib/runtime";
-import { userRoleLabel } from "@/lib/users";
-import { nonEmpty } from "@/lib/utils";
+} from "@components/ui/sidebar";
+import { Spinner } from "@components/ui/spinner";
+import { useAuth, useLogout } from "@features/auth/queries";
+import { userRoleLabel } from "@features/directory/users/metadata";
+import { runtime } from "@lib/runtime";
+import { nonEmpty } from "@lib/utils";
 export function AppSidebar() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,

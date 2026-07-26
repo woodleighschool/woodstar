@@ -1,0 +1,135 @@
+import {
+  keepPreviousData,
+  type QueryClient,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { useUpload } from "@hooks/use-upload";
+import type {
+  ApiError,
+  MunkiCreateMutation,
+  MunkiDirectUploadTarget,
+  MunkiObjectView,
+  MunkiSoftwareDetail,
+  MunkiUpdateMutation,
+  PageMunkiObjectView,
+  PageSoftware,
+} from "@lib/api";
+import {
+  bulkDeleteMunkiSoftware,
+  createMunkiIconUpload,
+  createMunkiSoftware,
+  getMunkiSoftware,
+  listMunkiIcons,
+  listMunkiSoftware,
+  setMunkiSoftwareIcon,
+  unwrap,
+  updateMunkiSoftware,
+} from "@lib/api";
+import type { ListMunkiSoftwareData } from "@lib/api-client/types.gen";
+import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
+import { detailPath } from "@lib/route-params";
+
+import { uploadRequestFromTarget } from "../upload";
+
+type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
+type IconUploadVariables = { softwareId: number; file: File };
+type QueryParams = Record<string, unknown>;
+
+const munkiRoot = ["munki"] as const;
+
+const munkiSoftwareKeys = {
+  root: [...munkiRoot, "software"] as const,
+  list: (params: QueryParams) => [...munkiRoot, "software", "list", params] as const,
+  detail: (id: number | null) => [...munkiRoot, "software", "detail", id] as const,
+  iconList: (params: QueryParams) => [...munkiRoot, "icons", "list", params] as const,
+};
+
+async function invalidateMunkiCatalog(queryClient: QueryClient) {
+  await queryClient.invalidateQueries({ queryKey: munkiRoot });
+}
+
+export function munkiSoftwareQueryOptions(id: number | null) {
+  return queryOptions<MunkiSoftwareDetail, ApiError>({
+    queryKey: munkiSoftwareKeys.detail(id),
+    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: detailPath(id), signal })),
+    enabled: id !== null,
+  });
+}
+
+export function useMunkiSoftware(params: MunkiListParams = {}) {
+  const query = baseListParams(params);
+  return useQuery<PageSoftware, ApiError>({
+    queryKey: munkiSoftwareKeys.list(query),
+    queryFn: ({ signal }) => unwrap(listMunkiSoftware({ query, signal })),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useMunkiSoftwareDetail(id: number | null) {
+  return useQuery(munkiSoftwareQueryOptions(id));
+}
+
+export function useCreateMunkiSoftware() {
+  const queryClient = useQueryClient();
+  return useMutation<MunkiSoftwareDetail, ApiError, MunkiCreateMutation>({
+    mutationFn: (body) => unwrap(createMunkiSoftware({ body })),
+    onSuccess: async () => {
+      toast.success("Software created");
+      await queryClient.invalidateQueries({ queryKey: munkiSoftwareKeys.root });
+    },
+  });
+}
+
+export function useUpdateMunkiSoftware() {
+  const queryClient = useQueryClient();
+  return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiUpdateMutation }>({
+    mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
+    onSuccess: async () => {
+      toast.success("Software saved");
+      await invalidateMunkiCatalog(queryClient);
+    },
+  });
+}
+
+export function useBulkDeleteMunkiSoftware() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(bulkDeleteMunkiSoftware({ query: { ids } })),
+    onSuccess: async () => invalidateMunkiCatalog(queryClient),
+  });
+}
+
+export function useMunkiIcons(enabled = true) {
+  const query = baseListParams({}, { defaultPerPage: MAX_PAGE_SIZE });
+  return useQuery<PageMunkiObjectView, ApiError>({
+    queryKey: munkiSoftwareKeys.iconList(query),
+    queryFn: ({ signal }) => unwrap(listMunkiIcons({ query, signal })),
+    enabled,
+  });
+}
+
+export function useUploadMunkiIcon() {
+  const queryClient = useQueryClient();
+  return useUpload<MunkiDirectUploadTarget, MunkiObjectView, IconUploadVariables>({
+    mutationKey: ["munki-icon-upload"],
+    loadingText: "Uploading icon",
+    successText: "Icon uploaded",
+    errorSurface: "inline",
+    createIntent: ({ file }) => unwrap(createMunkiIconUpload({ body: { filename: file.name } })),
+    uploadRequest: uploadRequestFromTarget,
+    completeUpload: (intent, { softwareId }, signal) =>
+      unwrap(
+        setMunkiSoftwareIcon({
+          path: { id: softwareId },
+          body: { object_id: intent.object_id },
+          signal,
+        }),
+      ),
+    onSuccess: async () => invalidateMunkiCatalog(queryClient),
+  });
+}

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { santaFileAccessEventQueryOptions } from "@/lib/queries/santa";
-import { parseRouteID } from "@/lib/route-params";
-import { SantaFileAccessEventDetailPage } from "@/pages/santa/file-access-events/detail";
+import { SantaFileAccessEventDetailPage } from "@features/santa/events/file-access-detail";
+import { santaFileAccessEventQueryOptions } from "@features/santa/events/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/santa/events/file-access/$id")({
   staticData: { breadcrumb: EventBreadcrumb },

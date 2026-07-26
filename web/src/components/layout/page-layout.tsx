@@ -2,7 +2,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { type ComponentProps, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 
 function PageShell({
   className,

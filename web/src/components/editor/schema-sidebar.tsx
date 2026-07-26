@@ -1,7 +1,7 @@
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { isValidElement, useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@components/ui/badge";
 import {
   Combobox,
   ComboboxContent,
@@ -9,14 +9,11 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-} from "@/components/ui/combobox";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  type OsqueryColumn,
-  type OsqueryTable,
-  useOsquerySchema,
-} from "@/hooks/use-osquery-schema";
-import { cn } from "@/lib/utils";
+} from "@components/ui/combobox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@components/ui/tooltip";
+import type { OsqueryColumn, OsqueryTable } from "@features/osquery/schema/model";
+import { useOsquerySchema } from "@features/osquery/schema/queries";
+import { cn } from "@lib/utils";
 
 import { Markdown } from "./markdown";
 import { SQLEditor } from "./sql-editor";

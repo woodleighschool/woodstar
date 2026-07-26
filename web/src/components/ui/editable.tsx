@@ -4,13 +4,13 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import * as React from "react";
 
-import { useDirection } from "@/components/ui/direction";
-import { VisuallyHiddenInput } from "@/components/visually-hidden-input";
-import { useAsRef } from "@/hooks/use-as-ref";
-import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
-import { useLazyRef } from "@/hooks/use-lazy-ref";
-import { useComposedRefs } from "@/lib/compose-refs";
-import { cn } from "@/lib/utils";
+import { useDirection } from "@components/ui/direction";
+import { VisuallyHiddenInput } from "@components/visually-hidden-input";
+import { useAsRef } from "@hooks/use-as-ref";
+import { useIsomorphicLayoutEffect } from "@hooks/use-isomorphic-layout-effect";
+import { useLazyRef } from "@hooks/use-lazy-ref";
+import { useComposedRefs } from "@lib/compose-refs";
+import { cn } from "@lib/utils";
 
 const ROOT_NAME = "Editable";
 const LABEL_NAME = "EditableLabel";

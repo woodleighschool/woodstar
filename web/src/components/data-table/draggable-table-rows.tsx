@@ -20,10 +20,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import * as React from "react";
 
-import { Button } from "@/components/ui/button";
-import { TableRow } from "@/components/ui/table";
-import { useComposedRefs } from "@/lib/compose-refs";
-import { cn } from "@/lib/utils";
+import { Button } from "@components/ui/button";
+import { TableRow } from "@components/ui/table";
+import { useComposedRefs } from "@lib/compose-refs";
+import { cn } from "@lib/utils";
 
 interface DraggableTableRowsProps<TItem> {
   value: TItem[];

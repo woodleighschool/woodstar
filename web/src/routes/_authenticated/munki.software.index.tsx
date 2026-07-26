@@ -1,7 +1,7 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { MunkiSoftwareListPage } from "@/pages/munki/software/list";
+import { MunkiSoftwareListPage } from "@features/munki/software/list";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "name",

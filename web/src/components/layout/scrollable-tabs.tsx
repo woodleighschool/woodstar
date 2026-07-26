@@ -1,8 +1,8 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 
-import { ScrollBar } from "@/components/ui/scroll-area";
-import { Tabs, TabsList } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { ScrollBar } from "@components/ui/scroll-area";
+import { Tabs, TabsList } from "@components/ui/tabs";
+import { cn } from "@lib/utils";
 
 export function ScrollableTabs({ className, ...props }: React.ComponentProps<typeof Tabs>) {
   return <Tabs className={cn("gap-5", className)} {...props} />;

@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AppLayout } from "@/layouts/app-layout";
-import { requireUser } from "@/lib/auth-router";
+import { requireUser } from "@features/auth/guards";
+
+import { AppLayout } from "../app-layout";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: ({ context }) => requireUser(context.queryClient),

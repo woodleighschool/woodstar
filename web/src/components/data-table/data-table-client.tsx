@@ -12,9 +12,9 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { Input } from "@/components/ui/input";
-import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { DataTable } from "@components/data-table/data-table";
+import { Input } from "@components/ui/input";
+import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 
 interface DataTableClientProps<TData> {
   columns: ColumnDef<TData>[];

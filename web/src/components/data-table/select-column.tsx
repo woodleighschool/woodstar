@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@components/ui/checkbox";
 
 // Row-selection column shared by resource lists that support bulk actions.
 export function selectColumn<TData>(): ColumnDef<TData> {

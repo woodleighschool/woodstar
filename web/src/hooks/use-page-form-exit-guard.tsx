@@ -2,7 +2,7 @@ import type { AnyFormApi } from "@tanstack/react-form";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ConfirmDialog } from "@components/confirm-dialog";
 
 export function usePageFormExitGuard({
   form,

@@ -3,21 +3,20 @@ import { MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
-import { EmptyPanel } from "@/components/empty-panel";
-import { FormActions } from "@/components/form-actions";
-import { FormField } from "@/components/form-field";
-import { focusFirstInvalidField } from "@/components/form-tabs";
-import { LabelPicker } from "@/components/labels/label-picker";
-import { TargetSection } from "@/components/targeting/target-section";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { encodeSort } from "@components/data-table/use-data-table-search";
+import { FormActions } from "@components/form-actions";
+import { focusFirstInvalidField } from "@components/form-tabs";
+import { PanelEmptyState } from "@components/panel-empty-state";
+import { TargetSection } from "@components/targeting/target-section";
+import { Button } from "@components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -25,11 +24,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { encodeSort } from "@/hooks/use-data-table-search";
-import { useLabels } from "@/hooks/use-labels";
-import type { LabelRef } from "@/lib/api";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
+} from "@components/ui/table";
+import { ValidatedFormField } from "@components/validated-form-field";
+import { LabelPicker } from "@features/labels/components/label-picker";
+import { useLabels } from "@features/labels/queries";
+import type { LabelRef } from "@lib/api";
+import { MAX_PAGE_SIZE } from "@lib/pagination";
 const labelAssignmentSchema = z.object({
   label_id: z
     .number()
@@ -105,7 +105,7 @@ export function LabelAssignmentList({
           </Table>
         </div>
       ) : (
-        <EmptyPanel>{emptyText}</EmptyPanel>
+        <PanelEmptyState>{emptyText}</PanelEmptyState>
       )}
 
       {adding ? (
@@ -174,7 +174,7 @@ function LabelAssignmentDialog({
           </DialogHeader>
           <form.Field name="label_id">
             {(field) => (
-              <FormField field={field} label="Label" required>
+              <ValidatedFormField field={field} label="Label" required>
                 {(control) => (
                   <LabelPicker
                     value={field.state.value === null ? [] : [field.state.value]}
@@ -187,7 +187,7 @@ function LabelAssignmentDialog({
                     placeholder="Select Label"
                   />
                 )}
-              </FormField>
+              </ValidatedFormField>
             )}
           </form.Field>
           <FormActions form={form} submitLabel="Add" onCancel={onClose} className="justify-end" />

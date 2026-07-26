@@ -2,7 +2,7 @@ import type { AnyFormApi } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
 import type { ReactNode } from "react";
 
-import { TabsTrigger } from "@/components/ui/tabs";
+import { TabsTrigger } from "@components/ui/tabs";
 
 export interface FormTabDefinition {
   value: string;

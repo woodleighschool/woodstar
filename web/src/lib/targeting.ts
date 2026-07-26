@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { LabelRef } from "@/lib/api";
+import type { LabelRef } from "@lib/api";
 
 export type LabelTargetSet = {
   include: LabelRef[];

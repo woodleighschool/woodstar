@@ -1,0 +1,146 @@
+import { getRouteApi } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FileBarChart2, Plus } from "lucide-react";
+
+import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
+import { DataTable } from "@components/data-table/data-table";
+import { DataTableEmpty } from "@components/data-table/data-table-empty";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import { selectColumn } from "@components/data-table/select-column";
+import { useDataTable } from "@components/data-table/use-data-table";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
+import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { Link } from "@components/link";
+import { QueryError } from "@components/query-error";
+import { Button } from "@components/ui/button";
+import { useAuth } from "@features/auth/queries";
+import type { OsqueryReport } from "@lib/api";
+import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
+import { formatInterval, formatRelative } from "@lib/utils";
+
+import { useBulkDeleteReports, useReports } from "./queries";
+
+const routeApi = getRouteApi("/_authenticated/osquery/reports/");
+
+export function ReportListPage() {
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+  });
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const query = useReports({
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+  });
+  const reports = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const table = useDataTable({
+    tableState: tableSearch,
+    data: reports,
+    columns: reportColumns,
+    pageCount,
+    rowCount: totalCount,
+    initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
+    getRowId: (row) => String(row.id),
+    enableRowSelection: isAdmin,
+  });
+  return (
+    <PageShell>
+      <PageHeader
+        title="Reports"
+        actions={
+          isAdmin ? (
+            <Button size="sm" render={<Link to="/osquery/reports/new" />} nativeButton={false}>
+              <Plus data-icon="inline-start" />
+              Create
+            </Button>
+          ) : null
+        }
+      />
+      {query.error ? (
+        <QueryError
+          title="Failed to load reports"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
+      ) : query.isLoading ? (
+        <DataTableSkeleton columnCount={4} />
+      ) : (
+        <DataTable
+          table={table}
+          actionBar={
+            isAdmin ? (
+              <BulkDeleteActionBar
+                table={table}
+                useBulkDelete={useBulkDeleteReports}
+                noun="report"
+              />
+            ) : undefined
+          }
+          empty={
+            <DataTableEmpty
+              icon={<FileBarChart2 />}
+              filtered={tableSearch.isFiltered}
+              title="No saved queries"
+              description="Create a report from SQL."
+              filteredDescription="No reports matched the current search."
+            />
+          }
+        >
+          <div className="flex items-start justify-between gap-2 p-1">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <DataTableSearchInput
+                className="h-8 w-40 lg:w-56"
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+              />
+            </div>
+          </div>
+        </DataTable>
+      )}
+    </PageShell>
+  );
+}
+const reportColumns: ColumnDef<OsqueryReport>[] = [
+  selectColumn<OsqueryReport>(),
+  {
+    id: "name",
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/osquery/reports/$id"
+        params={{ id: String(row.original.id) }}
+        className="font-medium"
+      >
+        {row.original.name}
+      </Link>
+    ),
+    enableHiding: false,
+    meta: { label: "Name" },
+  },
+  {
+    id: "schedule_interval",
+    accessorKey: "schedule_interval",
+    header: "Interval",
+    cell: ({ row }) =>
+      row.original.schedule_interval
+        ? `Every ${formatInterval(row.original.schedule_interval)}`
+        : "Off",
+    meta: { label: "Interval" },
+  },
+  {
+    id: "updated_at",
+    accessorKey: "updated_at",
+    header: "Updated",
+    cell: ({ row }) => formatRelative(row.original.updated_at),
+    meta: { label: "Updated" },
+  },
+];

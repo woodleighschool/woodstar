@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { FILE_ACCESS_DECISION_VALUES } from "@/pages/santa/events/decisions";
-import { SantaFileAccessEventListPage } from "@/pages/santa/events/list";
+import { FILE_ACCESS_DECISION_VALUES } from "@features/santa/events/decisions";
+import { SantaFileAccessEventListPage } from "@features/santa/events/list";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "occurred_at",

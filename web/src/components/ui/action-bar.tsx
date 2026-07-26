@@ -5,12 +5,12 @@ import { useRender } from "@base-ui/react/use-render";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 
-import { Button } from "@/components/ui/button";
-import { useDirection } from "@/components/ui/direction";
-import { useAsRef } from "@/hooks/use-as-ref";
-import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
-import { useComposedRefs } from "@/lib/compose-refs";
-import { cn } from "@/lib/utils";
+import { Button } from "@components/ui/button";
+import { useDirection } from "@components/ui/direction";
+import { useAsRef } from "@hooks/use-as-ref";
+import { useIsomorphicLayoutEffect } from "@hooks/use-isomorphic-layout-effect";
+import { useComposedRefs } from "@lib/compose-refs";
+import { cn } from "@lib/utils";
 
 const ROOT_NAME = "ActionBar";
 const GROUP_NAME = "ActionBarGroup";

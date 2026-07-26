@@ -1,0 +1,97 @@
+import { useParams } from "@tanstack/react-router";
+
+import { PageShell } from "@components/layout/page-layout";
+import { QueryGate } from "@components/query-gate";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import {
+  HostCertificatesCard,
+  HostIdentityCard,
+  HostInfoCard,
+  HostLabelsCard,
+  HostUsersCard,
+} from "@features/hosts/components/host-detail-cards";
+import { HostHeader } from "@features/hosts/components/host-header";
+import { HostMunkiTab } from "@features/hosts/components/host-munki-tab";
+import { HostOsqueryChecksTab } from "@features/hosts/components/host-osquery-checks-tab";
+import { HostOsqueryReportsTab } from "@features/hosts/components/host-osquery-reports-tab";
+import { HostSantaTab } from "@features/hosts/components/host-santa-tab";
+import { HostSoftwareTab } from "@features/hosts/components/host-software-tab";
+import { useHost, useHostMunkiState, useHostSantaState } from "@features/hosts/queries";
+
+export function HostDetailPage() {
+  const { id: hostId } = useParams({ from: "/_authenticated/hosts/$id" });
+  const hostID = Number(hostId);
+  const query = useHost(hostID, { refetchInterval: 30_000 });
+  const munkiQuery = useHostMunkiState(hostID);
+  const santaQuery = useHostSantaState(hostID);
+  const host = query.data;
+
+  if (query.error || !host) {
+    return (
+      <QueryGate
+        title="Failed to load host"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  return (
+    <PageShell className="gap-6">
+      <HostHeader host={host} />
+
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="software">Software</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="checks">Checks</TabsTrigger>
+          <TabsTrigger value="munki">Munki</TabsTrigger>
+          <TabsTrigger value="santa">Santa</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details">
+          <div className="flex flex-col gap-4">
+            <HostInfoCard host={host} />
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] items-start gap-4">
+              <HostIdentityCard host={host} />
+              <HostLabelsCard host={host} />
+              <HostUsersCard host={host} />
+            </div>
+            <HostCertificatesCard host={host} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="software">
+          <HostSoftwareTab hostId={hostID} />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <HostOsqueryReportsTab hostId={hostID} />
+        </TabsContent>
+
+        <TabsContent value="checks">
+          <HostOsqueryChecksTab hostId={hostID} />
+        </TabsContent>
+
+        <TabsContent value="munki">
+          <HostMunkiTab
+            hostId={hostID}
+            munki={munkiQuery.data}
+            stateError={munkiQuery.error}
+            onStateRetry={() => void munkiQuery.refetch()}
+          />
+        </TabsContent>
+
+        <TabsContent value="santa">
+          <HostSantaTab
+            hostId={hostID}
+            santa={santaQuery.data}
+            stateError={santaQuery.error}
+            onStateRetry={() => void santaQuery.refetch()}
+          />
+        </TabsContent>
+      </Tabs>
+    </PageShell>
+  );
+}

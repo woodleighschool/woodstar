@@ -1,0 +1,35 @@
+import { Laptop } from "lucide-react";
+
+import { HostStatus } from "@features/hosts/components/host-status";
+import type { Host } from "@lib/api";
+import { formatRelative } from "@lib/utils";
+
+export function HostHeader({ host }: { host: Host }) {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex size-20 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
+        <Laptop className="size-8 text-muted-foreground" />
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h1
+            className="min-w-0 truncate text-xl font-semibold text-foreground"
+            title={host.display_name}
+          >
+            {host.display_name}
+          </h1>
+          <HostStatus status={host.status} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {host.timestamps.inventory_updated_at ? (
+            <span title={new Date(host.timestamps.inventory_updated_at).toLocaleString()}>
+              Last fetched {formatRelative(host.timestamps.inventory_updated_at)}
+            </span>
+          ) : (
+            "Never fetched"
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}

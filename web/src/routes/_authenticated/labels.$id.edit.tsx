@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { labelQueryOptions } from "@/lib/queries/labels";
-import { parseRouteID } from "@/lib/route-params";
-import { LabelEditPage } from "@/pages/labels/edit";
+import { LabelEditPage } from "@features/labels/edit";
+import { labelQueryOptions } from "@features/labels/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/labels/$id/edit")({
   staticData: { breadcrumb: LabelBreadcrumb },

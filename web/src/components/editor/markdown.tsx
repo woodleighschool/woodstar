@@ -1,6 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 
 interface MarkdownProps {
   children: string;

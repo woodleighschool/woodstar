@@ -6,7 +6,7 @@ import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef, useMemo } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 
 interface CodeEditorProps {
   value: string;

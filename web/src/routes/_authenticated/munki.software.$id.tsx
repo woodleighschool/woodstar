@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { munkiSoftwareQueryOptions } from "@/lib/queries/munki";
-import { parseRouteID } from "@/lib/route-params";
-import { MunkiSoftwareEditPage } from "@/pages/munki/software/edit";
+import { MunkiSoftwareEditPage } from "@features/munki/software/edit";
+import { munkiSoftwareQueryOptions } from "@features/munki/software/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/munki/software/$id")({
   staticData: { breadcrumb: SoftwareBreadcrumb },

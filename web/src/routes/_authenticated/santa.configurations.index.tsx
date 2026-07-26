@@ -1,7 +1,7 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { ConfigurationListPage } from "@/pages/santa/configurations/list";
+import { ConfigurationListPage } from "@features/santa/configurations/list";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema(["name", "description", "position", "updated_at"]);
 

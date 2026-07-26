@@ -1,8 +1,8 @@
-import { client } from "@/lib/api-client/client.gen";
-import type { ErrorModel } from "@/lib/api-client/types.gen";
+import { client } from "@lib/api-client/client.gen";
+import type { ErrorModel } from "@lib/api-client/types.gen";
 
-export * from "@/lib/api-client/sdk.gen";
-export type * from "@/lib/api-client/types.gen";
+export * from "@lib/api-client/sdk.gen";
+export type * from "@lib/api-client/types.gen";
 
 client.setConfig({
   credentials: "same-origin",

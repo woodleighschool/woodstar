@@ -4,11 +4,12 @@ import { RouterProvider } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "sonner";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { setUnauthorizedHandler } from "@/lib/api";
-import { expireSession } from "@/lib/session-expiry";
-import { queryClient } from "@/query-client";
-import { router } from "@/router";
+import { TooltipProvider } from "@components/ui/tooltip";
+import { expireSession } from "@features/auth/session-expiry";
+import { setUnauthorizedHandler } from "@lib/api";
+
+import { queryClient } from "./query-client";
+import { router } from "./router";
 
 declare module "@tanstack/react-query" {
   // Typed mutation meta. inlineError renders a mutation's error on the form

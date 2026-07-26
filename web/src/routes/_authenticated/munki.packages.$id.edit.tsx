@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { munkiPackageQueryOptions } from "@/lib/queries/munki";
-import { parseRouteID } from "@/lib/route-params";
-import { MunkiPackageEditPage } from "@/pages/munki/packages/edit";
+import { MunkiPackageEditPage } from "@features/munki/packages/edit";
+import { munkiPackageQueryOptions } from "@features/munki/packages/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/munki/packages/$id/edit")({
   staticData: { breadcrumb: PackageBreadcrumb },

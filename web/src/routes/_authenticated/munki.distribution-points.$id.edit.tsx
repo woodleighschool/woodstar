@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { DistributionPointEditPage } from "@/pages/munki/distribution-points/edit";
+import { DistributionPointEditPage } from "@features/munki/distribution-points/edit";
 
 export const Route = createFileRoute("/_authenticated/munki/distribution-points/$id/edit")({
   staticData: { breadcrumb: "Edit" },

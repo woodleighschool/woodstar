@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { hostQueryOptions } from "@/lib/queries/hosts";
-import { parseRouteID } from "@/lib/route-params";
-import { HostDetailPage } from "@/pages/hosts/detail";
+import { HostDetailPage } from "@features/hosts/detail";
+import { hostQueryOptions } from "@features/hosts/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/hosts/$id")({
   staticData: { breadcrumb: HostBreadcrumb },

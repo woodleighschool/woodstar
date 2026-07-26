@@ -1,6 +1,6 @@
 import type { VariantProps } from "class-variance-authority";
 
-import { Pending } from "@/components/pending";
+import { Pending } from "@components/pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,9 +10,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { buttonVariants } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+} from "@components/ui/alert-dialog";
+import { buttonVariants } from "@components/ui/button";
+import { Spinner } from "@components/ui/spinner";
 
 export interface ConfirmDialogProps {
   open: boolean;

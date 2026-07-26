@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { reportQueryOptions } from "@/lib/queries/osquery";
-import { parseRouteID } from "@/lib/route-params";
+import { reportQueryOptions } from "@features/osquery/reports/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/$id")({
   staticData: { breadcrumb: ReportBreadcrumb },

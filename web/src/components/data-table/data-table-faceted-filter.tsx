@@ -2,9 +2,10 @@ import type { Column } from "@tanstack/react-table";
 import { PlusCircle, X } from "lucide-react";
 import * as React from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
+import type { Option } from "@components/data-table/types";
+import { Badge } from "@components/ui/badge";
+import { Button } from "@components/ui/button";
+import { ButtonGroup } from "@components/ui/button-group";
 import {
   Combobox,
   ComboboxContent,
@@ -14,9 +15,8 @@ import {
   ComboboxList,
   ComboboxTrigger,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
-import { Separator } from "@/components/ui/separator";
-import type { Option } from "@/types/data-table";
+} from "@components/ui/combobox";
+import { Separator } from "@components/ui/separator";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;

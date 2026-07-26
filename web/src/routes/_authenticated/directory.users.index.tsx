@@ -1,10 +1,10 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { DIRECTORY_SOURCE_VALUES } from "@/lib/directory";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { USER_ACCESS_ROLE_VALUES } from "@/lib/users";
-import { UserListPage } from "@/pages/users/list";
+import { DIRECTORY_SOURCE_VALUES } from "@features/directory/source";
+import { UserListPage } from "@features/directory/users/list";
+import { USER_ACCESS_ROLE_VALUES } from "@features/directory/users/metadata";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "name",

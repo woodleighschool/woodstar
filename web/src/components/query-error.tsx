@@ -1,7 +1,7 @@
 import { CircleAlert } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@components/ui/alert";
+import { Button } from "@components/ui/button";
 
 export function QueryError({
   title = "Failed to load",

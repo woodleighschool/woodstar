@@ -8,7 +8,7 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxSeparator,
-} from "@/components/ui/combobox";
+} from "@components/ui/combobox";
 
 export function FreeTextCombobox<TItem>({
   id,

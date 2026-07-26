@@ -20,18 +20,31 @@ Frontend rules for work under `web/`.
 
 ## Organization
 
-- Resource pages live in `src/pages/<resource>/`.
-- Mutable resources use thin `create.tsx` / `edit.tsx` shells plus `fields.tsx`. Do not use `mode` props for create/edit forms.
-- Read-only resources use `list.tsx` and `detail.tsx`.
-- Routes live in `src/routes`.
-- Hooks live flat in `src/hooks/use-<resource>.ts`.
-- Shared technical utilities and cross-capability domain helpers live in `src/lib/`; feature-private schemas/components stay with the feature.
+- Application composition, router/query setup, and app-level fallbacks live directly in `src`;
+  route declarations stay thin in `src/routes`.
+- Business UI, query keys/options, hooks, mutations, metadata, and mapping logic live together in
+  `src/features/<capability>`. Use resource subdirectories inside a broad capability such as Munki,
+  Santa, osquery, or Directory.
+- Feature query modules own their key factories, loader-compatible query options, hooks, mutations,
+  and invalidation. Do not rebuild a global query-key registry or a parallel `lib/queries` layer.
+- `src/components` is for UI used by multiple capabilities. Keep design-system source in
+  `components/ui` and cohesive shared subsystems such as `data-table`, `editor`, and `layout` in
+  their own directories.
+- `src/hooks` and `src/lib` are feature-agnostic technical infrastructure only. A helper used by one
+  capability belongs with that capability.
+- Use the explicit `@components`, `@features`, `@hooks`, and `@lib` import roots. Root-level modules
+  import one another relatively. Do not add `@/` imports or a catch-all `@*` alias that can capture
+  scoped packages such as `@tanstack`.
+- Mutable resources use thin `create.tsx` / `edit.tsx` shells plus `fields.tsx`. Do not use `mode`
+  props for create/edit forms. Read-only resources use `list.tsx` and `detail.tsx`.
+- Do not add barrels, feature re-exports, compatibility aliases, or alias-only local types.
 - Use real generated/domain types directly. Do not add alias-only local types just to shorten names.
 
 ## Data / Forms
 
 - API fetching uses generated operation functions and `unwrap` from `src/lib/api`.
-- Query keys and invalidation use `src/lib/query-keys`; do not inline query key arrays.
+- Query keys and invalidation use the owning feature's exported key factory. Keep one-off private keys
+  beside their query instead of adding a registry.
 - Lists use `components/data-table`.
 - Forms use `@tanstack/react-form`, zod schemas, `components/form-field.tsx`, and `components/form-actions.tsx`.
 - Create/edit hooks toast success in `onSuccess`; mutation errors ride the global `MutationCache` toast.

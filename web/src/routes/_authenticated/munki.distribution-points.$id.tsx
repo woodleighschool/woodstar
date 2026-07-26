@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { munkiDistributionPointQueryOptions } from "@/lib/queries/munki";
-import { parseRouteID } from "@/lib/route-params";
+import { munkiDistributionPointQueryOptions } from "@features/munki/distribution-points/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/munki/distribution-points/$id")({
   staticData: { breadcrumb: DistributionPointBreadcrumb },

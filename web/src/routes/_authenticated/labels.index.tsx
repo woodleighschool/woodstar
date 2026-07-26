@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { LABEL_MEMBERSHIP_VALUES } from "@/lib/labels";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { LabelListPage } from "@/pages/labels/list";
+import { LabelListPage } from "@features/labels/list";
+import { LABEL_MEMBERSHIP_VALUES } from "@features/labels/model";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "name",

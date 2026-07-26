@@ -1,0 +1,125 @@
+import { useParams } from "@tanstack/react-router";
+
+import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { PanelEmptyState } from "@components/panel-empty-state";
+import { QueryGate } from "@components/query-gate";
+import { Card, CardContent } from "@components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { formatDateTime } from "@lib/utils";
+
+import { FileAccessDecisionBadge, HostLink, Timestamp } from "./event-ui";
+import { useSantaFileAccessEvent } from "./queries";
+
+export function SantaFileAccessEventDetailPage() {
+  const { id: eventId } = useParams({
+    from: "/_authenticated/santa/events/file-access/$id",
+  });
+  const id = Number(eventId);
+  const query = useSantaFileAccessEvent(Number.isFinite(id) ? id : null);
+
+  if (query.error || !query.data) {
+    return (
+      <QueryGate
+        title="Failed to load file access event"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const event = query.data;
+  const processChain = event.process_chain ?? [];
+
+  return (
+    <PageShell className="gap-6">
+      <PageHeader title="File Access" description={event.target} />
+
+      <Card>
+        <CardContent>
+          <KeyValueGrid>
+            <KeyValueItem
+              label="Decision"
+              value={<FileAccessDecisionBadge decision={event.decision} />}
+            />
+            <KeyValueItem label="Host" value={<HostLink host={event.host} />} />
+            <KeyValueItem label="Rule Name" value={event.rule_name} />
+            <KeyValueItem label="Rule Version" value={event.rule_version} />
+            <KeyValueItem label="Occurred" value={<Timestamp value={event.occurred_at} />} />
+            <KeyValueItem label="Ingested" value={formatDateTime(event.ingested_at)} />
+          </KeyValueGrid>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="process">Process Chain</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="rounded-md border">
+            <Table>
+              <TableBody>
+                <DetailRow label="Target" value={event.target} />
+                <DetailRow label="Rule Name" value={event.rule_name} />
+                <DetailRow label="Rule Version" value={event.rule_version} />
+                <DetailRow label="Primary Process" value={event.primary_process.file_name} />
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="process">
+          {processChain.length === 0 ? (
+            <PanelEmptyState>No process chain</PanelEmptyState>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Process</TableHead>
+                    <TableHead>PID</TableHead>
+                    <TableHead>SHA-256</TableHead>
+                    <TableHead>Signing ID</TableHead>
+                    <TableHead>Team ID</TableHead>
+                    <TableHead>CDHash</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {processChain.map((process) => (
+                    <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
+                      <TableCell>{process.file_name || "-"}</TableCell>
+                      <TableCell>{process.pid}</TableCell>
+                      <TableCell className="break-all">{process.file_sha256 || "-"}</TableCell>
+                      <TableCell>{process.signing_id || "-"}</TableCell>
+                      <TableCell>{process.team_id || "-"}</TableCell>
+                      <TableCell className="break-all">{process.cdhash || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </PageShell>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <TableRow>
+      <TableCell className="w-48">{label}</TableCell>
+      <TableCell>{value ?? "-"}</TableCell>
+    </TableRow>
+  );
+}

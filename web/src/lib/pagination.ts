@@ -1,4 +1,4 @@
-import { nonEmpty } from "@/lib/utils";
+import { nonEmpty } from "@lib/utils";
 
 export const DEFAULT_PAGE_SIZE = 50;
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/pagination";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 
 export const LIST_SEARCH_DEFAULTS = {
   page: 1,

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { MunkiPackageCreatePage } from "@/pages/munki/packages/create";
+import { MunkiPackageCreatePage } from "@features/munki/packages/create";
 
 const searchSchema = z.object({
   software_id: z.coerce.number().int().positive().optional().catch(undefined),

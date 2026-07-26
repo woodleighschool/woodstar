@@ -1,0 +1,434 @@
+import { revalidateLogic, useForm } from "@tanstack/react-form";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { useCallback, useRef, useState } from "react";
+import { z } from "zod";
+
+import { SchemaSidebar } from "@components/editor/schema-sidebar";
+import { SQLEditor } from "@components/editor/sql-editor";
+import { useSchemaSidebar } from "@components/editor/use-schema-sidebar";
+import { FormActions } from "@components/form-actions";
+import { PageHeader, PageShell } from "@components/layout/page-layout";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from "@components/ui/field";
+import { Input } from "@components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
+import { Textarea } from "@components/ui/textarea";
+import { ValidatedFormField } from "@components/validated-form-field";
+import {
+  DerivedSelector,
+  HostSelector,
+} from "@features/labels/components/label-membership-selectors";
+import {
+  LABEL_DERIVED_ATTRIBUTE_OPTIONS,
+  LABEL_DERIVED_ATTRIBUTE_VALUES,
+  LABEL_MEMBERSHIP_OPTIONS,
+  LABEL_MEMBERSHIP_TYPES,
+  LABEL_MEMBERSHIP_VALUES,
+  type LabelDerivedAttribute,
+  labelDerivedAttributeSelectorLabel,
+  type LabelMembershipType,
+} from "@features/labels/model";
+import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
+import type { Label, LabelMutation } from "@lib/api";
+import { requiredString, selectedIDArray } from "@lib/form-validation";
+import { sqlSyntaxError } from "@lib/sql-validation";
+import { cn, isOneOf } from "@lib/utils";
+interface LabelFormValue {
+  name: string;
+  description: string;
+  query: string;
+  host_ids: number[];
+  derived_attribute: LabelDerivedAttribute;
+  derived_values: string[];
+  label_membership_type: LabelMembershipType;
+}
+export const emptyLabel: LabelFormValue = {
+  name: "",
+  description: "",
+  query: "select 1 from os_version where major >= 13;",
+  host_ids: [],
+  derived_attribute: "user_department",
+  derived_values: [],
+  label_membership_type: "dynamic",
+};
+export function labelFromDetail(detail: Label): LabelFormValue {
+  return {
+    name: detail.name,
+    description: detail.description,
+    query: detail.query ?? emptyLabel.query,
+    host_ids: detail.host_ids ?? [],
+    derived_attribute: derivedAttributeFromString(detail.criteria?.attribute),
+    derived_values: detail.criteria?.values ?? [],
+    label_membership_type: membershipFromString(detail.label_membership_type),
+  };
+}
+const queryRequiredSchema = requiredString("Query");
+const labelFormSchema = z
+  .object({
+    name: requiredString("Name"),
+    description: z.string().trim(),
+    query: z.string().trim(),
+    host_ids: selectedIDArray("Host"),
+    derived_attribute: z.enum(LABEL_DERIVED_ATTRIBUTE_VALUES),
+    derived_values: z.array(requiredString("Derived value")),
+    label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
+  })
+  .superRefine((value, ctx) => {
+    if (value.label_membership_type === "dynamic") {
+      const query = queryRequiredSchema.safeParse(value.query);
+      if (!query.success) {
+        ctx.addIssue({
+          code: "custom",
+          message: query.error.issues[0]?.message ?? "Invalid query.",
+          path: ["query"],
+        });
+      } else {
+        const syntaxError = sqlSyntaxError(value.query);
+        if (syntaxError) {
+          ctx.addIssue({
+            code: "custom",
+            message: syntaxError,
+            path: ["query"],
+          });
+        }
+      }
+    }
+    if (value.label_membership_type === "derived" && value.derived_values.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Derived labels need at least one selected item.",
+        path: ["derived_values"],
+      });
+    }
+  });
+function toBody(value: LabelFormValue): LabelMutation {
+  const cleaned = labelFormSchema.parse(value);
+  return {
+    name: cleaned.name,
+    description: cleaned.description,
+    label_membership_type: cleaned.label_membership_type,
+    query: cleaned.label_membership_type === "dynamic" ? cleaned.query : undefined,
+    host_ids: cleaned.label_membership_type === "manual" ? cleaned.host_ids : undefined,
+    criteria:
+      cleaned.label_membership_type === "derived"
+        ? {
+            attribute: cleaned.derived_attribute,
+            values: cleaned.derived_values,
+          }
+        : undefined,
+  };
+}
+export function LabelForm({
+  initial,
+  title,
+  submitLabel,
+  onSubmit,
+  onSuccess,
+  onCancel,
+}: {
+  initial: LabelFormValue;
+  title: string;
+  submitLabel: string;
+  onSubmit: (body: LabelMutation) => Promise<number | undefined>;
+  onSuccess?: (id: number | undefined) => void;
+  onCancel?: () => void;
+}) {
+  const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
+  const editorRef = useRef<ReactCodeMirrorRef>(null);
+  const form = useForm({
+    defaultValues: initial,
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
+    validators: { onDynamic: labelFormSchema },
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit(toBody(value));
+      formApi.reset(value);
+      onSuccess?.(id);
+    },
+  });
+  const exitGuard = usePageFormExitGuard({
+    form,
+    onDiscard: onCancel ?? (() => form.reset(initial)),
+  });
+  function insertAtCursor(snippet: string) {
+    const view = editorRef.current?.view;
+    if (!view) {
+      form.setFieldValue("query", (current) => `${current} ${snippet}`);
+      return;
+    }
+    view.dispatch({
+      changes: { from: view.state.selection.main.from, insert: snippet },
+    });
+  }
+  const selectSchemaTable = useCallback(
+    (tableName: string) => {
+      setSelectedSchemaTable(tableName);
+      setSchemaOpen(true);
+    },
+    [setSchemaOpen],
+  );
+  return (
+    <>
+      <PageShell
+        className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && `pr-84`)}
+        render={
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
+          />
+        }
+      >
+        <PageHeader title={title} />
+        <form.Subscribe selector={(state) => state.values}>
+          {(values) => {
+            const isDynamic = values.label_membership_type === "dynamic";
+            const isManual = values.label_membership_type === "manual";
+            const isDerived = values.label_membership_type === "derived";
+            return (
+              <>
+                <FieldGroup className="max-w-3xl">
+                  <form.Field name="name">
+                    {(field) => (
+                      <ValidatedFormField field={field} label="Name" htmlFor="label-name" required>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            name={field.name}
+                            required
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </ValidatedFormField>
+                    )}
+                  </form.Field>
+
+                  <form.Field name="description">
+                    {(field) => (
+                      <ValidatedFormField
+                        field={field}
+                        label="Description"
+                        htmlFor="label-description"
+                      >
+                        {(control) => (
+                          <Textarea
+                            {...control}
+                            name={field.name}
+                            rows={3}
+                            placeholder="Why this label exists"
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        )}
+                      </ValidatedFormField>
+                    )}
+                  </form.Field>
+
+                  <form.Field name="label_membership_type">
+                    {(field) => (
+                      <FieldSet>
+                        <FieldLegend variant="label">Type</FieldLegend>
+                        <RadioGroup
+                          name={field.name}
+                          value={field.state.value}
+                          onValueChange={(value) => {
+                            if (!isOneOf(value, LABEL_MEMBERSHIP_VALUES)) return;
+                            field.handleChange(value);
+                            if (value !== "dynamic") setSchemaOpen(false);
+                          }}
+                          className="grid gap-2 md:grid-cols-3"
+                        >
+                          {LABEL_MEMBERSHIP_OPTIONS.map((option) => (
+                            <FieldLabel
+                              key={option.value}
+                              htmlFor={`label-membership-${option.value}`}
+                            >
+                              <Field orientation="horizontal">
+                                <FieldContent>
+                                  <FieldTitle>{option.label}</FieldTitle>
+                                  <FieldDescription>
+                                    {LABEL_MEMBERSHIP_TYPES[option.value].description}
+                                  </FieldDescription>
+                                </FieldContent>
+                                <RadioGroupItem
+                                  id={`label-membership-${option.value}`}
+                                  value={option.value}
+                                />
+                              </Field>
+                            </FieldLabel>
+                          ))}
+                        </RadioGroup>
+                      </FieldSet>
+                    )}
+                  </form.Field>
+
+                  {isManual ? (
+                    <form.Field name="host_ids">
+                      {(field) => (
+                        <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
+                          <FieldLabel>Hosts</FieldLabel>
+                          <HostSelector value={field.state.value} onChange={field.handleChange} />
+                          <FieldError errors={field.state.meta.errors} />
+                        </Field>
+                      )}
+                    </form.Field>
+                  ) : null}
+
+                  {isDerived ? (
+                    <FieldGroup>
+                      <form.Field name="derived_attribute">
+                        {(field) => (
+                          <Field>
+                            <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
+                            <Select
+                              items={LABEL_DERIVED_ATTRIBUTE_OPTIONS}
+                              value={field.state.value}
+                              onValueChange={(value) => {
+                                if (!isOneOf(value, LABEL_DERIVED_ATTRIBUTE_VALUES)) return;
+                                field.handleChange(value);
+                                form.setFieldValue("derived_values", []);
+                              }}
+                            >
+                              <SelectTrigger id="label-derived-attribute" className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {LABEL_DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      </form.Field>
+                      <form.Field name="derived_values">
+                        {(field) => (
+                          <Field
+                            data-invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          >
+                            <FieldLabel>
+                              <span>
+                                {labelDerivedAttributeSelectorLabel(values.derived_attribute)}
+                                <span className="text-destructive" aria-hidden="true">
+                                  *
+                                </span>
+                              </span>
+                            </FieldLabel>
+                            <DerivedSelector
+                              attribute={values.derived_attribute}
+                              value={field.state.value}
+                              onChange={field.handleChange}
+                            />
+                            <FieldDescription>Matches linked users and groups.</FieldDescription>
+                            <FieldError errors={field.state.meta.errors} />
+                          </Field>
+                        )}
+                      </form.Field>
+                    </FieldGroup>
+                  ) : null}
+
+                  {isDynamic ? (
+                    <form.Field name="query">
+                      {(field) => (
+                        <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
+                          <FieldLabel>
+                            Query
+                            <span className="text-destructive" aria-hidden="true">
+                              *
+                            </span>
+                          </FieldLabel>
+                          <SQLEditor
+                            ref={editorRef}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onTableMetaClick={selectSchemaTable}
+                            placeholder="SELECT ..."
+                            invalid={field.state.meta.errors.length > 0 ? true : undefined}
+                          />
+                          <FieldDescription>
+                            A returned row adds the host to this label; no rows removes it.
+                          </FieldDescription>
+                          <FieldError errors={field.state.meta.errors} />
+                        </Field>
+                      )}
+                    </form.Field>
+                  ) : null}
+                </FieldGroup>
+
+                {isDynamic ? (
+                  <SchemaSidebar
+                    open={schemaOpen}
+                    onOpenChange={setSchemaOpen}
+                    onInsertColumn={insertAtCursor}
+                    selectedTable={selectedSchemaTable}
+                    onSelectedTableChange={setSelectedSchemaTable}
+                  />
+                ) : null}
+              </>
+            );
+          }}
+        </form.Subscribe>
+
+        <FormActions
+          className="max-w-3xl"
+          form={form}
+          submitLabel={submitLabel}
+          onCancel={onCancel ? exitGuard.requestDiscard : undefined}
+        />
+      </PageShell>
+      {exitGuard.dialog}
+    </>
+  );
+}
+function membershipFromString(value: string | undefined): LabelMembershipType {
+  switch (value) {
+    case undefined:
+      return "dynamic";
+    case "manual":
+    case "derived":
+      return value;
+    default:
+      return "dynamic";
+  }
+}
+function derivedAttributeFromString(value: string | undefined): LabelDerivedAttribute {
+  switch (value) {
+    case undefined:
+      return "user_department";
+    case "directory_group":
+    case "user":
+    case "user_department":
+      return value;
+    default:
+      return "user_department";
+  }
+}

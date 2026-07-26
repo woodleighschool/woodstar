@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { checkQueryOptions } from "@/lib/queries/osquery";
-import { parseRouteID } from "@/lib/route-params";
+import { checkQueryOptions } from "@features/osquery/checks/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/osquery/checks/$id")({
   staticData: { breadcrumb: CheckBreadcrumb },

@@ -1,7 +1,7 @@
 import { useMatches } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { Fragment, type ComponentType } from "react";
 
-import { Link } from "@/components/link";
+import { Link } from "@components/link";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,9 +9,16 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import type { BreadcrumbLabel } from "@/lib/breadcrumbs";
-import { cn } from "@/lib/utils";
+} from "@components/ui/breadcrumb";
+import { cn } from "@lib/utils";
+
+type BreadcrumbLabel = string | ComponentType;
+
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    breadcrumb?: BreadcrumbLabel;
+  }
+}
 
 export function AppBreadcrumbs({ className }: { className?: string }) {
   const crumbs = useMatches({

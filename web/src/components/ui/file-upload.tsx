@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
-import { useDirection } from "@/components/ui/direction";
-import { useAsRef } from "@/hooks/use-as-ref";
-import { useLazyRef } from "@/hooks/use-lazy-ref";
-import { cn } from "@/lib/utils";
+import { useDirection } from "@components/ui/direction";
+import { useAsRef } from "@hooks/use-as-ref";
+import { useLazyRef } from "@hooks/use-lazy-ref";
+import { cn } from "@lib/utils";
 
 const ROOT_NAME = "FileUpload";
 const DROPZONE_NAME = "FileUploadDropzone";

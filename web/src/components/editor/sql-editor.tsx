@@ -5,7 +5,8 @@ import { EditorView } from "@codemirror/view";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef, useMemo } from "react";
 
-import { type OsqueryTable, useOsquerySchema } from "@/hooks/use-osquery-schema";
+import type { OsqueryTable } from "@features/osquery/schema/model";
+import { useOsquerySchema } from "@features/osquery/schema/queries";
 
 import { completionsFromSchema } from "./autocomplete";
 import { CodeEditor } from "./code-editor";

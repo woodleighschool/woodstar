@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { MunkiPackageListPage } from "@/pages/munki/packages/list";
-import { MUNKI_INSTALLER_TYPE_VALUES } from "@/pages/munki/software/munki-software";
+import { MunkiPackageListPage } from "@features/munki/packages/list";
+import { MUNKI_INSTALLER_TYPE_VALUES } from "@features/munki/software/metadata";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "software_name",

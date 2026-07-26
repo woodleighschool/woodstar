@@ -2,7 +2,7 @@ import { type MutationKey, useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { type UploadProgress, type UploadRequest, uploadWithProgress } from "@/lib/upload";
+import { type UploadProgress, type UploadRequest, uploadWithProgress } from "@lib/upload";
 
 type UploadText = string | ((file: File) => string);
 type UploadErrorSurface = "toast" | "inline";

@@ -1,15 +1,9 @@
 import type { ReactNode } from "react";
 
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@components/ui/empty";
 
 // Empty state for a first-class resource list. Nested tables, tabs, and detail
-// sections use text-only EmptyPanel instead.
+// sections use text-only PanelEmptyState instead.
 export function DataTableEmpty({
   icon,
   title,

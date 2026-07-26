@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { redirectAuthenticatedFromLogin } from "@/lib/auth-router";
-import { LoginPage } from "@/pages/login";
+import { redirectAuthenticatedFromLogin } from "@features/auth/guards";
+import { LoginPage } from "@features/auth/login";
 
 const searchSchema = z.object({
   sso_error: z.string().optional().catch(undefined),

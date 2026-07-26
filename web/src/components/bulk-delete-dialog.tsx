@@ -1,4 +1,4 @@
-import { Pending } from "@/components/pending";
+import { Pending } from "@components/pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,8 +8,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Spinner } from "@/components/ui/spinner";
+} from "@components/ui/alert-dialog";
+import { Spinner } from "@components/ui/spinner";
 
 export interface BulkDeleteDialogProps {
   open: boolean;

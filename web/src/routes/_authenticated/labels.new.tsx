@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { LabelCreatePage } from "@/pages/labels/create";
+import { LabelCreatePage } from "@features/labels/create";
 
 export const Route = createFileRoute("/_authenticated/labels/new")({
   staticData: { breadcrumb: "Create" },

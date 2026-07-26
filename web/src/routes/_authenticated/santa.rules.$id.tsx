@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { santaRuleQueryOptions } from "@/lib/queries/santa";
-import { parseRouteID } from "@/lib/route-params";
-import { RuleEditPage } from "@/pages/santa/rules/edit";
+import { RuleEditPage } from "@features/santa/rules/edit";
+import { santaRuleQueryOptions } from "@features/santa/rules/queries";
+import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/santa/rules/$id")({
   staticData: { breadcrumb: RuleBreadcrumb },

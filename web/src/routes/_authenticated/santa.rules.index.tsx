@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@/lib/list-search";
-import { RULE_TYPE_VALUES } from "@/lib/santa-rules";
-import { RuleListPage } from "@/pages/santa/rules/list";
+import { RuleListPage } from "@features/santa/rules/list";
+import { RULE_TYPE_VALUES } from "@features/santa/rules/metadata";
+import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
 
 const searchSchema = createListSearchSchema([
   "rule_type",
