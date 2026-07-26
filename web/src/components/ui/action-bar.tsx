@@ -41,7 +41,7 @@ function focusFirst(candidates: React.RefObject<HTMLElement | null>[], preventSc
 }
 
 function wrapArray<T>(array: T[], startIndex: number) {
-  return array.map<T>((_, index) => array[(startIndex + index) % array.length]);
+  return array.map<T>((_, index) => array[(startIndex + index) % array.length] as T);
 }
 
 function getDirectionAwareKey(key: string, dir?: Direction) {
@@ -184,7 +184,7 @@ function ActionBar(props: ActionBarProps) {
         ref: composedRef,
         className: cn(
           "fixed z-50 rounded-lg border bg-card shadow-lg outline-none",
-          "animate-in duration-250 fade-in-0 zoom-in-95 [animation-timing-function:cubic-bezier(0.16,1,0.3,1)]",
+          "fade-in-0 zoom-in-95 animate-in duration-250 [animation-timing-function:cubic-bezier(0.16,1,0.3,1)]",
           "data-[side=bottom]:slide-in-from-bottom-4 data-[side=top]:slide-in-from-top-4",
           "motion-reduce:animate-none motion-reduce:transition-none",
           orientation === "horizontal"
@@ -231,7 +231,7 @@ function ActionBarSelection(props: DivProps) {
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex items-center gap-1 rounded-sm border px-2 py-1 text-sm font-medium tabular-nums",
+          "flex items-center gap-1 rounded-sm border px-2 py-1 font-medium text-sm tabular-nums",
           className,
         ),
       },
@@ -293,7 +293,7 @@ function ActionBarGroup(props: DivProps) {
   const getItems = React.useCallback(() => {
     return Array.from(itemsRef.current.values())
       .filter((item) => item.ref.current)
-      .toSorted((a, b) => {
+      .sort((a, b) => {
         const elementA = a.ref.current;
         const elementB = b.ref.current;
         if (!elementA || !elementB) return 0;
@@ -596,7 +596,7 @@ function ActionBarClose({ render, className, onClick, ...props }: ActionBarClose
       {
         type: "button" as const,
         className: cn(
-          "rounded-xs opacity-70 outline-none hover:opacity-100 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+          "rounded-xs opacity-70 outline-none hover:opacity-100 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
           className,
         ),
         onClick: onCloseClick,
@@ -628,7 +628,7 @@ function ActionBarSeparator(props: ActionBarSeparatorProps) {
         "aria-orientation": orientation,
         "aria-hidden": "true" as const,
         className: cn(
-          "bg-border in-data-[slot=action-bar-selection]:ml-0.5 in-data-[slot=action-bar-selection]:h-4 in-data-[slot=action-bar-selection]:w-px",
+          "in-data-[slot=action-bar-selection]:ml-0.5 in-data-[slot=action-bar-selection]:h-4 in-data-[slot=action-bar-selection]:w-px bg-border",
           orientation === "horizontal" ? "h-6 w-px" : "h-px w-full",
           className,
         ),

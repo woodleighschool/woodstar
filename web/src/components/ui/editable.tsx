@@ -343,7 +343,7 @@ function EditableLabel(props: EditableLabelProps) {
         id: context.labelId,
         htmlFor: context.inputId,
         className: cn(
-          "text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 data-required:after:ml-0.5 data-required:after:text-destructive data-required:after:content-['*']",
+          "font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 data-required:after:ml-0.5 data-required:after:text-destructive data-required:after:content-['*']",
           className,
         ),
         children,
@@ -480,7 +480,7 @@ function EditablePreview(props: EditablePreviewProps) {
         onFocus,
         onKeyDown,
         className: cn(
-          "cursor-text truncate rounded-sm border border-transparent py-1 text-base focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden data-empty:text-muted-foreground data-readonly:cursor-default md:text-sm data-disabled:cursor-not-allowed data-disabled:opacity-50",
+          "cursor-text truncate rounded-sm border border-transparent py-1 text-base focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring data-disabled:cursor-not-allowed data-readonly:cursor-default data-empty:text-muted-foreground data-disabled:opacity-50 md:text-sm",
           className,
         ),
         children: value || context.placeholder,
@@ -534,9 +534,9 @@ function EditableInput(props: EditableInputProps) {
     onKeyDown: onKeyDownProp,
   });
 
-  const isDisabled = disabled ? true : context.disabled;
-  const isReadOnly = readOnly ? true : context.readOnly;
-  const isRequired = required ? true : context.required;
+  const isDisabled = disabled || context.disabled;
+  const isReadOnly = readOnly || context.readOnly;
+  const isRequired = required || context.required;
 
   const onAutosize = React.useCallback(
     (target: HTMLInputElement | HTMLTextAreaElement) => {
@@ -564,7 +564,7 @@ function EditableInput(props: EditableInputProps) {
 
       const isAction =
         relatedTarget instanceof HTMLElement &&
-        (relatedTarget.closest(`[data-slot="editable-trigger"]`) ??
+        (relatedTarget.closest(`[data-slot="editable-trigger"]`) ||
           relatedTarget.closest(`[data-slot="editable-cancel"]`));
 
       if (!isAction) {
@@ -645,14 +645,14 @@ function EditableInput(props: EditableInputProps) {
         readOnly: isReadOnly,
         required: isRequired,
         ref: composedRef,
-        maxLength,
+        maxLength: maxLength,
         placeholder: context.placeholder,
-        value,
+        value: value,
         onBlur,
         onChange,
         onKeyDown,
         className: cn(
-          "flex rounded-sm border border-input bg-transparent py-1 text-base shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "flex rounded-sm border border-input bg-transparent py-1 text-base shadow-xs transition-colors file:border-0 file:bg-transparent file:font-medium file:text-foreground file:text-sm placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           context.autosize ? "w-auto" : "w-full",
           className,
         ),
@@ -691,7 +691,7 @@ function EditableTrigger(props: EditableTriggerProps) {
       {
         type: "button",
         "aria-controls": context.rootId,
-        "aria-disabled": context.disabled ? true : context.readOnly,
+        "aria-disabled": context.disabled || context.readOnly,
         ref,
         onClick: context.triggerMode === "click" ? onTrigger : undefined,
         onDoubleClick: context.triggerMode === "dblclick" ? onTrigger : undefined,

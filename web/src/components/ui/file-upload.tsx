@@ -139,7 +139,7 @@ function useStore<T>(selector: (state: StoreState) => T): T {
     const state = store.getState();
     const prevValue = lastValueRef.current;
 
-    if (prevValue?.state === state) {
+    if (prevValue && prevValue.state === state) {
       return prevValue.value;
     }
 
@@ -255,7 +255,7 @@ function FileUpload(props: FileUploadProps) {
     let state: StoreState = {
       files,
       dragOver: false,
-      invalid,
+      invalid: invalid,
     };
 
     function reducer(state: StoreState, action: StoreAction): StoreState {
@@ -580,7 +580,7 @@ function FileUpload(props: FileUploadProps) {
 
         if (propsRef.current.onUpload) {
           requestAnimationFrame(() => {
-            void onFilesUpload(acceptedFiles);
+            onFilesUpload(acceptedFiles);
           });
         }
       }
@@ -839,7 +839,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
         dir: context.dir,
         tabIndex: context.disabled ? undefined : 0,
         className: cn(
-          "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors outline-none select-none hover:bg-accent/30 focus-visible:border-ring/50 data-dragging:border-primary/30 data-dragging:bg-accent/30 data-invalid:border-destructive data-invalid:ring-destructive/20 data-disabled:pointer-events-none",
+          "relative flex select-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 outline-none transition-colors hover:bg-accent/30 focus-visible:border-ring/50 data-disabled:pointer-events-none data-dragging:border-primary/30 data-invalid:border-destructive data-dragging:bg-accent/30 data-invalid:ring-destructive/20",
           className,
         ),
         onClick,
@@ -914,7 +914,7 @@ function FileUploadList(props: FileUploadListProps) {
 
   const context = useFileUploadContext(LIST_NAME);
   const fileCount = useStore((state) => state.files.size);
-  const shouldRender = forceMount ? true : fileCount > 0;
+  const shouldRender = forceMount || fileCount > 0;
 
   const element = useRender({
     defaultTagName: "div",
@@ -925,7 +925,7 @@ function FileUploadList(props: FileUploadListProps) {
         "aria-orientation": orientation,
         dir: context.dir,
         className: cn(
-          "flex flex-col gap-2 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-top-2 data-[state=inactive]:animate-out data-[state=inactive]:fade-out-0 data-[state=inactive]:slide-out-to-top-2",
+          "data-[state=inactive]:fade-out-0 data-[state=active]:fade-in-0 data-[state=inactive]:slide-out-to-top-2 data-[state=active]:slide-in-from-top-2 flex flex-col gap-2 data-[state=active]:animate-in data-[state=inactive]:animate-out",
           orientation === "horizontal" && "flex-row overflow-x-auto p-1.5",
           className,
         ),
@@ -1089,7 +1089,7 @@ function FileUploadItemPreview(props: FileUploadItemPreviewProps) {
       {
         "aria-labelledby": itemContext.nameId,
         className: cn(
-          "relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm border bg-accent/50 [&>svg]:size-10",
+          "relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded border bg-accent/50 [&>svg]:size-10",
           className,
         ),
         children: itemContext.fileState ? (
@@ -1134,8 +1134,8 @@ function FileUploadItemMetadata(props: FileUploadItemMetadataProps) {
             <span
               id={itemContext.nameId}
               className={cn(
-                "truncate text-sm font-medium",
-                size === "sm" && "text-[13px] leading-snug font-normal",
+                "truncate font-medium text-sm",
+                size === "sm" && "font-normal text-[13px] leading-snug",
               )}
             >
               {itemContext.fileState?.file.name}
@@ -1143,14 +1143,14 @@ function FileUploadItemMetadata(props: FileUploadItemMetadataProps) {
             <span
               id={itemContext.sizeId}
               className={cn(
-                "truncate text-xs text-muted-foreground",
+                "truncate text-muted-foreground text-xs",
                 size === "sm" && "text-[11px] leading-snug",
               )}
             >
               {itemContext.fileState ? formatBytes(itemContext.fileState.file.size) : ""}
             </span>
             {itemContext.fileState?.error && (
-              <span id={itemContext.messageId} className="text-xs text-destructive">
+              <span id={itemContext.messageId} className="text-destructive text-xs">
                 {itemContext.fileState.error}
               </span>
             )}
@@ -1181,9 +1181,9 @@ function FileUploadItemProgress(props: FileUploadItemProgressProps) {
 
   const itemContext = useFileUploadItemContext(ITEM_PROGRESS_NAME);
 
-  const shouldRender = forceMount
-    ? true
-    : itemContext.fileState?.progress !== 100 && itemContext.fileState?.progress !== undefined;
+  const shouldRender =
+    forceMount ||
+    (itemContext.fileState?.progress !== 100 && itemContext.fileState?.progress !== undefined);
 
   let elementProps: React.ComponentProps<"div"> & {
     children?: React.ReactNode;
@@ -1343,7 +1343,7 @@ function FileUploadClear(props: FileUploadClearProps) {
   const store = useStoreContext(CLEAR_NAME);
   const fileCount = useStore((state) => state.files.size);
 
-  const isDisabled = disabled ? true : context.disabled;
+  const isDisabled = disabled || context.disabled;
 
   const onClick = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -1356,7 +1356,7 @@ function FileUploadClear(props: FileUploadClearProps) {
     [store, onClickProp],
   );
 
-  const shouldRender = forceMount ? true : fileCount > 0;
+  const shouldRender = forceMount || fileCount > 0;
 
   const element = useRender({
     defaultTagName: "button",
@@ -1393,6 +1393,5 @@ export {
   FileUploadList,
   type FileUploadProps,
   FileUploadTrigger,
-  formatBytes,
   useStore as useFileUpload,
 };

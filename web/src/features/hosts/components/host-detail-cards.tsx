@@ -1,5 +1,6 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
+import { filesize } from "filesize";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import { FieldGroup } from "@components/ui/field";
-import { formatBytes } from "@components/ui/file-upload";
 import { Input } from "@components/ui/input";
 import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
@@ -47,7 +47,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
       {host.storage.boot_volume.available_bytes != null ? (
         <KeyValueRow
           label="Disk Space Available"
-          value={`${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`}
+          value={`${filesize(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`}
         />
       ) : null}
       <KeyValueRow
@@ -73,7 +73,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
       ) : null}
       <KeyValueRow label="MAC Address" value={host.network.primary_mac} />
       {host.hardware.memory_bytes > 0 ? (
-        <KeyValueRow label="Memory" value={formatBytes(host.hardware.memory_bytes)} />
+        <KeyValueRow label="Memory" value={filesize(host.hardware.memory_bytes)} />
       ) : null}
       <KeyValueRow label="Operating System" value={osDisplayName(host)} />
       <KeyValueRow label="Private IP Address" value={host.network.primary_ip} />

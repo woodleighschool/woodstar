@@ -64,11 +64,20 @@ function VisuallyHiddenInput<T = InputValue>(props: VisuallyHiddenInputProps<T>)
       const entry = entries[0];
       if (!entry) return;
 
-      const borderSize = entry.borderBoxSize[0];
-      setControlSize({
-        width: borderSize?.inlineSize ?? entry.contentRect.width,
-        height: borderSize?.blockSize ?? entry.contentRect.height,
-      });
+      let width: number;
+      let height: number;
+
+      if ("borderBoxSize" in entry) {
+        const borderSizeEntry = entry.borderBoxSize;
+        const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
+        width = borderSize.inlineSize;
+        height = borderSize.blockSize;
+      } else {
+        width = control.offsetWidth;
+        height = control.offsetHeight;
+      }
+
+      setControlSize({ width, height });
     });
 
     resizeObserver.observe(control, { box: "border-box" });

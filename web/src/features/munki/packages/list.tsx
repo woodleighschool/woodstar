@@ -1,5 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
+import { filesize } from "filesize";
 import { MoreHorizontal, PackageCheck, Plus } from "lucide-react";
 import * as React from "react";
 
@@ -23,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackage } from "@lib/api";
@@ -86,7 +86,7 @@ function packageColumns(
       header: "Size",
       cell: ({ row }) => {
         const bytes = row.original.installer_file?.size_bytes ?? 0;
-        return bytes > 0 ? formatBytes(bytes) : "-";
+        return bytes > 0 ? filesize(bytes) : "-";
       },
       meta: { label: "Size" },
     },

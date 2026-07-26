@@ -2,11 +2,13 @@
   "files": [],
   "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
     "paths": {
+      "@components": ["./src/components"],
       "@components/*": ["./src/components/*"],
       "@features/*": ["./src/features/*"],
+      "@hooks": ["./src/hooks"],
       "@hooks/*": ["./src/hooks/*"],
+      "@lib": ["./src/lib"],
       "@lib/*": ["./src/lib/*"]
     }
   }

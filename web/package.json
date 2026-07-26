@@ -39,6 +39,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "filesize": "^11.0.22",
     "lucide-react": "^1.26.0",
     "papaparse": "^5.5.4",
     "plist": "^5.0.0",

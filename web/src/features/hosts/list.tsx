@@ -1,5 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
+import { filesize } from "filesize";
 import { ServerCog } from "lucide-react";
 import * as React from "react";
 
@@ -18,7 +19,6 @@ import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
-import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
 import { HostStatus } from "@features/hosts/components/host-status";
 import { listAllHosts, useBulkDeleteHosts, useHosts } from "@features/hosts/queries";
@@ -231,7 +231,7 @@ const hostColumns: ColumnDef<Host>[] = [
     header: "Disk Free",
     cell: ({ row }) =>
       row.original.storage.boot_volume.available_bytes
-        ? formatBytes(row.original.storage.boot_volume.available_bytes)
+        ? filesize(row.original.storage.boot_volume.available_bytes)
         : "-",
     meta: { label: "Disk Free" },
   },
@@ -275,9 +275,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.hardware.memory_bytes,
     header: "Memory",
     cell: ({ row }) =>
-      row.original.hardware.memory_bytes > 0
-        ? formatBytes(row.original.hardware.memory_bytes)
-        : "-",
+      row.original.hardware.memory_bytes > 0 ? filesize(row.original.hardware.memory_bytes) : "-",
     meta: { label: "Memory" },
   },
   {
@@ -311,7 +309,7 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
     header: "Disk Free",
     value: (host) =>
       host.storage.boot_volume.available_bytes
-        ? formatBytes(host.storage.boot_volume.available_bytes)
+        ? filesize(host.storage.boot_volume.available_bytes)
         : "",
   },
   { header: "User Email", value: (host) => host.primary_user?.email },
@@ -321,8 +319,7 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
   { header: "Public IP", value: (host) => host.network.last_remote_ip },
   {
     header: "Memory",
-    value: (host) =>
-      host.hardware.memory_bytes > 0 ? formatBytes(host.hardware.memory_bytes) : "",
+    value: (host) => (host.hardware.memory_bytes > 0 ? filesize(host.hardware.memory_bytes) : ""),
   },
   { header: "Osquery Version", value: (host) => host.agents.osquery.version },
   {

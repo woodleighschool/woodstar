@@ -1,3 +1,4 @@
+import { filesize } from "filesize";
 import { Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -21,7 +22,6 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import { Field, FieldLabel } from "@components/ui/field";
-import { formatBytes } from "@components/ui/file-upload";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { SoftwareArtwork } from "@features/software/software-icon";
 
@@ -92,7 +92,7 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
             </AttachmentTitle>
             <AttachmentDescription>
               {value.kind === "upload"
-                ? `${formatBytes(value.file.size)} selected`
+                ? `${filesize(value.file.size)} selected`
                 : value.kind === "stored"
                   ? "Select to replace or choose another uploaded icon."
                   : "Upload a new image or choose an uploaded icon."}

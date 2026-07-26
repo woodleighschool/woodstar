@@ -1,3 +1,4 @@
+import { filesize } from "filesize";
 import { Disc3, FileArchive, Package, Trash2 } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 
@@ -24,7 +25,6 @@ import {
   FieldLegend,
   FieldSet,
 } from "@components/ui/field";
-import { formatBytes } from "@components/ui/file-upload";
 import { Input } from "@components/ui/input";
 import {
   InputGroup,
@@ -86,9 +86,9 @@ export function InstallerFileField({
             const file = field.state.value;
             const filename = file?.name ?? metadata?.filename ?? "Choose an installer";
             const description = file
-              ? `${formatBytes(file.size)} selected`
+              ? `${filesize(file.size)} selected`
               : metadata
-                ? `${formatBytes(metadata.size_bytes)} · select to replace`
+                ? `${filesize(metadata.size_bytes)} · select to replace`
                 : "Select an installer file.";
             return (
               <div className="relative w-full">

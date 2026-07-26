@@ -1,3 +1,4 @@
+import { filesize } from "filesize";
 import { FileArchive, Trash2 } from "lucide-react";
 import { useRef } from "react";
 
@@ -11,7 +12,6 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@components/ui/attachment";
-import { formatBytes } from "@components/ui/file-upload";
 import { Input } from "@components/ui/input";
 import { ValidatedFormField } from "@components/validated-form-field";
 import type { MunkiObjectView } from "@lib/api";
@@ -63,11 +63,11 @@ export function ClientResourcesArchiveField({
                 : uploading
                   ? `Uploading${progress ? ` · ${progress.percent}%` : ""}`
                   : file
-                    ? `${formatBytes(file.size)} selected`
+                    ? `${filesize(file.size)} selected`
                     : metadata?.size_bytes !== null && metadata?.size_bytes !== undefined
                       ? editable
-                        ? `${formatBytes(metadata.size_bytes)} · select to replace`
-                        : formatBytes(metadata.size_bytes)
+                        ? `${filesize(metadata.size_bytes)} · select to replace`
+                        : filesize(metadata.size_bytes)
                       : editable
                         ? "Select a ZIP archive."
                         : "No archive deployed.";

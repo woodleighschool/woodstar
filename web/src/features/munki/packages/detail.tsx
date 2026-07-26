@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
+import { filesize } from "filesize";
 import { Package as PackageIcon, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -7,7 +8,6 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackageReference } from "@lib/api";
@@ -95,7 +95,7 @@ export function MunkiPackageDetailPage() {
           label="Installer File"
           value={
             pkg.installer_file
-              ? `${pkg.installer_file.filename} · ${formatBytes(pkg.installer_file.size_bytes)}`
+              ? `${pkg.installer_file.filename} · ${filesize(pkg.installer_file.size_bytes)}`
               : "-"
           }
         />
