@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.1](https://github.com/woodleighschool/woodstar/compare/0.6.0...0.6.1) (2026-07-26)
+
+
+### Features
+
+* **deps:** update dependency lucide-react (1.26.0 → 1.27.0) ([#69](https://github.com/woodleighschool/woodstar/issues/69)) ([822b481](https://github.com/woodleighschool/woodstar/commit/822b4817aa2ff4987244bca14f7b5c90303a9ce3))
+* **santa:** suggest rules from software signing data ([02c2459](https://github.com/woodleighschool/woodstar/commit/02c245978d804832267c3d29589434727c339ebc))
+
+
+### Bug Fixes
+
+* **deps:** update dependency simple-icons (16.27.0 → 16.27.1) ([#70](https://github.com/woodleighschool/woodstar/issues/70)) ([6b858f7](https://github.com/woodleighschool/woodstar/commit/6b858f7fa0a9075ad61d3072f0f1f8c6ffb99a56))
+* **hosts:** align software filter scope ([7600618](https://github.com/woodleighschool/woodstar/commit/7600618c8d91ad80943a3ef3b6914c1c0f3067af))
+* **munki:** clarify package references ([49383eb](https://github.com/woodleighschool/woodstar/commit/49383ebd13d8de455a8d7634030bc6de8ff87aa6))
+
 ## [0.6.0](https://github.com/woodleighschool/woodstar/compare/0.5.1...0.6.0) (2026-07-26)
 
 
