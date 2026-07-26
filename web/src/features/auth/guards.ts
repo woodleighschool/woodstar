@@ -18,6 +18,12 @@ export async function requireUser(queryClient: QueryClient): Promise<SessionUser
   return session.user;
 }
 
+/** Administrator route guard with a resource-specific viewer fallback. */
+export function requireAdmin(user: SessionUser, onForbidden: () => never): SessionUser {
+  if (user.role !== "admin") return onForbidden();
+  return user;
+}
+
 /** Root entry point: route to login or the app shell. */
 export async function redirectForEntry(queryClient: QueryClient): Promise<void> {
   const session = await loadSession(queryClient);

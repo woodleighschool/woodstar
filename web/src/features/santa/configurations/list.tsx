@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileSliders, GripVertical, Plus } from "lucide-react";
+import { FileSliders, GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -26,6 +26,13 @@ import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import { ButtonGroup } from "@components/ui/button-group";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -38,6 +45,7 @@ import type { SantaConfiguration } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
+import { ConfigurationDeleteDialog } from "./delete-dialog";
 import { CLIENT_MODES } from "./metadata";
 import {
   useBulkDeleteSantaConfigurations,
@@ -58,6 +66,7 @@ export function ConfigurationListPage() {
   const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState<SantaConfiguration | null>(null);
   const query = useSantaConfigurations(
     reorderEnabled
       ? {
@@ -78,7 +87,7 @@ export function ConfigurationListPage() {
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(
-    () => configurationColumns(isAdmin),
+    () => configurationColumns(isAdmin, setDeleting),
     [isAdmin],
   );
   const table = useDataTable({
@@ -148,7 +157,7 @@ export function ConfigurationListPage() {
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={5} />
+        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
       ) : (
         <DataTable
           table={table}
@@ -177,21 +186,33 @@ export function ConfigurationListPage() {
       )}
 
       {isAdmin ? (
-        <ReorderWarningDialog
-          open={reorderWarningOpen}
-          onOpenChange={setReorderWarningOpen}
-          onConfirm={() => {
-            setReorderEnabled(true);
-            setReorderWarningOpen(false);
-          }}
-        />
+        <>
+          <ReorderWarningDialog
+            open={reorderWarningOpen}
+            onOpenChange={setReorderWarningOpen}
+            onConfirm={() => {
+              setReorderEnabled(true);
+              setReorderWarningOpen(false);
+            }}
+          />
+          <ConfigurationDeleteDialog
+            configuration={deleting}
+            open={deleting !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleting(null);
+            }}
+          />
+        </>
       ) : null}
     </PageShell>
   );
 }
-function configurationColumns(isAdmin: boolean): ColumnDef<SantaConfiguration>[] {
+function configurationColumns(
+  isAdmin: boolean,
+  onDelete: (configuration: SantaConfiguration) => void,
+): ColumnDef<SantaConfiguration>[] {
   const columns: ColumnDef<SantaConfiguration>[] = [
-    selectColumn<SantaConfiguration>(),
+    ...(isAdmin ? [selectColumn<SantaConfiguration>()] : []),
     {
       id: "position",
       accessorKey: "position",
@@ -204,18 +225,15 @@ function configurationColumns(isAdmin: boolean): ColumnDef<SantaConfiguration>[]
       id: "name",
       accessorKey: "name",
       header: "Name",
-      cell: ({ row }) =>
-        isAdmin ? (
-          <Link
-            to="/santa/configurations/$id"
-            params={{ id: String(row.original.id) }}
-            className="font-medium"
-          >
-            {row.original.name}
-          </Link>
-        ) : (
-          <span className="font-medium">{row.original.name}</span>
-        ),
+      cell: ({ row }) => (
+        <Link
+          to="/santa/configurations/$id"
+          params={{ id: String(row.original.id) }}
+          className="font-medium"
+        >
+          {row.original.name}
+        </Link>
+      ),
       enableHiding: false,
       meta: { label: "Name" },
     },
@@ -237,8 +255,52 @@ function configurationColumns(isAdmin: boolean): ColumnDef<SantaConfiguration>[]
       cell: ({ row }) => formatRelative(row.original.updated_at),
       meta: { label: "Updated" },
     },
+    ...(isAdmin
+      ? [
+          {
+            id: "actions",
+            header: () => null,
+            enableSorting: false,
+            enableHiding: false,
+            size: 48,
+            cell: ({ row }) => (
+              <ConfigurationRowActions configuration={row.original} onDelete={onDelete} />
+            ),
+          } satisfies ColumnDef<SantaConfiguration>,
+        ]
+      : []),
   ];
   return columns;
+}
+
+function ConfigurationRowActions({
+  configuration,
+  onDelete,
+}: {
+  configuration: SantaConfiguration;
+  onDelete: (configuration: SantaConfiguration) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={
+              <Link to="/santa/configurations/$id/edit" params={{ id: String(configuration.id) }} />
+            }
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => onDelete(configuration)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 function ConfigurationReorder({
   rows,

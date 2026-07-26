@@ -72,7 +72,10 @@ export function HostListPage() {
   const hosts = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo<ColumnDef<Host>[]>(() => hostColumns, []);
+  const columns = React.useMemo<ColumnDef<Host>[]>(
+    () => (isAdmin ? hostColumns : hostViewerColumns),
+    [isAdmin],
+  );
 
   const table = useDataTable({
     tableState: tableSearch,
@@ -284,6 +287,8 @@ const hostColumns: ColumnDef<Host>[] = [
     meta: { label: "Last Restarted" },
   },
 ];
+
+const hostViewerColumns = hostColumns.filter((column) => column.id !== "select");
 
 function softwareFilterLabel({
   title,

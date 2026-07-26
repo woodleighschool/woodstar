@@ -56,7 +56,7 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
       <div className="flex min-w-0 items-center gap-3">
         <SoftwareArtwork src={row.original.software.icon_url} size="md" />
         <Link
-          to="/munki/packages/$id/edit"
+          to="/munki/packages/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
         >

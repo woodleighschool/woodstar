@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { RuleEditPage } from "@features/santa/rules/edit";
 import { santaRuleQueryOptions } from "@features/santa/rules/queries";
 import { parseRouteID } from "@lib/route-params";
 
@@ -10,7 +9,6 @@ export const Route = createFileRoute("/_authenticated/santa/rules/$id")({
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(santaRuleQueryOptions(parseRouteID(params.id)));
   },
-  component: RuleEditPage,
 });
 
 function RuleBreadcrumb(): string {

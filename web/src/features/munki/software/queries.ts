@@ -23,6 +23,7 @@ import {
   bulkDeleteMunkiSoftware,
   createMunkiIconUpload,
   createMunkiSoftware,
+  deleteMunkiSoftware,
   getMunkiSoftware,
   listMunkiIcons,
   listMunkiSoftware,
@@ -100,6 +101,14 @@ export function useBulkDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteMunkiSoftware({ query: { ids } })),
+    onSuccess: async () => invalidateMunkiCatalog(queryClient),
+  });
+}
+
+export function useDeleteMunkiSoftware() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteMunkiSoftware({ path: { id } })),
     onSuccess: async () => invalidateMunkiCatalog(queryClient),
   });
 }

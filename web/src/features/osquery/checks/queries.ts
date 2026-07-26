@@ -17,6 +17,7 @@ import type {
 import {
   bulkDeleteOsqueryChecks,
   createOsqueryCheck,
+  deleteOsqueryCheck,
   getOsqueryCheck,
   listOsqueryCheckResults,
   listOsqueryChecks,
@@ -102,6 +103,16 @@ export function useUpdateCheck(id: number | null) {
       ),
     onSuccess: async () => {
       toast.success("Check saved");
+      await queryClient.invalidateQueries({ queryKey: checkKeys.all });
+    },
+  });
+}
+
+export function useDeleteCheck() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteOsqueryCheck({ path: { id } })),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: checkKeys.all });
     },
   });

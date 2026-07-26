@@ -27,7 +27,6 @@ import { useAuth } from "@features/auth/queries";
 import { useGroup } from "@features/directory/groups/queries";
 import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@features/directory/source";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
-import { UserFormDialog } from "@features/directory/users/form-dialog";
 import {
   USER_ACCESS_ROLE_OPTIONS,
   USER_ACCESS_ROLES,
@@ -50,17 +49,15 @@ interface UserTableRow {
 
 function UserNameCell({ row }: CellContext<UserTableRow, unknown>) {
   const label = nonEmpty(row.original.user.name) ?? row.original.user.email;
-  if (row.original.isAdmin || row.original.user.id === row.original.currentUserId) {
-    return (
-      <Link
-        {...userEditLink(row.original.user.id, row.original.currentUserId)}
-        className="font-medium"
-      >
-        {label}
-      </Link>
-    );
-  }
-  return <span className="font-medium">{label}</span>;
+  return (
+    <Link
+      to="/directory/users/$id"
+      params={{ id: String(row.original.user.id) }}
+      className="font-medium"
+    >
+      {label}
+    </Link>
+  );
 }
 
 function UserEmailCell({ row }: CellContext<UserTableRow, unknown>) {
@@ -141,7 +138,6 @@ export function UserListPage() {
   });
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === "admin";
-  const [createOpen, setCreateOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<User | null>(null);
   const role = search.role;
   const source = search.source;
@@ -192,7 +188,7 @@ export function UserListPage() {
         }
         actions={
           isAdmin ? (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" render={<Link to="/directory/users/new" />} nativeButton={false}>
               <UserPlus data-icon="inline-start" />
               Create
             </Button>
@@ -244,16 +240,13 @@ export function UserListPage() {
       )}
 
       {isAdmin ? (
-        <>
-          <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-          <UserDeleteDialog
-            open={deleting !== null}
-            onOpenChange={(open) => {
-              if (!open) setDeleting(null);
-            }}
-            user={deleting}
-          />
-        </>
+        <UserDeleteDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+          user={deleting}
+        />
       ) : null}
     </PageShell>
   );

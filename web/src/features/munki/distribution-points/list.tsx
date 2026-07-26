@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { GripVertical, HardDrive, Plus } from "lucide-react";
+import { GripVertical, HardDrive, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -23,6 +23,13 @@ import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import { ButtonGroup } from "@components/ui/button-group";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -34,6 +41,7 @@ import { useAuth } from "@features/auth/queries";
 import type { MunkiDistributionPoint } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 
+import { DistributionPointDeleteDialog } from "./delete-dialog";
 import { BoolBadge, WorkerStatus } from "./distribution-point-badges";
 import { useMunkiDistributionPoints, useReorderMunkiDistributionPoints } from "./queries";
 
@@ -50,6 +58,7 @@ export function DistributionPointListPage() {
   const isAdmin = user?.role === "admin";
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState<MunkiDistributionPoint | null>(null);
   const query = useMunkiDistributionPoints(
     reorderEnabled
       ? { q: tableSearch.q, per_page: MAX_PAGE_SIZE, sort: encodeSort("position") }
@@ -66,7 +75,7 @@ export function DistributionPointListPage() {
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<ColumnDef<MunkiDistributionPoint>[]>(
-    () => distributionPointColumns(isAdmin),
+    () => distributionPointColumns(isAdmin, setDeleting),
     [isAdmin],
   );
   const table = useDataTable({
@@ -135,7 +144,7 @@ export function DistributionPointListPage() {
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={6} />
+        <DataTableSkeleton columnCount={isAdmin ? 7 : 6} />
       ) : (
         <DataTable table={table} empty={emptyState}>
           <div className="flex items-start justify-between gap-2 p-1">
@@ -151,20 +160,32 @@ export function DistributionPointListPage() {
       )}
 
       {isAdmin ? (
-        <ReorderWarningDialog
-          open={reorderWarningOpen}
-          onOpenChange={setReorderWarningOpen}
-          onConfirm={() => {
-            setReorderEnabled(true);
-            setReorderWarningOpen(false);
-          }}
-        />
+        <>
+          <ReorderWarningDialog
+            open={reorderWarningOpen}
+            onOpenChange={setReorderWarningOpen}
+            onConfirm={() => {
+              setReorderEnabled(true);
+              setReorderWarningOpen(false);
+            }}
+          />
+          <DistributionPointDeleteDialog
+            point={deleting}
+            open={deleting !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleting(null);
+            }}
+          />
+        </>
       ) : null}
     </PageShell>
   );
 }
-function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistributionPoint>[] {
-  return [
+function distributionPointColumns(
+  isAdmin: boolean,
+  onDelete: (point: MunkiDistributionPoint) => void,
+): ColumnDef<MunkiDistributionPoint>[] {
+  const columns: ColumnDef<MunkiDistributionPoint>[] = [
     {
       id: "position",
       accessorKey: "position",
@@ -177,18 +198,15 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
       id: "name",
       accessorKey: "name",
       header: "Name",
-      cell: ({ row }) =>
-        isAdmin ? (
-          <Link
-            to="/munki/distribution-points/$id"
-            params={{ id: String(row.original.id) }}
-            className="font-medium"
-          >
-            {row.original.name}
-          </Link>
-        ) : (
-          <span className="font-medium">{row.original.name}</span>
-        ),
+      cell: ({ row }) => (
+        <Link
+          to="/munki/distribution-points/$id"
+          params={{ id: String(row.original.id) }}
+          className="font-medium"
+        >
+          {row.original.name}
+        </Link>
+      ),
       enableHiding: false,
       meta: { label: "Name" },
     },
@@ -225,6 +243,50 @@ function distributionPointColumns(isAdmin: boolean): ColumnDef<MunkiDistribution
       meta: { label: "Base URL" },
     },
   ];
+  if (!isAdmin) return columns;
+  return [
+    ...columns,
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      enableHiding: false,
+      size: 48,
+      cell: ({ row }) => (
+        <DistributionPointRowActions point={row.original} onDelete={() => onDelete(row.original)} />
+      ),
+    },
+  ];
+}
+
+function DistributionPointRowActions({
+  point,
+  onDelete,
+}: {
+  point: MunkiDistributionPoint;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={
+              <Link to="/munki/distribution-points/$id/edit" params={{ id: String(point.id) }} />
+            }
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 function DistributionPointReorder({
   rows,

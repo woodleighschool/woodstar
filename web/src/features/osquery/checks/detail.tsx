@@ -1,6 +1,7 @@
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef, Table } from "@tanstack/react-table";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
@@ -21,6 +22,7 @@ import type { OsqueryCheckHostStatus } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
+import { CheckDeleteDialog } from "./delete-dialog";
 import { useCheck, useCheckResults } from "./queries";
 
 const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
@@ -72,7 +74,10 @@ export function CheckDetailPage() {
   const { id: checkId } = useParams({
     from: "/_authenticated/osquery/checks/$id",
   });
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(checkId);
   const check = useCheck(id);
   const results = useCheckResults(id);
@@ -106,19 +111,30 @@ export function CheckDetailPage() {
   return (
     <PageShell>
       <PageHeader
-        title={check.data.name}
+        title="Check Details"
         description={check.data.description || undefined}
         actions={
           <>
-            {user?.role === "admin" ? (
-              <Button
-                size="sm"
-                render={<Link to="/osquery/checks/$id/edit" params={{ id: checkId }} />}
-                nativeButton={false}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit
-              </Button>
+            {isAdmin ? (
+              <>
+                <Button
+                  size="sm"
+                  render={<Link to="/osquery/checks/$id/edit" params={{ id: checkId }} />}
+                  nativeButton={false}
+                >
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
             ) : null}
             <ShowQueryButton sql={check.data.query} />
             <LiveRunButton to="/osquery/checks/$id/live" params={{ id: checkId }} />
@@ -129,6 +145,7 @@ export function CheckDetailPage() {
       <Card>
         <CardContent>
           <KeyValueGrid>
+            <KeyValueItem label="Name" value={check.data.name} />
             <KeyValueItem label="Passing" value={formatHostCount(check.data.passing_host_count)} />
             <KeyValueItem label="Failing" value={formatHostCount(check.data.failing_host_count)} />
             <KeyValueItem label="Updated" value={formatRelative(check.data.updated_at)} />
@@ -154,6 +171,15 @@ export function CheckDetailPage() {
           empty={<PanelEmptyState>No check results yet</PanelEmptyState>}
         />
       )}
+
+      {isAdmin ? (
+        <CheckDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          check={check.data}
+          onDeleted={() => void navigate({ to: "/osquery/checks" })}
+        />
+      ) : null}
     </PageShell>
   );
 }

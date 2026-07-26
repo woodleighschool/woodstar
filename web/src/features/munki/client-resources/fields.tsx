@@ -43,6 +43,7 @@ export type ClientResourcesForm = ReturnType<typeof useClientResourcesForm>;
 
 export function MunkiClientResourcesForm({
   initial,
+  editable,
   deployed,
   archiveMetadata,
   archiveUploading,
@@ -55,6 +56,7 @@ export function MunkiClientResourcesForm({
   onUndeploy,
 }: {
   initial: ClientResourcesFormInput;
+  editable: boolean;
   deployed: boolean;
   archiveMetadata?: MunkiObjectView;
   archiveUploading: boolean;
@@ -77,7 +79,7 @@ export function MunkiClientResourcesForm({
     form.reset(initial);
   }
 
-  const exitGuard = usePageFormExitGuard({ form, onDiscard: discard });
+  const exitGuard = usePageFormExitGuard({ form, onDiscard: discard, enabled: editable });
 
   return (
     <PageShell
@@ -87,7 +89,7 @@ export function MunkiClientResourcesForm({
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            void form.handleSubmit();
+            if (editable) void form.handleSubmit();
           }}
         />
       }
@@ -99,34 +101,36 @@ export function MunkiClientResourcesForm({
             description="Configure Managed Software Center branding."
             context={<DeploymentBadge deployed={deployed} />}
             actions={
-              <>
-                {deployed ? (
-                  <AsyncButton
+              editable ? (
+                <>
+                  {deployed ? (
+                    <AsyncButton
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      isPending={undeploying}
+                      disabled={submitting}
+                      icon={<Trash2 data-icon="inline-start" />}
+                      onClick={() => setConfirmUndeploy(true)}
+                    >
+                      Undeploy
+                    </AsyncButton>
+                  ) : null}
+                  <Button
                     type="button"
-                    variant="destructive"
                     size="sm"
-                    isPending={undeploying}
-                    disabled={submitting}
-                    icon={<Trash2 data-icon="inline-start" />}
-                    onClick={() => setConfirmUndeploy(true)}
+                    disabled={submitting || undeploying}
+                    onClick={() => form.setFieldValue("custom", !custom)}
                   >
-                    Undeploy
-                  </AsyncButton>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={submitting || undeploying}
-                  onClick={() => form.setFieldValue("custom", !custom)}
-                >
-                  {custom ? (
-                    <Brush data-icon="inline-start" />
-                  ) : (
-                    <Upload data-icon="inline-start" />
-                  )}
-                  {custom ? "Use Builder" : "Upload Custom ZIP"}
-                </Button>
-              </>
+                    {custom ? (
+                      <Brush data-icon="inline-start" />
+                    ) : (
+                      <Upload data-icon="inline-start" />
+                    )}
+                    {custom ? "Use Builder" : "Upload Custom ZIP"}
+                  </Button>
+                </>
+              ) : null
             }
           />
         )}
@@ -138,38 +142,48 @@ export function MunkiClientResourcesForm({
             values.custom ? (
               <ClientResourcesArchiveField
                 form={form}
+                editable={editable}
                 metadata={archiveMetadata}
                 uploading={archiveUploading}
                 progress={archiveProgress}
                 error={archiveError}
               />
             ) : (
-              <ClientResourcesEditor form={form} draft={values} bannerUploading={bannerUploading} />
+              <ClientResourcesEditor
+                form={form}
+                draft={values}
+                editable={editable}
+                bannerUploading={bannerUploading}
+              />
             )
           }
         </form.Subscribe>
 
-        <FormActions form={form} submitLabel="Save" onCancel={exitGuard.requestDiscard} />
+        {editable ? (
+          <FormActions form={form} submitLabel="Save" onCancel={exitGuard.requestDiscard} />
+        ) : null}
       </fieldset>
 
-      {exitGuard.dialog}
+      {editable ? exitGuard.dialog : null}
 
-      <ConfirmDialog
-        open={confirmUndeploy}
-        onOpenChange={setConfirmUndeploy}
-        title="Undeploy client resources?"
-        description={
-          form.state.isDefaultValue
-            ? "Woodstar will stop serving this archive. Munki clients will use their built-in resources."
-            : "Woodstar will stop serving this archive and discard your unsaved changes. Munki clients will use their built-in resources."
-        }
-        confirmLabel="Undeploy"
-        variant="destructive"
-        pending={undeploying}
-        onConfirm={() => {
-          void onUndeploy().then(() => setConfirmUndeploy(false));
-        }}
-      />
+      {editable ? (
+        <ConfirmDialog
+          open={confirmUndeploy}
+          onOpenChange={setConfirmUndeploy}
+          title="Undeploy client resources?"
+          description={
+            form.state.isDefaultValue
+              ? "Woodstar will stop serving this archive. Munki clients will use their built-in resources."
+              : "Woodstar will stop serving this archive and discard your unsaved changes. Munki clients will use their built-in resources."
+          }
+          confirmLabel="Undeploy"
+          variant="destructive"
+          pending={undeploying}
+          onConfirm={() => {
+            void onUndeploy().then(() => setConfirmUndeploy(false));
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
-import { ConfigurationEditPage } from "@features/santa/configurations/edit";
 import { santaConfigurationQueryOptions } from "@features/santa/configurations/queries";
 import { parseRouteID } from "@lib/route-params";
 
@@ -12,7 +11,6 @@ export const Route = createFileRoute("/_authenticated/santa/configurations/$id")
       santaConfigurationQueryOptions(parseRouteID(params.id)),
     );
   },
-  component: ConfigurationEditPage,
 });
 
 function ConfigurationBreadcrumb(): string {

@@ -5,6 +5,8 @@ import { requireUser } from "@features/auth/guards";
 import { AppLayout } from "../app-layout";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: ({ context }) => requireUser(context.queryClient),
+  beforeLoad: async ({ context }) => ({
+    currentUser: await requireUser(context.queryClient),
+  }),
   component: AppLayout,
 });

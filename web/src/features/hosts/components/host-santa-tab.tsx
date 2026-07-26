@@ -1,6 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, FolderLock } from "lucide-react";
-import { useMemo } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { EnumBadge } from "@components/enum-badge";
@@ -13,7 +12,6 @@ import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
-import { useAuth } from "@features/auth/queries";
 import { useHostSantaRules } from "@features/hosts/queries";
 import { CLIENT_MODES } from "@features/santa/configurations/metadata";
 import { POLICIES, RULE_TYPES } from "@features/santa/rules/metadata";
@@ -26,51 +24,46 @@ const RULE_APPLICATION_STATUSES = {
   pending: { name: "Pending", variant: "warning" },
 } as const;
 
-function santaRuleColumns(isAdmin: boolean): ColumnDef<SantaRuleStatus>[] {
-  return [
-    {
-      accessorKey: "name",
-      header: () => "Name",
-      cell: ({ row }) =>
-        isAdmin ? (
-          <Link
-            to="/santa/rules/$id"
-            params={{ id: String(row.original.rule_id) }}
-            className="font-medium"
-          >
-            {row.original.name}
-          </Link>
-        ) : (
-          row.original.name
-        ),
-    },
-    {
-      accessorKey: "rule_type",
-      header: () => "Rule Type",
-      cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
-    },
-    {
-      accessorKey: "identifier",
-      header: () => "Identifier",
-      cell: ({ row }) => <PathText value={row.original.identifier} />,
-    },
-    {
-      accessorKey: "policy",
-      header: () => "Policy",
-      cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
-    },
-    {
-      accessorKey: "applied",
-      header: () => "Status",
-      cell: ({ row }) => (
-        <EnumStatusIndicator
-          value={row.original.applied ? "applied" : "pending"}
-          metadata={RULE_APPLICATION_STATUSES}
-        />
-      ),
-    },
-  ];
-}
+const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
+  {
+    accessorKey: "name",
+    header: () => "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/santa/rules/$id"
+        params={{ id: String(row.original.rule_id) }}
+        className="font-medium"
+      >
+        {row.original.name}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "rule_type",
+    header: () => "Rule Type",
+    cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
+  },
+  {
+    accessorKey: "identifier",
+    header: () => "Identifier",
+    cell: ({ row }) => <PathText value={row.original.identifier} />,
+  },
+  {
+    accessorKey: "policy",
+    header: () => "Policy",
+    cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
+  },
+  {
+    accessorKey: "applied",
+    header: () => "Status",
+    cell: ({ row }) => (
+      <EnumStatusIndicator
+        value={row.original.applied ? "applied" : "pending"}
+        metadata={RULE_APPLICATION_STATUSES}
+      />
+    ),
+  },
+];
 
 interface HostSantaTabProps {
   hostId: number;
@@ -80,8 +73,6 @@ interface HostSantaTabProps {
 }
 
 export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSantaTabProps) {
-  const { user } = useAuth();
-  const columns = useMemo(() => santaRuleColumns(user?.role === "admin"), [user?.role]);
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
@@ -154,7 +145,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
           ) : rules.isLoading ? null : totalCount === 0 ? (
             <PanelEmptyState>No matching rules</PanelEmptyState>
           ) : (
-            <DataTableStatic columns={columns} data={items} />
+            <DataTableStatic columns={santaRuleColumns} data={items} />
           )}
         </CardContent>
       </Card>

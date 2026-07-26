@@ -1,6 +1,7 @@
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import { KeyValueGrid, KeyValueItem } from "@components/key-value";
@@ -17,6 +18,7 @@ import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-act
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval, formatRelative } from "@lib/utils";
 
+import { ReportDeleteDialog } from "./delete-dialog";
 import { useReport, useReportResults } from "./queries";
 import {
   reportRows,
@@ -30,7 +32,10 @@ export function ReportDetailPage() {
   const { id: reportId } = useParams({
     from: "/_authenticated/osquery/reports/$id",
   });
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(reportId);
   const report = useReport(id);
   const results = useReportResults(id);
@@ -72,19 +77,30 @@ export function ReportDetailPage() {
   return (
     <PageShell>
       <PageHeader
-        title={report.data.name}
+        title="Report Details"
         description={report.data.description || undefined}
         actions={
           <>
-            {user?.role === "admin" ? (
-              <Button
-                size="sm"
-                render={<Link to="/osquery/reports/$id/edit" params={{ id: reportId }} />}
-                nativeButton={false}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit
-              </Button>
+            {isAdmin ? (
+              <>
+                <Button
+                  size="sm"
+                  render={<Link to="/osquery/reports/$id/edit" params={{ id: reportId }} />}
+                  nativeButton={false}
+                >
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
             ) : null}
             <ShowQueryButton sql={report.data.query} />
             <LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />
@@ -95,6 +111,7 @@ export function ReportDetailPage() {
       <Card>
         <CardContent>
           <KeyValueGrid>
+            <KeyValueItem label="Name" value={report.data.name} />
             <KeyValueItem
               label="Interval"
               value={
@@ -129,6 +146,15 @@ export function ReportDetailPage() {
           empty={<PanelEmptyState>No report results yet</PanelEmptyState>}
         />
       )}
+
+      {isAdmin ? (
+        <ReportDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          report={report.data}
+          onDeleted={() => void navigate({ to: "/osquery/reports" })}
+        />
+      ) : null}
     </PageShell>
   );
 }

@@ -40,7 +40,7 @@ func RequireAdmin(ctx context.Context) (*directory.User, error) {
 		return nil, err
 	}
 	if user.Role == nil || *user.Role != directory.RoleAdmin {
-		return nil, huma.Error403Forbidden("admin role required")
+		return nil, huma.Error403Forbidden("")
 	}
 	return user, nil
 }

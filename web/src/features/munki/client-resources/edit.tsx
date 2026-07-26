@@ -1,6 +1,7 @@
 import { useRef } from "react";
 
 import { QueryGate } from "@components/query-gate";
+import { useAuth } from "@features/auth/queries";
 import type { MunkiClientResources } from "@lib/api";
 
 import { MunkiClientResourcesForm } from "./fields";
@@ -15,6 +16,7 @@ import {
 } from "./queries";
 
 export function MunkiClientResourcesEditPage() {
+  const { user } = useAuth();
   const query = useMunkiClientResources();
   if (query.isPending) return null;
   if (query.error) {
@@ -29,11 +31,21 @@ export function MunkiClientResourcesEditPage() {
 
   const resource = query.data.items[0] ?? null;
   return (
-    <MunkiClientResourcesEditForm key={resource?.updated_at ?? "undeployed"} resource={resource} />
+    <MunkiClientResourcesEditForm
+      key={resource?.updated_at ?? "undeployed"}
+      resource={resource}
+      editable={user?.role === "admin"}
+    />
   );
 }
 
-function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResources | null }) {
+function MunkiClientResourcesEditForm({
+  resource,
+  editable,
+}: {
+  resource: MunkiClientResources | null;
+  editable: boolean;
+}) {
   const saveResource = useSaveMunkiClientResources();
   const uploadBanner = useUploadAndSaveMunkiClientResourcesBanner();
   const uploadArchive = useUploadAndSaveMunkiClientResourcesArchive();
@@ -83,6 +95,7 @@ function MunkiClientResourcesEditForm({ resource }: { resource: MunkiClientResou
   return (
     <MunkiClientResourcesForm
       initial={initial}
+      editable={editable}
       deployed={resource !== null}
       archiveMetadata={resource?.custom ? resource.archive : undefined}
       archiveUploading={uploadArchive.isUploading}

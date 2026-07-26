@@ -1,12 +1,8 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
 
 import { QueryGate } from "@components/query-gate";
-import { Button } from "@components/ui/button";
 import { AccountPage } from "@features/account/page";
 import { useAuth } from "@features/auth/queries";
-import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
 import { UserForm, userFromDetail } from "@features/directory/users/fields";
 import { useUpdateUser, useUser } from "@features/directory/users/queries";
 import type { User } from "@lib/api";
@@ -43,31 +39,24 @@ export function UserEditPage() {
 function UserEdit({ user }: { user: User }) {
   const navigate = useNavigate();
   const update = useUpdateUser();
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
-    <>
-      <UserForm
-        initial={userFromDetail(user)}
-        user={user}
-        actions={
-          <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 data-icon="inline-start" />
-            Delete
-          </Button>
-        }
-        onSubmit={async (body) => {
-          await update.mutateAsync({ id: user.id, body });
-        }}
-        onCancel={() => void navigate({ to: "/directory/users" })}
-      />
-
-      <UserDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        user={user}
-        onDeleted={() => void navigate({ to: "/directory/users" })}
-      />
-    </>
+    <UserForm
+      initial={userFromDetail(user)}
+      user={user}
+      onSubmit={async (body) => {
+        await update.mutateAsync({ id: user.id, body });
+        void navigate({
+          to: "/directory/users/$id",
+          params: { id: String(user.id) },
+        });
+      }}
+      onCancel={() =>
+        void navigate({
+          to: "/directory/users/$id",
+          params: { id: String(user.id) },
+        })
+      }
+    />
   );
 }

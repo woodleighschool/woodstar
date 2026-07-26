@@ -112,6 +112,14 @@ export function useBulkDeleteMunkiPackages() {
   });
 }
 
+export function useDeleteMunkiPackage() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(bulkDeleteMunkiPackages({ query: { ids: [id] } })),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: munkiRoot }),
+  });
+}
+
 export function useUploadMunkiInstaller() {
   return useUpload<MunkiPackageInstallerUploadTarget, MunkiObjectView, PackageUploadVariables>({
     mutationKey: ["munki-installer-upload"],

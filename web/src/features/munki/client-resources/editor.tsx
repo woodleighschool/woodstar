@@ -62,12 +62,20 @@ const sampleSoftware = [
 export function ClientResourcesEditor({
   form,
   draft,
+  editable,
   bannerUploading,
 }: {
   form: ClientResourcesForm;
   draft: ClientResourcesFormInput;
+  editable: boolean;
   bannerUploading: boolean;
 }) {
+  const [previewBanner, setPreviewBanner] = useState({
+    fit: draft.banner.fit,
+    focalX: draft.banner.focalX,
+  });
+  const previewFit = editable ? draft.banner.fit : previewBanner.fit;
+  const previewFocalX = editable ? draft.banner.focalX : previewBanner.focalX;
   return (
     <section className="flex w-full max-w-7xl min-w-0 flex-col gap-5">
       <Alert className="border-warning/30 bg-warning/10 text-warning">
@@ -126,17 +134,30 @@ export function ClientResourcesEditor({
                     {(control) => (
                       <BannerEditor
                         asset={field.state.value}
+                        editable={editable}
                         error={null}
                         invalid={Boolean(control["aria-invalid"])}
                         uploading={bannerUploading}
-                        fit={draft.banner.fit}
-                        focalX={draft.banner.focalX}
+                        fit={previewFit}
+                        focalX={previewFocalX}
                         onAssetChange={(file) => {
                           field.handleChange(createClientResourceAsset(file));
                         }}
                         onAssetReject={(message) => toast.error(message)}
-                        onFitChange={(fit) => form.setFieldValue("banner.fit", fit)}
-                        onFocalXChange={(focalX) => form.setFieldValue("banner.focalX", focalX)}
+                        onFitChange={(fit) => {
+                          if (editable) {
+                            form.setFieldValue("banner.fit", fit);
+                          } else {
+                            setPreviewBanner((current) => ({ ...current, fit }));
+                          }
+                        }}
+                        onFocalXChange={(focalX) => {
+                          if (editable) {
+                            form.setFieldValue("banner.focalX", focalX);
+                          } else {
+                            setPreviewBanner((current) => ({ ...current, focalX }));
+                          }
+                        }}
                       />
                     )}
                   </ValidatedFormField>
@@ -154,6 +175,7 @@ export function ClientResourcesEditor({
                       >
                         <EditableLinks
                           items={field.state.value}
+                          editable={editable}
                           emptyState={<MunkiCategories />}
                           addLabel="Add a link (replaces the category list)"
                           onAdd={field.pushValue}
@@ -187,20 +209,25 @@ export function ClientResourcesEditor({
                             tabIndex={-1}
                             className="relative flex min-h-12 flex-wrap items-center justify-center gap-y-1 rounded-br-2xl border border-dashed border-primary/50 px-10 py-2 text-[11px] text-muted-foreground"
                           >
-                            <Editable
-                              value={textField.state.value}
-                              onValueChange={textField.handleChange}
-                              placeholder="Add footer text"
-                              className="w-56 gap-0"
-                            >
-                              <EditableArea className="block w-full">
-                                <EditablePreview className="h-7 px-1.5 py-0.5 text-center text-[11px]" />
-                                <EditableInput className="h-7 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none" />
-                              </EditableArea>
-                            </Editable>
+                            {editable ? (
+                              <Editable
+                                value={textField.state.value}
+                                onValueChange={textField.handleChange}
+                                placeholder="Add footer text"
+                                className="w-56 gap-0"
+                              >
+                                <EditableArea className="block w-full">
+                                  <EditablePreview className="h-7 px-1.5 py-0.5 text-center text-[11px]" />
+                                  <EditableInput className="h-7 border-transparent bg-transparent px-1.5 py-0.5 text-center text-[11px] shadow-none" />
+                                </EditableArea>
+                              </Editable>
+                            ) : (
+                              <span>{textField.state.value}</span>
+                            )}
 
                             <EditableLinks
                               items={linksField.state.value}
+                              editable={editable}
                               leadingSeparator={textField.state.value.length > 0}
                               addLabel="Add footer link"
                               onAdd={linksField.pushValue}
@@ -224,6 +251,7 @@ export function ClientResourcesEditor({
 }
 function EditableLinks({
   items,
+  editable,
   emptyState,
   leadingSeparator = false,
   addLabel = "Add link",
@@ -233,6 +261,7 @@ function EditableLinks({
   onReorder,
 }: {
   items: ClientResourceLink[];
+  editable: boolean;
   emptyState?: ReactNode;
   leadingSeparator?: boolean;
   addLabel?: string;
@@ -243,6 +272,19 @@ function EditableLinks({
 }) {
   const [dialogIndex, setDialogIndex] = useState<number | "new" | null>(null);
   const editedLink = typeof dialogIndex === "number" ? (items[dialogIndex] ?? null) : null;
+  if (!editable) {
+    if (items.length === 0) return emptyState;
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-y-1">
+        {items.map((link, index) => (
+          <span key={link.id} className="flex items-center">
+            {index > 0 || leadingSeparator ? <span className="px-2 text-border">|</span> : null}
+            <span>{link.label || "Untitled link"}</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
   return (
     <>
       {items.length > 0 ? (

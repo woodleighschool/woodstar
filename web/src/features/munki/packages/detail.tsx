@@ -1,0 +1,170 @@
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import { KeyValueGrid, KeyValueItem } from "@components/key-value";
+import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { Link } from "@components/link";
+import { QueryGate } from "@components/query-gate";
+import { Button } from "@components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { formatBytes } from "@components/ui/file-upload";
+import { useAuth } from "@features/auth/queries";
+import type { MunkiPackageReference } from "@lib/api";
+import { parseRouteID } from "@lib/route-params";
+import { formatRelative } from "@lib/utils";
+
+import { MunkiPackageDeleteDialog } from "./delete-dialog";
+import { useMunkiPackage } from "./queries";
+
+export function MunkiPackageDetailPage() {
+  const params = useParams({ strict: false });
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const packageID = parseRouteID(params.id);
+  const query = useMunkiPackage(packageID);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  if (packageID === null) {
+    return (
+      <QueryGate title="Failed to load package" error={{ message: "Package route is invalid." }} />
+    );
+  }
+  if (query.error || !query.data) {
+    return (
+      <QueryGate
+        title="Failed to load package"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const pkg = query.data;
+  const isAdmin = user?.role === "admin";
+  return (
+    <PageShell className="gap-6">
+      <PageHeader
+        title="Package Details"
+        description={pkg.notes || undefined}
+        actions={
+          isAdmin ? (
+            <>
+              <Button
+                size="sm"
+                render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
+                nativeButton={false}
+              >
+                <Pencil data-icon="inline-start" />
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 data-icon="inline-start" />
+                Delete
+              </Button>
+            </>
+          ) : null
+        }
+      />
+
+      <Card>
+        <CardContent>
+          <KeyValueGrid>
+            <KeyValueItem
+              label="Software"
+              value={
+                <Link
+                  to="/munki/software/$id"
+                  params={{ id: String(pkg.software.id) }}
+                  className="font-medium"
+                >
+                  {pkg.software.name}
+                </Link>
+              }
+            />
+            <KeyValueItem label="Version" value={pkg.version} />
+            <KeyValueItem label="Installer" value={pkg.installer_type} />
+            <KeyValueItem
+              label="Installer File"
+              value={
+                pkg.installer_file
+                  ? `${pkg.installer_file.filename} · ${formatBytes(pkg.installer_file.size_bytes)}`
+                  : "-"
+              }
+            />
+            <KeyValueItem label="Minimum macOS" value={pkg.minimum_os_version || "Any"} />
+            <KeyValueItem label="Maximum macOS" value={pkg.maximum_os_version || "Any"} />
+            <KeyValueItem label="Architecture" value={valueList(pkg.supported_architectures)} />
+            <KeyValueItem label="Updated" value={formatRelative(pkg.updated_at)} />
+          </KeyValueGrid>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Behaviour</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <KeyValueGrid>
+            <KeyValueItem label="On Demand" value={yesNo(pkg.on_demand)} />
+            <KeyValueItem label="Precache" value={yesNo(pkg.precache)} />
+            <KeyValueItem label="Unattended Install" value={yesNo(pkg.unattended_install)} />
+            <KeyValueItem label="Unattended Uninstall" value={yesNo(pkg.unattended_uninstall)} />
+            <KeyValueItem label="Uninstallable" value={yesNo(pkg.uninstallable)} />
+            <KeyValueItem label="Restart Action" value={pkg.restart_action || "None"} />
+          </KeyValueGrid>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Relationships</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <KeyValueGrid>
+            <KeyValueItem label="Requires" value={<PackageReferences values={pkg.requires} />} />
+            <KeyValueItem label="Updates" value={<PackageReferences values={pkg.update_for} />} />
+          </KeyValueGrid>
+        </CardContent>
+      </Card>
+
+      <MunkiPackageDeleteDialog
+        pkg={pkg}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => void navigate({ to: "/munki/packages" })}
+      />
+    </PageShell>
+  );
+}
+
+function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
+  if (values.length === 0) return "-";
+  return (
+    <div className="flex flex-col gap-1">
+      {values.map((reference) => (
+        <Link
+          key={`${reference.software_id}:${reference.package_id ?? "latest"}`}
+          to={reference.package_id === undefined ? "/munki/software/$id" : "/munki/packages/$id"}
+          params={{ id: String(reference.package_id ?? reference.software_id) }}
+          className="font-medium"
+        >
+          {reference.software_name} {reference.package_version ?? "latest"}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function valueList(values: string[]) {
+  return values.length > 0 ? values.join(", ") : "Any";
+}
+
+function yesNo(value: boolean) {
+  return value ? "Yes" : "No";
+}

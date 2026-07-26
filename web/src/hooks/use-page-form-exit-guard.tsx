@@ -7,14 +7,19 @@ import { ConfirmDialog } from "@components/confirm-dialog";
 export function usePageFormExitGuard({
   form,
   onDiscard,
+  enabled = true,
 }: {
   form: AnyFormApi;
   onDiscard: () => void;
+  enabled?: boolean;
 }) {
   const [discardRequested, setDiscardRequested] = useState(false);
   const allowExit = useRef(false);
   // Router blockers run outside render, so read the form store when the exit is attempted.
-  const hasUnsavedChanges = useCallback(() => !form.state.isDefaultValue, [form]);
+  const hasUnsavedChanges = useCallback(
+    () => enabled && !form.state.isDefaultValue,
+    [enabled, form],
+  );
   const shouldBlockNavigation = useCallback(
     () => hasUnsavedChanges() && !allowExit.current,
     [hasUnsavedChanges],

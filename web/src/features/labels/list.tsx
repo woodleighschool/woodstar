@@ -2,9 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 
-import { ConfirmDialog } from "@components/confirm-dialog";
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
@@ -25,31 +23,26 @@ import {
 } from "@components/ui/dropdown-menu";
 import { useAuth } from "@features/auth/queries";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@features/labels/model";
-import { useDeleteLabel, useLabels } from "@features/labels/queries";
+import { useLabels } from "@features/labels/queries";
 import type { Label } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
+
+import { LabelDeleteDialog } from "./delete-dialog";
 
 const routeApi = getRouteApi("/_authenticated/labels/");
 const MEMBERSHIP_FILTER_KEYS = [{ id: "label_membership_type" }] as const;
 
 interface LabelTableRow {
   label: Label;
-  isAdmin: boolean;
   onDelete: (label: Label) => void;
 }
 
 function LabelNameCell({ row }: CellContext<LabelTableRow, unknown>) {
-  return row.original.isAdmin ? (
-    <Link
-      to="/labels/$id/edit"
-      params={{ id: String(row.original.label.id) }}
-      className="font-medium"
-    >
+  return (
+    <Link to="/labels/$id" params={{ id: String(row.original.label.id) }} className="font-medium">
       {row.original.label.name}
     </Link>
-  ) : (
-    <span className="font-medium">{row.original.label.name}</span>
   );
 }
 
@@ -127,7 +120,6 @@ export function LabelListPage() {
   const labels = query.data?.items ?? [];
   const tableRows: LabelTableRow[] = labels.map((label) => ({
     label,
-    isAdmin,
     onDelete: setDeleting,
   }));
   const totalCount = query.data?.count ?? 0;
@@ -162,7 +154,7 @@ export function LabelListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={5} filterCount={1} />
+        <DataTableSkeleton columnCount={isAdmin ? 5 : 4} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -224,38 +216,5 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-function LabelDeleteDialog({
-  label,
-  open,
-  onOpenChange,
-}: {
-  label: Label | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const remove = useDeleteLabel();
-  async function handleDelete() {
-    if (!label) return;
-    await remove.mutateAsync(label.id);
-    onOpenChange(false);
-    toast.success("Deleted label");
-  }
-  return (
-    <ConfirmDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Delete Label"
-      description={
-        label
-          ? `${label.name} will be removed from hosts and filters.`
-          : "This label will be removed."
-      }
-      confirmLabel="Delete Label"
-      variant="destructive"
-      pending={remove.isPending}
-      onConfirm={() => void handleDelete()}
-    />
   );
 }

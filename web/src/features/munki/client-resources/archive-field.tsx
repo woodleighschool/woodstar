@@ -21,12 +21,14 @@ import type { ClientResourcesForm } from "./fields";
 
 export function ClientResourcesArchiveField({
   form,
+  editable,
   metadata,
   uploading,
   progress,
   error,
 }: {
   form: ClientResourcesForm;
+  editable: boolean;
   metadata?: MunkiObjectView;
   uploading: boolean;
   progress: UploadProgress | null;
@@ -63,8 +65,12 @@ export function ClientResourcesArchiveField({
                   : file
                     ? `${formatBytes(file.size)} selected`
                     : metadata?.size_bytes !== null && metadata?.size_bytes !== undefined
-                      ? `${formatBytes(metadata.size_bytes)} · select to replace`
-                      : "Select a ZIP archive.";
+                      ? editable
+                        ? `${formatBytes(metadata.size_bytes)} · select to replace`
+                        : formatBytes(metadata.size_bytes)
+                      : editable
+                        ? "Select a ZIP archive."
+                        : "No archive deployed.";
               const state =
                 error || control["aria-invalid"]
                   ? "error"
@@ -75,16 +81,18 @@ export function ClientResourcesArchiveField({
                       : "idle";
               return (
                 <div className="relative w-full">
-                  <Input
-                    ref={inputRef}
-                    key={file ? `${file.name}:${file.size}:${file.lastModified}` : "empty"}
-                    id="munki-client-resources-archive-input"
-                    type="file"
-                    accept=".zip,application/zip"
-                    hidden
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.files?.[0] ?? null)}
-                  />
+                  {editable ? (
+                    <Input
+                      ref={inputRef}
+                      key={file ? `${file.name}:${file.size}:${file.lastModified}` : "empty"}
+                      id="munki-client-resources-archive-input"
+                      type="file"
+                      accept=".zip,application/zip"
+                      hidden
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.files?.[0] ?? null)}
+                    />
+                  ) : null}
                   <Attachment state={state} className="w-full">
                     <AttachmentMedia>
                       <FileArchive />
@@ -93,7 +101,7 @@ export function ClientResourcesArchiveField({
                       <AttachmentTitle>{filename}</AttachmentTitle>
                       <AttachmentDescription>{description}</AttachmentDescription>
                     </AttachmentContent>
-                    {file ? (
+                    {editable && file ? (
                       <AttachmentActions>
                         <AttachmentAction
                           type="button"
@@ -104,11 +112,13 @@ export function ClientResourcesArchiveField({
                         </AttachmentAction>
                       </AttachmentActions>
                     ) : null}
-                    <AttachmentTrigger
-                      id="munki-client-resources-archive"
-                      aria-invalid={control["aria-invalid"]}
-                      onClick={() => inputRef.current?.click()}
-                    />
+                    {editable ? (
+                      <AttachmentTrigger
+                        id="munki-client-resources-archive"
+                        aria-invalid={control["aria-invalid"]}
+                        onClick={() => inputRef.current?.click()}
+                      />
+                    ) : null}
                   </Attachment>
                 </div>
               );

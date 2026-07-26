@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { CircleAlert, CircleCheck, Plus, ShieldCheck } from "lucide-react";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+import { CircleAlert, CircleCheck, MoreHorizontal, Plus, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -14,14 +15,26 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
 import { useAuth } from "@features/auth/queries";
 import type { OsqueryCheck } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
+import { CheckDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteChecks, useChecks } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/osquery/checks/");
+
+type CheckTableRow = OsqueryCheck & {
+  onDelete: (check: OsqueryCheck) => void;
+};
 
 export function CheckListPage() {
   const search = routeApi.useSearch();
@@ -32,6 +45,7 @@ export function CheckListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = useState<OsqueryCheck | null>(null);
   const query = useChecks({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -39,12 +53,16 @@ export function CheckListPage() {
     sort: tableSearch.sort,
   });
   const checks = query.data?.items ?? [];
+  const tableRows: CheckTableRow[] = checks.map((check) => ({
+    ...check,
+    onDelete: setDeleting,
+  }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
     tableState: tableSearch,
-    data: checks,
-    columns: checkColumns,
+    data: tableRows,
+    columns: isAdmin ? checkAdminColumns : checkColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -71,7 +89,7 @@ export function CheckListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={5} />
+        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
       ) : (
         <DataTable
           table={table}
@@ -101,11 +119,21 @@ export function CheckListPage() {
           </div>
         </DataTable>
       )}
+
+      {isAdmin ? (
+        <CheckDeleteDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+          check={deleting}
+        />
+      ) : null}
     </PageShell>
   );
 }
-const checkColumns: ColumnDef<OsqueryCheck>[] = [
-  selectColumn<OsqueryCheck>(),
+
+const checkColumns: ColumnDef<CheckTableRow>[] = [
   {
     id: "name",
     accessorKey: "name",
@@ -154,6 +182,43 @@ const checkColumns: ColumnDef<OsqueryCheck>[] = [
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
     meta: { label: "Updated" },
+  },
+];
+
+function CheckActionsCell({ row }: CellContext<CheckTableRow, unknown>) {
+  const check = row.original;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+        <span className="sr-only">Open check actions</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={<Link to="/osquery/checks/$id/edit" params={{ id: String(check.id) }} />}
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => check.onDelete(check)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const checkAdminColumns: ColumnDef<CheckTableRow>[] = [
+  selectColumn<CheckTableRow>(),
+  ...checkColumns,
+  {
+    id: "actions",
+    header: () => null,
+    enableSorting: false,
+    enableHiding: false,
+    size: 48,
+    cell: CheckActionsCell,
   },
 ];
 

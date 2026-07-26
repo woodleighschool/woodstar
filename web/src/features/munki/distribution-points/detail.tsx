@@ -5,7 +5,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AsyncButton } from "@components/async-button";
-import { ConfirmDialog } from "@components/confirm-dialog";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { KeyValueGrid, KeyValueItem } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -18,6 +17,7 @@ import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@lib/api";
 
+import { DistributionPointDeleteDialog } from "./delete-dialog";
 import {
   BoolBadge,
   MirrorBadge,
@@ -25,11 +25,7 @@ import {
   WorkerStatus,
 } from "./distribution-point-badges";
 import { KeyRevealDialog } from "./key-reveal-dialog";
-import {
-  useDeleteMunkiDistributionPoint,
-  useLiveMunkiDistributionPoint,
-  useRotateMunkiDistributionPointKey,
-} from "./queries";
+import { useLiveMunkiDistributionPoint, useRotateMunkiDistributionPointKey } from "./queries";
 export function DistributionPointDetailPage() {
   const { id: distributionPointId } = useParams({
     from: "/_authenticated/munki/distribution-points/$id",
@@ -40,7 +36,6 @@ export function DistributionPointDetailPage() {
   const id = Number(distributionPointId);
   const query = useLiveMunkiDistributionPoint(Number.isFinite(id) ? id : null);
   const rotate = useRotateMunkiDistributionPointKey();
-  const remove = useDeleteMunkiDistributionPoint();
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   if (query.error || !query.data) {
@@ -58,16 +53,10 @@ export function DistributionPointDetailPage() {
     setRotatedKey(result.key);
     toast.success("Key rotated");
   }
-  async function deletePoint() {
-    await remove.mutateAsync(point.id);
-    setDeleteOpen(false);
-    toast.success("Distribution point deleted");
-    void navigate({ to: "/munki/distribution-points" });
-  }
   return (
     <PageShell className="gap-6">
       <PageHeader
-        title={point.name}
+        title="Distribution Point Details"
         context={<WorkerStatus worker={point.worker} />}
         actions={
           isAdmin ? (
@@ -95,7 +84,12 @@ export function DistributionPointDetailPage() {
               >
                 Rotate Key
               </AsyncButton>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
@@ -107,6 +101,7 @@ export function DistributionPointDetailPage() {
       <Card>
         <CardContent>
           <KeyValueGrid>
+            <KeyValueItem label="Name" value={point.name} />
             <KeyValueItem
               label="Enabled"
               value={<BoolBadge value={point.enabled} label="Enabled" />}
@@ -140,11 +135,11 @@ export function DistributionPointDetailPage() {
         }}
       />
 
-      <DeleteDialog
+      <DistributionPointDeleteDialog
+        point={point}
         open={deleteOpen}
-        pending={remove.isPending}
         onOpenChange={setDeleteOpen}
-        onConfirm={() => void deletePoint()}
+        onDeleted={() => void navigate({ to: "/munki/distribution-points" })}
       />
     </PageShell>
   );
@@ -186,7 +181,7 @@ const packageStateColumns: ColumnDef<MunkiPackageState>[] = [
       <div className="flex max-w-xl min-w-0 items-center gap-2">
         <SoftwareArtwork src={row.original.software_icon_url} />
         <Link
-          to="/munki/packages/$id/edit"
+          to="/munki/packages/$id"
           params={{ id: String(row.original.package_id) }}
           className="min-w-0 truncate font-medium"
         >
@@ -212,28 +207,4 @@ function packageErrorText(error: string | undefined) {
     return <span className="text-muted-foreground">-</span>;
   }
   return <span className="block max-w-xl wrap-break-word whitespace-normal">{error}</span>;
-}
-function DeleteDialog({
-  open,
-  pending,
-  onOpenChange,
-  onConfirm,
-}: {
-  open: boolean;
-  pending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <ConfirmDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Delete distribution point?"
-      description="Clients stop being redirected to this distribution point."
-      confirmLabel="Delete"
-      variant="destructive"
-      pending={pending}
-      onConfirm={onConfirm}
-    />
-  );
 }

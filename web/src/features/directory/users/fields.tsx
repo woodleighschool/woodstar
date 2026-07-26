@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import type { ReactNode } from "react";
 import { z } from "zod";
 
 import { EnumBadge } from "@components/enum-badge";
@@ -23,13 +22,171 @@ import {
   USER_ACCESS_ROLE_OPTIONS,
   USER_ACCESS_ROLES,
   USER_ACCESS_ROLE_VALUES,
+  USER_ROLE_OPTIONS,
+  USER_ROLE_VALUES,
   userAccessRole,
   type UserAccessRole,
+  type UserRole,
   userMutationRole,
 } from "@features/directory/users/metadata";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
-import type { User, UserMutation } from "@lib/api";
+import type { User, UserCreate, UserMutation } from "@lib/api";
+import { emailAddress } from "@lib/form-validation";
 import { isOneOf } from "@lib/utils";
+
+interface UserCreateFormState {
+  email: string;
+  name: string;
+  role: UserRole;
+  password: string;
+}
+
+const userCreateFormSchema = z.object({
+  email: emailAddress(),
+  name: z.string().trim(),
+  role: z.enum(["admin", "viewer"]),
+  password: z.string().min(12, "Password must be at least 12 characters."),
+});
+
+export function UserCreateForm({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (body: UserCreate) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const form = useForm({
+    defaultValues: {
+      email: "",
+      name: "",
+      role: "viewer" as UserRole,
+      password: "",
+    } satisfies UserCreateFormState,
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
+    validators: { onDynamic: userCreateFormSchema },
+    onSubmit: async ({ value }) => {
+      await onSubmit({
+        email: value.email.trim(),
+        name: value.name.trim(),
+        role: value.role,
+        password: value.password,
+      });
+    },
+  });
+  const exitGuard = usePageFormExitGuard({
+    form,
+    onDiscard: onCancel,
+  });
+
+  return (
+    <>
+      <PageShell
+        render={
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
+          />
+        }
+      >
+        <PageHeader title="Create User" />
+
+        <FieldGroup className="max-w-3xl">
+          <form.Field name="email">
+            {(field) => (
+              <ValidatedFormField field={field} label="Email" htmlFor="user-email" required>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="email"
+                    required
+                    autoComplete="off"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </ValidatedFormField>
+            )}
+          </form.Field>
+
+          <form.Field name="name">
+            {(field) => (
+              <ValidatedFormField field={field} label="Name" htmlFor="user-name">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    autoComplete="off"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </ValidatedFormField>
+            )}
+          </form.Field>
+
+          <form.Field name="role">
+            {(field) => (
+              <FieldSet>
+                <FieldLegend variant="label">Role</FieldLegend>
+                <RadioGroup
+                  name={field.name}
+                  value={field.state.value}
+                  className="grid gap-2 md:grid-cols-2"
+                  onValueChange={(value) => {
+                    if (isOneOf(value, USER_ROLE_VALUES)) field.handleChange(value);
+                  }}
+                >
+                  {USER_ROLE_OPTIONS.map((option) => (
+                    <FieldLabel key={option.value} htmlFor={`user-role-${option.value}`}>
+                      <Field orientation="horizontal">
+                        <RadioGroupItem id={`user-role-${option.value}`} value={option.value} />
+                        <FieldContent>
+                          <FieldTitle>{option.label}</FieldTitle>
+                        </FieldContent>
+                      </Field>
+                    </FieldLabel>
+                  ))}
+                </RadioGroup>
+              </FieldSet>
+            )}
+          </form.Field>
+
+          <form.Field name="password">
+            {(field) => (
+              <ValidatedFormField field={field} label="Password" htmlFor="user-password" required>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                )}
+              </ValidatedFormField>
+            )}
+          </form.Field>
+        </FieldGroup>
+
+        <FormActions form={form} submitLabel="Create" onCancel={exitGuard.requestDiscard} />
+      </PageShell>
+
+      {exitGuard.dialog}
+    </>
+  );
+}
+
 interface UserFormState {
   name: string;
   role: UserAccessRole;
@@ -55,13 +212,11 @@ const userFormSchema = z.object({
 export function UserForm({
   user,
   initial,
-  actions,
   onSubmit,
   onCancel,
 }: {
   user: User;
   initial: UserFormState;
-  actions?: ReactNode;
   onSubmit: (body: UserMutation) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -103,7 +258,6 @@ export function UserForm({
         <PageHeader
           title="Edit User"
           context={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}
-          actions={actions}
         />
 
         <FieldGroup className="max-w-3xl">

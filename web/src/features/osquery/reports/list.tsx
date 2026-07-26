@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { FileBarChart2, Plus } from "lucide-react";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+import { FileBarChart2, MoreHorizontal, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -14,14 +15,26 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
 import { useAuth } from "@features/auth/queries";
 import type { OsqueryReport } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatInterval, formatRelative } from "@lib/utils";
 
+import { ReportDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteReports, useReports } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/osquery/reports/");
+
+type ReportTableRow = OsqueryReport & {
+  onDelete: (report: OsqueryReport) => void;
+};
 
 export function ReportListPage() {
   const search = routeApi.useSearch();
@@ -32,6 +45,7 @@ export function ReportListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = useState<OsqueryReport | null>(null);
   const query = useReports({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -39,12 +53,16 @@ export function ReportListPage() {
     sort: tableSearch.sort,
   });
   const reports = query.data?.items ?? [];
+  const tableRows: ReportTableRow[] = reports.map((report) => ({
+    ...report,
+    onDelete: setDeleting,
+  }));
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
     tableState: tableSearch,
-    data: reports,
-    columns: reportColumns,
+    data: tableRows,
+    columns: isAdmin ? reportAdminColumns : reportColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -71,7 +89,7 @@ export function ReportListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={4} />
+        <DataTableSkeleton columnCount={isAdmin ? 5 : 3} />
       ) : (
         <DataTable
           table={table}
@@ -105,11 +123,21 @@ export function ReportListPage() {
           </div>
         </DataTable>
       )}
+
+      {isAdmin ? (
+        <ReportDeleteDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+          report={deleting}
+        />
+      ) : null}
     </PageShell>
   );
 }
-const reportColumns: ColumnDef<OsqueryReport>[] = [
-  selectColumn<OsqueryReport>(),
+
+const reportColumns: ColumnDef<ReportTableRow>[] = [
   {
     id: "name",
     accessorKey: "name",
@@ -142,5 +170,42 @@ const reportColumns: ColumnDef<OsqueryReport>[] = [
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
     meta: { label: "Updated" },
+  },
+];
+
+function ReportActionsCell({ row }: CellContext<ReportTableRow, unknown>) {
+  const report = row.original;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+        <span className="sr-only">Open report actions</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={<Link to="/osquery/reports/$id/edit" params={{ id: String(report.id) }} />}
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => report.onDelete(report)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const reportAdminColumns: ColumnDef<ReportTableRow>[] = [
+  selectColumn<ReportTableRow>(),
+  ...reportColumns,
+  {
+    id: "actions",
+    header: () => null,
+    enableSorting: false,
+    enableHiding: false,
+    size: 48,
+    cell: ReportActionsCell,
   },
 ];

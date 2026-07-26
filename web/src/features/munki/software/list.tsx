@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
-import { PackageSearch, Plus } from "lucide-react";
+import { MoreHorizontal, PackageSearch, Plus } from "lucide-react";
+import * as React from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -14,68 +15,90 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiSoftware } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
+import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/munki/software/");
 
 function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
-  const { user } = useAuth();
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.icon_url} />
-      {user?.role === "admin" ? (
-        <Link
-          to="/munki/software/$id"
-          params={{ id: String(row.original.id) }}
-          className="min-w-0 truncate font-medium"
-        >
-          {row.original.name}
-        </Link>
-      ) : (
-        <span className="min-w-0 truncate font-medium">{row.original.name}</span>
-      )}
+      <Link
+        to="/munki/software/$id"
+        params={{ id: String(row.original.id) }}
+        className="min-w-0 truncate font-medium"
+      >
+        {row.original.name}
+      </Link>
     </div>
   );
 }
 
-const softwareColumns: ColumnDef<MunkiSoftware>[] = [
-  selectColumn<MunkiSoftware>(),
-  {
-    id: "name",
-    accessorKey: "name",
-    header: "Name",
-    cell: SoftwareNameCell,
-    enableHiding: false,
-    meta: { label: "Name" },
-  },
-  {
-    id: "category",
-    accessorKey: "category",
-    header: "Category",
-    cell: ({ row }) => row.original.category || "-",
-    meta: { label: "Category" },
-  },
-  {
-    id: "developer",
-    accessorKey: "developer",
-    header: "Developer",
-    cell: ({ row }) => row.original.developer || "-",
-    meta: { label: "Developer" },
-  },
-  {
-    id: "updated_at",
-    accessorKey: "updated_at",
-    header: "Updated",
-    cell: ({ row }) => formatRelative(row.original.updated_at),
-    meta: { label: "Updated" },
-  },
-];
+function softwareColumns(
+  isAdmin: boolean,
+  onDelete: (software: MunkiSoftware) => void,
+): ColumnDef<MunkiSoftware>[] {
+  const columns: ColumnDef<MunkiSoftware>[] = [
+    {
+      id: "name",
+      accessorKey: "name",
+      header: "Name",
+      cell: SoftwareNameCell,
+      enableHiding: false,
+      meta: { label: "Name" },
+    },
+    {
+      id: "category",
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => row.original.category || "-",
+      meta: { label: "Category" },
+    },
+    {
+      id: "developer",
+      accessorKey: "developer",
+      header: "Developer",
+      cell: ({ row }) => row.original.developer || "-",
+      meta: { label: "Developer" },
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+      meta: { label: "Updated" },
+    },
+  ];
+  if (!isAdmin) return columns;
+  return [
+    selectColumn<MunkiSoftware>(),
+    ...columns,
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      enableHiding: false,
+      size: 48,
+      cell: ({ row }) => (
+        <SoftwareRowActions software={row.original} onDelete={() => onDelete(row.original)} />
+      ),
+    },
+  ];
+}
 
 export function MunkiSoftwareListPage() {
   const search = routeApi.useSearch();
@@ -86,6 +109,7 @@ export function MunkiSoftwareListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = React.useState<MunkiSoftware | null>(null);
   const query = useMunkiSoftware({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -95,10 +119,11 @@ export function MunkiSoftwareListPage() {
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const columns = React.useMemo(() => softwareColumns(isAdmin, setDeleting), [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
     data: software,
-    columns: softwareColumns,
+    columns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -126,7 +151,7 @@ export function MunkiSoftwareListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={5} />
+        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
       ) : (
         <DataTable
           table={table}
@@ -163,6 +188,44 @@ export function MunkiSoftwareListPage() {
           </div>
         </DataTable>
       )}
+
+      {isAdmin ? (
+        <MunkiSoftwareDeleteDialog
+          software={deleting}
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+        />
+      ) : null}
     </PageShell>
+  );
+}
+
+function SoftwareRowActions({
+  software,
+  onDelete,
+}: {
+  software: MunkiSoftware;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={<Link to="/munki/software/$id/edit" params={{ id: String(software.id) }} />}
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

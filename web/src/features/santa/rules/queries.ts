@@ -11,6 +11,7 @@ import type { ApiError, PageRule, SantaRule, SantaRuleMutation } from "@lib/api"
 import {
   bulkDeleteSantaRules,
   createSantaRule,
+  deleteSantaRule,
   getSantaRule,
   listSantaRules,
   unwrap,
@@ -72,6 +73,16 @@ export function useUpdateSantaRule() {
     mutationFn: ({ id, body }) => unwrap(updateSantaRule({ path: { id }, body })),
     onSuccess: async () => {
       toast.success("Rule saved");
+      await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
+    },
+  });
+}
+
+export function useDeleteSantaRule() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteSantaRule({ path: { id } })),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
     },
   });

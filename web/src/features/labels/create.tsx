@@ -14,7 +14,11 @@ export function LabelCreatePage() {
       submitLabel="Create"
       onCancel={() => void navigate({ to: "/labels" })}
       onSubmit={async (body) => (await create.mutateAsync(body)).id}
-      onSuccess={() => void navigate({ to: "/labels" })}
+      onSuccess={(id) => {
+        if (id !== undefined) {
+          void navigate({ to: "/labels/$id", params: { id: String(id) } });
+        }
+      }}
     />
   );
 }

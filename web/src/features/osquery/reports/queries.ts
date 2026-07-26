@@ -17,6 +17,7 @@ import type {
 import {
   bulkDeleteOsqueryReports,
   createOsqueryReport,
+  deleteOsqueryReport,
   getOsqueryReport,
   listOsqueryReportResults,
   listOsqueryReports,
@@ -101,6 +102,16 @@ export function useUpdateReport(id: number | null) {
       ),
     onSuccess: async () => {
       toast.success("Report saved");
+      await queryClient.invalidateQueries({ queryKey: reportKeys.all });
+    },
+  });
+}
+
+export function useDeleteReport() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteOsqueryReport({ path: { id } })),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });

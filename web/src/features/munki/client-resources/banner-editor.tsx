@@ -23,6 +23,7 @@ const positionOptions = [
 
 export function BannerEditor({
   asset,
+  editable,
   error,
   invalid,
   uploading,
@@ -34,6 +35,7 @@ export function BannerEditor({
   onFocalXChange,
 }: {
   asset: ClientResourceAsset | null;
+  editable: boolean;
   error: string | null;
   invalid: boolean;
   uploading: boolean;
@@ -51,7 +53,7 @@ export function BannerEditor({
       accept={clientResourceImageAccept}
       maxFiles={1}
       maxSize={clientResourceImageMaxSize}
-      disabled={uploading}
+      disabled={!editable || uploading}
       invalid={invalid || error !== null}
       label="Banner image"
       onFileAccept={onAssetChange}
@@ -117,12 +119,14 @@ export function BannerEditor({
                 );
               })}
             </ButtonGroup>
-            <FileUploadTrigger
-              render={<Button type="button" variant="secondary" size="sm" disabled={uploading} />}
-            >
-              <ImageUp data-icon="inline-start" />
-              Replace
-            </FileUploadTrigger>
+            {editable ? (
+              <FileUploadTrigger
+                render={<Button type="button" variant="secondary" size="sm" disabled={uploading} />}
+              >
+                <ImageUp data-icon="inline-start" />
+                Replace
+              </FileUploadTrigger>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -131,15 +135,23 @@ export function BannerEditor({
             <ImageIcon className="size-5 text-muted-foreground" />
           </div>
           <div className="space-y-1 text-center">
-            <p className="text-sm font-medium">Add banner image</p>
-            <p className="text-xs text-muted-foreground">Drag and drop a JPG or PNG here</p>
+            <p className="text-sm font-medium">
+              {editable ? "Add banner image" : "No banner image"}
+            </p>
+            {editable ? (
+              <p className="text-xs text-muted-foreground">Drag and drop a JPG or PNG here</p>
+            ) : null}
           </div>
-          <FileUploadTrigger
-            render={<Button type="button" variant="outline" size="sm" disabled={uploading} />}
-          >
-            Choose image
-          </FileUploadTrigger>
-          <p className="text-xs text-muted-foreground">5 MB max</p>
+          {editable ? (
+            <>
+              <FileUploadTrigger
+                render={<Button type="button" variant="outline" size="sm" disabled={uploading} />}
+              >
+                Choose image
+              </FileUploadTrigger>
+              <p className="text-xs text-muted-foreground">5 MB max</p>
+            </>
+          ) : null}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 rounded-tr-2xl border border-dashed border-primary/50 group-data-dragging:border-primary group-data-invalid:border-destructive"

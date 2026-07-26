@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { CellContext, ColumnDef } from "@tanstack/react-table";
-import { PackageCheck, Plus } from "lucide-react";
+import { MoreHorizontal, PackageCheck, Plus } from "lucide-react";
+import * as React from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -15,6 +16,13 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
 import { formatBytes } from "@components/ui/file-upload";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -23,74 +31,89 @@ import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
 import { MUNKI_INSTALLER_TYPE_OPTIONS } from "../software/metadata";
+import { MunkiPackageDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteMunkiPackages, useMunkiPackages } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/munki/packages/");
 const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type", multiple: true }] as const;
 
 function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
-  const { user } = useAuth();
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.software.icon_url} />
-      {user?.role === "admin" ? (
-        <Link
-          to="/munki/packages/$id/edit"
-          params={{ id: String(row.original.id) }}
-          className="min-w-0 truncate font-medium"
-        >
-          {row.original.software.name}
-        </Link>
-      ) : (
-        <span className="min-w-0 truncate font-medium">{row.original.software.name}</span>
-      )}
+      <Link
+        to="/munki/packages/$id"
+        params={{ id: String(row.original.id) }}
+        className="min-w-0 truncate font-medium"
+      >
+        {row.original.software.name}
+      </Link>
     </div>
   );
 }
 
-const packageColumns: ColumnDef<MunkiPackage>[] = [
-  selectColumn<MunkiPackage>(),
-  {
-    id: "software_name",
-    accessorFn: (row) => row.software.name,
-    header: "Software",
-    cell: PackageSoftwareCell,
-    enableHiding: false,
-    meta: { label: "Software" },
-  },
-  {
-    id: "version",
-    accessorKey: "version",
-    header: "Version",
-    cell: ({ row }) => row.original.version,
-    meta: { label: "Version" },
-  },
-  {
-    id: "type",
-    accessorKey: "installer_type",
-    header: "Type",
-    cell: ({ row }) => row.original.installer_type,
-    enableColumnFilter: true,
-    meta: { label: "Type", options: MUNKI_INSTALLER_TYPE_OPTIONS },
-  },
-  {
-    id: "size",
-    accessorFn: (row) => row.installer_file?.size_bytes ?? 0,
-    header: "Size",
-    cell: ({ row }) => {
-      const bytes = row.original.installer_file?.size_bytes ?? 0;
-      return bytes > 0 ? formatBytes(bytes) : "-";
+function packageColumns(
+  isAdmin: boolean,
+  onDelete: (pkg: MunkiPackage) => void,
+): ColumnDef<MunkiPackage>[] {
+  const columns: ColumnDef<MunkiPackage>[] = [
+    {
+      id: "software_name",
+      accessorFn: (row) => row.software.name,
+      header: "Software",
+      cell: PackageSoftwareCell,
+      enableHiding: false,
+      meta: { label: "Software" },
     },
-    meta: { label: "Size" },
-  },
-  {
-    id: "updated_at",
-    accessorKey: "updated_at",
-    header: "Updated",
-    cell: ({ row }) => formatRelative(row.original.updated_at),
-    meta: { label: "Updated" },
-  },
-];
+    {
+      id: "version",
+      accessorKey: "version",
+      header: "Version",
+      cell: ({ row }) => row.original.version,
+      meta: { label: "Version" },
+    },
+    {
+      id: "type",
+      accessorKey: "installer_type",
+      header: "Type",
+      cell: ({ row }) => row.original.installer_type,
+      enableColumnFilter: true,
+      meta: { label: "Type", options: MUNKI_INSTALLER_TYPE_OPTIONS },
+    },
+    {
+      id: "size",
+      accessorFn: (row) => row.installer_file?.size_bytes ?? 0,
+      header: "Size",
+      cell: ({ row }) => {
+        const bytes = row.original.installer_file?.size_bytes ?? 0;
+        return bytes > 0 ? formatBytes(bytes) : "-";
+      },
+      meta: { label: "Size" },
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+      meta: { label: "Updated" },
+    },
+  ];
+  if (!isAdmin) return columns;
+  return [
+    selectColumn<MunkiPackage>(),
+    ...columns,
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      enableHiding: false,
+      size: 48,
+      cell: ({ row }) => (
+        <PackageRowActions pkg={row.original} onDelete={() => onDelete(row.original)} />
+      ),
+    },
+  ];
+}
 
 export function MunkiPackageListPage() {
   const search = routeApi.useSearch();
@@ -102,6 +125,7 @@ export function MunkiPackageListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = React.useState<MunkiPackage | null>(null);
   const packageTypes = search.type ?? [];
   const query = useMunkiPackages({
     q: tableSearch.q,
@@ -113,10 +137,11 @@ export function MunkiPackageListPage() {
   const packages = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const columns = React.useMemo(() => packageColumns(isAdmin, setDeleting), [isAdmin]);
   const table = useDataTable({
     tableState: tableSearch,
     data: packages,
-    columns: packageColumns,
+    columns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -143,7 +168,7 @@ export function MunkiPackageListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={6} filterCount={1} />
+        <DataTableSkeleton columnCount={isAdmin ? 7 : 5} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -185,6 +210,38 @@ export function MunkiPackageListPage() {
           </div>
         </DataTable>
       )}
+
+      {isAdmin ? (
+        <MunkiPackageDeleteDialog
+          pkg={deleting}
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null);
+          }}
+        />
+      ) : null}
     </PageShell>
+  );
+}
+
+function PackageRowActions({ pkg, onDelete }: { pkg: MunkiPackage; onDelete: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
+          >
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -1,20 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+import { requireAdmin } from "@features/auth/guards";
 import { MunkiPackageEditPage } from "@features/munki/packages/edit";
-import { munkiPackageQueryOptions } from "@features/munki/packages/queries";
-import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/munki/packages/$id/edit")({
-  staticData: { breadcrumb: PackageBreadcrumb },
-  loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(munkiPackageQueryOptions(parseRouteID(params.id)));
-  },
+  staticData: { breadcrumb: "Edit" },
+  beforeLoad: ({ context, params }) =>
+    requireAdmin(context.currentUser, () => {
+      throw redirect({
+        to: "/munki/packages/$id",
+        params: { id: params.id },
+      });
+    }),
   component: MunkiPackageEditPage,
 });
-
-function PackageBreadcrumb(): string {
-  const { id } = useParams({ from: "/_authenticated/munki/packages/$id/edit" });
-  const { data } = useQuery(munkiPackageQueryOptions(parseRouteID(id)));
-  return data ? `${data.software.name} ${data.version}` : id;
-}

@@ -36,6 +36,12 @@ export function RuleEditPage() {
       initial={formFromRule(rule)}
       title="Edit Rule"
       submitLabel="Save"
+      onCancel={() =>
+        void navigate({
+          to: "/santa/rules/$id",
+          params: { id: String(rule.id) },
+        })
+      }
       onSubmit={async (body) => (await update.mutateAsync({ id: rule.id, body })).id}
       onSuccess={(savedID) => {
         if (savedID !== undefined) {

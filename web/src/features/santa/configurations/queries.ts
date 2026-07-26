@@ -16,6 +16,7 @@ import type {
 import {
   bulkDeleteSantaConfigurations,
   createSantaConfiguration,
+  deleteSantaConfiguration,
   getSantaConfiguration,
   listSantaConfigurations,
   reorderSantaConfigurations,
@@ -85,6 +86,16 @@ export function useUpdateSantaConfiguration() {
       ),
     onSuccess: async () => {
       toast.success("Configuration saved");
+      await queryClient.invalidateQueries({ queryKey: configurationKeys.all });
+    },
+  });
+}
+
+export function useDeleteSantaConfiguration() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteSantaConfiguration({ path: { id } })),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: configurationKeys.all });
     },
   });
