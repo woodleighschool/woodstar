@@ -45,7 +45,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
-	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -233,7 +232,6 @@ func buildDependencies(
 	configurationStore := configurations.NewStore(db)
 	eventStore := events.NewStore(db)
 	ruleStore := rules.NewStore(db)
-	referenceStore := references.NewStore(db)
 	syncStore := syncstate.NewStore(db)
 
 	userService := directory.NewUserService(directoryStore)
@@ -341,7 +339,6 @@ func buildDependencies(
 			SantaConfigurations: configurationStore,
 			SantaEvents:         eventStore,
 			SantaRules:          ruleStore,
-			SantaReferences:     referenceStore,
 			SantaState:          santaState,
 		},
 		Protocols: api.ProtocolDependencies{

@@ -66,10 +66,10 @@ func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []an
 		GroupBySQL: "GROUP BY st.id",
 		Args:       args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":           {SQL: "lower(st.name)"},
-			"source":         {SQL: "lower(st.source)"},
-			"hosts_count":    {SQL: "hosts_count"},
-			"versions_count": {SQL: "versions_count"},
+			"name":        {SQL: "lower(st.name)"},
+			"source":      {SQL: "lower(st.source)"},
+			"hosts_count": {SQL: "hosts_count"},
+			"versions":    {SQL: "versions_count"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
@@ -138,6 +138,10 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 	for i := range titles {
 		titleIDs[i] = titles[i].ID
 		titleIndex[titles[i].ID] = i
+		titles[i].Versions = SoftwareVersionList{
+			Items: make([]SoftwareVersion, 0, titles[i].VersionsCount),
+			Count: titles[i].VersionsCount,
+		}
 	}
 
 	qrows, err := s.db.Pool().Query(ctx, softwareTitleVersionsSQL, titleIDs)
@@ -154,7 +158,7 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 		if !ok {
 			continue
 		}
-		titles[i].Versions = append(titles[i].Versions, SoftwareVersion{
+		titles[i].Versions.Items = append(titles[i].Versions.Items, SoftwareVersion{
 			ID:               row.ID,
 			Version:          row.Version,
 			BundleIdentifier: row.BundleIdentifier,

@@ -1049,30 +1049,6 @@ export type PathSignatureInformation = {
     team_identifier: string;
 };
 
-export type SantaBundleReference = {
-    binary_count: number;
-    bundle_id: string;
-    collected_binary_count: number;
-    complete: boolean;
-    hash_millis: number;
-    name: string;
-    path: string;
-    sha256: string;
-    uploaded_at?: string;
-    version: string;
-    version_string: string;
-};
-
-export type SantaCertificateReference = {
-    common_name: string;
-    organization: string;
-    organizational_unit: string;
-    rule_count: number;
-    sha256: string;
-    valid_from?: string;
-    valid_until?: string;
-};
-
 export type SantaConfiguration = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -1173,19 +1149,6 @@ export type SantaExecutable = {
     signing_status: 'unspecified' | 'unsigned' | 'invalid' | 'adhoc' | 'development' | 'production';
     signing_time?: string;
     team_id: string;
-};
-
-export type SantaExecutableReference = {
-    block_count: number;
-    cdhash?: string;
-    execution_count: number;
-    file_bundle_id?: string;
-    file_bundle_name?: string;
-    file_bundle_version?: string;
-    file_name: string;
-    sha256: string;
-    signing_id?: string;
-    team_id?: string;
 };
 
 export type SantaExecutionEvent = {
@@ -1332,22 +1295,6 @@ export type SantaSigningChainEntry = {
     valid_until?: string;
 };
 
-export type SantaSigningIdentityReference = {
-    executable_count: number;
-    identifier: string;
-    rule_count: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-};
-
-export type SantaSoftwareReference = {
-    block_count: number;
-    bundles: Array<SantaBundleReference>;
-    certificates: Array<SantaCertificateReference>;
-    executables: Array<SantaExecutableReference>;
-    execution_count: number;
-    signing_identities: Array<SantaSigningIdentityReference>;
-};
-
 export type SessionBody = {
     sso_enabled: boolean;
     user?: User;
@@ -1366,8 +1313,7 @@ export type SoftwareTitle = {
     id: number;
     name: string;
     source: string;
-    versions: Array<SoftwareVersion>;
-    versions_count: number;
+    versions: SoftwareVersionList;
 };
 
 export type SoftwareVersion = {
@@ -1375,6 +1321,11 @@ export type SoftwareVersion = {
     hosts_count: number;
     id: number;
     version: string;
+};
+
+export type SoftwareVersionList = {
+    count: number;
+    items: Array<SoftwareVersion>;
 };
 
 export type User = {
@@ -5863,45 +5814,6 @@ export type GetSoftwareResponses = {
 };
 
 export type GetSoftwareResponse = GetSoftwareResponses[keyof GetSoftwareResponses];
-
-export type GetSoftwareSantaReferenceData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/software/{id}/santa';
-};
-
-export type GetSoftwareSantaReferenceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetSoftwareSantaReferenceError = GetSoftwareSantaReferenceErrors[keyof GetSoftwareSantaReferenceErrors];
-
-export type GetSoftwareSantaReferenceResponses = {
-    /**
-     * OK
-     */
-    200: SantaSoftwareReference;
-};
-
-export type GetSoftwareSantaReferenceResponse = GetSoftwareSantaReferenceResponses[keyof GetSoftwareSantaReferenceResponses];
 
 export type ListUsersData = {
     body?: never;

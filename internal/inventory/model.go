@@ -40,6 +40,12 @@ type SoftwareVersion struct {
 	HostsCount       int32  `json:"hosts_count"`
 }
 
+// SoftwareVersionList is the observed versions of one software title.
+type SoftwareVersionList struct {
+	Items []SoftwareVersion `json:"items" nullable:"false"`
+	Count int32             `json:"count"`
+}
+
 // PathSignatureInformation is signing/hash data for one path.
 type PathSignatureInformation struct {
 	InstalledPath    string `json:"installed_path"`
@@ -69,16 +75,16 @@ type HostSoftware struct {
 
 // SoftwareTitle is an aggregate software title row.
 type SoftwareTitle struct {
-	ID               int64             `db:"id"                json:"id"`
-	Name             string            `db:"name"              json:"name"`
-	Source           string            `db:"source"            json:"source"`
-	ExtensionFor     string            `db:"extension_for"     json:"extension_for"`
-	Browser          string            `db:"-"                 json:"browser"`
-	BundleIdentifier string            `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
-	Vendor           string            `db:"vendor"            json:"-"`
-	HostsCount       int32             `db:"hosts_count"       json:"hosts_count"`
-	VersionsCount    int32             `db:"versions_count"    json:"versions_count"`
-	Versions         []SoftwareVersion `db:"-"                 json:"versions"`
+	ID               int64               `db:"id"                json:"id"`
+	Name             string              `db:"name"              json:"name"`
+	Source           string              `db:"source"            json:"source"`
+	ExtensionFor     string              `db:"extension_for"     json:"extension_for"`
+	Browser          string              `db:"-"                 json:"browser"`
+	BundleIdentifier string              `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
+	Vendor           string              `db:"vendor"            json:"-"`
+	HostsCount       int32               `db:"hosts_count"       json:"hosts_count"`
+	VersionsCount    int32               `db:"versions_count"    json:"-"`
+	Versions         SoftwareVersionList `db:"-"                 json:"versions"`
 }
 
 // SoftwareTitleListParams controls software title list filtering and sorting.

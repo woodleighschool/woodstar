@@ -134,10 +134,10 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     meta: { label: "Name" },
   },
   {
-    id: "versions_count",
-    accessorFn: (row) => row.versions_count,
+    id: "versions",
+    accessorFn: (row) => row.versions.count,
     header: "Versions",
-    cell: ({ row }) => versionsSummaryLabel(row.original.versions ?? []),
+    cell: ({ row }) => versionsSummaryLabel(row.original.versions.items),
     meta: { label: "Versions" },
   },
   {

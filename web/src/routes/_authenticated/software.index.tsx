@@ -14,12 +14,7 @@ const sourceValues = [
   "python_packages",
 ] as const;
 
-const searchSchema = createListSearchSchema([
-  "name",
-  "source",
-  "hosts_count",
-  "versions_count",
-]).extend({
+const searchSchema = createListSearchSchema(["name", "source", "hosts_count", "versions"]).extend({
   source: z.array(z.enum(sourceValues)).optional().catch(undefined),
 });
 

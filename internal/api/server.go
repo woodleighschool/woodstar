@@ -45,7 +45,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
-	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
@@ -108,7 +107,6 @@ type AppDependencies struct {
 	SantaConfigurations *configurations.Store
 	SantaEvents         *events.Store
 	SantaRules          *rules.Store
-	SantaReferences     *references.Store
 	SantaState          *santa.HostStateService
 }
 
@@ -410,7 +408,6 @@ func registerAppRoutes(
 		deps.App.SantaConfigurations,
 		deps.App.SantaRules,
 		deps.App.SantaEvents,
-		deps.App.SantaReferences,
 		apiLogger,
 	)
 }

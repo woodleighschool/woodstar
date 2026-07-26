@@ -1,18 +1,13 @@
 import { useParams } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import type { ReactNode } from "react";
 
 import { TableSurface } from "@components/data-table/table-surface";
-import { EnumBadge } from "@components/enum-badge";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
-import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,28 +16,20 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
-import { useAuth } from "@features/auth/queries";
-import { RULE_TYPES, ruleTypeLabel } from "@features/santa/rules/metadata";
-import { useSoftwareSantaReference, useSoftwareTitle } from "@features/software/queries";
+import { useSoftwareTitle } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import { softwareSourceLabel } from "@features/software/software-source-labels";
-import type { SantaRule, SantaSoftwareReference, SoftwareTitle, SoftwareVersion } from "@lib/api";
-type BundleReference = NonNullable<SantaSoftwareReference["bundles"]>[number];
-type CertificateReference = NonNullable<SantaSoftwareReference["certificates"]>[number];
-type ExecutableReference = NonNullable<SantaSoftwareReference["executables"]>[number];
-type SigningIdentityReference = NonNullable<SantaSoftwareReference["signing_identities"]>[number];
-type SantaRuleType = SantaRule["rule_type"];
+import type { SoftwareTitle, SoftwareVersion } from "@lib/api";
+
 export function SoftwareDetailPage() {
   const { id: softwareId } = useParams({
     from: "/_authenticated/software/titles/$id",
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const query = useSoftwareTitle(Number(softwareId), {
     refetchInterval: 30000,
   });
   const title = query.data;
+
   if (query.error || !title) {
     return (
       <QueryGate
@@ -52,17 +39,19 @@ export function SoftwareDetailPage() {
       />
     );
   }
+
   return (
     <PageShell className="gap-6">
       <SoftwareHeader title={title} />
-      <SoftwareInfoCard title={title} />
-      <SoftwareSantaCard titleID={title.id} isAdmin={isAdmin} />
-      <SoftwareVersionsCard title={title} />
+      <SoftwareOverview title={title} />
+      <SoftwareVersions title={title} />
     </PageShell>
   );
 }
+
 function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   const typeLabel = softwareSourceLabel(title.source, title.extension_for);
+
   return (
     <PageHeader
       title={title.name}
@@ -85,7 +74,8 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
     />
   );
 }
-function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
+
+function SoftwareOverview({ title }: { title: SoftwareTitle }) {
   return (
     <KeyValueSection title="Overview">
       {title.browser ? <KeyValueRow label="Browser" value={title.browser} /> : null}
@@ -97,272 +87,24 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
       ) : null}
       <KeyValueRow
         label="Hosts"
-        value={<span className="tabular-nums">{title.hosts_count}</span>}
+        value={
+          <Link to="/hosts" search={{ software_title_id: title.id }}>
+            <span className="tabular-nums">{title.hosts_count}</span>{" "}
+            {title.hosts_count === 1 ? "host" : "hosts"}
+          </Link>
+        }
       />
       <KeyValueRow
         label="Versions"
-        value={<span className="tabular-nums">{title.versions_count}</span>}
+        value={<span className="tabular-nums">{title.versions.count}</span>}
       />
     </KeyValueSection>
   );
 }
-function SoftwareSantaCard({ titleID, isAdmin }: { titleID: number; isAdmin: boolean }) {
-  const query = useSoftwareSantaReference(titleID);
-  if (query.error) {
-    return (
-      <QueryError
-        title="Failed to load Santa data"
-        error={query.error}
-        onRetry={() => void query.refetch()}
-      />
-    );
-  }
-  if (!query.data) {
-    return null;
-  }
-  const ref = query.data;
-  const bundles = ref.bundles ?? [];
-  const executables = ref.executables ?? [];
-  const identities = ref.signing_identities ?? [];
-  const certificates = ref.certificates ?? [];
-  const hasSantaData =
-    ref.execution_count > 0 ||
-    ref.block_count > 0 ||
-    bundles.length > 0 ||
-    executables.length > 0 ||
-    identities.length > 0 ||
-    certificates.length > 0;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Santa</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] divide-x border-y">
-          <SantaMetric label="Executions" value={ref.execution_count} />
-          <SantaMetric label="Blocks" value={ref.block_count} />
-          <SantaMetric label="Bundles" value={bundles.length} />
-        </div>
 
-        {!hasSantaData ? (
-          <PanelEmptyState>No Santa data yet</PanelEmptyState>
-        ) : (
-          <div className="grid gap-5 xl:grid-cols-2">
-            <SantaBundlesTable bundles={bundles} isAdmin={isAdmin} />
-            <SantaExecutablesTable executables={executables} isAdmin={isAdmin} />
-            <SantaSigningTable identities={identities} isAdmin={isAdmin} />
-            <SantaCertificatesTable certificates={certificates} isAdmin={isAdmin} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-function SantaMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="px-3 py-2">
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold text-foreground tabular-nums">{value}</div>
-    </div>
-  );
-}
-function SantaBundlesTable({ bundles, isAdmin }: { bundles: BundleReference[]; isAdmin: boolean }) {
-  return (
-    <SantaReferenceTable title="Bundles" empty="No related bundles." count={bundles.length}>
-      {bundles.map((bundle) => (
-        <TableRow key={bundle.sha256}>
-          <TableCell className="min-w-0">
-            <div className="truncate font-medium">{bundle.name || "-"}</div>
-            <div className="truncate text-xs text-muted-foreground">{bundle.bundle_id || "-"}</div>
-          </TableCell>
-          <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-            {bundle.collected_binary_count}/{bundle.binary_count}
-          </TableCell>
-          <TableCell className="w-10 text-right">
-            {isAdmin && bundle.complete ? (
-              <QuickAddRuleButton
-                ruleType="bundle"
-                identifier={bundle.sha256}
-                name={bundle.name || undefined}
-              />
-            ) : null}
-          </TableCell>
-        </TableRow>
-      ))}
-    </SantaReferenceTable>
-  );
-}
-function SantaExecutablesTable({
-  executables,
-  isAdmin,
-}: {
-  executables: ExecutableReference[];
-  isAdmin: boolean;
-}) {
-  return (
-    <SantaReferenceTable
-      title="Executables"
-      empty="No related executables."
-      count={executables.length}
-    >
-      {executables.map((executable) => (
-        <TableRow key={executable.sha256}>
-          <TableCell className="min-w-0">
-            <div className="truncate font-medium">{executable.file_name || "-"}</div>
-            <div className="truncate font-mono text-xs text-muted-foreground">
-              {executable.sha256}
-            </div>
-          </TableCell>
-          <TableCell className="text-right text-xs tabular-nums">
-            <span>{executable.execution_count}</span>
-            <span className="text-muted-foreground"> / </span>
-            <span>{executable.block_count}</span>
-          </TableCell>
-          <TableCell className="w-10 text-right">
-            {isAdmin ? (
-              <QuickAddRuleButton
-                ruleType="binary"
-                identifier={executable.sha256}
-                name={executable.file_name || undefined}
-              />
-            ) : null}
-          </TableCell>
-        </TableRow>
-      ))}
-    </SantaReferenceTable>
-  );
-}
-function SantaSigningTable({
-  identities,
-  isAdmin,
-}: {
-  identities: SigningIdentityReference[];
-  isAdmin: boolean;
-}) {
-  return (
-    <SantaReferenceTable title="Signing" empty="No signing identities." count={identities.length}>
-      {identities.map((identity) => (
-        <TableRow key={`${identity.rule_type}:${identity.identifier}`}>
-          <TableCell className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <EnumBadge value={identity.rule_type} metadata={RULE_TYPES} />
-              <span className="truncate font-medium">{identity.identifier}</span>
-            </div>
-          </TableCell>
-          <TableCell className="text-right text-xs tabular-nums">{identity.rule_count}</TableCell>
-          <TableCell className="w-10 text-right">
-            {isAdmin ? (
-              <QuickAddRuleButton ruleType={identity.rule_type} identifier={identity.identifier} />
-            ) : null}
-          </TableCell>
-        </TableRow>
-      ))}
-    </SantaReferenceTable>
-  );
-}
-function SantaCertificatesTable({
-  certificates,
-  isAdmin,
-}: {
-  certificates: CertificateReference[];
-  isAdmin: boolean;
-}) {
-  return (
-    <SantaReferenceTable
-      title="Certificates"
-      empty="No signing certificates."
-      count={certificates.length}
-    >
-      {certificates.map((certificate) => (
-        <TableRow key={certificate.sha256}>
-          <TableCell className="min-w-0">
-            <div className="truncate font-medium">{certificate.common_name || "-"}</div>
-            {certificate.organization ? (
-              <div className="truncate text-xs text-muted-foreground">
-                Organization: {certificate.organization}
-              </div>
-            ) : null}
-            {certificate.organizational_unit ? (
-              <div className="truncate text-xs text-muted-foreground">
-                Organizational Unit: {certificate.organizational_unit}
-              </div>
-            ) : null}
-          </TableCell>
-          <TableCell className="text-right text-xs tabular-nums">
-            {certificate.rule_count}
-          </TableCell>
-          <TableCell className="w-10 text-right">
-            {isAdmin ? (
-              <QuickAddRuleButton
-                ruleType="certificate"
-                identifier={certificate.sha256}
-                name={certificate.common_name}
-              />
-            ) : null}
-          </TableCell>
-        </TableRow>
-      ))}
-    </SantaReferenceTable>
-  );
-}
-function SantaReferenceTable({
-  title,
-  empty,
-  count,
-  children,
-}: {
-  title: string;
-  empty: string;
-  count: number;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <h2 className="text-sm font-medium">{title}</h2>
-      {count > 0 ? (
-        <TableSurface variant="embedded">
-          <Table>
-            <TableBody>{children}</TableBody>
-          </Table>
-        </TableSurface>
-      ) : (
-        <PanelEmptyState>{empty}</PanelEmptyState>
-      )}
-    </div>
-  );
-}
-function QuickAddRuleButton({
-  ruleType,
-  identifier,
-  name,
-}: {
-  ruleType: SantaRuleType;
-  identifier: string;
-  name?: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            render={
-              <Link to="/santa/rules/new" search={{ rule_type: ruleType, identifier, name }} />
-            }
-            nativeButton={false}
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-          />
-        }
-      >
-        <Plus />
-      </TooltipTrigger>
-      <TooltipContent>New {ruleTypeLabel(ruleType)} Rule</TooltipContent>
-    </Tooltip>
-  );
-}
-function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
-  const versions = title.versions ?? [];
+function SoftwareVersions({ title }: { title: SoftwareTitle }) {
+  const versions = title.versions.items;
+
   if (versions.length === 0) {
     return (
       <section className="flex min-w-0 flex-col gap-3">
@@ -371,6 +113,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
       </section>
     );
   }
+
   return (
     <TableSurface heading="Versions">
       <Table>
@@ -381,14 +124,15 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {versions.map((v) => (
-            <VersionRow key={v.id} title={title} version={v} />
+          {versions.map((version) => (
+            <VersionRow key={version.id} title={title} version={version} />
           ))}
         </TableBody>
       </Table>
     </TableSurface>
   );
 }
+
 function VersionRow({ title, version }: { title: SoftwareTitle; version: SoftwareVersion }) {
   return (
     <TableRow>
