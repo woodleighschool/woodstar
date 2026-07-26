@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.6.0](https://github.com/woodleighschool/woodstar/compare/0.5.1...0.6.0) (2026-07-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **software:** SoftwareTitle.versions is now an items/count object.
+
+### Features
+
+* **deps:** update dependency sass (1.101.6 → 1.102.0) ([#65](https://github.com/woodleighschool/woodstar/issues/65)) ([d87a615](https://github.com/woodleighschool/woodstar/commit/d87a615c684dbd8c8cfd9700586a13214ea4b0a5))
+* **deps:** update dependency shadcn (4.14.1 → 4.15.0) ([#68](https://github.com/woodleighschool/woodstar/issues/68)) ([dcf4cdd](https://github.com/woodleighschool/woodstar/commit/dcf4cdda19a5fb7917f2567e2d7961aba0e19542))
+* **deps:** update module github.com/google/cel-go (v0.29.2 → v0.30.0) ([#67](https://github.com/woodleighschool/woodstar/issues/67)) ([2869d70](https://github.com/woodleighschool/woodstar/commit/2869d7070f9ae4c23831c4cb9c3fc37567a7a4b7))
+* **deps:** update pnpm (11.16.0 → 11.17.0) ([#63](https://github.com/woodleighschool/woodstar/issues/63)) ([a1e7c7b](https://github.com/woodleighschool/woodstar/commit/a1e7c7b22624190b62a3e1062fece97e50a9fa43))
+* **osquery:** show resource update times ([dc1cf87](https://github.com/woodleighschool/woodstar/commit/dc1cf87ac7f39b1ea7630e538d0f54189d493295))
+* **santa:** standardize rule presentation ([0fa65b8](https://github.com/woodleighschool/woodstar/commit/0fa65b8f3609d15e4974d908a0f8625359a316cf))
+* **web:** add CSV data table exports ([86f03fe](https://github.com/woodleighschool/woodstar/commit/86f03fe92b4f2c40d1c1bf292744366969d8bdff))
+* **web:** add viewer-safe resource pages ([acd999e](https://github.com/woodleighschool/woodstar/commit/acd999e96d5b05daf94c270ce7505bcb720b1d36))
+* **web:** standardize link and sort affordances ([d8a9514](https://github.com/woodleighschool/woodstar/commit/d8a951446fc3a674f7045dff5888a682b8b5b64d))
+* **web:** standardize resource detail pages ([7a84d90](https://github.com/woodleighschool/woodstar/commit/7a84d904cbb604bdf3f34294ef42ca842dcced93))
+
+
+### Bug Fixes
+
+* **hosts:** simplify inventory tables ([005777a](https://github.com/woodleighschool/woodstar/commit/005777a16db72264c0d07fc5217466f11d2de0cd))
+* **santa:** distinguish rule type badges ([7138516](https://github.com/woodleighschool/woodstar/commit/71385164715efedd5e26f5667fb8582de05f0c90))
+* **web:** exclude buttons from link underlines ([1529367](https://github.com/woodleighschool/woodstar/commit/1529367d4c4fdc81412a23b624eebcdbf4dc27be))
+* **web:** exclude empty link overlays from underlines ([4f09c16](https://github.com/woodleighschool/woodstar/commit/4f09c16a7748e0297aa593a207e4751f92f49415))
+* **web:** keep resource links on primary text ([0aa2344](https://github.com/woodleighschool/woodstar/commit/0aa2344327b4ad592f249955d8a1ae9bbb0e756c))
+* **web:** keep schema sidebar in page flow ([42cbf6d](https://github.com/woodleighschool/woodstar/commit/42cbf6ddec04241a8e9ba523eeb1ba811b4c91a0))
+* **web:** standardize primary edit actions ([b698688](https://github.com/woodleighschool/woodstar/commit/b698688261e7a3b43de8493df3b191d56e3f0d7c))
+* **web:** stop animating status indicators ([642f719](https://github.com/woodleighschool/woodstar/commit/642f71945f3c3ad02307ef14fda229efcaa81558))
+
+
+### Reverts
+
+* no StickyTabsList ([38fafff](https://github.com/woodleighschool/woodstar/commit/38fafff68276f7ccab9d29cfb9d49c8e8099fa0d))
+
+
+### Documentation
+
+* **api:** list host Munki software endpoint ([7f473b8](https://github.com/woodleighschool/woodstar/commit/7f473b82ebcbeb18cd5fc22a3a00330521a3687a))
+
+
+### Code Refactoring
+
+* **osquery:** make detail pages result-first ([e5acdbf](https://github.com/woodleighschool/woodstar/commit/e5acdbf871edd980a466083fd8c927b8395bac64))
+* **santa:** use standard detail card ([87e3ae5](https://github.com/woodleighschool/woodstar/commit/87e3ae5d941283cd87d1d784bddf37a69b228c95))
+* **software:** remove inferred Santa references ([32ab9c7](https://github.com/woodleighschool/woodstar/commit/32ab9c75a6d1c0ff3cf102aaff5065566e75f037))
+* **targeting:** remove list target summaries ([dfa5090](https://github.com/woodleighschool/woodstar/commit/dfa5090e4cecff276e527525c41ef8ff6b7cf141))
+* **web:** consolidate feature ownership ([205c840](https://github.com/woodleighschool/woodstar/commit/205c840da1f09bf174777fe63622c576195be9a5))
+* **web:** format byte sizes with filesize ([dcec2c9](https://github.com/woodleighschool/woodstar/commit/dcec2c9c74d3109019fc7484f5bcf302e0b5979d))
+* **web:** replace Sonner with Base UI toast ([5cda1ec](https://github.com/woodleighschool/woodstar/commit/5cda1ec225f9c75e63857b3fd8e3c300e0e6e158))
+* **web:** standardize user account forms ([38b95e9](https://github.com/woodleighschool/woodstar/commit/38b95e99d611adcf204949e2dc1f5743b23f9299))
+
 ## [0.5.1](https://github.com/woodleighschool/woodstar/compare/0.5.0...0.5.1) (2026-07-24)
 
 
