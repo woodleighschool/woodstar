@@ -1,9 +1,10 @@
 import { useParams } from "@tanstack/react-router";
 
 import { EmptyPanel } from "@/components/empty-panel";
+import { KeyValueGrid, KeyValueItem } from "@/components/key-value";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { DetailSettings, SettingItem } from "@/components/queries/query-ui";
 import { QueryGate } from "@/components/query-gate";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -40,20 +41,21 @@ export function SantaFileAccessEventDetailPage() {
     <PageShell className="gap-6">
       <PageHeader title="File Access" description={event.target} />
 
-      <DetailSettings>
-        <SettingItem label="Decision">
-          <FileAccessDecisionBadge decision={event.decision} />
-        </SettingItem>
-        <SettingItem label="Host">
-          <HostLink host={event.host} />
-        </SettingItem>
-        <SettingItem label="Rule Name">{event.rule_name || "-"}</SettingItem>
-        <SettingItem label="Rule Version">{event.rule_version || "-"}</SettingItem>
-        <SettingItem label="Occurred">
-          <Timestamp value={event.occurred_at} />
-        </SettingItem>
-        <SettingItem label="Ingested">{formatDateTime(event.ingested_at)}</SettingItem>
-      </DetailSettings>
+      <Card>
+        <CardContent>
+          <KeyValueGrid>
+            <KeyValueItem
+              label="Decision"
+              value={<FileAccessDecisionBadge decision={event.decision} />}
+            />
+            <KeyValueItem label="Host" value={<HostLink host={event.host} />} />
+            <KeyValueItem label="Rule Name" value={event.rule_name} />
+            <KeyValueItem label="Rule Version" value={event.rule_version} />
+            <KeyValueItem label="Occurred" value={<Timestamp value={event.occurred_at} />} />
+            <KeyValueItem label="Ingested" value={formatDateTime(event.ingested_at)} />
+          </KeyValueGrid>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="overview">
         <TabsList>
