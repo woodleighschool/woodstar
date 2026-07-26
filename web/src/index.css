@@ -248,7 +248,9 @@
     border-color: var(--border);
   }
 
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not([role="button"]) {
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
+    [role="button"]
+  ) {
     background-image:
       linear-gradient(currentColor, currentColor),
       linear-gradient(
@@ -264,8 +266,10 @@
     transition: background-size 180ms ease-out;
   }
 
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not([role="button"]):hover,
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
+    [role="button"]
+  ):hover,
+  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
     [role="button"]
   ):focus-visible {
     background-size:
