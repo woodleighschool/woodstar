@@ -73,7 +73,6 @@ export function DistributionPointDetailPage() {
           isAdmin ? (
             <>
               <Button
-                variant="outline"
                 size="sm"
                 render={
                   <Link

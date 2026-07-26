@@ -110,11 +110,8 @@ export function CheckDetailPage() {
         description={check.data.description || undefined}
         actions={
           <>
-            <ShowQueryButton sql={check.data.query} />
-            <LiveRunButton to="/osquery/checks/$id/live" params={{ id: checkId }} />
             {user?.role === "admin" ? (
               <Button
-                variant="outline"
                 size="sm"
                 render={<Link to="/osquery/checks/$id/edit" params={{ id: checkId }} />}
                 nativeButton={false}
@@ -123,6 +120,8 @@ export function CheckDetailPage() {
                 Edit
               </Button>
             ) : null}
+            <ShowQueryButton sql={check.data.query} />
+            <LiveRunButton to="/osquery/checks/$id/live" params={{ id: checkId }} />
           </>
         }
       />

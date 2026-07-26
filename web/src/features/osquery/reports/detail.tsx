@@ -76,11 +76,8 @@ export function ReportDetailPage() {
         description={report.data.description || undefined}
         actions={
           <>
-            <ShowQueryButton sql={report.data.query} />
-            <LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />
             {user?.role === "admin" ? (
               <Button
-                variant="outline"
                 size="sm"
                 render={<Link to="/osquery/reports/$id/edit" params={{ id: reportId }} />}
                 nativeButton={false}
@@ -89,6 +86,8 @@ export function ReportDetailPage() {
                 Edit
               </Button>
             ) : null}
+            <ShowQueryButton sql={report.data.query} />
+            <LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />
           </>
         }
       />
