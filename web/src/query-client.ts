@@ -9,7 +9,7 @@ export const queryClient = new QueryClient({
       refetchOnMount: true,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: false,
+      retry: 2,
       retryOnMount: false,
     },
   },
