@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/woodleighschool/woodstar/compare/0.6.2...0.6.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **santa:** order event ingestion writes ([28c9a67](https://github.com/woodleighschool/woodstar/commit/28c9a6746962e81bb2ce5e880f748ac788e46bb4))
+
 ## [0.6.2](https://github.com/woodleighschool/woodstar/compare/0.6.1...0.6.2) (2026-07-27)
 
 
