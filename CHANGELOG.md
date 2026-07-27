@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/woodleighschool/woodstar/compare/0.6.1...0.6.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* **munki:** handle encoded repository paths ([a49e0f3](https://github.com/woodleighschool/woodstar/commit/a49e0f344d13dcf8d7278ce56bfd59f719fffb56))
+
 ## [0.6.1](https://github.com/woodleighschool/woodstar/compare/0.6.0...0.6.1) (2026-07-26)
 
 
