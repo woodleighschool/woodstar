@@ -7,7 +7,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// IngestEvents persists one Santa upload batch for a host.
+// IngestEvents persists one Santa upload atomically. It plans shared writes
+// before opening the transaction so overlapping uploads use one lock order.
 func (s *Store) IngestEvents(
 	ctx context.Context,
 	hostID int64,
@@ -21,16 +22,10 @@ func (s *Store) IngestEvents(
 	if err := validateEventInputs(executionEvents, fileAccessEvents, standaloneRuleCreationEvents); err != nil {
 		return nil, err
 	}
+	plan := newIngestPlan(executionEvents, fileAccessEvents, standaloneRuleCreationEvents)
 	var bundleBinaryRequests []string
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		requests, err := ingestEventsTx(
-			ctx,
-			tx,
-			hostID,
-			executionEvents,
-			fileAccessEvents,
-			standaloneRuleCreationEvents,
-		)
+		requests, err := ingestEventsTx(ctx, tx, hostID, plan)
 		if err != nil {
 			return err
 		}
@@ -44,59 +39,157 @@ func ingestEventsTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	hostID int64,
-	executionEvents []ExecutionEventInput,
-	fileAccessEvents []FileAccessEventInput,
-	standaloneRuleCreationEvents []StandaloneRuleCreationEventInput,
+	plan ingestPlan,
 ) ([]string, error) {
-	bundleRequestCandidates := []string{}
-	for _, event := range executionEvents {
-		candidate, err := processExecutionEvent(ctx, tx, hostID, event)
-		if err != nil {
-			return nil, err
-		}
-		if candidate != "" {
-			bundleRequestCandidates = append(bundleRequestCandidates, candidate)
-		}
+	// Every transaction crosses contended resource classes in the same
+	// direction: references, relationships, then bundle refreshes.
+	ids, err := upsertPlanReferences(ctx, tx, plan)
+	if err != nil {
+		return nil, err
 	}
-	for _, event := range fileAccessEvents {
-		if err := insertFileAccessEvent(ctx, tx, hostID, event); err != nil {
-			return nil, err
-		}
+	if err := insertPlanRelationships(ctx, tx, plan, ids); err != nil {
+		return nil, err
 	}
-	for _, event := range standaloneRuleCreationEvents {
-		if err := insertStandaloneRuleCreationEvent(ctx, tx, hostID, event); err != nil {
-			return nil, err
-		}
+	// Bundle completion is derived from the folded metadata and complete link
+	// set, so client order cannot mark a partially collected bundle complete.
+	if err := reconcilePlanBundleCompletion(ctx, tx, plan, ids); err != nil {
+		return nil, err
 	}
-	return incompleteBundleHashes(ctx, tx, bundleRequestCandidates)
+	if err := insertPlanOccurrences(ctx, tx, hostID, plan, ids); err != nil {
+		return nil, err
+	}
+	return incompleteBundleHashes(ctx, tx, plan.bundleRequestHashes)
 }
 
-// processExecutionEvent persists one execution event and returns the bundle
-// hash to request a binary listing for, or "" when none is needed.
-func processExecutionEvent(
+type ingestReferenceIDs struct {
+	executables   map[string]int64
+	signingChains map[string]int64
+	certificates  map[string]int64
+	bundles       map[string]int64
+}
+
+func upsertPlanReferences(ctx context.Context, tx pgx.Tx, plan ingestPlan) (ingestReferenceIDs, error) {
+	// Keep reference classes in this order. A transaction can hold rows from an
+	// earlier class while waiting on a later one, so class order is part of the
+	// deadlock-prevention contract.
+	ids := ingestReferenceIDs{
+		executables:   make(map[string]int64, len(plan.executables)),
+		signingChains: make(map[string]int64, len(plan.signingChains)),
+		certificates:  make(map[string]int64, len(plan.certificates)),
+		bundles:       make(map[string]int64, len(plan.bundles)),
+	}
+	for _, write := range plan.executables {
+		id, err := upsertExecutable(ctx, tx, write)
+		if err != nil {
+			return ingestReferenceIDs{}, err
+		}
+		ids.executables[write.SHA256] = id
+	}
+	for _, write := range plan.signingChains {
+		id, err := upsertSigningChain(ctx, tx, write)
+		if err != nil {
+			return ingestReferenceIDs{}, err
+		}
+		ids.signingChains[write.SHA256] = id
+	}
+	for _, write := range plan.certificates {
+		id, err := upsertCertificate(ctx, tx, write)
+		if err != nil {
+			return ingestReferenceIDs{}, err
+		}
+		ids.certificates[write.SHA256] = id
+	}
+	for _, write := range plan.bundles {
+		id, err := upsertBundle(ctx, tx, write)
+		if err != nil {
+			return ingestReferenceIDs{}, err
+		}
+		ids.bundles[write.SHA256] = id
+	}
+	return ids, nil
+}
+
+func insertPlanRelationships(
+	ctx context.Context,
+	tx pgx.Tx,
+	plan ingestPlan,
+	ids ingestReferenceIDs,
+) error {
+	// The plan sorts each relationship class by its natural composite key.
+	// Keep the class order stable for the same reason as reference writes.
+	for _, chain := range plan.signingChains {
+		for position, entry := range chain.Entries {
+			if err := linkSigningChainEntry(
+				ctx,
+				tx,
+				ids.signingChains[chain.SHA256],
+				position,
+				ids.certificates[entry.SHA256],
+			); err != nil {
+				return err
+			}
+		}
+	}
+	for _, link := range plan.executableSigningLinks {
+		if err := linkExecutableSigningChain(
+			ctx,
+			tx,
+			ids.executables[link.executableSHA256],
+			ids.signingChains[link.signingChainSHA256],
+		); err != nil {
+			return err
+		}
+	}
+	for _, link := range plan.bundleExecutableLinks {
+		if err := linkBundleExecutable(
+			ctx,
+			tx,
+			ids.bundles[link.bundleSHA256],
+			ids.executables[link.executableSHA256],
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func reconcilePlanBundleCompletion(
+	ctx context.Context,
+	tx pgx.Tx,
+	plan ingestPlan,
+	ids ingestReferenceIDs,
+) error {
+	for _, bundle := range plan.bundles {
+		if err := reconcileBundleCompletion(ctx, tx, ids.bundles[bundle.SHA256]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertPlanOccurrences(
 	ctx context.Context,
 	tx pgx.Tx,
 	hostID int64,
-	event ExecutionEventInput,
-) (string, error) {
-	executableID, err := upsertExecutable(ctx, tx, event)
-	if err != nil {
-		return "", err
+	plan ingestPlan,
+	ids ingestReferenceIDs,
+) error {
+	for _, event := range plan.executionEvents {
+		if err := insertExecutionEvent(ctx, tx, hostID, ids.executables[event.FileSHA256], event); err != nil {
+			return err
+		}
 	}
-	if err := upsertSigningChain(ctx, tx, executableID, event.SigningChain); err != nil {
-		return "", err
+	for _, event := range plan.fileAccessEvents {
+		if err := insertFileAccessEvent(ctx, tx, hostID, event); err != nil {
+			return err
+		}
 	}
-	bundleRequest, err := processEventBundle(ctx, tx, executableID, event)
-	if err != nil {
-		return "", err
+	for _, event := range plan.standaloneEvents {
+		if err := insertStandaloneRuleCreationEvent(ctx, tx, hostID, event); err != nil {
+			return err
+		}
 	}
-	if event.Decision == ExecutionDecisionBundleBinary {
-		return bundleRequest, nil
-	}
-	if err := insertExecutionEvent(ctx, tx, hostID, executableID, event); err != nil {
-		return "", err
-	}
-	return bundleRequest, nil
+	return nil
 }
 
 func insertExecutionEvent(

@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, error) {
-	write := executableWrite{
+func executableWriteFromEvent(event ExecutionEventInput) executableWrite {
+	return executableWrite{
 		SHA256:                      event.FileSHA256,
 		FileName:                    event.FileName,
 		FileBundleID:                event.BundleID,
@@ -29,6 +29,9 @@ func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput)
 		SigningTime:                 timeOrNil(event.SigningTime),
 		Entitlements:                executableEntitlements(event),
 	}
+}
+
+func upsertExecutable(ctx context.Context, tx pgx.Tx, write executableWrite) (int64, error) {
 	var id int64
 	if err := tx.QueryRow(ctx, `
 INSERT INTO santa_executables (

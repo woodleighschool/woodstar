@@ -7,48 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// processEventBundle upserts and links the event's bundle when present and
-// returns the bundle hash to request a binary listing for, or "" when none.
-func processEventBundle(
-	ctx context.Context,
-	tx pgx.Tx,
-	executableID int64,
-	event ExecutionEventInput,
-) (string, error) {
-	bundleID, hasBundle, err := upsertBundle(ctx, tx, event)
-	if err != nil {
-		return "", err
-	}
-	if !hasBundle {
-		return "", nil
-	}
-	if err := linkBundleExecutable(ctx, tx, bundleID, executableID); err != nil {
-		return "", err
-	}
-	if err := refreshBundleUploadedAt(ctx, tx, bundleID); err != nil {
-		return "", err
-	}
-	if event.Decision == ExecutionDecisionBundleBinary {
-		return "", nil
-	}
-	return event.BundleHash, nil
-}
-
-func upsertBundle(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, bool, error) {
-	if event.BundleHash == "" {
-		return 0, false, nil
-	}
-	write := bundleWrite{
-		SHA256:            event.BundleHash,
-		BundleID:          event.BundleID,
-		Name:              event.BundleName,
-		Path:              event.BundlePath,
-		ExecutableRelPath: event.BundleExecutableRelPath,
-		Version:           event.BundleVersion,
-		VersionString:     event.BundleVersionString,
-		BinaryCount:       event.BundleBinaryCount,
-		HashMillis:        event.BundleHashMillis,
-	}
+func upsertBundle(ctx context.Context, tx pgx.Tx, write bundleWrite) (int64, error) {
 	var id int64
 	if err := tx.QueryRow(ctx, `
 INSERT INTO santa_bundles (
@@ -92,9 +51,9 @@ ON CONFLICT (sha256) DO UPDATE SET
 	END,
 	updated_at = now()
 RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-		return 0, false, err
+		return 0, err
 	}
-	return id, true, nil
+	return id, nil
 }
 
 func linkBundleExecutable(ctx context.Context, tx pgx.Tx, bundleID int64, executableID int64) error {
@@ -109,17 +68,22 @@ ON CONFLICT DO NOTHING`,
 	return err
 }
 
-func refreshBundleUploadedAt(ctx context.Context, tx pgx.Tx, bundleID int64) error {
+func reconcileBundleCompletion(ctx context.Context, tx pgx.Tx, bundleID int64) error {
 	_, err := tx.Exec(ctx, `
 UPDATE santa_bundles b
-SET uploaded_at = COALESCE(uploaded_at, now()), updated_at = now()
-WHERE b.id = @bundle_id
-  AND b.binary_count > 0
-  AND (
-	  SELECT count(*)
-	  FROM santa_bundle_executables be
-	  WHERE be.bundle_id = b.id
-  ) >= b.binary_count`,
+SET
+	uploaded_at = CASE
+		WHEN b.binary_count > 0
+		  AND (
+			  SELECT count(*)
+			  FROM santa_bundle_executables be
+			  WHERE be.bundle_id = b.id
+		  ) >= b.binary_count
+		THEN COALESCE(b.uploaded_at, now())
+		ELSE NULL
+	END,
+	updated_at = now()
+WHERE b.id = @bundle_id`,
 		pgx.NamedArgs{"bundle_id": bundleID},
 	)
 	return err
@@ -154,4 +118,34 @@ type bundleWrite struct {
 	VersionString     string `db:"version_string"`
 	BinaryCount       uint32 `db:"binary_count"`
 	HashMillis        uint32 `db:"hash_millis"`
+}
+
+// merge retains the last non-empty value for each bundle field, matching the
+// existing ON CONFLICT merge rules while folding duplicate references.
+func (w *bundleWrite) merge(event ExecutionEventInput) {
+	w.SHA256 = event.BundleHash
+	if event.BundleID != "" {
+		w.BundleID = event.BundleID
+	}
+	if event.BundleName != "" {
+		w.Name = event.BundleName
+	}
+	if event.BundlePath != "" {
+		w.Path = event.BundlePath
+	}
+	if event.BundleExecutableRelPath != "" {
+		w.ExecutableRelPath = event.BundleExecutableRelPath
+	}
+	if event.BundleVersion != "" {
+		w.Version = event.BundleVersion
+	}
+	if event.BundleVersionString != "" {
+		w.VersionString = event.BundleVersionString
+	}
+	if event.BundleBinaryCount > 0 {
+		w.BinaryCount = event.BundleBinaryCount
+	}
+	if event.BundleHashMillis > 0 {
+		w.HashMillis = event.BundleHashMillis
+	}
 }

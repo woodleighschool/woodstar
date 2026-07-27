@@ -3,7 +3,9 @@
 package santa_test
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -353,6 +355,132 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	}
 }
 
+func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	hostStore := hosts.NewStore(db)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewSyncService(santa.Dependencies{
+		HostStore:      santa.NewStore(db),
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		Sync:           syncstate.NewStore(db),
+	})
+
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-final-bundle-state-host"},
+		OrbitNodeKey: "santa-final-bundle-state-orbit",
+	}); err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	bundleHash := strings.Repeat("d", 64)
+	response, err := service.EventUpload(ctx, "santa-final-bundle-state-host", santa.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{
+			{
+				FileSHA256:        strings.Repeat("4", 64),
+				OccurredAt:        time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC),
+				Decision:          santaevents.ExecutionDecisionAllowBinary,
+				BundleHash:        bundleHash,
+				BundleBinaryCount: 1,
+			},
+			{
+				FileSHA256:        strings.Repeat("4", 64),
+				OccurredAt:        time.Date(2026, 7, 27, 12, 1, 0, 0, time.UTC),
+				Decision:          santaevents.ExecutionDecisionAllowBinary,
+				BundleHash:        bundleHash,
+				BundleBinaryCount: 2,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("event upload: %v", err)
+	}
+	if !slices.Equal(response.BundleBinaryRequests, []string{bundleHash}) {
+		t.Fatalf("bundle binary requests = %v, want final incomplete bundle", response.BundleBinaryRequests)
+	}
+
+	var binaryCount int
+	var collectedCount int
+	var uploadedAt *time.Time
+	if err := db.Pool().QueryRow(ctx, `
+SELECT b.binary_count, count(be.executable_id)::integer, b.uploaded_at
+FROM santa_bundles b
+LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
+WHERE b.sha256 = $1
+GROUP BY b.id`, bundleHash).Scan(&binaryCount, &collectedCount, &uploadedAt); err != nil {
+		t.Fatalf("get bundle: %v", err)
+	}
+	if binaryCount != 2 || collectedCount != 1 || uploadedAt != nil {
+		t.Fatalf(
+			"bundle count/upload = %d/%d/%v, want final incomplete state",
+			binaryCount,
+			collectedCount,
+			uploadedAt,
+		)
+	}
+}
+
+func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	hostStore := hosts.NewStore(db)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewSyncService(santa.Dependencies{
+		HostStore:      santa.NewStore(db),
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		Sync:           syncstate.NewStore(db),
+	})
+
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-reopened-bundle-host"},
+		OrbitNodeKey: "santa-reopened-bundle-orbit",
+	}); err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	bundleHash := strings.Repeat("e", 64)
+	event := santaevents.ExecutionEventInput{
+		FileSHA256:        strings.Repeat("5", 64),
+		OccurredAt:        time.Date(2026, 7, 27, 13, 0, 0, 0, time.UTC),
+		Decision:          santaevents.ExecutionDecisionAllowBinary,
+		BundleHash:        bundleHash,
+		BundleBinaryCount: 1,
+	}
+	first, err := service.EventUpload(ctx, "santa-reopened-bundle-host", santa.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{event},
+	})
+	if err != nil {
+		t.Fatalf("complete bundle upload: %v", err)
+	}
+	if len(first.BundleBinaryRequests) != 0 {
+		t.Fatalf("complete bundle requests = %v, want none", first.BundleBinaryRequests)
+	}
+
+	event.OccurredAt = event.OccurredAt.Add(time.Minute)
+	event.BundleBinaryCount = 2
+	second, err := service.EventUpload(ctx, "santa-reopened-bundle-host", santa.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{event},
+	})
+	if err != nil {
+		t.Fatalf("increased bundle upload: %v", err)
+	}
+	if !slices.Equal(second.BundleBinaryRequests, []string{bundleHash}) {
+		t.Fatalf("increased bundle requests = %v, want reopened bundle", second.BundleBinaryRequests)
+	}
+
+	var uploadedAt *time.Time
+	if err := db.Pool().
+		QueryRow(ctx, `SELECT uploaded_at FROM santa_bundles WHERE sha256 = $1`, bundleHash).
+		Scan(&uploadedAt); err != nil {
+		t.Fatalf("get bundle completion: %v", err)
+	}
+	if uploadedAt != nil {
+		t.Fatalf("uploaded_at = %v, want incomplete bundle", uploadedAt)
+	}
+}
+
 func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	hostStore := hosts.NewStore(db)
@@ -651,6 +779,227 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 	if linkCount != 2 {
 		t.Fatalf("signing chain link count = %d, want 2", linkCount)
 	}
+}
+
+func TestEventUploadAvoidsDeadlocksAcrossReversedBatches(t *testing.T) {
+	t.Run("executables", func(t *testing.T) {
+		first := []santaevents.ExecutionEventInput{
+			concurrentExecutionEvent("executable-a", ""),
+			concurrentExecutionEvent("executable-b", ""),
+		}
+		second := []santaevents.ExecutionEventInput{
+			concurrentExecutionEvent("executable-b", ""),
+			concurrentExecutionEvent("executable-a", ""),
+		}
+		assertConcurrentEventUploads(t, "santa_executables", first, second)
+	})
+
+	t.Run("bundles", func(t *testing.T) {
+		first := []santaevents.ExecutionEventInput{
+			concurrentExecutionEvent("first-a", "bundle-a"),
+			concurrentExecutionEvent("first-b", "bundle-b"),
+		}
+		second := []santaevents.ExecutionEventInput{
+			concurrentExecutionEvent("second-b", "bundle-b"),
+			concurrentExecutionEvent("second-a", "bundle-a"),
+		}
+		assertConcurrentEventUploads(t, "santa_bundles", first, second)
+	})
+
+	t.Run("signing chains", func(t *testing.T) {
+		first := []santaevents.ExecutionEventInput{
+			concurrentSignedExecutionEvent("first-a", "certificate-a"),
+			concurrentSignedExecutionEvent("first-b", "certificate-b"),
+		}
+		second := []santaevents.ExecutionEventInput{
+			concurrentSignedExecutionEvent("second-b", "certificate-b"),
+			concurrentSignedExecutionEvent("second-a", "certificate-a"),
+		}
+		assertConcurrentEventUploads(t, "santa_signing_chains", first, second)
+	})
+
+	t.Run("certificates", func(t *testing.T) {
+		first := concurrentExecutionEvent("first", "")
+		first.SigningChain = []santaevents.CertificateInput{
+			{SHA256: "certificate-a"},
+			{SHA256: "certificate-b"},
+		}
+		second := concurrentExecutionEvent("second", "")
+		second.SigningChain = []santaevents.CertificateInput{
+			{SHA256: "certificate-b"},
+			{SHA256: "certificate-a"},
+		}
+		assertConcurrentEventUploads(
+			t,
+			"santa_certificates",
+			[]santaevents.ExecutionEventInput{first},
+			[]santaevents.ExecutionEventInput{second},
+		)
+	})
+}
+
+func assertConcurrentEventUploads(
+	t *testing.T,
+	pauseTable string,
+	first []santaevents.ExecutionEventInput,
+	second []santaevents.ExecutionEventInput,
+) {
+	t.Helper()
+
+	db, ctx := testdb.Open(t)
+	hostStore := hosts.NewStore(db)
+	eventStore := santaevents.NewStore(db)
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-reversed-batches-" + pauseTable},
+		OrbitNodeKey: "santa-reversed-batches-orbit-" + pauseTable,
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	const gateKey int64 = 763218904
+	triggerSQL := fmt.Sprintf(`
+CREATE FUNCTION santa_test_pause_shared_write()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	PERFORM pg_advisory_xact_lock_shared(%d);
+	RETURN NEW;
+END
+$$;
+
+CREATE TRIGGER santa_test_pause_shared_write
+AFTER INSERT OR UPDATE ON %s
+FOR EACH ROW EXECUTE FUNCTION santa_test_pause_shared_write()`, gateKey, pauseTable)
+	if _, err := db.Pool().Exec(ctx, triggerSQL); err != nil {
+		t.Fatalf("create pause trigger: %v", err)
+	}
+
+	gate, err := db.Pool().Acquire(ctx)
+	if err != nil {
+		t.Fatalf("acquire gate connection: %v", err)
+	}
+	gateLocked := false
+	defer func() {
+		// A failed test must not return a pooled session with its advisory lock held.
+		if gateLocked {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+			_, _ = gate.Exec(cleanupCtx, `SELECT pg_advisory_unlock($1)`, gateKey)
+			cancel()
+		}
+		gate.Release()
+	}()
+	if _, err := gate.Exec(ctx, `SELECT pg_advisory_lock($1)`, gateKey); err != nil {
+		t.Fatalf("lock upload gate: %v", err)
+	}
+	gateLocked = true
+
+	// The trigger pauses each upload after its first shared-row write. Reversed
+	// lock order then forces the old implementation into a circular wait,
+	// while canonical order makes both uploads contend on the same first row.
+	uploadCtx, cancelUploads := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelUploads()
+	errs := make(chan error, 2)
+	for _, upload := range [][]santaevents.ExecutionEventInput{first, second} {
+		go func(events []santaevents.ExecutionEventInput) {
+			_, err := eventStore.IngestEvents(uploadCtx, host.ID, events, nil, nil)
+			errs <- err
+		}(upload)
+	}
+
+	uploadsPaused, waitErr := waitForLockWaiters(uploadCtx, db, 2, 2*time.Second)
+	if _, err := gate.Exec(ctx, `SELECT pg_advisory_unlock($1)`, gateKey); err != nil {
+		cancelUploads()
+		t.Fatalf("unlock upload gate: %v", err)
+	}
+	gateLocked = false
+
+	if waitErr != nil {
+		cancelUploads()
+		t.Fatalf("wait for concurrent uploads: %v", waitErr)
+	}
+	if !uploadsPaused {
+		cancelUploads()
+		t.Fatal("concurrent uploads did not both reach the pause point")
+	}
+	for range 2 {
+		select {
+		case err := <-errs:
+			if err != nil {
+				t.Errorf("ingest reversed upload: %v", err)
+			}
+		case <-uploadCtx.Done():
+			t.Fatalf("wait for reversed uploads: %v", uploadCtx.Err())
+		}
+	}
+
+	assertHostExecutionEventCount(t, db, host.ID, len(first)+len(second))
+}
+
+func assertHostExecutionEventCount(t *testing.T, db *database.DB, hostID int64, want int) {
+	t.Helper()
+
+	var count int
+	if err := db.Pool().
+		QueryRow(t.Context(), `SELECT count(*) FROM santa_execution_events WHERE host_id = $1`, hostID).
+		Scan(&count); err != nil {
+		t.Fatalf("count execution events: %v", err)
+	}
+	if count != want {
+		t.Fatalf("execution event count = %d, want %d", count, want)
+	}
+}
+
+func waitForLockWaiters(
+	ctx context.Context,
+	db *database.DB,
+	wanted int,
+	limit time.Duration,
+) (bool, error) {
+	deadline := time.NewTimer(limit)
+	defer deadline.Stop()
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		var count int
+		if err := db.Pool().QueryRow(ctx, `
+SELECT count(*)
+FROM pg_stat_activity
+WHERE datname = current_database()
+  AND wait_event_type = 'Lock'`).Scan(&count); err != nil {
+			return false, err
+		}
+		if count >= wanted {
+			return true, nil
+		}
+
+		select {
+		case <-deadline.C:
+			return false, nil
+		case <-ticker.C:
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+}
+
+func concurrentExecutionEvent(fileSHA256 string, bundleHash string) santaevents.ExecutionEventInput {
+	return santaevents.ExecutionEventInput{
+		FileSHA256:        fileSHA256,
+		FileName:          fileSHA256,
+		OccurredAt:        time.Date(2026, 5, 23, 14, 0, 0, 0, time.UTC),
+		Decision:          santaevents.ExecutionDecisionAllowBinary,
+		BundleHash:        bundleHash,
+		BundleBinaryCount: 2,
+	}
+}
+
+func concurrentSignedExecutionEvent(fileSHA256 string, certificateSHA256 string) santaevents.ExecutionEventInput {
+	event := concurrentExecutionEvent(fileSHA256, "")
+	event.SigningChain = []santaevents.CertificateInput{{SHA256: certificateSHA256}}
+	return event
 }
 
 func santaTestSigningChain() []santaevents.CertificateInput {

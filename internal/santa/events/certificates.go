@@ -18,45 +18,57 @@ type signingChainEntry struct {
 	ValidUntil uint32 `json:"valid_until,omitempty"`
 }
 
-func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chain []CertificateInput) error {
-	entries := signingChainEntries(chain)
-	if len(entries) == 0 {
-		return nil
-	}
-	var chainID int64
+type signingChainWrite struct {
+	SHA256  string
+	Entries []signingChainEntry
+}
+
+func upsertSigningChain(ctx context.Context, tx pgx.Tx, write signingChainWrite) (int64, error) {
+	var id int64
 	if err := tx.QueryRow(ctx, `
 INSERT INTO santa_signing_chains (sha256)
 VALUES ($1)
 ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
 RETURNING id`,
-		signingChainHash(entries),
-	).Scan(&chainID); err != nil {
-		return err
+		write.SHA256,
+	).Scan(&id); err != nil {
+		return 0, err
 	}
-	for position, entry := range entries {
-		certificateID, err := upsertCertificate(ctx, tx, entry)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `
+	return id, nil
+}
+
+func linkSigningChainEntry(
+	ctx context.Context,
+	tx pgx.Tx,
+	signingChainID int64,
+	position int,
+	certificateID int64,
+) error {
+	_, err := tx.Exec(ctx, `
 INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
 VALUES (@signing_chain_id, @position, @certificate_id)
 ON CONFLICT (signing_chain_id, position) DO UPDATE SET certificate_id = EXCLUDED.certificate_id`,
-			pgx.NamedArgs{
-				"signing_chain_id": chainID,
-				"position":         int32(position),
-				"certificate_id":   certificateID,
-			}); err != nil {
-			return err
-		}
-	}
+		pgx.NamedArgs{
+			"signing_chain_id": signingChainID,
+			"position":         position,
+			"certificate_id":   certificateID,
+		})
+	return err
+}
+
+func linkExecutableSigningChain(
+	ctx context.Context,
+	tx pgx.Tx,
+	executableID int64,
+	signingChainID int64,
+) error {
 	_, err := tx.Exec(ctx, `
 INSERT INTO santa_executable_signing_chains (executable_id, signing_chain_id)
 VALUES (@executable_id, @signing_chain_id)
 ON CONFLICT DO NOTHING`,
 		pgx.NamedArgs{
 			"executable_id":    executableID,
-			"signing_chain_id": chainID,
+			"signing_chain_id": signingChainID,
 		})
 	return err
 }
