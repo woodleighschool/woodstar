@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func TestBearerToken(t *testing.T) {
@@ -28,6 +30,71 @@ func TestBearerToken(t *testing.T) {
 				t.Fatalf("BearerToken() = %q, %v; want %q, %v", got, ok, tt.want, tt.wantOK)
 			}
 		})
+	}
+}
+
+func TestPathParamDecodesRequestPathOnce(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{
+			name:   "noncanonical raw path",
+			target: "/files/Zoom-7.1.5%20(84650).pkg",
+			want:   "Zoom-7.1.5 (84650).pkg",
+		},
+		{
+			name:   "canonical escaped path",
+			target: "/files/Microsoft%20365.pkg",
+			want:   "Microsoft 365.pkg",
+		},
+		{
+			name:   "literal percent sequence",
+			target: "/files/Literal%2520Name.pkg",
+			want:   "Literal%20Name.pkg",
+		},
+		{
+			name:   "URL delimiters",
+			target: "/files/Hash%23Question%3FPercent%25.pkg",
+			want:   "Hash#Question?Percent%.pkg",
+		},
+		{
+			name:   "Unicode",
+			target: "/files/Caf%C3%A9%20%E2%9C%A8.pkg",
+			want:   "Café ✨.pkg",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got string
+			router := chi.NewRouter()
+			router.Get("/files/*", func(_ http.ResponseWriter, r *http.Request) {
+				got = PathParam(r, "*")
+			})
+
+			router.ServeHTTP(
+				httptest.NewRecorder(),
+				httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.target, nil),
+			)
+
+			if got != tc.want {
+				t.Fatalf("PathParam() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEscapePathEncodesSegmentsWithoutEncodingSeparators(t *testing.T) {
+	t.Parallel()
+
+	const logical = "packages/38/installer/Zoom #1? 100% Café.pkg"
+	const want = "packages/38/installer/Zoom%20%231%3F%20100%25%20Caf%C3%A9.pkg"
+	if got := EscapePath(logical); got != want {
+		t.Fatalf("EscapePath() = %q, want %q", got, want)
 	}
 }
 

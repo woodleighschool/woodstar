@@ -91,13 +91,13 @@ func (s *Server) RegisterRoutes(ordinary chi.Router, transfers chi.Router) {
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
 	h.writePlist(w, r, "manifest", func(ctx context.Context) ([]byte, error) {
-		return h.repository.Manifest(ctx, chi.URLParam(r, "name"))
+		return h.repository.Manifest(ctx, httpx.PathParam(r, "name"))
 	})
 }
 
 func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 	h.writePlist(w, r, "catalog", func(ctx context.Context) ([]byte, error) {
-		return h.repository.Catalog(ctx, chi.URLParam(r, "name"))
+		return h.repository.Catalog(ctx, httpx.PathParam(r, "name"))
 	})
 }
 
@@ -109,7 +109,7 @@ func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
 	if ok := h.authorizedRequest(w, r, "package"); !ok {
 		return
 	}
-	installer, err := h.repository.ResolvePackageFile(r.Context(), chi.URLParam(r, "*"))
+	installer, err := h.repository.ResolvePackageFile(r.Context(), httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -132,7 +132,7 @@ func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 	if ok := h.authorizedRequest(w, r, "icon"); !ok {
 		return
 	}
-	file, err := h.repository.ResolveIconFile(r.Context(), chi.URLParam(r, "*"))
+	file, err := h.repository.ResolveIconFile(r.Context(), httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -149,7 +149,7 @@ func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
 	if ok := h.authorizedRequest(w, r, "client resources"); !ok {
 		return
 	}
-	file, err := h.repository.ResolveClientResources(r.Context(), chi.URLParam(r, "*"))
+	file, err := h.repository.ResolveClientResources(r.Context(), httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return

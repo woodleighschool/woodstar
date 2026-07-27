@@ -328,6 +328,57 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
+	repository := newStaticRepository()
+	repository.packageID = 38
+	sha256sum := strings.Repeat("a", 64)
+	sizeBytes := int64(4096)
+	repository.fileObject = storage.Object{
+		ID:        81,
+		Prefix:    "munki/packages",
+		Filename:  "Zoom-7.1.5 (84650).pkg",
+		SHA256:    &sha256sum,
+		SizeBytes: &sizeBytes,
+	}
+	selector := &fakeSelector{
+		url: "https://mdp.example/munki/pkgs/packages/38/installer/Zoom-7.1.5%20%2884650%29.pkg?cap=grant",
+		ok:  true,
+	}
+	router := chi.NewRouter()
+	NewServer(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		repository,
+		selector,
+		&fakeDeliverer{},
+		testLogger(),
+	).RegisterRoutes(router, router)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/munki/pkgs/packages/38/installer/Zoom-7.1.5%20(84650).pkg",
+		nil,
+	)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
+	}
+	const want = "packages/38/installer/Zoom-7.1.5 (84650).pkg"
+	if repository.fileKey != want {
+		t.Fatalf("repository package location = %q, want %q", repository.fileKey, want)
+	}
+	if selector.got.InstallerItemLocation != want {
+		t.Fatalf(
+			"distribution package location = %q, want %q",
+			selector.got.InstallerItemLocation,
+			want,
+		)
+	}
+}
+
 func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
 	repository.fileObject = storage.Object{

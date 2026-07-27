@@ -144,3 +144,51 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 		}
 	})
 }
+
+func TestServeNodeAcceptsEquivalentEscapingForGrantedLocation(t *testing.T) {
+	dir := t.TempDir()
+	mirror, err := loadMirror(dir)
+	if err != nil {
+		t.Fatalf("loadMirror: %v", err)
+	}
+	content := []byte("zoom-installer")
+	sha := sha256Hex(content)
+	size := int64(len(content))
+	const filename = "Zoom-7.1.5 (84650).pkg"
+	if err := os.WriteFile(mirror.localPath(38, filename), content, 0o600); err != nil {
+		t.Fatalf("write mirror file: %v", err)
+	}
+	mirror.put(38, packageState{Filename: filename, SHA256: sha, SizeBytes: size})
+
+	key := []byte("dp-key")
+	const location = "packages/38/installer/Zoom-7.1.5 (84650).pkg"
+	token, err := grant.Sign(key, grant.Claims{
+		Exp:                   time.Now().Add(time.Minute).Unix(),
+		PackageID:             38,
+		InstallerItemLocation: location,
+		SHA256:                sha,
+		SizeBytes:             size,
+	})
+	if err != nil {
+		t.Fatalf("sign grant: %v", err)
+	}
+	handler := (&Worker{
+		server: &server{mirror: mirror, key: key, logger: discardLogger()},
+	}).handler()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/munki/pkgs/packages/38/installer/Zoom-7.1.5%20(84650).pkg?cap="+token,
+		nil,
+	)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if rec.Body.String() != string(content) {
+		t.Fatalf("body = %q, want mirrored installer", rec.Body.String())
+	}
+}

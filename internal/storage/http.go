@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
@@ -87,7 +88,7 @@ func (h transferHandler) verify(
 	op string,
 ) (BlobCapabilityClaims, bool) {
 	claims, err := capability.Verify[BlobCapabilityClaims](h.key, r.URL.Query().Get("cap"), op, time.Now())
-	requestKey := chi.URLParam(r, "*")
+	requestKey := httpx.PathParam(r, "*")
 	switch {
 	case errors.Is(err, capability.ErrExpired):
 		w.WriteHeader(http.StatusGone)

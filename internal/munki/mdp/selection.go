@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/grant"
 )
 
@@ -99,7 +100,7 @@ func (s *Store) logDecision(
 
 func grantURL(clientBaseURL string, installerItemLocation string, token string) (string, error) {
 	base, err := url.Parse(strings.TrimRight(clientBaseURL, "/") +
-		"/munki/pkgs/" + escapePath(installerItemLocation))
+		"/munki/pkgs/" + httpx.EscapePath(installerItemLocation))
 	if err != nil {
 		return "", err
 	}
@@ -107,12 +108,4 @@ func grantURL(clientBaseURL string, installerItemLocation string, token string) 
 	values.Set("cap", token)
 	base.RawQuery = values.Encode()
 	return base.String(), nil
-}
-
-func escapePath(value string) string {
-	parts := strings.Split(value, "/")
-	for i, part := range parts {
-		parts[i] = url.PathEscape(part)
-	}
-	return strings.Join(parts, "/")
 }

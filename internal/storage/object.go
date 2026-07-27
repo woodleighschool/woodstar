@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
@@ -382,7 +383,7 @@ func normalizeUploadFilename(name string) string {
 }
 
 func validateUploadFilename(name string) error {
-	if name == "" || name == "." || name == ".." || name == "/" {
+	if name == "" || name == "." || name == ".." || name == "/" || !utf8.ValidString(name) {
 		return fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
 	}
 	for _, r := range name {

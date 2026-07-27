@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/grant"
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
@@ -52,7 +53,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		s.reject(w, r, http.StatusUnauthorized, "invalid grant")
 		return
 	}
-	if claims.InstallerItemLocation != chi.URLParam(r, "*") {
+	if claims.InstallerItemLocation != httpx.PathParam(r, "*") {
 		s.reject(w, r, http.StatusUnauthorized, "grant path mismatch")
 		return
 	}
@@ -104,7 +105,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 // status code alone does not say which gate failed.
 func (s *server) reject(w http.ResponseWriter, r *http.Request, status int, reason string) {
 	s.logger.DebugContext(r.Context(), "serve rejected",
-		"path", chi.URLParam(r, "*"),
+		"path", httpx.PathParam(r, "*"),
 		"status", status,
 		"reason", reason,
 	)

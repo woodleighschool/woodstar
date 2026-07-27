@@ -6,7 +6,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type ErrorBody struct {
@@ -24,6 +27,29 @@ func BearerToken(authorization string) (string, bool) {
 		return "", false
 	}
 	return value, true
+}
+
+// PathParam returns a chi route parameter decoded to the same once-unescaped
+// form as r.URL.Path. It returns an empty string when the parameter is invalid.
+func PathParam(r *http.Request, key string) string {
+	value := chi.URLParam(r, key)
+	if r.URL.RawPath == "" {
+		return value
+	}
+	decoded, err := url.PathUnescape(value)
+	if err != nil {
+		return ""
+	}
+	return decoded
+}
+
+// EscapePath percent-encodes each segment of a logical slash-separated path.
+func EscapePath(value string) string {
+	parts := strings.Split(value, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }
 
 // Write encodes body as JSON and writes it with the given status. Write

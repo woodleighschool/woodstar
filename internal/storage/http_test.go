@@ -67,6 +67,37 @@ func TestBlobGetServesBytesAndRanges(t *testing.T) {
 	}
 }
 
+func TestBlobGetAcceptsEquivalentEscapingForSignedKey(t *testing.T) {
+	t.Parallel()
+
+	store := newTransferTestFileStore(t)
+	const key = "munki/packages/38/Zoom-7.1.5 (84650).pkg"
+	if err := store.Put(t.Context(), key, strings.NewReader("zoom"), PutOptions{}); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	token := signBlobCapability(t, BlobCapabilityClaims{
+		Op:  capability.OpGet,
+		Key: key,
+		Exp: time.Now().Add(time.Minute).Unix(),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/storage/munki/packages/38/Zoom-7.1.5%20(84650).pkg?cap="+token,
+		nil,
+	)
+	newBlobTestRouter(store).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if rec.Body.String() != "zoom" {
+		t.Fatalf("body = %q, want zoom", rec.Body.String())
+	}
+}
+
 func TestBlobGetRejectsInvalidExpiredAndMissingObjects(t *testing.T) {
 	t.Parallel()
 	store := newTransferTestFileStore(t)

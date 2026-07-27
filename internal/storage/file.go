@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
@@ -189,7 +190,7 @@ func (s *fileStore) blobURL(claims BlobCapabilityClaims) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	blobURL, err := url.Parse(strings.TrimRight(s.baseURL, "/") + "/storage/" + escapeKeyPath(claims.Key))
+	blobURL, err := url.Parse(strings.TrimRight(s.baseURL, "/") + "/storage/" + httpx.EscapePath(claims.Key))
 	if err != nil {
 		return "", err
 	}
@@ -197,14 +198,6 @@ func (s *fileStore) blobURL(claims BlobCapabilityClaims) (string, error) {
 	values.Set("cap", token)
 	blobURL.RawQuery = values.Encode()
 	return blobURL.String(), nil
-}
-
-func escapeKeyPath(key string) string {
-	parts := strings.Split(key, "/")
-	for i, part := range parts {
-		parts[i] = url.PathEscape(part)
-	}
-	return strings.Join(parts, "/")
 }
 
 func (s *fileStore) expires(ttl time.Duration) time.Duration {
