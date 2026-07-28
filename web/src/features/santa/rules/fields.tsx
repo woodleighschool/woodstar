@@ -76,20 +76,7 @@ export function RuleForm({
   });
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   return (
-    <PageShell
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit().then(() => {
-              revealFirstInvalidFormTab(form, ruleFormTabs, setActiveTab);
-              return undefined;
-            });
-          }}
-        />
-      }
-    >
+    <PageShell>
       <form.Subscribe selector={(state) => state.values}>
         {(values) => (
           <>
@@ -295,6 +282,10 @@ export function RuleForm({
       <FormActions
         form={form}
         submitLabel={submitLabel}
+        onSubmit={async () => {
+          await form.handleSubmit();
+          revealFirstInvalidFormTab(form, ruleFormTabs, setActiveTab);
+        }}
         onCancel={onCancel ? exitGuard.requestDiscard : undefined}
       />
       {exitGuard.dialog}

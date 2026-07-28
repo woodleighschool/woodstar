@@ -11,9 +11,12 @@ export function UserCreatePage() {
     <UserCreateForm
       onSubmit={async (body) => {
         const user = await create.mutateAsync(body);
+        return user.id;
+      }}
+      onSuccess={(id) => {
         void navigate({
           to: "/directory/users/$id",
-          params: { id: String(user.id) },
+          params: { id: String(id) },
         });
       }}
       onCancel={() => void navigate({ to: "/directory/users" })}

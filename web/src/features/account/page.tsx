@@ -70,17 +70,7 @@ function AccountForm({ account }: { account: Account }) {
   });
   return (
     <>
-      <PageShell
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit();
-            }}
-          />
-        }
-      >
+      <PageShell>
         <PageHeader
           title="Account"
           context={

@@ -245,18 +245,7 @@ function MunkiIncludeDialog({
       }}
     >
       <DialogContent className="sm:max-w-lg">
-        <form
-          noValidate
-          className="contents"
-          onSubmit={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void form.handleSubmit().then(() => {
-              if (!form.state.isValid) focusFirstInvalidField();
-              return undefined;
-            });
-          }}
-        >
+        <div className="contents">
           <DialogHeader>
             <DialogTitle>{mode === "edit" ? "Edit Include" : "Add Include"}</DialogTitle>
           </DialogHeader>
@@ -338,10 +327,14 @@ function MunkiIncludeDialog({
           <FormActions
             form={form}
             submitLabel={mode === "edit" ? "Save" : "Add"}
+            onSubmit={async () => {
+              await form.handleSubmit();
+              if (!form.state.isValid) focusFirstInvalidField();
+            }}
             onCancel={onClose}
             className="justify-end"
           />
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

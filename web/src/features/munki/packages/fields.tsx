@@ -79,20 +79,7 @@ export function PackageForm({
   const form = usePackageEditorForm(initial, onSubmit, onSuccess);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel });
   return (
-    <PageShell
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit().then(() => {
-              revealFirstInvalidFormTab(form, packageFormTabs, setActiveTab);
-              return undefined;
-            });
-          }}
-        />
-      }
-    >
+    <PageShell>
       <PageHeader title={title} />
       <PackageEditorTabs
         form={form}
@@ -107,6 +94,10 @@ export function PackageForm({
       <FormActions
         form={form}
         submitLabel={submitLabel}
+        onSubmit={async () => {
+          await form.handleSubmit();
+          revealFirstInvalidFormTab(form, packageFormTabs, setActiveTab);
+        }}
         onCancel={exitGuard.requestDiscard}
         canCancelWhileSubmitting={canCancelWhileSubmitting}
       />

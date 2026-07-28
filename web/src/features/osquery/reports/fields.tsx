@@ -147,21 +147,7 @@ export function ReportForm({
   );
   return (
     <div className="flex min-h-full w-full min-w-0">
-      <PageShell
-        className="h-full min-w-0 flex-1"
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit().then(() => {
-                revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
-                return undefined;
-              });
-            }}
-          />
-        }
-      >
+      <PageShell className="h-full min-w-0 flex-1">
         <PageHeader title={title} />
 
         <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
@@ -294,7 +280,8 @@ export function ReportForm({
                         invalid={error ? true : undefined}
                       />
                       <FieldDescription>
-                        Stores the latest result rows returned by each targeted host.
+                        Stores the latest result rows returned by each targeted host. Changing a
+                        saved query clears its existing results.
                       </FieldDescription>
                       {error ? <FieldError>{error}</FieldError> : null}
                     </Field>
@@ -325,6 +312,10 @@ export function ReportForm({
         <FormActions
           form={form}
           submitLabel={submitLabel}
+          onSubmit={async () => {
+            await form.handleSubmit();
+            revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
+          }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
         />
 

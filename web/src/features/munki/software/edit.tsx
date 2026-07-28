@@ -263,17 +263,7 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
     <PageShell>
       <PageHeader title="Edit Software" />
 
-      <form
-        className="flex flex-col gap-5"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void softwareOptionsForm.handleSubmit().then(() => {
-            revealFirstInvalidFormTab(softwareOptionsForm, softwareFormTabs, setActiveTab);
-            return undefined;
-          });
-        }}
-      >
+      <div className="flex flex-col gap-5">
         <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
           <ScrollableTabsList>
             <FormTabTrigger form={softwareOptionsForm} tab={softwareFormTabs[0]}>
@@ -299,10 +289,14 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
         <FormActions
           form={softwareOptionsForm}
           submitLabel="Save"
+          onSubmit={async () => {
+            await softwareOptionsForm.handleSubmit();
+            revealFirstInvalidFormTab(softwareOptionsForm, softwareFormTabs, setActiveTab);
+          }}
           onCancel={exitGuard.requestDiscard}
         />
         {exitGuard.dialog}
-      </form>
+      </div>
     </PageShell>
   );
 }

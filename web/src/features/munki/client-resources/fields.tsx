@@ -82,18 +82,7 @@ export function MunkiClientResourcesForm({
   const exitGuard = usePageFormExitGuard({ form, onDiscard: discard, enabled: editable });
 
   return (
-    <PageShell
-      className="min-h-0 flex-1"
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (editable) void form.handleSubmit();
-          }}
-        />
-      }
-    >
+    <PageShell className="min-h-0 flex-1">
       <form.Subscribe selector={(state) => [state.values.custom, state.isSubmitting] as const}>
         {([custom, submitting]) => (
           <PageHeader

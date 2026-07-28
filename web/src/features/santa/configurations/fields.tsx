@@ -90,20 +90,7 @@ export function ConfigurationForm({
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
 
   return (
-    <PageShell
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit().then(() => {
-              revealFirstInvalidFormTab(form, configurationFormTabs, setActiveTab);
-              return undefined;
-            });
-          }}
-        />
-      }
-    >
+    <PageShell>
       <PageHeader title={title} />
 
       <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
@@ -138,6 +125,10 @@ export function ConfigurationForm({
       <FormActions
         form={form}
         submitLabel={submitLabel}
+        onSubmit={async () => {
+          await form.handleSubmit();
+          revealFirstInvalidFormTab(form, configurationFormTabs, setActiveTab);
+        }}
         onCancel={onCancel ? exitGuard.requestDiscard : undefined}
       />
       {exitGuard.dialog}

@@ -114,21 +114,7 @@ export function CheckForm({
   );
   return (
     <div className="flex min-h-full w-full min-w-0">
-      <PageShell
-        className="h-full min-w-0 flex-1"
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit().then(() => {
-                revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
-                return undefined;
-              });
-            }}
-          />
-        }
-      >
+      <PageShell className="h-full min-w-0 flex-1">
         <PageHeader title={title} />
 
         <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
@@ -203,7 +189,8 @@ export function CheckForm({
                         invalid={error ? true : undefined}
                       />
                       <FieldDescription>
-                        One or more returned rows is a pass; no rows is a fail.
+                        One or more returned rows is a pass; no rows is a fail. Changing a saved
+                        query clears its existing results.
                       </FieldDescription>
                       {error ? <FieldError>{error}</FieldError> : null}
                     </Field>
@@ -234,6 +221,10 @@ export function CheckForm({
         <FormActions
           form={form}
           submitLabel={submitLabel}
+          onSubmit={async () => {
+            await form.handleSubmit();
+            revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
+          }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
         />
 

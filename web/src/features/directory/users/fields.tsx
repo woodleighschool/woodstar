@@ -50,9 +50,11 @@ const userCreateFormSchema = z.object({
 
 export function UserCreateForm({
   onSubmit,
+  onSuccess,
   onCancel,
 }: {
-  onSubmit: (body: UserCreate) => Promise<void>;
+  onSubmit: (body: UserCreate) => Promise<number>;
+  onSuccess: (id: number) => void;
   onCancel: () => void;
 }) {
   const form = useForm({
@@ -67,13 +69,16 @@ export function UserCreateForm({
       modeAfterSubmission: "change",
     }),
     validators: { onDynamic: userCreateFormSchema },
-    onSubmit: async ({ value }) => {
-      await onSubmit({
+    onSubmit: async ({ value, formApi }) => {
+      const id = await onSubmit({
         email: value.email.trim(),
         name: value.name.trim(),
         role: value.role,
         password: value.password,
       });
+      // Re-baseline before navigating so the exit guard sees saved state.
+      formApi.reset(value);
+      onSuccess(id);
     },
   });
   const exitGuard = usePageFormExitGuard({
@@ -83,17 +88,7 @@ export function UserCreateForm({
 
   return (
     <>
-      <PageShell
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit();
-            }}
-          />
-        }
-      >
+      <PageShell>
         <PageHeader title="Create User" />
 
         <FieldGroup className="max-w-3xl">
@@ -213,11 +208,13 @@ export function UserForm({
   user,
   initial,
   onSubmit,
+  onSuccess,
   onCancel,
 }: {
   user: User;
   initial: UserFormState;
   onSubmit: (body: UserMutation) => Promise<void>;
+  onSuccess?: () => void;
   onCancel: () => void;
 }) {
   const isLocal = user.source === "local";
@@ -236,6 +233,7 @@ export function UserForm({
       });
       // Re-baseline so the saved values count as unchanged.
       formApi.reset({ ...value, password: "" });
+      onSuccess?.();
     },
   });
   const exitGuard = usePageFormExitGuard({
@@ -244,17 +242,7 @@ export function UserForm({
   });
   return (
     <>
-      <PageShell
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit();
-            }}
-          />
-        }
-      >
+      <PageShell>
         <PageHeader
           title="Edit User"
           context={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}

@@ -110,8 +110,3 @@ WHERE include_target.direction = 'include'
       WHERE exclude_target.report_id = include_target.report_id
         AND exclude_target.direction = 'exclude'
   );
-
-COMMENT ON VIEW osquery_check_assignments IS
-    'Current check-to-host assignments derived from label include/exclude targets.';
-COMMENT ON VIEW osquery_report_assignments IS
-    'Current report-to-host assignments derived from label include/exclude targets.';

@@ -105,17 +105,7 @@ export function DistributionPointForm({
   });
   return (
     <>
-      <PageShell
-        render={
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void form.handleSubmit();
-            }}
-          />
-        }
-      >
+      <PageShell>
         <PageHeader
           title={title}
           actions={

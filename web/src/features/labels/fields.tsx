@@ -190,18 +190,7 @@ export function LabelForm({
   return (
     <>
       <div className="flex min-h-full w-full min-w-0">
-        <PageShell
-          className="h-full min-w-0 flex-1"
-          render={
-            <form
-              noValidate
-              onSubmit={(event) => {
-                event.preventDefault();
-                void form.handleSubmit();
-              }}
-            />
-          }
-        >
+        <PageShell className="h-full min-w-0 flex-1">
           <PageHeader title={title} />
           <form.Subscribe selector={(state) => state.values}>
             {(values) => {

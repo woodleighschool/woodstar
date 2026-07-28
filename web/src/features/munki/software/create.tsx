@@ -68,17 +68,7 @@ export function MunkiSoftwareCreatePage() {
     },
   ];
   return (
-    <PageShell
-      render={
-        <form
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        />
-      }
-    >
+    <PageShell>
       <PageHeader title="Create Software" />
       <ScrollableTabs defaultValue="options">
         <ScrollableTabsList>

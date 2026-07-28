@@ -158,18 +158,7 @@ function LabelAssignmentDialog({
       }}
     >
       <DialogContent>
-        <form
-          noValidate
-          className="contents"
-          onSubmit={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void form.handleSubmit().then(() => {
-              if (!form.state.isValid) focusFirstInvalidField();
-              return undefined;
-            });
-          }}
-        >
+        <div className="contents">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
@@ -191,8 +180,17 @@ function LabelAssignmentDialog({
               </ValidatedFormField>
             )}
           </form.Field>
-          <FormActions form={form} submitLabel="Add" onCancel={onClose} className="justify-end" />
-        </form>
+          <FormActions
+            form={form}
+            submitLabel="Add"
+            onSubmit={async () => {
+              await form.handleSubmit();
+              if (!form.state.isValid) focusFirstInvalidField();
+            }}
+            onCancel={onClose}
+            className="justify-end"
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -46,6 +46,8 @@ function UserEdit({ user }: { user: User }) {
       user={user}
       onSubmit={async (body) => {
         await update.mutateAsync({ id: user.id, body });
+      }}
+      onSuccess={() => {
         void navigate({
           to: "/directory/users/$id",
           params: { id: String(user.id) },

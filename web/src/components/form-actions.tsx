@@ -11,20 +11,31 @@ import { cn } from "@lib/utils";
 export function FormActions({
   form,
   submitLabel,
+  onSubmit,
   onCancel,
   canCancelWhileSubmitting = false,
   className,
 }: {
   form: AnyFormApi;
   submitLabel: string;
+  onSubmit?: () => Promise<unknown> | void;
   onCancel?: () => void;
   canCancelWhileSubmitting?: boolean;
   className?: string;
 }) {
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
+  // Submit explicitly so unrelated controls such as table searches and pickers
+  // are never enrolled in a page-wide native form.
+  const submit = () => {
+    if (onSubmit) {
+      void onSubmit();
+      return;
+    }
+    void form.handleSubmit();
+  };
   return (
     <Field orientation="horizontal" className={cn("justify-start", className)}>
-      <AsyncButton isPending={isSubmitting} type="submit" size="sm">
+      <AsyncButton isPending={isSubmitting} type="button" size="sm" onClick={submit}>
         {submitLabel}
       </AsyncButton>
       {onCancel ? (

@@ -68,18 +68,7 @@ function LinkDialogForm({
       }}
     >
       <DialogContent className="max-w-xl">
-        <form
-          noValidate
-          className="contents"
-          onSubmit={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void form.handleSubmit().then(() => {
-              if (!form.state.isValid) focusFirstInvalidField();
-              return undefined;
-            });
-          }}
-        >
+        <div className="contents">
           <DialogHeader>
             <DialogTitle>{link ? "Edit link" : "Add link"}</DialogTitle>
             <DialogDescription>Use an HTTP URL, email address, or Munki route.</DialogDescription>
@@ -149,10 +138,14 @@ function LinkDialogForm({
           <FormActions
             form={form}
             submitLabel={link ? "Save" : "Add"}
+            onSubmit={async () => {
+              await form.handleSubmit();
+              if (!form.state.isValid) focusFirstInvalidField();
+            }}
             onCancel={onClose}
             className="justify-end"
           />
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
