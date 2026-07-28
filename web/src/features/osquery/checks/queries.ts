@@ -101,8 +101,16 @@ export function useUpdateCheck(id: number | null) {
           body,
         }),
       ),
-    onSuccess: async () => {
-      toast.add({ title: "Check saved", type: "success" });
+    onSuccess: async (saved) => {
+      const previous = queryClient.getQueryData<OsqueryCheck>(checkKeys.detail(id));
+      const queryChanged = previous !== undefined && previous.query !== saved.query;
+      if (queryChanged) {
+        queryClient.removeQueries({ queryKey: checkKeys.results(id), exact: true });
+      }
+      toast.add({
+        title: queryChanged ? "Check saved and results cleared" : "Check saved",
+        type: "success",
+      });
       await queryClient.invalidateQueries({ queryKey: checkKeys.all });
     },
   });

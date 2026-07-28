@@ -100,8 +100,16 @@ export function useUpdateReport(id: number | null) {
           body,
         }),
       ),
-    onSuccess: async () => {
-      toast.add({ title: "Report saved", type: "success" });
+    onSuccess: async (saved) => {
+      const previous = queryClient.getQueryData<OsqueryReport>(reportKeys.detail(id));
+      const queryChanged = previous !== undefined && previous.query !== saved.query;
+      if (queryChanged) {
+        queryClient.removeQueries({ queryKey: reportKeys.results(id), exact: true });
+      }
+      toast.add({
+        title: queryChanged ? "Report saved and results cleared" : "Report saved",
+        type: "success",
+      });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });
