@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.4](https://github.com/woodleighschool/woodstar/compare/0.6.3...0.6.4) (2026-07-28)
+
+
+### Bug Fixes
+
+* **osquery:** resolve results against current scope ([b9b97f5](https://github.com/woodleighschool/woodstar/commit/b9b97f51e2d83e107acb0f7e46572c66be3d3f5b))
+* **query-client:** set retry count to 2 for query retries ([1bfd75c](https://github.com/woodleighschool/woodstar/commit/1bfd75cf0bae27c64b94f800e5f92fdca5fc4cce))
+
 ## [0.6.3](https://github.com/woodleighschool/woodstar/compare/0.6.2...0.6.3) (2026-07-27)
 
 
