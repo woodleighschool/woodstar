@@ -3,6 +3,7 @@ package reports
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -15,10 +16,12 @@ type snapshotResultRow struct {
 	lastFetched time.Time
 }
 
-// OverwriteResults replaces the snapshot rows for a report on one host.
+// OverwriteResults replaces the snapshot rows when the query hash and host
+// assignment are still current.
 func (s *Store) OverwriteResults(
 	ctx context.Context,
 	reportID int64,
+	queryHash string,
 	hostID int64,
 	rows []map[string]string,
 	fetchedAt time.Time,
@@ -31,6 +34,26 @@ func (s *Store) OverwriteResults(
 		return err
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var accepted bool
+		err := tx.QueryRow(ctx, `
+			SELECT true
+			FROM osquery_reports report_row
+			JOIN osquery_report_assignments assignment
+				ON assignment.report_id = report_row.id
+			   AND assignment.host_id = $3
+			WHERE report_row.id = $1
+			  AND encode(sha256(convert_to(report_row.query, 'UTF8')), 'hex') = $2
+			FOR UPDATE OF report_row`,
+			reportID,
+			queryHash,
+			hostID,
+		).Scan(&accepted)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx,
 			`DELETE FROM osquery_report_results WHERE report_id = $1 AND host_id = $2`,
 			reportID, hostID,
@@ -40,7 +63,7 @@ func (s *Store) OverwriteResults(
 		if len(resultRows) == 0 {
 			return nil
 		}
-		_, err := tx.CopyFrom(
+		_, err = tx.CopyFrom(
 			ctx,
 			pgx.Identifier{"osquery_report_results"},
 			[]string{"report_id", "host_id", "data", "last_fetched"},
@@ -64,6 +87,9 @@ func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, er
 		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
 		FROM osquery_report_results rr
 		JOIN osquery_reports r ON r.id = rr.report_id
+		JOIN osquery_report_assignments assignment
+			ON assignment.report_id = rr.report_id
+		   AND assignment.host_id = rr.host_id
 		JOIN hosts h ON h.id = rr.host_id
 		WHERE rr.report_id = $1 AND rr.data IS NOT NULL
 		ORDER BY rr.last_fetched DESC, rr.host_id, rr.id`, reportID)

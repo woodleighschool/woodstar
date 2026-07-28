@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -17,10 +18,48 @@ func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 		"woodstar_unknown_query_1",
 		"fleet_detail_query_system_info",
 		// report names belong to /log, not /distributed/write.
-		"woodstar_report_query_15",
+		"woodstar_report_query_15_2",
 	} {
 		if kind, suffix, ok := parseQueryName(name); ok || kind != "" || suffix != "" {
 			t.Fatalf("parseQueryName(%q) = %q, %q, %t; want zero values", name, kind, suffix, ok)
+		}
+	}
+}
+
+func TestHashedQueryNameRoundTrip(t *testing.T) {
+	sql := "select 1;"
+	name := queryNameForSQL(kindCheck, 15, sql)
+	kind, suffix, ok := parseQueryName(name)
+	if !ok || kind != kindCheck {
+		t.Fatalf("parseQueryName(%q) = %q, %q, %t", name, kind, suffix, ok)
+	}
+	id, hash, ok := parseQueryIdentity(suffix)
+	if !ok || id != 15 || hash != queryHash(sql) {
+		t.Fatalf(
+			"parseQueryIdentity(%q) = %d, %q, %t; want 15, %q, true",
+			suffix,
+			id,
+			hash,
+			ok,
+			queryHash(sql),
+		)
+	}
+
+	for _, invalid := range []string{
+		"15",
+		"15_short",
+		"0_" + queryHash(sql),
+		"15_" + strings.Repeat("g", 64),
+		"15_" + queryHash(sql) + "_extra",
+	} {
+		if id, hash, ok := parseQueryIdentity(invalid); ok || id != 0 || hash != "" {
+			t.Fatalf(
+				"parseQueryIdentity(%q) = %d, %q, %t; want zero values",
+				invalid,
+				id,
+				hash,
+				ok,
+			)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package checks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -55,19 +56,48 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 	write.ID = id
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var updatedID int64
+		var queryChanged bool
 		if err := tx.QueryRow(ctx, `
-			UPDATE osquery_checks
+			WITH current AS (
+				SELECT id, query
+				FROM osquery_checks
+				WHERE id = @id
+				FOR UPDATE
+			)
+			UPDATE osquery_checks c
 			SET
 				name = @name,
 				description = @description,
 				query = @query,
 				updated_at = now()
-			WHERE id = @id
-			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			FROM current
+			WHERE c.id = current.id
+			RETURNING current.query IS DISTINCT FROM @query`,
+			pgx.StructArgs(write),
+		).Scan(&queryChanged); err != nil {
 			return dbutil.MutationError(err)
 		}
-		return replaceCheckTargets(ctx, tx, id, in.Targets)
+		if err := replaceCheckTargets(ctx, tx, id, in.Targets); err != nil {
+			return err
+		}
+		// Query edits invalidate every prior answer. Retargeting only removes
+		// answers outside the newly completed assignment set.
+		_, err := tx.Exec(ctx, `
+			DELETE FROM osquery_check_membership membership
+			WHERE membership.check_id = $1
+			  AND (
+				  $2
+				  OR NOT EXISTS (
+					  SELECT 1
+					  FROM osquery_check_assignments assignment
+					  WHERE assignment.check_id = membership.check_id
+					    AND assignment.host_id = membership.host_id
+				  )
+			  )`,
+			id,
+			queryChanged,
+		)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -181,20 +211,9 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 			c.updated_at
 		FROM osquery_checks c
 		JOIN host_row h ON true
-		WHERE EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'include'
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'exclude'
-			)
+		JOIN osquery_check_assignments assignment
+			ON assignment.check_id = c.id
+		   AND assignment.host_id = h.id
 		ORDER BY c.id`, host.ID)
 	if err != nil {
 		return nil, err
@@ -206,15 +225,48 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 	return checksFromRows(records), nil
 }
 
-// UpsertMembership records a check result. A nil passes value means not run.
-func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
-	_, err := s.db.Pool().Exec(ctx, `
-		INSERT INTO osquery_check_membership (check_id, host_id, passes, updated_at)
-		VALUES ($1, $2, $3, now())
-		ON CONFLICT (check_id, host_id) DO UPDATE SET
-			passes = EXCLUDED.passes,
-			updated_at = now()`, checkID, hostID, passes)
-	return err
+// UpsertMembership records a check result when its query hash and host assignment
+// are still current. A nil passes value means the query did not run.
+func (s *Store) UpsertMembership(
+	ctx context.Context,
+	checkID int64,
+	queryHash string,
+	hostID int64,
+	passes *bool,
+) error {
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var accepted bool
+		err := tx.QueryRow(ctx, `
+			SELECT true
+			FROM osquery_checks check_row
+			JOIN osquery_check_assignments assignment
+				ON assignment.check_id = check_row.id
+			   AND assignment.host_id = $3
+			WHERE check_row.id = $1
+			  AND encode(sha256(convert_to(check_row.query, 'UTF8')), 'hex') = $2
+			FOR UPDATE OF check_row`,
+			checkID,
+			queryHash,
+			hostID,
+		).Scan(&accepted)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO osquery_check_membership (check_id, host_id, passes, updated_at)
+			VALUES ($1, $2, $3, now())
+			ON CONFLICT (check_id, host_id) DO UPDATE SET
+				passes = EXCLUDED.passes,
+				updated_at = now()`,
+			checkID,
+			hostID,
+			passes,
+		)
+		return err
+	})
 }
 
 func (s *Store) CheckResults(ctx context.Context, checkID int64, response *CheckStatus) ([]CheckHostStatus, error) {
@@ -238,6 +290,9 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 				m.updated_at
 			FROM check_row c
 			JOIN osquery_check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
+			JOIN osquery_check_assignments assignment
+				ON assignment.check_id = m.check_id
+			   AND assignment.host_id = m.host_id
 			JOIN hosts h ON h.id = m.host_id
 			ORDER BY lower(h.display_name), h.id`, checkID, passes)
 		if err != nil {
@@ -254,10 +309,6 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 			SELECT id, name
 			FROM osquery_checks c
 			WHERE c.id = $1
-		),
-		host_rows AS (
-			SELECT id, display_name
-			FROM hosts
 		)
 		SELECT
 			c.id AS check_id,
@@ -267,22 +318,9 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 			m.passes,
 			m.updated_at
 		FROM check_row c
-		JOIN host_rows h ON true
+		JOIN osquery_check_assignments assignment ON assignment.check_id = c.id
+		JOIN hosts h ON h.id = assignment.host_id
 		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
-		WHERE EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'include'
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'exclude'
-			)
 		ORDER BY
 			CASE
 				WHEN m.passes IS FALSE THEN 0
@@ -317,21 +355,10 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 			m.updated_at
 		FROM osquery_checks c
 		JOIN host_row h ON true
+		JOIN osquery_check_assignments assignment
+			ON assignment.check_id = c.id
+		   AND assignment.host_id = h.id
 		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
-		WHERE EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'include'
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM osquery_check_targets ct
-				JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
-				WHERE ct.check_id = c.id
-				  AND ct.direction = 'exclude'
-			)
 		ORDER BY
 			CASE
 				WHEN m.passes IS FALSE THEN 0
@@ -398,12 +425,15 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 	}
 	rows, err := s.db.Pool().Query(ctx, `
 		SELECT
-			check_id,
-			COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
-			COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
-		FROM osquery_check_membership
-		WHERE check_id = ANY($1::bigint[])
-		GROUP BY check_id`, checkIDs)
+			membership.check_id,
+			COUNT(*) FILTER (WHERE membership.passes IS TRUE)::integer AS passing_host_count,
+			COUNT(*) FILTER (WHERE membership.passes IS FALSE)::integer AS failing_host_count
+		FROM osquery_check_membership membership
+		JOIN osquery_check_assignments assignment
+			ON assignment.check_id = membership.check_id
+		   AND assignment.host_id = membership.host_id
+		WHERE membership.check_id = ANY($1::bigint[])
+		GROUP BY membership.check_id`, checkIDs)
 	if err != nil {
 		return nil, err
 	}

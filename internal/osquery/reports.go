@@ -28,7 +28,7 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 	}
 
 	for _, item := range logs {
-		reportID, ok := parseReportQueryName(item.Name)
+		reportID, queryHash, ok := parseReportQueryName(item.Name)
 		if !ok {
 			continue
 		}
@@ -39,17 +39,24 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 			return fmt.Errorf("report %d: unixTime must be positive", reportID)
 		}
 		fetchedAt := time.Unix(item.UnixTime, 0).UTC()
-		if err := s.deps.ReportStore.OverwriteResults(ctx, reportID, hostID, item.Snapshot, fetchedAt); err != nil {
+		if err := s.deps.ReportStore.OverwriteResults(
+			ctx,
+			reportID,
+			queryHash,
+			hostID,
+			item.Snapshot,
+			fetchedAt,
+		); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func parseReportQueryName(name string) (int64, bool) {
+func parseReportQueryName(name string) (int64, string, bool) {
 	suffix, ok := strings.CutPrefix(name, queryName(kindReport, ""))
 	if !ok {
-		return 0, false
+		return 0, "", false
 	}
-	return parsePositiveSuffix(suffix)
+	return parseQueryIdentity(suffix)
 }

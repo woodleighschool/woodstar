@@ -2,6 +2,8 @@ package osquery
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -34,6 +36,17 @@ func queryNameID(kind queryKind, id int64) string {
 	return queryName(kind, strconv.FormatInt(id, 10))
 }
 
+// queryNameForSQL binds persisted results to the SQL text that produced them.
+// A result for replaced SQL therefore cannot be mistaken for current state.
+func queryNameForSQL(kind queryKind, id int64, sql string) string {
+	return queryName(kind, strconv.FormatInt(id, 10)+"_"+queryHash(sql))
+}
+
+func queryHash(sql string) string {
+	sum := sha256.Sum256([]byte(sql))
+	return hex.EncodeToString(sum[:])
+}
+
 // parseQueryName splits our query name into kind and suffix.
 func parseQueryName(name string) (queryKind, string, bool) {
 	raw, ok := strings.CutPrefix(name, namePrefix)
@@ -61,6 +74,22 @@ func parsePositiveSuffix(suffix string) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+func parseQueryIdentity(suffix string) (int64, string, bool) {
+	idRaw, hash, ok := strings.Cut(suffix, "_")
+	if !ok || len(hash) != sha256.Size*2 {
+		return 0, "", false
+	}
+	id, ok := parsePositiveSuffix(idRaw)
+	if !ok {
+		return 0, "", false
+	}
+	decoded, err := hex.DecodeString(hash)
+	if err != nil || len(decoded) != sha256.Size {
+		return 0, "", false
+	}
+	return id, hash, true
 }
 
 // detailDispatchPass accumulates detail-query state during one DistributedWrite call.
@@ -269,7 +298,7 @@ func (s *AgentService) handleCheckResult(
 	hasStatus bool,
 	message string,
 ) error {
-	checkID, ok := parsePositiveSuffix(suffix)
+	checkID, queryHash, ok := parseQueryIdentity(suffix)
 	if !ok {
 		return nil
 	}
@@ -286,7 +315,7 @@ func (s *AgentService) handleCheckResult(
 			"message", message,
 		)
 	}
-	return s.deps.CheckStore.UpsertMembership(ctx, checkID, hostID, passes)
+	return s.deps.CheckStore.UpsertMembership(ctx, checkID, queryHash, hostID, passes)
 }
 
 func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {

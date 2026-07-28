@@ -64,9 +64,15 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	write := newReportWrite(params)
 	write.ID = id
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var updatedID int64
+		var queryChanged bool
 		if err := tx.QueryRow(ctx, `
-			UPDATE osquery_reports
+			WITH current AS (
+				SELECT id, query
+				FROM osquery_reports
+				WHERE id = @id
+				FOR UPDATE
+			)
+			UPDATE osquery_reports r
 			SET
 				name = @name,
 				description = @description,
@@ -74,11 +80,34 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 				min_osquery_version = @min_osquery_version,
 				schedule_interval = @schedule_interval,
 				updated_at = now()
-			WHERE id = @id
-			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			FROM current
+			WHERE r.id = current.id
+			RETURNING current.query IS DISTINCT FROM @query`,
+			pgx.StructArgs(write),
+		).Scan(&queryChanged); err != nil {
 			return dbutil.MutationError(err)
 		}
-		return replaceReportTargets(ctx, tx, id, params.Targets)
+		if err := replaceReportTargets(ctx, tx, id, params.Targets); err != nil {
+			return err
+		}
+		// Query edits invalidate the whole snapshot. Retargeting only removes
+		// hosts outside the newly completed assignment set.
+		_, err := tx.Exec(ctx, `
+			DELETE FROM osquery_report_results result
+			WHERE result.report_id = $1
+			  AND (
+				  $2
+				  OR NOT EXISTS (
+					  SELECT 1
+					  FROM osquery_report_assignments assignment
+					  WHERE assignment.report_id = result.report_id
+					    AND assignment.host_id = result.host_id
+				  )
+			  )`,
+			id,
+			queryChanged,
+		)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -163,21 +192,10 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 // ScheduledForHost returns reports that are scheduled and match the host's label membership.
 func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
 	qrows, err := s.db.Pool().Query(ctx, reportSelectSQL()+`
+		JOIN osquery_report_assignments assignment
+			ON assignment.report_id = r.id
+		   AND assignment.host_id = $1
 		WHERE r.schedule_interval > 0
-			AND EXISTS (
-				SELECT 1
-				FROM osquery_report_targets rt
-				JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
-				WHERE rt.report_id = r.id
-				  AND rt.direction = 'include'
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM osquery_report_targets rt
-				JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = $1
-				WHERE rt.report_id = r.id
-				  AND rt.direction = 'exclude'
-			)
 		ORDER BY r.id`, host.ID)
 	if err != nil {
 		return nil, err

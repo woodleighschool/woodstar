@@ -73,3 +73,45 @@ CREATE TABLE osquery_check_targets (
 );
 
 CREATE INDEX osquery_check_targets_label_idx ON osquery_check_targets (label_id);
+
+-- Munki and Santa resolve richer per-host payloads through functions. Checks
+-- and reports only need resource/host pairs and read them in both directions,
+-- so views are the canonical include/exclude projection here. Stored results
+-- may outlive label membership changes, but every reader and ingestion path
+-- uses these views so those rows cannot affect current state.
+CREATE VIEW osquery_check_assignments AS
+SELECT DISTINCT include_target.check_id, membership.host_id
+FROM osquery_check_targets include_target
+JOIN label_membership membership
+    ON membership.label_id = include_target.label_id
+WHERE include_target.direction = 'include'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_check_targets exclude_target
+      JOIN label_membership excluded
+          ON excluded.label_id = exclude_target.label_id
+         AND excluded.host_id = membership.host_id
+      WHERE exclude_target.check_id = include_target.check_id
+        AND exclude_target.direction = 'exclude'
+  );
+
+CREATE VIEW osquery_report_assignments AS
+SELECT DISTINCT include_target.report_id, membership.host_id
+FROM osquery_report_targets include_target
+JOIN label_membership membership
+    ON membership.label_id = include_target.label_id
+WHERE include_target.direction = 'include'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_report_targets exclude_target
+      JOIN label_membership excluded
+          ON excluded.label_id = exclude_target.label_id
+         AND excluded.host_id = membership.host_id
+      WHERE exclude_target.report_id = include_target.report_id
+        AND exclude_target.direction = 'exclude'
+  );
+
+COMMENT ON VIEW osquery_check_assignments IS
+    'Current check-to-host assignments derived from label include/exclude targets.';
+COMMENT ON VIEW osquery_report_assignments IS
+    'Current report-to-host assignments derived from label include/exclude targets.';

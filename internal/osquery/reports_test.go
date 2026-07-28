@@ -3,6 +3,7 @@ package osquery
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -18,18 +19,25 @@ func TestIngestReportLogsUsesUnixTime(t *testing.T) {
 		Logger:      slog.New(slog.DiscardHandler),
 	})
 
-	err := service.ingestReportLogs(context.Background(), 42, json.RawMessage(`{
-		"name":"woodstar_report_query_7",
+	reportSQL := "select 1;"
+	err := service.ingestReportLogs(context.Background(), 42, json.RawMessage(fmt.Sprintf(`{
+		"name":%q,
 		"calendarTime":"not a timestamp",
 		"unixTime":1778848496,
 		"action":"snapshot",
 		"snapshot":[{"name":"Alpha"}]
-	}`))
+	}`, queryNameForSQL(kindReport, 7, reportSQL))))
 	if err != nil {
 		t.Fatalf("ingestReportLogs returned error: %v", err)
 	}
-	if store.reportID != 7 || store.hostID != 42 {
-		t.Fatalf("stored report/host = %d/%d, want 7/42", store.reportID, store.hostID)
+	if store.reportID != 7 || store.queryHash != queryHash(reportSQL) || store.hostID != 42 {
+		t.Fatalf(
+			"stored report/hash/host = %d/%q/%d, want 7/%q/42",
+			store.reportID,
+			store.queryHash,
+			store.hostID,
+			queryHash(reportSQL),
+		)
 	}
 	if len(store.rows) != 1 || store.rows[0]["name"] != "Alpha" {
 		t.Fatalf("stored rows = %#v, want Alpha snapshot", store.rows)
@@ -41,17 +49,21 @@ func TestIngestReportLogsUsesUnixTime(t *testing.T) {
 }
 
 func TestIngestReportLogsRejectsIncompleteSnapshotMetadata(t *testing.T) {
+	reportName := queryNameForSQL(kindReport, 7, "select 1;")
 	for _, tc := range []struct {
 		name string
 		data string
 	}{
 		{
 			name: "missing unix time",
-			data: `{"name":"woodstar_report_query_7","action":"snapshot","snapshot":[]}`,
+			data: fmt.Sprintf(`{"name":%q,"action":"snapshot","snapshot":[]}`, reportName),
 		},
 		{
 			name: "wrong action",
-			data: `{"name":"woodstar_report_query_7","unixTime":1778848496,"action":"added","snapshot":[]}`,
+			data: fmt.Sprintf(
+				`{"name":%q,"unixTime":1778848496,"action":"added","snapshot":[]}`,
+				reportName,
+			),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -73,6 +85,7 @@ func TestIngestReportLogsRejectsIncompleteSnapshotMetadata(t *testing.T) {
 type recordingReportStore struct {
 	calls     int
 	reportID  int64
+	queryHash string
 	hostID    int64
 	rows      []map[string]string
 	fetchedAt time.Time
@@ -85,12 +98,14 @@ func (*recordingReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]r
 func (s *recordingReportStore) OverwriteResults(
 	_ context.Context,
 	reportID int64,
+	queryHash string,
 	hostID int64,
 	rows []map[string]string,
 	fetchedAt time.Time,
 ) error {
 	s.calls++
 	s.reportID = reportID
+	s.queryHash = queryHash
 	s.hostID = hostID
 	s.rows = rows
 	s.fetchedAt = fetchedAt

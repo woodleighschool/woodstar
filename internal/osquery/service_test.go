@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -68,12 +69,12 @@ func TestLogPropagatesReportPersistenceFailure(t *testing.T) {
 
 	_, err := service.Log(context.Background(), "node-key", "", LogRequest{
 		LogType: "result",
-		Data: json.RawMessage(`{
-			"name":"woodstar_report_query_7",
+		Data: json.RawMessage(fmt.Sprintf(`{
+			"name":%q,
 			"unixTime":1778848496,
 			"action":"snapshot",
 			"snapshot":[]
-		}`),
+		}`, queryNameForSQL(kindReport, 7, "select 1;"))),
 	})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Log error = %v, want %v", err, wantErr)
@@ -126,6 +127,7 @@ func (fakeReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]reports
 func (s fakeReportStore) OverwriteResults(
 	context.Context,
 	int64,
+	string,
 	int64,
 	[]map[string]string,
 	time.Time,

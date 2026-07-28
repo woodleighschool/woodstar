@@ -38,7 +38,7 @@ func buildScheduleForHost(
 		if item.MinOsqueryVersion != nil {
 			entry.Version = *item.MinOsqueryVersion
 		}
-		schedule[queryNameID(kindReport, item.ID)] = entry
+		schedule[queryNameForSQL(kindReport, item.ID, item.Query)] = entry
 	}
 	return schedule, nil
 }

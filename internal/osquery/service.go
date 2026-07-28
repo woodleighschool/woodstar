@@ -60,12 +60,19 @@ type labelEvaluator interface {
 
 type reportStore interface {
 	ScheduledForHost(ctx context.Context, host *hosts.Host) ([]reports.Report, error)
-	OverwriteResults(ctx context.Context, reportID, hostID int64, rows []map[string]string, updatedAt time.Time) error
+	OverwriteResults(
+		ctx context.Context,
+		reportID int64,
+		queryHash string,
+		hostID int64,
+		rows []map[string]string,
+		updatedAt time.Time,
+	) error
 }
 
 type checkStore interface {
 	ApplicableForHost(ctx context.Context, host *hosts.Host) ([]checks.Check, error)
-	UpsertMembership(ctx context.Context, checkID, hostID int64, result *bool) error
+	UpsertMembership(ctx context.Context, checkID int64, queryHash string, hostID int64, result *bool) error
 }
 
 type liveQueries interface {
@@ -210,7 +217,7 @@ func (s *AgentService) queueCheckQueries(
 		return 0, err
 	}
 	for _, check := range checks {
-		queryMap[queryNameID(kindCheck, check.ID)] = check.Query
+		queryMap[queryNameForSQL(kindCheck, check.ID, check.Query)] = check.Query
 	}
 	return len(checks), nil
 }
