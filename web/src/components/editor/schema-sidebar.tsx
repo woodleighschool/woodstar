@@ -177,11 +177,11 @@ function TableSelector({
       <ComboboxContent>
         <ComboboxEmpty>No Tables Found.</ComboboxEmpty>
         <ComboboxList>
-          {tableNames.map((item) => (
+          {(item) => (
             <ComboboxItem key={item} value={item} className="text-sm">
               {item}
             </ComboboxItem>
-          ))}
+          )}
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
