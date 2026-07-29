@@ -1,34 +1,51 @@
-ARG NODE_VERSION=26.5.0
-ARG GO_VERSION=1.26.5
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
+# syntax=docker/dockerfile:1
 
+# ARGs used in a FROM must live in the global scope (before the first FROM).
+# Both versions are supplied by the release workflow from Mise.
+ARG NODE_VERSION
+ARG GO_VERSION
+
+# ---- Web build ------------------------------------------------------------
+# Build the frontend bundle so the Go stage can embed it. The runtime image
+# does not include Node.
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 WORKDIR /workspace/web
+
+# Install dependencies against the lockfile first for layer caching.
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
+RUN npm install --global "$(node --print 'require("./package.json").packageManager')"
 RUN pnpm install --frozen-lockfile
+
 COPY web/ ./
 COPY schema/ ../schema/
 RUN pnpm build
 
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS builder
-
+# ---- Go build -------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
-ARG VERSION=0.0.0-dev
+ARG VERSION
 
+RUN apk add --no-cache upx
 WORKDIR /workspace
+
+# Cache module downloads before copying source.
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY web/ web/
+
+# Overlay the freshly built frontend bundle so go:embed uses the real assets.
 COPY --from=web /workspace/web/dist web/dist
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION}" -o woodstar ./cmd/woodstar
+RUN upx --best --lzma woodstar
 RUN mkdir /data
 
+# ---- Runtime --------------------------------------------------------------
 FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
