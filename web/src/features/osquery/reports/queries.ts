@@ -13,6 +13,7 @@ import type {
   OsqueryReportMutation,
   OsqueryReportSnapshot,
   PageReport,
+  PageReportSnapshot,
 } from "@lib/api";
 import {
   bulkDeleteOsqueryReports,
@@ -28,7 +29,7 @@ import type {
   ListOsqueryReportSnapshotsData,
   ListOsqueryReportsData,
 } from "@lib/api-client/types.gen";
-import { baseListParams } from "@lib/pagination";
+import { baseListParams, collectAllPages } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
@@ -70,20 +71,41 @@ export function useReport(id: number | null) {
 }
 
 export function useReportSnapshots(id: number | null, params: ReportSnapshotParams = {}) {
-  return useQuery<OsqueryReportSnapshot[], ApiError>({
-    queryKey: reportKeys.snapshots(id, params),
+  const queryParams = reportSnapshotQueryParams(params);
+  return useQuery<PageReportSnapshot, ApiError>({
+    queryKey: reportKeys.snapshots(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryReportSnapshots({
           path: detailPath(id),
-          query: params,
+          query: queryParams,
           signal,
         }),
       ),
     enabled: id !== null,
-    placeholderData: keepPreviousData,
     refetchInterval: REPORT_SNAPSHOT_REFRESH_MS,
   });
+}
+
+export function listAllReportSnapshots(
+  id: number,
+  params: ReportSnapshotParams = {},
+): Promise<OsqueryReportSnapshot[]> {
+  return collectAllPages((page, perPage) =>
+    unwrap(
+      listOsqueryReportSnapshots({
+        path: { id },
+        query: reportSnapshotQueryParams({ ...params, page, per_page: perPage }),
+      }),
+    ),
+  );
+}
+
+function reportSnapshotQueryParams(params: ReportSnapshotParams) {
+  return {
+    ...baseListParams(params),
+    status: params.status,
+  };
 }
 
 export function useCreateReport() {

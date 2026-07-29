@@ -3,9 +3,12 @@ import type { ColumnDef, Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { DataTableClient } from "@components/data-table/data-table-client";
+import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
@@ -29,7 +32,7 @@ import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
 import { CheckDeleteDialog } from "./delete-dialog";
-import { useCheck, useCheckResults } from "./queries";
+import { listAllCheckResults, useCheck, useCheckResults } from "./queries";
 
 const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
@@ -44,7 +47,7 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "status",
     header: () => "Status",
-    filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
+    enableColumnFilter: true,
     cell: ({ row }) => (
       <EnumStatusIndicator value={row.original.status} metadata={CHECK_RESULT_STATUSES} />
     ),
@@ -75,10 +78,6 @@ function CheckResultsToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }
   );
 }
 
-function renderCheckResultsToolbar(table: Table<OsqueryCheckHostStatus>) {
-  return <CheckResultsToolbar table={table} />;
-}
-
 export function CheckDetailPage() {
   const { id: checkId } = useParams({
     from: "/_authenticated/osquery/checks/$id",
@@ -96,8 +95,24 @@ export function CheckDetailPage() {
   const id = parseRouteID(checkId);
   const check = useCheck(id);
   const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
-  const results = useCheckResults(id, { status });
-  const rows = results.data ?? [];
+  const results = useCheckResults(id, {
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+    status,
+  });
+  const rows = results.data?.items ?? [];
+  const totalCount = results.data?.count ?? 0;
+  const pageCount = results.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const table = useDataTable({
+    tableState: tableSearch,
+    data: rows,
+    columns: resultColumns,
+    pageCount,
+    rowCount: totalCount,
+    getRowId: (row) => String(row.host_id),
+  });
 
   if (id === null) {
     return (
@@ -123,6 +138,17 @@ export function CheckDetailPage() {
       </PageShell>
     );
   }
+
+  const exportOptions: DataTableExportOptions<OsqueryCheckHostStatus> = {
+    filename: `osquery-check-${id}-results`,
+    columns: resultExportColumns,
+    loadRows: () =>
+      listAllCheckResults(id, {
+        q: tableSearch.q,
+        sort: tableSearch.sort,
+        status,
+      }),
+  };
 
   return (
     <PageShell>
@@ -174,25 +200,28 @@ export function CheckDetailPage() {
           onRetry={() => void results.refetch()}
         />
       ) : results.isLoading ? (
-        <Skeleton className="h-64 w-full" />
+        <DataTableSkeleton columnCount={3} filterCount={1} withExport withViewOptions={false} />
       ) : (
-        <DataTableClient
-          title="Results"
-          columns={resultColumns}
-          data={rows}
-          exportOptions={{
-            filename: `osquery-check-${id}-results`,
-            columns: resultExportColumns,
-          }}
-          searchPlaceholder="Search check results"
-          tableState={tableSearch}
-          toolbar={renderCheckResultsToolbar}
+        <DataTable
+          table={table}
+          heading="Results"
+          exportOptions={exportOptions}
           empty={
             <PanelEmptyState>
-              {status ? "No check results match this status" : "No check results yet"}
+              {tableSearch.isFiltered ? "No matching check results" : "No check results yet"}
             </PanelEmptyState>
           }
-        />
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <DataTableSearchInput
+              value={tableSearch.q ?? ""}
+              onValueChange={tableSearch.onQueryChange}
+              placeholder="Search check results"
+              className="h-8 w-full sm:w-64"
+            />
+            <CheckResultsToolbar table={table} />
+          </div>
+        </DataTable>
       )}
 
       {isAdmin ? (

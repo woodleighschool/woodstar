@@ -63,6 +63,13 @@ type CheckListParams struct {
 	dbutil.ListParams
 }
 
+// CheckResultListParams filters and paginates per-host check state.
+type CheckResultListParams struct {
+	dbutil.ListParams
+
+	Status CheckStatus
+}
+
 // CheckStatus is the latest check result.
 type CheckStatus string
 

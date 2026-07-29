@@ -2502,6 +2502,12 @@ components:
           type: integer
         report_name:
           type: string
+        result_row_count:
+          format: int32
+          type: integer
+        returned_row_count:
+          format: int32
+          type: integer
         rows:
           items:
             additionalProperties:
@@ -2519,6 +2525,8 @@ components:
         - host_id
         - host_name
         - status
+        - result_row_count
+        - returned_row_count
         - rows
       type: object
     OsqueryReportTargets:
@@ -2545,6 +2553,20 @@ components:
         items:
           items:
             $ref: "#/components/schemas/OsqueryCheck"
+          type: array
+      required:
+        - items
+        - count
+      type: object
+    PageCheckHostStatus:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/OsqueryCheckHostStatus"
           type: array
       required:
         - items
@@ -2741,6 +2763,20 @@ components:
         items:
           items:
             $ref: "#/components/schemas/OsqueryReport"
+          type: array
+      required:
+        - items
+        - count
+      type: object
+    PageReportSnapshot:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/OsqueryReportSnapshot"
           type: array
       required:
         - items
@@ -4691,6 +4727,31 @@ paths:
     get:
       operationId: list-host-osquery-checks
       parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
         - in: path
           name: id
           required: true
@@ -4711,9 +4772,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/OsqueryCheckHostStatus"
-                type: array
+                $ref: "#/components/schemas/PageCheckHostStatus"
           description: OK
         "401":
           content:
@@ -4749,6 +4808,31 @@ paths:
     get:
       operationId: list-host-osquery-reports
       parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
         - in: path
           name: id
           required: true
@@ -4768,9 +4852,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/OsqueryReportSnapshot"
-                type: array
+                $ref: "#/components/schemas/PageReportSnapshot"
           description: OK
         "401":
           content:
@@ -7810,6 +7892,31 @@ paths:
     get:
       operationId: list-osquery-check-results
       parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
         - in: path
           name: id
           required: true
@@ -7830,9 +7937,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/OsqueryCheckHostStatus"
-                type: array
+                $ref: "#/components/schemas/PageCheckHostStatus"
           description: OK
         "401":
           content:
@@ -8413,6 +8518,31 @@ paths:
     get:
       operationId: list-osquery-report-snapshots
       parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
         - in: path
           name: id
           required: true
@@ -8432,9 +8562,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/OsqueryReportSnapshot"
-                type: array
+                $ref: "#/components/schemas/PageReportSnapshot"
           description: OK
         "401":
           content:

@@ -1,3 +1,4 @@
+//nolint:dupl // Checks and reports are distinct API resources; two parallel handlers do not justify generic registration machinery.
 package handlers
 
 import (
@@ -31,8 +32,17 @@ type checkGetInput struct {
 }
 
 type checkResultsInput struct {
+	ListQueryInput
+
 	ID     int64              `path:"id"`
 	Status checks.CheckStatus `          query:"status,omitempty"`
+}
+
+func (input checkResultsInput) params() checks.CheckResultListParams {
+	return checks.CheckResultListParams{
+		ListParams: input.ListQueryInput.params(),
+		Status:     input.Status,
+	}
 }
 
 type checkCreateInput struct {
@@ -57,7 +67,7 @@ type checkOutput struct {
 }
 
 type checkResultsOutput struct {
-	Body []checks.CheckHostStatus
+	Body Page[checks.CheckHostStatus]
 }
 
 func registerOsqueryChecks(api huma.API, checkStore *checks.Store, logger *slog.Logger) {
@@ -199,10 +209,20 @@ func registerCheckResults(api huma.API, checkStore *checks.Store, logger *slog.L
 		Summary:     "List check results",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *checkResultsInput) (*checkResultsOutput, error) {
-		rows, err := checkStore.CheckResults(ctx, input.ID, input.Status)
+		rows, count, err := checkStore.CheckResults(ctx, input.ID, input.params())
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-osquery-check-results", err, "id", input.ID)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-osquery-check-results",
+				checkResource,
+				err,
+				"id",
+				input.ID,
+			)
 		}
-		return &checkResultsOutput{Body: rows}, nil
+		return &checkResultsOutput{
+			Body: Page[checks.CheckHostStatus]{Items: rows, Count: count},
+		}, nil
 	})
 }

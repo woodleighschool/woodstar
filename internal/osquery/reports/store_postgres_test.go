@@ -259,7 +259,7 @@ func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 		t.Fatalf("overwrite empty report: %v", err)
 	}
 
-	got, err := store.HostSnapshots(ctx, host, "")
+	got, _, err := store.HostSnapshots(ctx, host, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("host reports: %v", err)
 	}
@@ -305,7 +305,9 @@ func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 		)
 	}
 
-	pendingOnly, err := store.HostSnapshots(ctx, host, ReportSnapshotStatusPending)
+	pendingOnly, _, err := store.HostSnapshots(ctx, host, ReportSnapshotListParams{
+		Status: ReportSnapshotStatusPending,
+	})
 	if err != nil {
 		t.Fatalf("pending host reports: %v", err)
 	}
@@ -340,7 +342,7 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 		t.Fatalf("store collected snapshot: %v", err)
 	}
 
-	got, err := store.Snapshots(ctx, report.ID, "")
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("list report snapshots: %v", err)
 	}
@@ -363,14 +365,18 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 		t.Fatalf("pending snapshot = %+v, want unfetched target", pending)
 	}
 
-	collectedOnly, err := store.Snapshots(ctx, report.ID, ReportSnapshotStatusCollected)
+	collectedOnly, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		Status: ReportSnapshotStatusCollected,
+	})
 	if err != nil {
 		t.Fatalf("list collected report snapshots: %v", err)
 	}
 	if len(collectedOnly) != 1 || collectedOnly[0].HostID != collectedHost.ID {
 		t.Fatalf("collected snapshots = %+v, want collected host", collectedOnly)
 	}
-	pendingOnly, err := store.Snapshots(ctx, report.ID, ReportSnapshotStatusPending)
+	pendingOnly, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		Status: ReportSnapshotStatusPending,
+	})
 	if err != nil {
 		t.Fatalf("list pending report snapshots: %v", err)
 	}
@@ -379,10 +385,90 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 	}
 }
 
+func TestSnapshotsSearchesParentAndPrunesNestedRows(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	matchingHost := enrollTestHost(t, ctx, hostStore, "report-search-matching-host")
+	otherHost := enrollTestHost(t, ctx, hostStore, "report-search-other-host")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Searchable report",
+		Query:            "select command from shell_history;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{allHostsID}, nil),
+	}})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+	collectedAt := time.Date(2026, 7, 29, 9, 0, 0, 0, time.UTC)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		matchingHost.ID,
+		[]map[string]string{
+			{"command": "sudo jamf manage"},
+			{"command": "ping 10.10.0.1"},
+		},
+		collectedAt,
+	); err != nil {
+		t.Fatalf("store matching snapshot: %v", err)
+	}
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		otherHost.ID,
+		[]map[string]string{{"command": "uptime"}},
+		collectedAt,
+	); err != nil {
+		t.Fatalf("store other snapshot: %v", err)
+	}
+
+	nestedMatch, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		ListParams: dbutil.ListParams{Q: "sudo"},
+	})
+	if err != nil {
+		t.Fatalf("search report rows: %v", err)
+	}
+	if count != 1 || len(nestedMatch) != 1 {
+		t.Fatalf("nested search returned count=%d len=%d, want one snapshot", count, len(nestedMatch))
+	}
+	if len(nestedMatch[0].Rows) != 1 ||
+		nestedMatch[0].Rows[0]["command"] != "sudo jamf manage" ||
+		nestedMatch[0].ResultRowCount != 2 ||
+		nestedMatch[0].ReturnedRowCount != 1 {
+		t.Fatalf("nested search snapshot = %+v, want one of two matching rows", nestedMatch[0])
+	}
+
+	parentMatch, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		ListParams: dbutil.ListParams{Q: "matching-host"},
+	})
+	if err != nil {
+		t.Fatalf("search report host: %v", err)
+	}
+	if count != 1 || len(parentMatch) != 1 ||
+		parentMatch[0].HostID != matchingHost.ID ||
+		len(parentMatch[0].Rows) != 2 ||
+		parentMatch[0].ResultRowCount != 2 ||
+		parentMatch[0].ReturnedRowCount != 2 {
+		t.Fatalf("parent search snapshot = %+v count=%d, want complete matching-host snapshot", parentMatch, count)
+	}
+
+	page, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		ListParams: dbutil.ListParams{PageSize: 1, Sort: "host_name.desc"},
+	})
+	if err != nil {
+		t.Fatalf("paginate report snapshots: %v", err)
+	}
+	if count != 2 || len(page) != 1 || page[0].HostID != otherHost.ID {
+		t.Fatalf("paginated snapshots = %+v count=%d, want descending first of two", page, count)
+	}
+}
+
 func TestSnapshotsRejectUnknownReport(t *testing.T) {
 	store, _, _, ctx := newPostgresReportStore(t)
 
-	_, err := store.Snapshots(ctx, 999_999, "")
+	_, _, err := store.Snapshots(ctx, 999_999, ReportSnapshotListParams{})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Snapshots error = %v, want ErrNotFound", err)
 	}
@@ -427,7 +513,7 @@ func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testin
 		t.Fatalf("overwrite stale snapshot: %v", err)
 	}
 
-	got, err := store.Snapshots(ctx, report.ID, "")
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("report snapshots: %v", err)
 	}
@@ -446,7 +532,7 @@ func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testin
 	); err != nil {
 		t.Fatalf("overwrite empty snapshot: %v", err)
 	}
-	got, err = store.Snapshots(ctx, report.ID, "")
+	got, _, err = store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("report snapshots after empty observation: %v", err)
 	}
@@ -490,7 +576,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	if testQueryHash(metadataUpdated.Query) != testQueryHash(report.Query) {
 		t.Fatal("metadata edit changed the normalized query hash")
 	}
-	got, err := store.Snapshots(ctx, report.ID, "")
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after metadata edit: %v", err)
 	}
@@ -511,7 +597,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	if testQueryHash(queryUpdated.Query) == testQueryHash(report.Query) {
 		t.Fatal("changed query retained its previous query hash")
 	}
-	got, err = store.Snapshots(ctx, report.ID, "")
+	got, _, err = store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after query edit: %v", err)
 	}
@@ -528,7 +614,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	); err != nil {
 		t.Fatalf("store obsolete report result: %v", err)
 	}
-	got, err = store.Snapshots(ctx, report.ID, "")
+	got, _, err = store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after obsolete snapshot: %v", err)
 	}
@@ -545,7 +631,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	); err != nil {
 		t.Fatalf("store current report result: %v", err)
 	}
-	got, err = store.Snapshots(ctx, report.ID, "")
+	got, _, err = store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after current snapshot: %v", err)
 	}
@@ -596,7 +682,7 @@ func TestUpdateInvalidatesResultsWhenMinimumVersionChanges(t *testing.T) {
 			versionUpdated.MinOsqueryVersion,
 		)
 	}
-	got, err := store.Snapshots(ctx, report.ID, "")
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after minimum version edit: %v", err)
 	}
@@ -630,7 +716,7 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 		t.Fatalf("exclude report host: %v", err)
 	}
 	assertReportSnapshotCount(t, ctx, store, report.ID, host.ID, 1)
-	got, err := store.Snapshots(ctx, report.ID, "")
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
 	if err != nil {
 		t.Fatalf("results after host exclusion: %v", err)
 	}

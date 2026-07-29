@@ -1,4 +1,5 @@
 import {
+  type ExpandedState,
   getCoreRowModel,
   type RowSelectionState,
   type SortingState,
@@ -55,6 +56,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
     initialState?.columnVisibility ?? {},
   );
+  const [expanded, setExpanded] = React.useState<ExpandedState>(initialState?.expanded ?? {});
   const { pagination, onPaginationChange } = tableState;
 
   const normalizedPageCount = pageCount < 0 ? -1 : Math.max(1, pageCount);
@@ -83,6 +85,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       columnVisibility,
       rowSelection,
       columnFilters: tableState.columnFilters,
+      expanded,
     },
     defaultColumn: {
       ...tableProps.defaultColumn,
@@ -94,6 +97,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     onSortingChange: tableState.onSortingChange,
     onColumnFiltersChange: tableState.onColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
+    onExpandedChange: setExpanded,
     enableMultiSort: false,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,

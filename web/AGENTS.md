@@ -53,18 +53,21 @@ Frontend rules for work under `web/`.
   `createTableSearchSchema`, strip canonical defaults with `stripSearchParams`, and bind the table
   through `useDataTableSearch`. Use functional `navigate({ search: updater, replace: true })`
   updates so table interactions preserve sibling search keys without filling browser history.
-- `DataTableClient` processes a complete API response in the browser but still requires
-  route-owned `tableState`. Do not add local query, filter, sort, or pagination fallbacks to shared
-  table components. Keep only presentation state such as expansion, selection, and column
-  visibility local.
+- Route-backed collections use the server-mode `DataTable` / `useDataTable` path. Pass query text,
+  filters, sort, page, and page size from route search params to the generated API, and render the
+  returned `items` and `count`. Keep only presentation state such as expansion, selection, and
+  column visibility local.
 - Local table/search state is reserved for transient workflows where a copied URL must not restore
   progress, such as form membership pickers and a running live-query session.
-- Components must not imitate a missing or inconsistent API capability. A deliberately bounded,
-  complete array response may be searched, sorted, and paginated client-side; do not treat an
-  unpaginated array as permission to compensate for an unbounded collection in React. A
-  server-paginated response must pass those controls to the generated API. If the generated
-  contract cannot express the required filter, sort, or pagination behavior, fix the backend
-  contract and regenerate it rather than synthesizing an approximation in React.
+- Components must not imitate a missing or inconsistent API capability. Do not search, filter, sort,
+  or paginate API collections in React. If the generated contract cannot express a required table
+  operation, fix the backend contract and regenerate it. Deliberately local data such as form
+  options or a running live-query session may use client-side transforms when it is not an API
+  collection.
+- Nested server-backed rows follow the same boundary: the backend decides which parents and child
+  rows match a query and reports both total and returned child counts. React renders that projection
+  without re-filtering it. Exports fetch every page through the same active backend query instead of
+  exporting only the visible page.
 - Forms use `@tanstack/react-form`, zod schemas, `components/form-field.tsx`, and `components/form-actions.tsx`.
 - Create/edit hooks toast success in `onSuccess`; mutation errors ride the global `MutationCache` toast.
 

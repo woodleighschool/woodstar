@@ -84,6 +84,13 @@ type ReportListParams struct {
 	dbutil.ListParams
 }
 
+// ReportSnapshotListParams filters and paginates report snapshot projections.
+type ReportSnapshotListParams struct {
+	dbutil.ListParams
+
+	Status ReportSnapshotStatus
+}
+
 // ReportSnapshotStatus describes whether a targeted host has submitted a snapshot.
 type ReportSnapshotStatus string
 
@@ -97,7 +104,8 @@ var ReportSnapshotStatusValues = []ReportSnapshotStatus{
 	ReportSnapshotStatusPending,
 }
 
-// ReportSnapshot is the latest complete observation for one report and host.
+// ReportSnapshot is the latest observation for one report and host.
+// Rows contains every result unless a list query returns a matching subset.
 // CollectedAt is nil until the host submits its first snapshot.
 type ReportSnapshot struct {
 	ReportID          int64                `json:"report_id"`
@@ -106,6 +114,8 @@ type ReportSnapshot struct {
 	HostID            int64                `json:"host_id"`
 	HostName          string               `json:"host_name"`
 	Status            ReportSnapshotStatus `json:"status"`
+	ResultRowCount    int32                `json:"result_row_count"`
+	ReturnedRowCount  int32                `json:"returned_row_count"`
 	Rows              []map[string]string  `json:"rows"`
 	CollectedAt       *time.Time           `json:"collected_at,omitempty"`
 }

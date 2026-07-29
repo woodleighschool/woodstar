@@ -1,3 +1,4 @@
+//nolint:dupl // Checks and reports are distinct API resources; two parallel handlers do not justify generic registration machinery.
 package handlers
 
 import (
@@ -31,8 +32,17 @@ type reportGetInput struct {
 }
 
 type reportSnapshotsInput struct {
+	ListQueryInput
+
 	ID     int64                        `path:"id"`
 	Status reports.ReportSnapshotStatus `          query:"status,omitempty"`
+}
+
+func (input reportSnapshotsInput) params() reports.ReportSnapshotListParams {
+	return reports.ReportSnapshotListParams{
+		ListParams: input.ListQueryInput.params(),
+		Status:     input.Status,
+	}
 }
 
 type reportCreateInput struct {
@@ -57,7 +67,7 @@ type reportOutput struct {
 }
 
 type reportSnapshotsOutput struct {
-	Body []reports.ReportSnapshot
+	Body Page[reports.ReportSnapshot]
 }
 
 func registerOsqueryReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
@@ -207,7 +217,7 @@ func registerReportSnapshots(api huma.API, reportStore *reports.Store, logger *s
 		Summary:     "List report snapshots",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *reportSnapshotsInput) (*reportSnapshotsOutput, error) {
-		rows, err := reportStore.Snapshots(ctx, input.ID, input.Status)
+		rows, count, err := reportStore.Snapshots(ctx, input.ID, input.params())
 		if err != nil {
 			return nil, resourceError(
 				ctx,
@@ -219,6 +229,8 @@ func registerReportSnapshots(api huma.API, reportStore *reports.Store, logger *s
 				input.ID,
 			)
 		}
-		return &reportSnapshotsOutput{Body: rows}, nil
+		return &reportSnapshotsOutput{
+			Body: Page[reports.ReportSnapshot]{Items: rows, Count: count},
+		}, nil
 	})
 }

@@ -7,12 +7,15 @@ import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-searc
 
 const SEARCH_DEFAULTS = {
   ...TABLE_SEARCH_DEFAULTS,
-  sort: "hostName.asc",
+  sort: "host_name.asc",
 } as const;
 
-const searchSchema = createTableSearchSchema(["hostName", "status", "collectedAt", "rowCount"], {
-  defaultSort: SEARCH_DEFAULTS.sort,
-}).extend({
+const searchSchema = createTableSearchSchema(
+  ["host_name", "status", "collected_at", "result_row_count"],
+  {
+    defaultSort: SEARCH_DEFAULTS.sort,
+  },
+).extend({
   status: z.enum(REPORT_SNAPSHOT_STATUS_VALUES).optional().catch(undefined),
 });
 

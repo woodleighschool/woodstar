@@ -271,64 +271,15 @@ func (s *Store) UpsertMembership(
 func (s *Store) CheckResults(
 	ctx context.Context,
 	checkID int64,
-	status CheckStatus,
-) ([]CheckHostStatus, error) {
-	if err := validateCheckStatusFilter(status); err != nil {
-		return nil, err
+	params CheckResultListParams,
+) ([]CheckHostStatus, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	if err := validateCheckStatusFilter(params.Status); err != nil {
+		return nil, 0, err
 	}
-	rows, err := s.db.Pool().Query(ctx, `
-		WITH check_row AS (
-			SELECT id, name
-			FROM osquery_checks c
-			WHERE c.id = $1
-		)
-		SELECT
-			c.id AS check_id,
-			c.name AS check_name,
-			h.id AS host_id,
-			h.display_name AS host_name,
-			m.passes,
-			m.updated_at
-		FROM check_row c
-		JOIN osquery_check_assignments assignment ON assignment.check_id = c.id
-		JOIN hosts h ON h.id = assignment.host_id
-		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
-		WHERE $2::text = ''
-		   OR ($2 = 'pass' AND m.passes IS TRUE)
-		   OR ($2 = 'fail' AND m.passes IS FALSE)
-		   OR ($2 = 'pending' AND m.passes IS NULL)
-		ORDER BY
-			CASE
-				WHEN m.passes IS FALSE THEN 0
-				WHEN m.passes IS NULL THEN 1
-				ELSE 2
-			END,
-			lower(h.display_name),
-			h.id`, checkID, status)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
-	if err != nil {
-		return nil, err
-	}
-	return checkHostStatusesFromRows(records), nil
-}
-
-func (s *Store) HostChecks(
-	ctx context.Context,
-	host *hosts.Host,
-	status CheckStatus,
-) ([]CheckHostStatus, error) {
-	if err := validateCheckStatusFilter(status); err != nil {
-		return nil, err
-	}
-	rows, err := s.db.Pool().Query(ctx, `
-		WITH host_row AS (
-			SELECT id, display_name
-			FROM hosts h
-			WHERE h.id = $1
-		)
+	where, args := checkResultListWhere(params, "c.id", checkID, "h.display_name")
+	listQuery := dbutil.ListQuery{
+		SelectSQL: `
 		SELECT
 			c.id AS check_id,
 			c.name AS check_name,
@@ -337,31 +288,120 @@ func (s *Store) HostChecks(
 			m.passes,
 			m.updated_at
 		FROM osquery_checks c
-		JOIN host_row h ON true
-		JOIN osquery_check_assignments assignment
-			ON assignment.check_id = c.id
-		   AND assignment.host_id = h.id
-		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
-		WHERE $2::text = ''
-		   OR ($2 = 'pass' AND m.passes IS TRUE)
-		   OR ($2 = 'fail' AND m.passes IS FALSE)
-		   OR ($2 = 'pending' AND m.passes IS NULL)
-		ORDER BY
-			CASE
-				WHEN m.passes IS FALSE THEN 0
-				WHEN m.passes IS NULL THEN 1
-				ELSE 2
-			END,
-			lower(c.name),
-			c.id`, host.ID, status)
-	if err != nil {
-		return nil, err
+		JOIN osquery_check_assignments assignment ON assignment.check_id = c.id
+		JOIN hosts h ON h.id = assignment.host_id
+		LEFT JOIN osquery_check_membership m
+			ON m.host_id = h.id
+		   AND m.check_id = c.id`,
+		WhereSQL: where,
+		Args:     args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"host_name":  {SQL: "lower(h.display_name)"},
+			"status":     {SQL: checkStatusOrderSQL()},
+			"updated_at": {SQL: "m.updated_at", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: checkStatusOrderSQL()},
+			{SQL: "lower(h.display_name)"},
+			{SQL: "h.id"},
+		},
+		Params: params.ListParams,
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
+	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.db.Pool(), listQuery)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return checkHostStatusesFromRows(records), nil
+	if count == 0 {
+		var exists bool
+		if err := s.db.Pool().QueryRow(
+			ctx,
+			`SELECT EXISTS (SELECT 1 FROM osquery_checks WHERE id = $1)`,
+			checkID,
+		).Scan(&exists); err != nil {
+			return nil, 0, err
+		}
+		if !exists {
+			return nil, 0, dbutil.ErrNotFound
+		}
+	}
+	return checkHostStatusesFromRows(records), count, nil
+}
+
+func (s *Store) HostChecks(
+	ctx context.Context,
+	host *hosts.Host,
+	params CheckResultListParams,
+) ([]CheckHostStatus, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	if err := validateCheckStatusFilter(params.Status); err != nil {
+		return nil, 0, err
+	}
+	where, args := checkResultListWhere(params, "h.id", host.ID, "c.name")
+	listQuery := dbutil.ListQuery{
+		SelectSQL: `
+		SELECT
+			c.id AS check_id,
+			c.name AS check_name,
+			h.id AS host_id,
+			h.display_name AS host_name,
+			m.passes,
+			m.updated_at
+		FROM osquery_checks c
+		JOIN osquery_check_assignments assignment ON assignment.check_id = c.id
+		JOIN hosts h ON h.id = assignment.host_id
+		LEFT JOIN osquery_check_membership m
+			ON m.host_id = h.id
+		   AND m.check_id = c.id`,
+		WhereSQL: where,
+		Args:     args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"check_name": {SQL: "lower(c.name)"},
+			"status":     {SQL: checkStatusOrderSQL()},
+			"updated_at": {SQL: "m.updated_at", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: checkStatusOrderSQL()},
+			{SQL: "lower(c.name)"},
+			{SQL: "c.id"},
+		},
+		Params: params.ListParams,
+	}
+	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.db.Pool(), listQuery)
+	if err != nil {
+		return nil, 0, err
+	}
+	return checkHostStatusesFromRows(records), count, nil
+}
+
+func checkResultListWhere(
+	params CheckResultListParams,
+	scopeSQL string,
+	scopeID int64,
+	nameSQL string,
+) (string, []any) {
+	var where dbutil.WhereBuilder
+	where.Add(scopeSQL + " = " + where.Arg(scopeID))
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(nameSQL + " ILIKE " + search)
+	}
+	if params.Status != "" {
+		status := where.Arg(params.Status)
+		where.Add(`(
+			(` + status + ` = 'pass' AND m.passes IS TRUE)
+			OR (` + status + ` = 'fail' AND m.passes IS FALSE)
+			OR (` + status + ` = 'pending' AND m.passes IS NULL)
+		)`)
+	}
+	return where.Build()
+}
+
+func checkStatusOrderSQL() string {
+	return `CASE
+		WHEN m.passes IS FALSE THEN 0
+		WHEN m.passes IS NULL THEN 1
+		ELSE 2
+	END`
 }
 
 func checkHostStatusesFromRows(rows []checkHostStatusRow) []CheckHostStatus {

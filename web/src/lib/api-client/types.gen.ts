@@ -919,6 +919,8 @@ export type OsqueryReportSnapshot = {
     report_description?: string;
     report_id: number;
     report_name: string;
+    result_row_count: number;
+    returned_row_count: number;
     rows: Array<{
         [key: string]: string;
     }>;
@@ -933,6 +935,11 @@ export type OsqueryReportTargets = {
 export type PageCheck = {
     count: number;
     items: Array<OsqueryCheck>;
+};
+
+export type PageCheckHostStatus = {
+    count: number;
+    items: Array<OsqueryCheckHostStatus>;
 };
 
 export type PageConfiguration = {
@@ -1003,6 +1010,11 @@ export type PagePackage = {
 export type PageReport = {
     count: number;
     items: Array<OsqueryReport>;
+};
+
+export type PageReportSnapshot = {
+    count: number;
+    items: Array<OsqueryReportSnapshot>;
 };
 
 export type PageRule = {
@@ -2046,6 +2058,10 @@ export type ListHostOsqueryChecksData = {
         id: number;
     };
     query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
         status?: 'pass' | 'fail' | 'pending';
     };
     url: '/api/hosts/{id}/osquery/checks';
@@ -2076,7 +2092,7 @@ export type ListHostOsqueryChecksResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryCheckHostStatus>;
+    200: PageCheckHostStatus;
 };
 
 export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
@@ -2087,6 +2103,10 @@ export type ListHostOsqueryReportsData = {
         id: number;
     };
     query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
         status?: 'collected' | 'pending';
     };
     url: '/api/hosts/{id}/osquery/reports';
@@ -2117,7 +2137,7 @@ export type ListHostOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryReportSnapshot>;
+    200: PageReportSnapshot;
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
@@ -4406,6 +4426,10 @@ export type ListOsqueryCheckResultsData = {
         id: number;
     };
     query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
         status?: 'pass' | 'fail' | 'pending';
     };
     url: '/api/osquery/checks/{id}/results';
@@ -4436,7 +4460,7 @@ export type ListOsqueryCheckResultsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryCheckHostStatus>;
+    200: PageCheckHostStatus;
 };
 
 export type ListOsqueryCheckResultsResponse = ListOsqueryCheckResultsResponses[keyof ListOsqueryCheckResultsResponses];
@@ -4876,6 +4900,10 @@ export type ListOsqueryReportSnapshotsData = {
         id: number;
     };
     query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
         status?: 'collected' | 'pending';
     };
     url: '/api/osquery/reports/{id}/snapshots';
@@ -4906,7 +4934,7 @@ export type ListOsqueryReportSnapshotsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryReportSnapshot>;
+    200: PageReportSnapshot;
 };
 
 export type ListOsqueryReportSnapshotsResponse = ListOsqueryReportSnapshotsResponses[keyof ListOsqueryReportSnapshotsResponses];

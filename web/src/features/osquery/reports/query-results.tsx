@@ -13,18 +13,6 @@ import {
 } from "@components/ui/table";
 import type { OsqueryReportSnapshot } from "@lib/api";
 
-export type ReportSnapshotTableRow = {
-  id: string;
-  reportId: number;
-  reportName: string;
-  reportDescription?: string;
-  hostId: number;
-  hostName: string;
-  status: OsqueryReportSnapshot["status"];
-  collectedAt?: string;
-  rows: Record<string, string>[];
-};
-
 type SnapshotStatus = OsqueryReportSnapshot["status"];
 
 export const REPORT_SNAPSHOT_STATUS_VALUES = ["collected", "pending"] as const;
@@ -39,22 +27,6 @@ export function parseReportSnapshotStatus(value: unknown): SnapshotStatus | unde
   return REPORT_SNAPSHOT_STATUS_OPTIONS.find((option) => option.value === value)?.value;
 }
 
-export function reportSnapshotRows(
-  snapshots: OsqueryReportSnapshot[] | null | undefined,
-): ReportSnapshotTableRow[] {
-  return (snapshots ?? []).map((snapshot) => ({
-    id: `${snapshot.report_id}-${snapshot.host_id}`,
-    reportId: snapshot.report_id,
-    reportName: snapshot.report_name,
-    reportDescription: snapshot.report_description,
-    hostId: snapshot.host_id,
-    hostName: snapshot.host_name,
-    status: snapshot.status,
-    collectedAt: snapshot.collected_at,
-    rows: snapshot.rows,
-  }));
-}
-
 export function resultColumnNames(rows: Record<string, string>[]): string[] {
   const seen = new Set<string>();
   for (const row of rows) {
@@ -65,11 +37,11 @@ export function resultColumnNames(rows: Record<string, string>[]): string[] {
   return Array.from(seen).toSorted((a, b) => a.localeCompare(b));
 }
 
-export function snapshotStatus(row: ReportSnapshotTableRow): SnapshotStatus {
+export function snapshotStatus(row: OsqueryReportSnapshot): SnapshotStatus {
   return row.status;
 }
 
-export function snapshotStatusLabel(row: ReportSnapshotTableRow): string {
+export function snapshotStatusLabel(row: OsqueryReportSnapshot): string {
   const labels: Record<SnapshotStatus, string> = {
     pending: "Pending",
     collected: "Collected",
@@ -77,31 +49,23 @@ export function snapshotStatusLabel(row: ReportSnapshotTableRow): string {
   return labels[snapshotStatus(row)];
 }
 
-export function SnapshotStatusBadge({ row }: { row: ReportSnapshotTableRow }) {
+export function SnapshotStatusBadge({ row }: { row: OsqueryReportSnapshot }) {
   const status = snapshotStatus(row);
   const variant = status === "collected" ? "success" : "outline";
 
   return <Badge variant={variant}>{snapshotStatusLabel(row)}</Badge>;
 }
 
-export function snapshotSearchText(row: ReportSnapshotTableRow): string {
-  return [
-    row.reportName,
-    row.reportDescription,
-    row.hostName,
-    snapshotStatusLabel(row),
-    row.collectedAt,
-    ...row.rows.flatMap((result) => Object.entries(result).flat()),
-  ]
-    .filter(Boolean)
-    .join("\n");
+export function resultRowCountLabel(row: OsqueryReportSnapshot): string {
+  if (row.returned_row_count === row.result_row_count) return String(row.result_row_count);
+  return `${row.returned_row_count} of ${row.result_row_count}`;
 }
 
 export function serializeSnapshots(
-  rows: ReportSnapshotTableRow[],
-  metadataColumns: DataTableExportColumn<ReportSnapshotTableRow>[],
-  columnNames: string[],
+  rows: OsqueryReportSnapshot[],
+  metadataColumns: DataTableExportColumn<OsqueryReportSnapshot>[],
 ): DataTableExportData {
+  const columnNames = resultColumnNames(rows.flatMap((row) => row.rows));
   return {
     fields: [...metadataColumns.map((column) => column.header), ...columnNames],
     data: rows.flatMap((snapshot) => {

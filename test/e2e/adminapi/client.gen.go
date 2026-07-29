@@ -2116,6 +2116,8 @@ type OsqueryReportSnapshot struct {
 	ReportDescription *string                     `json:"report_description,omitempty"`
 	ReportId          int64                       `json:"report_id"`
 	ReportName        string                      `json:"report_name"`
+	ResultRowCount    int32                       `json:"result_row_count"`
+	ReturnedRowCount  int32                       `json:"returned_row_count"`
 	Rows              []map[string]string         `json:"rows"`
 	Status            OsqueryReportSnapshotStatus `json:"status"`
 }
@@ -2163,6 +2165,12 @@ type PageLabel struct {
 type PageMunkiClientResources struct {
 	Count int64                  `json:"count"`
 	Items []MunkiClientResources `json:"items"`
+}
+
+// PageReportSnapshot defines model for PageReportSnapshot.
+type PageReportSnapshot struct {
+	Count int64                   `json:"count"`
+	Items []OsqueryReportSnapshot `json:"items"`
 }
 
 // PageRuleStatus defines model for PageRuleStatus.
@@ -2619,7 +2627,11 @@ type ListMunkiClientResourcesParams struct {
 
 // ListOsqueryReportSnapshotsParams defines parameters for ListOsqueryReportSnapshots.
 type ListOsqueryReportSnapshotsParams struct {
-	Status *ListOsqueryReportSnapshotsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Q       *string                                 `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int32                                  `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int32                                  `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort    *string                                 `form:"sort,omitempty" json:"sort,omitempty"`
+	Status  *ListOsqueryReportSnapshotsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
 }
 
 // ListOsqueryReportSnapshotsParamsStatus defines parameters for ListOsqueryReportSnapshots.
@@ -5524,6 +5536,54 @@ func NewListOsqueryReportSnapshotsRequest(server string, id int64, params *ListO
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "per_page", *params.PerPage, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: "int32"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.Status != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -8345,7 +8405,7 @@ type ListOsqueryReportSnapshotsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *[]OsqueryReportSnapshot
+	JSON200 *PageReportSnapshot
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
 	ApplicationproblemJSON401 *ErrorModel
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
@@ -8357,7 +8417,7 @@ type ListOsqueryReportSnapshotsResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListOsqueryReportSnapshotsResponse) GetJSON200() *[]OsqueryReportSnapshot {
+func (r ListOsqueryReportSnapshotsResponse) GetJSON200() *PageReportSnapshot {
 	return r.JSON200
 }
 
@@ -11133,7 +11193,7 @@ func ParseListOsqueryReportSnapshotsResponse(rsp *http.Response) (*ListOsqueryRe
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []OsqueryReportSnapshot
+		var dest PageReportSnapshot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -75,112 +74,180 @@ func (s *Store) OverwriteSnapshot(
 	})
 }
 
-// Snapshots returns every currently targeted host and its latest observation
-// for one report. A nil CollectedAt identifies a host that has not reported.
+// Snapshots returns a page of currently targeted hosts and their latest
+// observation for one report.
 func (s *Store) Snapshots(
 	ctx context.Context,
 	reportID int64,
-	status ReportSnapshotStatus,
-) ([]ReportSnapshot, error) {
-	collected, err := collectedFilter(status)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := s.GetByID(ctx, reportID); err != nil {
-		return nil, err
-	}
-	qrows, err := s.db.Pool().Query(ctx, `
-		SELECT
-			report_row.id AS report_id,
-			report_row.name AS report_name,
-			report_row.description AS report_description,
-			host_row.id AS host_id,
-			host_row.display_name AS host_name,
-			snapshot.rows,
-			snapshot.collected_at
-		FROM osquery_reports report_row
-		JOIN osquery_report_assignments assignment
-			ON assignment.report_id = report_row.id
-		JOIN hosts host_row
-			ON host_row.id = assignment.host_id
-		LEFT JOIN osquery_report_snapshots snapshot
-			ON snapshot.report_id = report_row.id
-		   AND snapshot.host_id = host_row.id
-		WHERE report_row.id = $1
-		  AND ($2::boolean IS NULL OR (snapshot.collected_at IS NOT NULL) = $2)
-		ORDER BY lower(host_row.display_name), host_row.id`,
+	params ReportSnapshotListParams,
+) ([]ReportSnapshot, int, error) {
+	rows, count, err := s.listSnapshots(
+		ctx,
+		params,
+		"report_row.id",
 		reportID,
-		collected,
+		"host_row.display_name",
+		"host_name",
+		"lower(host_row.display_name)",
+		"host_row.id",
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[snapshotRow])
-	if err != nil {
-		return nil, err
-	}
-
-	snapshots := make([]ReportSnapshot, 0, len(rows))
-	for _, row := range rows {
-		snapshot, err := snapshotFromRow(row)
-		if err != nil {
-			return nil, err
+	if count == 0 {
+		var exists bool
+		if err := s.db.Pool().QueryRow(
+			ctx,
+			`SELECT EXISTS (SELECT 1 FROM osquery_reports WHERE id = $1)`,
+			reportID,
+		).Scan(&exists); err != nil {
+			return nil, 0, err
 		}
-		snapshots = append(snapshots, snapshot)
+		if !exists {
+			return nil, 0, dbutil.ErrNotFound
+		}
 	}
-	return snapshots, nil
+	return rows, count, nil
 }
 
-// HostSnapshots returns reports assigned to a host with each report's complete
+// HostSnapshots returns a page of reports assigned to a host with each report's
 // latest observation, whether or not the report is currently scheduled.
 func (s *Store) HostSnapshots(
 	ctx context.Context,
 	host *hosts.Host,
-	status ReportSnapshotStatus,
-) ([]ReportSnapshot, error) {
-	collected, err := collectedFilter(status)
-	if err != nil {
-		return nil, err
+	params ReportSnapshotListParams,
+) ([]ReportSnapshot, int, error) {
+	return s.listSnapshots(
+		ctx,
+		params,
+		"host_row.id",
+		host.ID,
+		`CONCAT_WS(E'\n', report_row.name, report_row.description)`,
+		"report_name",
+		"lower(report_row.name)",
+		"report_row.id",
+	)
+}
+
+func (s *Store) listSnapshots(
+	ctx context.Context,
+	params ReportSnapshotListParams,
+	scopeSQL string,
+	scopeID int64,
+	parentSearchSQL string,
+	nameSortKey string,
+	nameOrderSQL string,
+	stableOrderSQL string,
+) ([]ReportSnapshot, int, error) {
+	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	if err := validateReportSnapshotStatusFilter(params.Status); err != nil {
+		return nil, 0, err
 	}
-	qrows, err := s.db.Pool().Query(ctx, `
+
+	var where dbutil.WhereBuilder
+	where.Add(scopeSQL + " = " + where.Arg(scopeID))
+	switch params.Status {
+	case ReportSnapshotStatusCollected:
+		where.Add("snapshot.collected_at IS NOT NULL")
+	case ReportSnapshotStatusPending:
+		where.Add("snapshot.collected_at IS NULL")
+	}
+
+	searchPattern := ""
+	if params.Q != "" {
+		searchPattern = where.Arg("%" + params.Q + "%")
+		where.Add(
+			"(" + parentSearchSQL + " ILIKE " + searchPattern +
+				" OR matched_rows.returned_row_count > 0)",
+		)
+	}
+	whereSQL, args := where.Build()
+	listQuery := dbutil.ListQuery{
+		SelectSQL: snapshotSelectSQL(parentSearchSQL, searchPattern),
+		WhereSQL:  whereSQL,
+		Args:      args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			nameSortKey:        {SQL: nameOrderSQL},
+			"status":           {SQL: snapshotStatusOrderSQL()},
+			"collected_at":     {SQL: "snapshot.collected_at", NullOrder: dbutil.NullsLast},
+			"result_row_count": {SQL: snapshotResultRowCountSQL()},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: nameOrderSQL}, {SQL: stableOrderSQL}},
+		Params:       params.ListParams,
+	}
+	rows, count, err := dbutil.ListWithCount[snapshotRow](ctx, s.db.Pool(), listQuery)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	snapshots := make([]ReportSnapshot, 0, len(rows))
+	for _, row := range rows {
+		snapshot, err := snapshotFromRow(row)
+		if err != nil {
+			return nil, 0, err
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots, count, nil
+}
+
+func snapshotSelectSQL(parentSearchSQL, searchPattern string) string {
+	rowsSQL := `COALESCE(snapshot.rows, '[]'::jsonb)`
+	returnedRowCountSQL := snapshotResultRowCountSQL()
+	lateralSQL := ""
+	if searchPattern != "" {
+		rowsSQL = `CASE
+			WHEN ` + parentSearchSQL + ` ILIKE ` + searchPattern + `
+				THEN COALESCE(snapshot.rows, '[]'::jsonb)
+			ELSE matched_rows.rows
+		END`
+		returnedRowCountSQL = `CASE
+			WHEN ` + parentSearchSQL + ` ILIKE ` + searchPattern + `
+				THEN ` + snapshotResultRowCountSQL() + `
+			ELSE matched_rows.returned_row_count
+		END`
+		lateralSQL = `
+		LEFT JOIN LATERAL (
+			SELECT
+				COALESCE(
+					jsonb_agg(result_row.value ORDER BY result_row.ordinality),
+					'[]'::jsonb
+				) AS rows,
+				count(*)::integer AS returned_row_count
+			FROM jsonb_array_elements(
+				COALESCE(snapshot.rows, '[]'::jsonb)
+			) WITH ORDINALITY AS result_row(value, ordinality)
+			WHERE result_row.value::text ILIKE ` + searchPattern + `
+		) matched_rows ON true`
+	}
+
+	return `
 		SELECT
 			report_row.id AS report_id,
 			report_row.name AS report_name,
 			report_row.description AS report_description,
 			host_row.id AS host_id,
 			host_row.display_name AS host_name,
-			snapshot.rows,
+			` + rowsSQL + ` AS rows,
+			` + snapshotResultRowCountSQL() + ` AS result_row_count,
+			` + returnedRowCountSQL + ` AS returned_row_count,
 			snapshot.collected_at
 		FROM osquery_reports report_row
 		JOIN osquery_report_assignments assignment
 			ON assignment.report_id = report_row.id
-		   AND assignment.host_id = $1
 		JOIN hosts host_row
 			ON host_row.id = assignment.host_id
 		LEFT JOIN osquery_report_snapshots snapshot
 			ON snapshot.report_id = report_row.id
-		   AND snapshot.host_id = host_row.id
-		WHERE $2::boolean IS NULL OR (snapshot.collected_at IS NOT NULL) = $2
-		ORDER BY lower(report_row.name), report_row.id`,
-		host.ID,
-		collected,
-	)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[snapshotRow])
-	if err != nil {
-		return nil, err
-	}
-	snapshots := make([]ReportSnapshot, 0, len(rows))
-	for _, row := range rows {
-		snapshot, err := snapshotFromRow(row)
-		if err != nil {
-			return nil, err
-		}
-		snapshots = append(snapshots, snapshot)
-	}
-	return snapshots, nil
+		   AND snapshot.host_id = host_row.id` + lateralSQL
+}
+
+func snapshotResultRowCountSQL() string {
+	return `jsonb_array_length(COALESCE(snapshot.rows, '[]'::jsonb))`
+}
+
+func snapshotStatusOrderSQL() string {
+	return `CASE WHEN snapshot.collected_at IS NOT NULL THEN 0 ELSE 1 END`
 }
 
 type snapshotRow struct {
@@ -190,6 +257,8 @@ type snapshotRow struct {
 	HostID            int64      `db:"host_id"`
 	HostName          string     `db:"host_name"`
 	Rows              []byte     `db:"rows"`
+	ResultRowCount    int32      `db:"result_row_count"`
+	ReturnedRowCount  int32      `db:"returned_row_count"`
 	CollectedAt       *time.Time `db:"collected_at"`
 }
 
@@ -205,6 +274,8 @@ func snapshotFromRow(row snapshotRow) (ReportSnapshot, error) {
 		HostID:            row.HostID,
 		HostName:          row.HostName,
 		Status:            reportSnapshotStatus(row.CollectedAt),
+		ResultRowCount:    row.ResultRowCount,
+		ReturnedRowCount:  row.ReturnedRowCount,
 		Rows:              rows,
 		CollectedAt:       row.CollectedAt,
 	}, nil
@@ -217,18 +288,12 @@ func reportSnapshotStatus(collectedAt *time.Time) ReportSnapshotStatus {
 	return ReportSnapshotStatusCollected
 }
 
-func collectedFilter(status ReportSnapshotStatus) (*bool, error) {
+func validateReportSnapshotStatusFilter(status ReportSnapshotStatus) error {
 	switch status {
-	case "":
-		return nil, nil
-	case ReportSnapshotStatusCollected:
-		value := true
-		return &value, nil
-	case ReportSnapshotStatusPending:
-		value := false
-		return &value, nil
+	case "", ReportSnapshotStatusCollected, ReportSnapshotStatusPending:
+		return nil
 	default:
-		return nil, fmt.Errorf("%w: unknown report snapshot status %q", dbutil.ErrInvalidInput, status)
+		return dbutil.ErrInvalidInput
 	}
 }
 

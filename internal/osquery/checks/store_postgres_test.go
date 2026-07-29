@@ -144,7 +144,9 @@ func TestCountsAndResultsUseCurrentTargets(t *testing.T) {
 		t.Fatalf("List check = %+v, want pass 1 fail 1", listed)
 	}
 
-	results, err := store.CheckResults(ctx, check.ID, CheckStatusFail)
+	results, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
+		Status: CheckStatusFail,
+	})
 	if err != nil {
 		t.Fatalf("list failing results: %v", err)
 	}
@@ -433,7 +435,7 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 		t.Fatalf("upsert membership: %v", err)
 	}
 
-	got, err := store.HostChecks(ctx, host, "")
+	got, _, err := store.HostChecks(ctx, host, CheckResultListParams{})
 	if err != nil {
 		t.Fatalf("host checks: %v", err)
 	}
@@ -480,7 +482,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 		t.Fatalf("upsert failing membership: %v", err)
 	}
 
-	got, err := store.HostChecks(ctx, host, "")
+	got, _, err := store.HostChecks(ctx, host, CheckResultListParams{})
 	if err != nil {
 		t.Fatalf("host checks: %v", err)
 	}
@@ -540,7 +542,7 @@ func TestCheckResultsIncludeMembershipState(t *testing.T) {
 		t.Fatalf("upsert passing membership: %v", err)
 	}
 
-	got, err := store.CheckResults(ctx, check.ID, "")
+	got, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{})
 	if err != nil {
 		t.Fatalf("check results: %v", err)
 	}
@@ -572,6 +574,62 @@ func TestCheckResultsIncludeMembershipState(t *testing.T) {
 	}
 }
 
+func TestCheckResultsAndHostChecksSearchAndPaginate(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresCheckStore(t)
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	firstCheck, err := store.Create(ctx, makeCheck(CheckMutation{
+		Name:    "Alpha searchable check",
+		Query:   "select 1;",
+		Targets: checkTargets([]int64{allHostsID}, nil),
+	}))
+	if err != nil {
+		t.Fatalf("create first check: %v", err)
+	}
+	if _, err := store.Create(ctx, makeCheck(CheckMutation{
+		Name:    "Bravo other check",
+		Query:   "select 2;",
+		Targets: checkTargets([]int64{allHostsID}, nil),
+	})); err != nil {
+		t.Fatalf("create second check: %v", err)
+	}
+	matchingHost := enrollTestHostDetail(t, ctx, hostStore, "check-search-matching-host")
+	otherHost := enrollTestHostDetail(t, ctx, hostStore, "check-search-other-host")
+
+	hostResults, count, err := store.CheckResults(ctx, firstCheck.ID, CheckResultListParams{
+		ListParams: dbutil.ListParams{
+			Q:        "matching-host",
+			PageSize: 1,
+			Sort:     "host_name.desc",
+		},
+	})
+	if err != nil {
+		t.Fatalf("search check results: %v", err)
+	}
+	if count != 1 || len(hostResults) != 1 || hostResults[0].HostID != matchingHost.ID {
+		t.Fatalf("check result search = %+v count=%d, want matching host", hostResults, count)
+	}
+
+	hostResults, count, err = store.CheckResults(ctx, firstCheck.ID, CheckResultListParams{
+		ListParams: dbutil.ListParams{PageSize: 1, Sort: "host_name.desc"},
+	})
+	if err != nil {
+		t.Fatalf("paginate check results: %v", err)
+	}
+	if count != 2 || len(hostResults) != 1 || hostResults[0].HostID != otherHost.ID {
+		t.Fatalf("check result page = %+v count=%d, want descending first of two", hostResults, count)
+	}
+
+	checkResults, count, err := store.HostChecks(ctx, matchingHost, CheckResultListParams{
+		ListParams: dbutil.ListParams{Q: "Alpha"},
+	})
+	if err != nil {
+		t.Fatalf("search host checks: %v", err)
+	}
+	if count != 1 || len(checkResults) != 1 || checkResults[0].CheckID != firstCheck.ID {
+		t.Fatalf("host check search = %+v count=%d, want Alpha check", checkResults, count)
+	}
+}
+
 func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresCheckStore(t)
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
@@ -599,7 +657,9 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 		t.Fatalf("upsert unevaluated membership: %v", err)
 	}
 
-	passingResults, err := store.CheckResults(ctx, check.ID, CheckStatusPass)
+	passingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
+		Status: CheckStatusPass,
+	})
 	if err != nil {
 		t.Fatalf("pass results: %v", err)
 	}
@@ -610,7 +670,9 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 		t.Fatalf("pass results = %+v, want passing host status", passingResults)
 	}
 
-	failingResults, err := store.CheckResults(ctx, check.ID, CheckStatusFail)
+	failingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
+		Status: CheckStatusFail,
+	})
 	if err != nil {
 		t.Fatalf("fail results: %v", err)
 	}
@@ -621,7 +683,9 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 		t.Fatalf("fail results = %+v, want failing host status", failingResults)
 	}
 
-	pendingResults, err := store.CheckResults(ctx, check.ID, CheckStatusPending)
+	pendingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
+		Status: CheckStatusPending,
+	})
 	if err != nil {
 		t.Fatalf("pending results: %v", err)
 	}

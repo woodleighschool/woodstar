@@ -1,12 +1,15 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import type { ColumnDef, Table } from "@tanstack/react-table";
+import { getExpandedRowModel, type ColumnDef, type Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { DataTableClient } from "@components/data-table/data-table-client";
+import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -19,67 +22,69 @@ import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
+import type { OsqueryReportSnapshot } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval, formatRelative } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
-import { useReport, useReportSnapshots } from "./queries";
+import { listAllReportSnapshots, useReport, useReportSnapshots } from "./queries";
 import {
   parseReportSnapshotStatus,
-  reportSnapshotRows,
   REPORT_SNAPSHOT_STATUS_OPTIONS,
-  type ReportSnapshotTableRow,
   resultColumnNames,
+  resultRowCountLabel,
   serializeSnapshots,
   SnapshotResultRows,
-  snapshotSearchText,
-  snapshotStatus,
   snapshotStatusLabel,
   SnapshotStatusBadge,
 } from "./query-results";
 
-const reportSnapshotColumns: ColumnDef<ReportSnapshotTableRow>[] = [
+const EMPTY_REPORT_SNAPSHOTS: OsqueryReportSnapshot[] = [];
+
+const reportSnapshotColumns: ColumnDef<OsqueryReportSnapshot>[] = [
   {
     id: "expand",
     header: () => <span className="sr-only">Expand</span>,
-    cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.hostName} />,
+    cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.host_name} />,
     enableSorting: false,
     size: 44,
   },
   {
-    id: "hostName",
-    accessorKey: "hostName",
+    id: "host_name",
+    accessorKey: "host_name",
     header: () => "Host",
     cell: ({ row }) => (
-      <Link to="/hosts/$id" params={{ id: String(row.original.hostId) }}>
-        {row.original.hostName}
+      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+        {row.original.host_name}
       </Link>
     ),
   },
   {
     id: "status",
-    accessorFn: snapshotStatus,
+    accessorKey: "status",
     header: () => "Status",
-    filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
+    enableColumnFilter: true,
     cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
   },
   {
-    id: "collectedAt",
-    accessorKey: "collectedAt",
+    id: "collected_at",
+    accessorKey: "collected_at",
     header: () => "Last Collected",
-    cell: ({ row }) => (row.original.collectedAt ? formatRelative(row.original.collectedAt) : "-"),
+    cell: ({ row }) =>
+      row.original.collected_at ? formatRelative(row.original.collected_at) : "-",
   },
   {
-    id: "rowCount",
-    accessorFn: (row) => row.rows.length,
+    id: "result_row_count",
+    accessorKey: "result_row_count",
     header: () => "Result Rows",
+    cell: ({ row }) => resultRowCountLabel(row.original),
   },
 ];
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/");
 
-function ReportResultsToolbar({ table }: { table: Table<ReportSnapshotTableRow> }) {
+function ReportResultsToolbar({ table }: { table: Table<OsqueryReportSnapshot> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
@@ -87,10 +92,6 @@ function ReportResultsToolbar({ table }: { table: Table<ReportSnapshotTableRow> 
       options={REPORT_SNAPSHOT_STATUS_OPTIONS}
     />
   );
-}
-
-function renderReportResultsToolbar(table: Table<ReportSnapshotTableRow>) {
-  return <ReportResultsToolbar table={table} />;
 }
 
 export function ReportDetailPage() {
@@ -110,7 +111,28 @@ export function ReportDetailPage() {
   const id = parseRouteID(reportId);
   const report = useReport(id);
   const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
-  const snapshots = useReportSnapshots(id, { status });
+  const snapshots = useReportSnapshots(id, {
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+    status,
+  });
+  const rows = snapshots.data?.items ?? EMPTY_REPORT_SNAPSHOTS;
+  const totalCount = snapshots.data?.count ?? 0;
+  const pageCount = snapshots.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const columnNames = useMemo(() => resultColumnNames(rows.flatMap((row) => row.rows)), [rows]);
+  const table = useDataTable({
+    tableState: tableSearch,
+    data: rows,
+    columns: reportSnapshotColumns,
+    pageCount,
+    rowCount: totalCount,
+    getRowId: (row) => `${row.report_id}-${row.host_id}`,
+    getRowCanExpand: (row) => row.original.rows.length > 0,
+    getExpandedRowModel: getExpandedRowModel(),
+    paginateExpandedRows: false,
+  });
 
   if (id === null) {
     return (
@@ -137,17 +159,21 @@ export function ReportDetailPage() {
     );
   }
 
-  const rows = reportSnapshotRows(snapshots.data);
-  const columnNames = resultColumnNames(rows.flatMap((row) => row.rows));
-  const exportMetadata: DataTableExportOptions<ReportSnapshotTableRow>["columns"] = [
-    { header: "Host", value: (row) => row.hostName },
+  const exportMetadata: DataTableExportOptions<OsqueryReportSnapshot>["columns"] = [
+    { header: "Host", value: (row) => row.host_name },
     { header: "Status", value: snapshotStatusLabel },
-    { header: "Last Collected", value: (row) => row.collectedAt },
+    { header: "Last Collected", value: (row) => row.collected_at },
   ];
-  const exportOptions: DataTableExportOptions<ReportSnapshotTableRow> = {
+  const exportOptions: DataTableExportOptions<OsqueryReportSnapshot> = {
     filename: `osquery-report-${id}-results`,
     columns: exportMetadata,
-    serializeRows: (exportRows) => serializeSnapshots(exportRows, exportMetadata, columnNames),
+    loadRows: () =>
+      listAllReportSnapshots(id, {
+        q: tableSearch.q,
+        sort: tableSearch.sort,
+        status,
+      }),
+    serializeRows: (exportRows) => serializeSnapshots(exportRows, exportMetadata),
   };
 
   return (
@@ -207,28 +233,31 @@ export function ReportDetailPage() {
           onRetry={() => void snapshots.refetch()}
         />
       ) : snapshots.isLoading ? (
-        <Skeleton className="h-64 w-full" />
+        <DataTableSkeleton columnCount={5} filterCount={1} withExport withViewOptions={false} />
       ) : (
-        <DataTableClient
-          title="Results"
-          columns={reportSnapshotColumns}
-          data={rows}
+        <DataTable
+          table={table}
+          heading="Results"
           exportOptions={exportOptions}
-          getRowCanExpand={(row) => row.original.rows.length > 0}
-          getRowId={(row) => row.id}
-          getSearchText={snapshotSearchText}
           renderSubRow={(row) => (
             <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
           )}
-          searchPlaceholder="Search hosts and results"
-          tableState={tableSearch}
-          toolbar={renderReportResultsToolbar}
           empty={
             <PanelEmptyState>
-              {status ? "No hosts match this status" : "No targeted hosts"}
+              {tableSearch.isFiltered ? "No matching report results" : "No targeted hosts"}
             </PanelEmptyState>
           }
-        />
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <DataTableSearchInput
+              value={tableSearch.q ?? ""}
+              onValueChange={tableSearch.onQueryChange}
+              placeholder="Search hosts and results"
+              className="h-8 w-full sm:w-64"
+            />
+            <ReportResultsToolbar table={table} />
+          </div>
+        </DataTable>
       )}
 
       {isAdmin ? (

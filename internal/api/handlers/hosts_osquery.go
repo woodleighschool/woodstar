@@ -13,19 +13,42 @@ import (
 )
 
 type hostOsqueryChecksInput struct {
+	ListQueryInput
+
 	ID     int64              `path:"id"`
 	Status checks.CheckStatus `          query:"status,omitempty"`
 }
 
+func (input hostOsqueryChecksInput) params() checks.CheckResultListParams {
+	return checks.CheckResultListParams{
+		ListParams: input.ListQueryInput.params(),
+		Status:     input.Status,
+	}
+}
+
 type hostOsqueryReportsInput struct {
+	ListQueryInput
+
 	ID     int64                        `path:"id"`
 	Status reports.ReportSnapshotStatus `          query:"status,omitempty"`
 }
 
-type hostReportsOutput struct {
-	Body []reports.ReportSnapshot
+func (input hostOsqueryReportsInput) params() reports.ReportSnapshotListParams {
+	return reports.ReportSnapshotListParams{
+		ListParams: input.ListQueryInput.params(),
+		Status:     input.Status,
+	}
 }
 
+type hostOsqueryChecksOutput struct {
+	Body Page[checks.CheckHostStatus]
+}
+
+type hostOsqueryReportsOutput struct {
+	Body Page[reports.ReportSnapshot]
+}
+
+//nolint:dupl // Host checks and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
 func registerHostOsqueryChecks(
 	api huma.API,
 	checkStore *checks.Store,
@@ -39,24 +62,37 @@ func registerHostOsqueryChecks(
 		Tags:        []string{hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*checkResultsOutput, error) {
-		rows, err := listHostOsqueryRows(
-			ctx,
-			input.ID,
-			"list-host-osquery-checks",
-			hostStore,
-			logger,
-			func(ctx context.Context, host *hosts.Host) ([]checks.CheckHostStatus, error) {
-				return checkStore.HostChecks(ctx, host, input.Status)
-			},
-		)
+	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*hostOsqueryChecksOutput, error) {
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, err
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-host-osquery-checks",
+				hostResource,
+				err,
+				"host_id",
+				input.ID,
+			)
 		}
-		return &checkResultsOutput{Body: rows}, nil
+		rows, count, err := checkStore.HostChecks(ctx, host, input.params())
+		if err != nil {
+			return nil, handlerError(
+				ctx,
+				logger,
+				"list-host-osquery-checks",
+				err,
+				"host_id",
+				input.ID,
+			)
+		}
+		return &hostOsqueryChecksOutput{
+			Body: Page[checks.CheckHostStatus]{Items: rows, Count: count},
+		}, nil
 	})
 }
 
+//nolint:dupl // Host checks and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
 func registerHostOsqueryReports(
 	api huma.API,
 	reportStore *reports.Store,
@@ -70,39 +106,32 @@ func registerHostOsqueryReports(
 		Tags:        []string{hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostReportsOutput, error) {
-		rows, err := listHostOsqueryRows(
-			ctx,
-			input.ID,
-			"list-host-osquery-reports",
-			hostStore,
-			logger,
-			func(ctx context.Context, host *hosts.Host) ([]reports.ReportSnapshot, error) {
-				return reportStore.HostSnapshots(ctx, host, input.Status)
-			},
-		)
+	}, func(ctx context.Context, input *hostOsqueryReportsInput) (*hostOsqueryReportsOutput, error) {
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, err
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-host-osquery-reports",
+				hostResource,
+				err,
+				"host_id",
+				input.ID,
+			)
 		}
-		return &hostReportsOutput{Body: rows}, nil
+		rows, count, err := reportStore.HostSnapshots(ctx, host, input.params())
+		if err != nil {
+			return nil, handlerError(
+				ctx,
+				logger,
+				"list-host-osquery-reports",
+				err,
+				"host_id",
+				input.ID,
+			)
+		}
+		return &hostOsqueryReportsOutput{
+			Body: Page[reports.ReportSnapshot]{Items: rows, Count: count},
+		}, nil
 	})
-}
-
-func listHostOsqueryRows[T any](
-	ctx context.Context,
-	hostID int64,
-	operation string,
-	hostStore *hosts.Store,
-	logger *slog.Logger,
-	list func(context.Context, *hosts.Host) ([]T, error),
-) ([]T, error) {
-	host, err := hostStore.GetByID(ctx, hostID)
-	if err != nil {
-		return nil, resourceError(ctx, logger, operation, hostResource, err, "host_id", hostID)
-	}
-	rows, err := list(ctx, host)
-	if err != nil {
-		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
-	}
-	return rows, nil
 }

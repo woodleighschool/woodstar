@@ -1,8 +1,11 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef, Table } from "@tanstack/react-table";
 
-import { DataTableClient } from "@components/data-table/data-table-client";
+import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
+import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { Link } from "@components/link";
@@ -30,7 +33,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "status",
     header: () => "Status",
-    filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
+    enableColumnFilter: true,
     cell: ({ row }) => (
       <EnumStatusIndicator value={row.original.status} metadata={CHECK_RESULT_STATUSES} />
     ),
@@ -55,10 +58,6 @@ function HostChecksToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) 
   );
 }
 
-function renderHostChecksToolbar(table: Table<OsqueryCheckHostStatus>) {
-  return <HostChecksToolbar table={table} />;
-}
-
 export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
@@ -68,8 +67,30 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
     filterKeys: STATUS_FILTER_KEYS,
   });
   const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
-  const query = useHostOsqueryChecks(hostId, { status });
-  const rows = query.data ?? [];
+  const query = useHostOsqueryChecks(hostId, {
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+    status,
+  });
+  const rows = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const table = useDataTable({
+    tableState: tableSearch,
+    data: rows,
+    columns: checkColumns,
+    pageCount,
+    rowCount: totalCount,
+    getRowId: (row) => String(row.check_id),
+  });
+
+  if (hostId === null) {
+    return (
+      <QueryError title="Failed to load checks" error={{ message: "Host route is invalid." }} />
+    );
+  }
 
   if (query.error) {
     return (
@@ -80,21 +101,29 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
       />
     );
   }
-  if (query.isLoading) return null;
+  if (query.isLoading) {
+    return <DataTableSkeleton columnCount={3} filterCount={1} withViewOptions={false} />;
+  }
 
   return (
-    <DataTableClient
-      title="Checks"
-      columns={checkColumns}
-      data={rows}
-      searchPlaceholder="Search checks"
-      tableState={tableSearch}
-      toolbar={renderHostChecksToolbar}
+    <DataTable
+      table={table}
+      heading="Checks"
       empty={
         <PanelEmptyState>
-          {status ? "No checks match this status" : "No checks yet"}
+          {tableSearch.isFiltered ? "No matching checks" : "No checks yet"}
         </PanelEmptyState>
       }
-    />
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <DataTableSearchInput
+          value={tableSearch.q ?? ""}
+          onValueChange={tableSearch.onQueryChange}
+          placeholder="Search checks"
+          className="h-8 w-full sm:w-64"
+        />
+        <HostChecksToolbar table={table} />
+      </div>
+    </DataTable>
   );
 }

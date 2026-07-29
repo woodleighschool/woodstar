@@ -643,13 +643,14 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		t.Fatal("list osquery report snapshots returned no JSON body")
 	}
 	snapshots := *snapshotsResponse.JSON200
-	if len(snapshots) != 1 {
+	if snapshots.Count != 1 || len(snapshots.Items) != 1 {
 		t.Fatalf("report snapshots = %+v, want one host snapshot", snapshots)
 	}
-	snapshot := snapshots[0]
+	snapshot := snapshots.Items[0]
 	if snapshot.ReportName != reportMutation.Name || snapshot.HostName != "Osquery Integration Mac" ||
 		snapshot.Status != adminapi.OsqueryReportSnapshotStatusCollected ||
-		snapshot.CollectedAt == nil || !snapshot.CollectedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) {
+		snapshot.CollectedAt == nil || !snapshot.CollectedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) ||
+		snapshot.ResultRowCount != 2 || snapshot.ReturnedRowCount != 2 {
 		t.Fatalf("report snapshot metadata = %+v, want report, host, and submitted time", snapshot)
 	}
 	if len(snapshot.Rows) != 2 {
@@ -676,7 +677,9 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		collectedSnapshotsResponse,
 		err,
 	)
-	if collectedSnapshotsResponse.JSON200 == nil || len(*collectedSnapshotsResponse.JSON200) != 1 {
+	if collectedSnapshotsResponse.JSON200 == nil ||
+		collectedSnapshotsResponse.JSON200.Count != 1 ||
+		len(collectedSnapshotsResponse.JSON200.Items) != 1 {
 		t.Fatalf(
 			"collected report snapshots = %+v, want one collected snapshot",
 			collectedSnapshotsResponse.JSON200,
@@ -696,7 +699,9 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		pendingSnapshotsResponse,
 		err,
 	)
-	if pendingSnapshotsResponse.JSON200 == nil || len(*pendingSnapshotsResponse.JSON200) != 0 {
+	if pendingSnapshotsResponse.JSON200 == nil ||
+		pendingSnapshotsResponse.JSON200.Count != 0 ||
+		len(pendingSnapshotsResponse.JSON200.Items) != 0 {
 		t.Fatalf(
 			"pending report snapshots = %+v, want no pending snapshots",
 			pendingSnapshotsResponse.JSON200,

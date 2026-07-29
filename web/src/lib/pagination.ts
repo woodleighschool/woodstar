@@ -2,10 +2,30 @@ import { nonEmpty } from "@lib/utils";
 
 export const DEFAULT_PAGE_SIZE = 50;
 
-// Upper bound for "fetch everything" reads (pickers, reorder, label maps).
+// Upper bound for "fetch everything" reads such as exports, pickers, and label maps.
 export const MAX_PAGE_SIZE = 1000;
 
 export const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 500, MAX_PAGE_SIZE] as const;
+
+interface Page<T> {
+  count: number;
+  items: T[];
+}
+
+export async function collectAllPages<T>(
+  loadPage: (page: number, perPage: number) => Promise<Page<T>>,
+): Promise<T[]> {
+  const firstPage = await loadPage(1, MAX_PAGE_SIZE);
+  const pageCount = Math.ceil(firstPage.count / MAX_PAGE_SIZE);
+  if (pageCount <= 1) return firstPage.items;
+
+  const items = [...firstPage.items];
+  for (let page = 2; page <= pageCount; page += 1) {
+    const response = await loadPage(page, MAX_PAGE_SIZE);
+    items.push(...response.items);
+  }
+  return items;
+}
 
 export function normalizePage(value: number | undefined): number {
   return Number.isSafeInteger(value) && value !== undefined && value > 0 ? value : 1;

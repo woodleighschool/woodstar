@@ -13,6 +13,7 @@ import type {
   OsqueryCheckHostStatus,
   OsqueryCheckMutation,
   PageCheck,
+  PageCheckHostStatus,
 } from "@lib/api";
 import {
   bulkDeleteOsqueryChecks,
@@ -25,7 +26,7 @@ import {
   updateOsqueryCheck,
 } from "@lib/api";
 import type { ListOsqueryCheckResultsData, ListOsqueryChecksData } from "@lib/api-client/types.gen";
-import { baseListParams } from "@lib/pagination";
+import { baseListParams, collectAllPages } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
@@ -68,20 +69,41 @@ export function useCheck(id: number | null) {
 }
 
 export function useCheckResults(id: number | null, params: CheckResultsParams = {}) {
-  return useQuery<OsqueryCheckHostStatus[], ApiError>({
-    queryKey: checkKeys.results(id, params),
+  const queryParams = checkResultQueryParams(params);
+  return useQuery<PageCheckHostStatus, ApiError>({
+    queryKey: checkKeys.results(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryCheckResults({
           path: detailPath(id),
-          query: params,
+          query: queryParams,
           signal,
         }),
       ),
     enabled: id !== null,
-    placeholderData: keepPreviousData,
     refetchInterval: CHECK_REFRESH_MS,
   });
+}
+
+export function listAllCheckResults(
+  id: number,
+  params: CheckResultsParams = {},
+): Promise<OsqueryCheckHostStatus[]> {
+  return collectAllPages((page, perPage) =>
+    unwrap(
+      listOsqueryCheckResults({
+        path: { id },
+        query: checkResultQueryParams({ ...params, page, per_page: perPage }),
+      }),
+    ),
+  );
+}
+
+function checkResultQueryParams(params: CheckResultsParams) {
+  return {
+    ...baseListParams(params),
+    status: params.status,
+  };
 }
 
 export function useCreateCheck() {

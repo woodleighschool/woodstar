@@ -12,11 +12,12 @@ import type {
   Host,
   HostDetail,
   MunkiHostState,
-  OsqueryCheckHostStatus,
   OsqueryReportSnapshot,
+  PageCheckHostStatus,
   PageHost,
   PageHostManifestSoftware,
   PageHostSoftware,
+  PageReportSnapshot,
   PageRuleStatus,
   SantaHostState,
 } from "@lib/api";
@@ -45,7 +46,7 @@ import type {
   ListHostSoftwareData,
   ListHostsData,
 } from "@lib/api-client/types.gen";
-import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
+import { baseListParams, collectAllPages } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
@@ -115,32 +116,13 @@ export function useHosts(params: HostListParams = {}, options: RefetchOptions = 
 }
 
 export async function listAllHosts(params: HostListParams = {}): Promise<Host[]> {
-  const firstPage = await unwrap(
-    listHosts({
-      query: hostListQueryParams({
-        ...params,
-        page: 1,
-        per_page: MAX_PAGE_SIZE,
-      }),
-    }),
-  );
-  const hosts = [...firstPage.items];
-  const pageCount = Math.ceil(firstPage.count / MAX_PAGE_SIZE);
-
-  for (let page = 2; page <= pageCount; page += 1) {
-    const response = await unwrap(
+  return collectAllPages((page, perPage) =>
+    unwrap(
       listHosts({
-        query: hostListQueryParams({
-          ...params,
-          page,
-          per_page: MAX_PAGE_SIZE,
-        }),
+        query: hostListQueryParams({ ...params, page, per_page: perPage }),
       }),
-    );
-    hosts.push(...response.items);
-  }
-
-  return hosts;
+    ),
+  );
 }
 
 export function useHost(id: number | null, options: RefetchOptions = {}) {
@@ -250,25 +232,53 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
 }
 
 export function useHostOsqueryReports(id: number | null, params: HostOsqueryReportsParams = {}) {
-  return useQuery<OsqueryReportSnapshot[], ApiError>({
-    queryKey: hostKeys.osqueryReports(id, params),
+  const queryParams = hostOsqueryReportsQueryParams(params);
+  return useQuery<PageReportSnapshot, ApiError>({
+    queryKey: hostKeys.osqueryReports(id, queryParams),
     queryFn: ({ signal }) =>
-      unwrap(listHostOsqueryReports({ path: detailPath(id), query: params, signal })),
+      unwrap(listHostOsqueryReports({ path: detailPath(id), query: queryParams, signal })),
     enabled: id !== null,
-    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
 export function useHostOsqueryChecks(id: number | null, params: HostOsqueryChecksParams = {}) {
-  return useQuery<OsqueryCheckHostStatus[], ApiError>({
-    queryKey: hostKeys.osqueryChecks(id, params),
+  const queryParams = hostOsqueryChecksQueryParams(params);
+  return useQuery<PageCheckHostStatus, ApiError>({
+    queryKey: hostKeys.osqueryChecks(id, queryParams),
     queryFn: ({ signal }) =>
-      unwrap(listHostOsqueryChecks({ path: detailPath(id), query: params, signal })),
+      unwrap(listHostOsqueryChecks({ path: detailPath(id), query: queryParams, signal })),
     enabled: id !== null,
-    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
+}
+
+export function listAllHostOsqueryReports(
+  id: number,
+  params: HostOsqueryReportsParams = {},
+): Promise<OsqueryReportSnapshot[]> {
+  return collectAllPages((page, perPage) =>
+    unwrap(
+      listHostOsqueryReports({
+        path: { id },
+        query: hostOsqueryReportsQueryParams({ ...params, page, per_page: perPage }),
+      }),
+    ),
+  );
+}
+
+function hostOsqueryReportsQueryParams(params: HostOsqueryReportsParams) {
+  return {
+    ...baseListParams(params),
+    status: params.status,
+  };
+}
+
+function hostOsqueryChecksQueryParams(params: HostOsqueryChecksParams) {
+  return {
+    ...baseListParams(params),
+    status: params.status,
+  };
 }
 
 export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
