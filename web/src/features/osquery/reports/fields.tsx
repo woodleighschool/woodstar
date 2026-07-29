@@ -184,6 +184,8 @@ export function ReportForm({
   draft,
   title,
   submitLabel,
+  activeTab,
+  onActiveTabChange,
   onSubmit,
   onSuccess,
   onCancel,
@@ -194,6 +196,8 @@ export function ReportForm({
   draft?: OsqueryReportMutation;
   title: string;
   submitLabel: string;
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
   onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => unknown;
   onCancel?: () => unknown;
@@ -201,7 +205,6 @@ export function ReportForm({
   confirmResultReset?: boolean;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
-  const [activeTab, setActiveTab] = useState("options");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const [liveQueryRequired, setLiveQueryRequired] = useState(false);
@@ -272,7 +275,7 @@ export function ReportForm({
   async function runLive() {
     if (!form.getFieldValue("query").trim()) {
       setLiveQueryRequired(true);
-      setActiveTab("options");
+      onActiveTabChange("options");
       return;
     }
     await exitGuard.runWithoutPrompt(() => onRunLive(form.state.values));
@@ -282,7 +285,7 @@ export function ReportForm({
       <PageShell className="h-full min-w-0 flex-1">
         <PageHeader title={title} />
 
-        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+        <ScrollableTabs value={activeTab} onValueChange={onActiveTabChange}>
           <ScrollableTabsList>
             <FormTabTrigger form={form} tab={reportFormTabs[0]}>
               Options
@@ -478,7 +481,7 @@ export function ReportForm({
           submitLabel={submitLabel}
           onSubmit={async () => {
             await form.handleSubmit();
-            revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
+            revealFirstInvalidFormTab(form, reportFormTabs, onActiveTabChange);
           }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
         >

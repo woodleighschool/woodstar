@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import { parseRouteID } from "@lib/route-params";
@@ -7,8 +7,11 @@ import { ConfigurationForm } from "./fields";
 import { formFromConfiguration } from "./form-adapter";
 import { useSantaConfiguration, useUpdateSantaConfiguration } from "./queries";
 
+const routeApi = getRouteApi("/_authenticated/santa/configurations/$id/edit");
+
 export function ConfigurationEditPage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const configurationId = params.id ?? "";
   const id = parseRouteID(configurationId);
@@ -41,6 +44,15 @@ export function ConfigurationEditPage() {
       initial={formFromConfiguration(configuration)}
       title="Edit Configuration"
       submitLabel="Save"
+      activeTab={search.tab ?? "options"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: value === "targets" ? "targets" : undefined,
+          }),
+        })
+      }
       onCancel={() =>
         void navigate({
           to: "/santa/configurations/$id",

@@ -49,7 +49,7 @@ export function SantaEventDetailPage() {
   const hasSigningChain = signingChain.length > 0;
   const hasEntitlements = entitlements.length > 0;
   const hasTabs = hasSigningChain || hasEntitlements;
-  const activeView = executionDetailView(search.view, {
+  const activeTab = executionDetailTab(search.tab, {
     hasSigningChain,
     hasEntitlements,
   });
@@ -73,7 +73,7 @@ export function SantaEventDetailPage() {
       <PageHeader title="Execution" description={event.file_path} />
 
       {hasTabs ? (
-        <ScrollableTabs value={activeView}>
+        <ScrollableTabs value={activeTab}>
           <ScrollableTabsList>
             <TabsTrigger
               value="details"
@@ -81,7 +81,7 @@ export function SantaEventDetailPage() {
                 <Link
                   to="/santa/events/$id"
                   params={{ id: eventId }}
-                  search={(previous) => ({ ...previous, view: undefined })}
+                  search={{ ...search, tab: undefined }}
                 />
               }
               nativeButton={false}
@@ -95,10 +95,7 @@ export function SantaEventDetailPage() {
                   <Link
                     to="/santa/events/$id"
                     params={{ id: eventId }}
-                    search={(previous) => ({
-                      ...previous,
-                      view: "signing-chain",
-                    })}
+                    search={{ ...search, tab: "signing-chain" }}
                   />
                 }
                 nativeButton={false}
@@ -113,10 +110,7 @@ export function SantaEventDetailPage() {
                   <Link
                     to="/santa/events/$id"
                     params={{ id: eventId }}
-                    search={(previous) => ({
-                      ...previous,
-                      view: "entitlements",
-                    })}
+                    search={{ ...search, tab: "entitlements" }}
                   />
                 }
                 nativeButton={false}
@@ -417,7 +411,7 @@ function formatEntitlementValue(value: unknown): string {
   return JSON.stringify(normalized);
 }
 
-function executionDetailView(
+function executionDetailTab(
   value: unknown,
   availability: { hasSigningChain: boolean; hasEntitlements: boolean },
 ) {

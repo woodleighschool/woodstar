@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useState } from "react";
 
 import { FormActions } from "@components/form-actions";
 import { FormTabTrigger, revealFirstInvalidFormTab } from "@components/form-tabs";
@@ -56,6 +55,8 @@ type PackageFormProps = {
   softwareLoading?: boolean;
   packageOptions: MunkiPackage[];
   installerMetadata?: MunkiPackage["installer_file"];
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
   onSubmit: (submission: PackageFormSubmission) => Promise<boolean>;
   onSuccess: () => void;
   onCancel: () => void;
@@ -70,12 +71,13 @@ export function PackageForm({
   softwareLoading,
   packageOptions,
   installerMetadata,
+  activeTab,
+  onActiveTabChange,
   onSubmit,
   onSuccess,
   onCancel,
   canCancelWhileSubmitting,
 }: PackageFormProps) {
-  const [activeTab, setActiveTab] = useState("basic");
   const form = usePackageEditorForm(initial, onSubmit, onSuccess);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel });
   return (
@@ -84,7 +86,7 @@ export function PackageForm({
       <PackageEditorTabs
         form={form}
         activeTab={activeTab}
-        onActiveTabChange={setActiveTab}
+        onActiveTabChange={onActiveTabChange}
         softwareInfo={softwareInfo}
         softwareOptions={softwareOptions}
         softwareLoading={softwareLoading}
@@ -96,7 +98,7 @@ export function PackageForm({
         submitLabel={submitLabel}
         onSubmit={async () => {
           await form.handleSubmit();
-          revealFirstInvalidFormTab(form, packageFormTabs, setActiveTab);
+          revealFirstInvalidFormTab(form, packageFormTabs, onActiveTabChange);
         }}
         onCancel={exitGuard.requestDiscard}
         canCancelWhileSubmitting={canCancelWhileSubmitting}

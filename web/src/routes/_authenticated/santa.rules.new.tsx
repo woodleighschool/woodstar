@@ -9,6 +9,7 @@ const searchSchema = z.object({
   rule_type: z.enum(RULE_TYPE_VALUES).optional().catch(undefined),
   identifier: z.string().optional().catch(undefined),
   name: z.string().optional().catch(undefined),
+  tab: z.literal("targets").optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/santa/rules/new")({

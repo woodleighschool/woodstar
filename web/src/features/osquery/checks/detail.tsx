@@ -13,6 +13,7 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -20,6 +21,7 @@ import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
+import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import {
   CHECK_RESULT_STATUSES,
@@ -84,6 +86,7 @@ export function CheckDetailPage() {
   });
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const activeTab = search.tab === "results" ? "results" : "overview";
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
@@ -95,7 +98,7 @@ export function CheckDetailPage() {
   const id = parseRouteID(checkId);
   const check = useCheck(id);
   const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
-  const results = useCheckResults(id, {
+  const results = useCheckResults(activeTab === "results" ? id : null, {
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
@@ -149,12 +152,10 @@ export function CheckDetailPage() {
         status,
       }),
   };
-
   return (
     <PageShell>
       <PageHeader
         title="Check Details"
-        description={check.data.description || undefined}
         meta={`Edited ${formatRelative(check.data.updated_at)}`}
         actions={
           <>
@@ -185,44 +186,79 @@ export function CheckDetailPage() {
         }
       />
 
-      <KeyValueSection title="Overview">
-        <KeyValueRow label="Name" value={check.data.name} />
-        <KeyValueRow label="Passing" value={formatHostCount(check.data.passing_host_count)} />
-        <KeyValueRow label="Failing" value={formatHostCount(check.data.failing_host_count)} />
-      </KeyValueSection>
+      <ScrollableTabs value={activeTab}>
+        <ScrollableTabsList>
+          <TabsTrigger
+            value="overview"
+            render={
+              <Link
+                to="/osquery/checks/$id"
+                params={{ id: checkId }}
+                search={{ ...search, tab: undefined }}
+              />
+            }
+            nativeButton={false}
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="results"
+            render={
+              <Link
+                to="/osquery/checks/$id"
+                params={{ id: checkId }}
+                search={{ ...search, tab: "results" }}
+              />
+            }
+            nativeButton={false}
+          >
+            Results
+          </TabsTrigger>
+        </ScrollableTabsList>
 
-      <LabelTargetDetails targets={check.data.targets} />
+        <TabsContent value="overview" className="flex flex-col gap-5">
+          <KeyValueSection title="Overview">
+            <KeyValueRow label="Name" value={check.data.name} />
+            <KeyValueRow label="Description" value={check.data.description} />
+            <KeyValueRow label="Passing" value={formatHostCount(check.data.passing_host_count)} />
+            <KeyValueRow label="Failing" value={formatHostCount(check.data.failing_host_count)} />
+          </KeyValueSection>
 
-      {results.error ? (
-        <QueryError
-          title="Failed to load check results"
-          error={results.error}
-          onRetry={() => void results.refetch()}
-        />
-      ) : results.isLoading ? (
-        <DataTableSkeleton columnCount={3} filterCount={1} withExport withViewOptions={false} />
-      ) : (
-        <DataTable
-          table={table}
-          heading="Results"
-          exportOptions={exportOptions}
-          empty={
-            <PanelEmptyState>
-              {tableSearch.isFiltered ? "No matching check results" : "No check results yet"}
-            </PanelEmptyState>
-          }
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <DataTableSearchInput
-              value={tableSearch.q ?? ""}
-              onValueChange={tableSearch.onQueryChange}
-              placeholder="Search check results"
-              className="h-8 w-full sm:w-64"
+          <LabelTargetDetails targets={check.data.targets} />
+        </TabsContent>
+
+        <TabsContent value="results">
+          {results.error ? (
+            <QueryError
+              title="Failed to load check results"
+              error={results.error}
+              onRetry={() => void results.refetch()}
             />
-            <CheckResultsToolbar table={table} />
-          </div>
-        </DataTable>
-      )}
+          ) : results.isLoading ? (
+            <DataTableSkeleton columnCount={3} filterCount={1} withExport withViewOptions={false} />
+          ) : (
+            <DataTable
+              table={table}
+              exportOptions={exportOptions}
+              empty={
+                <PanelEmptyState>
+                  {tableSearch.isFiltered ? "No matching check results" : "No check results yet"}
+                </PanelEmptyState>
+              }
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <DataTableSearchInput
+                  value={tableSearch.q ?? ""}
+                  onValueChange={tableSearch.onQueryChange}
+                  placeholder="Search check results"
+                  className="h-8 w-full sm:w-64"
+                />
+                <CheckResultsToolbar table={table} />
+              </div>
+            </DataTable>
+          )}
+        </TabsContent>
+      </ScrollableTabs>
 
       {isAdmin ? (
         <CheckDeleteDialog

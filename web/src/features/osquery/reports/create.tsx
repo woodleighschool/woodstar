@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 
 import {
   useClearOsqueryHistoryState,
@@ -9,8 +9,11 @@ import {
 import { emptyReport, ReportForm } from "./fields";
 import { useCreateReport } from "./queries";
 
+const routeApi = getRouteApi("/_authenticated/osquery/reports/new/");
+
 export function ReportCreatePage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
+  const search = routeApi.useSearch();
   const create = useCreateReport();
   const historyState = useOsqueryHistoryState();
   const openLive = useOpenOsqueryLive();
@@ -26,6 +29,15 @@ export function ReportCreatePage() {
       draft={draft}
       title="Create Report"
       submitLabel="Create"
+      activeTab={search.tab ?? "options"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: value === "targets" ? "targets" : undefined,
+          }),
+        })
+      }
       onCancel={async () => {
         await clearHistoryState();
         await navigate({ to: "/osquery/reports" });

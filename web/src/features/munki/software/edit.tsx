@@ -1,7 +1,7 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { encodeSort } from "@components/data-table/use-data-table-search";
@@ -38,6 +38,9 @@ import {
 import { MunkiIncludeTargets, type MunkiSoftwareTargetRow } from "./include-targets";
 import { useMunkiSoftware, useMunkiSoftwareDetail, useUpdateMunkiSoftware } from "./queries";
 import { useUploadMunkiIcon } from "./queries";
+
+const routeApi = getRouteApi("/_authenticated/munki/software/$id/edit");
+
 const softwareFormTabs = [
   {
     value: "options",
@@ -80,6 +83,7 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
 ];
 
 export function MunkiSoftwareEditPage() {
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const softwareID = parseRouteID(params.id);
   const query = useMunkiSoftwareDetail(softwareID);
@@ -104,18 +108,24 @@ export function MunkiSoftwareEditPage() {
     <MunkiSoftwareDetailForm
       key={`${query.data.id}:${query.data.updated_at}`}
       software={query.data}
+      activeTab={search.tab ?? "options"}
     />
   );
 }
-function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }) {
-  const navigate = useNavigate();
+function MunkiSoftwareDetailForm({
+  software,
+  activeTab,
+}: {
+  software: MunkiSoftwareDetail;
+  activeTab: string;
+}) {
+  const navigate = routeApi.useNavigate();
   const titles = useMunkiSoftware({
     per_page: MAX_PAGE_SIZE,
     sort: encodeSort("name"),
   });
   const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiIcon();
-  const [activeTab, setActiveTab] = useState("options");
   const packages = software.packages ?? [];
   const softwareOptionsForm = useMunkiSoftwareForm(
     munkiSoftwareFormFromSoftware(software),
@@ -174,6 +184,14 @@ function MunkiSoftwareDetailForm({ software }: { software: MunkiSoftwareDetail }
   ) {
     updateSoftware.reset();
     softwareOptionsForm.setFieldValue("targets.exclude", next);
+  }
+  function setActiveTab(value: string) {
+    void navigate({
+      search: (previous) => ({
+        ...previous,
+        tab: value === "targets" || value === "packages" ? value : undefined,
+      }),
+    });
   }
   const exitGuard = usePageFormExitGuard({
     form: softwareOptionsForm,

@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useState } from "react";
 
 import { FormActions } from "@components/form-actions";
 import {
@@ -49,6 +48,8 @@ export function RuleForm({
   initial,
   title,
   submitLabel,
+  activeTab,
+  onActiveTabChange,
   onSubmit,
   onSuccess,
   onCancel,
@@ -56,11 +57,12 @@ export function RuleForm({
   initial: RuleFormState;
   title: string;
   submitLabel: string;
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
   onSubmit: (body: SantaRuleMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState("options");
   const form = useForm({
     defaultValues: initial,
     validationLogic: revalidateLogic({
@@ -82,7 +84,7 @@ export function RuleForm({
           <>
             <PageHeader title={title} />
 
-            <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+            <ScrollableTabs value={activeTab} onValueChange={onActiveTabChange}>
               <ScrollableTabsList>
                 <FormTabTrigger form={form} tab={ruleFormTabs[0]}>
                   Options
@@ -284,7 +286,7 @@ export function RuleForm({
         submitLabel={submitLabel}
         onSubmit={async () => {
           await form.handleSubmit();
-          revealFirstInvalidFormTab(form, ruleFormTabs, setActiveTab);
+          revealFirstInvalidFormTab(form, ruleFormTabs, onActiveTabChange);
         }}
         onCancel={onCancel ? exitGuard.requestDiscard : undefined}
       />

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import {
@@ -11,8 +11,11 @@ import { parseRouteID } from "@lib/route-params";
 import { ReportForm, reportFromDetail } from "./fields";
 import { useReport, useUpdateReport } from "./queries";
 
+const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/edit");
+
 export function ReportEditPage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const reportId = params.id ?? "";
   const id = parseRouteID(reportId);
@@ -50,6 +53,15 @@ export function ReportEditPage() {
       draft={draft}
       title="Edit Report"
       submitLabel="Save"
+      activeTab={search.tab ?? "options"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: value === "targets" ? "targets" : undefined,
+          }),
+        })
+      }
       confirmResultReset
       onCancel={async () => {
         await clearHistoryState();

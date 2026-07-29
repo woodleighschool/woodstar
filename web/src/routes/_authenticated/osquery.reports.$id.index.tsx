@@ -17,6 +17,7 @@ const searchSchema = createTableSearchSchema(
   },
 ).extend({
   status: z.enum(REPORT_SNAPSHOT_STATUS_VALUES).optional().catch(undefined),
+  tab: z.literal("results").optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/$id/")({

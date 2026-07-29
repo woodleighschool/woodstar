@@ -7,7 +7,7 @@ import { santaEventQueryOptions } from "@features/santa/events/queries";
 import { parseRouteID } from "@lib/route-params";
 
 const searchSchema = z.object({
-  view: z.enum(["signing-chain", "entitlements"]).optional().catch(undefined),
+  tab: z.enum(["signing-chain", "entitlements"]).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/santa/events/$id")({

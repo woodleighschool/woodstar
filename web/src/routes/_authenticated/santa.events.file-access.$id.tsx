@@ -7,7 +7,7 @@ import { santaFileAccessEventQueryOptions } from "@features/santa/events/queries
 import { parseRouteID } from "@lib/route-params";
 
 const searchSchema = z.object({
-  view: z.literal("process-chain").optional().catch(undefined),
+  tab: z.literal("process-chain").optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/santa/events/file-access/$id")({

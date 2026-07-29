@@ -1,4 +1,4 @@
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { encodeSort } from "@components/data-table/use-data-table-search";
@@ -10,11 +10,12 @@ import { PackageForm } from "./fields";
 import { emptyPackageForm } from "./form-adapter";
 import { useCreateMunkiPackage, useMunkiPackages } from "./queries";
 import { useUploadMunkiInstaller } from "./queries";
+import { packageFormTabSearchValue } from "./tab-values";
 
 const routeApi = getRouteApi("/_authenticated/munki/packages/new");
 
 export function MunkiPackageCreatePage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
   const initialSoftwareID = search.software_id ?? null;
   const create = useCreateMunkiPackage();
@@ -39,6 +40,16 @@ export function MunkiPackageCreatePage() {
       softwareLoading={software.isLoading}
       packageOptions={packages.data?.items ?? []}
       installerMetadata={undefined}
+      activeTab={search.tab ?? "basic"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          to: "/munki/packages/new",
+          search: (previous) => ({
+            ...previous,
+            tab: packageFormTabSearchValue(value),
+          }),
+        })
+      }
       canCancelWhileSubmitting={installerUpload.isUploading}
       onSubmit={async ({ softwareID, installerFile, mutation }) => {
         cancelled.current = false;

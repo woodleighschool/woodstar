@@ -13,6 +13,7 @@ import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -20,6 +21,7 @@ import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
+import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
 import type { OsqueryReportSnapshot } from "@lib/api";
@@ -100,6 +102,7 @@ export function ReportDetailPage() {
   });
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const activeTab = search.tab === "results" ? "results" : "overview";
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
@@ -111,7 +114,7 @@ export function ReportDetailPage() {
   const id = parseRouteID(reportId);
   const report = useReport(id);
   const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
-  const snapshots = useReportSnapshots(id, {
+  const snapshots = useReportSnapshots(activeTab === "results" ? id : null, {
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
@@ -175,12 +178,10 @@ export function ReportDetailPage() {
       }),
     serializeRows: (exportRows) => serializeSnapshots(exportRows, exportMetadata),
   };
-
   return (
     <PageShell>
       <PageHeader
         title="Report Details"
-        description={report.data.description || undefined}
         meta={`Edited ${formatRelative(report.data.updated_at)}`}
         actions={
           <>
@@ -211,54 +212,89 @@ export function ReportDetailPage() {
         }
       />
 
-      <KeyValueSection title="Overview">
-        <KeyValueRow label="Name" value={report.data.name} />
-        <KeyValueRow
-          label="Interval"
-          value={
-            report.data.schedule_interval
-              ? `Every ${formatInterval(report.data.schedule_interval)}`
-              : "Off"
-          }
-        />
-        <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
-      </KeyValueSection>
+      <ScrollableTabs value={activeTab}>
+        <ScrollableTabsList>
+          <TabsTrigger
+            value="overview"
+            render={
+              <Link
+                to="/osquery/reports/$id"
+                params={{ id: reportId }}
+                search={{ ...search, tab: undefined }}
+              />
+            }
+            nativeButton={false}
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="results"
+            render={
+              <Link
+                to="/osquery/reports/$id"
+                params={{ id: reportId }}
+                search={{ ...search, tab: "results" }}
+              />
+            }
+            nativeButton={false}
+          >
+            Results
+          </TabsTrigger>
+        </ScrollableTabsList>
 
-      <LabelTargetDetails targets={report.data.targets} />
-
-      {snapshots.error ? (
-        <QueryError
-          title="Failed to load report results"
-          error={snapshots.error}
-          onRetry={() => void snapshots.refetch()}
-        />
-      ) : snapshots.isLoading ? (
-        <DataTableSkeleton columnCount={5} filterCount={1} withExport withViewOptions={false} />
-      ) : (
-        <DataTable
-          table={table}
-          heading="Results"
-          exportOptions={exportOptions}
-          renderSubRow={(row) => (
-            <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
-          )}
-          empty={
-            <PanelEmptyState>
-              {tableSearch.isFiltered ? "No matching report results" : "No targeted hosts"}
-            </PanelEmptyState>
-          }
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <DataTableSearchInput
-              value={tableSearch.q ?? ""}
-              onValueChange={tableSearch.onQueryChange}
-              placeholder="Search hosts and results"
-              className="h-8 w-full sm:w-64"
+        <TabsContent value="overview" className="flex flex-col gap-5">
+          <KeyValueSection title="Overview">
+            <KeyValueRow label="Name" value={report.data.name} />
+            <KeyValueRow label="Description" value={report.data.description} />
+            <KeyValueRow
+              label="Interval"
+              value={
+                report.data.schedule_interval
+                  ? `Every ${formatInterval(report.data.schedule_interval)}`
+                  : "Off"
+              }
             />
-            <ReportResultsToolbar table={table} />
-          </div>
-        </DataTable>
-      )}
+            <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
+          </KeyValueSection>
+
+          <LabelTargetDetails targets={report.data.targets} />
+        </TabsContent>
+
+        <TabsContent value="results">
+          {snapshots.error ? (
+            <QueryError
+              title="Failed to load report results"
+              error={snapshots.error}
+              onRetry={() => void snapshots.refetch()}
+            />
+          ) : snapshots.isLoading ? (
+            <DataTableSkeleton columnCount={5} filterCount={1} withExport withViewOptions={false} />
+          ) : (
+            <DataTable
+              table={table}
+              exportOptions={exportOptions}
+              renderSubRow={(row) => (
+                <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
+              )}
+              empty={
+                <PanelEmptyState>
+                  {tableSearch.isFiltered ? "No matching report results" : "No targeted hosts"}
+                </PanelEmptyState>
+              }
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <DataTableSearchInput
+                  value={tableSearch.q ?? ""}
+                  onValueChange={tableSearch.onQueryChange}
+                  placeholder="Search hosts and results"
+                  className="h-8 w-full sm:w-64"
+                />
+                <ReportResultsToolbar table={table} />
+              </div>
+            </DataTable>
+          )}
+        </TabsContent>
+      </ScrollableTabs>
 
       {isAdmin ? (
         <ReportDeleteDialog

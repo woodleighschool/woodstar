@@ -67,6 +67,8 @@ export function CheckForm({
   draft,
   title,
   submitLabel,
+  activeTab,
+  onActiveTabChange,
   onSubmit,
   onSuccess,
   onCancel,
@@ -77,6 +79,8 @@ export function CheckForm({
   draft?: OsqueryCheckMutation;
   title: string;
   submitLabel: string;
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
   onSubmit: (value: OsqueryCheckMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => unknown;
   onCancel?: () => unknown;
@@ -84,7 +88,6 @@ export function CheckForm({
   confirmResultReset?: boolean;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
-  const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const [liveQueryRequired, setLiveQueryRequired] = useState(false);
   const [pendingResultReset, setPendingResultReset] = useState<OsqueryCheckMutation | null>(null);
@@ -147,7 +150,7 @@ export function CheckForm({
   async function runLive() {
     if (!form.getFieldValue("query").trim()) {
       setLiveQueryRequired(true);
-      setActiveTab("options");
+      onActiveTabChange("options");
       return;
     }
     await exitGuard.runWithoutPrompt(() => onRunLive(form.state.values));
@@ -157,7 +160,7 @@ export function CheckForm({
       <PageShell className="h-full min-w-0 flex-1">
         <PageHeader title={title} />
 
-        <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+        <ScrollableTabs value={activeTab} onValueChange={onActiveTabChange}>
           <ScrollableTabsList>
             <FormTabTrigger form={form} tab={checkFormTabs[0]}>
               Options
@@ -267,7 +270,7 @@ export function CheckForm({
           submitLabel={submitLabel}
           onSubmit={async () => {
             await form.handleSubmit();
-            revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
+            revealFirstInvalidFormTab(form, checkFormTabs, onActiveTabChange);
           }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
         >

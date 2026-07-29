@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useState } from "react";
 
 import { FormActions } from "@components/form-actions";
 import {
@@ -74,6 +73,8 @@ export function ConfigurationForm({
   initial,
   title,
   submitLabel,
+  activeTab,
+  onActiveTabChange,
   onSubmit,
   onSuccess,
   onCancel,
@@ -81,11 +82,12 @@ export function ConfigurationForm({
   initial: ConfigurationFormInput;
   title: string;
   submitLabel: string;
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
   onSubmit: (body: SantaConfigurationMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState("options");
   const form = useConfigurationEditorForm(initial, onSubmit, onSuccess);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
 
@@ -93,7 +95,7 @@ export function ConfigurationForm({
     <PageShell>
       <PageHeader title={title} />
 
-      <ScrollableTabs value={activeTab} onValueChange={setActiveTab}>
+      <ScrollableTabs value={activeTab} onValueChange={onActiveTabChange}>
         <ScrollableTabsList>
           <FormTabTrigger form={form} tab={configurationFormTabs[0]}>
             Options
@@ -127,7 +129,7 @@ export function ConfigurationForm({
         submitLabel={submitLabel}
         onSubmit={async () => {
           await form.handleSubmit();
-          revealFirstInvalidFormTab(form, configurationFormTabs, setActiveTab);
+          revealFirstInvalidFormTab(form, configurationFormTabs, onActiveTabChange);
         }}
         onCancel={onCancel ? exitGuard.requestDiscard : undefined}
       />

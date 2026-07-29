@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 import { useMemo, useRef } from "react";
 
 import { encodeSort } from "@components/data-table/use-data-table-search";
@@ -13,8 +13,12 @@ import { packageFormFromPackage } from "./form-adapter";
 import type { SoftwareInfo } from "./package-reference-editors";
 import { useMunkiPackage, useMunkiPackages, useUpdateMunkiPackage } from "./queries";
 import { useUploadMunkiInstaller } from "./queries";
+import { packageFormTabSearchValue } from "./tab-values";
+
+const routeApi = getRouteApi("/_authenticated/munki/packages/$id/edit");
 
 export function MunkiPackageEditPage() {
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const validPackageID = parseRouteID(params.id);
   const pkg = useMunkiPackage(validPackageID);
@@ -40,12 +44,21 @@ export function MunkiPackageEditPage() {
       key={`${pkg.data.id}:${pkg.data.updated_at}`}
       packageID={validPackageID}
       pkg={pkg.data}
+      activeTab={search.tab ?? "basic"}
     />
   );
 }
 
-function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: MunkiPackage }) {
-  const navigate = useNavigate();
+function MunkiPackageEditForm({
+  packageID,
+  pkg,
+  activeTab,
+}: {
+  packageID: number;
+  pkg: MunkiPackage;
+  activeTab: string;
+}) {
+  const navigate = routeApi.useNavigate();
   const update = useUpdateMunkiPackage();
   const installerUpload = useUploadMunkiInstaller();
   const cancelled = useRef(false);
@@ -68,6 +81,15 @@ function MunkiPackageEditForm({ packageID, pkg }: { packageID: number; pkg: Munk
       softwareInfo={softwareInfo}
       packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
       installerMetadata={pkg.installer_file}
+      activeTab={activeTab}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: packageFormTabSearchValue(value),
+          }),
+        })
+      }
       canCancelWhileSubmitting={installerUpload.isUploading}
       onSubmit={async ({ installerFile, mutation }) => {
         cancelled.current = false;

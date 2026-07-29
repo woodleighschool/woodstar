@@ -43,13 +43,13 @@ export function SantaFileAccessEventDetailPage() {
 
   const event = query.data;
   const processChain = event.process_chain ?? [];
-  const activeView = search.view === "process-chain" ? "process-chain" : "overview";
+  const activeTab = search.tab === "process-chain" ? "process-chain" : "overview";
 
   return (
     <PageShell className="gap-6">
       <PageHeader title="File Access" description={event.target} />
 
-      <ScrollableTabs value={activeView}>
+      <ScrollableTabs value={activeTab}>
         <ScrollableTabsList>
           <TabsTrigger
             value="overview"
@@ -57,7 +57,7 @@ export function SantaFileAccessEventDetailPage() {
               <Link
                 to="/santa/events/file-access/$id"
                 params={{ id: eventId }}
-                search={(previous) => ({ ...previous, view: undefined })}
+                search={{ ...search, tab: undefined }}
               />
             }
             nativeButton={false}
@@ -70,7 +70,7 @@ export function SantaFileAccessEventDetailPage() {
               <Link
                 to="/santa/events/file-access/$id"
                 params={{ id: eventId }}
-                search={(previous) => ({ ...previous, view: "process-chain" })}
+                search={{ ...search, tab: "process-chain" }}
               />
             }
             nativeButton={false}

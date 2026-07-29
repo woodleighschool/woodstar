@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import {
@@ -11,8 +11,11 @@ import { parseRouteID } from "@lib/route-params";
 import { CheckForm, checkFromDetail } from "./fields";
 import { useCheck, useUpdateCheck } from "./queries";
 
+const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/edit");
+
 export function CheckEditPage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const checkId = params.id ?? "";
   const id = parseRouteID(checkId);
@@ -50,6 +53,15 @@ export function CheckEditPage() {
       draft={draft}
       title="Edit Check"
       submitLabel="Save"
+      activeTab={search.tab ?? "options"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: value === "targets" ? "targets" : undefined,
+          }),
+        })
+      }
       confirmResultReset
       onCancel={async () => {
         await clearHistoryState();

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import { parseRouteID } from "@lib/route-params";
@@ -7,8 +7,11 @@ import { RuleForm } from "./fields";
 import { formFromRule } from "./form-state";
 import { useSantaRule, useUpdateSantaRule } from "./queries";
 
+const routeApi = getRouteApi("/_authenticated/santa/rules/$id/edit");
+
 export function RuleEditPage() {
-  const navigate = useNavigate();
+  const navigate = routeApi.useNavigate();
+  const search = routeApi.useSearch();
   const params = useParams({ strict: false });
   const ruleId = params.id ?? "";
   const id = parseRouteID(ruleId);
@@ -36,6 +39,15 @@ export function RuleEditPage() {
       initial={formFromRule(rule)}
       title="Edit Rule"
       submitLabel="Save"
+      activeTab={search.tab ?? "options"}
+      onActiveTabChange={(value) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: value === "targets" ? "targets" : undefined,
+          }),
+        })
+      }
       onCancel={() =>
         void navigate({
           to: "/santa/rules/$id",
