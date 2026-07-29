@@ -249,8 +249,8 @@
   }
 
   [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-    [role="button"]
-  ) {
+      [role="button"]
+    ) {
     background-image:
       linear-gradient(currentColor, currentColor),
       linear-gradient(
@@ -267,11 +267,11 @@
   }
 
   [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-    [role="button"]
-  ):hover,
+      [role="button"]
+    ):hover,
   [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-    [role="button"]
-  ):focus-visible {
+      [role="button"]
+    ):focus-visible {
     background-size:
       100% 1px,
       100% 1px;
