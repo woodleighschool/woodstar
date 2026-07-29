@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Package } from "lucide-react";
+import { ChevronRight, Package } from "lucide-react";
 import * as React from "react";
 
 import { DataTable } from "@components/data-table/data-table";
@@ -13,6 +13,7 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
+import { Button } from "@components/ui/button";
 import { useSoftware } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import {
@@ -78,7 +79,7 @@ export function SoftwareListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={4} filterCount={1} />
+        <DataTableSkeleton columnCount={5} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -154,5 +155,24 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     header: "Hosts",
     cell: ({ row }) => row.original.hosts_count,
     meta: { label: "Hosts" },
+  },
+  {
+    id: "actions",
+    header: () => null,
+    cell: ({ row }) => (
+      <Button
+        variant="ghost"
+        size="xs"
+        className="opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
+        render={<Link to="/hosts" search={{ software_title_id: row.original.id }} />}
+        nativeButton={false}
+      >
+        See hosts
+        <ChevronRight />
+      </Button>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    size: 88,
   },
 ];
