@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.5](https://github.com/woodleighschool/woodstar/compare/0.6.4...0.6.5) (2026-07-29)
+
+
+### Features
+
+* **deps:** update dependency shadcn (4.15.0 → 4.16.0) ([#81](https://github.com/woodleighschool/woodstar/issues/81)) ([cd32c38](https://github.com/woodleighschool/woodstar/commit/cd32c386940021d0d2408098bb668722a69e2cdc))
+* **targeting:** show targets on detail pages ([05af2b2](https://github.com/woodleighschool/woodstar/commit/05af2b2935ede0fa8d4aa35c69649b808b44994f))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#84](https://github.com/woodleighschool/woodstar/issues/84)) ([6696cef](https://github.com/woodleighschool/woodstar/commit/6696cef4147e04e110e9ce83b1615d0cf749bda8))
+* **deps:** update dependency @types/node (26.1.1 → 26.1.2) ([#80](https://github.com/woodleighschool/woodstar/issues/80)) ([c77cd63](https://github.com/woodleighschool/woodstar/commit/c77cd633cb80046e915ae3f8a9327bd085201dff))
+* **osquery:** filter schema table search ([2786ad9](https://github.com/woodleighschool/woodstar/commit/2786ad98f69daff9432b5c1ff717ed48954c5327))
+* **osquery:** reflect cleared query results ([2f422ef](https://github.com/woodleighschool/woodstar/commit/2f422eff651c3c408a3ab9a8d2b41bff38e3c24e))
+* **renovate:** dedupe pnpm lockfiles ([6335f21](https://github.com/woodleighschool/woodstar/commit/6335f21f9e9fdaeea9b560019a4897292c80357b))
+* **web:** submit forms explicitly ([5b22784](https://github.com/woodleighschool/woodstar/commit/5b22784e8bebf5edd71eb8b11ae82a8b193bfce1))
+
 ## [0.6.4](https://github.com/woodleighschool/woodstar/compare/0.6.3...0.6.4) (2026-07-28)
 
 
