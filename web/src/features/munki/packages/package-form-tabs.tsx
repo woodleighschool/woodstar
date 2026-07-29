@@ -390,7 +390,7 @@ function RequirementsTab({
           id="munki-package-installable-condition"
           label="Installable Condition"
           description="NSPredicate evaluated on the client; false prevents installation."
-          minHeight="[&_.cm-content]:min-h-32"
+          minHeight="8rem"
         />
       </FieldSet>
     </FieldGroup>
@@ -436,7 +436,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
             name="blocking_applications_quit_script"
             id="munki-package-blocking-applications-quit-script"
             label="Quit Script"
-            minHeight="[&_.cm-content]:min-h-32"
+            minHeight="8rem"
           />
         </FieldGroup>
       </FieldSet>
@@ -464,7 +464,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
                   value={field.state.value}
                   onChange={field.handleChange}
                   lineNumbers={false}
-                  className="[&_.cm-content]:min-h-28"
+                  minHeight="7rem"
                 />
               </div>
             )}

@@ -1,7 +1,14 @@
 import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Extension, Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  keymap,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef, useMemo } from "react";
@@ -19,6 +26,8 @@ interface CodeEditorProps {
   lineNumbers?: boolean;
   lineWrapping?: boolean;
   highlightActiveLine?: boolean;
+  minHeight?: string;
+  maxHeight?: string;
 }
 
 const EMPTY_EXTENSIONS: Extension[] = [];
@@ -42,8 +51,12 @@ const surfaceTheme = EditorView.theme({
     fontSize: "0.85rem",
     backgroundColor: "var(--code-editor-background, var(--card))",
     color: "var(--foreground)",
+    borderRadius: "calc(var(--radius) - 0.125rem)",
   },
   "&.cm-focused": { outline: "none" },
+  ".cm-scroller": {
+    borderRadius: "calc(var(--radius) - 0.125rem)",
+  },
   ".cm-content": {
     fontFamily: "var(--font-mono)",
     caretColor: "var(--foreground)",
@@ -57,10 +70,17 @@ const surfaceTheme = EditorView.theme({
     border: "none",
     borderRight: "1px solid var(--border)",
   },
-  ".cm-activeLine": { backgroundColor: "color-mix(in oklch, var(--muted) 50%, transparent)" },
-  ".cm-activeLineGutter": { backgroundColor: "color-mix(in oklch, var(--muted) 50%, transparent)" },
-  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "color-mix(in oklch, var(--primary) 25%, transparent)",
+  ".cm-selectionBackground, &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
+    {
+      background: "var(--code-selection-background)",
+    },
+  ".cm-line ::selection, .cm-line::selection, .cm-content :focus::selection, .cm-content :focus ::selection":
+    {
+      backgroundColor: "transparent !important",
+      color: "var(--code-selection-foreground) !important",
+    },
+  ".cm-selected-text, .cm-selected-text *": {
+    color: "var(--code-selection-foreground) !important",
   },
   ".cm-cursor": { borderLeftColor: "var(--foreground)" },
   ".cm-placeholder": { color: "var(--muted-foreground)" },
@@ -117,6 +137,35 @@ const syntaxHighlight = HighlightStyle.define([
   { tag: t.variableName, color: "var(--foreground)" },
 ]);
 
+const selectedText = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = selectedTextDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.selectionSet) {
+        this.decorations = selectedTextDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (value) => value.decorations,
+  },
+);
+
+function selectedTextDecorations(view: EditorView) {
+  return Decoration.set(
+    view.state.selection.ranges.flatMap((range) =>
+      range.empty
+        ? []
+        : [Decoration.mark({ class: "cm-selected-text" }).range(range.from, range.to)],
+    ),
+  );
+}
+
 export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(function CodeEditor(
   {
     value,
@@ -128,7 +177,9 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
     invalid,
     lineNumbers = true,
     lineWrapping = true,
-    highlightActiveLine = true,
+    highlightActiveLine = false,
+    minHeight,
+    maxHeight,
   },
   ref,
 ) {
@@ -138,9 +189,14 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
       ...extensions,
       ...(lineWrapping ? [EditorView.lineWrapping] : []),
       surfaceTheme,
+      selectedText,
+      EditorView.theme({
+        ".cm-content": minHeight ? { minHeight } : {},
+        ".cm-scroller": maxHeight ? { maxHeight, overflow: "auto" } : {},
+      }),
       syntaxHighlighting(syntaxHighlight),
     ],
-    [extensions, lineWrapping],
+    [extensions, lineWrapping, maxHeight, minHeight],
   );
 
   return (
@@ -173,6 +229,7 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
         basicSetup={{
           lineNumbers,
           highlightActiveLine,
+          highlightActiveLineGutter: highlightActiveLine,
           autocompletion: false,
           foldGutter: false,
         }}

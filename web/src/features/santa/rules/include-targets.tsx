@@ -263,7 +263,8 @@ function SantaIncludeDialog({
                             lineNumbers={false}
                             highlightActiveLine={false}
                             invalid={control["aria-invalid"]}
-                            className="[&_.cm-content]:min-h-28 [&_.cm-scroller]:max-h-48 [&_.cm-scroller]:overflow-auto"
+                            minHeight="7rem"
+                            maxHeight="12rem"
                           />
                           <a
                             href="https://northpole.dev/features/binary-authorization/#cel"

@@ -31,12 +31,7 @@ export function ShowQueryButton({ sql }: { sql: string }) {
           <DialogTitle>Query</DialogTitle>
         </DialogHeader>
         <Suspense fallback={<div className="h-40 rounded-md bg-muted" />}>
-          <LazySQLEditor
-            value={sql}
-            onChange={() => null}
-            readOnly
-            className="[&_.cm-scroller]:max-h-[60vh] [&_.cm-scroller]:overflow-auto"
-          />
+          <LazySQLEditor value={sql} onChange={() => null} readOnly maxHeight="60vh" />
         </Suspense>
       </DialogContent>
     </Dialog>

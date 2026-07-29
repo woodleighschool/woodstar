@@ -1,7 +1,14 @@
 import { autocompletion } from "@codemirror/autocomplete";
 import { sql, SQLite } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  MatchDecorator,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef, useMemo } from "react";
 
@@ -19,10 +26,22 @@ interface SQLEditorProps {
   className?: string;
   invalid?: boolean;
   onTableMetaClick?: (tableName: string) => void;
+  minHeight?: string;
+  maxHeight?: string;
 }
 
 export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function SQLEditor(
-  { value, onChange, placeholder, readOnly, className, invalid, onTableMetaClick },
+  {
+    value,
+    onChange,
+    placeholder,
+    readOnly,
+    className,
+    invalid,
+    onTableMetaClick,
+    minHeight,
+    maxHeight,
+  },
   ref,
 ) {
   const schema = useOsquerySchema();
@@ -31,6 +50,7 @@ export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function
     const next: Extension[] = [sql({ dialect: SQLite })];
     if (schema.data) {
       next.push(autocompletion({ override: [completionsFromSchema(schema.data)] }));
+      next.push(tableNameHighlights(schema.data));
     }
     if (schema.data && onTableMetaClick) {
       next.push(tableMetaClick(schema.data, onTableMetaClick));
@@ -48,9 +68,56 @@ export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function
       readOnly={readOnly}
       className={className}
       invalid={invalid}
+      minHeight={minHeight ?? (readOnly ? undefined : "6rem")}
+      maxHeight={maxHeight ?? (readOnly ? undefined : "30rem")}
     />
   );
 });
+
+const tableNameTheme = EditorView.theme({
+  ".cm-osquery-table": {
+    padding: "0 0.125rem",
+    borderRadius: "0.2rem",
+    backgroundColor: "var(--code-table)",
+    color: "var(--code-table-foreground)",
+    boxDecorationBreak: "clone",
+  },
+});
+
+function tableNameHighlights(tables: OsqueryTable[]): Extension {
+  const names = tables
+    .map((table) => escapeRegex(table.name))
+    .toSorted((a, b) => b.length - a.length);
+  if (names.length === 0) return [];
+
+  const matcher = new MatchDecorator({
+    regexp: new RegExp(`\\b(?:${names.join("|")})\\b`, "gi"),
+    decoration: Decoration.mark({ class: "cm-osquery-table" }),
+  });
+
+  const plugin = ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        this.decorations = matcher.createDeco(view);
+      }
+
+      update(update: ViewUpdate) {
+        this.decorations = matcher.updateDeco(update, this.decorations);
+      }
+    },
+    {
+      decorations: (value) => value.decorations,
+    },
+  );
+
+  return [plugin, tableNameTheme];
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function tableMetaClick(
   tables: OsqueryTable[],

@@ -153,7 +153,7 @@ export function FormCodeField({
   id,
   label,
   description,
-  minHeight = "[&_.cm-content]:min-h-40",
+  minHeight = "10rem",
 }: {
   form: PackageEditorForm;
   name: StringPackageFieldName;
@@ -170,7 +170,7 @@ export function FormCodeField({
             <CodeEditor
               value={field.state.value}
               onChange={field.handleChange}
-              className={minHeight}
+              minHeight={minHeight}
             />
           )}
         </ValidatedFormField>
@@ -423,7 +423,8 @@ export function ScriptField({
         value={value}
         onChange={onChange}
         extensions={shellExtensions}
-        className="[&_.cm-content]:min-h-56 [&_.cm-scroller]:max-h-120 [&_.cm-scroller]:overflow-y-auto"
+        minHeight="14rem"
+        maxHeight="30rem"
         placeholder="#!/bin/zsh"
       />
     </Field>

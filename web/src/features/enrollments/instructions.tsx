@@ -165,14 +165,14 @@ function DeploymentExample({
       lineNumbers={false}
       lineWrapping={false}
       highlightActiveLine={false}
+      minHeight={multiline ? "14rem" : "2.25rem"}
+      maxHeight={multiline ? "24rem" : undefined}
       className={cn(
         multiline
           ? `
-            max-h-96 min-h-56 overflow-auto
             [&_.cm-content]:py-1.5
           `
           : `
-            min-h-9
             [&_.cm-content]:py-2
             [&_.cm-line]:whitespace-pre
             [&_.cm-scroller]:overflow-x-auto
