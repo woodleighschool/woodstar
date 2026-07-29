@@ -14,7 +14,3 @@ export function sqlSyntaxError(query: string): string | undefined {
     return invalidSQLSyntaxMessage;
   }
 }
-
-export function validSQLSyntax(query: string) {
-  return sqlSyntaxError(query) === undefined;
-}

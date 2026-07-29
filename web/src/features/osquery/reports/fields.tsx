@@ -3,6 +3,7 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
+import { ConfirmDialog } from "@components/confirm-dialog";
 import { SchemaSidebar } from "@components/editor/schema-sidebar";
 import { SQLEditor } from "@components/editor/sql-editor";
 import { useSchemaSidebar } from "@components/editor/use-schema-sidebar";
@@ -15,7 +16,7 @@ import {
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@components/targeting/label-target-set-editor";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import {
   Select,
@@ -31,7 +32,7 @@ import { ValidatedFormField } from "@components/validated-form-field";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { OsqueryReport, OsqueryReportMutation } from "@lib/api";
 import { firstErrorMessage, requiredString } from "@lib/form-validation";
-import { invalidSQLSyntaxMessage, validSQLSyntax } from "@lib/sql-validation";
+import { sqlSyntaxError } from "@lib/sql-validation";
 import { emptyLabelTargetSet, labelTargetSetSchema, normalizeLabelTargetSet } from "@lib/targeting";
 import { nonEmpty } from "@lib/utils";
 const FREQUENCY_OPTIONS: {
@@ -66,13 +67,10 @@ export function reportFromDetail(detail: OsqueryReport): OsqueryReportMutation {
     targets: normalizeLabelTargetSet(detail.targets),
   };
 }
-const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, {
-  message: invalidSQLSyntaxMessage,
-});
 const reportFormSchema = z.object({
   name: requiredString("Name"),
   description: z.string().optional(),
-  query: reportQuerySchema,
+  query: requiredString("Query"),
   min_osquery_version: z.string().optional(),
   schedule_interval: z.number().int().min(0).max(2147483647).optional(),
   targets: labelTargetSetSchema,
@@ -102,6 +100,7 @@ export function ReportForm({
   onSubmit,
   onSuccess,
   onCancel,
+  confirmQueryChange = false,
 }: {
   initial: OsqueryReportMutation;
   title: string;
@@ -109,10 +108,13 @@ export function ReportForm({
   onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
   onSuccess?: (id: number | undefined) => void;
   onCancel?: () => void;
+  confirmQueryChange?: boolean;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
+  const [pendingQueryChange, setPendingQueryChange] = useState<OsqueryReportMutation | null>(null);
+  const [queryChangePending, setQueryChangePending] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
@@ -122,12 +124,31 @@ export function ReportForm({
     }),
     validators: { onDynamic: reportFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      const id = await onSubmit(trimReport(value));
-      formApi.reset(value);
+      const next = trimReport(value);
+      if (confirmQueryChange && next.query !== initial.query.trim()) {
+        setPendingQueryChange(next);
+        return;
+      }
+      const id = await onSubmit(next);
+      formApi.reset(next);
       onSuccess?.(id);
     },
   });
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  async function confirmPendingQueryChange() {
+    if (!pendingQueryChange) return;
+    setQueryChangePending(true);
+    try {
+      const id = await onSubmit(pendingQueryChange);
+      form.reset(pendingQueryChange);
+      setPendingQueryChange(null);
+      onSuccess?.(id);
+    } catch {
+      return;
+    } finally {
+      setQueryChangePending(false);
+    }
+  }
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
@@ -262,7 +283,8 @@ export function ReportForm({
 
               <form.Field name="query">
                 {(field) => {
-                  const error = firstErrorMessage(field.state.meta.errors);
+                  const error =
+                    firstErrorMessage(field.state.meta.errors) ?? sqlSyntaxError(field.state.value);
                   return (
                     <Field data-invalid={error ? true : undefined}>
                       <FieldLabel>
@@ -279,10 +301,6 @@ export function ReportForm({
                         placeholder="SELECT ..."
                         invalid={error ? true : undefined}
                       />
-                      <FieldDescription>
-                        Stores the latest result rows returned by each targeted host. Changing a
-                        saved query clears its existing results.
-                      </FieldDescription>
                       {error ? <FieldError>{error}</FieldError> : null}
                     </Field>
                   );
@@ -320,6 +338,25 @@ export function ReportForm({
         />
 
         {exitGuard.dialog}
+        <ConfirmDialog
+          open={pendingQueryChange !== null}
+          onOpenChange={(open) => {
+            if (!open && !queryChangePending) setPendingQueryChange(null);
+          }}
+          title="Save changes?"
+          description={
+            <>
+              <span className="block">
+                Changing this report&apos;s SQL will delete its previous results, since the existing
+                results do not reflect the updated SQL.
+              </span>
+              <span className="mt-3 block">You cannot undo this action.</span>
+            </>
+          }
+          confirmLabel="Save"
+          pending={queryChangePending}
+          onConfirm={() => void confirmPendingQueryChange()}
+        />
       </PageShell>
       <SchemaSidebar
         open={schemaOpen}

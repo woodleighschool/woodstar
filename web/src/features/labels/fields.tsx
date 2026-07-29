@@ -47,7 +47,7 @@ import {
 } from "@features/labels/model";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { Label, LabelMutation } from "@lib/api";
-import { requiredString, selectedIDArray } from "@lib/form-validation";
+import { firstErrorMessage, requiredString, selectedIDArray } from "@lib/form-validation";
 import { sqlSyntaxError } from "@lib/sql-validation";
 import { isOneOf } from "@lib/utils";
 interface LabelFormValue {
@@ -99,15 +99,6 @@ const labelFormSchema = z
           message: query.error.issues[0]?.message ?? "Invalid query.",
           path: ["query"],
         });
-      } else {
-        const syntaxError = sqlSyntaxError(value.query);
-        if (syntaxError) {
-          ctx.addIssue({
-            code: "custom",
-            message: syntaxError,
-            path: ["query"],
-          });
-        }
       }
     }
     if (value.label_membership_type === "derived" && value.derived_values.length === 0) {
@@ -347,28 +338,33 @@ export function LabelForm({
 
                   {isDynamic ? (
                     <form.Field name="query">
-                      {(field) => (
-                        <Field data-invalid={field.state.meta.errors.length > 0 ? true : undefined}>
-                          <FieldLabel>
-                            Query
-                            <span className="text-destructive" aria-hidden="true">
-                              *
-                            </span>
-                          </FieldLabel>
-                          <SQLEditor
-                            ref={editorRef}
-                            value={field.state.value}
-                            onChange={field.handleChange}
-                            onTableMetaClick={selectSchemaTable}
-                            placeholder="SELECT ..."
-                            invalid={field.state.meta.errors.length > 0 ? true : undefined}
-                          />
-                          <FieldDescription>
-                            A returned row adds the host to this label; no rows removes it.
-                          </FieldDescription>
-                          <FieldError errors={field.state.meta.errors} />
-                        </Field>
-                      )}
+                      {(field) => {
+                        const error =
+                          firstErrorMessage(field.state.meta.errors) ??
+                          sqlSyntaxError(field.state.value);
+                        return (
+                          <Field data-invalid={error ? true : undefined}>
+                            <FieldLabel>
+                              Query
+                              <span className="text-destructive" aria-hidden="true">
+                                *
+                              </span>
+                            </FieldLabel>
+                            <SQLEditor
+                              ref={editorRef}
+                              value={field.state.value}
+                              onChange={field.handleChange}
+                              onTableMetaClick={selectSchemaTable}
+                              placeholder="SELECT ..."
+                              invalid={error ? true : undefined}
+                            />
+                            <FieldDescription>
+                              A returned row adds the host to this label; no rows removes it.
+                            </FieldDescription>
+                            {error ? <FieldError>{error}</FieldError> : null}
+                          </Field>
+                        );
+                      }}
                     </form.Field>
                   ) : null}
                 </FieldGroup>

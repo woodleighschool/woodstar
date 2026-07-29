@@ -1,4 +1,5 @@
 import type { VariantProps } from "class-variance-authority";
+import type { ReactNode } from "react";
 
 import { Pending } from "@components/pending";
 import {
@@ -18,7 +19,7 @@ export interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: ReactNode;
   confirmLabel: string;
   variant?: VariantProps<typeof buttonVariants>["variant"];
   pending?: boolean;

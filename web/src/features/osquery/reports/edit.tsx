@@ -37,6 +37,7 @@ export function ReportEditPage() {
       initial={reportFromDetail(report)}
       title="Edit Report"
       submitLabel="Save"
+      confirmQueryChange
       onCancel={() =>
         void navigate({
           to: "/osquery/reports/$id",

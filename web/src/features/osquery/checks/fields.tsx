@@ -23,7 +23,7 @@ import { ValidatedFormField } from "@components/validated-form-field";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { OsqueryCheck, OsqueryCheckMutation } from "@lib/api";
 import { firstErrorMessage, requiredString } from "@lib/form-validation";
-import { invalidSQLSyntaxMessage, validSQLSyntax } from "@lib/sql-validation";
+import { sqlSyntaxError } from "@lib/sql-validation";
 import { emptyLabelTargetSet, labelTargetSetSchema, normalizeLabelTargetSet } from "@lib/targeting";
 export const emptyCheck: OsqueryCheckMutation = {
   name: "",
@@ -39,13 +39,10 @@ export function checkFromDetail(detail: OsqueryCheck): OsqueryCheckMutation {
     targets: normalizeLabelTargetSet(detail.targets),
   };
 }
-const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, {
-  message: invalidSQLSyntaxMessage,
-});
 const checkFormSchema = z.object({
   name: requiredString("Name"),
   description: z.string().optional(),
-  query: checkQuerySchema,
+  query: requiredString("Query"),
   targets: labelTargetSetSchema,
 });
 const checkFormTabs = [
@@ -171,7 +168,8 @@ export function CheckForm({
 
               <form.Field name="query">
                 {(field) => {
-                  const error = firstErrorMessage(field.state.meta.errors);
+                  const error =
+                    firstErrorMessage(field.state.meta.errors) ?? sqlSyntaxError(field.state.value);
                   return (
                     <Field data-invalid={error ? true : undefined}>
                       <FieldLabel>
