@@ -1,17 +1,12 @@
-import {
-  type ColumnDef,
-  type ColumnFiltersState,
-  getCoreRowModel,
-  type PaginationState,
-  type SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
-import { useState } from "react";
+import { getRouteApi } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
-import { encodeSort } from "@components/data-table/use-data-table-search";
+import { useDataTable } from "@components/data-table/use-data-table";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueRows } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -25,7 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@components/ui/dialog";
-import { Input } from "@components/ui/input";
 import { useHostSoftware } from "@features/hosts/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import {
@@ -34,10 +28,12 @@ import {
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
 } from "@features/software/software-source-labels";
-import { useDebouncedCallback } from "@hooks/use-debounced-callback";
 import type { HostSoftware, HostSoftwareInstalledVersion } from "@lib/api";
 import { formatRelative } from "@lib/utils";
-const HOST_SOFTWARE_PAGE_SIZE = 50;
+
+const SOURCE_FILTER_KEYS = [{ id: "source", multiple: true }] as const;
+const routeApi = getRouteApi("/_authenticated/hosts/$id/software");
+
 const softwareColumns: ColumnDef<HostSoftware>[] = [
   {
     id: "name",
@@ -104,60 +100,31 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
   },
 ];
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
-  const [draft, setDraft] = useState("");
-  const [activeQuery, setActiveQuery] = useState("");
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: HOST_SOFTWARE_PAGE_SIZE,
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: SOURCE_FILTER_KEYS,
   });
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const updateQuery = useDebouncedCallback((value: string) => setActiveQuery(value.trim()), 200);
-  const sourceFilter = columnFilters.find((filter) => filter.id === "source")?.value;
-  const sources = Array.isArray(sourceFilter)
-    ? sourceFilter.filter((value): value is string => typeof value === "string")
-    : [];
-  const setSearch = (next: string) => {
-    setDraft(next);
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    if (next.trim() === "") {
-      updateQuery.cancel();
-      setActiveQuery("");
-    } else {
-      updateQuery(next);
-    }
-  };
+  const sources = tableSearch.filters.source ?? [];
   const query = useHostSoftware(hostId, {
-    q: activeQuery,
+    q: tableSearch.q,
     source: expandSoftwareSourceFilters(sources),
-    page: pagination.pageIndex + 1,
-    per_page: pagination.pageSize,
-    sort: sorting.length > 0 ? encodeSort(sorting[0].id, sorting[0].desc) : undefined,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
   });
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = activeQuery !== "" || sources.length > 0;
-  const table = useReactTable({
+  const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
+  const table = useDataTable({
+    tableState: tableSearch,
     data,
     columns: softwareColumns,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => String(row.id),
-    manualPagination: true,
-    manualSorting: true,
-    manualFiltering: true,
-    enableMultiSort: false,
-    pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
+    pageCount,
     rowCount: totalCount,
-    state: { pagination, sorting, columnFilters },
-    onPaginationChange: setPagination,
-    onSortingChange: (updater) => {
-      setSorting((prev) => singleSort(typeof updater === "function" ? updater(prev) : updater));
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    },
-    onColumnFiltersChange: (updater) => {
-      setColumnFilters(updater);
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    },
   });
   if (query.error) {
     return (
@@ -173,13 +140,15 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     <DataTable
       table={table}
       empty={
-        <PanelEmptyState>{hasFilters ? "No matching software" : "No software yet"}</PanelEmptyState>
+        <PanelEmptyState>
+          {tableSearch.isFiltered ? "No matching software" : "No software yet"}
+        </PanelEmptyState>
       }
     >
       <div className="flex flex-wrap items-center gap-2 p-1">
-        <Input
-          value={draft}
-          onChange={(event) => setSearch(event.target.value)}
+        <DataTableSearchInput
+          value={tableSearch.q ?? ""}
+          onValueChange={tableSearch.onQueryChange}
           placeholder="Search software"
           className="h-8 w-56"
         />
@@ -193,9 +162,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     </DataTable>
   );
 }
-function singleSort(sorting: SortingState): SortingState {
-  return sorting.length > 0 ? [sorting[0]] : [];
-}
+
 interface InstalledPath {
   path: string;
   version: string;

@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
+import { getRouteApi, useParams } from "@tanstack/react-router";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -7,6 +7,7 @@ import { DataTableClient } from "@components/data-table/data-table-client";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -75,6 +76,9 @@ const reportSnapshotColumns: ColumnDef<ReportSnapshotTableRow>[] = [
   },
 ];
 
+const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/");
+
 function ReportResultsToolbar({ table }: { table: Table<ReportSnapshotTableRow> }) {
   return (
     <DataTableFacetedFilter
@@ -93,14 +97,19 @@ export function ReportDetailPage() {
   const { id: reportId } = useParams({
     from: "/_authenticated/osquery/reports/$id",
   });
-  const navigate = useNavigate();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: STATUS_FILTER_KEYS,
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
   const id = parseRouteID(reportId);
   const report = useReport(id);
-  const status = selectedReportStatus(statusFilters);
+  const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
   const snapshots = useReportSnapshots(id, { status });
 
   if (id === null) {
@@ -202,19 +211,17 @@ export function ReportDetailPage() {
       ) : (
         <DataTableClient
           title="Results"
-          columnFilters={statusFilters}
           columns={reportSnapshotColumns}
           data={rows}
           exportOptions={exportOptions}
           getRowCanExpand={(row) => row.original.rows.length > 0}
           getRowId={(row) => row.id}
           getSearchText={snapshotSearchText}
-          initialSorting={[{ id: "hostName", desc: false }]}
-          onColumnFiltersChange={setStatusFilters}
           renderSubRow={(row) => (
             <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
           )}
           searchPlaceholder="Search hosts and results"
+          tableState={tableSearch}
           toolbar={renderReportResultsToolbar}
           empty={
             <PanelEmptyState>
@@ -234,11 +241,4 @@ export function ReportDetailPage() {
       ) : null}
     </PageShell>
   );
-}
-
-function selectedReportStatus(
-  filters: ColumnFiltersState,
-): ReportSnapshotTableRow["status"] | undefined {
-  const value = filters.find((filter) => filter.id === "status")?.value;
-  return parseReportSnapshotStatus(Array.isArray(value) ? value[0] : undefined);
 }

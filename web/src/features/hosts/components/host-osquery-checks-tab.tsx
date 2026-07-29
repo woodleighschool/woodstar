@@ -1,8 +1,9 @@
-import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
-import { useState } from "react";
+import { getRouteApi } from "@tanstack/react-router";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -41,6 +42,9 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   },
 ];
 
+const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const routeApi = getRouteApi("/_authenticated/hosts/$id/checks");
+
 function HostChecksToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
   return (
     <DataTableFacetedFilter
@@ -56,8 +60,14 @@ function renderHostChecksToolbar(table: Table<OsqueryCheckHostStatus>) {
 }
 
 export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
-  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
-  const status = selectedCheckStatus(statusFilters);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: STATUS_FILTER_KEYS,
+  });
+  const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
   const query = useHostOsqueryChecks(hostId, { status });
   const rows = query.data ?? [];
 
@@ -75,12 +85,10 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
   return (
     <DataTableClient
       title="Checks"
-      columnFilters={statusFilters}
       columns={checkColumns}
       data={rows}
-      initialSorting={[{ id: "check_name", desc: false }]}
-      onColumnFiltersChange={setStatusFilters}
       searchPlaceholder="Search checks"
+      tableState={tableSearch}
       toolbar={renderHostChecksToolbar}
       empty={
         <PanelEmptyState>
@@ -89,9 +97,4 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
       }
     />
   );
-}
-
-function selectedCheckStatus(filters: ColumnFiltersState) {
-  const value = filters.find((filter) => filter.id === "status")?.value;
-  return parseCheckResultStatus(Array.isArray(value) ? value[0] : undefined);
 }

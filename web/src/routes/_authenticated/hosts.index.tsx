@@ -2,9 +2,9 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { HostListPage } from "@features/hosts/list";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "display_name",
   "hardware.serial",
   "hardware.model_identifier",
@@ -26,6 +26,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/hosts/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: HostListPage,
 });

@@ -46,6 +46,25 @@ Frontend rules for work under `web/`.
 - Query keys and invalidation use the owning feature's exported key factory. Keep one-off private keys
   beside their query instead of adding a registry.
 - Lists use `components/data-table`.
+- Every route-backed collection owns row-affecting table state in validated TanStack Router search
+  params. This includes query text, faceted filters, sorting, page, and page size on list pages,
+  detail-page result tables, and host subroutes.
+- The leaf route that renders the collection owns its search schema. Build the common shape with
+  `createTableSearchSchema`, strip canonical defaults with `stripSearchParams`, and bind the table
+  through `useDataTableSearch`. Use functional `navigate({ search: updater, replace: true })`
+  updates so table interactions preserve sibling search keys without filling browser history.
+- `DataTableClient` processes a complete API response in the browser but still requires
+  route-owned `tableState`. Do not add local query, filter, sort, or pagination fallbacks to shared
+  table components. Keep only presentation state such as expansion, selection, and column
+  visibility local.
+- Local table/search state is reserved for transient workflows where a copied URL must not restore
+  progress, such as form membership pickers and a running live-query session.
+- Components must not imitate a missing or inconsistent API capability. A deliberately bounded,
+  complete array response may be searched, sorted, and paginated client-side; do not treat an
+  unpaginated array as permission to compensate for an unbounded collection in React. A
+  server-paginated response must pass those controls to the generated API. If the generated
+  contract cannot express the required filter, sort, or pagination behavior, fix the backend
+  contract and regenerate it rather than synthesizing an approximation in React.
 - Forms use `@tanstack/react-form`, zod schemas, `components/form-field.tsx`, and `components/form-actions.tsx`.
 - Create/edit hooks toast success in `onSuccess`; mutation errors ride the global `MutationCache` toast.
 

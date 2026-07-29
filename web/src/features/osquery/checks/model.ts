@@ -3,6 +3,8 @@ import type { StatusMetadataMap } from "@lib/enum-metadata";
 
 export type CheckResultStatus = OsqueryCheckHostStatus["status"];
 
+export const CHECK_RESULT_STATUS_VALUES = ["pass", "fail", "pending"] as const;
+
 export const CHECK_RESULT_STATUSES = {
   pass: {
     name: "Passing",

@@ -3,9 +3,9 @@ import { z } from "zod";
 
 import { MunkiPackageListPage } from "@features/munki/packages/list";
 import { MUNKI_INSTALLER_TYPE_VALUES } from "@features/munki/software/metadata";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "software_name",
   "software_display_name",
   "version",
@@ -18,6 +18,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/munki/packages/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: MunkiPackageListPage,
 });

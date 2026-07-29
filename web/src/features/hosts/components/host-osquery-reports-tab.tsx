@@ -1,10 +1,11 @@
-import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
-import { useState } from "react";
+import { getRouteApi } from "@tanstack/react-router";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -74,6 +75,9 @@ const hostReportColumns: ColumnDef<ReportSnapshotTableRow>[] = [
   },
 ];
 
+const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const routeApi = getRouteApi("/_authenticated/hosts/$id/reports");
+
 function HostReportsToolbar({ table }: { table: Table<ReportSnapshotTableRow> }) {
   return (
     <DataTableFacetedFilter
@@ -89,8 +93,14 @@ function renderHostReportsToolbar(table: Table<ReportSnapshotTableRow>) {
 }
 
 export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
-  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
-  const status = selectedReportStatus(statusFilters);
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: STATUS_FILTER_KEYS,
+  });
+  const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
   const reports = useHostOsqueryReports(hostId, { status });
 
   if (reports.error) {
@@ -123,17 +133,15 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
   return (
     <DataTableClient
       title="Reports"
-      columnFilters={statusFilters}
       columns={hostReportColumns}
       data={rows}
       exportOptions={exportOptions}
       getRowCanExpand={(row) => row.original.rows.length > 0}
       getRowId={(row) => row.id}
       getSearchText={snapshotSearchText}
-      initialSorting={[{ id: "reportName", desc: false }]}
-      onColumnFiltersChange={setStatusFilters}
       renderSubRow={(row) => <SnapshotResultRows rows={row.original.rows} />}
       searchPlaceholder="Search reports and results"
+      tableState={tableSearch}
       toolbar={renderHostReportsToolbar}
       empty={
         <PanelEmptyState>
@@ -142,11 +150,4 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
       }
     />
   );
-}
-
-function selectedReportStatus(
-  filters: ColumnFiltersState,
-): ReportSnapshotTableRow["status"] | undefined {
-  const value = filters.find((filter) => filter.id === "status")?.value;
-  return parseReportSnapshotStatus(Array.isArray(value) ? value[0] : undefined);
 }

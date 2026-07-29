@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
 import { MunkiSoftwareListPage } from "@features/munki/software/list";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "name",
   "display_name",
   "category",
@@ -13,6 +13,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/munki/software/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: MunkiSoftwareListPage,
 });

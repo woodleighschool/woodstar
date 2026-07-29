@@ -3,9 +3,9 @@ import { z } from "zod";
 
 import { RuleListPage } from "@features/santa/rules/list";
 import { RULE_TYPE_VALUES } from "@features/santa/rules/metadata";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "rule_type",
   "identifier",
   "name",
@@ -17,6 +17,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/santa/rules/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: RuleListPage,
 });

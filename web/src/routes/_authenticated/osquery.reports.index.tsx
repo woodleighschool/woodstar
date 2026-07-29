@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
 import { ReportListPage } from "@features/osquery/reports/list";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "name",
   "created_at",
   "updated_at",
@@ -12,6 +12,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: ReportListPage,
 });

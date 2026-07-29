@@ -1,6 +1,5 @@
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type ExpandedState,
   type FilterFn,
   getCoreRowModel,
@@ -8,39 +7,33 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  type OnChangeFn,
   type Row,
-  type SortingState,
   type Table,
   useReactTable,
 } from "@tanstack/react-table";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import * as React from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
-import { Input } from "@components/ui/input";
-import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
+import type { DataTableQuery } from "@components/data-table/use-data-table-search";
 
 interface DataTableClientProps<TData> {
-  columnFilters?: ColumnFiltersState;
   columns: ColumnDef<TData>[];
   data: TData[];
-  empty?: ReactNode;
+  empty?: React.ReactNode;
   exportOptions?: DataTableExportOptions<TData>;
   getRowCanExpand?: (row: Row<TData>) => boolean;
   getRowId?: (row: TData, index: number, parent?: Row<TData>) => string;
   getSearchText?: (row: TData) => string;
-  initialSorting?: SortingState;
-  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
-  renderSubRow?: (row: Row<TData>) => ReactNode;
+  renderSubRow?: (row: Row<TData>) => React.ReactNode;
   searchPlaceholder?: string;
-  title?: ReactNode;
-  toolbar?: (table: Table<TData>) => ReactNode;
+  tableState: DataTableQuery;
+  title?: React.ReactNode;
+  toolbar?: (table: Table<TData>) => React.ReactNode;
 }
 
 export function DataTableClient<TData>({
-  columnFilters,
   columns,
   data,
   empty,
@@ -48,17 +41,15 @@ export function DataTableClient<TData>({
   getRowCanExpand,
   getRowId,
   getSearchText,
-  initialSorting = [],
-  onColumnFiltersChange,
   renderSubRow,
   searchPlaceholder,
+  tableState,
   title,
   toolbar,
 }: DataTableClientProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>(initialSorting);
-  const [internalColumnFilters, setInternalColumnFilters] = useState<ColumnFiltersState>([]);
-  const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
+  const { pagination, onPaginationChange } = tableState;
+  const globalFilter = tableState.q ?? "";
   const globalFilterFn: FilterFn<TData> | undefined = getSearchText
     ? (row, _columnId, value) =>
         getSearchText(row.original).toLocaleLowerCase().includes(String(value).toLocaleLowerCase())
@@ -67,21 +58,17 @@ export function DataTableClient<TData>({
     columns,
     data,
     state: {
-      sorting,
-      columnFilters: columnFilters ?? internalColumnFilters,
+      sorting: tableState.sorting,
+      columnFilters: tableState.columnFilters,
+      pagination: tableState.pagination,
       expanded,
       globalFilter,
     },
-    initialState: {
-      pagination: {
-        pageIndex: 0,
-        pageSize: DEFAULT_PAGE_SIZE,
-      },
-    },
-    onSortingChange: setSorting,
-    onColumnFiltersChange: onColumnFiltersChange ?? setInternalColumnFilters,
+    onSortingChange: tableState.onSortingChange,
+    onColumnFiltersChange: tableState.onColumnFiltersChange,
+    onPaginationChange,
     onExpandedChange: setExpanded,
-    onGlobalFilterChange: setGlobalFilter,
+    autoResetPageIndex: false,
     getRowCanExpand,
     getRowId,
     globalFilterFn,
@@ -92,15 +79,25 @@ export function DataTableClient<TData>({
     getPaginationRowModel: getPaginationRowModel(),
     paginateExpandedRows: false,
   });
+  const pageCount = Math.max(1, table.getPageCount());
+
+  React.useEffect(() => {
+    if (pagination.pageIndex < pageCount) return;
+
+    onPaginationChange({
+      ...pagination,
+      pageIndex: pageCount - 1,
+    });
+  }, [onPaginationChange, pageCount, pagination]);
 
   const showSearch = Boolean(searchPlaceholder);
   const controls =
     showSearch || toolbar ? (
       <div className="flex flex-wrap items-center gap-2">
         {showSearch ? (
-          <Input
-            value={globalFilter}
-            onChange={(event) => setGlobalFilter(event.target.value)}
+          <DataTableSearchInput
+            value={tableState.q ?? ""}
+            onValueChange={tableState.onQueryChange}
             placeholder={searchPlaceholder}
             className="h-8 w-full sm:w-64"
           />

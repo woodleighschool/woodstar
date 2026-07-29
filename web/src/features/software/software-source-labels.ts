@@ -1,3 +1,13 @@
+export const SOFTWARE_SOURCE_FILTER_VALUES = [
+  "apps",
+  "homebrew_packages",
+  "browser_plugins",
+  "npm_packages",
+  "ide_extensions",
+  "go_binaries",
+  "python_packages",
+] as const;
+
 const SOFTWARE_SOURCE_GROUPS = [
   { value: "apps", label: "App", filterLabel: "App", sources: ["apps"] },
   {

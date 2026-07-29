@@ -3,9 +3,9 @@ import { z } from "zod";
 
 import { DECISION_FILTER_VALUES } from "@features/santa/events/decisions";
 import { SantaEventListPage } from "@features/santa/events/list";
-import { createListSearchSchema, LIST_SEARCH_DEFAULTS } from "@lib/list-search";
+import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
-const searchSchema = createListSearchSchema([
+const searchSchema = createTableSearchSchema([
   "occurred_at",
   "ingested_at",
   "decision",
@@ -21,6 +21,6 @@ const searchSchema = createListSearchSchema([
 
 export const Route = createFileRoute("/_authenticated/santa/events/")({
   validateSearch: searchSchema,
-  search: { middlewares: [stripSearchParams(LIST_SEARCH_DEFAULTS)] },
+  search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: SantaEventListPage,
 });

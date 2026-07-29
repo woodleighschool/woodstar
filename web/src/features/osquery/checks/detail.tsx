@@ -1,11 +1,12 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
+import { getRouteApi, useParams } from "@tanstack/react-router";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -61,6 +62,9 @@ const resultExportColumns: DataTableExportOptions<OsqueryCheckHostStatus>["colum
   { header: "Last Evaluated", value: (row) => row.updated_at },
 ];
 
+const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/");
+
 function CheckResultsToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
   return (
     <DataTableFacetedFilter
@@ -79,14 +83,19 @@ export function CheckDetailPage() {
   const { id: checkId } = useParams({
     from: "/_authenticated/osquery/checks/$id",
   });
-  const navigate = useNavigate();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const tableSearch = useDataTableSearch({
+    search,
+    onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
+    filterKeys: STATUS_FILTER_KEYS,
+  });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
   const id = parseRouteID(checkId);
   const check = useCheck(id);
-  const status = selectedCheckStatus(statusFilters);
+  const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
   const results = useCheckResults(id, { status });
   const rows = results.data ?? [];
 
@@ -169,16 +178,14 @@ export function CheckDetailPage() {
       ) : (
         <DataTableClient
           title="Results"
-          columnFilters={statusFilters}
           columns={resultColumns}
           data={rows}
           exportOptions={{
             filename: `osquery-check-${id}-results`,
             columns: resultExportColumns,
           }}
-          initialSorting={[{ id: "host_name", desc: false }]}
-          onColumnFiltersChange={setStatusFilters}
           searchPlaceholder="Search check results"
+          tableState={tableSearch}
           toolbar={renderCheckResultsToolbar}
           empty={
             <PanelEmptyState>
@@ -202,9 +209,4 @@ export function CheckDetailPage() {
 
 function formatHostCount(count: number) {
   return `${count} ${count === 1 ? "host" : "hosts"}`;
-}
-
-function selectedCheckStatus(filters: ColumnFiltersState) {
-  const value = filters.find((filter) => filter.id === "status")?.value;
-  return parseCheckResultStatus(Array.isArray(value) ? value[0] : undefined);
 }

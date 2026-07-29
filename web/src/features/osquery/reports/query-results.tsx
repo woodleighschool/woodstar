@@ -27,6 +27,8 @@ export type ReportSnapshotTableRow = {
 
 type SnapshotStatus = OsqueryReportSnapshot["status"];
 
+export const REPORT_SNAPSHOT_STATUS_VALUES = ["collected", "pending"] as const;
+
 export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
   { label: "Collected", value: "collected" },
   { label: "Pending", value: "pending" },
