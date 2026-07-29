@@ -1,21 +1,34 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AppWindow, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
+import { TargetDetails } from "@components/targeting/target-details";
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
 import { useAuth } from "@features/auth/queries";
+import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
-import type { MunkiPackage } from "@lib/api";
+import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
+import { MUNKI_SOFTWARE_ACTIONS } from "./actions";
 import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
 import { useMunkiSoftwareDetail } from "./queries";
 
@@ -116,9 +129,9 @@ export function MunkiSoftwareDetailPage() {
         <KeyValueRow label="Category" value={software.category} />
         <KeyValueRow label="Developer" value={software.developer} />
         <KeyValueRow label="Packages" value={software.packages.length} />
-        <KeyValueRow label="Includes" value={software.targets.include.length} />
-        <KeyValueRow label="Excludes" value={software.targets.exclude.length} />
       </KeyValueSection>
+
+      <MunkiSoftwareTargets software={software} />
 
       <DataTableStatic
         heading="Packages"
@@ -135,4 +148,68 @@ export function MunkiSoftwareDetailPage() {
       />
     </PageShell>
   );
+}
+
+function MunkiSoftwareTargets({ software }: { software: MunkiSoftwareDetail }) {
+  const labelsByID = useLabelNameMap();
+  const packagesByID = useMemo(
+    () => new Map(software.packages.map((pkg) => [pkg.id, pkg])),
+    [software.packages],
+  );
+
+  return (
+    <TargetDetails
+      include={
+        software.targets.include.length > 0 ? (
+          <TableSurface variant="embedded">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Package</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {software.targets.include.map((target) => (
+                  <TableRow key={target.label_id}>
+                    <TableCell>
+                      <Link
+                        to="/labels/$id"
+                        params={{ id: String(target.label_id) }}
+                        className="font-medium"
+                      >
+                        {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{munkiPackageLabel(target.package, packagesByID)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {target.actions.map((action) => (
+                          <Badge key={action} variant="secondary" className="font-normal">
+                            {MUNKI_SOFTWARE_ACTIONS[action].name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableSurface>
+        ) : (
+          "-"
+        )
+      }
+      excludeLabelIDs={software.targets.exclude.map((target) => target.label_id)}
+    />
+  );
+}
+
+function munkiPackageLabel(
+  selector: MunkiInclude["package"],
+  packagesByID: ReadonlyMap<number, MunkiPackage>,
+) {
+  if (selector.strategy === "latest") return "Latest";
+  return packagesByID.get(selector.package_id ?? 0)?.version ?? `Package ${selector.package_id}`;
 }

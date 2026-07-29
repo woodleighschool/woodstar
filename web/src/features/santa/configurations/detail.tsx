@@ -8,9 +8,9 @@ import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
+import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
-import { LabelRefList } from "@features/labels/components/label-ref-list";
 import type { SantaRemovableMediaPolicy } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval, formatRelative } from "@lib/utils";
@@ -140,24 +140,7 @@ export function ConfigurationDetailPage() {
         />
       </KeyValueSection>
 
-      <KeyValueSection title="Targets">
-        <KeyValueRow
-          label="Include"
-          value={
-            <LabelRefList
-              labelIDs={configuration.targets.include.map((target) => target.label_id)}
-            />
-          }
-        />
-        <KeyValueRow
-          label="Exclude"
-          value={
-            <LabelRefList
-              labelIDs={configuration.targets.exclude.map((target) => target.label_id)}
-            />
-          }
-        />
-      </KeyValueSection>
+      <LabelTargetDetails targets={configuration.targets} />
 
       <ConfigurationDeleteDialog
         configuration={configuration}

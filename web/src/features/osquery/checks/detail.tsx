@@ -13,6 +13,7 @@ import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
+import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
@@ -154,6 +155,8 @@ export function CheckDetailPage() {
         <KeyValueRow label="Passing" value={formatHostCount(check.data.passing_host_count)} />
         <KeyValueRow label="Failing" value={formatHostCount(check.data.failing_host_count)} />
       </KeyValueSection>
+
+      <LabelTargetDetails targets={check.data.targets} />
 
       {results.error ? (
         <QueryError

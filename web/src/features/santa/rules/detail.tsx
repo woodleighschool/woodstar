@@ -3,14 +3,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { TableSurface } from "@components/data-table/table-surface";
-import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
+import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import { PanelEmptyState } from "@components/panel-empty-state";
 import { PathText } from "@components/path-text";
 import { QueryGate } from "@components/query-gate";
+import { TargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
   Table,
   TableBody,
@@ -20,7 +19,7 @@ import {
   TableRow,
 } from "@components/ui/table";
 import { useAuth } from "@features/auth/queries";
-import { LabelRefList, useLabelNameMap } from "@features/labels/components/label-ref-list";
+import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import type { SantaRule } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
@@ -95,7 +94,7 @@ export function RuleDetailPage() {
         <KeyValueRow label="Custom Message" value={rule.custom_message} />
       </KeyValueSection>
 
-      <RuleTargetsCard rule={rule} />
+      <RuleTargets rule={rule} />
 
       <RuleDeleteDialog
         rule={rule}
@@ -107,66 +106,46 @@ export function RuleDetailPage() {
   );
 }
 
-function RuleTargetsCard({ rule }: { rule: SantaRule }) {
+function RuleTargets({ rule }: { rule: SantaRule }) {
   const labelsByID = useLabelNameMap();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Targets</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5 px-0">
-        <div className="space-y-2">
-          <h3 className="px-4 text-xs font-semibold text-muted-foreground">Include</h3>
-          {rule.targets.include.length ? (
-            <TableSurface variant="embedded">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Label</TableHead>
-                    <TableHead>Policy</TableHead>
-                    <TableHead>CEL Expression</TableHead>
+    <TargetDetails
+      include={
+        rule.targets.include.length > 0 ? (
+          <TableSurface variant="embedded">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Policy</TableHead>
+                  <TableHead>CEL Expression</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rule.targets.include.map((target) => (
+                  <TableRow key={`${target.label_id}:${target.policy}`}>
+                    <TableCell>
+                      <Link
+                        to="/labels/$id"
+                        params={{ id: String(target.label_id) }}
+                        className="font-medium"
+                      >
+                        {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{POLICIES[target.policy].name}</TableCell>
+                    <TableCell>{target.cel_expression || "-"}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rule.targets.include.map((target) => (
-                    <TableRow key={`${target.label_id}:${target.policy}`}>
-                      <TableCell>
-                        <Link
-                          to="/labels/$id"
-                          params={{ id: String(target.label_id) }}
-                          className="font-medium"
-                        >
-                          {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{POLICIES[target.policy].name}</TableCell>
-                      <TableCell>
-                        {target.cel_expression ? (
-                          <span className="wrap-break-word">{target.cel_expression}</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableSurface>
-          ) : (
-            <PanelEmptyState>No included labels.</PanelEmptyState>
-          )}
-        </div>
-
-        <KeyValueRows className="px-4">
-          <KeyValueRow
-            label="Exclude"
-            value={
-              <LabelRefList labelIDs={rule.targets.exclude.map((target) => target.label_id)} />
-            }
-          />
-        </KeyValueRows>
-      </CardContent>
-    </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </TableSurface>
+        ) : (
+          "-"
+        )
+      }
+      excludeLabelIDs={rule.targets.exclude.map((target) => target.label_id)}
+    />
   );
 }

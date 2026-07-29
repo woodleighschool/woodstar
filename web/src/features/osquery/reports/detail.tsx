@@ -11,6 +11,7 @@ import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
+import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
@@ -133,6 +134,8 @@ export function ReportDetailPage() {
         />
         <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
       </KeyValueSection>
+
+      <LabelTargetDetails targets={report.data.targets} />
 
       {results.error ? (
         <QueryError
