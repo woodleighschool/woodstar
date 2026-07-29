@@ -1,7 +1,7 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { ChevronDownIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { ChevronDownIcon, Play } from "lucide-react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { ConfirmDialog } from "@components/confirm-dialog";
@@ -181,24 +181,30 @@ function trimReport(value: OsqueryReportMutation): OsqueryReportMutation {
 }
 export function ReportForm({
   initial,
+  draft,
   title,
   submitLabel,
   onSubmit,
   onSuccess,
   onCancel,
+  onRunLive,
   confirmResultReset = false,
 }: {
   initial: OsqueryReportMutation;
+  draft?: OsqueryReportMutation;
   title: string;
   submitLabel: string;
   onSubmit: (value: OsqueryReportMutation) => Promise<number | undefined>;
-  onSuccess?: (id: number | undefined) => void;
-  onCancel?: () => void;
+  onSuccess?: (id: number | undefined) => unknown;
+  onCancel?: () => unknown;
+  onRunLive: (value: OsqueryReportMutation) => Promise<void>;
   confirmResultReset?: boolean;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
+  const [liveQueryRequired, setLiveQueryRequired] = useState(false);
   const [pendingResultReset, setPendingResultReset] = useState<{
     value: OsqueryReportMutation;
     sqlOnly: boolean;
@@ -225,9 +231,12 @@ export function ReportForm({
       }
       const id = await onSubmit(next);
       formApi.reset(next);
-      onSuccess?.(id);
+      await onSuccess?.(id);
     },
   });
+  useLayoutEffect(() => {
+    if (draft) form.reset(draft, { keepDefaultValues: true });
+  }, [draft, form]);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   async function confirmPendingResultReset() {
     if (!pendingResultReset) return;
@@ -236,7 +245,7 @@ export function ReportForm({
       const id = await onSubmit(pendingResultReset.value);
       form.reset(pendingResultReset.value);
       setPendingResultReset(null);
-      onSuccess?.(id);
+      await onSuccess?.(id);
     } catch {
       return;
     } finally {
@@ -260,6 +269,14 @@ export function ReportForm({
     },
     [setSchemaOpen],
   );
+  async function runLive() {
+    if (!form.getFieldValue("query").trim()) {
+      setLiveQueryRequired(true);
+      setActiveTab("options");
+      return;
+    }
+    await exitGuard.runWithoutPrompt(() => onRunLive(form.state.values));
+  }
   return (
     <div className="flex min-h-full w-full min-w-0">
       <PageShell className="h-full min-w-0 flex-1">
@@ -354,7 +371,9 @@ export function ReportForm({
               <form.Field name="query">
                 {(field) => {
                   const error =
-                    firstErrorMessage(field.state.meta.errors) ?? sqlSyntaxError(field.state.value);
+                    (liveQueryRequired ? "Query is required." : undefined) ??
+                    firstErrorMessage(field.state.meta.errors) ??
+                    sqlSyntaxError(field.state.value);
                   return (
                     <Field data-invalid={error ? true : undefined}>
                       <FieldLabel>
@@ -366,7 +385,10 @@ export function ReportForm({
                       <SQLEditor
                         ref={editorRef}
                         value={field.state.value}
-                        onChange={field.handleChange}
+                        onChange={(value) => {
+                          setLiveQueryRequired(false);
+                          field.handleChange(value);
+                        }}
                         onTableMetaClick={selectSchemaTable}
                         placeholder="SELECT ..."
                         invalid={error ? true : undefined}
@@ -377,7 +399,7 @@ export function ReportForm({
                 }}
               </form.Field>
 
-              <Collapsible>
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                 <CollapsibleTrigger
                   render={
                     <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" />
@@ -460,7 +482,12 @@ export function ReportForm({
             revealFirstInvalidFormTab(form, reportFormTabs, setActiveTab);
           }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
+        >
+          <Button type="button" variant="ghost" size="sm" onClick={() => void runLive()}>
+            <Play data-icon="inline-start" />
+            Run Live
+          </Button>
+        </FormActions>
 
         {exitGuard.dialog}
         <ConfirmDialog

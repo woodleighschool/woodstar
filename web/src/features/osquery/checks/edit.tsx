@@ -1,6 +1,11 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
+import {
+  useClearOsqueryHistoryState,
+  useOpenOsqueryLive,
+  useOsqueryHistoryState,
+} from "@features/osquery/live/history";
 import { parseRouteID } from "@lib/route-params";
 
 import { CheckForm, checkFromDetail } from "./fields";
@@ -13,6 +18,9 @@ export function CheckEditPage() {
   const id = parseRouteID(checkId);
   const detail = useCheck(id);
   const update = useUpdateCheck(id);
+  const historyState = useOsqueryHistoryState();
+  const openLive = useOpenOsqueryLive();
+  const clearHistoryState = useClearOsqueryHistoryState();
 
   if (id === null) {
     return (
@@ -31,22 +39,41 @@ export function CheckEditPage() {
   }
 
   const check = detail.data;
+  const draft =
+    historyState?.view === "check-form" && historyState.id === check.id
+      ? historyState.value
+      : undefined;
   return (
     <CheckForm
       key={check.id}
       initial={checkFromDetail(check)}
+      draft={draft}
       title="Edit Check"
       submitLabel="Save"
-      onCancel={() =>
-        void navigate({
+      onCancel={async () => {
+        await clearHistoryState();
+        await navigate({
           to: "/osquery/checks/$id",
           params: { id: String(check.id) },
+        });
+      }}
+      onRunLive={(value) =>
+        openLive({
+          kind: "check",
+          id: check.id,
+          sql: value.query.trim(),
+          form: {
+            view: "check-form",
+            id: check.id,
+            value,
+          },
         })
       }
       onSubmit={async (value) => (await update.mutateAsync(value)).id}
-      onSuccess={(savedID) => {
+      onSuccess={async (savedID) => {
         if (savedID !== undefined) {
-          void navigate({
+          await clearHistoryState();
+          await navigate({
             to: "/osquery/checks/$id",
             params: { id: String(savedID) },
           });

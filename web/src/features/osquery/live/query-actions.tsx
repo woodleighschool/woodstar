@@ -1,7 +1,6 @@
 import { FileCode2, Play } from "lucide-react";
 import { lazy, Suspense } from "react";
 
-import { Link } from "@components/link";
 import { Button } from "@components/ui/button";
 import {
   Dialog,
@@ -11,6 +10,8 @@ import {
   DialogTrigger,
 } from "@components/ui/dialog";
 import { useAuth } from "@features/auth/queries";
+
+import { useOpenOsqueryLive } from "./history";
 
 const LazySQLEditor = lazy(() =>
   import("@components/editor/sql-editor").then((module) => ({
@@ -42,24 +43,20 @@ export function ShowQueryButton({ sql }: { sql: string }) {
   );
 }
 export function LiveRunButton({
-  to,
-  params,
-  search,
+  kind,
+  id,
+  sql,
 }: {
-  to: string;
-  params?: Record<string, string>;
-  search?: Record<string, string>;
+  kind: "report" | "check";
+  id: number;
+  sql: string;
 }) {
   const { user } = useAuth();
+  const openLive = useOpenOsqueryLive();
   const isAdmin = user?.role === "admin";
   if (!isAdmin) return null;
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      render={<Link to={to} params={params} search={search} />}
-      nativeButton={false}
-    >
+    <Button variant="outline" size="sm" onClick={() => void openLive({ kind, id, sql })}>
       <Play data-icon="inline-start" />
       Run Live
     </Button>

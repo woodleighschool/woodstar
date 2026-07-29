@@ -94,9 +94,13 @@ import { Route as AuthenticatedMunkiSoftwareIdEditRouteImport } from './routes/_
 import { Route as AuthenticatedOsqueryChecksIdIndexRouteImport } from './routes/_authenticated/osquery.checks.$id.index'
 import { Route as AuthenticatedOsqueryChecksIdEditRouteImport } from './routes/_authenticated/osquery.checks.$id.edit'
 import { Route as AuthenticatedOsqueryChecksIdLiveRouteImport } from './routes/_authenticated/osquery.checks.$id.live'
+import { Route as AuthenticatedOsqueryChecksNewIndexRouteImport } from './routes/_authenticated/osquery.checks.new.index'
+import { Route as AuthenticatedOsqueryChecksNewLiveRouteImport } from './routes/_authenticated/osquery.checks.new.live'
 import { Route as AuthenticatedOsqueryReportsIdIndexRouteImport } from './routes/_authenticated/osquery.reports.$id.index'
 import { Route as AuthenticatedOsqueryReportsIdEditRouteImport } from './routes/_authenticated/osquery.reports.$id.edit'
 import { Route as AuthenticatedOsqueryReportsIdLiveRouteImport } from './routes/_authenticated/osquery.reports.$id.live'
+import { Route as AuthenticatedOsqueryReportsNewIndexRouteImport } from './routes/_authenticated/osquery.reports.new.index'
+import { Route as AuthenticatedOsqueryReportsNewLiveRouteImport } from './routes/_authenticated/osquery.reports.new.live'
 import { Route as AuthenticatedSantaConfigurationsIdIndexRouteImport } from './routes/_authenticated/santa.configurations.$id.index'
 import { Route as AuthenticatedSantaConfigurationsIdEditRouteImport } from './routes/_authenticated/santa.configurations.$id.edit'
 import { Route as AuthenticatedSantaEventsFileAccessIndexRouteImport } from './routes/_authenticated/santa.events.file-access.index'
@@ -595,6 +599,18 @@ const AuthenticatedOsqueryChecksIdLiveRoute =
     path: '/live',
     getParentRoute: () => AuthenticatedOsqueryChecksIdRoute,
   } as any)
+const AuthenticatedOsqueryChecksNewIndexRoute =
+  AuthenticatedOsqueryChecksNewIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedOsqueryChecksNewRoute,
+  } as any)
+const AuthenticatedOsqueryChecksNewLiveRoute =
+  AuthenticatedOsqueryChecksNewLiveRouteImport.update({
+    id: '/live',
+    path: '/live',
+    getParentRoute: () => AuthenticatedOsqueryChecksNewRoute,
+  } as any)
 const AuthenticatedOsqueryReportsIdIndexRoute =
   AuthenticatedOsqueryReportsIdIndexRouteImport.update({
     id: '/',
@@ -612,6 +628,18 @@ const AuthenticatedOsqueryReportsIdLiveRoute =
     id: '/live',
     path: '/live',
     getParentRoute: () => AuthenticatedOsqueryReportsIdRoute,
+  } as any)
+const AuthenticatedOsqueryReportsNewIndexRoute =
+  AuthenticatedOsqueryReportsNewIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedOsqueryReportsNewRoute,
+  } as any)
+const AuthenticatedOsqueryReportsNewLiveRoute =
+  AuthenticatedOsqueryReportsNewLiveRouteImport.update({
+    id: '/live',
+    path: '/live',
+    getParentRoute: () => AuthenticatedOsqueryReportsNewRoute,
   } as any)
 const AuthenticatedSantaConfigurationsIdIndexRoute =
   AuthenticatedSantaConfigurationsIdIndexRouteImport.update({
@@ -702,9 +730,9 @@ export interface FileRoutesByFullPath {
   '/munki/software/$id': typeof AuthenticatedMunkiSoftwareIdRouteWithChildren
   '/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
   '/osquery/checks/$id': typeof AuthenticatedOsqueryChecksIdRouteWithChildren
-  '/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewRoute
+  '/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewRouteWithChildren
   '/osquery/reports/$id': typeof AuthenticatedOsqueryReportsIdRouteWithChildren
-  '/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewRoute
+  '/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewRouteWithChildren
   '/santa/configurations/$id': typeof AuthenticatedSantaConfigurationsIdRouteWithChildren
   '/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
   '/santa/events/$id': typeof AuthenticatedSantaEventsIdRoute
@@ -730,8 +758,10 @@ export interface FileRoutesByFullPath {
   '/munki/software/$id/edit': typeof AuthenticatedMunkiSoftwareIdEditRoute
   '/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
+  '/osquery/checks/new/live': typeof AuthenticatedOsqueryChecksNewLiveRoute
   '/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
+  '/osquery/reports/new/live': typeof AuthenticatedOsqueryReportsNewLiveRoute
   '/santa/configurations/$id/edit': typeof AuthenticatedSantaConfigurationsIdEditRoute
   '/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/santa/rules/$id/edit': typeof AuthenticatedSantaRulesIdEditRoute
@@ -740,7 +770,9 @@ export interface FileRoutesByFullPath {
   '/munki/packages/$id/': typeof AuthenticatedMunkiPackagesIdIndexRoute
   '/munki/software/$id/': typeof AuthenticatedMunkiSoftwareIdIndexRoute
   '/osquery/checks/$id/': typeof AuthenticatedOsqueryChecksIdIndexRoute
+  '/osquery/checks/new/': typeof AuthenticatedOsqueryChecksNewIndexRoute
   '/osquery/reports/$id/': typeof AuthenticatedOsqueryReportsIdIndexRoute
+  '/osquery/reports/new/': typeof AuthenticatedOsqueryReportsNewIndexRoute
   '/santa/configurations/$id/': typeof AuthenticatedSantaConfigurationsIdIndexRoute
   '/santa/events/file-access/': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/santa/rules/$id/': typeof AuthenticatedSantaRulesIdIndexRoute
@@ -772,8 +804,6 @@ export interface FileRoutesByTo {
   '/munki/distribution-points/new': typeof AuthenticatedMunkiDistributionPointsNewRoute
   '/munki/packages/new': typeof AuthenticatedMunkiPackagesNewRoute
   '/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
-  '/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewRoute
-  '/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewRoute
   '/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
   '/santa/events/$id': typeof AuthenticatedSantaEventsIdRoute
   '/santa/rules/new': typeof AuthenticatedSantaRulesNewRoute
@@ -796,8 +826,10 @@ export interface FileRoutesByTo {
   '/munki/software/$id/edit': typeof AuthenticatedMunkiSoftwareIdEditRoute
   '/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
+  '/osquery/checks/new/live': typeof AuthenticatedOsqueryChecksNewLiveRoute
   '/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
+  '/osquery/reports/new/live': typeof AuthenticatedOsqueryReportsNewLiveRoute
   '/santa/configurations/$id/edit': typeof AuthenticatedSantaConfigurationsIdEditRoute
   '/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/santa/rules/$id/edit': typeof AuthenticatedSantaRulesIdEditRoute
@@ -806,7 +838,9 @@ export interface FileRoutesByTo {
   '/munki/packages/$id': typeof AuthenticatedMunkiPackagesIdIndexRoute
   '/munki/software/$id': typeof AuthenticatedMunkiSoftwareIdIndexRoute
   '/osquery/checks/$id': typeof AuthenticatedOsqueryChecksIdIndexRoute
+  '/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewIndexRoute
   '/osquery/reports/$id': typeof AuthenticatedOsqueryReportsIdIndexRoute
+  '/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewIndexRoute
   '/santa/configurations/$id': typeof AuthenticatedSantaConfigurationsIdIndexRoute
   '/santa/events/file-access': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/santa/rules/$id': typeof AuthenticatedSantaRulesIdIndexRoute
@@ -865,9 +899,9 @@ export interface FileRoutesById {
   '/_authenticated/munki/software/$id': typeof AuthenticatedMunkiSoftwareIdRouteWithChildren
   '/_authenticated/munki/software/new': typeof AuthenticatedMunkiSoftwareNewRoute
   '/_authenticated/osquery/checks/$id': typeof AuthenticatedOsqueryChecksIdRouteWithChildren
-  '/_authenticated/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewRoute
+  '/_authenticated/osquery/checks/new': typeof AuthenticatedOsqueryChecksNewRouteWithChildren
   '/_authenticated/osquery/reports/$id': typeof AuthenticatedOsqueryReportsIdRouteWithChildren
-  '/_authenticated/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewRoute
+  '/_authenticated/osquery/reports/new': typeof AuthenticatedOsqueryReportsNewRouteWithChildren
   '/_authenticated/santa/configurations/$id': typeof AuthenticatedSantaConfigurationsIdRouteWithChildren
   '/_authenticated/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
   '/_authenticated/santa/events/$id': typeof AuthenticatedSantaEventsIdRoute
@@ -893,8 +927,10 @@ export interface FileRoutesById {
   '/_authenticated/munki/software/$id/edit': typeof AuthenticatedMunkiSoftwareIdEditRoute
   '/_authenticated/osquery/checks/$id/edit': typeof AuthenticatedOsqueryChecksIdEditRoute
   '/_authenticated/osquery/checks/$id/live': typeof AuthenticatedOsqueryChecksIdLiveRoute
+  '/_authenticated/osquery/checks/new/live': typeof AuthenticatedOsqueryChecksNewLiveRoute
   '/_authenticated/osquery/reports/$id/edit': typeof AuthenticatedOsqueryReportsIdEditRoute
   '/_authenticated/osquery/reports/$id/live': typeof AuthenticatedOsqueryReportsIdLiveRoute
+  '/_authenticated/osquery/reports/new/live': typeof AuthenticatedOsqueryReportsNewLiveRoute
   '/_authenticated/santa/configurations/$id/edit': typeof AuthenticatedSantaConfigurationsIdEditRoute
   '/_authenticated/santa/events/file-access/$id': typeof AuthenticatedSantaEventsFileAccessIdRoute
   '/_authenticated/santa/rules/$id/edit': typeof AuthenticatedSantaRulesIdEditRoute
@@ -903,7 +939,9 @@ export interface FileRoutesById {
   '/_authenticated/munki/packages/$id/': typeof AuthenticatedMunkiPackagesIdIndexRoute
   '/_authenticated/munki/software/$id/': typeof AuthenticatedMunkiSoftwareIdIndexRoute
   '/_authenticated/osquery/checks/$id/': typeof AuthenticatedOsqueryChecksIdIndexRoute
+  '/_authenticated/osquery/checks/new/': typeof AuthenticatedOsqueryChecksNewIndexRoute
   '/_authenticated/osquery/reports/$id/': typeof AuthenticatedOsqueryReportsIdIndexRoute
+  '/_authenticated/osquery/reports/new/': typeof AuthenticatedOsqueryReportsNewIndexRoute
   '/_authenticated/santa/configurations/$id/': typeof AuthenticatedSantaConfigurationsIdIndexRoute
   '/_authenticated/santa/events/file-access/': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/_authenticated/santa/rules/$id/': typeof AuthenticatedSantaRulesIdIndexRoute
@@ -990,8 +1028,10 @@ export interface FileRouteTypes {
     | '/munki/software/$id/edit'
     | '/osquery/checks/$id/edit'
     | '/osquery/checks/$id/live'
+    | '/osquery/checks/new/live'
     | '/osquery/reports/$id/edit'
     | '/osquery/reports/$id/live'
+    | '/osquery/reports/new/live'
     | '/santa/configurations/$id/edit'
     | '/santa/events/file-access/$id'
     | '/santa/rules/$id/edit'
@@ -1000,7 +1040,9 @@ export interface FileRouteTypes {
     | '/munki/packages/$id/'
     | '/munki/software/$id/'
     | '/osquery/checks/$id/'
+    | '/osquery/checks/new/'
     | '/osquery/reports/$id/'
+    | '/osquery/reports/new/'
     | '/santa/configurations/$id/'
     | '/santa/events/file-access/'
     | '/santa/rules/$id/'
@@ -1032,8 +1074,6 @@ export interface FileRouteTypes {
     | '/munki/distribution-points/new'
     | '/munki/packages/new'
     | '/munki/software/new'
-    | '/osquery/checks/new'
-    | '/osquery/reports/new'
     | '/santa/configurations/new'
     | '/santa/events/$id'
     | '/santa/rules/new'
@@ -1056,8 +1096,10 @@ export interface FileRouteTypes {
     | '/munki/software/$id/edit'
     | '/osquery/checks/$id/edit'
     | '/osquery/checks/$id/live'
+    | '/osquery/checks/new/live'
     | '/osquery/reports/$id/edit'
     | '/osquery/reports/$id/live'
+    | '/osquery/reports/new/live'
     | '/santa/configurations/$id/edit'
     | '/santa/events/file-access/$id'
     | '/santa/rules/$id/edit'
@@ -1066,7 +1108,9 @@ export interface FileRouteTypes {
     | '/munki/packages/$id'
     | '/munki/software/$id'
     | '/osquery/checks/$id'
+    | '/osquery/checks/new'
     | '/osquery/reports/$id'
+    | '/osquery/reports/new'
     | '/santa/configurations/$id'
     | '/santa/events/file-access'
     | '/santa/rules/$id'
@@ -1152,8 +1196,10 @@ export interface FileRouteTypes {
     | '/_authenticated/munki/software/$id/edit'
     | '/_authenticated/osquery/checks/$id/edit'
     | '/_authenticated/osquery/checks/$id/live'
+    | '/_authenticated/osquery/checks/new/live'
     | '/_authenticated/osquery/reports/$id/edit'
     | '/_authenticated/osquery/reports/$id/live'
+    | '/_authenticated/osquery/reports/new/live'
     | '/_authenticated/santa/configurations/$id/edit'
     | '/_authenticated/santa/events/file-access/$id'
     | '/_authenticated/santa/rules/$id/edit'
@@ -1162,7 +1208,9 @@ export interface FileRouteTypes {
     | '/_authenticated/munki/packages/$id/'
     | '/_authenticated/munki/software/$id/'
     | '/_authenticated/osquery/checks/$id/'
+    | '/_authenticated/osquery/checks/new/'
     | '/_authenticated/osquery/reports/$id/'
+    | '/_authenticated/osquery/reports/new/'
     | '/_authenticated/santa/configurations/$id/'
     | '/_authenticated/santa/events/file-access/'
     | '/_authenticated/santa/rules/$id/'
@@ -1771,6 +1819,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOsqueryChecksIdLiveRouteImport
       parentRoute: typeof AuthenticatedOsqueryChecksIdRoute
     }
+    '/_authenticated/osquery/checks/new/': {
+      id: '/_authenticated/osquery/checks/new/'
+      path: '/'
+      fullPath: '/osquery/checks/new/'
+      preLoaderRoute: typeof AuthenticatedOsqueryChecksNewIndexRouteImport
+      parentRoute: typeof AuthenticatedOsqueryChecksNewRoute
+    }
+    '/_authenticated/osquery/checks/new/live': {
+      id: '/_authenticated/osquery/checks/new/live'
+      path: '/live'
+      fullPath: '/osquery/checks/new/live'
+      preLoaderRoute: typeof AuthenticatedOsqueryChecksNewLiveRouteImport
+      parentRoute: typeof AuthenticatedOsqueryChecksNewRoute
+    }
     '/_authenticated/osquery/reports/$id/': {
       id: '/_authenticated/osquery/reports/$id/'
       path: '/'
@@ -1791,6 +1853,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/osquery/reports/$id/live'
       preLoaderRoute: typeof AuthenticatedOsqueryReportsIdLiveRouteImport
       parentRoute: typeof AuthenticatedOsqueryReportsIdRoute
+    }
+    '/_authenticated/osquery/reports/new/': {
+      id: '/_authenticated/osquery/reports/new/'
+      path: '/'
+      fullPath: '/osquery/reports/new/'
+      preLoaderRoute: typeof AuthenticatedOsqueryReportsNewIndexRouteImport
+      parentRoute: typeof AuthenticatedOsqueryReportsNewRoute
+    }
+    '/_authenticated/osquery/reports/new/live': {
+      id: '/_authenticated/osquery/reports/new/live'
+      path: '/live'
+      fullPath: '/osquery/reports/new/live'
+      preLoaderRoute: typeof AuthenticatedOsqueryReportsNewLiveRouteImport
+      parentRoute: typeof AuthenticatedOsqueryReportsNewRoute
     }
     '/_authenticated/santa/configurations/$id/': {
       id: '/_authenticated/santa/configurations/$id/'
@@ -2149,9 +2225,27 @@ const AuthenticatedOsqueryChecksIdRouteWithChildren =
     AuthenticatedOsqueryChecksIdRouteChildren,
   )
 
+interface AuthenticatedOsqueryChecksNewRouteChildren {
+  AuthenticatedOsqueryChecksNewLiveRoute: typeof AuthenticatedOsqueryChecksNewLiveRoute
+  AuthenticatedOsqueryChecksNewIndexRoute: typeof AuthenticatedOsqueryChecksNewIndexRoute
+}
+
+const AuthenticatedOsqueryChecksNewRouteChildren: AuthenticatedOsqueryChecksNewRouteChildren =
+  {
+    AuthenticatedOsqueryChecksNewLiveRoute:
+      AuthenticatedOsqueryChecksNewLiveRoute,
+    AuthenticatedOsqueryChecksNewIndexRoute:
+      AuthenticatedOsqueryChecksNewIndexRoute,
+  }
+
+const AuthenticatedOsqueryChecksNewRouteWithChildren =
+  AuthenticatedOsqueryChecksNewRoute._addFileChildren(
+    AuthenticatedOsqueryChecksNewRouteChildren,
+  )
+
 interface AuthenticatedOsqueryChecksRouteChildren {
   AuthenticatedOsqueryChecksIdRoute: typeof AuthenticatedOsqueryChecksIdRouteWithChildren
-  AuthenticatedOsqueryChecksNewRoute: typeof AuthenticatedOsqueryChecksNewRoute
+  AuthenticatedOsqueryChecksNewRoute: typeof AuthenticatedOsqueryChecksNewRouteWithChildren
   AuthenticatedOsqueryChecksIndexRoute: typeof AuthenticatedOsqueryChecksIndexRoute
 }
 
@@ -2159,7 +2253,8 @@ const AuthenticatedOsqueryChecksRouteChildren: AuthenticatedOsqueryChecksRouteCh
   {
     AuthenticatedOsqueryChecksIdRoute:
       AuthenticatedOsqueryChecksIdRouteWithChildren,
-    AuthenticatedOsqueryChecksNewRoute: AuthenticatedOsqueryChecksNewRoute,
+    AuthenticatedOsqueryChecksNewRoute:
+      AuthenticatedOsqueryChecksNewRouteWithChildren,
     AuthenticatedOsqueryChecksIndexRoute: AuthenticatedOsqueryChecksIndexRoute,
   }
 
@@ -2189,9 +2284,27 @@ const AuthenticatedOsqueryReportsIdRouteWithChildren =
     AuthenticatedOsqueryReportsIdRouteChildren,
   )
 
+interface AuthenticatedOsqueryReportsNewRouteChildren {
+  AuthenticatedOsqueryReportsNewLiveRoute: typeof AuthenticatedOsqueryReportsNewLiveRoute
+  AuthenticatedOsqueryReportsNewIndexRoute: typeof AuthenticatedOsqueryReportsNewIndexRoute
+}
+
+const AuthenticatedOsqueryReportsNewRouteChildren: AuthenticatedOsqueryReportsNewRouteChildren =
+  {
+    AuthenticatedOsqueryReportsNewLiveRoute:
+      AuthenticatedOsqueryReportsNewLiveRoute,
+    AuthenticatedOsqueryReportsNewIndexRoute:
+      AuthenticatedOsqueryReportsNewIndexRoute,
+  }
+
+const AuthenticatedOsqueryReportsNewRouteWithChildren =
+  AuthenticatedOsqueryReportsNewRoute._addFileChildren(
+    AuthenticatedOsqueryReportsNewRouteChildren,
+  )
+
 interface AuthenticatedOsqueryReportsRouteChildren {
   AuthenticatedOsqueryReportsIdRoute: typeof AuthenticatedOsqueryReportsIdRouteWithChildren
-  AuthenticatedOsqueryReportsNewRoute: typeof AuthenticatedOsqueryReportsNewRoute
+  AuthenticatedOsqueryReportsNewRoute: typeof AuthenticatedOsqueryReportsNewRouteWithChildren
   AuthenticatedOsqueryReportsIndexRoute: typeof AuthenticatedOsqueryReportsIndexRoute
 }
 
@@ -2199,7 +2312,8 @@ const AuthenticatedOsqueryReportsRouteChildren: AuthenticatedOsqueryReportsRoute
   {
     AuthenticatedOsqueryReportsIdRoute:
       AuthenticatedOsqueryReportsIdRouteWithChildren,
-    AuthenticatedOsqueryReportsNewRoute: AuthenticatedOsqueryReportsNewRoute,
+    AuthenticatedOsqueryReportsNewRoute:
+      AuthenticatedOsqueryReportsNewRouteWithChildren,
     AuthenticatedOsqueryReportsIndexRoute:
       AuthenticatedOsqueryReportsIndexRoute,
   }

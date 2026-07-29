@@ -1,6 +1,7 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useCallback, useRef, useState } from "react";
+import { Play } from "lucide-react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { SchemaSidebar } from "@components/editor/schema-sidebar";
@@ -15,6 +16,7 @@ import {
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { LabelTargetSetEditor } from "@components/targeting/label-target-set-editor";
+import { Button } from "@components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import { TabsContent } from "@components/ui/tabs";
@@ -61,22 +63,27 @@ function trimCheck(value: OsqueryCheckMutation): OsqueryCheckMutation {
 }
 export function CheckForm({
   initial,
+  draft,
   title,
   submitLabel,
   onSubmit,
   onSuccess,
   onCancel,
+  onRunLive,
 }: {
   initial: OsqueryCheckMutation;
+  draft?: OsqueryCheckMutation;
   title: string;
   submitLabel: string;
   onSubmit: (value: OsqueryCheckMutation) => Promise<number | undefined>;
-  onSuccess?: (id: number | undefined) => void;
-  onCancel?: () => void;
+  onSuccess?: (id: number | undefined) => unknown;
+  onCancel?: () => unknown;
+  onRunLive: (value: OsqueryCheckMutation) => Promise<void>;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
+  const [liveQueryRequired, setLiveQueryRequired] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
@@ -88,9 +95,12 @@ export function CheckForm({
     onSubmit: async ({ value, formApi }) => {
       const id = await onSubmit(trimCheck(value));
       formApi.reset(value);
-      onSuccess?.(id);
+      await onSuccess?.(id);
     },
   });
+  useLayoutEffect(() => {
+    if (draft) form.reset(draft, { keepDefaultValues: true });
+  }, [draft, form]);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
@@ -109,6 +119,14 @@ export function CheckForm({
     },
     [setSchemaOpen],
   );
+  async function runLive() {
+    if (!form.getFieldValue("query").trim()) {
+      setLiveQueryRequired(true);
+      setActiveTab("options");
+      return;
+    }
+    await exitGuard.runWithoutPrompt(() => onRunLive(form.state.values));
+  }
   return (
     <div className="flex min-h-full w-full min-w-0">
       <PageShell className="h-full min-w-0 flex-1">
@@ -169,7 +187,9 @@ export function CheckForm({
               <form.Field name="query">
                 {(field) => {
                   const error =
-                    firstErrorMessage(field.state.meta.errors) ?? sqlSyntaxError(field.state.value);
+                    (liveQueryRequired ? "Query is required." : undefined) ??
+                    firstErrorMessage(field.state.meta.errors) ??
+                    sqlSyntaxError(field.state.value);
                   return (
                     <Field data-invalid={error ? true : undefined}>
                       <FieldLabel>
@@ -181,7 +201,10 @@ export function CheckForm({
                       <SQLEditor
                         ref={editorRef}
                         value={field.state.value}
-                        onChange={field.handleChange}
+                        onChange={(value) => {
+                          setLiveQueryRequired(false);
+                          field.handleChange(value);
+                        }}
                         onTableMetaClick={selectSchemaTable}
                         placeholder="SELECT ..."
                         invalid={error ? true : undefined}
@@ -224,7 +247,12 @@ export function CheckForm({
             revealFirstInvalidFormTab(form, checkFormTabs, setActiveTab);
           }}
           onCancel={onCancel ? exitGuard.requestDiscard : undefined}
-        />
+        >
+          <Button type="button" variant="ghost" size="sm" onClick={() => void runLive()}>
+            <Play data-icon="inline-start" />
+            Run Live
+          </Button>
+        </FormActions>
 
         {exitGuard.dialog}
       </PageShell>

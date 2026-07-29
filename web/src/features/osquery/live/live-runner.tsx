@@ -103,12 +103,10 @@ const errorResultColumns: ColumnDef<LiveQueryRow>[] = [
 
 export function LiveRunner({
   kind,
-  itemId,
   sql,
   onCancel,
 }: {
   kind: LiveRunKind;
-  itemId: number;
   sql: string;
   onCancel: () => void;
 }) {
@@ -128,13 +126,12 @@ export function LiveRunner({
   const hasTargets = selectedLabels.length > 0 || selectedHosts.length > 0;
   const targetSelection = useMemo<OsqueryLiveQueryTargetCountBody>(
     () => ({
-      report_id: kind === "report" ? itemId : undefined,
       selected: {
         hosts: selectedHostIDs,
         labels: selectedLabelIDs,
       },
     }),
-    [itemId, kind, selectedHostIDs, selectedLabelIDs],
+    [selectedHostIDs, selectedLabelIDs],
   );
   const targetMetrics = useLiveQueryTargetCount(targetSelection, hasTargets);
   const isRunning = stream.status === "running";
@@ -156,7 +153,6 @@ export function LiveRunner({
     setStopRequested(false);
     const body: OsqueryLiveQueryCreateBody = {
       sql,
-      report_id: targetSelection.report_id,
       selected: targetSelection.selected,
     };
     const handle = await create.mutateAsync(body);

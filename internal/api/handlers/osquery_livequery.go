@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -21,7 +22,6 @@ const (
 )
 
 type OsqueryLiveQueryCreateBody struct {
-	ReportID *int64                       `json:"report_id,omitempty"`
 	SQL      string                       `json:"sql"`
 	Selected OsqueryLiveQuerySelectedBody `json:"selected,omitzero"`
 }
@@ -32,7 +32,6 @@ type OsqueryLiveQuerySelectedBody struct {
 }
 
 type OsqueryLiveQueryTargetCountBody struct {
-	ReportID *int64                       `json:"report_id,omitempty"`
 	Selected OsqueryLiveQuerySelectedBody `json:"selected,omitzero"`
 }
 
@@ -206,7 +205,7 @@ func subscribeLiveQuery(api huma.API, manager *livequery.Manager) func(huma.Cont
 }
 
 func (body OsqueryLiveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *hosts.Store) ([]int64, error) {
-	if body.SQL == "" {
+	if strings.TrimSpace(body.SQL) == "" {
 		return nil, huma.Error400BadRequest("sql is required")
 	}
 	resolved, err := hostStore.ResolveOnlineSelectedTargets(ctx, body.Selected.targetSelection(), time.Now().UTC())

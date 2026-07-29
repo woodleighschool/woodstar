@@ -858,7 +858,6 @@ export type OsqueryLiveQueryCompletedEvent = {
 };
 
 export type OsqueryLiveQueryCreateBody = {
-    report_id?: number;
     selected?: OsqueryLiveQuerySelectedBody;
     sql: string;
 };
@@ -882,7 +881,6 @@ export type OsqueryLiveQuerySelectedBody = {
 };
 
 export type OsqueryLiveQueryTargetCountBody = {
-    report_id?: number;
     selected?: OsqueryLiveQuerySelectedBody;
 };
 

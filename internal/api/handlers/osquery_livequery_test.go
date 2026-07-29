@@ -14,6 +14,26 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
+func TestCreateLiveQueryRejectsBlankSQL(t *testing.T) {
+	router := chi.NewRouter()
+	api := humachi.New(router, testHumaConfig())
+	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
+
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/osquery/live-queries",
+		strings.NewReader(`{"sql":" \n "}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
 func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	manager := livequery.NewManager()
 	handle := manager.Start("select 1", []int64{42})

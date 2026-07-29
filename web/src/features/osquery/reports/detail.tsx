@@ -180,7 +180,7 @@ export function ReportDetailPage() {
               </>
             ) : null}
             <ShowQueryButton sql={report.data.query} />
-            <LiveRunButton to="/osquery/reports/$id/live" params={{ id: reportId }} />
+            <LiveRunButton kind="report" id={id} sql={report.data.query} />
           </>
         }
       />

@@ -2342,9 +2342,6 @@ components:
     OsqueryLiveQueryCreateBody:
       additionalProperties: false
       properties:
-        report_id:
-          format: int64
-          type: integer
         selected:
           $ref: "#/components/schemas/OsqueryLiveQuerySelectedBody"
         sql:
@@ -2405,9 +2402,6 @@ components:
     OsqueryLiveQueryTargetCountBody:
       additionalProperties: false
       properties:
-        report_id:
-          format: int64
-          type: integer
         selected:
           $ref: "#/components/schemas/OsqueryLiveQuerySelectedBody"
       type: object

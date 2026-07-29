@@ -1,5 +1,6 @@
 import type { AnyFormApi } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
+import type { ReactNode } from "react";
 
 import { AsyncButton } from "@components/async-button";
 import { Pending } from "@components/pending";
@@ -15,6 +16,7 @@ export function FormActions({
   onCancel,
   canCancelWhileSubmitting = false,
   className,
+  children,
 }: {
   form: AnyFormApi;
   submitLabel: string;
@@ -22,6 +24,7 @@ export function FormActions({
   onCancel?: () => void;
   canCancelWhileSubmitting?: boolean;
   className?: string;
+  children?: ReactNode;
 }) {
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
   // Submit explicitly so unrelated controls such as table searches and pickers
@@ -46,6 +49,7 @@ export function FormActions({
           Cancel
         </Pending>
       ) : null}
+      {children}
     </Field>
   );
 }

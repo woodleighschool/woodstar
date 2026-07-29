@@ -10,7 +10,7 @@ export function usePageFormExitGuard({
   enabled = true,
 }: {
   form: AnyFormApi;
-  onDiscard: () => void;
+  onDiscard: () => unknown;
   enabled?: boolean;
 }) {
   const [discardRequested, setDiscardRequested] = useState(false);
@@ -31,12 +31,13 @@ export function usePageFormExitGuard({
     withResolver: true,
   });
 
-  const leave = useCallback((callback: () => void) => {
+  const runWithoutPrompt = useCallback(async (callback: () => unknown) => {
     allowExit.current = true;
-    callback();
-    queueMicrotask(() => {
+    try {
+      await callback();
+    } finally {
       allowExit.current = false;
-    });
+    }
   }, []);
 
   const requestDiscard = useCallback(() => {
@@ -44,8 +45,8 @@ export function usePageFormExitGuard({
       setDiscardRequested(true);
       return;
     }
-    onDiscard();
-  }, [hasUnsavedChanges, onDiscard]);
+    void runWithoutPrompt(onDiscard);
+  }, [hasUnsavedChanges, onDiscard, runWithoutPrompt]);
 
   const navigationBlocked = blocker.status === "blocked";
   const dialog = (
@@ -62,14 +63,14 @@ export function usePageFormExitGuard({
       variant="destructive"
       onConfirm={() => {
         if (navigationBlocked) {
-          leave(() => blocker.proceed?.());
+          void runWithoutPrompt(() => blocker.proceed?.());
           return;
         }
         setDiscardRequested(false);
-        leave(onDiscard);
+        void runWithoutPrompt(onDiscard);
       }}
     />
   );
 
-  return { requestDiscard, dialog };
+  return { requestDiscard, runWithoutPrompt, dialog };
 }

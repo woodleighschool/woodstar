@@ -154,7 +154,7 @@ export function CheckDetailPage() {
               </>
             ) : null}
             <ShowQueryButton sql={check.data.query} />
-            <LiveRunButton to="/osquery/checks/$id/live" params={{ id: checkId }} />
+            <LiveRunButton kind="check" id={id} sql={check.data.query} />
           </>
         }
       />

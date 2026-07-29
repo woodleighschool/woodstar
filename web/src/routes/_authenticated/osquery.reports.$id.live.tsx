@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { requireAdmin } from "@features/auth/guards";
-import { ReportLivePage } from "@features/osquery/reports/live";
+import { ReportLivePage } from "@features/osquery/live/page";
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/$id/live")({
   staticData: { breadcrumb: "Live" },
