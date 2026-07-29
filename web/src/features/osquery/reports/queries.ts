@@ -11,7 +11,7 @@ import type {
   ApiError,
   OsqueryReport,
   OsqueryReportMutation,
-  OsqueryReportResult,
+  OsqueryReportSnapshot,
   PageReport,
 } from "@lib/api";
 import {
@@ -19,7 +19,7 @@ import {
   createOsqueryReport,
   deleteOsqueryReport,
   getOsqueryReport,
-  listOsqueryReportResults,
+  listOsqueryReportSnapshots,
   listOsqueryReports,
   unwrap,
   updateOsqueryReport,
@@ -32,13 +32,13 @@ type QueryParams = Record<string, unknown>;
 
 type ReportListParams = NonNullable<ListOsqueryReportsData["query"]>;
 
-const REPORT_RESULT_REFRESH_MS = 30_000;
+const REPORT_SNAPSHOT_REFRESH_MS = 30_000;
 
 const reportKeys = {
   all: ["osquery", "reports"] as const,
   list: (params?: QueryParams) => ["osquery", "reports", "list", params ?? {}] as const,
   detail: (id: number | null) => ["osquery", "reports", "detail", id] as const,
-  results: (id: number | null) => ["osquery", "reports", "detail", id, "results"] as const,
+  snapshots: (id: number | null) => ["osquery", "reports", "detail", id, "snapshots"] as const,
 };
 
 export function reportQueryOptions(id: number | null) {
@@ -63,19 +63,19 @@ export function useReport(id: number | null) {
   return useQuery(reportQueryOptions(id));
 }
 
-export function useReportResults(id: number | null) {
-  return useQuery<OsqueryReportResult[], ApiError>({
-    queryKey: reportKeys.results(id),
+export function useReportSnapshots(id: number | null) {
+  return useQuery<OsqueryReportSnapshot[], ApiError>({
+    queryKey: reportKeys.snapshots(id),
     queryFn: ({ signal }) =>
       unwrap(
-        listOsqueryReportResults({
+        listOsqueryReportSnapshots({
           path: detailPath(id),
           signal,
         }),
       ),
     enabled: id !== null,
     placeholderData: keepPreviousData,
-    refetchInterval: REPORT_RESULT_REFRESH_MS,
+    refetchInterval: REPORT_SNAPSHOT_REFRESH_MS,
   });
 }
 
@@ -104,7 +104,7 @@ export function useUpdateReport(id: number | null) {
       const previous = queryClient.getQueryData<OsqueryReport>(reportKeys.detail(id));
       const queryChanged = previous !== undefined && previous.query !== saved.query;
       if (queryChanged) {
-        queryClient.removeQueries({ queryKey: reportKeys.results(id), exact: true });
+        queryClient.removeQueries({ queryKey: reportKeys.snapshots(id), exact: true });
       }
       toast.add({
         title: queryChanged ? "Report saved and results cleared" : "Report saved",

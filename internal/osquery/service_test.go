@@ -124,7 +124,7 @@ func (fakeReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]reports
 	return nil, nil
 }
 
-func (s fakeReportStore) OverwriteResults(
+func (s fakeReportStore) OverwriteSnapshot(
 	context.Context,
 	int64,
 	string,

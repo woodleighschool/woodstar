@@ -38,7 +38,7 @@ export default defineConfig({
     proxy: {
       "/api": {
         changeOrigin: true,
-        target: "https://woodstar:8443",
+        target: "https://woodstar.woodleigh.vic.edu.au",
       },
     },
   },

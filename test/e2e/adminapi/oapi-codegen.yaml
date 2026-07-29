@@ -33,7 +33,7 @@ output-options:
     - create-munki-software
     - get-munki-software
     - create-osquery-report
-    - list-osquery-report-results
+    - list-osquery-report-snapshots
     - create-santa-configuration
     - create-santa-rule
     - list-santa-events

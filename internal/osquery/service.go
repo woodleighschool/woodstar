@@ -60,13 +60,13 @@ type labelEvaluator interface {
 
 type reportStore interface {
 	ScheduledForHost(ctx context.Context, host *hosts.Host) ([]reports.Report, error)
-	OverwriteResults(
+	OverwriteSnapshot(
 		ctx context.Context,
 		reportID int64,
 		queryHash string,
 		hostID int64,
 		rows []map[string]string,
-		updatedAt time.Time,
+		collectedAt time.Time,
 	) error
 }
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
+import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -20,14 +21,54 @@ import { parseRouteID } from "@lib/route-params";
 import { formatInterval, formatRelative } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
-import { useReport, useReportResults } from "./queries";
+import { useReport, useReportSnapshots } from "./queries";
 import {
-  reportRows,
-  reportTableColumns,
-  type ReportTableRow,
+  reportSnapshotRows,
+  type ReportSnapshotTableRow,
   resultColumnNames,
-  resultValue,
+  serializeSnapshots,
+  SnapshotResultRows,
+  snapshotSearchText,
+  snapshotStatusLabel,
+  SnapshotStatusBadge,
 } from "./query-results";
+
+const reportSnapshotColumns: ColumnDef<ReportSnapshotTableRow>[] = [
+  {
+    id: "expand",
+    header: () => <span className="sr-only">Expand</span>,
+    cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.hostName} />,
+    enableSorting: false,
+    size: 44,
+  },
+  {
+    id: "hostName",
+    accessorKey: "hostName",
+    header: () => "Host",
+    cell: ({ row }) => (
+      <Link to="/hosts/$id" params={{ id: String(row.original.hostId) }}>
+        {row.original.hostName}
+      </Link>
+    ),
+  },
+  {
+    id: "status",
+    accessorFn: snapshotStatusLabel,
+    header: () => "Collection",
+    cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
+  },
+  {
+    id: "collectedAt",
+    accessorKey: "collectedAt",
+    header: () => "Collected",
+    cell: ({ row }) => (row.original.collectedAt ? formatRelative(row.original.collectedAt) : "-"),
+  },
+  {
+    id: "rowCount",
+    accessorFn: (row) => row.rows.length,
+    header: () => "Result Rows",
+  },
+];
 
 export function ReportDetailPage() {
   const { id: reportId } = useParams({
@@ -39,7 +80,7 @@ export function ReportDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(reportId);
   const report = useReport(id);
-  const results = useReportResults(id);
+  const snapshots = useReportSnapshots(id);
 
   if (id === null) {
     return (
@@ -66,25 +107,17 @@ export function ReportDetailPage() {
     );
   }
 
-  const rows = reportRows(results.data);
-  const columnNames = resultColumnNames(rows);
-  const resultColumns: ColumnDef<ReportTableRow>[] = columnNames.map((name) => ({
-    id: name,
-    accessorFn: (row) => row.columns[name] ?? "",
-    header: () => name,
-    cell: ({ row }) => resultValue(row.original.columns[name]),
-  }));
-  const columns = [...reportTableColumns(), ...resultColumns];
-  const exportOptions: DataTableExportOptions<ReportTableRow> = {
+  const rows = reportSnapshotRows(snapshots.data);
+  const columnNames = resultColumnNames(rows.flatMap((row) => row.rows));
+  const exportMetadata: DataTableExportOptions<ReportSnapshotTableRow>["columns"] = [
+    { header: "Host", value: (row) => row.hostName },
+    { header: "Collection Status", value: snapshotStatusLabel },
+    { header: "Collected At", value: (row) => row.collectedAt },
+  ];
+  const exportOptions: DataTableExportOptions<ReportSnapshotTableRow> = {
     filename: `osquery-report-${id}-results`,
-    columns: [
-      { header: "Host", value: (row) => row.hostName },
-      { header: "Last Fetched", value: (row) => row.lastFetched },
-      ...columnNames.map((name) => ({
-        header: name,
-        value: (row: ReportTableRow) => row.columns[name],
-      })),
-    ],
+    columns: exportMetadata,
+    serializeRows: (exportRows) => serializeSnapshots(exportRows, exportMetadata, columnNames),
   };
 
   return (
@@ -137,23 +170,29 @@ export function ReportDetailPage() {
 
       <LabelTargetDetails targets={report.data.targets} />
 
-      {results.error ? (
+      {snapshots.error ? (
         <QueryError
           title="Failed to load report results"
-          error={results.error}
-          onRetry={() => void results.refetch()}
+          error={snapshots.error}
+          onRetry={() => void snapshots.refetch()}
         />
-      ) : results.isLoading ? (
+      ) : snapshots.isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
         <DataTableClient
           title="Results"
-          columns={columns}
+          columns={reportSnapshotColumns}
           data={rows}
           exportOptions={exportOptions}
+          getRowCanExpand={(row) => row.original.rows.length > 0}
+          getRowId={(row) => row.id}
+          getSearchText={snapshotSearchText}
           initialSorting={[{ id: "hostName", desc: false }]}
-          searchPlaceholder="Search report results"
-          empty={<PanelEmptyState>No report results yet</PanelEmptyState>}
+          renderSubRow={(row) => (
+            <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
+          )}
+          searchPlaceholder="Search hosts and results"
+          empty={<PanelEmptyState>No targeted hosts</PanelEmptyState>}
         />
       )}
 

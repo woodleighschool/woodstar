@@ -853,17 +853,6 @@ export type OsqueryHandle = {
     started_at: string;
 };
 
-export type OsqueryHostReport = {
-    description: string;
-    first_result?: {
-        [key: string]: string;
-    };
-    last_fetched?: string;
-    n_host_results: number;
-    name: string;
-    report_id: number;
-};
-
 export type OsqueryLiveQueryCompletedEvent = {
     type: 'completed';
 };
@@ -925,15 +914,16 @@ export type OsqueryReportMutation = {
     targets: OsqueryReportTargets;
 };
 
-export type OsqueryReportResult = {
-    columns: {
-        [key: string]: string;
-    };
+export type OsqueryReportSnapshot = {
+    collected_at?: string;
     host_id: number;
     host_name: string;
-    last_fetched?: string;
+    report_description?: string;
     report_id: number;
     report_name: string;
+    rows: Array<{
+        [key: string]: string;
+    }>;
 };
 
 export type OsqueryReportTargets = {
@@ -2124,7 +2114,7 @@ export type ListHostOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryHostReport>;
+    200: Array<OsqueryReportSnapshot>;
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
@@ -4877,16 +4867,16 @@ export type UpdateOsqueryReportResponses = {
 
 export type UpdateOsqueryReportResponse = UpdateOsqueryReportResponses[keyof UpdateOsqueryReportResponses];
 
-export type ListOsqueryReportResultsData = {
+export type ListOsqueryReportSnapshotsData = {
     body?: never;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/osquery/reports/{id}/results';
+    url: '/api/osquery/reports/{id}/snapshots';
 };
 
-export type ListOsqueryReportResultsErrors = {
+export type ListOsqueryReportSnapshotsErrors = {
     /**
      * Unauthorized
      */
@@ -4905,16 +4895,16 @@ export type ListOsqueryReportResultsErrors = {
     500: ErrorModel;
 };
 
-export type ListOsqueryReportResultsError = ListOsqueryReportResultsErrors[keyof ListOsqueryReportResultsErrors];
+export type ListOsqueryReportSnapshotsError = ListOsqueryReportSnapshotsErrors[keyof ListOsqueryReportSnapshotsErrors];
 
-export type ListOsqueryReportResultsResponses = {
+export type ListOsqueryReportSnapshotsResponses = {
     /**
      * OK
      */
-    200: Array<OsqueryReportResult>;
+    200: Array<OsqueryReportSnapshot>;
 };
 
-export type ListOsqueryReportResultsResponse = ListOsqueryReportResultsResponses[keyof ListOsqueryReportResultsResponses];
+export type ListOsqueryReportSnapshotsResponse = ListOsqueryReportSnapshotsResponses[keyof ListOsqueryReportSnapshotsResponses];
 
 export type BulkDeleteSantaConfigurationsData = {
     body?: never;

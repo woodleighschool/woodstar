@@ -21,7 +21,7 @@ type hostOsqueryReportsInput struct {
 }
 
 type hostReportsOutput struct {
-	Body []reports.HostReport
+	Body []reports.ReportSnapshot
 }
 
 func registerHostOsqueryChecks(
@@ -73,7 +73,7 @@ func registerHostOsqueryReports(
 			"list-host-osquery-reports",
 			hostStore,
 			logger,
-			reportStore.HostReports,
+			reportStore.HostSnapshots,
 		)
 		if err != nil {
 			return nil, err

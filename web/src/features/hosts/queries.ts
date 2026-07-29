@@ -13,7 +13,7 @@ import type {
   HostDetail,
   MunkiHostState,
   OsqueryCheckHostStatus,
-  OsqueryHostReport,
+  OsqueryReportSnapshot,
   PageHost,
   PageHostManifestSoftware,
   PageHostSoftware,
@@ -244,7 +244,7 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
 }
 
 export function useHostOsqueryReports(id: number | null) {
-  return useQuery<OsqueryHostReport[], ApiError>({
+  return useQuery<OsqueryReportSnapshot[], ApiError>({
     queryKey: hostKeys.osqueryReports(id),
     queryFn: ({ signal }) => unwrap(listHostOsqueryReports({ path: detailPath(id), signal })),
     enabled: id !== null,

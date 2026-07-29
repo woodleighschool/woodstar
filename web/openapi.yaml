@@ -2328,32 +2328,6 @@ components:
         - started_at
         - resolved_host_count
       type: object
-    OsqueryHostReport:
-      additionalProperties: false
-      properties:
-        description:
-          type: string
-        first_result:
-          additionalProperties:
-            type: string
-          type: object
-        last_fetched:
-          format: date-time
-          type: string
-        n_host_results:
-          format: int32
-          type: integer
-        name:
-          type: string
-        report_id:
-          format: int64
-          type: integer
-      required:
-        - report_id
-        - name
-        - description
-        - n_host_results
-      type: object
     OsqueryLiveQueryCompletedEvent:
       additionalProperties: false
       properties:
@@ -2514,32 +2488,36 @@ components:
         - query
         - targets
       type: object
-    OsqueryReportResult:
+    OsqueryReportSnapshot:
       additionalProperties: false
       properties:
-        columns:
-          additionalProperties:
-            type: string
-          type: object
+        collected_at:
+          format: date-time
+          type: string
         host_id:
           format: int64
           type: integer
         host_name:
           type: string
-        last_fetched:
-          format: date-time
+        report_description:
           type: string
         report_id:
           format: int64
           type: integer
         report_name:
           type: string
+        rows:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
       required:
         - report_id
         - report_name
         - host_id
         - host_name
-        - columns
+        - rows
       type: object
     OsqueryReportTargets:
       additionalProperties: false
@@ -4772,7 +4750,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/OsqueryHostReport"
+                  $ref: "#/components/schemas/OsqueryReportSnapshot"
                 type: array
           description: OK
         "401":
@@ -8411,9 +8389,9 @@ paths:
       summary: Update a report
       tags:
         - Osquery reports
-  /api/osquery/reports/{id}/results:
+  /api/osquery/reports/{id}/snapshots:
     get:
-      operationId: list-osquery-report-results
+      operationId: list-osquery-report-snapshots
       parameters:
         - in: path
           name: id
@@ -8427,7 +8405,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/OsqueryReportResult"
+                  $ref: "#/components/schemas/OsqueryReportSnapshot"
                 type: array
           description: OK
         "401":
@@ -8457,7 +8435,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: List report results
+      summary: List report snapshots
       tags:
         - Osquery reports
   /api/santa/configurations:

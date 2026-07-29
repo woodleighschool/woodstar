@@ -627,25 +627,35 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		t.Fatalf("host Munki VisualStudioCode = %+v, want exact pending update observation", vscode)
 	}
 
-	resultsResponse, err := server.Admin.ListOsqueryReportResultsWithResponse(t.Context(), report.Id)
-	resultsResponse = requireAPIResponse(t, "list osquery report results", http.StatusOK, resultsResponse, err)
-	if resultsResponse.JSON200 == nil {
-		t.Fatal("list osquery report results returned no JSON body")
+	snapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(t.Context(), report.Id)
+	snapshotsResponse = requireAPIResponse(
+		t,
+		"list osquery report snapshots",
+		http.StatusOK,
+		snapshotsResponse,
+		err,
+	)
+	if snapshotsResponse.JSON200 == nil {
+		t.Fatal("list osquery report snapshots returned no JSON body")
 	}
-	results := *resultsResponse.JSON200
-	if len(results) != 2 {
-		t.Fatalf("report results = %+v, want two visible snapshot rows", results)
+	snapshots := *snapshotsResponse.JSON200
+	if len(snapshots) != 1 {
+		t.Fatalf("report snapshots = %+v, want one host snapshot", snapshots)
 	}
-	resultVersions := make(map[string]string, len(results))
-	for _, result := range results {
-		if result.ReportName != reportMutation.Name || result.HostName != "Osquery Integration Mac" ||
-			result.LastFetched == nil || !result.LastFetched.Equal(time.Unix(reportUnixTime, 0).UTC()) {
-			t.Fatalf("report result metadata = %+v, want report, host, and submitted time", result)
-		}
-		resultVersions[result.Columns["name"]] = result.Columns["version"]
+	snapshot := snapshots[0]
+	if snapshot.ReportName != reportMutation.Name || snapshot.HostName != "Osquery Integration Mac" ||
+		snapshot.CollectedAt == nil || !snapshot.CollectedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) {
+		t.Fatalf("report snapshot metadata = %+v, want report, host, and submitted time", snapshot)
+	}
+	if len(snapshot.Rows) != 2 {
+		t.Fatalf("report snapshot rows = %+v, want two result rows", snapshot.Rows)
+	}
+	resultVersions := make(map[string]string, len(snapshot.Rows))
+	for _, row := range snapshot.Rows {
+		resultVersions[row["name"]] = row["version"]
 	}
 	if resultVersions["Alpha"] != "1.0" || resultVersions["Bravo"] != "2.0" {
-		t.Fatalf("report result rows = %+v, want Alpha 1.0 and Bravo 2.0", resultVersions)
+		t.Fatalf("report snapshot rows = %+v, want Alpha 1.0 and Bravo 2.0", resultVersions)
 	}
 
 	unknownNodeKey := "unknown-osquery-node-key"

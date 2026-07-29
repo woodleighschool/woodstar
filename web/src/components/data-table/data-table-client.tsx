@@ -1,10 +1,14 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type ExpandedState,
+  type FilterFn,
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type Row,
   type SortingState,
   type Table,
   useReactTable,
@@ -22,7 +26,11 @@ interface DataTableClientProps<TData> {
   data: TData[];
   empty?: ReactNode;
   exportOptions?: DataTableExportOptions<TData>;
+  getRowCanExpand?: (row: Row<TData>) => boolean;
+  getRowId?: (row: TData, index: number, parent?: Row<TData>) => string;
+  getSearchText?: (row: TData) => string;
   initialSorting?: SortingState;
+  renderSubRow?: (row: Row<TData>) => ReactNode;
   searchPlaceholder?: string;
   title?: ReactNode;
   toolbar?: (table: Table<TData>) => ReactNode;
@@ -33,20 +41,30 @@ export function DataTableClient<TData>({
   data,
   empty,
   exportOptions,
+  getRowCanExpand,
+  getRowId,
+  getSearchText,
   initialSorting = [],
+  renderSubRow,
   searchPlaceholder,
   title,
   toolbar,
 }: DataTableClientProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
   const [globalFilter, setGlobalFilter] = useState("");
+  const globalFilterFn: FilterFn<TData> | undefined = getSearchText
+    ? (row, _columnId, value) =>
+        getSearchText(row.original).toLocaleLowerCase().includes(String(value).toLocaleLowerCase())
+    : undefined;
   const table = useReactTable({
     columns,
     data,
     state: {
       sorting,
       columnFilters,
+      expanded,
       globalFilter,
     },
     initialState: {
@@ -57,11 +75,17 @@ export function DataTableClient<TData>({
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onExpandedChange: setExpanded,
     onGlobalFilterChange: setGlobalFilter,
+    getRowCanExpand,
+    getRowId,
+    globalFilterFn,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    paginateExpandedRows: false,
   });
 
   const showSearch = Boolean(searchPlaceholder);
@@ -81,7 +105,13 @@ export function DataTableClient<TData>({
     ) : null;
 
   return (
-    <DataTable table={table} empty={empty} exportOptions={exportOptions} heading={title}>
+    <DataTable
+      table={table}
+      empty={empty}
+      exportOptions={exportOptions}
+      heading={title}
+      renderSubRow={renderSubRow}
+    >
       {controls}
     </DataTable>
   );

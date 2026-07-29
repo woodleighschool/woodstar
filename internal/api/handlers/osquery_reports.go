@@ -51,8 +51,8 @@ type reportOutput struct {
 	Body reports.Report
 }
 
-type reportResultsOutput struct {
-	Body []reports.ReportResult
+type reportSnapshotsOutput struct {
+	Body []reports.ReportSnapshot
 }
 
 func registerOsqueryReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
@@ -62,7 +62,7 @@ func registerOsqueryReports(api huma.API, reportStore *reports.Store, logger *sl
 	registerUpdateReport(api, reportStore, logger)
 	registerDeleteReport(api, reportStore, logger)
 	registerBulkDeleteReports(api, reportStore, logger)
-	registerReportResults(api, reportStore, logger)
+	registerReportSnapshots(api, reportStore, logger)
 }
 
 func registerListReports(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
@@ -193,19 +193,27 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store, logger 
 	})
 }
 
-func registerReportResults(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
+func registerReportSnapshots(api huma.API, reportStore *reports.Store, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-osquery-report-results",
+		OperationID: "list-osquery-report-snapshots",
 		Method:      http.MethodGet,
-		Path:        "/api/osquery/reports/{id}/results",
+		Path:        "/api/osquery/reports/{id}/snapshots",
 		Tags:        []string{osqueryReportsTag},
-		Summary:     "List report results",
+		Summary:     "List report snapshots",
 		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
-		rows, err := reportStore.Results(ctx, input.ID)
+	}, func(ctx context.Context, input *reportGetInput) (*reportSnapshotsOutput, error) {
+		rows, err := reportStore.Snapshots(ctx, input.ID)
 		if err != nil {
-			return nil, handlerError(ctx, logger, "list-osquery-report-results", err, "id", input.ID)
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-osquery-report-snapshots",
+				reportResource,
+				err,
+				"id",
+				input.ID,
+			)
 		}
-		return &reportResultsOutput{Body: rows}, nil
+		return &reportSnapshotsOutput{Body: rows}, nil
 	})
 }
