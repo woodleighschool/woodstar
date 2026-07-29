@@ -109,12 +109,15 @@ export function useUpdateReport(id: number | null) {
       ),
     onSuccess: async (saved) => {
       const previous = queryClient.getQueryData<OsqueryReport>(reportKeys.detail(id));
-      const queryChanged = previous !== undefined && previous.query !== saved.query;
-      if (queryChanged) {
+      const resultsInvalidated =
+        previous !== undefined &&
+        (previous.query !== saved.query ||
+          previous.min_osquery_version !== saved.min_osquery_version);
+      if (resultsInvalidated) {
         queryClient.removeQueries({ queryKey: reportKeys.snapshotsRoot(id) });
       }
       toast.add({
-        title: queryChanged ? "Report saved and results cleared" : "Report saved",
+        title: resultsInvalidated ? "Report saved and results cleared" : "Report saved",
         type: "success",
       });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });

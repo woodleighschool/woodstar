@@ -3,6 +3,7 @@ package reports
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
+
+var osqueryVersionRE = regexp.MustCompile(`^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)$`)
 
 // Report is a saved osquery snapshot query.
 type Report struct {
@@ -32,7 +35,7 @@ type ReportMutation struct {
 	Name              string        `json:"name"                          validate:"required,notblank" minLength:"1"`
 	Description       string        `json:"description,omitempty"`
 	Query             string        `json:"query"                         validate:"required,notblank" minLength:"1"`
-	MinOsqueryVersion *string       `json:"min_osquery_version,omitempty"`
+	MinOsqueryVersion *string       `json:"min_osquery_version,omitempty" pattern:"^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)$"`
 	ScheduleInterval  int32         `json:"schedule_interval,omitempty"   validate:"gte=0"`
 	Targets           ReportTargets `json:"targets"`
 }
@@ -48,6 +51,12 @@ type ReportCreateMutation struct {
 func (p *ReportMutation) Validate() error {
 	if err := validation.Struct(p); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	if p.MinOsqueryVersion != nil && !osqueryVersionRE.MatchString(*p.MinOsqueryVersion) {
+		return fmt.Errorf(
+			"%w: minimum osquery version must use X.Y.Z",
+			dbutil.ErrInvalidInput,
+		)
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err

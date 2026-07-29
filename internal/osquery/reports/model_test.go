@@ -20,6 +20,41 @@ func TestReportMutationValidate(t *testing.T) {
 			in:   ReportMutation{Name: "OS version", Query: "select * from os_version;"},
 		},
 		{
+			name: "valid minimum osquery version",
+			in: ReportMutation{
+				Name:              "OS version",
+				Query:             "select * from os_version;",
+				MinOsqueryVersion: new("5.18.1"),
+			},
+		},
+		{
+			name: "minimum osquery version missing patch",
+			in: ReportMutation{
+				Name:              "OS version",
+				Query:             "select * from os_version;",
+				MinOsqueryVersion: new("5.18"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "minimum osquery version has prefix",
+			in: ReportMutation{
+				Name:              "OS version",
+				Query:             "select * from os_version;",
+				MinOsqueryVersion: new("v5.18.1"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "minimum osquery version has leading zero",
+			in: ReportMutation{
+				Name:              "OS version",
+				Query:             "select * from os_version;",
+				MinOsqueryVersion: new("05.18.1"),
+			},
+			wantErr: true,
+		},
+		{
 			name:    "missing name",
 			in:      ReportMutation{Query: "select 1;"},
 			wantErr: true,

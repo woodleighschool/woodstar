@@ -64,10 +64,10 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	write := newReportWrite(params)
 	write.ID = id
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var queryChanged bool
+		var resultsInvalidated bool
 		if err := tx.QueryRow(ctx, `
 			WITH current AS (
-				SELECT id, query
+				SELECT id, query, min_osquery_version
 				FROM osquery_reports
 				WHERE id = @id
 				FOR UPDATE
@@ -82,16 +82,18 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 				updated_at = now()
 			FROM current
 			WHERE r.id = current.id
-			RETURNING current.query IS DISTINCT FROM @query`,
+			RETURNING
+				current.query IS DISTINCT FROM @query
+				OR current.min_osquery_version IS DISTINCT FROM @min_osquery_version`,
 			pgx.StructArgs(write),
-		).Scan(&queryChanged); err != nil {
+		).Scan(&resultsInvalidated); err != nil {
 			return dbutil.MutationError(err)
 		}
 		if err := replaceReportTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
 		}
-		// Query edits invalidate every snapshot. Retargeting only removes
-		// hosts outside the newly completed assignment set.
+		// Query and minimum-version edits invalidate every snapshot.
+		// Retargeting only removes hosts outside the completed assignment set.
 		_, err := tx.Exec(ctx, `
 				DELETE FROM osquery_report_snapshots snapshot
 				WHERE snapshot.report_id = $1
@@ -105,7 +107,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 					  )
 				  )`,
 			id,
-			queryChanged,
+			resultsInvalidated,
 		)
 		return err
 	})

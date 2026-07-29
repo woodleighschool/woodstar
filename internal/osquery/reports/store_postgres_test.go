@@ -456,7 +456,7 @@ func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testin
 	}
 }
 
-func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
+func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-query-change-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
@@ -551,6 +551,57 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 	}
 	if len(got) != 1 || len(got[0].Rows) != 1 || got[0].Rows[0]["name"] != "Current" {
 		t.Fatalf("snapshots after current observation = %+v, want Current", got)
+	}
+}
+
+func TestUpdateInvalidatesResultsWhenMinimumVersionChanges(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-version-change-host")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	targets := reportTargets([]int64{allHostsID}, nil)
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Version change report",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+		Targets:          targets,
+	}})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+	fetchedAt := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		[]map[string]string{{"name": "Alpha"}},
+		fetchedAt,
+	); err != nil {
+		t.Fatalf("store report result: %v", err)
+	}
+
+	versionUpdated, err := store.Update(ctx, report.ID, ReportMutation{
+		Name:              report.Name,
+		Query:             report.Query,
+		MinOsqueryVersion: new("5.18.1"),
+		ScheduleInterval:  report.ScheduleInterval,
+		Targets:           targets,
+	})
+	if err != nil {
+		t.Fatalf("update minimum osquery version: %v", err)
+	}
+	if versionUpdated.MinOsqueryVersion == nil || *versionUpdated.MinOsqueryVersion != "5.18.1" {
+		t.Fatalf(
+			"minimum osquery version = %v, want 5.18.1",
+			versionUpdated.MinOsqueryVersion,
+		)
+	}
+	got, err := store.Snapshots(ctx, report.ID, "")
+	if err != nil {
+		t.Fatalf("results after minimum version edit: %v", err)
+	}
+	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+		t.Fatalf("snapshots after minimum version edit = %+v, want pending target", got)
 	}
 }
 
