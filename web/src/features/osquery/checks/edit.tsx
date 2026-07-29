@@ -50,6 +50,7 @@ export function CheckEditPage() {
       draft={draft}
       title="Edit Check"
       submitLabel="Save"
+      confirmResultReset
       onCancel={async () => {
         await clearHistoryState();
         await navigate({

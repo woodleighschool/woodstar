@@ -340,7 +340,7 @@ export function ReportForm({
                         field={field}
                         label="Interval"
                         htmlFor="report-interval"
-                        description="Runs the query on targeted hosts at this cadence. Off keeps it out of the schedule."
+                        description="Runs the query on targeted hosts at this cadence."
                       >
                         {(control) => (
                           <Select
@@ -390,7 +390,6 @@ export function ReportForm({
                           field.handleChange(value);
                         }}
                         onTableMetaClick={selectSchemaTable}
-                        placeholder="SELECT ..."
                         invalid={error ? true : undefined}
                       />
                       {error ? <FieldError>{error}</FieldError> : null}

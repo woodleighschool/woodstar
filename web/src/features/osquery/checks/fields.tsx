@@ -4,6 +4,7 @@ import { Play } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 
+import { ConfirmDialog } from "@components/confirm-dialog";
 import { SchemaSidebar } from "@components/editor/schema-sidebar";
 import { SQLEditor } from "@components/editor/sql-editor";
 import { useSchemaSidebar } from "@components/editor/use-schema-sidebar";
@@ -70,6 +71,7 @@ export function CheckForm({
   onSuccess,
   onCancel,
   onRunLive,
+  confirmResultReset = false,
 }: {
   initial: OsqueryCheckMutation;
   draft?: OsqueryCheckMutation;
@@ -79,11 +81,14 @@ export function CheckForm({
   onSuccess?: (id: number | undefined) => unknown;
   onCancel?: () => unknown;
   onRunLive: (value: OsqueryCheckMutation) => Promise<void>;
+  confirmResultReset?: boolean;
 }) {
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [activeTab, setActiveTab] = useState("options");
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const [liveQueryRequired, setLiveQueryRequired] = useState(false);
+  const [pendingResultReset, setPendingResultReset] = useState<OsqueryCheckMutation | null>(null);
+  const [resultResetPending, setResultResetPending] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const form = useForm({
     defaultValues: initial,
@@ -93,8 +98,14 @@ export function CheckForm({
     }),
     validators: { onDynamic: checkFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      const id = await onSubmit(trimCheck(value));
-      formApi.reset(value);
+      const next = trimCheck(value);
+      const queryChanged = next.query !== initial.query.trim();
+      if (confirmResultReset && queryChanged) {
+        setPendingResultReset(next);
+        return;
+      }
+      const id = await onSubmit(next);
+      formApi.reset(next);
       await onSuccess?.(id);
     },
   });
@@ -102,6 +113,20 @@ export function CheckForm({
     if (draft) form.reset(draft, { keepDefaultValues: true });
   }, [draft, form]);
   const exitGuard = usePageFormExitGuard({ form, onDiscard: onCancel ?? noOp });
+  async function confirmPendingResultReset() {
+    if (!pendingResultReset) return;
+    setResultResetPending(true);
+    try {
+      const id = await onSubmit(pendingResultReset);
+      form.reset(pendingResultReset);
+      setPendingResultReset(null);
+      await onSuccess?.(id);
+    } catch {
+      return;
+    } finally {
+      setResultResetPending(false);
+    }
+  }
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
@@ -206,12 +231,10 @@ export function CheckForm({
                           field.handleChange(value);
                         }}
                         onTableMetaClick={selectSchemaTable}
-                        placeholder="SELECT ..."
                         invalid={error ? true : undefined}
                       />
                       <FieldDescription>
-                        One or more returned rows is a pass; no rows is a fail. Changing a saved
-                        query clears its existing results.
+                        One or more returned rows is a pass; no rows is a fail.
                       </FieldDescription>
                       {error ? <FieldError>{error}</FieldError> : null}
                     </Field>
@@ -255,6 +278,25 @@ export function CheckForm({
         </FormActions>
 
         {exitGuard.dialog}
+        <ConfirmDialog
+          open={pendingResultReset !== null}
+          onOpenChange={(open) => {
+            if (!open && !resultResetPending) setPendingResultReset(null);
+          }}
+          title="Save changes?"
+          description={
+            <>
+              <span className="block">
+                Changing this check&apos;s SQL will delete its previous results, since the existing
+                results do not reflect the updated SQL.
+              </span>
+              <span className="mt-3 block">You cannot undo this action.</span>
+            </>
+          }
+          confirmLabel="Save"
+          pending={resultResetPending}
+          onConfirm={() => void confirmPendingResultReset()}
+        />
       </PageShell>
       <SchemaSidebar
         open={schemaOpen}

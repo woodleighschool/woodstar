@@ -355,7 +355,6 @@ export function LabelForm({
                               value={field.state.value}
                               onChange={field.handleChange}
                               onTableMetaClick={selectSchemaTable}
-                              placeholder="SELECT ..."
                               invalid={error ? true : undefined}
                             />
                             <FieldDescription>
