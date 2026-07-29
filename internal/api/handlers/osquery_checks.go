@@ -31,8 +31,8 @@ type checkGetInput struct {
 }
 
 type checkResultsInput struct {
-	ID       int64  `path:"id"`
-	Response string `          query:"response,omitempty" enum:"pass,fail"`
+	ID     int64              `path:"id"`
+	Status checks.CheckStatus `          query:"status,omitempty"`
 }
 
 type checkCreateInput struct {
@@ -199,12 +199,7 @@ func registerCheckResults(api huma.API, checkStore *checks.Store, logger *slog.L
 		Summary:     "List check results",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *checkResultsInput) (*checkResultsOutput, error) {
-		var response *checks.CheckStatus
-		if input.Response != "" {
-			status := checks.CheckStatus(input.Response)
-			response = &status
-		}
-		rows, err := checkStore.CheckResults(ctx, input.ID, response)
+		rows, err := checkStore.CheckResults(ctx, input.ID, input.Status)
 		if err != nil {
 			return nil, handlerError(ctx, logger, "list-osquery-check-results", err, "id", input.ID)
 		}

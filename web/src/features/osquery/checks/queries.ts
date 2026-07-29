@@ -24,13 +24,14 @@ import {
   unwrap,
   updateOsqueryCheck,
 } from "@lib/api";
-import type { ListOsqueryChecksData } from "@lib/api-client/types.gen";
+import type { ListOsqueryCheckResultsData, ListOsqueryChecksData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
 type CheckListParams = NonNullable<ListOsqueryChecksData["query"]>;
+type CheckResultsParams = NonNullable<ListOsqueryCheckResultsData["query"]>;
 
 const CHECK_REFRESH_MS = 30_000;
 
@@ -38,7 +39,9 @@ const checkKeys = {
   all: ["osquery", "checks"] as const,
   list: (params?: QueryParams) => ["osquery", "checks", "list", params ?? {}] as const,
   detail: (id: number | null) => ["osquery", "checks", "detail", id] as const,
-  results: (id: number | null) => ["osquery", "checks", "detail", id, "results"] as const,
+  resultsRoot: (id: number | null) => ["osquery", "checks", "detail", id, "results"] as const,
+  results: (id: number | null, params?: QueryParams) =>
+    [...checkKeys.resultsRoot(id), params ?? {}] as const,
 };
 
 export function checkQueryOptions(id: number | null) {
@@ -64,13 +67,14 @@ export function useCheck(id: number | null) {
   return useQuery(checkQueryOptions(id));
 }
 
-export function useCheckResults(id: number | null) {
+export function useCheckResults(id: number | null, params: CheckResultsParams = {}) {
   return useQuery<OsqueryCheckHostStatus[], ApiError>({
-    queryKey: checkKeys.results(id),
+    queryKey: checkKeys.results(id, params),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryCheckResults({
           path: detailPath(id),
+          query: params,
           signal,
         }),
       ),
@@ -105,7 +109,7 @@ export function useUpdateCheck(id: number | null) {
       const previous = queryClient.getQueryData<OsqueryCheck>(checkKeys.detail(id));
       const queryChanged = previous !== undefined && previous.query !== saved.query;
       if (queryChanged) {
-        queryClient.removeQueries({ queryKey: checkKeys.results(id), exact: true });
+        queryClient.removeQueries({ queryKey: checkKeys.resultsRoot(id) });
       }
       toast.add({
         title: queryChanged ? "Check saved and results cleared" : "Check saved",

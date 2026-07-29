@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -75,7 +77,15 @@ func (s *Store) OverwriteSnapshot(
 
 // Snapshots returns every currently targeted host and its latest observation
 // for one report. A nil CollectedAt identifies a host that has not reported.
-func (s *Store) Snapshots(ctx context.Context, reportID int64) ([]ReportSnapshot, error) {
+func (s *Store) Snapshots(
+	ctx context.Context,
+	reportID int64,
+	status ReportSnapshotStatus,
+) ([]ReportSnapshot, error) {
+	collected, err := collectedFilter(status)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := s.GetByID(ctx, reportID); err != nil {
 		return nil, err
 	}
@@ -97,8 +107,10 @@ func (s *Store) Snapshots(ctx context.Context, reportID int64) ([]ReportSnapshot
 			ON snapshot.report_id = report_row.id
 		   AND snapshot.host_id = host_row.id
 		WHERE report_row.id = $1
+		  AND ($2::boolean IS NULL OR (snapshot.collected_at IS NOT NULL) = $2)
 		ORDER BY lower(host_row.display_name), host_row.id`,
 		reportID,
+		collected,
 	)
 	if err != nil {
 		return nil, err
@@ -121,54 +133,54 @@ func (s *Store) Snapshots(ctx context.Context, reportID int64) ([]ReportSnapshot
 
 // HostSnapshots returns reports assigned to a host with each report's complete
 // latest observation, whether or not the report is currently scheduled.
-func (s *Store) HostSnapshots(ctx context.Context, host *hosts.Host) ([]ReportSnapshot, error) {
-	rpts, err := s.assignedForHost(ctx, host)
+func (s *Store) HostSnapshots(
+	ctx context.Context,
+	host *hosts.Host,
+	status ReportSnapshotStatus,
+) ([]ReportSnapshot, error) {
+	collected, err := collectedFilter(status)
 	if err != nil {
 		return nil, err
 	}
-	reportIDs := make([]int64, 0, len(rpts))
-	for _, report := range rpts {
-		reportIDs = append(reportIDs, report.ID)
-	}
-	states, err := s.loadHostSnapshotStates(ctx, host.ID, reportIDs)
+	qrows, err := s.db.Pool().Query(ctx, `
+		SELECT
+			report_row.id AS report_id,
+			report_row.name AS report_name,
+			report_row.description AS report_description,
+			host_row.id AS host_id,
+			host_row.display_name AS host_name,
+			snapshot.rows,
+			snapshot.collected_at
+		FROM osquery_reports report_row
+		JOIN osquery_report_assignments assignment
+			ON assignment.report_id = report_row.id
+		   AND assignment.host_id = $1
+		JOIN hosts host_row
+			ON host_row.id = assignment.host_id
+		LEFT JOIN osquery_report_snapshots snapshot
+			ON snapshot.report_id = report_row.id
+		   AND snapshot.host_id = host_row.id
+		WHERE $2::boolean IS NULL OR (snapshot.collected_at IS NOT NULL) = $2
+		ORDER BY lower(report_row.name), report_row.id`,
+		host.ID,
+		collected,
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	snapshots := make([]ReportSnapshot, 0, len(rpts))
-	for _, report := range rpts {
-		state := states[report.ID]
-		snapshots = append(snapshots, ReportSnapshot{
-			ReportID:          report.ID,
-			ReportName:        report.Name,
-			ReportDescription: report.Description,
-			HostID:            host.ID,
-			HostName:          host.DisplayName,
-			Rows:              normalizeSnapshotRows(state.rows),
-			CollectedAt:       state.collectedAt,
-		})
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[snapshotRow])
+	if err != nil {
+		return nil, err
+	}
+	snapshots := make([]ReportSnapshot, 0, len(rows))
+	for _, row := range rows {
+		snapshot, err := snapshotFromRow(row)
+		if err != nil {
+			return nil, err
+		}
+		snapshots = append(snapshots, snapshot)
 	}
 	return snapshots, nil
-}
-
-func (s *Store) assignedForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
-	qrows, err := s.db.Pool().Query(ctx, reportSelectSQL()+`
-		JOIN osquery_report_assignments assignment
-			ON assignment.report_id = r.id
-		   AND assignment.host_id = $1
-		ORDER BY lower(r.name), r.id`, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[reportRow])
-	if err != nil {
-		return nil, err
-	}
-	rpts := make([]Report, len(rows))
-	for i, row := range rows {
-		rpts[i] = reportFromRow(row)
-	}
-	return rpts, nil
 }
 
 type snapshotRow struct {
@@ -192,58 +204,32 @@ func snapshotFromRow(row snapshotRow) (ReportSnapshot, error) {
 		ReportDescription: row.ReportDescription,
 		HostID:            row.HostID,
 		HostName:          row.HostName,
+		Status:            reportSnapshotStatus(row.CollectedAt),
 		Rows:              rows,
 		CollectedAt:       row.CollectedAt,
 	}, nil
 }
 
-type hostSnapshotState struct {
-	rows        []map[string]string
-	collectedAt *time.Time
+func reportSnapshotStatus(collectedAt *time.Time) ReportSnapshotStatus {
+	if collectedAt == nil {
+		return ReportSnapshotStatusPending
+	}
+	return ReportSnapshotStatusCollected
 }
 
-func (s *Store) loadHostSnapshotStates(
-	ctx context.Context,
-	hostID int64,
-	reportIDs []int64,
-) (map[int64]hostSnapshotState, error) {
-	states := make(map[int64]hostSnapshotState, len(reportIDs))
-	if len(reportIDs) == 0 {
-		return states, nil
+func collectedFilter(status ReportSnapshotStatus) (*bool, error) {
+	switch status {
+	case "":
+		return nil, nil
+	case ReportSnapshotStatusCollected:
+		value := true
+		return &value, nil
+	case ReportSnapshotStatusPending:
+		value := false
+		return &value, nil
+	default:
+		return nil, fmt.Errorf("%w: unknown report snapshot status %q", dbutil.ErrInvalidInput, status)
 	}
-
-	type stateRow struct {
-		ReportID    int64     `db:"report_id"`
-		Rows        []byte    `db:"rows"`
-		CollectedAt time.Time `db:"collected_at"`
-	}
-	qrows, err := s.db.Pool().Query(ctx, `
-		SELECT report_id, rows, collected_at
-		FROM osquery_report_snapshots
-		WHERE host_id = $1 AND report_id = ANY($2::bigint[])`,
-		hostID,
-		reportIDs,
-	)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[stateRow])
-	if err != nil {
-		return nil, err
-	}
-
-	for _, row := range rows {
-		snapshotRows, err := decodeSnapshotRows(row.Rows)
-		if err != nil {
-			return nil, err
-		}
-		collectedAt := row.CollectedAt
-		states[row.ReportID] = hostSnapshotState{
-			rows:        snapshotRows,
-			collectedAt: &collectedAt,
-		}
-	}
-	return states, nil
 }
 
 func normalizeSnapshotRows(rows []map[string]string) []map[string]string {

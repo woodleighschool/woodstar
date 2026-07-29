@@ -830,7 +830,7 @@ export type OsqueryCheckHostStatus = {
     check_name: string;
     host_id: number;
     host_name: string;
-    response: 'pass' | 'fail';
+    status: 'pass' | 'fail' | 'pending';
     updated_at?: string;
 };
 
@@ -924,6 +924,7 @@ export type OsqueryReportSnapshot = {
     rows: Array<{
         [key: string]: string;
     }>;
+    status: 'collected' | 'pending';
 };
 
 export type OsqueryReportTargets = {
@@ -2046,7 +2047,9 @@ export type ListHostOsqueryChecksData = {
     path: {
         id: number;
     };
-    query?: never;
+    query?: {
+        status?: 'pass' | 'fail' | 'pending';
+    };
     url: '/api/hosts/{id}/osquery/checks';
 };
 
@@ -2085,7 +2088,9 @@ export type ListHostOsqueryReportsData = {
     path: {
         id: number;
     };
-    query?: never;
+    query?: {
+        status?: 'collected' | 'pending';
+    };
     url: '/api/hosts/{id}/osquery/reports';
 };
 
@@ -4403,7 +4408,7 @@ export type ListOsqueryCheckResultsData = {
         id: number;
     };
     query?: {
-        response?: 'pass' | 'fail';
+        status?: 'pass' | 'fail' | 'pending';
     };
     url: '/api/osquery/checks/{id}/results';
 };
@@ -4872,7 +4877,9 @@ export type ListOsqueryReportSnapshotsData = {
     path: {
         id: number;
     };
-    query?: never;
+    query?: {
+        status?: 'collected' | 'pending';
+    };
     url: '/api/osquery/reports/{id}/snapshots';
 };
 

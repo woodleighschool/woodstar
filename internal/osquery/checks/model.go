@@ -67,20 +67,21 @@ type CheckListParams struct {
 type CheckStatus string
 
 const (
-	CheckStatusPass CheckStatus = "pass"
-	CheckStatusFail CheckStatus = "fail"
+	CheckStatusPass    CheckStatus = "pass"
+	CheckStatusFail    CheckStatus = "fail"
+	CheckStatusPending CheckStatus = "pending"
 )
 
-var CheckStatusValues = []CheckStatus{CheckStatusPass, CheckStatusFail}
+var CheckStatusValues = []CheckStatus{CheckStatusPass, CheckStatusFail, CheckStatusPending}
 
 // CheckHostStatus is one host's check state.
 type CheckHostStatus struct {
-	CheckID   int64        `json:"check_id"`
-	CheckName string       `json:"check_name"`
-	HostID    int64        `json:"host_id"`
-	HostName  string       `json:"host_name"`
-	Response  *CheckStatus `json:"response"`
-	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
+	CheckID   int64       `json:"check_id"`
+	CheckName string      `json:"check_name"`
+	HostID    int64       `json:"host_id"`
+	HostName  string      `json:"host_name"`
+	Status    CheckStatus `json:"status"`
+	UpdatedAt *time.Time  `json:"updated_at,omitempty"`
 }
 
 func (CheckStatus) Schema(_ huma.Registry) *huma.Schema {

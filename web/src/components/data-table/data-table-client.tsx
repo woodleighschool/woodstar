@@ -8,6 +8,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type OnChangeFn,
   type Row,
   type SortingState,
   type Table,
@@ -22,6 +23,7 @@ import { Input } from "@components/ui/input";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 
 interface DataTableClientProps<TData> {
+  columnFilters?: ColumnFiltersState;
   columns: ColumnDef<TData>[];
   data: TData[];
   empty?: ReactNode;
@@ -30,6 +32,7 @@ interface DataTableClientProps<TData> {
   getRowId?: (row: TData, index: number, parent?: Row<TData>) => string;
   getSearchText?: (row: TData) => string;
   initialSorting?: SortingState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
   renderSubRow?: (row: Row<TData>) => ReactNode;
   searchPlaceholder?: string;
   title?: ReactNode;
@@ -37,6 +40,7 @@ interface DataTableClientProps<TData> {
 }
 
 export function DataTableClient<TData>({
+  columnFilters,
   columns,
   data,
   empty,
@@ -45,13 +49,14 @@ export function DataTableClient<TData>({
   getRowId,
   getSearchText,
   initialSorting = [],
+  onColumnFiltersChange,
   renderSubRow,
   searchPlaceholder,
   title,
   toolbar,
 }: DataTableClientProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [internalColumnFilters, setInternalColumnFilters] = useState<ColumnFiltersState>([]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const globalFilterFn: FilterFn<TData> | undefined = getSearchText
@@ -63,7 +68,7 @@ export function DataTableClient<TData>({
     data,
     state: {
       sorting,
-      columnFilters,
+      columnFilters: columnFilters ?? internalColumnFilters,
       expanded,
       globalFilter,
     },
@@ -74,7 +79,7 @@ export function DataTableClient<TData>({
       },
     },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: onColumnFiltersChange ?? setInternalColumnFilters,
     onExpandedChange: setExpanded,
     onGlobalFilterChange: setGlobalFilter,
     getRowCanExpand,

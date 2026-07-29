@@ -20,11 +20,22 @@ export type ReportSnapshotTableRow = {
   reportDescription?: string;
   hostId: number;
   hostName: string;
+  status: OsqueryReportSnapshot["status"];
   collectedAt?: string;
   rows: Record<string, string>[];
 };
 
-type SnapshotStatus = "pending" | "empty" | "collected";
+type SnapshotStatus = OsqueryReportSnapshot["status"];
+
+export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
+  { label: "Collected", value: "collected" },
+  { label: "Pending", value: "pending" },
+] satisfies { label: string; value: SnapshotStatus }[];
+
+export function parseReportSnapshotStatus(value: unknown): SnapshotStatus | undefined {
+  if (typeof value !== "string") return undefined;
+  return REPORT_SNAPSHOT_STATUS_OPTIONS.find((option) => option.value === value)?.value;
+}
 
 export function reportSnapshotRows(
   snapshots: OsqueryReportSnapshot[] | null | undefined,
@@ -36,6 +47,7 @@ export function reportSnapshotRows(
     reportDescription: snapshot.report_description,
     hostId: snapshot.host_id,
     hostName: snapshot.host_name,
+    status: snapshot.status,
     collectedAt: snapshot.collected_at,
     rows: snapshot.rows,
   }));
@@ -52,14 +64,12 @@ export function resultColumnNames(rows: Record<string, string>[]): string[] {
 }
 
 export function snapshotStatus(row: ReportSnapshotTableRow): SnapshotStatus {
-  if (!row.collectedAt) return "pending";
-  return row.rows.length === 0 ? "empty" : "collected";
+  return row.status;
 }
 
 export function snapshotStatusLabel(row: ReportSnapshotTableRow): string {
   const labels: Record<SnapshotStatus, string> = {
     pending: "Pending",
-    empty: "Empty",
     collected: "Collected",
   };
   return labels[snapshotStatus(row)];
@@ -67,7 +77,7 @@ export function snapshotStatusLabel(row: ReportSnapshotTableRow): string {
 
 export function SnapshotStatusBadge({ row }: { row: ReportSnapshotTableRow }) {
   const status = snapshotStatus(row);
-  const variant = status === "collected" ? "success" : status === "empty" ? "secondary" : "outline";
+  const variant = status === "collected" ? "success" : "outline";
 
   return <Badge variant={variant}>{snapshotStatusLabel(row)}</Badge>;
 }

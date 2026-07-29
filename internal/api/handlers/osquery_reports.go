@@ -30,6 +30,11 @@ type reportGetInput struct {
 	ID int64 `path:"id"`
 }
 
+type reportSnapshotsInput struct {
+	ID     int64                        `path:"id"`
+	Status reports.ReportSnapshotStatus `          query:"status,omitempty"`
+}
+
 type reportCreateInput struct {
 	Body reports.ReportMutation
 }
@@ -201,8 +206,8 @@ func registerReportSnapshots(api huma.API, reportStore *reports.Store, logger *s
 		Tags:        []string{osqueryReportsTag},
 		Summary:     "List report snapshots",
 		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *reportGetInput) (*reportSnapshotsOutput, error) {
-		rows, err := reportStore.Snapshots(ctx, input.ID)
+	}, func(ctx context.Context, input *reportSnapshotsInput) (*reportSnapshotsOutput, error) {
+		rows, err := reportStore.Snapshots(ctx, input.ID, input.Status)
 		if err != nil {
 			return nil, resourceError(
 				ctx,
