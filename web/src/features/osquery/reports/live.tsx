@@ -1,14 +1,13 @@
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
-import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { LiveRunner } from "@features/osquery/live/live-runner";
 
 import { useReport } from "./queries";
 export function ReportLivePage() {
+  const navigate = useNavigate();
   const { id: reportId } = useParams({
     from: "/_authenticated/osquery/reports/$id",
   });
@@ -37,15 +36,11 @@ export function ReportLivePage() {
       kind="report"
       itemId={Number(reportId)}
       sql={report.data.query}
-      detailAction={
-        <Button
-          variant="outline"
-          size="sm"
-          render={<Link to="/osquery/reports/$id" params={{ id: reportId }} />}
-          nativeButton={false}
-        >
-          View Report
-        </Button>
+      onCancel={() =>
+        void navigate({
+          to: "/osquery/reports/$id",
+          params: { id: reportId },
+        })
       }
     />
   );

@@ -1,14 +1,13 @@
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
-import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { LiveRunner } from "@features/osquery/live/live-runner";
 
 import { useCheck } from "./queries";
 export function CheckLivePage() {
+  const navigate = useNavigate();
   const { id: checkId } = useParams({
     from: "/_authenticated/osquery/checks/$id",
   });
@@ -37,15 +36,11 @@ export function CheckLivePage() {
       kind="check"
       itemId={Number(checkId)}
       sql={check.data.query}
-      detailAction={
-        <Button
-          variant="outline"
-          size="sm"
-          render={<Link to="/osquery/checks/$id" params={{ id: checkId }} />}
-          nativeButton={false}
-        >
-          View Check
-        </Button>
+      onCancel={() =>
+        void navigate({
+          to: "/osquery/checks/$id",
+          params: { id: checkId },
+        })
       }
     />
   );
