@@ -49,7 +49,6 @@ export function MunkiPackageDetailPage() {
         icon={
           <SoftwareArtwork src={pkg.software.icon_url} fallbackIcon={PackageIcon} loading="eager" />
         }
-        description={pkg.notes || undefined}
         meta={`Edited ${formatRelative(pkg.updated_at)}`}
         actions={
           isAdmin ? (
@@ -90,6 +89,7 @@ export function MunkiPackageDetailPage() {
           }
         />
         <KeyValueRow label="Version" value={pkg.version} />
+        <KeyValueRow label="Notes" value={pkg.notes} />
         <KeyValueRow label="Installer" value={pkg.installer_type} />
         <KeyValueRow
           label="Installer File"

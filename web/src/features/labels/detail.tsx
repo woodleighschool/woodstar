@@ -54,7 +54,6 @@ export function LabelDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Label Details"
-        description={label.description || undefined}
         meta={`Edited ${formatRelative(label.updated_at)}`}
         actions={
           isAdmin && mutable ? (
@@ -83,6 +82,7 @@ export function LabelDetailPage() {
 
       <KeyValueSection title="Overview">
         <KeyValueRow label="Name" value={label.name} />
+        <KeyValueRow label="Description" value={label.description} />
         <KeyValueRow label="Membership" value={labelMembershipLabel(label.label_membership_type)} />
         <KeyValueRow label="Type" value={mutable ? "Regular" : "Built-In"} />
         <KeyValueRow

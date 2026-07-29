@@ -48,17 +48,24 @@ function PageHeader({
 }) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold tracking-tight sm:text-2xl">
-            {icon ? (
-              <span
-                aria-hidden="true"
-                className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground *:max-h-full *:max-w-full [&>svg]:size-5"
-              >
-                {icon}
-              </span>
-            ) : null}
+      <div
+        className={cn("grid min-w-0 gap-x-2 gap-y-1", icon && "grid-cols-[1.75rem_minmax(0,1fr)]")}
+      >
+        {icon ? (
+          <span
+            aria-hidden="true"
+            className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground *:max-h-full *:max-w-full [&>svg]:size-5"
+          >
+            {icon}
+          </span>
+        ) : null}
+        <div
+          className={cn(
+            "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2",
+            icon && "col-start-2",
+          )}
+        >
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">
             <span className="min-w-0 wrap-break-word">{title}</span>
           </h1>
           {context ? (
@@ -66,9 +73,13 @@ function PageHeader({
           ) : null}
         </div>
         {description ? (
-          <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
+          <p className={cn("max-w-3xl text-sm text-muted-foreground", icon && "col-start-2")}>
+            {description}
+          </p>
         ) : null}
-        {meta ? <div className="text-sm text-muted-foreground">{meta}</div> : null}
+        {meta ? (
+          <div className={cn("text-sm text-muted-foreground", icon && "col-start-2")}>{meta}</div>
+        ) : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>

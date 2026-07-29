@@ -59,7 +59,6 @@ export function RuleDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Rule Details"
-        description={rule.description || undefined}
         meta={`Edited ${formatRelative(rule.updated_at)}`}
         actions={
           isAdmin ? (
@@ -88,6 +87,7 @@ export function RuleDetailPage() {
 
       <KeyValueSection title="Overview">
         <KeyValueRow label="Name" value={rule.name} />
+        <KeyValueRow label="Description" value={rule.description} />
         <KeyValueRow label="Rule Type" value={ruleTypeLabel(rule.rule_type)} />
         <KeyValueRow label="Identifier" value={<PathText value={rule.identifier} />} />
         <KeyValueRow label="Custom URL" value={rule.custom_url} />

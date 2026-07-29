@@ -60,7 +60,6 @@ export function ConfigurationDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Configuration Details"
-        description={configuration.description || undefined}
         meta={`Edited ${formatRelative(configuration.updated_at)}`}
         actions={
           isAdmin ? (
@@ -92,8 +91,9 @@ export function ConfigurationDetailPage() {
         }
       />
 
-      <KeyValueSection title="Options">
+      <KeyValueSection title="Overview">
         <KeyValueRow label="Name" value={configuration.name} />
+        <KeyValueRow label="Description" value={configuration.description} />
         <KeyValueRow
           label="Client Mode"
           value={<EnumStatusIndicator value={configuration.client_mode} metadata={CLIENT_MODES} />}
