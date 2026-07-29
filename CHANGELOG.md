@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.2](https://github.com/woodleighschool/woodstar/compare/0.7.1...0.7.2) (2026-07-29)
+
+
+### Features
+
+* **osquery:** run unsaved queries live ([e697efb](https://github.com/woodleighschool/woodstar/commit/e697efb8a48b85abbfd36c10cc33f8fee55c33c7))
+
+
+### Bug Fixes
+
+* **osquery:** align live run target form ([b860bd4](https://github.com/woodleighschool/woodstar/commit/b860bd4bb1af77f7d7940e9e5b428bd55fd5194e))
+* **osquery:** make SQL syntax checks advisory ([bc2c257](https://github.com/woodleighschool/woodstar/commit/bc2c257ce348841c5a46703175168a82e7fba2e9))
+* **osquery:** validate minimum report versions ([4a2c06c](https://github.com/woodleighschool/woodstar/commit/4a2c06c216af0bcb0239b2477d1b2501362d7c4f))
+* **web:** persist table state in routes ([d7c8d35](https://github.com/woodleighschool/woodstar/commit/d7c8d35034b8beee83e730577667147c03e665d9))
+
 ## [0.7.1](https://github.com/woodleighschool/woodstar/compare/0.7.0...0.7.1) (2026-07-29)
 
 
