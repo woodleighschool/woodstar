@@ -4,6 +4,11 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
+      description: "Skip expensive AWS SDK for Go v2 changelogs",
+      matchSourceUrls: ["https://github.com/aws/aws-sdk-go-v2{/**,}"],
+      fetchChangeLogs: "off",
+    },
+    {
       matchManagers: ["npm", "mise"],
       minimumReleaseAge: "12 hours",
     },
