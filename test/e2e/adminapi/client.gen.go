@@ -2072,14 +2072,15 @@ type OsqueryReportMutation struct {
 	Targets           OsqueryReportTargets `json:"targets"`
 }
 
-// OsqueryReportResult defines model for OsqueryReportResult.
-type OsqueryReportResult struct {
-	Columns     map[string]string `json:"columns"`
-	HostId      int64             `json:"host_id"`
-	HostName    string            `json:"host_name"`
-	LastFetched *time.Time        `json:"last_fetched,omitempty"`
-	ReportId    int64             `json:"report_id"`
-	ReportName  string            `json:"report_name"`
+// OsqueryReportSnapshot defines model for OsqueryReportSnapshot.
+type OsqueryReportSnapshot struct {
+	CollectedAt       *time.Time          `json:"collected_at,omitempty"`
+	HostId            int64               `json:"host_id"`
+	HostName          string              `json:"host_name"`
+	ReportDescription *string             `json:"report_description,omitempty"`
+	ReportId          int64               `json:"report_id"`
+	ReportName        string              `json:"report_name"`
+	Rows              []map[string]string `json:"rows"`
 }
 
 // OsqueryReportTargets defines model for OsqueryReportTargets.
@@ -3155,10 +3156,10 @@ type ClientInterface interface {
 	// Corresponds with POST /api/osquery/reports (the `CreateOsqueryReport` operationId).
 	CreateOsqueryReport(ctx context.Context, body CreateOsqueryReportJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListOsqueryReportResults List report results
+	// ListOsqueryReportSnapshots List report snapshots
 	//
-	// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
-	ListOsqueryReportResults(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
+	ListOsqueryReportSnapshots(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateSantaConfigurationWithBody Create a configuration
 	//
@@ -3841,11 +3842,11 @@ func (c *Client) CreateOsqueryReport(ctx context.Context, body CreateOsqueryRepo
 	return c.Client.Do(req)
 }
 
-// ListOsqueryReportResults List report results
+// ListOsqueryReportSnapshots List report snapshots
 //
-// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
-func (c *Client) ListOsqueryReportResults(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListOsqueryReportResultsRequest(c.Server, id)
+// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
+func (c *Client) ListOsqueryReportSnapshots(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOsqueryReportSnapshotsRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -5440,8 +5441,8 @@ func NewCreateOsqueryReportRequestWithBody(server string, contentType string, bo
 	return req, nil
 }
 
-// NewListOsqueryReportResultsRequest constructs an http.Request for the ListOsqueryReportResults method
-func NewListOsqueryReportResultsRequest(server string, id int64) (*http.Request, error) {
+// NewListOsqueryReportSnapshotsRequest constructs an http.Request for the ListOsqueryReportSnapshots method
+func NewListOsqueryReportSnapshotsRequest(server string, id int64) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5456,7 +5457,7 @@ func NewListOsqueryReportResultsRequest(server string, id int64) (*http.Request,
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/osquery/reports/%s/results", pathParam0)
+	operationPath := fmt.Sprintf("/api/osquery/reports/%s/snapshots", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -6184,12 +6185,12 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/osquery/reports (the `CreateOsqueryReport` operationId).
 	CreateOsqueryReportWithResponse(ctx context.Context, body CreateOsqueryReportJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOsqueryReportResponse, error)
 
-	// ListOsqueryReportResultsWithResponse List report results
+	// ListOsqueryReportSnapshotsWithResponse List report snapshots
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
-	ListOsqueryReportResultsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportResultsResponse, error)
+	// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
+	ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error)
 
 	// CreateSantaConfigurationWithBodyWithResponse Create a configuration
 	//
@@ -8265,11 +8266,11 @@ func (r CreateOsqueryReportResponse) ContentType() string {
 	return ""
 }
 
-type ListOsqueryReportResultsResponse struct {
+type ListOsqueryReportSnapshotsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *[]OsqueryReportResult
+	JSON200 *[]OsqueryReportSnapshot
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
 	ApplicationproblemJSON401 *ErrorModel
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
@@ -8281,37 +8282,37 @@ type ListOsqueryReportResultsResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListOsqueryReportResultsResponse) GetJSON200() *[]OsqueryReportResult {
+func (r ListOsqueryReportSnapshotsResponse) GetJSON200() *[]OsqueryReportSnapshot {
 	return r.JSON200
 }
 
 // GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
-func (r ListOsqueryReportResultsResponse) GetApplicationproblemJSON401() *ErrorModel {
+func (r ListOsqueryReportSnapshotsResponse) GetApplicationproblemJSON401() *ErrorModel {
 	return r.ApplicationproblemJSON401
 }
 
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
-func (r ListOsqueryReportResultsResponse) GetApplicationproblemJSON404() *ErrorModel {
+func (r ListOsqueryReportSnapshotsResponse) GetApplicationproblemJSON404() *ErrorModel {
 	return r.ApplicationproblemJSON404
 }
 
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
-func (r ListOsqueryReportResultsResponse) GetApplicationproblemJSON422() *ErrorModel {
+func (r ListOsqueryReportSnapshotsResponse) GetApplicationproblemJSON422() *ErrorModel {
 	return r.ApplicationproblemJSON422
 }
 
 // GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
-func (r ListOsqueryReportResultsResponse) GetApplicationproblemJSON500() *ErrorModel {
+func (r ListOsqueryReportSnapshotsResponse) GetApplicationproblemJSON500() *ErrorModel {
 	return r.ApplicationproblemJSON500
 }
 
 // GetBody returns the raw response body bytes
-func (r ListOsqueryReportResultsResponse) GetBody() []byte {
+func (r ListOsqueryReportSnapshotsResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r ListOsqueryReportResultsResponse) Status() string {
+func (r ListOsqueryReportSnapshotsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -8319,7 +8320,7 @@ func (r ListOsqueryReportResultsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ListOsqueryReportResultsResponse) StatusCode() int {
+func (r ListOsqueryReportSnapshotsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -8327,7 +8328,7 @@ func (r ListOsqueryReportResultsResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ListOsqueryReportResultsResponse) ContentType() string {
+func (r ListOsqueryReportSnapshotsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9298,17 +9299,17 @@ func (c *ClientWithResponses) CreateOsqueryReportWithResponse(ctx context.Contex
 	return ParseCreateOsqueryReportResponse(rsp)
 }
 
-// ListOsqueryReportResultsWithResponse List report results
+// ListOsqueryReportSnapshotsWithResponse List report snapshots
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with GET /api/osquery/reports/{id}/results (the `ListOsqueryReportResults` operationId).
-func (c *ClientWithResponses) ListOsqueryReportResultsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportResultsResponse, error) {
-	rsp, err := c.ListOsqueryReportResults(ctx, id, reqEditors...)
+// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
+func (c *ClientWithResponses) ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error) {
+	rsp, err := c.ListOsqueryReportSnapshots(ctx, id, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseListOsqueryReportResultsResponse(rsp)
+	return ParseListOsqueryReportSnapshotsResponse(rsp)
 }
 
 // CreateSantaConfigurationWithBodyWithResponse Create a configuration
@@ -11042,22 +11043,22 @@ func ParseCreateOsqueryReportResponse(rsp *http.Response) (*CreateOsqueryReportR
 	return response, nil
 }
 
-// ParseListOsqueryReportResultsResponse parses an HTTP response from a ListOsqueryReportResultsWithResponse call
-func ParseListOsqueryReportResultsResponse(rsp *http.Response) (*ListOsqueryReportResultsResponse, error) {
+// ParseListOsqueryReportSnapshotsResponse parses an HTTP response from a ListOsqueryReportSnapshotsWithResponse call
+func ParseListOsqueryReportSnapshotsResponse(rsp *http.Response) (*ListOsqueryReportSnapshotsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ListOsqueryReportResultsResponse{
+	response := &ListOsqueryReportSnapshotsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []OsqueryReportResult
+		var dest []OsqueryReportSnapshot
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

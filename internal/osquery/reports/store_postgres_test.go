@@ -209,7 +209,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	}
 }
 
-func TestHostReportsIncludeLatestHostState(t *testing.T) {
+func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
@@ -233,13 +233,22 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
 	}
-	if err := store.OverwriteResults(ctx, reportWithRows.ID, testQueryHash(reportWithRows.Query), host.ID, []map[string]string{
+	reportOff, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Report switched off",
+		Query:            "select name from apps;",
+		ScheduleInterval: 0,
+		Targets:          reportTargets([]int64{allHostsID}, nil),
+	}})
+	if err != nil {
+		t.Fatalf("create disabled report: %v", err)
+	}
+	if err := store.OverwriteSnapshot(ctx, reportWithRows.ID, testQueryHash(reportWithRows.Query), host.ID, []map[string]string{
 		{"name": "Alpha"},
 		{"name": "Bravo"},
 	}, fetchedAt); err != nil {
 		t.Fatalf("overwrite report rows: %v", err)
 	}
-	if err := store.OverwriteResults(
+	if err := store.OverwriteSnapshot(
 		ctx,
 		reportEmpty.ID,
 		testQueryHash(reportEmpty.Query),
@@ -250,43 +259,101 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		t.Fatalf("overwrite empty report: %v", err)
 	}
 
-	got, err := store.HostReports(ctx, host)
+	got, err := store.HostSnapshots(ctx, host)
 	if err != nil {
 		t.Fatalf("host reports: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("HostReports returned %d reports, want 2: %+v", len(got), got)
+	if len(got) != 3 {
+		t.Fatalf("HostSnapshots returned %d reports, want 3: %+v", len(got), got)
 	}
-	byID := make(map[int64]HostReport, len(got))
+	byID := make(map[int64]ReportSnapshot, len(got))
 	for _, report := range got {
 		byID[report.ReportID] = report
 	}
 
 	withRows := byID[reportWithRows.ID]
-	if withRows.HostResultCount != 2 {
-		t.Fatalf("HostResultCount = %d, want 2", withRows.HostResultCount)
+	if len(withRows.Rows) != 2 ||
+		withRows.Rows[0]["name"] != "Alpha" ||
+		withRows.Rows[1]["name"] != "Bravo" {
+		t.Fatalf("Rows = %#v, want complete Alpha and Bravo snapshot", withRows.Rows)
 	}
-	if withRows.LastFetched == nil || !withRows.LastFetched.Equal(fetchedAt) {
-		t.Fatalf("LastFetched = %v, want %s", withRows.LastFetched, fetchedAt)
-	}
-	if withRows.FirstResult["name"] != "Bravo" {
-		t.Fatalf("FirstResult = %#v, want latest row", withRows.FirstResult)
+	if withRows.CollectedAt == nil || !withRows.CollectedAt.Equal(fetchedAt) {
+		t.Fatalf("CollectedAt = %v, want %s", withRows.CollectedAt, fetchedAt)
 	}
 
 	empty := byID[reportEmpty.ID]
-	if empty.HostResultCount != 0 {
-		t.Fatalf("empty HostResultCount = %d, want 0", empty.HostResultCount)
+	if len(empty.Rows) != 0 {
+		t.Fatalf("empty Rows = %#v, want empty snapshot", empty.Rows)
 	}
 	wantEmptyFetched := fetchedAt.Add(time.Minute)
-	if empty.LastFetched == nil || !empty.LastFetched.Equal(wantEmptyFetched) {
-		t.Fatalf("empty LastFetched = %v, want %s", empty.LastFetched, wantEmptyFetched)
+	if empty.CollectedAt == nil || !empty.CollectedAt.Equal(wantEmptyFetched) {
+		t.Fatalf("empty CollectedAt = %v, want %s", empty.CollectedAt, wantEmptyFetched)
 	}
-	if empty.FirstResult != nil {
-		t.Fatalf("empty FirstResult = %#v, want nil", empty.FirstResult)
+
+	off := byID[reportOff.ID]
+	if off.CollectedAt != nil || off.Rows == nil || len(off.Rows) != 0 {
+		t.Fatalf("disabled report snapshot = %+v, want pending assigned report", off)
 	}
 }
 
-func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
+func TestSnapshotsIncludePendingTargets(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	collectedHost := enrollTestHost(t, ctx, hostStore, "report-collected-host")
+	pendingHost := enrollTestHost(t, ctx, hostStore, "report-pending-host")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Coverage report",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{allHostsID}, nil),
+	}})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+	collectedAt := time.Date(2026, 7, 29, 9, 0, 0, 0, time.UTC)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		collectedHost.ID,
+		[]map[string]string{{"name": "Alpha"}},
+		collectedAt,
+	); err != nil {
+		t.Fatalf("store collected snapshot: %v", err)
+	}
+
+	got, err := store.Snapshots(ctx, report.ID)
+	if err != nil {
+		t.Fatalf("list report snapshots: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("Snapshots returned %d hosts, want 2: %+v", len(got), got)
+	}
+	byHostID := make(map[int64]ReportSnapshot, len(got))
+	for _, snapshot := range got {
+		byHostID[snapshot.HostID] = snapshot
+	}
+	collected := byHostID[collectedHost.ID]
+	if collected.CollectedAt == nil || !collected.CollectedAt.Equal(collectedAt) ||
+		len(collected.Rows) != 1 || collected.Rows[0]["name"] != "Alpha" {
+		t.Fatalf("collected snapshot = %+v, want Alpha observation", collected)
+	}
+	pending := byHostID[pendingHost.ID]
+	if pending.CollectedAt != nil || len(pending.Rows) != 0 {
+		t.Fatalf("pending snapshot = %+v, want unfetched target", pending)
+	}
+}
+
+func TestSnapshotsRejectUnknownReport(t *testing.T) {
+	store, _, _, ctx := newPostgresReportStore(t)
+
+	_, err := store.Snapshots(ctx, 999_999)
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("Snapshots error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-overwrite-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
@@ -301,29 +368,40 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	}
 
 	firstFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
-	if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
+	if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
 		{"name": "Alpha"},
 		{"name": "Bravo"},
 	}, firstFetchedAt); err != nil {
 		t.Fatalf("overwrite first snapshot: %v", err)
 	}
 	secondFetchedAt := firstFetchedAt.Add(time.Hour)
-	if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
+	if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
 		{"name": "Charlie"},
 	}, secondFetchedAt); err != nil {
 		t.Fatalf("overwrite second snapshot: %v", err)
 	}
 
-	got, err := store.Results(ctx, report.ID)
-	if err != nil {
-		t.Fatalf("report results: %v", err)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		[]map[string]string{{"name": "Outdated"}},
+		firstFetchedAt.Add(30*time.Minute),
+	); err != nil {
+		t.Fatalf("overwrite stale snapshot: %v", err)
 	}
-	if len(got) != 1 || got[0].Columns["name"] != "Charlie" {
-		t.Fatalf("Results = %+v, want only replacement row", got)
+
+	got, err := store.Snapshots(ctx, report.ID)
+	if err != nil {
+		t.Fatalf("report snapshots: %v", err)
+	}
+	if len(got) != 1 || len(got[0].Rows) != 1 || got[0].Rows[0]["name"] != "Charlie" {
+		t.Fatalf("Snapshots = %+v, want only newer Charlie snapshot", got)
 	}
 
 	emptyFetchedAt := secondFetchedAt.Add(time.Hour)
-	if err := store.OverwriteResults(
+	if err := store.OverwriteSnapshot(
 		ctx,
 		report.ID,
 		testQueryHash(report.Query),
@@ -333,12 +411,13 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	); err != nil {
 		t.Fatalf("overwrite empty snapshot: %v", err)
 	}
-	got, err = store.Results(ctx, report.ID)
+	got, err = store.Snapshots(ctx, report.ID)
 	if err != nil {
-		t.Fatalf("report results after empty snapshot: %v", err)
+		t.Fatalf("report snapshots after empty observation: %v", err)
 	}
-	if len(got) != 0 {
-		t.Fatalf("Results after empty snapshot = %+v, want no data rows", got)
+	if len(got) != 1 || len(got[0].Rows) != 0 ||
+		got[0].CollectedAt == nil || !got[0].CollectedAt.Equal(emptyFetchedAt) {
+		t.Fatalf("Snapshots after empty observation = %+v, want collected empty snapshot", got)
 	}
 }
 
@@ -357,7 +436,7 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 		t.Fatalf("create report: %v", err)
 	}
 	fetchedAt := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
-	if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
+	if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
 		{"name": "Alpha"},
 	}, fetchedAt); err != nil {
 		t.Fatalf("store report result: %v", err)
@@ -376,12 +455,12 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 	if testQueryHash(metadataUpdated.Query) != testQueryHash(report.Query) {
 		t.Fatal("metadata edit changed the normalized query hash")
 	}
-	got, err := store.Results(ctx, report.ID)
+	got, err := store.Snapshots(ctx, report.ID)
 	if err != nil {
 		t.Fatalf("results after metadata edit: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("results after metadata edit = %+v, want saved result", got)
+	if len(got) != 1 || len(got[0].Rows) != 1 {
+		t.Fatalf("snapshots after metadata edit = %+v, want saved observation", got)
 	}
 
 	queryUpdated, err := store.Update(ctx, report.ID, ReportMutation{
@@ -397,14 +476,14 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 	if testQueryHash(queryUpdated.Query) == testQueryHash(report.Query) {
 		t.Fatal("changed query retained its previous query hash")
 	}
-	got, err = store.Results(ctx, report.ID)
+	got, err = store.Snapshots(ctx, report.ID)
 	if err != nil {
 		t.Fatalf("results after query edit: %v", err)
 	}
-	if len(got) != 0 {
-		t.Fatalf("results after query edit = %+v, want no stale results", got)
+	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+		t.Fatalf("snapshots after query edit = %+v, want pending target", got)
 	}
-	if err := store.OverwriteResults(
+	if err := store.OverwriteSnapshot(
 		ctx,
 		report.ID,
 		testQueryHash(report.Query),
@@ -414,14 +493,14 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 	); err != nil {
 		t.Fatalf("store obsolete report result: %v", err)
 	}
-	got, err = store.Results(ctx, report.ID)
+	got, err = store.Snapshots(ctx, report.ID)
 	if err != nil {
 		t.Fatalf("results after obsolete snapshot: %v", err)
 	}
-	if len(got) != 0 {
-		t.Fatalf("results after obsolete snapshot = %+v, want none", got)
+	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+		t.Fatalf("snapshots after obsolete observation = %+v, want pending target", got)
 	}
-	if err := store.OverwriteResults(
+	if err := store.OverwriteSnapshot(
 		ctx,
 		report.ID,
 		testQueryHash(queryUpdated.Query),
@@ -431,12 +510,12 @@ func TestUpdateInvalidatesResultsOnlyWhenQueryChanges(t *testing.T) {
 	); err != nil {
 		t.Fatalf("store current report result: %v", err)
 	}
-	got, err = store.Results(ctx, report.ID)
+	got, err = store.Snapshots(ctx, report.ID)
 	if err != nil {
 		t.Fatalf("results after current snapshot: %v", err)
 	}
-	if len(got) != 1 || got[0].Columns["name"] != "Current" {
-		t.Fatalf("results after current snapshot = %+v, want Current", got)
+	if len(got) != 1 || len(got[0].Rows) != 1 || got[0].Rows[0]["name"] != "Current" {
+		t.Fatalf("snapshots after current observation = %+v, want Current", got)
 	}
 }
 
@@ -455,7 +534,7 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 		t.Fatalf("create report: %v", err)
 	}
 	fetchedAt := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
-	if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
+	if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
 		{"name": "Alpha"},
 	}, fetchedAt); err != nil {
 		t.Fatalf("store report result: %v", err)
@@ -464,8 +543,8 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
 		t.Fatalf("exclude report host: %v", err)
 	}
-	assertReportResultCount(t, ctx, store, report.ID, host.ID, 1)
-	got, err := store.Results(ctx, report.ID)
+	assertReportSnapshotCount(t, ctx, store, report.ID, host.ID, 1)
+	got, err := store.Snapshots(ctx, report.ID)
 	if err != nil {
 		t.Fatalf("results after host exclusion: %v", err)
 	}
@@ -473,17 +552,17 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 		t.Fatalf("results after host exclusion = %+v, want none", got)
 	}
 
-	if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
+	if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, []map[string]string{
 		{"name": "Late result"},
 	}, fetchedAt.Add(time.Minute)); err != nil {
 		t.Fatalf("store late unassigned result: %v", err)
 	}
-	assertReportResultCount(t, ctx, store, report.ID, host.ID, 1)
+	assertReportSnapshotCount(t, ctx, store, report.ID, host.ID, 1)
 	var persistedName string
 	if err := store.db.Pool().QueryRow(ctx, `
-		SELECT data->>'name'
-		FROM osquery_report_results
-		WHERE report_id = $1 AND host_id = $2`,
+			SELECT rows->0->>'name'
+			FROM osquery_report_snapshots
+			WHERE report_id = $1 AND host_id = $2`,
 		report.ID,
 		host.ID,
 	).Scan(&persistedName); err != nil {
@@ -514,7 +593,7 @@ func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
 	}
 	fetchedAt := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
 	for _, hostID := range []int64{retainedHost.ID, removedHost.ID} {
-		if err := store.OverwriteResults(ctx, report.ID, testQueryHash(report.Query), hostID, []map[string]string{
+		if err := store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), hostID, []map[string]string{
 			{"name": "Alpha"},
 		}, fetchedAt); err != nil {
 			t.Fatalf("store host %d report result: %v", hostID, err)
@@ -532,7 +611,7 @@ func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
 
 	rows, err := store.db.Pool().Query(ctx, `
 		SELECT DISTINCT host_id
-		FROM osquery_report_results
+			FROM osquery_report_snapshots
 		WHERE report_id = $1
 		ORDER BY host_id`,
 		report.ID,
@@ -549,7 +628,7 @@ func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
 	}
 }
 
-func assertReportResultCount(
+func assertReportSnapshotCount(
 	t *testing.T,
 	ctx context.Context,
 	store *Store,
@@ -561,15 +640,15 @@ func assertReportResultCount(
 	var got int
 	if err := store.db.Pool().QueryRow(ctx, `
 		SELECT count(*)
-		FROM osquery_report_results
+			FROM osquery_report_snapshots
 		WHERE report_id = $1 AND host_id = $2`,
 		reportID,
 		hostID,
 	).Scan(&got); err != nil {
-		t.Fatalf("count persisted report results: %v", err)
+		t.Fatalf("count persisted report snapshots: %v", err)
 	}
 	if got != want {
-		t.Fatalf("persisted report results = %d, want %d", got, want)
+		t.Fatalf("persisted report snapshots = %d, want %d", got, want)
 	}
 }
 

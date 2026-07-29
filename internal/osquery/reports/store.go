@@ -90,20 +90,20 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 		if err := replaceReportTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
 		}
-		// Query edits invalidate the whole snapshot. Retargeting only removes
+		// Query edits invalidate every snapshot. Retargeting only removes
 		// hosts outside the newly completed assignment set.
 		_, err := tx.Exec(ctx, `
-			DELETE FROM osquery_report_results result
-			WHERE result.report_id = $1
-			  AND (
-				  $2
-				  OR NOT EXISTS (
-					  SELECT 1
-					  FROM osquery_report_assignments assignment
-					  WHERE assignment.report_id = result.report_id
-					    AND assignment.host_id = result.host_id
-				  )
-			  )`,
+				DELETE FROM osquery_report_snapshots snapshot
+				WHERE snapshot.report_id = $1
+				  AND (
+					  $2
+					  OR NOT EXISTS (
+						  SELECT 1
+						  FROM osquery_report_assignments assignment
+						  WHERE assignment.report_id = snapshot.report_id
+						    AND assignment.host_id = snapshot.host_id
+					  )
+				  )`,
 			id,
 			queryChanged,
 		)

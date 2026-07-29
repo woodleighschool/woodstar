@@ -11,28 +11,25 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
-type snapshotResultRow struct {
-	data        *json.RawMessage
-	lastFetched time.Time
-}
-
-// OverwriteResults replaces the snapshot rows when the query hash and host
-// assignment are still current.
-func (s *Store) OverwriteResults(
+// OverwriteSnapshot replaces a host's latest snapshot when the report query
+// and assignment are still current. Older observations never replace newer
+// state.
+func (s *Store) OverwriteSnapshot(
 	ctx context.Context,
 	reportID int64,
 	queryHash string,
 	hostID int64,
 	rows []map[string]string,
-	fetchedAt time.Time,
+	collectedAt time.Time,
 ) error {
-	if fetchedAt.IsZero() {
-		fetchedAt = time.Now().UTC()
+	if collectedAt.IsZero() {
+		collectedAt = time.Now().UTC()
 	}
-	resultRows, err := snapshotResultRows(rows, fetchedAt)
+	snapshotRows, err := json.Marshal(normalizeSnapshotRows(rows))
 	if err != nil {
 		return err
 	}
+
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var accepted bool
 		err := tx.QueryRow(ctx, `
@@ -54,208 +51,178 @@ func (s *Store) OverwriteResults(
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx,
-			`DELETE FROM osquery_report_results WHERE report_id = $1 AND host_id = $2`,
-			reportID, hostID,
-		); err != nil {
-			return err
-		}
-		if len(resultRows) == 0 {
-			return nil
-		}
-		_, err = tx.CopyFrom(
-			ctx,
-			pgx.Identifier{"osquery_report_results"},
-			[]string{"report_id", "host_id", "data", "last_fetched"},
-			pgx.CopyFromRows(copyFromSnapshotRows(reportID, hostID, resultRows)),
+
+		_, err = tx.Exec(ctx, `
+			INSERT INTO osquery_report_snapshots (
+				report_id,
+				host_id,
+				rows,
+				collected_at
+			) VALUES ($1, $2, $3, $4)
+			ON CONFLICT (report_id, host_id) DO UPDATE
+			SET
+				rows = EXCLUDED.rows,
+				collected_at = EXCLUDED.collected_at
+			WHERE EXCLUDED.collected_at >= osquery_report_snapshots.collected_at`,
+			reportID,
+			hostID,
+			snapshotRows,
+			collectedAt,
 		)
 		return err
 	})
 }
 
-// Results returns stored snapshot rows for one report.
-func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, error) {
-	type resultRow struct {
-		ReportID    int64     `db:"report_id"`
-		Name        string    `db:"name"`
-		HostID      int64     `db:"host_id"`
-		DisplayName string    `db:"display_name"`
-		Data        []byte    `db:"data"`
-		LastFetched time.Time `db:"last_fetched"`
+// Snapshots returns every currently targeted host and its latest observation
+// for one report. A nil CollectedAt identifies a host that has not reported.
+func (s *Store) Snapshots(ctx context.Context, reportID int64) ([]ReportSnapshot, error) {
+	if _, err := s.GetByID(ctx, reportID); err != nil {
+		return nil, err
 	}
 	qrows, err := s.db.Pool().Query(ctx, `
-		SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
-		FROM osquery_report_results rr
-		JOIN osquery_reports r ON r.id = rr.report_id
+		SELECT
+			report_row.id AS report_id,
+			report_row.name AS report_name,
+			report_row.description AS report_description,
+			host_row.id AS host_id,
+			host_row.display_name AS host_name,
+			snapshot.rows,
+			snapshot.collected_at
+		FROM osquery_reports report_row
 		JOIN osquery_report_assignments assignment
-			ON assignment.report_id = rr.report_id
-		   AND assignment.host_id = rr.host_id
-		JOIN hosts h ON h.id = rr.host_id
-		WHERE rr.report_id = $1 AND rr.data IS NOT NULL
-		ORDER BY rr.last_fetched DESC, rr.host_id, rr.id`, reportID)
+			ON assignment.report_id = report_row.id
+		JOIN hosts host_row
+			ON host_row.id = assignment.host_id
+		LEFT JOIN osquery_report_snapshots snapshot
+			ON snapshot.report_id = report_row.id
+		   AND snapshot.host_id = host_row.id
+		WHERE report_row.id = $1
+		ORDER BY lower(host_row.display_name), host_row.id`,
+		reportID,
+	)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resultRow])
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[snapshotRow])
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]ReportResult, 0, len(rows))
+	snapshots := make([]ReportSnapshot, 0, len(rows))
 	for _, row := range rows {
-		result, hasData, err := reportResultFromNullableFields(
-			row.ReportID,
-			row.Name,
-			row.HostID,
-			row.DisplayName,
-			row.Data,
-			row.LastFetched,
-		)
+		snapshot, err := snapshotFromRow(row)
 		if err != nil {
 			return nil, err
 		}
-		if hasData {
-			results = append(results, result)
-		}
+		snapshots = append(snapshots, snapshot)
 	}
-	return results, nil
+	return snapshots, nil
 }
 
-// HostReports returns scheduled reports and their latest host-specific result.
-func (s *Store) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport, error) {
-	rpts, err := s.ScheduledForHost(ctx, host)
+// HostSnapshots returns reports assigned to a host with each report's complete
+// latest observation, whether or not the report is currently scheduled.
+func (s *Store) HostSnapshots(ctx context.Context, host *hosts.Host) ([]ReportSnapshot, error) {
+	rpts, err := s.assignedForHost(ctx, host)
 	if err != nil {
 		return nil, err
 	}
 	reportIDs := make([]int64, 0, len(rpts))
-	for _, rpt := range rpts {
-		reportIDs = append(reportIDs, rpt.ID)
+	for _, report := range rpts {
+		reportIDs = append(reportIDs, report.ID)
 	}
-	states, err := s.loadHostReportStates(ctx, host.ID, reportIDs)
+	states, err := s.loadHostSnapshotStates(ctx, host.ID, reportIDs)
 	if err != nil {
 		return nil, err
 	}
-	results := make([]HostReport, 0, len(rpts))
-	for _, rpt := range rpts {
-		results = append(results, HostReport{
-			ReportID:        rpt.ID,
-			Name:            rpt.Name,
-			Description:     rpt.Description,
-			LastFetched:     states[rpt.ID].lastFetched,
-			FirstResult:     states[rpt.ID].firstResult,
-			HostResultCount: states[rpt.ID].hostResultCount,
+
+	snapshots := make([]ReportSnapshot, 0, len(rpts))
+	for _, report := range rpts {
+		state := states[report.ID]
+		snapshots = append(snapshots, ReportSnapshot{
+			ReportID:          report.ID,
+			ReportName:        report.Name,
+			ReportDescription: report.Description,
+			HostID:            host.ID,
+			HostName:          host.DisplayName,
+			Rows:              normalizeSnapshotRows(state.rows),
+			CollectedAt:       state.collectedAt,
 		})
 	}
-	return results, nil
+	return snapshots, nil
 }
 
-func copyFromSnapshotRows(reportID int64, hostID int64, rows []snapshotResultRow) [][]any {
-	out := make([][]any, 0, len(rows))
-	for _, row := range rows {
-		var data any
-		if row.data != nil {
-			data = []byte(*row.data)
-		}
-		out = append(out, []any{reportID, hostID, data, row.lastFetched})
+func (s *Store) assignedForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
+	qrows, err := s.db.Pool().Query(ctx, reportSelectSQL()+`
+		JOIN osquery_report_assignments assignment
+			ON assignment.report_id = r.id
+		   AND assignment.host_id = $1
+		ORDER BY lower(r.name), r.id`, host.ID)
+	if err != nil {
+		return nil, err
 	}
-	return out
+	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[reportRow])
+	if err != nil {
+		return nil, err
+	}
+	rpts := make([]Report, len(rows))
+	for i, row := range rows {
+		rpts[i] = reportFromRow(row)
+	}
+	return rpts, nil
 }
 
-func snapshotResultRows(rows []map[string]string, fetchedAt time.Time) ([]snapshotResultRow, error) {
-	if len(rows) == 0 {
-		return []snapshotResultRow{{lastFetched: fetchedAt}}, nil
-	}
-
-	out := make([]snapshotResultRow, 0, len(rows))
-	for _, columns := range rows {
-		data, err := json.Marshal(columns)
-		if err != nil {
-			return nil, err
-		}
-		raw := json.RawMessage(data)
-		out = append(out, snapshotResultRow{data: &raw, lastFetched: fetchedAt})
-	}
-	return out, nil
+type snapshotRow struct {
+	ReportID          int64      `db:"report_id"`
+	ReportName        string     `db:"report_name"`
+	ReportDescription string     `db:"report_description"`
+	HostID            int64      `db:"host_id"`
+	HostName          string     `db:"host_name"`
+	Rows              []byte     `db:"rows"`
+	CollectedAt       *time.Time `db:"collected_at"`
 }
 
-func reportResultFromNullableFields(
-	reportID int64,
-	reportName string,
-	hostID int64,
-	hostName string,
-	data []byte,
-	lastFetched time.Time,
-) (ReportResult, bool, error) {
-	result := ReportResult{
-		ReportID:    reportID,
-		ReportName:  reportName,
-		HostID:      hostID,
-		HostName:    hostName,
-		LastFetched: lastFetched,
+func snapshotFromRow(row snapshotRow) (ReportSnapshot, error) {
+	rows, err := decodeSnapshotRows(row.Rows)
+	if err != nil {
+		return ReportSnapshot{}, err
 	}
-	if data == nil {
-		return result, false, nil
-	}
-	if err := json.Unmarshal(data, &result.Columns); err != nil {
-		return ReportResult{}, false, err
-	}
-	return result, true, nil
+	return ReportSnapshot{
+		ReportID:          row.ReportID,
+		ReportName:        row.ReportName,
+		ReportDescription: row.ReportDescription,
+		HostID:            row.HostID,
+		HostName:          row.HostName,
+		Rows:              rows,
+		CollectedAt:       row.CollectedAt,
+	}, nil
 }
 
-type hostReportState struct {
-	lastFetched     *time.Time
-	firstResult     map[string]string
-	hostResultCount int32
+type hostSnapshotState struct {
+	rows        []map[string]string
+	collectedAt *time.Time
 }
 
-func (s *Store) loadHostReportStates(
+func (s *Store) loadHostSnapshotStates(
 	ctx context.Context,
 	hostID int64,
 	reportIDs []int64,
-) (map[int64]hostReportState, error) {
-	states := make(map[int64]hostReportState, len(reportIDs))
+) (map[int64]hostSnapshotState, error) {
+	states := make(map[int64]hostSnapshotState, len(reportIDs))
 	if len(reportIDs) == 0 {
 		return states, nil
 	}
 
 	type stateRow struct {
-		ReportID        int64      `db:"report_id"`
-		LastFetched     *time.Time `db:"last_fetched"`
-		HostResultCount int32      `db:"host_result_count"`
-		Data            []byte     `db:"data"`
+		ReportID    int64     `db:"report_id"`
+		Rows        []byte    `db:"rows"`
+		CollectedAt time.Time `db:"collected_at"`
 	}
 	qrows, err := s.db.Pool().Query(ctx, `
-		WITH requested AS (
-		    SELECT unnest($1::bigint[])::bigint AS report_id
-		),
-		latest_fetch AS (
-		    SELECT DISTINCT ON (report_id) report_id, last_fetched
-		    FROM osquery_report_results rr
-		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[])
-		    ORDER BY report_id, last_fetched DESC, id DESC
-		),
-		result_counts AS (
-		    SELECT report_id, count(*)::integer AS host_result_count
-		    FROM osquery_report_results rr
-		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
-		    GROUP BY report_id
-		),
-		latest_data AS (
-		    SELECT DISTINCT ON (report_id) report_id, data
-		    FROM osquery_report_results rr
-		    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
-		    ORDER BY report_id, last_fetched DESC, id DESC
-		)
-		SELECT
-		    req.report_id,
-		    lf.last_fetched,
-		    coalesce(rc.host_result_count, 0)::integer AS host_result_count,
-		    ld.data
-		FROM requested req
-		LEFT JOIN latest_fetch lf ON lf.report_id = req.report_id
-		LEFT JOIN result_counts rc ON rc.report_id = req.report_id
-		LEFT JOIN latest_data ld ON ld.report_id = req.report_id`,
-		reportIDs, hostID,
+		SELECT report_id, rows, collected_at
+		FROM osquery_report_snapshots
+		WHERE host_id = $1 AND report_id = ANY($2::bigint[])`,
+		hostID,
+		reportIDs,
 	)
 	if err != nil {
 		return nil, err
@@ -266,15 +233,33 @@ func (s *Store) loadHostReportStates(
 	}
 
 	for _, row := range rows {
-		var state hostReportState
-		state.lastFetched = row.LastFetched
-		state.hostResultCount = row.HostResultCount
-		if row.Data != nil {
-			if err := json.Unmarshal(row.Data, &state.firstResult); err != nil {
-				return nil, err
-			}
+		snapshotRows, err := decodeSnapshotRows(row.Rows)
+		if err != nil {
+			return nil, err
 		}
-		states[row.ReportID] = state
+		collectedAt := row.CollectedAt
+		states[row.ReportID] = hostSnapshotState{
+			rows:        snapshotRows,
+			collectedAt: &collectedAt,
+		}
 	}
 	return states, nil
+}
+
+func normalizeSnapshotRows(rows []map[string]string) []map[string]string {
+	if rows == nil {
+		return []map[string]string{}
+	}
+	return rows
+}
+
+func decodeSnapshotRows(data []byte) ([]map[string]string, error) {
+	if data == nil {
+		return []map[string]string{}, nil
+	}
+	var rows []map[string]string
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return nil, err
+	}
+	return normalizeSnapshotRows(rows), nil
 }

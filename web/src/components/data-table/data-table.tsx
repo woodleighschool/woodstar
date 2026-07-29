@@ -1,6 +1,6 @@
-import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import { flexRender, type Row, type Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import {
   DataTableExport,
@@ -24,6 +24,7 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   empty?: React.ReactNode;
   exportOptions?: DataTableExportOptions<TData>;
   heading?: React.ReactNode;
+  renderSubRow?: (row: Row<TData>) => React.ReactNode;
   toolbarActions?: React.ReactNode;
 }
 
@@ -33,6 +34,7 @@ export function DataTable<TData>({
   empty,
   exportOptions,
   heading,
+  renderSubRow,
   toolbarActions,
   children,
   className,
@@ -129,13 +131,25 @@ export function DataTable<TData>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <React.Fragment key={row.id}>
+                  <TableRow data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getCanExpand() && row.getIsExpanded() && renderSubRow ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={row.getVisibleCells().length}
+                        className="border-b bg-muted/20 p-0"
+                      >
+                        {renderSubRow(row)}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </React.Fragment>
               ))
             ) : (
               <TableRow className="hover:bg-transparent">

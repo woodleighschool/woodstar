@@ -10,7 +10,7 @@ Woodstar uses osquery for inventory and SQL queries across enrolled Macs. Querie
 
 ## Reports
 
-A report is a saved query with a schedule. Reports can run on all hosts or only hosts in selected labels. Woodstar stores each result as a snapshot so changes can be reviewed over time.
+A report is a saved query with a schedule. Reports can run on all hosts or only hosts in selected labels. Woodstar stores the latest complete result snapshot for each targeted host, including empty observations, and shows hosts that have not reported yet as pending.
 
 ## Checks
 

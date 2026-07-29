@@ -72,22 +72,14 @@ type ReportListParams struct {
 	dbutil.ListParams
 }
 
-// ReportResult is one saved result row.
-type ReportResult struct {
-	ReportID    int64             `json:"report_id"`
-	ReportName  string            `json:"report_name"`
-	HostID      int64             `json:"host_id"`
-	HostName    string            `json:"host_name"`
-	Columns     map[string]string `json:"columns"`
-	LastFetched time.Time         `json:"last_fetched,omitzero"`
-}
-
-// HostReport is one report on a host detail page.
-type HostReport struct {
-	ReportID        int64             `json:"report_id"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	LastFetched     *time.Time        `json:"last_fetched,omitempty"`
-	FirstResult     map[string]string `json:"first_result,omitempty"`
-	HostResultCount int32             `json:"n_host_results"`
+// ReportSnapshot is the latest complete observation for one report and host.
+// CollectedAt is nil until the host submits its first snapshot.
+type ReportSnapshot struct {
+	ReportID          int64               `json:"report_id"`
+	ReportName        string              `json:"report_name"`
+	ReportDescription string              `json:"report_description,omitempty"`
+	HostID            int64               `json:"host_id"`
+	HostName          string              `json:"host_name"`
+	Rows              []map[string]string `json:"rows"`
+	CollectedAt       *time.Time          `json:"collected_at,omitempty"`
 }

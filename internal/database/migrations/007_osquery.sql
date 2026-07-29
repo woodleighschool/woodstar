@@ -17,18 +17,17 @@ CREATE INDEX osquery_reports_schedule_idx
     ON osquery_reports (schedule_interval)
     WHERE schedule_interval > 0;
 
-CREATE TABLE osquery_report_results (
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE osquery_report_snapshots (
     report_id BIGINT NOT NULL REFERENCES osquery_reports (id) ON DELETE CASCADE,
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
-    data JSONB,
-    last_fetched TIMESTAMPTZ NOT NULL DEFAULT now()
+    rows JSONB NOT NULL DEFAULT '[]'::jsonb,
+    collected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (report_id, host_id),
+    CHECK (jsonb_typeof(rows) = 'array')
 );
 
-CREATE INDEX osquery_report_results_report_last_fetched_idx
-    ON osquery_report_results (report_id, last_fetched);
-CREATE INDEX osquery_report_results_report_host_last_fetched_idx
-    ON osquery_report_results (report_id, host_id, last_fetched);
+CREATE INDEX osquery_report_snapshots_report_collected_idx
+    ON osquery_report_snapshots (report_id, collected_at);
 
 CREATE TABLE osquery_checks (
     id BIGSERIAL PRIMARY KEY,

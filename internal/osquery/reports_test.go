@@ -76,7 +76,7 @@ func TestIngestReportLogsRejectsIncompleteSnapshotMetadata(t *testing.T) {
 				t.Fatal("ingestReportLogs returned nil error")
 			}
 			if store.calls != 0 {
-				t.Fatalf("OverwriteResults calls = %d, want 0", store.calls)
+				t.Fatalf("OverwriteSnapshot calls = %d, want 0", store.calls)
 			}
 		})
 	}
@@ -95,7 +95,7 @@ func (*recordingReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]r
 	return nil, nil
 }
 
-func (s *recordingReportStore) OverwriteResults(
+func (s *recordingReportStore) OverwriteSnapshot(
 	_ context.Context,
 	reportID int64,
 	queryHash string,

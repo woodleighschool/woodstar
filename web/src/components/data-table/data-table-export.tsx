@@ -8,6 +8,11 @@ import { toast } from "@components/ui/toast";
 
 type CSVValue = string | number | boolean | null | undefined;
 
+export interface DataTableExportData {
+  fields: string[];
+  data: CSVValue[][];
+}
+
 export interface DataTableExportColumn<TData> {
   header: string;
   value: (row: TData) => CSVValue;
@@ -17,6 +22,7 @@ export interface DataTableExportOptions<TData> {
   filename: string;
   columns: DataTableExportColumn<TData>[];
   loadRows?: () => Promise<TData[]>;
+  serializeRows?: (rows: TData[]) => DataTableExportData;
 }
 
 export function DataTableExport<TData>({
@@ -42,7 +48,7 @@ export function DataTableExport<TData>({
             : table.getFilteredRowModel().rows.map((row) => row.original);
 
       const { default: Papa } = await import("papaparse");
-      const csv = Papa.unparse({
+      const exportData = options.serializeRows?.(rows) ?? {
         fields: options.columns.map((column) => column.header),
         data: rows.map((row) =>
           options.columns.map((column) => {
@@ -50,7 +56,8 @@ export function DataTableExport<TData>({
             return value ?? "";
           }),
         ),
-      });
+      };
+      const csv = Papa.unparse(exportData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

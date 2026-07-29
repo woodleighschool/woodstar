@@ -15,8 +15,8 @@ type resultLogRow struct {
 	Action   string              `json:"action"`
 }
 
-// ingestReportLogs writes per-host snapshot results emitted by osquery's
-// scheduled query log to osquery_report_results, replacing the previous snapshot.
+// ingestReportLogs writes the latest per-host snapshots emitted by osquery's
+// scheduled query log.
 func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data json.RawMessage) error {
 	var logs []resultLogRow
 	if err := json.Unmarshal(data, &logs); err != nil {
@@ -39,7 +39,7 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 			return fmt.Errorf("report %d: unixTime must be positive", reportID)
 		}
 		fetchedAt := time.Unix(item.UnixTime, 0).UTC()
-		if err := s.deps.ReportStore.OverwriteResults(
+		if err := s.deps.ReportStore.OverwriteSnapshot(
 			ctx,
 			reportID,
 			queryHash,
