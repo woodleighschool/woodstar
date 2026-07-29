@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/woodleighschool/woodstar/compare/0.6.5...0.7.0) (2026-07-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **osquery:** report APIs now return nested snapshots backed by osquery_report_snapshots.
+
+### Features
+
+* **osquery:** store report results as host snapshots ([7b2acc9](https://github.com/woodleighschool/woodstar/commit/7b2acc911c5d91f2caed3492166960430cb23d1d))
+
 ## [0.6.5](https://github.com/woodleighschool/woodstar/compare/0.6.4...0.6.5) (2026-07-29)
 
 
