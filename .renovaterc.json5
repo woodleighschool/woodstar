@@ -8,6 +8,12 @@
       minimumReleaseAge: "12 hours",
     },
     {
+      description: "Automerge North Pole Security protobufs",
+      matchManagers: ["gomod"],
+      matchPackageNames: ["buf.build/gen/go/northpolesec/protos/protocolbuffers/go"],
+      automerge: true,
+    },
+    {
       description: "Keep Go toolchain pins together",
       matchManagers: ["dockerfile", "gomod", "mise"],
       matchDepNames: ["go", "golang"],
