@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.1](https://github.com/woodleighschool/woodstar/compare/0.7.0...0.7.1) (2026-07-29)
+
+
+### Features
+
+* **osquery:** filter result status in SQL ([34a5c02](https://github.com/woodleighschool/woodstar/commit/34a5c0261041827598db77486b5b2040309dd2f0))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @codemirror/view (6.43.6 → 6.43.7) ([#82](https://github.com/woodleighschool/woodstar/issues/82)) ([803661c](https://github.com/woodleighschool/woodstar/commit/803661c5adf1817102c5377cd4d1cb6fc882ea5d))
+* **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260723221051-096a321dccc8.1 → v1.36.11-20260728193839-8b5e5470fb86.1) ([#77](https://github.com/woodleighschool/woodstar/issues/77)) ([437a623](https://github.com/woodleighschool/woodstar/commit/437a623b57313543b3a217ecef2ae0df014b6c78))
+
 ## [0.7.0](https://github.com/woodleighschool/woodstar/compare/0.6.5...0.7.0) (2026-07-29)
 
 
