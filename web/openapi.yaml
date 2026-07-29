@@ -2260,10 +2260,11 @@ components:
           type: integer
         host_name:
           type: string
-        response:
+        status:
           enum:
             - pass
             - fail
+            - pending
           type: string
         updated_at:
           format: date-time
@@ -2273,7 +2274,7 @@ components:
         - check_name
         - host_id
         - host_name
-        - response
+        - status
       type: object
     OsqueryCheckMutation:
       additionalProperties: false
@@ -2512,11 +2513,17 @@ components:
               type: string
             type: object
           type: array
+        status:
+          enum:
+            - collected
+            - pending
+          type: string
       required:
         - report_id
         - report_name
         - host_id
         - host_name
+        - status
         - rows
       type: object
     OsqueryReportTargets:
@@ -4695,6 +4702,15 @@ paths:
           schema:
             format: int64
             type: integer
+        - explode: false
+          in: query
+          name: status
+          schema:
+            enum:
+              - pass
+              - fail
+              - pending
+            type: string
       responses:
         "200":
           content:
@@ -4744,6 +4760,14 @@ paths:
           schema:
             format: int64
             type: integer
+        - explode: false
+          in: query
+          name: status
+          schema:
+            enum:
+              - collected
+              - pending
+            type: string
       responses:
         "200":
           content:
@@ -7799,11 +7823,12 @@ paths:
             type: integer
         - explode: false
           in: query
-          name: response
+          name: status
           schema:
             enum:
               - pass
               - fail
+              - pending
             type: string
       responses:
         "200":
@@ -8399,6 +8424,14 @@ paths:
           schema:
             format: int64
             type: integer
+        - explode: false
+          in: query
+          name: status
+          schema:
+            enum:
+              - collected
+              - pending
+            type: string
       responses:
         "200":
           content:

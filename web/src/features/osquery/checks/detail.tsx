@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef, Table } from "@tanstack/react-table";
+import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -17,7 +17,11 @@ import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { useAuth } from "@features/auth/queries";
-import { CHECK_RESULT_STATUSES, checkResultStatus } from "@features/osquery/checks/model";
+import {
+  CHECK_RESULT_STATUSES,
+  CHECK_RESULT_STATUS_OPTIONS,
+  parseCheckResultStatus,
+} from "@features/osquery/checks/model";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
@@ -37,14 +41,11 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
     ),
   },
   {
-    accessorKey: "response",
+    accessorKey: "status",
     header: () => "Status",
     filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
     cell: ({ row }) => (
-      <EnumStatusIndicator
-        value={checkResultStatus(row.original.response)}
-        metadata={CHECK_RESULT_STATUSES}
-      />
+      <EnumStatusIndicator value={row.original.status} metadata={CHECK_RESULT_STATUSES} />
     ),
   },
   {
@@ -56,19 +57,16 @@ const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
 
 const resultExportColumns: DataTableExportOptions<OsqueryCheckHostStatus>["columns"] = [
   { header: "Host", value: (row) => row.host_name },
-  { header: "Status", value: (row) => row.response },
+  { header: "Status", value: (row) => row.status },
   { header: "Last Evaluated", value: (row) => row.updated_at },
 ];
 
 function CheckResultsToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
   return (
     <DataTableFacetedFilter
-      column={table.getColumn("response")}
+      column={table.getColumn("status")}
       title="Status"
-      options={[
-        { label: "Passing", value: "pass" },
-        { label: "Failing", value: "fail" },
-      ]}
+      options={CHECK_RESULT_STATUS_OPTIONS}
     />
   );
 }
@@ -85,9 +83,11 @@ export function CheckDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
   const id = parseRouteID(checkId);
   const check = useCheck(id);
-  const results = useCheckResults(id);
+  const status = selectedCheckStatus(statusFilters);
+  const results = useCheckResults(id, { status });
   const rows = results.data ?? [];
 
   if (id === null) {
@@ -169,6 +169,7 @@ export function CheckDetailPage() {
       ) : (
         <DataTableClient
           title="Results"
+          columnFilters={statusFilters}
           columns={resultColumns}
           data={rows}
           exportOptions={{
@@ -176,9 +177,14 @@ export function CheckDetailPage() {
             columns: resultExportColumns,
           }}
           initialSorting={[{ id: "host_name", desc: false }]}
+          onColumnFiltersChange={setStatusFilters}
           searchPlaceholder="Search check results"
           toolbar={renderCheckResultsToolbar}
-          empty={<PanelEmptyState>No check results yet</PanelEmptyState>}
+          empty={
+            <PanelEmptyState>
+              {status ? "No check results match this status" : "No check results yet"}
+            </PanelEmptyState>
+          }
         />
       )}
 
@@ -196,4 +202,9 @@ export function CheckDetailPage() {
 
 function formatHostCount(count: number) {
   return `${count} ${count === 1 ? "host" : "hosts"}`;
+}
+
+function selectedCheckStatus(filters: ColumnFiltersState) {
+  const value = filters.find((filter) => filter.id === "status")?.value;
+  return parseCheckResultStatus(Array.isArray(value) ? value[0] : undefined);
 }

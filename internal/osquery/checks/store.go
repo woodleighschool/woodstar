@@ -4,7 +4,6 @@ package checks
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -269,40 +268,13 @@ func (s *Store) UpsertMembership(
 	})
 }
 
-func (s *Store) CheckResults(ctx context.Context, checkID int64, response *CheckStatus) ([]CheckHostStatus, error) {
-	if response != nil {
-		passes, err := passesForCheckStatus(*response)
-		if err != nil {
-			return nil, err
-		}
-		rows, err := s.db.Pool().Query(ctx, `
-			WITH check_row AS (
-				SELECT id, name
-				FROM osquery_checks c
-				WHERE c.id = $1
-			)
-			SELECT
-				c.id AS check_id,
-				c.name AS check_name,
-				h.id AS host_id,
-				h.display_name AS host_name,
-				m.passes,
-				m.updated_at
-			FROM check_row c
-			JOIN osquery_check_membership m ON m.check_id = c.id AND m.passes = $2::boolean
-			JOIN osquery_check_assignments assignment
-				ON assignment.check_id = m.check_id
-			   AND assignment.host_id = m.host_id
-			JOIN hosts h ON h.id = m.host_id
-			ORDER BY lower(h.display_name), h.id`, checkID, passes)
-		if err != nil {
-			return nil, err
-		}
-		records, err := pgx.CollectRows(rows, pgx.RowToStructByName[checkHostStatusRow])
-		if err != nil {
-			return nil, err
-		}
-		return checkHostStatusesFromRows(records), nil
+func (s *Store) CheckResults(
+	ctx context.Context,
+	checkID int64,
+	status CheckStatus,
+) ([]CheckHostStatus, error) {
+	if err := validateCheckStatusFilter(status); err != nil {
+		return nil, err
 	}
 	rows, err := s.db.Pool().Query(ctx, `
 		WITH check_row AS (
@@ -321,6 +293,10 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 		JOIN osquery_check_assignments assignment ON assignment.check_id = c.id
 		JOIN hosts h ON h.id = assignment.host_id
 		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		WHERE $2::text = ''
+		   OR ($2 = 'pass' AND m.passes IS TRUE)
+		   OR ($2 = 'fail' AND m.passes IS FALSE)
+		   OR ($2 = 'pending' AND m.passes IS NULL)
 		ORDER BY
 			CASE
 				WHEN m.passes IS FALSE THEN 0
@@ -328,7 +304,7 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 				ELSE 2
 			END,
 			lower(h.display_name),
-			h.id`, checkID)
+			h.id`, checkID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +315,14 @@ func (s *Store) CheckResults(ctx context.Context, checkID int64, response *Check
 	return checkHostStatusesFromRows(records), nil
 }
 
-func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
+func (s *Store) HostChecks(
+	ctx context.Context,
+	host *hosts.Host,
+	status CheckStatus,
+) ([]CheckHostStatus, error) {
+	if err := validateCheckStatusFilter(status); err != nil {
+		return nil, err
+	}
 	rows, err := s.db.Pool().Query(ctx, `
 		WITH host_row AS (
 			SELECT id, display_name
@@ -359,6 +342,10 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 			ON assignment.check_id = c.id
 		   AND assignment.host_id = h.id
 		LEFT JOIN osquery_check_membership m ON m.host_id = h.id AND m.check_id = c.id
+		WHERE $2::text = ''
+		   OR ($2 = 'pass' AND m.passes IS TRUE)
+		   OR ($2 = 'fail' AND m.passes IS FALSE)
+		   OR ($2 = 'pending' AND m.passes IS NULL)
 		ORDER BY
 			CASE
 				WHEN m.passes IS FALSE THEN 0
@@ -366,7 +353,7 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 				ELSE 2
 			END,
 			lower(c.name),
-			c.id`, host.ID)
+			c.id`, host.ID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -385,32 +372,29 @@ func checkHostStatusesFromRows(rows []checkHostStatusRow) []CheckHostStatus {
 			CheckName: row.CheckName,
 			HostID:    row.HostID,
 			HostName:  row.HostName,
-			Response:  checkStatusFromPasses(row.Passes),
+			Status:    checkStatusFromPasses(row.Passes),
 			UpdatedAt: row.UpdatedAt,
 		})
 	}
 	return statuses
 }
 
-func checkStatusFromPasses(passes *bool) *CheckStatus {
+func checkStatusFromPasses(passes *bool) CheckStatus {
 	if passes == nil {
-		return nil
+		return CheckStatusPending
 	}
-	status := CheckStatusFail
 	if *passes {
-		status = CheckStatusPass
+		return CheckStatusPass
 	}
-	return &status
+	return CheckStatusFail
 }
 
-func passesForCheckStatus(status CheckStatus) (bool, error) {
+func validateCheckStatusFilter(status CheckStatus) error {
 	switch status {
-	case CheckStatusPass:
-		return true, nil
-	case CheckStatusFail:
-		return false, nil
+	case "", CheckStatusPass, CheckStatusFail, CheckStatusPending:
+		return nil
 	default:
-		return false, fmt.Errorf("%w: unknown check_response %q", dbutil.ErrInvalidInput, status)
+		return dbutil.ErrInvalidInput
 	}
 }
 

@@ -6,7 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
@@ -72,14 +75,32 @@ type ReportListParams struct {
 	dbutil.ListParams
 }
 
+// ReportSnapshotStatus describes whether a targeted host has submitted a snapshot.
+type ReportSnapshotStatus string
+
+const (
+	ReportSnapshotStatusCollected ReportSnapshotStatus = "collected"
+	ReportSnapshotStatusPending   ReportSnapshotStatus = "pending"
+)
+
+var ReportSnapshotStatusValues = []ReportSnapshotStatus{
+	ReportSnapshotStatusCollected,
+	ReportSnapshotStatusPending,
+}
+
 // ReportSnapshot is the latest complete observation for one report and host.
 // CollectedAt is nil until the host submits its first snapshot.
 type ReportSnapshot struct {
-	ReportID          int64               `json:"report_id"`
-	ReportName        string              `json:"report_name"`
-	ReportDescription string              `json:"report_description,omitempty"`
-	HostID            int64               `json:"host_id"`
-	HostName          string              `json:"host_name"`
-	Rows              []map[string]string `json:"rows"`
-	CollectedAt       *time.Time          `json:"collected_at,omitempty"`
+	ReportID          int64                `json:"report_id"`
+	ReportName        string               `json:"report_name"`
+	ReportDescription string               `json:"report_description,omitempty"`
+	HostID            int64                `json:"host_id"`
+	HostName          string               `json:"host_name"`
+	Status            ReportSnapshotStatus `json:"status"`
+	Rows              []map[string]string  `json:"rows"`
+	CollectedAt       *time.Time           `json:"collected_at,omitempty"`
+}
+
+func (ReportSnapshotStatus) Schema(_ huma.Registry) *huma.Schema {
+	return openapischema.StringEnum(ReportSnapshotStatusValues...)
 }

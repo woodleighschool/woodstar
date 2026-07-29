@@ -1,10 +1,11 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, ColumnFiltersState, Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTableClient } from "@components/data-table/data-table-client";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
+import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -23,12 +24,15 @@ import { formatInterval, formatRelative } from "@lib/utils";
 import { ReportDeleteDialog } from "./delete-dialog";
 import { useReport, useReportSnapshots } from "./queries";
 import {
+  parseReportSnapshotStatus,
   reportSnapshotRows,
+  REPORT_SNAPSHOT_STATUS_OPTIONS,
   type ReportSnapshotTableRow,
   resultColumnNames,
   serializeSnapshots,
   SnapshotResultRows,
   snapshotSearchText,
+  snapshotStatus,
   snapshotStatusLabel,
   SnapshotStatusBadge,
 } from "./query-results";
@@ -53,14 +57,15 @@ const reportSnapshotColumns: ColumnDef<ReportSnapshotTableRow>[] = [
   },
   {
     id: "status",
-    accessorFn: snapshotStatusLabel,
-    header: () => "Collection",
+    accessorFn: snapshotStatus,
+    header: () => "Status",
+    filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
     cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
   },
   {
     id: "collectedAt",
     accessorKey: "collectedAt",
-    header: () => "Collected",
+    header: () => "Last Collected",
     cell: ({ row }) => (row.original.collectedAt ? formatRelative(row.original.collectedAt) : "-"),
   },
   {
@@ -70,6 +75,20 @@ const reportSnapshotColumns: ColumnDef<ReportSnapshotTableRow>[] = [
   },
 ];
 
+function ReportResultsToolbar({ table }: { table: Table<ReportSnapshotTableRow> }) {
+  return (
+    <DataTableFacetedFilter
+      column={table.getColumn("status")}
+      title="Status"
+      options={REPORT_SNAPSHOT_STATUS_OPTIONS}
+    />
+  );
+}
+
+function renderReportResultsToolbar(table: Table<ReportSnapshotTableRow>) {
+  return <ReportResultsToolbar table={table} />;
+}
+
 export function ReportDetailPage() {
   const { id: reportId } = useParams({
     from: "/_authenticated/osquery/reports/$id",
@@ -78,9 +97,11 @@ export function ReportDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [statusFilters, setStatusFilters] = useState<ColumnFiltersState>([]);
   const id = parseRouteID(reportId);
   const report = useReport(id);
-  const snapshots = useReportSnapshots(id);
+  const status = selectedReportStatus(statusFilters);
+  const snapshots = useReportSnapshots(id, { status });
 
   if (id === null) {
     return (
@@ -111,8 +132,8 @@ export function ReportDetailPage() {
   const columnNames = resultColumnNames(rows.flatMap((row) => row.rows));
   const exportMetadata: DataTableExportOptions<ReportSnapshotTableRow>["columns"] = [
     { header: "Host", value: (row) => row.hostName },
-    { header: "Collection Status", value: snapshotStatusLabel },
-    { header: "Collected At", value: (row) => row.collectedAt },
+    { header: "Status", value: snapshotStatusLabel },
+    { header: "Last Collected", value: (row) => row.collectedAt },
   ];
   const exportOptions: DataTableExportOptions<ReportSnapshotTableRow> = {
     filename: `osquery-report-${id}-results`,
@@ -181,6 +202,7 @@ export function ReportDetailPage() {
       ) : (
         <DataTableClient
           title="Results"
+          columnFilters={statusFilters}
           columns={reportSnapshotColumns}
           data={rows}
           exportOptions={exportOptions}
@@ -188,11 +210,17 @@ export function ReportDetailPage() {
           getRowId={(row) => row.id}
           getSearchText={snapshotSearchText}
           initialSorting={[{ id: "hostName", desc: false }]}
+          onColumnFiltersChange={setStatusFilters}
           renderSubRow={(row) => (
             <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
           )}
           searchPlaceholder="Search hosts and results"
-          empty={<PanelEmptyState>No targeted hosts</PanelEmptyState>}
+          toolbar={renderReportResultsToolbar}
+          empty={
+            <PanelEmptyState>
+              {status ? "No hosts match this status" : "No targeted hosts"}
+            </PanelEmptyState>
+          }
         />
       )}
 
@@ -206,4 +234,11 @@ export function ReportDetailPage() {
       ) : null}
     </PageShell>
   );
+}
+
+function selectedReportStatus(
+  filters: ColumnFiltersState,
+): ReportSnapshotTableRow["status"] | undefined {
+  const value = filters.find((filter) => filter.id === "status")?.value;
+  return parseReportSnapshotStatus(Array.isArray(value) ? value[0] : undefined);
 }

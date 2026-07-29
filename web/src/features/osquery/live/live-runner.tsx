@@ -19,7 +19,7 @@ import { useAuth } from "@features/auth/queries";
 import { useHosts } from "@features/hosts/queries";
 import { isAllHostsLabel } from "@features/labels/model";
 import { useLabels } from "@features/labels/queries";
-import { CHECK_RESULT_STATUSES, checkResultStatus } from "@features/osquery/checks/model";
+import { CHECK_RESULT_STATUSES } from "@features/osquery/checks/model";
 import type { Host, Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 
@@ -71,10 +71,7 @@ const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
     accessorKey: "response",
     header: "Result",
     cell: ({ row }) => (
-      <EnumStatusIndicator
-        value={checkResultStatus(row.original.response)}
-        metadata={CHECK_RESULT_STATUSES}
-      />
+      <EnumStatusIndicator value={row.original.response} metadata={CHECK_RESULT_STATUSES} />
     ),
   },
 ];

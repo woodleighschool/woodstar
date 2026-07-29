@@ -39,6 +39,8 @@ import {
 } from "@lib/api";
 import type {
   ListHostMunkiSoftwareData,
+  ListHostOsqueryChecksData,
+  ListHostOsqueryReportsData,
   ListHostSantaRulesData,
   ListHostSoftwareData,
   ListHostsData,
@@ -57,8 +59,10 @@ export const hostKeys = {
   munkiState: (id: number | null) => ["hosts", "detail", id, "munki"] as const,
   munkiSoftware: (id: number | null, params?: QueryParams) =>
     ["hosts", "detail", id, "munki", "software", "list", params ?? {}] as const,
-  osqueryReports: (id: number | null) => ["hosts", "detail", id, "osquery", "reports"] as const,
-  osqueryChecks: (id: number | null) => ["hosts", "detail", id, "osquery", "checks"] as const,
+  osqueryReports: (id: number | null, params?: QueryParams) =>
+    ["hosts", "detail", id, "osquery", "reports", params ?? {}] as const,
+  osqueryChecks: (id: number | null, params?: QueryParams) =>
+    ["hosts", "detail", id, "osquery", "checks", params ?? {}] as const,
   santaState: (id: number | null) => ["hosts", "detail", id, "santa"] as const,
   santaRules: (id: number | null, params?: QueryParams) =>
     ["hosts", "detail", id, "santa", "rules", "list", params ?? {}] as const,
@@ -70,6 +74,8 @@ const HOST_REFRESH_MS = 30_000;
 type HostListParams = NonNullable<ListHostsData["query"]>;
 type HostSoftwareListParams = NonNullable<ListHostSoftwareData["query"]>;
 type HostMunkiSoftwareParams = NonNullable<ListHostMunkiSoftwareData["query"]>;
+type HostOsqueryChecksParams = NonNullable<ListHostOsqueryChecksData["query"]>;
+type HostOsqueryReportsParams = NonNullable<ListHostOsqueryReportsData["query"]>;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 type RefetchOptions = { refetchInterval?: number | false };
 
@@ -243,20 +249,24 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
   });
 }
 
-export function useHostOsqueryReports(id: number | null) {
+export function useHostOsqueryReports(id: number | null, params: HostOsqueryReportsParams = {}) {
   return useQuery<OsqueryReportSnapshot[], ApiError>({
-    queryKey: hostKeys.osqueryReports(id),
-    queryFn: ({ signal }) => unwrap(listHostOsqueryReports({ path: detailPath(id), signal })),
+    queryKey: hostKeys.osqueryReports(id, params),
+    queryFn: ({ signal }) =>
+      unwrap(listHostOsqueryReports({ path: detailPath(id), query: params, signal })),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
-export function useHostOsqueryChecks(id: number | null) {
+export function useHostOsqueryChecks(id: number | null, params: HostOsqueryChecksParams = {}) {
   return useQuery<OsqueryCheckHostStatus[], ApiError>({
-    queryKey: hostKeys.osqueryChecks(id),
-    queryFn: ({ signal }) => unwrap(listHostOsqueryChecks({ path: detailPath(id), signal })),
+    queryKey: hostKeys.osqueryChecks(id, params),
+    queryFn: ({ signal }) =>
+      unwrap(listHostOsqueryChecks({ path: detailPath(id), query: params, signal })),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }

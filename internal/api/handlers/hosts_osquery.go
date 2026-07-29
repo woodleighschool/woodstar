@@ -13,11 +13,13 @@ import (
 )
 
 type hostOsqueryChecksInput struct {
-	ID int64 `path:"id"`
+	ID     int64              `path:"id"`
+	Status checks.CheckStatus `          query:"status,omitempty"`
 }
 
 type hostOsqueryReportsInput struct {
-	ID int64 `path:"id"`
+	ID     int64                        `path:"id"`
+	Status reports.ReportSnapshotStatus `          query:"status,omitempty"`
 }
 
 type hostReportsOutput struct {
@@ -44,7 +46,9 @@ func registerHostOsqueryChecks(
 			"list-host-osquery-checks",
 			hostStore,
 			logger,
-			checkStore.HostChecks,
+			func(ctx context.Context, host *hosts.Host) ([]checks.CheckHostStatus, error) {
+				return checkStore.HostChecks(ctx, host, input.Status)
+			},
 		)
 		if err != nil {
 			return nil, err
@@ -73,7 +77,9 @@ func registerHostOsqueryReports(
 			"list-host-osquery-reports",
 			hostStore,
 			logger,
-			reportStore.HostSnapshots,
+			func(ctx context.Context, host *hosts.Host) ([]reports.ReportSnapshot, error) {
+				return reportStore.HostSnapshots(ctx, host, input.Status)
+			},
 		)
 		if err != nil {
 			return nil, err

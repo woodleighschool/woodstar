@@ -576,22 +576,40 @@ func (e MunkiPackageSelectorStrategy) Valid() bool {
 
 // Defines values for MunkiPackageStateStatus.
 const (
-	Current MunkiPackageStateStatus = "current"
-	Error   MunkiPackageStateStatus = "error"
-	Pending MunkiPackageStateStatus = "pending"
-	Syncing MunkiPackageStateStatus = "syncing"
+	MunkiPackageStateStatusCurrent MunkiPackageStateStatus = "current"
+	MunkiPackageStateStatusError   MunkiPackageStateStatus = "error"
+	MunkiPackageStateStatusPending MunkiPackageStateStatus = "pending"
+	MunkiPackageStateStatusSyncing MunkiPackageStateStatus = "syncing"
 )
 
 // Valid indicates whether the value is a known member of the MunkiPackageStateStatus enum.
 func (e MunkiPackageStateStatus) Valid() bool {
 	switch e {
-	case Current:
+	case MunkiPackageStateStatusCurrent:
 		return true
-	case Error:
+	case MunkiPackageStateStatusError:
 		return true
-	case Pending:
+	case MunkiPackageStateStatusPending:
 		return true
-	case Syncing:
+	case MunkiPackageStateStatusSyncing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OsqueryReportSnapshotStatus.
+const (
+	OsqueryReportSnapshotStatusCollected OsqueryReportSnapshotStatus = "collected"
+	OsqueryReportSnapshotStatusPending   OsqueryReportSnapshotStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the OsqueryReportSnapshotStatus enum.
+func (e OsqueryReportSnapshotStatus) Valid() bool {
+	switch e {
+	case OsqueryReportSnapshotStatusCollected:
+		return true
+	case OsqueryReportSnapshotStatusPending:
 		return true
 	default:
 		return false
@@ -1150,6 +1168,24 @@ func (e ListLabelsParamsLabelMembershipType) Valid() bool {
 	case ListLabelsParamsLabelMembershipTypeDynamic:
 		return true
 	case ListLabelsParamsLabelMembershipTypeManual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListOsqueryReportSnapshotsParamsStatus.
+const (
+	ListOsqueryReportSnapshotsParamsStatusCollected ListOsqueryReportSnapshotsParamsStatus = "collected"
+	ListOsqueryReportSnapshotsParamsStatusPending   ListOsqueryReportSnapshotsParamsStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ListOsqueryReportSnapshotsParamsStatus enum.
+func (e ListOsqueryReportSnapshotsParamsStatus) Valid() bool {
+	switch e {
+	case ListOsqueryReportSnapshotsParamsStatusCollected:
+		return true
+	case ListOsqueryReportSnapshotsParamsStatusPending:
 		return true
 	default:
 		return false
@@ -2074,14 +2110,18 @@ type OsqueryReportMutation struct {
 
 // OsqueryReportSnapshot defines model for OsqueryReportSnapshot.
 type OsqueryReportSnapshot struct {
-	CollectedAt       *time.Time          `json:"collected_at,omitempty"`
-	HostId            int64               `json:"host_id"`
-	HostName          string              `json:"host_name"`
-	ReportDescription *string             `json:"report_description,omitempty"`
-	ReportId          int64               `json:"report_id"`
-	ReportName        string              `json:"report_name"`
-	Rows              []map[string]string `json:"rows"`
+	CollectedAt       *time.Time                  `json:"collected_at,omitempty"`
+	HostId            int64                       `json:"host_id"`
+	HostName          string                      `json:"host_name"`
+	ReportDescription *string                     `json:"report_description,omitempty"`
+	ReportId          int64                       `json:"report_id"`
+	ReportName        string                      `json:"report_name"`
+	Rows              []map[string]string         `json:"rows"`
+	Status            OsqueryReportSnapshotStatus `json:"status"`
 }
+
+// OsqueryReportSnapshotStatus defines model for OsqueryReportSnapshot.Status.
+type OsqueryReportSnapshotStatus string
 
 // OsqueryReportTargets defines model for OsqueryReportTargets.
 type OsqueryReportTargets struct {
@@ -2576,6 +2616,14 @@ type ListMunkiClientResourcesParams struct {
 	PerPage *int32  `form:"per_page,omitempty" json:"per_page,omitempty"`
 	Sort    *string `form:"sort,omitempty" json:"sort,omitempty"`
 }
+
+// ListOsqueryReportSnapshotsParams defines parameters for ListOsqueryReportSnapshots.
+type ListOsqueryReportSnapshotsParams struct {
+	Status *ListOsqueryReportSnapshotsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListOsqueryReportSnapshotsParamsStatus defines parameters for ListOsqueryReportSnapshots.
+type ListOsqueryReportSnapshotsParamsStatus string
 
 // ListSantaEventsParams defines parameters for ListSantaEvents.
 type ListSantaEventsParams struct {
@@ -3159,7 +3207,7 @@ type ClientInterface interface {
 	// ListOsqueryReportSnapshots List report snapshots
 	//
 	// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
-	ListOsqueryReportSnapshots(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListOsqueryReportSnapshots(ctx context.Context, id int64, params *ListOsqueryReportSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateSantaConfigurationWithBody Create a configuration
 	//
@@ -3845,8 +3893,8 @@ func (c *Client) CreateOsqueryReport(ctx context.Context, body CreateOsqueryRepo
 // ListOsqueryReportSnapshots List report snapshots
 //
 // Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
-func (c *Client) ListOsqueryReportSnapshots(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListOsqueryReportSnapshotsRequest(c.Server, id)
+func (c *Client) ListOsqueryReportSnapshots(ctx context.Context, id int64, params *ListOsqueryReportSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOsqueryReportSnapshotsRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5442,7 +5490,7 @@ func NewCreateOsqueryReportRequestWithBody(server string, contentType string, bo
 }
 
 // NewListOsqueryReportSnapshotsRequest constructs an http.Request for the ListOsqueryReportSnapshots method
-func NewListOsqueryReportSnapshotsRequest(server string, id int64) (*http.Request, error) {
+func NewListOsqueryReportSnapshotsRequest(server string, id int64, params *ListOsqueryReportSnapshotsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -5465,6 +5513,33 @@ func NewListOsqueryReportSnapshotsRequest(server string, id int64) (*http.Reques
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -6190,7 +6265,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
-	ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error)
+	ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, params *ListOsqueryReportSnapshotsParams, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error)
 
 	// CreateSantaConfigurationWithBodyWithResponse Create a configuration
 	//
@@ -9304,8 +9379,8 @@ func (c *ClientWithResponses) CreateOsqueryReportWithResponse(ctx context.Contex
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /api/osquery/reports/{id}/snapshots (the `ListOsqueryReportSnapshots` operationId).
-func (c *ClientWithResponses) ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error) {
-	rsp, err := c.ListOsqueryReportSnapshots(ctx, id, reqEditors...)
+func (c *ClientWithResponses) ListOsqueryReportSnapshotsWithResponse(ctx context.Context, id int64, params *ListOsqueryReportSnapshotsParams, reqEditors ...RequestEditorFn) (*ListOsqueryReportSnapshotsResponse, error) {
+	rsp, err := c.ListOsqueryReportSnapshots(ctx, id, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

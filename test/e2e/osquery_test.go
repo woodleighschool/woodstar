@@ -627,7 +627,11 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		t.Fatalf("host Munki VisualStudioCode = %+v, want exact pending update observation", vscode)
 	}
 
-	snapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(t.Context(), report.Id)
+	snapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(
+		t.Context(),
+		report.Id,
+		nil,
+	)
 	snapshotsResponse = requireAPIResponse(
 		t,
 		"list osquery report snapshots",
@@ -644,6 +648,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	snapshot := snapshots[0]
 	if snapshot.ReportName != reportMutation.Name || snapshot.HostName != "Osquery Integration Mac" ||
+		snapshot.Status != adminapi.OsqueryReportSnapshotStatusCollected ||
 		snapshot.CollectedAt == nil || !snapshot.CollectedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) {
 		t.Fatalf("report snapshot metadata = %+v, want report, host, and submitted time", snapshot)
 	}
@@ -656,6 +661,46 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	if resultVersions["Alpha"] != "1.0" || resultVersions["Bravo"] != "2.0" {
 		t.Fatalf("report snapshot rows = %+v, want Alpha 1.0 and Bravo 2.0", resultVersions)
+	}
+
+	collectedStatus := adminapi.ListOsqueryReportSnapshotsParamsStatusCollected
+	collectedSnapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(
+		t.Context(),
+		report.Id,
+		&adminapi.ListOsqueryReportSnapshotsParams{Status: &collectedStatus},
+	)
+	collectedSnapshotsResponse = requireAPIResponse(
+		t,
+		"filter collected osquery report snapshots",
+		http.StatusOK,
+		collectedSnapshotsResponse,
+		err,
+	)
+	if collectedSnapshotsResponse.JSON200 == nil || len(*collectedSnapshotsResponse.JSON200) != 1 {
+		t.Fatalf(
+			"collected report snapshots = %+v, want one collected snapshot",
+			collectedSnapshotsResponse.JSON200,
+		)
+	}
+
+	pendingStatus := adminapi.ListOsqueryReportSnapshotsParamsStatusPending
+	pendingSnapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(
+		t.Context(),
+		report.Id,
+		&adminapi.ListOsqueryReportSnapshotsParams{Status: &pendingStatus},
+	)
+	pendingSnapshotsResponse = requireAPIResponse(
+		t,
+		"filter pending osquery report snapshots",
+		http.StatusOK,
+		pendingSnapshotsResponse,
+		err,
+	)
+	if pendingSnapshotsResponse.JSON200 == nil || len(*pendingSnapshotsResponse.JSON200) != 0 {
+		t.Fatalf(
+			"pending report snapshots = %+v, want no pending snapshots",
+			pendingSnapshotsResponse.JSON200,
+		)
 	}
 
 	unknownNodeKey := "unknown-osquery-node-key"
