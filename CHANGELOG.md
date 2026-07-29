@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/woodleighschool/woodstar/compare/0.7.0...0.8.0) (2026-07-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **osquery:** result APIs now expose a required status field. Check result filters use status instead of response.
+
+### Features
+
+* **osquery:** filter result status in SQL ([a30989a](https://github.com/woodleighschool/woodstar/commit/a30989a4da6b187d3bf045e943d3571b425dec8c))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @codemirror/view (6.43.6 → 6.43.7) ([#82](https://github.com/woodleighschool/woodstar/issues/82)) ([2af1c1e](https://github.com/woodleighschool/woodstar/commit/2af1c1e5444b8e6c7acf91bbfd9060d718bf2e9e))
+* **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260723221051-096a321dccc8.1 → v1.36.11-20260728193839-8b5e5470fb86.1) ([#77](https://github.com/woodleighschool/woodstar/issues/77)) ([a5d7c5f](https://github.com/woodleighschool/woodstar/commit/a5d7c5f044cbc260a5ac30c8ba50f7fe0c24566e))
+
 ## [0.7.0](https://github.com/woodleighschool/woodstar/compare/0.6.5...0.7.0) (2026-07-29)
 
 
