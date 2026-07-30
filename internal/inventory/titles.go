@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -245,13 +246,43 @@ func (s *Store) loadSoftwareTitleSigningIdentities(ctx context.Context, titles [
 		titles[i].SigningIdentities.Items = append(
 			titles[i].SigningIdentities.Items,
 			SoftwareSigningIdentity{
-				Identifier:     row.Identifier,
-				TeamIdentifier: row.TeamIdentifier,
-				Authorities:    row.Authorities,
-				HostsCount:     row.HostsCount,
+				Identifier:        row.Identifier,
+				SigningIdentifier: softwareSigningIdentifier(row.TeamIdentifier, row.Identifier),
+				TeamIdentifier:    row.TeamIdentifier,
+				DeveloperName:     softwareDeveloperName(row.TeamIdentifier, row.Authorities),
+				Authorities:       row.Authorities,
+				HostsCount:        row.HostsCount,
 			},
 		)
 		titles[i].SigningIdentities.Count++
 	}
 	return nil
+}
+
+func softwareSigningIdentifier(teamIdentifier, identifier string) string {
+	if teamIdentifier == "" || identifier == "" {
+		return ""
+	}
+	return teamIdentifier + ":" + identifier
+}
+
+func softwareDeveloperName(teamIdentifier string, authorities []string) string {
+	if teamIdentifier == "" {
+		return ""
+	}
+
+	suffix := " (" + teamIdentifier + ")"
+	for _, authority := range authorities {
+		if !strings.HasSuffix(authority, suffix) {
+			continue
+		}
+
+		prefix := strings.TrimSuffix(authority, suffix)
+		_, name, ok := strings.Cut(prefix, ":")
+		name = strings.TrimSpace(name)
+		if ok && name != "" {
+			return name
+		}
+	}
+	return ""
 }

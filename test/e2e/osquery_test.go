@@ -371,7 +371,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 					"path":              "/Applications/Visual Studio Code.app",
 					"identifier":        bundleID,
 					"team_identifier":   "WOODSTAR01",
-					"signing_authority": "Developer ID Application: Microsoft Corporation",
+					"signing_authority": "Developer ID Application: Microsoft Corporation (WOODSTAR01)",
 				},
 			}
 		case "software_macos_executable_sha256":
@@ -564,7 +564,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		len(installed.SignatureInformation) != 1 ||
 		installed.SignatureInformation[0].Identifier != bundleID ||
 		installed.SignatureInformation[0].SigningAuthority !=
-			"Developer ID Application: Microsoft Corporation" ||
+			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" ||
 		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
 		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
 		installed.SignatureInformation[0].ExecutableSha256 != "executable-hash" {
@@ -598,10 +598,13 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	signingIdentity := softwareTitle.SigningIdentities.Items[0]
 	if signingIdentity.Identifier != bundleID ||
+		signingIdentity.SigningIdentifier != "WOODSTAR01:"+bundleID ||
 		signingIdentity.TeamIdentifier != "WOODSTAR01" ||
+		signingIdentity.DeveloperName != "Microsoft Corporation" ||
 		signingIdentity.HostsCount != 1 ||
 		len(signingIdentity.Authorities) != 1 ||
-		signingIdentity.Authorities[0] != "Developer ID Application: Microsoft Corporation" {
+		signingIdentity.Authorities[0] !=
+			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" {
 		t.Fatalf("software signing identity = %+v, want exact observed identity", signingIdentity)
 	}
 

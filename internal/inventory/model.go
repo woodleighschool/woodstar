@@ -50,10 +50,12 @@ type SoftwareVersionList struct {
 
 // SoftwareSigningIdentity is one code-signing identity observed for a software title.
 type SoftwareSigningIdentity struct {
-	Identifier     string   `json:"identifier"`
-	TeamIdentifier string   `json:"team_identifier"`
-	Authorities    []string `json:"authorities" nullable:"false"`
-	HostsCount     int32    `json:"hosts_count"`
+	Identifier        string   `json:"identifier"`
+	SigningIdentifier string   `json:"signing_identifier"`
+	TeamIdentifier    string   `json:"team_identifier"`
+	DeveloperName     string   `json:"developer_name"`
+	Authorities       []string `json:"authorities" nullable:"false"`
+	HostsCount        int32    `json:"hosts_count"`
 }
 
 // SoftwareSigningIdentityList is the signing identities observed for one software title.
