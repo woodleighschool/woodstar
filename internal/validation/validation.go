@@ -1,4 +1,3 @@
-// Package validation provides the shared structural validation boundary.
 package validation
 
 import (

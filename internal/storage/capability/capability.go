@@ -1,10 +1,3 @@
-// Package capability signs and verifies short-lived HMAC transfer tokens.
-//
-// The codec is generic over the claims payload. A caller defines its own claims
-// struct carrying the shared op and exp fields, then signs and verifies it with
-// its own key. Storage signs blob claims with the server key; a Munki
-// distribution point signs grant claims with its per-DP key. Same token format,
-// different payloads and keys.
 package capability
 
 import (

@@ -1,4 +1,3 @@
-// Package clientresources owns Munki's deployed Managed Software Center resources.
 package clientresources
 
 import (

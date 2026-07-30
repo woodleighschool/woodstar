@@ -1,4 +1,3 @@
-// Package events persists and queries Santa execution and file-access events.
 package events
 
 import (

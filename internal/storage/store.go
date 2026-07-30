@@ -1,5 +1,3 @@
-// Package storage is woodstar's blob store: a small backend-agnostic interface
-// over local files or S3, plus a database registry of the objects it holds.
 package storage
 
 import (

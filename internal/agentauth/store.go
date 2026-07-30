@@ -1,4 +1,3 @@
-// Package agentauth manages shared secrets accepted by agent-facing protocols.
 package agentauth
 
 import (

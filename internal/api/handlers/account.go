@@ -1,4 +1,3 @@
-// Package handlers implements Woodstar's administrative HTTP API operations.
 package handlers
 
 import (

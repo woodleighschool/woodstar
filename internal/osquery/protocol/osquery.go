@@ -1,4 +1,3 @@
-// Package protocol exposes osquery TLS-plugin endpoints.
 package protocol
 
 import (

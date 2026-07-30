@@ -1,4 +1,3 @@
-// Package httpx provides helpers for raw net/http endpoints that bypass Huma.
 package httpx
 
 import (

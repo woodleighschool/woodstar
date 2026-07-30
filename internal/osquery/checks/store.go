@@ -1,4 +1,3 @@
-// Package checks persists query-backed pass/fail policies and per-host results.
 package checks
 
 import (

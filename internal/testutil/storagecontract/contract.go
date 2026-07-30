@@ -1,4 +1,3 @@
-// Package storagecontract provides shared backend conformance assertions.
 package storagecontract
 
 import (

@@ -1,4 +1,3 @@
-// Package protocol exposes Munki repository endpoints.
 package protocol
 
 import (

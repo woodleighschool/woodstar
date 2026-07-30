@@ -1,12 +1,3 @@
-// Package mdp manages Munki distribution points: ordered mirror nodes that
-// Woodstar redirects Munki clients to for package installers.
-//
-// Woodstar owns policy, package metadata, and the files. A distribution point
-// pulls the desired installers, verifies them, reports package mirror state,
-// and serves them under a per-DP grant. This package owns the admin resource
-// and the selection that the Munki client delivery path consults. The worker
-// control protocol lives under mdp/protocol; the worker that runs near clients
-// lives under mdp/worker and shares only the grant leaf.
 package mdp
 
 import (

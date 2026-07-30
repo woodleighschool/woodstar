@@ -1,4 +1,3 @@
-// Package randtoken creates URL-safe random tokens.
 package randtoken
 
 import (

@@ -1,4 +1,3 @@
-// Package wire defines the Munki distribution point wire protocol.
 package wire
 
 import (

@@ -1,4 +1,3 @@
-// Package payloadhash produces stable hashes for Santa sync payloads.
 package payloadhash
 
 import (

@@ -1,4 +1,3 @@
-// Package labels manages manual, dynamic, and derived host membership.
 package labels
 
 import (

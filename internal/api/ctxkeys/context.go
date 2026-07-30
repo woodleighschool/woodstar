@@ -1,4 +1,3 @@
-// Package ctxkeys defines typed request-context keys shared by API layers.
 package ctxkeys
 
 import (

@@ -1,4 +1,3 @@
-// Package livequery runs ephemeral browser-session live queries in-process.
 package livequery
 
 import (

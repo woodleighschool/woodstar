@@ -1,4 +1,3 @@
-// Package auth handles login, API keys, and sessions.
 package auth
 
 import (

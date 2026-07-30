@@ -1,4 +1,3 @@
-// Package ingest projects osquery result rows into Woodstar-owned host state.
 package ingest
 
 import (

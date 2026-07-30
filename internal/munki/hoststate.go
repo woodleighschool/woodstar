@@ -1,4 +1,3 @@
-// Package munki coordinates Munki client observations and repository delivery.
 package munki
 
 import "time"

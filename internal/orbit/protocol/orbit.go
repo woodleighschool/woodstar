@@ -1,4 +1,3 @@
-// Package protocol exposes Orbit endpoints.
 package protocol
 
 import (

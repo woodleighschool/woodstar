@@ -1,4 +1,3 @@
-// Package database opens PostgreSQL connections and applies embedded migrations.
 package database
 
 import (

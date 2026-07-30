@@ -1,4 +1,3 @@
-// Package webdist embeds the production frontend into the Woodstar binary.
 package webdist
 
 import (

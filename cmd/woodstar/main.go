@@ -1,4 +1,3 @@
-// Woodstar runs the central server and its administrative commands.
 package main
 
 import (

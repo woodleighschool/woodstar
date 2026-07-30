@@ -1,4 +1,3 @@
-// Package testdb provides isolated PostgreSQL databases for tests.
 package testdb
 
 import (

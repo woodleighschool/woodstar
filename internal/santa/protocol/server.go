@@ -1,4 +1,3 @@
-// Package protocol exposes Santa sync endpoints.
 package protocol
 
 import (

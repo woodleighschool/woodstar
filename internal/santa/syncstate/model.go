@@ -1,4 +1,3 @@
-// Package syncstate tracks versioned Santa rule synchronization per host.
 package syncstate
 
 type SyncType string

@@ -1,4 +1,3 @@
-// Package protocol serves the Munki distribution point worker protocol.
 package protocol
 
 import (

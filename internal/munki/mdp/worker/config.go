@@ -1,8 +1,3 @@
-// Package worker runs the `woodstar mdp` face: it mirrors the desired Munki
-// package installers from Woodstar, verifies them, reports its state, and serves
-// them under per-DP grants. It never touches the database or the server domain;
-// it shares only the grant leaf and talks to Woodstar over a WebSocket plus HTTPS
-// downloads.
 package worker
 
 import (

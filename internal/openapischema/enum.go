@@ -1,4 +1,3 @@
-// Package openapischema provides Huma schema helpers for API-facing model metadata.
 package openapischema
 
 import "github.com/danielgtaylor/huma/v2"

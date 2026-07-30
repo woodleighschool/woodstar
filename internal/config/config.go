@@ -1,4 +1,3 @@
-// Package config loads, normalizes, and validates Woodstar process settings.
 package config
 
 import (

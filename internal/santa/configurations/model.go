@@ -1,4 +1,3 @@
-// Package configurations resolves Santa configuration assigned to each host.
 package configurations
 
 import (

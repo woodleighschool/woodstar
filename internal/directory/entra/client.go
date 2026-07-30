@@ -1,4 +1,3 @@
-// Package entra imports Microsoft Entra users and groups into the directory.
 package entra
 
 import (

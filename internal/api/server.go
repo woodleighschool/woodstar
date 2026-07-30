@@ -1,4 +1,3 @@
-// Package api wires Woodstar's HTTP server and app API surface.
 package api
 
 import (

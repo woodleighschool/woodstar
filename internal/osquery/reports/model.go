@@ -1,4 +1,3 @@
-// Package reports manages scheduled osquery reports and their result snapshots.
 package reports
 
 import (

@@ -1,4 +1,3 @@
-// Package osquery implements service behavior for Orbit-managed osquery.
 package osquery
 
 import (

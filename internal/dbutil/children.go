@@ -1,4 +1,3 @@
-// Package dbutil provides shared pgx query, scan, and list primitives.
 package dbutil
 
 import (

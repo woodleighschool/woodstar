@@ -1,4 +1,3 @@
-// Package rules validates, targets, and persists Santa rules.
 package rules
 
 import (

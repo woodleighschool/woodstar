@@ -1,4 +1,3 @@
-// Package software manages Munki desired software and host targeting.
 package software
 
 import (

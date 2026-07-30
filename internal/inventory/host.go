@@ -1,4 +1,3 @@
-// Package inventory projects observed host hardware and software state.
 package inventory
 
 import (

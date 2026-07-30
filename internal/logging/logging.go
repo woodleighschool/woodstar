@@ -1,4 +1,3 @@
-// Package logging configures the application's slog logger.
 package logging
 
 import (

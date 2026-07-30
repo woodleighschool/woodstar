@@ -1,4 +1,3 @@
-// Package packages models and persists Munki installers and package metadata.
 package packages
 
 import (

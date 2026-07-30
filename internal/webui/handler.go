@@ -1,4 +1,3 @@
-// Package webui serves the embedded Woodstar frontend.
 package webui
 
 import (

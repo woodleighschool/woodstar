@@ -1,4 +1,3 @@
-// Package enrollment owns shared host-enrollment primitives.
 package enrollment
 
 import (

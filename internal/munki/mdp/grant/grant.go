@@ -1,10 +1,3 @@
-// Package grant mints and verifies Munki distribution point download grants.
-//
-// A grant is a storage capability signed with a distribution point's per-DP
-// key. Woodstar mints one when it redirects a Munki client to a distribution
-// point; the worker verifies it offline with the same key. The package is a
-// DB-free leaf so both the server and the worker can share one claims
-// definition without the worker depending on the database.
 package grant
 
 import (
