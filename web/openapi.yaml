@@ -3706,16 +3706,22 @@ components:
           items:
             type: string
           type: array
+        developer_name:
+          type: string
         hosts_count:
           format: int32
           type: integer
         identifier:
           type: string
+        signing_identifier:
+          type: string
         team_identifier:
           type: string
       required:
         - identifier
+        - signing_identifier
         - team_identifier
+        - developer_name
         - authorities
         - hosts_count
       type: object

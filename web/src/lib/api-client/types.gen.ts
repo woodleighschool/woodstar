@@ -1313,8 +1313,10 @@ export type SessionCreateInputBody = {
 
 export type SoftwareSigningIdentity = {
     authorities: Array<string>;
+    developer_name: string;
     hosts_count: number;
     identifier: string;
+    signing_identifier: string;
     team_identifier: string;
 };
 
