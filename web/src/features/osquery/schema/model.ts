@@ -7,7 +7,7 @@ export interface OsqueryColumn {
   index?: boolean;
 }
 
-export interface OsqueryExample {
+interface OsqueryExample {
   description?: string;
   query?: string;
 }

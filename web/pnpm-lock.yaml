@@ -150,9 +150,6 @@ importers:
       '@types/papaparse':
         specifier: ^5.5.2
         version: 5.5.2
-      '@types/plist':
-        specifier: ^3.0.5
-        version: 3.0.5
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
@@ -1023,9 +1020,6 @@ packages:
 
   '@types/pegjs@0.10.6':
     resolution: {integrity: sha512-eLYXDbZWXh2uxf+w8sXS8d6KSoXTswfps6fvCUuVAGN8eRpfe7h9eSRydxiSJvo9Bf+GzifsDOr9TMQlmJdmkw==}
-
-  '@types/plist@3.0.5':
-    resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -3936,11 +3930,6 @@ snapshots:
       '@types/node': 26.1.2
 
   '@types/pegjs@0.10.6': {}
-
-  '@types/plist@3.0.5':
-    dependencies:
-      '@types/node': 26.1.2
-      xmlbuilder: 15.1.1
 
   '@types/react-dom@19.2.3(@types/react@19.2.17)':
     dependencies:

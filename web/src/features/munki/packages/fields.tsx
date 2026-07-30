@@ -107,7 +107,7 @@ export function PackageForm({
     </PageShell>
   );
 }
-export function PackageEditorTabs({
+function PackageEditorTabs({
   form,
   activeTab,
   onActiveTabChange,

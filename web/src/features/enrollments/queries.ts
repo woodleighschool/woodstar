@@ -9,8 +9,6 @@ import {
   updateAgentSecret,
 } from "@lib/api";
 
-export type Agent = AgentSecret["agent"];
-
 const agentSecretsKey = ["agent-secrets"] as const;
 
 export function useAgentSecrets() {

@@ -8,7 +8,7 @@ import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
-export const softwareKeys = {
+const softwareKeys = {
   all: ["software"] as const,
   list: (params?: QueryParams) => ["software", "list", params ?? {}] as const,
   detail: (id: number | null) => ["software", "detail", id] as const,

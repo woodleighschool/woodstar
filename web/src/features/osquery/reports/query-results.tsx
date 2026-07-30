@@ -135,7 +135,7 @@ export function resultColumnNames(rows: Record<string, string>[]): string[] {
   return Array.from(seen).toSorted((a, b) => a.localeCompare(b));
 }
 
-export function snapshotStatus(row: ReportResultRow): ReportResultStatus {
+function snapshotStatus(row: ReportResultRow): ReportResultStatus {
   return row.status;
 }
 
@@ -226,7 +226,7 @@ export function SnapshotResultRows({
   );
 }
 
-export function resultValue(value: string | undefined) {
+function resultValue(value: string | undefined) {
   if (value == null || value === "") return "-";
   return value;
 }

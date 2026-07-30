@@ -1,6 +1,6 @@
 import { Parser } from "@sgress454/node-sql-parser/umd/sqlite.umd.js";
 
-export const invalidSQLSyntaxMessage = "Syntax error. Please review before saving.";
+const invalidSQLSyntaxMessage = "Syntax error. Please review before saving.";
 
 const parser = new Parser();
 

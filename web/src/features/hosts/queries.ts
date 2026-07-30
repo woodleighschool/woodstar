@@ -24,7 +24,6 @@ import type {
 import {
   bulkDeleteHosts,
   clearHostPrimaryUser,
-  deleteHost,
   getHost,
   getHostMunkiState,
   getHostSantaState,
@@ -162,16 +161,6 @@ export function useHostSantaState(id: number | null) {
     queryFn: ({ signal }) => nullOn404(getHostSantaState({ path: detailPath(id), signal })),
     enabled: id !== null,
     refetchInterval: HOST_REFRESH_MS,
-  });
-}
-
-export function useDeleteHost() {
-  const queryClient = useQueryClient();
-  return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: hostKeys.all });
-    },
   });
 }
 

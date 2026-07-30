@@ -37,7 +37,7 @@ type OpenOsqueryLiveOptions =
       form?: CheckFormHistoryState;
     };
 
-export type OsqueryHistoryState = OsqueryFormHistoryState | OsqueryLiveHistoryState;
+type OsqueryHistoryState = OsqueryFormHistoryState | OsqueryLiveHistoryState;
 
 declare module "@tanstack/react-router" {
   interface HistoryState {

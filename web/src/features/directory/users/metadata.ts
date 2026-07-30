@@ -10,7 +10,7 @@ export const USER_ACCESS_ROLE_VALUES = [
   "none",
 ] as const satisfies readonly UserAccessRole[];
 
-export const USER_ROLES = {
+const USER_ROLES = {
   admin: {
     name: "Admin",
     description: "Can manage Woodstar settings, users, enrollments, and data.",

@@ -4,7 +4,6 @@ import { redirect } from "@tanstack/react-router";
 import { sessionQueryOptions } from "@features/auth/queries";
 import type { SessionBody } from "@lib/api";
 
-export type { SessionBody };
 export type SessionUser = NonNullable<SessionBody["user"]>;
 
 async function loadSession(queryClient: QueryClient): Promise<SessionBody> {

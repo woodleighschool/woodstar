@@ -94,4 +94,4 @@ function Pending({ id, isPending, disabled, render, ...props }: PendingProps) {
   });
 }
 
-export { Pending, usePending };
+export { Pending };

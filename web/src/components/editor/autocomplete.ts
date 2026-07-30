@@ -37,7 +37,7 @@ interface SchemaIndex {
   byName: Map<string, OsqueryTable>;
 }
 
-export function indexSchema(tables: OsqueryTable[]): SchemaIndex {
+function indexSchema(tables: OsqueryTable[]): SchemaIndex {
   return {
     tables,
     byName: new Map(tables.map((table) => [table.name, table])),

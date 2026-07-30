@@ -381,7 +381,7 @@ export function CheckboxControl({
   );
 }
 
-export function SwitchControl({
+function SwitchControl({
   id,
   label,
   description,

@@ -1,4 +1,4 @@
-import type { Row, RowData } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
 declare module "@tanstack/react-table" {
   // biome-ignore lint/correctness/noUnusedVariables: TData and TValue are used in the ColumnMeta interface
@@ -13,9 +13,4 @@ export interface Option {
   value: string;
   count?: number;
   icon?: React.FC<React.SVGProps<SVGSVGElement>>;
-}
-
-export interface DataTableRowAction<TData> {
-  row: Row<TData>;
-  variant: "update" | "delete";
 }

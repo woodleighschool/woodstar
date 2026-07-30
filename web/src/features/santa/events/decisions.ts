@@ -99,7 +99,7 @@ export const EXECUTION_DECISIONS = {
   },
 } satisfies StatusMetadataMap<SantaExecutionDecision>;
 
-export const EXECUTION_DECISION_VALUES = [
+const EXECUTION_DECISION_VALUES = [
   "unknown",
   "allow_unknown",
   "allow_binary",

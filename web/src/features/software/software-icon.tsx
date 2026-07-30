@@ -58,7 +58,7 @@ const SIZE_CLASS = {
   lg: { box: "size-20 rounded-lg", icon: "size-8", image: "size-20" },
 } as const;
 
-export type SoftwareIconSize = keyof typeof SIZE_CLASS;
+type SoftwareIconSize = keyof typeof SIZE_CLASS;
 
 interface SoftwareIconProps extends SoftwareIconDefinition {
   size?: SoftwareIconSize;

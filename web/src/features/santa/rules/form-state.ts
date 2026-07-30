@@ -96,7 +96,7 @@ export interface RuleFormState {
   };
 }
 
-export const emptyRuleForm: RuleFormState = {
+const emptyRuleForm: RuleFormState = {
   rule_type: "signingid",
   identifier: "",
   name: "",

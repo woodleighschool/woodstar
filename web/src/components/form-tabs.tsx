@@ -21,7 +21,7 @@ function fieldMatches(fieldName: string, configuredName: string) {
   );
 }
 
-export function formTabHasErrors(
+function formTabHasErrors(
   fieldMeta: Record<string, FieldMetaWithErrors | undefined>,
   tab: FormTabDefinition,
 ) {
@@ -32,7 +32,7 @@ export function formTabHasErrors(
   );
 }
 
-export function firstInvalidFormTab(form: AnyFormApi, tabs: readonly FormTabDefinition[]) {
+function firstInvalidFormTab(form: AnyFormApi, tabs: readonly FormTabDefinition[]) {
   if (form.state.submissionAttempts === 0) return undefined;
   return tabs.find((tab) => formTabHasErrors(form.state.fieldMeta, tab))?.value;
 }

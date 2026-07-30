@@ -11,12 +11,12 @@ interface EnumLabel {
   description?: string;
 }
 
-export interface EnumMetadata extends EnumLabel {
+interface EnumMetadata extends EnumLabel {
   variant?: BadgeVariant;
   badgeClassName?: string;
 }
 
-export interface StatusMetadata extends EnumLabel {
+interface StatusMetadata extends EnumLabel {
   variant?: StatusVariant;
 }
 

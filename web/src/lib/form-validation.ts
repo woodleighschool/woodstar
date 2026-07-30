@@ -1,4 +1,3 @@
-import type { ZodError } from "zod";
 import { z } from "zod";
 
 export function requiredString(label: string) {
@@ -25,18 +24,6 @@ export function integerRange(label: string, min: number, max?: number) {
     .int(`${label} must be a whole number.`)
     .min(min, `${label} must be at least ${min}.`);
   return max === undefined ? schema : schema.max(max, `${label} must be at most ${max}.`);
-}
-
-export function fieldErrors(
-  result: { success: true } | { success: false; error: ZodError },
-): Partial<Record<string, string>> {
-  if (result.success) return {};
-  const out: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const key = issue.path[0];
-    if (typeof key === "string" && !out[key]) out[key] = issue.message;
-  }
-  return out;
 }
 
 export function firstErrorMessage(errors: readonly unknown[]) {

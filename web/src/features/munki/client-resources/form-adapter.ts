@@ -12,7 +12,7 @@ import {
   clientResourcesBuilderSchema,
 } from "./form-schema";
 
-export function emptyClientResourcesForm(): ClientResourcesFormInput {
+function emptyClientResourcesForm(): ClientResourcesFormInput {
   return {
     custom: false,
     archive_object_id: null,

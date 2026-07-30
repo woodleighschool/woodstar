@@ -3,10 +3,7 @@ import { enumLabel, type EnumMetadataMap, enumOptions } from "@lib/enum-metadata
 import { assertNever } from "@lib/utils";
 
 export type LabelMembershipType = Label["label_membership_type"];
-export type LabelBuiltinKey = NonNullable<Label["builtin_key"]>;
 export type LabelDerivedAttribute = Criteria["attribute"];
-
-export const BUILTIN_KEY_ALL_HOSTS = "all-hosts" as const satisfies LabelBuiltinKey;
 
 export const LABEL_MEMBERSHIP_VALUES = [
   "dynamic",
@@ -40,7 +37,7 @@ export const LABEL_DERIVED_ATTRIBUTE_VALUES = [
   "user",
 ] as const satisfies readonly LabelDerivedAttribute[];
 
-export const LABEL_DERIVED_ATTRIBUTES = {
+const LABEL_DERIVED_ATTRIBUTES = {
   user_department: { name: "User Department" },
   directory_group: { name: "Group" },
   user: { name: "User" },
@@ -65,8 +62,4 @@ export function labelDerivedAttributeSelectorLabel(attribute: LabelDerivedAttrib
       return "Users";
   }
   return assertNever(attribute);
-}
-
-export function isAllHostsLabel(label: Pick<Label, "builtin_key">) {
-  return label.builtin_key === BUILTIN_KEY_ALL_HOSTS;
 }

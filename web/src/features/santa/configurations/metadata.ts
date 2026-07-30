@@ -1,10 +1,5 @@
 import type { SantaConfiguration, SantaConfigurationMutation, SantaHostState } from "@lib/api";
-import {
-  enumLabel,
-  type EnumMetadataMap,
-  enumOptions,
-  type StatusMetadataMap,
-} from "@lib/enum-metadata";
+import { type EnumMetadataMap, enumOptions, type StatusMetadataMap } from "@lib/enum-metadata";
 
 export type SantaClientMode =
   | SantaHostState["client_mode_reported"]
@@ -135,8 +130,4 @@ export function isSantaMediaAction(value: string): value is SantaMediaAction {
 
 export function isSantaRemountFlag(value: string): value is SantaRemountFlag {
   return remountFlagSet.has(value);
-}
-
-export function clientModeLabel(mode: SantaClientMode) {
-  return enumLabel(CLIENT_MODES, mode);
 }

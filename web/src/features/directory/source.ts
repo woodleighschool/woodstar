@@ -1,5 +1,5 @@
 import type { Group, User } from "@lib/api";
-import { enumLabel, type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
+import { type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
 
 export type DirectorySource = (User | Group)["source"];
 
@@ -22,7 +22,3 @@ export const DIRECTORY_SOURCES = {
 } satisfies EnumMetadataMap<DirectorySource>;
 
 export const DIRECTORY_SOURCE_OPTIONS = enumOptions(DIRECTORY_SOURCES, DIRECTORY_SOURCE_VALUES);
-
-export function directorySourceLabel(source: DirectorySource) {
-  return enumLabel(DIRECTORY_SOURCES, source);
-}

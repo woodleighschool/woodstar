@@ -22,7 +22,7 @@ interface DataTableSearchState {
   sort?: string;
 }
 
-export interface DataTableFilterKey<Search extends DataTableSearchState> {
+interface DataTableFilterKey<Search extends DataTableSearchState> {
   id: Extract<keyof Search, string>;
   multiple?: boolean;
 }

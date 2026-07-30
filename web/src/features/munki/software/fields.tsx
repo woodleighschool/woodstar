@@ -253,7 +253,7 @@ export const munkiSoftwareTargetSchema = z
   })
   .superRefine(validateTarget);
 
-export function munkiSoftwareFormSchema() {
+function munkiSoftwareFormSchema() {
   return munkiSoftwareSchema.extend({
     icon: z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("none") }),

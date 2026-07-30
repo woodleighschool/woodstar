@@ -26,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip"
 import { SoftwareArtwork } from "@features/software/software-icon";
 
 import { useMunkiIcons } from "./queries";
-export const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
+const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
 
 export type MunkiSoftwareIconValue =
   | { kind: "none" }

@@ -14,13 +14,6 @@ export function nonEmpty(value: string | null | undefined): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
-// Reads a FormData entry as a string. FormData.get returns File | string | null;
-// for our text-only forms anything else is a programmer error and we return "".
-export function formString(form: FormData, key: string): string {
-  const value = form.get(key);
-  return typeof value === "string" ? value : "";
-}
-
 export function isOneOf<const Values extends readonly string[]>(
   value: unknown,
   values: Values,
