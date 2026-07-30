@@ -1,5 +1,5 @@
 import type { AnyFormApi } from "@tanstack/react-form";
-import { useBlocker } from "@tanstack/react-router";
+import { type ShouldBlockFn, useBlocker } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
 import { ConfirmDialog } from "@components/confirm-dialog";
@@ -20,14 +20,19 @@ export function usePageFormExitGuard({
     () => enabled && !form.state.isDefaultValue,
     [enabled, form],
   );
-  const shouldBlockNavigation = useCallback(
+  const shouldBlockNavigation = useCallback<ShouldBlockFn>(
+    ({ current, next }) =>
+      current.pathname !== next.pathname && hasUnsavedChanges() && !allowExit.current,
+    [hasUnsavedChanges],
+  );
+  const shouldBlockBeforeUnload = useCallback(
     () => hasUnsavedChanges() && !allowExit.current,
     [hasUnsavedChanges],
   );
 
   const blocker = useBlocker({
     shouldBlockFn: shouldBlockNavigation,
-    enableBeforeUnload: shouldBlockNavigation,
+    enableBeforeUnload: shouldBlockBeforeUnload,
     withResolver: true,
   });
 
