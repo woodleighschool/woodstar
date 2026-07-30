@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.7.3](https://github.com/woodleighschool/woodstar/compare/0.7.2...0.7.3) (2026-07-30)
+
+
+### Features
+
+* **deps:** update pnpm (11.17.0 → 11.18.0) ([#92](https://github.com/woodleighschool/woodstar/issues/92)) ([2dcb101](https://github.com/woodleighschool/woodstar/commit/2dcb10173ea345a76f30797157f5984183c42ac6))
+* **osquery:** align live runs with query results ([e2d5c19](https://github.com/woodleighschool/woodstar/commit/e2d5c194455f7fb46359c911ad4b4f5725e503c2))
+* **osquery:** move result tables to server queries ([bb717bb](https://github.com/woodleighschool/woodstar/commit/bb717bb6491a5886001d1731f4db3be3e8196dd6))
+* **software:** add host row action ([17be120](https://github.com/woodleighschool/woodstar/commit/17be120cf83189169059f1a41ad3de13dde37557))
+* **software:** expose signing identity metadata ([3ef0c1e](https://github.com/woodleighschool/woodstar/commit/3ef0c1eb1764cd10bd55e009fd04649594222ec4))
+* **web:** persist panel tabs in URLs ([63fd352](https://github.com/woodleighschool/woodstar/commit/63fd3527581f523f239d2da6686dde60fbfce3ea))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#91](https://github.com/woodleighschool/woodstar/issues/91)) ([0089d9a](https://github.com/woodleighschool/woodstar/commit/0089d9ad91399cfcc12baaaa13d5e2d428033aa6))
+* **deps:** update dependency @easyops-cn/docusaurus-search-local (0.55.2 → 0.55.3) ([#94](https://github.com/woodleighschool/woodstar/issues/94)) ([a2d2173](https://github.com/woodleighschool/woodstar/commit/a2d2173fcd43184aa50641050bde1fc87e9d9ca1))
+* **deps:** update module github.com/danielgtaylor/huma/v2 (v2.39.0 → v2.39.1) ([#89](https://github.com/woodleighschool/woodstar/issues/89)) ([913f5cd](https://github.com/woodleighschool/woodstar/commit/913f5cd0d68b76475446fbcf2935934472da302c))
+* **editor:** polish code input behavior ([50281cc](https://github.com/woodleighschool/woodstar/commit/50281cc3b37d0ec92efab784dde7da7b7e93ac3f))
+* **forms:** allow tab URL changes with unsaved data ([8175492](https://github.com/woodleighschool/woodstar/commit/8175492367a12cbdfcaeb065b1f5249d6507eaeb))
+* **osquery:** remove placeholder text from input fields in CheckForm and ReportForm ([b658fa0](https://github.com/woodleighschool/woodstar/commit/b658fa0a94a6561c505e323ce0887287b192050b))
+* **santa:** improve rule name autocomplete ([4f2d931](https://github.com/woodleighschool/woodstar/commit/4f2d9318e4510c0afc4549067fc4fc424c4db11b))
+* **table:** simplify row and toolbar styling ([80793be](https://github.com/woodleighschool/woodstar/commit/80793be54612f90e07d75e4b40c7420a006ef3d6))
+
+
+### Reverts
+
+* **mise:** restore Node 26.5.0 ([744be65](https://github.com/woodleighschool/woodstar/commit/744be6515cdc218063e2d82bcaeaf0336816b0bc))
+
+
+### Code Refactoring
+
+* **web:** move descriptions into overviews ([8f41cc7](https://github.com/woodleighschool/woodstar/commit/8f41cc7ccc7ece019c8aad0596595a5ff946fb9a))
+
 ## [0.7.2](https://github.com/woodleighschool/woodstar/compare/0.7.1...0.7.2) (2026-07-29)
 
 
