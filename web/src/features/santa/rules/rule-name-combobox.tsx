@@ -50,7 +50,7 @@ export function RuleNameCombobox({
   }, [input, updateQuery]);
 
   const query = useSoftware({ q, per_page: 20 }, { enabled: q !== "" });
-  const searchPending = q !== input || query.isPlaceholderData;
+  const searchPending = q !== input || query.isPending || query.isPlaceholderData;
   const candidates = useMemo(
     () =>
       q === "" || searchPending || !query.isSuccess || selectedName === input
@@ -68,8 +68,9 @@ export function RuleNameCombobox({
       items={candidates}
       placeholder="Visual Studio Code"
       invalid={invalid}
+      loading={input !== "" && searchPending}
       filterItems={false}
-      itemToStringValue={(candidate) => candidate.name}
+      itemToStringValue={candidateName}
       itemKey={candidateValue}
       renderItem={renderCandidate}
       onBlur={onBlur}
@@ -90,39 +91,37 @@ function ruleNameCandidates(titles: SoftwareTitle[]): RuleNameCandidate[] {
   const seen = new Set<string>();
   for (const title of titles) {
     for (const identity of title.signing_identities.items) {
-      const signingID = santaSigningID(identity.team_identifier, identity.identifier);
-      if (signingID) {
-        addCandidate(candidates, seen, title, "signingid", signingID);
+      if (identity.signing_identifier) {
+        addCandidate(candidates, seen, title.name, "signingid", identity.signing_identifier);
       }
-      if (identity.team_identifier) {
-        addCandidate(candidates, seen, title, "teamid", identity.team_identifier);
+      if (identity.team_identifier && identity.developer_name) {
+        addCandidate(candidates, seen, identity.developer_name, "teamid", identity.team_identifier);
       }
     }
   }
   return candidates;
 }
 
-function santaSigningID(teamIdentifier: string, identifier: string): string {
-  if (!teamIdentifier || !identifier) return "";
-  return `${teamIdentifier}:${identifier}`;
-}
-
 function addCandidate(
   candidates: RuleNameCandidate[],
   seen: Set<string>,
-  title: SoftwareTitle,
+  name: string,
   ruleType: CandidateRuleType,
   identifier: string,
 ): void {
-  const key = `${title.id}:${ruleType}:${identifier}`;
+  const key = `${ruleType}:${identifier}`;
   if (seen.has(key)) return;
   seen.add(key);
   candidates.push({
     key,
-    name: title.name,
+    name,
     ruleType,
     identifier,
   });
+}
+
+function candidateName(candidate: RuleNameCandidate): string {
+  return candidate.name;
 }
 
 function candidateValue(candidate: RuleNameCandidate): string {

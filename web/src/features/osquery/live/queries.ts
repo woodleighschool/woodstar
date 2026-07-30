@@ -5,7 +5,7 @@ import type {
   ApiError,
   OsqueryHandle,
   OsqueryLiveQueryCreateBody,
-  OsqueryLiveQueryResultEvent,
+  OsqueryLiveQuerySnapshotEvent,
   OsqueryLiveQueryTargetCountBody,
   OsqueryLiveQueryTargetCountOutputBody,
 } from "@lib/api";
@@ -19,28 +19,22 @@ import {
 const LIVE_QUERY_TARGET_REFRESH_MS = 30_000;
 
 export type LiveQueryHandle = OsqueryHandle;
-export type LiveQueryResult = OsqueryLiveQueryResultEvent;
+export type LiveQuerySnapshot = OsqueryLiveQuerySnapshotEvent;
 export type {
   OsqueryLiveQueryCreateBody,
   OsqueryLiveQueryTargetCountBody,
   OsqueryLiveQueryTargetCountOutputBody,
 };
 
-export type LiveQueryRow = LiveQueryResult & {
-  // monotonic per-stream id for stable React keys; not from the server
-  _seq: number;
-};
-
 interface StreamState {
-  results: LiveQueryRow[];
-  nextSeq: number;
+  snapshots: LiveQuerySnapshot[];
   status: "idle" | "running" | "completed" | "error";
   error?: string;
 }
 
 type StreamAction =
   | { type: "running" }
-  | { type: "result"; result: LiveQueryResult }
+  | { type: "snapshot"; snapshot: LiveQuerySnapshot }
   | { type: "completed" }
   | { type: "error"; message: string }
   | { type: "reset" };
@@ -49,18 +43,17 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
   switch (action.type) {
     case "running":
       return { ...state, status: "running", error: undefined };
-    case "result":
+    case "snapshot":
       return {
         ...state,
-        results: [...state.results, { ...action.result, _seq: state.nextSeq }],
-        nextSeq: state.nextSeq + 1,
+        snapshots: upsertSnapshot(state.snapshots, action.snapshot),
       };
     case "completed":
       return { ...state, status: "completed" };
     case "error":
       return { ...state, status: "error", error: action.message };
     case "reset":
-      return { results: [], nextSeq: 0, status: "idle" };
+      return { snapshots: [], status: "idle" };
   }
   return assertNever(action);
 }
@@ -88,12 +81,11 @@ export function useLiveQueryTargetCount(body: OsqueryLiveQueryTargetCountBody, e
   });
 }
 
-// useLiveQueryStream accumulates generated stream events until the server
-// publishes `completed`.
+// useLiveQueryStream keeps the latest streamed snapshot for each targeted host
+// until the server publishes `completed`.
 export function useLiveQueryStream(liveQueryId: number | null) {
   const [state, dispatch] = useReducer(streamReducer, {
-    results: [],
-    nextSeq: 0,
+    snapshots: [],
     status: "idle",
   });
 
@@ -125,8 +117,8 @@ export function useLiveQueryStream(liveQueryId: number | null) {
         switch (event.type) {
           case "ping":
             break;
-          case "result":
-            dispatch({ type: "result", result: event });
+          case "snapshot":
+            dispatch({ type: "snapshot", snapshot: event });
             break;
           case "completed":
             terminal = true;
@@ -146,6 +138,23 @@ export function useLiveQueryStream(liveQueryId: number | null) {
   }, [liveQueryId]);
 
   return state;
+}
+
+function upsertSnapshot(
+  snapshots: LiveQuerySnapshot[],
+  next: LiveQuerySnapshot,
+): LiveQuerySnapshot[] {
+  const index = snapshots.findIndex((snapshot) => snapshot.host_id === next.host_id);
+  const updated =
+    index === -1
+      ? [...snapshots, next]
+      : snapshots.map((snapshot, snapshotIndex) => (snapshotIndex === index ? next : snapshot));
+  return updated.toSorted(
+    (a, b) =>
+      Date.parse(b.updated_at) - Date.parse(a.updated_at) ||
+      a.host_name.localeCompare(b.host_name) ||
+      a.host_id - b.host_id,
+  );
 }
 
 function assertNever(value: never): never {

@@ -1,7 +1,8 @@
 import { Fragment, type ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import {
+  Autocomplete,
   Combobox,
   ComboboxContent,
   ComboboxInput,
@@ -18,6 +19,7 @@ type FreeTextComboboxCommonProps<TItem> = {
   placeholder?: string;
   invalid?: boolean;
   disabled?: boolean;
+  loading?: boolean;
   filterItems?: boolean;
   itemToStringValue: (item: TItem) => string;
   itemKey?: (item: TItem) => string;
@@ -48,6 +50,7 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
     placeholder,
     invalid,
     disabled,
+    loading = false,
     filterItems = true,
     itemToStringValue,
     itemKey,
@@ -59,14 +62,15 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
   } = props;
 
   const [addedItems, setAddedItems] = useState<TItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const highlightedItem = useRef<TItem | null>(null);
 
   const itemToKey = itemKey ?? itemToStringValue;
 
-  // The public value is the string returned by itemToStringValue, so that
-  // string must also define uniqueness within this component.
+  // Callers can keep option identity separate from the public string value.
   const options = useMemo(
-    () => uniqueItems([...items, ...addedItems], itemToStringValue),
-    [addedItems, itemToStringValue, items],
+    () => uniqueItems([...items, ...addedItems], itemToKey),
+    [addedItems, itemToKey, items],
   );
 
   const selected = options.find((item) => itemToStringValue(item) === value) ?? null;
@@ -82,21 +86,111 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
 
   const renderedOptions = addItem ? [...options, addItem] : options;
 
+  const input = (
+    <ComboboxInput
+      id={id}
+      name={name}
+      className="w-full"
+      placeholder={placeholder}
+      disabled={disabled}
+      aria-invalid={invalid}
+      onBlur={onBlur}
+      loading={loading}
+      showTrigger={mode === "create"}
+      showClear={value !== ""}
+    />
+  );
+
+  const content = (
+    <ComboboxContent>
+      <ComboboxList>
+        {(item: TItem, index: number) => {
+          if (item === addItem) {
+            return (
+              <Fragment key={`create:${newValue}`}>
+                {index > 0 ? <ComboboxSeparator /> : null}
+                <ComboboxItem value={item}>
+                  <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
+                </ComboboxItem>
+              </Fragment>
+            );
+          }
+
+          const itemValue = itemToStringValue(item);
+
+          return (
+            <ComboboxItem
+              key={itemToKey(item)}
+              value={item}
+              disabled={itemDisabled?.(item)}
+              onPointerDown={() => {
+                highlightedItem.current = item;
+              }}
+            >
+              {renderItem?.(item) ?? itemValue}
+            </ComboboxItem>
+          );
+        }}
+      </ComboboxList>
+    </ComboboxContent>
+  );
+
+  if (mode === "free-text") {
+    return (
+      <Autocomplete
+        items={renderedOptions}
+        mode={filterItems ? "list" : "none"}
+        disabled={disabled}
+        open={open && !loading && renderedOptions.length > 0}
+        onOpenChange={setOpen}
+        itemToStringValue={itemToStringValue}
+        value={value}
+        onItemHighlighted={(item) => {
+          highlightedItem.current = item ?? null;
+        }}
+        onValueChange={(next, eventDetails) => {
+          onChange(next);
+
+          if (eventDetails.reason === "item-press") {
+            const selectedItem = highlightedItem.current;
+            if (selectedItem) {
+              onSelectItem?.(selectedItem);
+            }
+            setOpen(false);
+            return;
+          }
+
+          setOpen(next.trim() !== "");
+        }}
+      >
+        {input}
+        {content}
+      </Autocomplete>
+    );
+  }
+
   return (
     <Combobox
       items={renderedOptions}
       filter={filterItems ? undefined : null}
       disabled={disabled}
+      open={open && !loading && renderedOptions.length > 0}
+      onOpenChange={setOpen}
       itemToStringLabel={itemToStringValue}
       itemToStringValue={itemToStringValue}
       isItemEqualToValue={(item, selectedItem) => itemToKey(item) === itemToKey(selectedItem)}
-      value={mode === "create" ? selected : null}
+      value={selected}
       inputValue={value}
       onInputValueChange={(next, eventDetails) => {
         // Selection is handled by onValueChange so that onSelectItem receives
         // the selected TItem.
-        if (eventDetails.reason !== "item-press") {
+        if (
+          eventDetails.reason === "input-change" ||
+          eventDetails.reason === "input-clear" ||
+          eventDetails.reason === "clear-press"
+        ) {
           onChange(next);
+          setOpen(next.trim() !== "");
         }
       }}
       onValueChange={(next) => {
@@ -115,45 +209,11 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
 
         onChange(itemValue);
         onSelectItem?.(next);
+        setOpen(false);
       }}
     >
-      <ComboboxInput
-        id={id}
-        name={name}
-        className="w-full"
-        placeholder={placeholder}
-        disabled={disabled}
-        aria-invalid={invalid}
-        onBlur={onBlur}
-        showClear={value !== ""}
-      />
-
-      {renderedOptions.length > 0 ? (
-        <ComboboxContent>
-          <ComboboxList>
-            {(item: TItem, index: number) => {
-              if (item === addItem) {
-                return (
-                  <Fragment key={`create:${newValue}`}>
-                    {index > 0 ? <ComboboxSeparator /> : null}
-                    <ComboboxItem value={item}>
-                      <span className="min-w-0 flex-1 truncate">Add &quot;{newValue}&quot;</span>
-                    </ComboboxItem>
-                  </Fragment>
-                );
-              }
-
-              const itemValue = itemToStringValue(item);
-
-              return (
-                <ComboboxItem key={itemToKey(item)} value={item} disabled={itemDisabled?.(item)}>
-                  {renderItem?.(item) ?? itemValue}
-                </ComboboxItem>
-              );
-            }}
-          </ComboboxList>
-        </ComboboxContent>
-      ) : null}
+      {input}
+      {content}
     </Combobox>
   );
 }

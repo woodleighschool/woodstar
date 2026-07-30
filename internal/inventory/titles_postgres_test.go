@@ -69,7 +69,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 			InstalledPath:    "/Applications/Example.app",
 			TeamIdentifier:   "TEAMID1234",
 			Identifier:       "com.example.app",
-			SigningAuthority: "Developer ID Application: Example",
+			SigningAuthority: "Developer ID Application: Example, Inc. (TEAMID1234)",
 		}}); err != nil {
 			t.Fatalf("replace software for %s: %v", hostName, err)
 		}
@@ -91,11 +91,23 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	}
 	identity := title.SigningIdentities.Items[0]
 	if identity.Identifier != "com.example.app" ||
+		identity.SigningIdentifier != "TEAMID1234:com.example.app" ||
 		identity.TeamIdentifier != "TEAMID1234" ||
+		identity.DeveloperName != "Example, Inc." ||
 		identity.HostsCount != 2 ||
 		len(identity.Authorities) != 1 ||
-		identity.Authorities[0] != "Developer ID Application: Example" {
+		identity.Authorities[0] != "Developer ID Application: Example, Inc. (TEAMID1234)" {
 		t.Fatalf("signing identity = %+v, want aggregated observed identity", identity)
+	}
+
+	params := SoftwareTitleListParams{}
+	params.Q = "Example, Inc."
+	titles, total, err := store.ListTitles(ctx, params)
+	if err != nil {
+		t.Fatalf("ListTitles by developer name: %v", err)
+	}
+	if total != 1 || len(titles) != 1 || titles[0].ID != titleID {
+		t.Fatalf("developer name search = (%d, %+v), want title %d", total, titles, titleID)
 	}
 }
 
@@ -138,7 +150,9 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 	}
 	identity := title.SigningIdentities.Items[0]
 	if identity.TeamIdentifier != "TEAMID1234" ||
-		identity.Identifier != "" {
+		identity.Identifier != "" ||
+		identity.SigningIdentifier != "" ||
+		identity.DeveloperName != "" {
 		t.Fatalf("signing identity = %+v, want Team ID without Identifier", identity)
 	}
 }

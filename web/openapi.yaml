@@ -2359,32 +2359,6 @@ components:
       required:
         - type
       type: object
-    OsqueryLiveQueryResultEvent:
-      additionalProperties: false
-      properties:
-        data: {}
-        error:
-          type: string
-        host_id:
-          format: int64
-          type: integer
-        host_name:
-          type: string
-        status:
-          enum:
-            - success
-            - error
-            - stopped
-            - overflow
-          type: string
-        type:
-          enum:
-            - result
-          type: string
-      required:
-        - type
-        - status
-      type: object
     OsqueryLiveQuerySelectedBody:
       additionalProperties: false
       properties:
@@ -2398,6 +2372,44 @@ components:
             format: int64
             type: integer
           type: array
+      type: object
+    OsqueryLiveQuerySnapshotEvent:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        rows:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+        status:
+          enum:
+            - pending
+            - collected
+            - error
+            - stopped
+          type: string
+        type:
+          enum:
+            - snapshot
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - type
+        - host_id
+        - host_name
+        - status
+        - rows
+        - updated_at
       type: object
     OsqueryLiveQueryTargetCountBody:
       additionalProperties: false
@@ -3694,16 +3706,22 @@ components:
           items:
             type: string
           type: array
+        developer_name:
+          type: string
         hosts_count:
           format: int32
           type: integer
         identifier:
           type: string
+        signing_identifier:
+          type: string
         team_identifier:
           type: string
       required:
         - identifier
+        - signing_identifier
         - team_identifier
+        - developer_name
         - authorities
         - hosts_count
       type: object
@@ -8140,7 +8158,7 @@ paths:
                 description: One payload per event.
                 oneOf:
                   - $ref: "#/components/schemas/OsqueryLiveQueryPingEvent"
-                  - $ref: "#/components/schemas/OsqueryLiveQueryResultEvent"
+                  - $ref: "#/components/schemas/OsqueryLiveQuerySnapshotEvent"
                   - $ref: "#/components/schemas/OsqueryLiveQueryCompletedEvent"
                 title: Live query events
           description: OK

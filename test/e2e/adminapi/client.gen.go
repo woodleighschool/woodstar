@@ -2486,10 +2486,12 @@ type SessionCreateInputBody struct {
 
 // SoftwareSigningIdentity defines model for SoftwareSigningIdentity.
 type SoftwareSigningIdentity struct {
-	Authorities    []string `json:"authorities"`
-	HostsCount     int32    `json:"hosts_count"`
-	Identifier     string   `json:"identifier"`
-	TeamIdentifier string   `json:"team_identifier"`
+	Authorities       []string `json:"authorities"`
+	DeveloperName     string   `json:"developer_name"`
+	HostsCount        int32    `json:"hosts_count"`
+	Identifier        string   `json:"identifier"`
+	SigningIdentifier string   `json:"signing_identifier"`
+	TeamIdentifier    string   `json:"team_identifier"`
 }
 
 // SoftwareSigningIdentityList defines model for SoftwareSigningIdentityList.

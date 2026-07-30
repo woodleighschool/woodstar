@@ -565,8 +565,8 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	if err != nil {
 		t.Fatalf("resolve online selected targets: %v", err)
 	}
-	if !sameIDs(got, []int64{onlineHost.ID}) {
-		t.Fatalf("online host ids = %v, want only online host", got)
+	if len(got) != 1 || got[0].ID != onlineHost.ID || got[0].DisplayName != onlineHost.DisplayName {
+		t.Fatalf("online hosts = %+v, want only online host %+v", got, onlineHost)
 	}
 }
 

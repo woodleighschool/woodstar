@@ -36,7 +36,7 @@ func TestCreateLiveQueryRejectsBlankSQL(t *testing.T) {
 
 func TestDeleteLiveQueryStopsRun(t *testing.T) {
 	manager := livequery.NewManager()
-	handle := manager.Start("select 1", []int64{42})
+	handle := manager.Start("select 1", []livequery.Target{{HostID: 42, HostName: "mac-42"}})
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
 	registerLiveQueries(api, api, manager, nil, discardLogger())
@@ -133,12 +133,13 @@ func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
 
 func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
 	manager := livequery.NewManager()
-	handle := manager.Start("select 1", []int64{4})
+	handle := manager.Start("select 1", []livequery.Target{{HostID: 4, HostName: "mac-4"}})
 	manager.RecordResult(livequery.Result{
 		QueryID:  handle.ID,
 		HostID:   4,
 		HostName: "mac-4",
-		Status:   livequery.StatusSuccess,
+		Status:   livequery.StatusCollected,
+		Rows:     []map[string]string{{"answer": "1"}},
 	})
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
@@ -153,9 +154,14 @@ func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
 		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 	body := recorder.Body.String()
-	resultAt := strings.Index(body, "event: result")
+	resultAt := strings.Index(body, "event: snapshot")
 	completedAt := strings.Index(body, "event: completed")
 	if resultAt < 0 || completedAt < 0 || resultAt > completedAt {
-		t.Fatalf("SSE body = %q, want replayed result before completion", body)
+		t.Fatalf("SSE body = %q, want replayed snapshot before completion", body)
+	}
+	for _, want := range []string{`"status":"collected"`, `"host_name":"mac-4"`, `"rows":[{"answer":"1"}]`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("SSE body = %q, want %q", body, want)
+		}
 	}
 }

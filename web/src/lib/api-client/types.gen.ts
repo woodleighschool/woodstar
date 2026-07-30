@@ -866,18 +866,21 @@ export type OsqueryLiveQueryPingEvent = {
     type: 'ping';
 };
 
-export type OsqueryLiveQueryResultEvent = {
-    data?: unknown;
-    error?: string;
-    host_id?: number;
-    host_name?: string;
-    status: 'success' | 'error' | 'stopped' | 'overflow';
-    type: 'result';
-};
-
 export type OsqueryLiveQuerySelectedBody = {
     hosts?: Array<number>;
     labels?: Array<number>;
+};
+
+export type OsqueryLiveQuerySnapshotEvent = {
+    error?: string;
+    host_id: number;
+    host_name: string;
+    rows: Array<{
+        [key: string]: string;
+    }>;
+    status: 'pending' | 'collected' | 'error' | 'stopped';
+    type: 'snapshot';
+    updated_at: string;
 };
 
 export type OsqueryLiveQueryTargetCountBody = {
@@ -1310,8 +1313,10 @@ export type SessionCreateInputBody = {
 
 export type SoftwareSigningIdentity = {
     authorities: Array<string>;
+    developer_name: string;
     hosts_count: number;
     identifier: string;
+    signing_identifier: string;
     team_identifier: string;
 };
 
@@ -4630,7 +4635,7 @@ export type StreamLiveQueryResponses = {
      *
      * One payload per event.
      */
-    200: OsqueryLiveQueryPingEvent | OsqueryLiveQueryResultEvent | OsqueryLiveQueryCompletedEvent;
+    200: OsqueryLiveQueryPingEvent | OsqueryLiveQuerySnapshotEvent | OsqueryLiveQueryCompletedEvent;
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];

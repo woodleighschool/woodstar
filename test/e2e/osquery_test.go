@@ -3,8 +3,10 @@
 package e2e
 
 import (
+	"bufio"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +57,29 @@ type osqueryTestDistributedWriteRequest struct {
 
 type osqueryTestAcknowledgement struct {
 	NodeInvalid bool `json:"node_invalid"`
+}
+
+type osqueryTestLiveQueryCreateRequest struct {
+	SQL      string                       `json:"sql"`
+	Selected osqueryTestLiveQuerySelected `json:"selected"`
+}
+
+type osqueryTestLiveQuerySelected struct {
+	Hosts []int64 `json:"hosts"`
+}
+
+type osqueryTestLiveQueryHandle struct {
+	ID                int64 `json:"id"`
+	ResolvedHostCount int32 `json:"resolved_host_count"`
+}
+
+type osqueryTestLiveQueryEvent struct {
+	Type      string              `json:"type"`
+	HostID    int64               `json:"host_id"`
+	HostName  string              `json:"host_name"`
+	Status    string              `json:"status"`
+	Rows      []map[string]string `json:"rows"`
+	UpdatedAt time.Time           `json:"updated_at"`
 }
 
 type osqueryTestLogRequest struct {
@@ -346,7 +371,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 					"path":              "/Applications/Visual Studio Code.app",
 					"identifier":        bundleID,
 					"team_identifier":   "WOODSTAR01",
-					"signing_authority": "Developer ID Application: Microsoft Corporation",
+					"signing_authority": "Developer ID Application: Microsoft Corporation (WOODSTAR01)",
 				},
 			}
 		case "software_macos_executable_sha256":
@@ -466,6 +491,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		host.DisplayName != "Osquery Integration Mac" || host.Status != "online" {
 		t.Fatalf("host identity/enrollment = %+v, want enrolled online osquery Mac", host)
 	}
+	proveOsqueryLiveQueryLifecycle(t, server, agentClient, enroll.NodeKey, host)
 
 	hostDetailResponse, err := server.Admin.GetHostWithResponse(t.Context(), host.Id)
 	hostDetailResponse = requireAPIResponse(t, "get host", http.StatusOK, hostDetailResponse, err)
@@ -538,7 +564,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		len(installed.SignatureInformation) != 1 ||
 		installed.SignatureInformation[0].Identifier != bundleID ||
 		installed.SignatureInformation[0].SigningAuthority !=
-			"Developer ID Application: Microsoft Corporation" ||
+			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" ||
 		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
 		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
 		installed.SignatureInformation[0].ExecutableSha256 != "executable-hash" {
@@ -572,10 +598,13 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	signingIdentity := softwareTitle.SigningIdentities.Items[0]
 	if signingIdentity.Identifier != bundleID ||
+		signingIdentity.SigningIdentifier != "WOODSTAR01:"+bundleID ||
 		signingIdentity.TeamIdentifier != "WOODSTAR01" ||
+		signingIdentity.DeveloperName != "Microsoft Corporation" ||
 		signingIdentity.HostsCount != 1 ||
 		len(signingIdentity.Authorities) != 1 ||
-		signingIdentity.Authorities[0] != "Developer ID Application: Microsoft Corporation" {
+		signingIdentity.Authorities[0] !=
+			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" {
 		t.Fatalf("software signing identity = %+v, want exact observed identity", signingIdentity)
 	}
 
@@ -742,4 +771,168 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 			len(hostList.Items),
 		)
 	}
+}
+
+func proveOsqueryLiveQueryLifecycle(
+	t *testing.T,
+	server *testServer,
+	agentClient *http.Client,
+	nodeKey string,
+	host adminapi.Host,
+) {
+	t.Helper()
+
+	const liveSQL = "SELECT answer FROM live_test;"
+	handle := createOsqueryLiveQuery(t, server, host.Id, liveSQL)
+
+	streamRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+"/api/osquery/live-queries/"+strconv.FormatInt(handle.ID, 10)+"/stream",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("create live query stream request: %v", err)
+	}
+	streamRequest.Header.Set("Accept", "text/event-stream")
+	streamResponse, err := server.AdminHTTP.Do(streamRequest)
+	if err != nil {
+		t.Fatalf("open live query stream: %v", err)
+	}
+	defer func() {
+		if err := streamResponse.Body.Close(); err != nil {
+			t.Errorf("close live query stream: %v", err)
+		}
+	}()
+	if streamResponse.StatusCode != http.StatusOK {
+		t.Fatalf("live query stream status = %d, want %d", streamResponse.StatusCode, http.StatusOK)
+	}
+	scanner := bufio.NewScanner(streamResponse.Body)
+
+	pending := readOsqueryLiveQueryEvent(t, scanner)
+	if pending.Type != "snapshot" || pending.Status != "pending" ||
+		pending.HostID != host.Id || pending.HostName != host.DisplayName ||
+		len(pending.Rows) != 0 || pending.UpdatedAt.IsZero() {
+		t.Fatalf("initial live query snapshot = %+v, want pending host snapshot", pending)
+	}
+
+	var distributed osqueryTestDistributedReadResponse
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/distributed/read",
+		osqueryTestNodeRequest{NodeKey: nodeKey},
+		&distributed,
+	)
+	liveQueryName := "woodstar_live_query_" + strconv.FormatInt(handle.ID, 10)
+	if distributed.NodeInvalid || distributed.Queries[liveQueryName] != liveSQL {
+		t.Fatalf(
+			"live distributed read = %+v, want %q mapped to %q",
+			distributed,
+			liveQueryName,
+			liveSQL,
+		)
+	}
+
+	liveRows := []map[string]string{{"answer": "42"}}
+	var writeAck osqueryTestAcknowledgement
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/distributed/write",
+		osqueryTestDistributedWriteRequest{
+			NodeKey:  nodeKey,
+			Queries:  map[string][]map[string]string{liveQueryName: liveRows},
+			Statuses: map[string]json.RawMessage{liveQueryName: json.RawMessage(`0`)},
+			Messages: map[string]string{},
+		},
+		&writeAck,
+	)
+	if writeAck.NodeInvalid {
+		t.Fatal("live distributed write returned node_invalid")
+	}
+
+	collected := readOsqueryLiveQueryEvent(t, scanner)
+	if collected.Type != "snapshot" || collected.Status != "collected" ||
+		collected.HostID != host.Id || collected.HostName != host.DisplayName ||
+		len(collected.Rows) != 1 || collected.Rows[0]["answer"] != "42" ||
+		!collected.UpdatedAt.After(pending.UpdatedAt) {
+		t.Fatalf("collected live query snapshot = %+v, want replacement with typed rows", collected)
+	}
+	completed := readOsqueryLiveQueryEvent(t, scanner)
+	if completed.Type != "completed" {
+		t.Fatalf("terminal live query event = %+v, want completed", completed)
+	}
+}
+
+func createOsqueryLiveQuery(
+	t *testing.T,
+	server *testServer,
+	hostID int64,
+	sql string,
+) osqueryTestLiveQueryHandle {
+	t.Helper()
+
+	createPayload, err := json.Marshal(osqueryTestLiveQueryCreateRequest{
+		SQL:      sql,
+		Selected: osqueryTestLiveQuerySelected{Hosts: []int64{hostID}},
+	})
+	if err != nil {
+		t.Fatalf("encode live query request: %v", err)
+	}
+	createRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		server.BaseURL+"/api/osquery/live-queries",
+		strings.NewReader(string(createPayload)),
+	)
+	if err != nil {
+		t.Fatalf("create live query request: %v", err)
+	}
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse, err := server.AdminHTTP.Do(createRequest)
+	if err != nil {
+		t.Fatalf("create live query: %v", err)
+	}
+	createBody := readAndClose(t, createResponse)
+	if createResponse.StatusCode != http.StatusCreated {
+		t.Fatalf(
+			"create live query status = %d, want %d; body = %q",
+			createResponse.StatusCode,
+			http.StatusCreated,
+			createBody,
+		)
+	}
+	var handle osqueryTestLiveQueryHandle
+	if err := json.Unmarshal(createBody, &handle); err != nil {
+		t.Fatalf("decode live query handle: %v", err)
+	}
+	if handle.ID <= 0 || handle.ResolvedHostCount != 1 {
+		t.Fatalf("live query handle = %+v, want one resolved host", handle)
+	}
+	return handle
+}
+
+func readOsqueryLiveQueryEvent(
+	t *testing.T,
+	scanner *bufio.Scanner,
+) osqueryTestLiveQueryEvent {
+	t.Helper()
+
+	for scanner.Scan() {
+		data, ok := strings.CutPrefix(scanner.Text(), "data: ")
+		if !ok {
+			continue
+		}
+		var event osqueryTestLiveQueryEvent
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			t.Fatalf("decode live query SSE event: %v", err)
+		}
+		return event
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read live query SSE stream: %v", err)
+	}
+	t.Fatal("live query SSE stream ended before the next event")
+	return osqueryTestLiveQueryEvent{}
 }
