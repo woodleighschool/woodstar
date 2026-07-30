@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.4](https://github.com/woodleighschool/woodstar/compare/0.7.3...0.7.4) (2026-07-30)
+
+
+### Features
+
+* **deps:** update dependency lucide-react (1.27.0 → 1.28.0) ([#97](https://github.com/woodleighschool/woodstar/issues/97)) ([88d64c4](https://github.com/woodleighschool/woodstar/commit/88d64c4c625c94688ecb31afa522e3523c92a67a))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @vitejs/plugin-react (6.0.4 → 6.0.5) ([#98](https://github.com/woodleighschool/woodstar/issues/98)) ([99b3d60](https://github.com/woodleighschool/woodstar/commit/99b3d60426ed210500796bafb609b4b0f94664bd))
+* **docker:** update postgres image to use alpine variant ([61d4d46](https://github.com/woodleighschool/woodstar/commit/61d4d46e65d2e2a4501c5a164547183175471814))
+* **osquery:** preserve result table focus ([c149172](https://github.com/woodleighschool/woodstar/commit/c149172098416b680ce41fa66895f07ae7b0aa68))
+
 ## [0.7.3](https://github.com/woodleighschool/woodstar/compare/0.7.2...0.7.3) (2026-07-30)
 
 
