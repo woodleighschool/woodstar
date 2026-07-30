@@ -238,6 +238,7 @@ export function useHostOsqueryReports(id: number | null, params: HostOsqueryRepo
     queryFn: ({ signal }) =>
       unwrap(listHostOsqueryReports({ path: detailPath(id), query: queryParams, signal })),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
@@ -249,6 +250,7 @@ export function useHostOsqueryChecks(id: number | null, params: HostOsqueryCheck
     queryFn: ({ signal }) =>
       unwrap(listHostOsqueryChecks({ path: detailPath(id), query: queryParams, signal })),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }

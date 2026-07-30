@@ -81,6 +81,7 @@ export function useCheckResults(id: number | null, params: CheckResultsParams = 
         }),
       ),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: CHECK_REFRESH_MS,
   });
 }

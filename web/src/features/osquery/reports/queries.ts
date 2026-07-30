@@ -83,6 +83,7 @@ export function useReportSnapshots(id: number | null, params: ReportSnapshotPara
         }),
       ),
     enabled: id !== null,
+    placeholderData: keepPreviousData,
     refetchInterval: REPORT_SNAPSHOT_REFRESH_MS,
   });
 }
