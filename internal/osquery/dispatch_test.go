@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
 func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
@@ -116,6 +119,69 @@ func TestRowPresenceResultRequiresIntegerZeroStatus(t *testing.T) {
 			matched, ok := rowPresenceResult(tt.status, tt.hasStatus, rows)
 			if ok != tt.wantOK || matched != tt.wantMatch {
 				t.Fatalf("rowPresenceResult() = %v, %v; want %v, %v", matched, ok, tt.wantMatch, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestHandleLiveResultReplacesHostSnapshot(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     json.RawMessage
+		hasStatus  bool
+		message    string
+		wantStatus livequery.Status
+	}{
+		{
+			name:       "collected",
+			status:     json.RawMessage(`0`),
+			hasStatus:  true,
+			wantStatus: livequery.StatusCollected,
+		},
+		{
+			name:       "error",
+			status:     json.RawMessage(`1`),
+			hasStatus:  true,
+			message:    "query failed",
+			wantStatus: livequery.StatusError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := livequery.NewManager()
+			handle := manager.Start("select 1", []livequery.Target{
+				{HostID: 42, HostName: "original-name"},
+			})
+			service := &AgentService{deps: Dependencies{LiveQueries: manager}}
+			rows := []map[string]string{{"answer": "42"}}
+
+			service.handleLiveResult(
+				&hosts.Host{ID: 42, DisplayName: "current-name"},
+				strconv.FormatInt(handle.ID, 10),
+				rows,
+				tt.status,
+				tt.hasStatus,
+				tt.message,
+			)
+
+			snapshots, release, err := manager.Subscribe(handle.ID)
+			if err != nil {
+				t.Fatalf("Subscribe: %v", err)
+			}
+			defer release()
+			snapshot := <-snapshots
+			if snapshot.Status != tt.wantStatus {
+				t.Fatalf("status = %q, want %q", snapshot.Status, tt.wantStatus)
+			}
+			if snapshot.HostName != "current-name" {
+				t.Fatalf("host name = %q, want current-name", snapshot.HostName)
+			}
+			if !reflect.DeepEqual(snapshot.Rows, rows) {
+				t.Fatalf("rows = %#v, want %#v", snapshot.Rows, rows)
+			}
+			if snapshot.Error != tt.message {
+				t.Fatalf("error = %q, want %q", snapshot.Error, tt.message)
 			}
 		})
 	}

@@ -24,6 +24,12 @@ type TargetMetrics struct {
 	Offline int32
 }
 
+// ResolvedTarget identifies one online host selected for a live operation.
+type ResolvedTarget struct {
+	ID          int64  `db:"id"`
+	DisplayName string `db:"display_name"`
+}
+
 // ResolveSelectedTargets returns active host ids for a live target selection.
 func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSelection) ([]int64, error) {
 	directHostIDs, err := s.activeSelectedHostIDs(ctx, selection.HostIDs)
@@ -40,13 +46,13 @@ func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSele
 	return mergeHostIDs(directHostIDs, matches), nil
 }
 
-// ResolveOnlineSelectedTargets returns active selected host IDs that are online
-// at the moment the live run starts.
+// ResolveOnlineSelectedTargets returns active selected hosts that are online at
+// the moment the live run starts.
 func (s *Store) ResolveOnlineSelectedTargets(
 	ctx context.Context,
 	selection TargetSelection,
 	now time.Time,
-) ([]int64, error) {
+) ([]ResolvedTarget, error) {
 	hostIDs, err := s.ResolveSelectedTargets(ctx, selection)
 	if err != nil {
 		return nil, err
@@ -56,7 +62,7 @@ func (s *Store) ResolveOnlineSelectedTargets(
 	}
 	onlineSince := now.Add(-hostOnlineWindow)
 	rows, err := s.db.Pool().Query(ctx, `
-		SELECT id
+		SELECT id, display_name
 		FROM hosts
 		WHERE id = ANY($1::bigint[])
 		  AND last_seen_at >= $2
@@ -64,7 +70,7 @@ func (s *Store) ResolveOnlineSelectedTargets(
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowTo[int64])
+	return pgx.CollectRows(rows, pgx.RowToStructByName[ResolvedTarget])
 }
 
 // CountSelectedTargets returns online/offline target status totals for a selection.

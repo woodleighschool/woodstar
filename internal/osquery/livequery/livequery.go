@@ -2,8 +2,8 @@
 package livequery
 
 import (
-	"encoding/json"
 	"errors"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,21 +12,23 @@ import (
 // ErrLiveQueryNotFound is returned when the manager has no live query for an id.
 var ErrLiveQueryNotFound = errors.New("live query not found")
 
-const (
-	orphanCleanupAfter   = time.Minute
-	defaultEventLogLimit = 1024
-	overflowEventError   = "live query result limit exceeded"
-)
+const orphanCleanupAfter = time.Minute
 
-// Status is the per-host outcome reported back to the SSE stream.
+// Status is one host's state within a live query.
 type Status string
 
 const (
-	StatusSuccess  Status = "success"
-	StatusError    Status = "error"
-	StatusStopped  Status = "stopped"
-	StatusOverflow Status = "overflow"
+	StatusPending   Status = "pending"
+	StatusCollected Status = "collected"
+	StatusError     Status = "error"
+	StatusStopped   Status = "stopped"
 )
+
+// Target is one resolved online host at the start of a live query.
+type Target struct {
+	HostID   int64
+	HostName string
+}
 
 // Work is one queued live query for a host (read by /distributed/read).
 type Work struct {
@@ -42,13 +44,14 @@ type Handle struct {
 	ResolvedHostCount int32     `json:"resolved_host_count"`
 }
 
-// Event is published to subscribers for SSE delivery.
-type Event struct {
-	HostID   int64           `json:"host_id,omitempty"`
-	HostName string          `json:"host_name,omitempty"`
-	Status   Status          `json:"status"`
-	Data     json.RawMessage `json:"data,omitempty"`
-	Error    string          `json:"error,omitempty"`
+// Snapshot is the current state of one host in a live query.
+type Snapshot struct {
+	HostID    int64
+	HostName  string
+	Status    Status
+	Rows      []map[string]string
+	Error     string
+	UpdatedAt time.Time
 }
 
 // Result is one host response for a live query.
@@ -57,14 +60,13 @@ type Result struct {
 	HostID   int64
 	HostName string
 	Status   Status
-	Data     json.RawMessage
+	Rows     []map[string]string
 	Error    string
 }
 
 // Manager runs ephemeral live queries entirely in-process.
 type Manager struct {
-	cleanupAfter  time.Duration
-	eventLogLimit int
+	cleanupAfter time.Duration
 
 	next    atomic.Int64
 	subNext atomic.Int64
@@ -72,51 +74,55 @@ type Manager struct {
 	mu        sync.Mutex
 	active    map[int64]*liveQuery
 	completed map[int64]*liveQuery
-	subs      map[int64]map[int64]chan Event
+	subs      map[int64]map[int64]chan Snapshot
 }
 
 type liveQuery struct {
 	id           int64
 	sql          string
 	startedAt    time.Time
-	pending      map[int64]struct{}
-	events       []Event
-	overflowed   bool
+	snapshots    map[int64]Snapshot
 	cleanupTimer *time.Timer
 }
 
 // NewManager returns a manager for ephemeral browser-session live runs.
 func NewManager() *Manager {
 	return &Manager{
-		cleanupAfter:  orphanCleanupAfter,
-		eventLogLimit: defaultEventLogLimit,
-		active:        make(map[int64]*liveQuery),
-		completed:     make(map[int64]*liveQuery),
-		subs:          make(map[int64]map[int64]chan Event),
+		cleanupAfter: orphanCleanupAfter,
+		active:       make(map[int64]*liveQuery),
+		completed:    make(map[int64]*liveQuery),
+		subs:         make(map[int64]map[int64]chan Snapshot),
 	}
 }
 
 // Start registers a live query against the host set resolved when the browser
 // starts the run. The returned handle is what the admin uses to attach a stream.
-func (m *Manager) Start(sql string, hostIDs []int64) Handle {
+func (m *Manager) Start(sql string, targets []Target) Handle {
 	id := m.next.Add(1)
-	pending := make(map[int64]struct{}, len(hostIDs))
-	for _, hostID := range hostIDs {
-		pending[hostID] = struct{}{}
+	startedAt := time.Now().UTC()
+	snapshots := make(map[int64]Snapshot, len(targets))
+	for _, target := range targets {
+		snapshots[target.HostID] = Snapshot{
+			HostID:    target.HostID,
+			HostName:  target.HostName,
+			Status:    StatusPending,
+			Rows:      []map[string]string{},
+			UpdatedAt: startedAt,
+		}
 	}
 	q := &liveQuery{
 		id:        id,
 		sql:       sql,
-		startedAt: time.Now().UTC(),
-		pending:   pending,
+		startedAt: startedAt,
+		snapshots: snapshots,
 	}
 
 	m.mu.Lock()
-	if len(pending) == 0 {
+	if len(snapshots) == 0 {
 		m.completed[id] = q
 		m.mu.Unlock()
 		m.forgetCompletedLater(id)
-		return Handle{ID: id, SQL: sql, StartedAt: q.startedAt}
+		return Handle{ID: id, SQL: sql, StartedAt: startedAt}
 	}
 	m.active[id] = q
 	q.cleanupTimer = time.AfterFunc(m.cleanupAfter, func() { m.stopOrphan(id) })
@@ -125,8 +131,8 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 	return Handle{
 		ID:                id,
 		SQL:               sql,
-		StartedAt:         q.startedAt,
-		ResolvedHostCount: int32(len(pending)), //nolint:gosec // More than MaxInt32 distinct in-memory hosts is outside supported process limits.
+		StartedAt:         startedAt,
+		ResolvedHostCount: int32(len(snapshots)), //nolint:gosec // More than MaxInt32 distinct in-memory hosts is outside supported process limits.
 	}
 }
 
@@ -136,7 +142,8 @@ func (m *Manager) PendingForHost(hostID int64) []Work {
 	defer m.mu.Unlock()
 	out := make([]Work, 0)
 	for _, q := range m.active {
-		if _, pending := q.pending[hostID]; !pending {
+		snapshot, targeted := q.snapshots[hostID]
+		if !targeted || snapshot.Status != StatusPending {
 			continue
 		}
 		out = append(out, Work{QueryID: q.id, SQL: q.sql})
@@ -144,8 +151,8 @@ func (m *Manager) PendingForHost(hostID int64) []Work {
 	return out
 }
 
-// Stop cancels a running live query and removes pending work from targeted
-// hosts. Already-completed live queries are treated as stopped.
+// Stop cancels a running live query and marks its pending hosts stopped.
+// Stopping an already-completed live query is idempotent.
 func (m *Manager) Stop(queryID int64) error {
 	m.mu.Lock()
 	q, ok := m.active[queryID]
@@ -157,14 +164,14 @@ func (m *Manager) Stop(queryID int64) error {
 		m.mu.Unlock()
 		return ErrLiveQueryNotFound
 	}
-	m.stopLocked(q, StatusStopped)
+	m.stopLocked(q)
 	m.mu.Unlock()
 	m.forgetCompletedLater(queryID)
 	return nil
 }
 
-// RecordResult marks a host as having responded for a live query, publishes
-// the result event, and finishes the query if no hosts remain pending.
+// RecordResult replaces a host's pending snapshot with its response and
+// finishes the query when no hosts remain pending.
 func (m *Manager) RecordResult(result Result) {
 	m.mu.Lock()
 	q, ok := m.active[result.QueryID]
@@ -172,19 +179,22 @@ func (m *Manager) RecordResult(result Result) {
 		m.mu.Unlock()
 		return
 	}
-	if _, pending := q.pending[result.HostID]; !pending {
+	snapshot, targeted := q.snapshots[result.HostID]
+	if !targeted || snapshot.Status != StatusPending {
 		m.mu.Unlock()
 		return
 	}
-	delete(q.pending, result.HostID)
-	finished := len(q.pending) == 0
-	m.recordEventLocked(q, Event{
-		HostID:   result.HostID,
-		HostName: result.HostName,
-		Status:   result.Status,
-		Data:     result.Data,
-		Error:    result.Error,
-	})
+	if result.HostName != "" {
+		snapshot.HostName = result.HostName
+	}
+	snapshot.Status = result.Status
+	snapshot.Rows = normalizeRows(result.Rows)
+	snapshot.Error = result.Error
+	snapshot.UpdatedAt = time.Now().UTC()
+	q.snapshots[result.HostID] = snapshot
+	m.publishLocked(result.QueryID, snapshot)
+
+	finished := !hasPendingSnapshots(q)
 	if finished {
 		m.completeLocked(q)
 		m.closeSubscribersLocked(result.QueryID)
@@ -195,8 +205,9 @@ func (m *Manager) RecordResult(result Result) {
 	}
 }
 
-// Subscribe returns a replaying live event channel and a release function.
-func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
+// Subscribe returns current host snapshots followed by live replacements and a
+// release function. Completed queries replay their final snapshots and close.
+func (m *Manager) Subscribe(queryID int64) (<-chan Snapshot, func(), error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -205,7 +216,7 @@ func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
 		return ch, release, nil
 	}
 	if q, ok := m.completed[queryID]; ok {
-		ch := make(chan Event, m.eventLogLimit+1)
+		ch := make(chan Snapshot, len(q.snapshots))
 		m.replayLocked(q, ch)
 		close(ch)
 		return ch, func() {}, nil
@@ -221,7 +232,7 @@ func (m *Manager) stopOrphan(queryID int64) {
 	}
 	stopped := false
 	if q, ok := m.active[queryID]; ok {
-		m.stopLocked(q, StatusStopped)
+		m.stopLocked(q)
 		stopped = true
 	}
 	m.mu.Unlock()
@@ -238,18 +249,16 @@ func (m *Manager) completeLocked(q *liveQuery) {
 	m.completed[q.id] = q
 }
 
-func (m *Manager) stopLocked(q *liveQuery, status Status) {
-	stopped := make([]int64, 0, len(q.pending))
-	for hostID := range q.pending {
-		stopped = append(stopped, hostID)
-	}
-	q.pending = nil
-
-	for _, hostID := range stopped {
-		m.recordEventLocked(q, Event{
-			HostID: hostID,
-			Status: status,
-		})
+func (m *Manager) stopLocked(q *liveQuery) {
+	updatedAt := time.Now().UTC()
+	for hostID, snapshot := range q.snapshots {
+		if snapshot.Status != StatusPending {
+			continue
+		}
+		snapshot.Status = StatusStopped
+		snapshot.UpdatedAt = updatedAt
+		q.snapshots[hostID] = snapshot
+		m.publishLocked(q.id, snapshot)
 	}
 	m.completeLocked(q)
 	m.closeSubscribersLocked(q.id)
@@ -283,15 +292,16 @@ func (m *Manager) forgetCompletedLater(queryID int64) {
 	})
 }
 
-func (m *Manager) subscribeLocked(q *liveQuery) (<-chan Event, func()) {
+func (m *Manager) subscribeLocked(q *liveQuery) (<-chan Snapshot, func()) {
 	id := m.subNext.Add(1)
-	// The extra slot carries the single overflow marker after a full event log.
-	ch := make(chan Event, m.eventLogLimit+1)
+	// One initial and one terminal snapshot per host can be queued without
+	// blocking the producer before the stream consumer starts.
+	ch := make(chan Snapshot, len(q.snapshots)*2)
 	m.replayLocked(q, ch)
 	m.cancelCleanupLocked(q.id)
 
 	if m.subs[q.id] == nil {
-		m.subs[q.id] = make(map[int64]chan Event)
+		m.subs[q.id] = make(map[int64]chan Snapshot)
 	}
 	m.subs[q.id][id] = ch
 
@@ -314,35 +324,22 @@ func (m *Manager) subscribeLocked(q *liveQuery) (<-chan Event, func()) {
 	}
 }
 
-func (m *Manager) recordEventLocked(q *liveQuery, event Event) {
-	if len(q.events) < m.eventLogLimit {
-		q.events = append(q.events, event)
-		m.publishLocked(q.id, event)
-		return
+func (m *Manager) replayLocked(q *liveQuery, ch chan<- Snapshot) {
+	snapshots := make([]Snapshot, 0, len(q.snapshots))
+	for _, snapshot := range q.snapshots {
+		snapshots = append(snapshots, snapshot)
 	}
-	if q.overflowed {
-		return
-	}
-	q.overflowed = true
-	m.publishLocked(q.id, overflowEvent())
-}
-
-func (m *Manager) replayLocked(q *liveQuery, ch chan<- Event) {
-	for _, event := range q.events {
-		ch <- event
-	}
-	if q.overflowed {
-		ch <- overflowEvent()
+	sort.Slice(snapshots, func(i, j int) bool {
+		return snapshots[i].HostID < snapshots[j].HostID
+	})
+	for _, snapshot := range snapshots {
+		ch <- snapshot
 	}
 }
 
-func overflowEvent() Event {
-	return Event{Status: StatusOverflow, Error: overflowEventError}
-}
-
-func (m *Manager) publishLocked(queryID int64, event Event) {
+func (m *Manager) publishLocked(queryID int64, snapshot Snapshot) {
 	for _, ch := range m.subs[queryID] {
-		ch <- event
+		ch <- snapshot
 	}
 }
 
@@ -352,4 +349,20 @@ func (m *Manager) closeSubscribersLocked(queryID int64) {
 		delete(m.subs[queryID], id)
 	}
 	delete(m.subs, queryID)
+}
+
+func hasPendingSnapshots(q *liveQuery) bool {
+	for _, snapshot := range q.snapshots {
+		if snapshot.Status == StatusPending {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeRows(rows []map[string]string) []map[string]string {
+	if rows == nil {
+		return []map[string]string{}
+	}
+	return rows
 }

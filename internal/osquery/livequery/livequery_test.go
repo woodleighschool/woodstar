@@ -1,49 +1,64 @@
 package livequery
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 )
 
-func TestRecordResultPublishesResultAndCloses(t *testing.T) {
+func TestSubscribeReplaysPendingThenPublishesCollectedAndCloses(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4})
+	handle := m.Start("select 1", []Target{{HostID: 4, HostName: "mac-4"}})
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	defer release()
 
+	pending := receiveSnapshot(t, snapshots)
+	if pending.HostID != 4 || pending.HostName != "mac-4" || pending.Status != StatusPending {
+		t.Fatalf("pending snapshot = %#v, want host 4 pending", pending)
+	}
+	if pending.Rows == nil || len(pending.Rows) != 0 || pending.UpdatedAt.IsZero() {
+		t.Fatalf("pending snapshot = %#v, want empty rows and update time", pending)
+	}
+
 	m.RecordResult(Result{
 		QueryID:  handle.ID,
 		HostID:   4,
-		HostName: "mac-4",
-		Status:   StatusSuccess,
-		Data:     json.RawMessage(`[{"answer":"1"}]`),
+		HostName: "mac-4-renamed",
+		Status:   StatusCollected,
+		Rows:     []map[string]string{{"answer": "1"}},
 	})
 
-	result := receiveEvent(t, events)
-	if result.HostID != 4 || result.HostName != "mac-4" || result.Status != StatusSuccess {
-		t.Fatalf("result = %#v, want host 4 success", result)
+	collected := receiveSnapshot(t, snapshots)
+	if collected.HostID != 4 ||
+		collected.HostName != "mac-4-renamed" ||
+		collected.Status != StatusCollected {
+		t.Fatalf("collected snapshot = %#v, want renamed host 4 collected", collected)
 	}
-	if string(result.Data) != `[{"answer":"1"}]` {
-		t.Fatalf("data = %s, want query rows", result.Data)
+	if len(collected.Rows) != 1 || collected.Rows[0]["answer"] != "1" {
+		t.Fatalf("collected rows = %#v, want answer row", collected.Rows)
+	}
+	if collected.UpdatedAt.Before(pending.UpdatedAt) {
+		t.Fatalf("collected update time = %s, want at or after pending %s", collected.UpdatedAt, pending.UpdatedAt)
 	}
 
-	assertClosed(t, events)
+	assertClosed(t, snapshots)
 }
 
 func TestPendingForHostClearsAfterResult(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4, 5})
+	handle := m.Start("select 1", []Target{
+		{HostID: 4, HostName: "mac-4"},
+		{HostID: 5, HostName: "mac-5"},
+	})
 
 	if work := m.PendingForHost(4); len(work) != 1 || work[0].QueryID != handle.ID || work[0].SQL != "select 1" {
 		t.Fatalf("work for host 4 = %#v, want live query work", work)
 	}
 
-	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, HostName: "mac-4", Status: StatusSuccess})
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusCollected})
 
 	if work := m.PendingForHost(4); len(work) != 0 {
 		t.Fatalf("work for completed host = %#v, want none", work)
@@ -55,101 +70,109 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 
 func TestStartReportsUniqueResolvedHosts(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4, 4, 5})
+	handle := m.Start("select 1", []Target{
+		{HostID: 4, HostName: "old-name"},
+		{HostID: 4, HostName: "mac-4"},
+		{HostID: 5, HostName: "mac-5"},
+	})
 
 	if handle.ResolvedHostCount != 2 {
 		t.Fatalf("ResolvedHostCount = %d, want unique host count 2", handle.ResolvedHostCount)
 	}
+
+	snapshots, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+	first := receiveSnapshot(t, snapshots)
+	if first.HostID != 4 || first.HostName != "mac-4" {
+		t.Fatalf("first snapshot = %#v, want deduplicated current host name", first)
+	}
 }
 
-func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
+func TestSubscribeCompletedEmptyQueryReceivesClosedChannel(t *testing.T) {
 	m := NewManager()
 	handle := m.Start("select 1", nil)
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	defer release()
 
-	assertClosed(t, events)
+	assertClosed(t, snapshots)
 }
 
-func TestSubscribeReplaysResultsRecordedBeforeSubscription(t *testing.T) {
+func TestSubscribeReplaysCurrentStateBeforeLiveReplacements(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4, 5})
-	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusSuccess})
+	handle := m.Start("select 1", []Target{
+		{HostID: 4, HostName: "mac-4"},
+		{HostID: 5, HostName: "mac-5"},
+	})
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusCollected})
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	defer release()
 
-	if event := receiveEvent(t, events); event.HostID != 4 {
-		t.Fatalf("replayed host ID = %d, want 4", event.HostID)
+	first := receiveSnapshot(t, snapshots)
+	second := receiveSnapshot(t, snapshots)
+	if first.HostID != 4 || first.Status != StatusCollected {
+		t.Fatalf("first replayed snapshot = %#v, want host 4 collected", first)
 	}
-	m.RecordResult(Result{QueryID: handle.ID, HostID: 5, Status: StatusSuccess})
-	if event := receiveEvent(t, events); event.HostID != 5 {
-		t.Fatalf("live host ID = %d, want 5", event.HostID)
+	if second.HostID != 5 || second.Status != StatusPending {
+		t.Fatalf("second replayed snapshot = %#v, want host 5 pending", second)
 	}
-	assertClosed(t, events)
+
+	m.RecordResult(Result{QueryID: handle.ID, HostID: 5, Status: StatusCollected})
+	live := receiveSnapshot(t, snapshots)
+	if live.HostID != 5 || live.Status != StatusCollected {
+		t.Fatalf("live snapshot = %#v, want host 5 collected", live)
+	}
+	assertClosed(t, snapshots)
 }
 
-func TestSubscribeReplaysCompletedResults(t *testing.T) {
+func TestSubscribeCompletedQueryReplaysOnlyFinalSnapshots(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4})
-	m.RecordResult(Result{QueryID: handle.ID, HostID: 4, Status: StatusSuccess})
+	handle := m.Start("select 1", []Target{{HostID: 4, HostName: "mac-4"}})
+	m.RecordResult(Result{
+		QueryID: handle.ID,
+		HostID:  4,
+		Status:  StatusError,
+		Error:   "query failed",
+	})
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	defer release()
 
-	if event := receiveEvent(t, events); event.HostID != 4 {
-		t.Fatalf("replayed host ID = %d, want 4", event.HostID)
+	snapshot := receiveSnapshot(t, snapshots)
+	if snapshot.HostID != 4 || snapshot.Status != StatusError || snapshot.Error != "query failed" {
+		t.Fatalf("replayed snapshot = %#v, want final error", snapshot)
 	}
-	assertClosed(t, events)
-}
-
-func TestEventLogSurfacesOverflow(t *testing.T) {
-	m := NewManager()
-	m.eventLogLimit = 2
-	handle := m.Start("select 1", []int64{1, 2, 3, 4})
-	for hostID := int64(1); hostID <= 4; hostID++ {
-		m.RecordResult(Result{QueryID: handle.ID, HostID: hostID, Status: StatusSuccess})
-	}
-
-	events, release, err := m.Subscribe(handle.ID)
-	if err != nil {
-		t.Fatalf("Subscribe returned error: %v", err)
-	}
-	defer release()
-
-	if event := receiveEvent(t, events); event.HostID != 1 {
-		t.Fatalf("first replayed host ID = %d, want 1", event.HostID)
-	}
-	if event := receiveEvent(t, events); event.HostID != 2 {
-		t.Fatalf("second replayed host ID = %d, want 2", event.HostID)
-	}
-	overflow := receiveEvent(t, events)
-	if overflow.Status != StatusOverflow || overflow.Error != overflowEventError {
-		t.Fatalf("overflow event = %#v", overflow)
-	}
-	assertClosed(t, events)
+	assertClosed(t, snapshots)
 }
 
 func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4, 5})
+	handle := m.Start("select 1", []Target{
+		{HostID: 4, HostName: "mac-4"},
+		{HostID: 5, HostName: "mac-5"},
+	})
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
+	receiveSnapshot(t, snapshots)
+	receiveSnapshot(t, snapshots)
 	release()
-	assertClosed(t, events)
+	assertClosed(t, snapshots)
 
 	m.stopOrphan(handle.ID)
 	if work := m.PendingForHost(4); len(work) != 0 {
@@ -160,15 +183,20 @@ func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 	}
 }
 
-func TestStopClearsPendingHostsAndCloses(t *testing.T) {
+func TestStopMarksPendingHostsStoppedAndCloses(t *testing.T) {
 	m := NewManager()
-	handle := m.Start("select 1", []int64{4, 5})
+	handle := m.Start("select 1", []Target{
+		{HostID: 4, HostName: "mac-4"},
+		{HostID: 5, HostName: "mac-5"},
+	})
 
-	events, release, err := m.Subscribe(handle.ID)
+	snapshots, release, err := m.Subscribe(handle.ID)
 	if err != nil {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	defer release()
+	receiveSnapshot(t, snapshots)
+	receiveSnapshot(t, snapshots)
 
 	if err := m.Stop(handle.ID); err != nil {
 		t.Fatalf("Stop returned error: %v", err)
@@ -180,41 +208,41 @@ func TestStopClearsPendingHostsAndCloses(t *testing.T) {
 		t.Fatalf("work for stopped host = %#v, want none", work)
 	}
 
-	first := receiveEvent(t, events)
-	second := receiveEvent(t, events)
+	first := receiveSnapshot(t, snapshots)
+	second := receiveSnapshot(t, snapshots)
 	if first.Status != StatusStopped || second.Status != StatusStopped {
-		t.Fatalf("stopped events = %#v %#v, want stopped", first, second)
+		t.Fatalf("stopped snapshots = %#v %#v, want stopped", first, second)
 	}
-	seen := map[int64]bool{first.HostID: true, second.HostID: true}
-	if !seen[4] || !seen[5] {
-		t.Fatalf("stopped hosts = %#v, want hosts 4 and 5", seen)
+	seen := map[int64]string{first.HostID: first.HostName, second.HostID: second.HostName}
+	if seen[4] != "mac-4" || seen[5] != "mac-5" {
+		t.Fatalf("stopped hosts = %#v, want host names preserved", seen)
 	}
 
-	assertClosed(t, events)
+	assertClosed(t, snapshots)
 }
 
-func receiveEvent(t *testing.T, events <-chan Event) Event {
+func receiveSnapshot(t *testing.T, snapshots <-chan Snapshot) Snapshot {
 	t.Helper()
 	select {
-	case event, ok := <-events:
+	case snapshot, ok := <-snapshots:
 		if !ok {
-			t.Fatal("event channel closed")
+			t.Fatal("snapshot channel closed")
 		}
-		return event
+		return snapshot
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timed out waiting for event")
-		return Event{}
+		t.Fatal("timed out waiting for snapshot")
+		return Snapshot{}
 	}
 }
 
-func assertClosed(t *testing.T, events <-chan Event) {
+func assertClosed(t *testing.T, snapshots <-chan Snapshot) {
 	t.Helper()
 	select {
-	case _, ok := <-events:
+	case _, ok := <-snapshots:
 		if ok {
-			t.Fatal("event channel remained open")
+			t.Fatal("snapshot channel remained open")
 		}
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timed out waiting for event channel to close")
+		t.Fatal("timed out waiting for snapshot channel to close")
 	}
 }

@@ -1,7 +1,11 @@
+import type { ColumnDef } from "@tanstack/react-table";
+
 import type {
   DataTableExportColumn,
   DataTableExportData,
 } from "@components/data-table/data-table-export";
+import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
+import { Link } from "@components/link";
 import { Badge } from "@components/ui/badge";
 import {
   Table,
@@ -12,8 +16,22 @@ import {
   TableRow,
 } from "@components/ui/table";
 import type { OsqueryReportSnapshot } from "@lib/api";
+import { formatRelative } from "@lib/utils";
 
 type SnapshotStatus = OsqueryReportSnapshot["status"];
+export type ReportResultStatus = SnapshotStatus | "error" | "stopped";
+
+export type ReportResultRow = {
+  host_id: number;
+  host_name: string;
+  status: ReportResultStatus;
+  rows: Record<string, string>[];
+  result_row_count: number;
+  returned_row_count: number;
+  collected_at?: string;
+  updated_at?: string;
+  error?: string;
+};
 
 export const REPORT_SNAPSHOT_STATUS_VALUES = ["collected", "pending"] as const;
 
@@ -27,6 +45,86 @@ export function parseReportSnapshotStatus(value: unknown): SnapshotStatus | unde
   return REPORT_SNAPSHOT_STATUS_OPTIONS.find((option) => option.value === value)?.value;
 }
 
+export function reportResultFromSnapshot(snapshot: OsqueryReportSnapshot): ReportResultRow {
+  return {
+    host_id: snapshot.host_id,
+    host_name: snapshot.host_name,
+    status: snapshot.status,
+    rows: snapshot.rows,
+    result_row_count: snapshot.result_row_count,
+    returned_row_count: snapshot.returned_row_count,
+    collected_at: snapshot.collected_at,
+  };
+}
+
+export function createReportResultColumns({
+  timestamp,
+  includeError = false,
+}: {
+  timestamp: "collected" | "reported";
+  includeError?: boolean;
+}): ColumnDef<ReportResultRow>[] {
+  const timestampColumn: ColumnDef<ReportResultRow> =
+    timestamp === "collected"
+      ? {
+          id: "collected_at",
+          accessorKey: "collected_at",
+          header: () => "Last Collected",
+          cell: ({ row }) =>
+            row.original.collected_at ? formatRelative(row.original.collected_at) : "-",
+        }
+      : {
+          id: "updated_at",
+          accessorKey: "updated_at",
+          header: () => "Last Reported",
+          cell: ({ row }) =>
+            row.original.updated_at ? formatRelative(row.original.updated_at) : "-",
+        };
+
+  const columns: ColumnDef<ReportResultRow>[] = [
+    {
+      id: "expand",
+      header: () => <span className="sr-only">Expand</span>,
+      cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.host_name} />,
+      enableSorting: false,
+      size: 44,
+    },
+    {
+      id: "host_name",
+      accessorKey: "host_name",
+      header: () => "Host",
+      cell: ({ row }) => (
+        <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+          {row.original.host_name}
+        </Link>
+      ),
+    },
+    {
+      id: "status",
+      accessorKey: "status",
+      header: () => "Status",
+      enableColumnFilter: true,
+      cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
+    },
+    timestampColumn,
+    {
+      id: "result_row_count",
+      accessorKey: "result_row_count",
+      header: () => "Result Rows",
+      cell: ({ row }) => resultRowCountLabel(row.original),
+    },
+  ];
+  if (includeError) {
+    columns.push({
+      id: "error",
+      accessorKey: "error",
+      header: () => "Error",
+      cell: ({ row }) => row.original.error || "-",
+    });
+  }
+  return columns;
+}
+
 export function resultColumnNames(rows: Record<string, string>[]): string[] {
   const seen = new Set<string>();
   for (const row of rows) {
@@ -37,33 +135,41 @@ export function resultColumnNames(rows: Record<string, string>[]): string[] {
   return Array.from(seen).toSorted((a, b) => a.localeCompare(b));
 }
 
-export function snapshotStatus(row: OsqueryReportSnapshot): SnapshotStatus {
+export function snapshotStatus(row: ReportResultRow): ReportResultStatus {
   return row.status;
 }
 
-export function snapshotStatusLabel(row: OsqueryReportSnapshot): string {
-  const labels: Record<SnapshotStatus, string> = {
+export function snapshotStatusLabel(row: ReportResultRow): string {
+  const labels: Record<ReportResultStatus, string> = {
     pending: "Pending",
     collected: "Collected",
+    error: "Error",
+    stopped: "Stopped",
   };
   return labels[snapshotStatus(row)];
 }
 
-export function SnapshotStatusBadge({ row }: { row: OsqueryReportSnapshot }) {
+export function SnapshotStatusBadge({ row }: { row: ReportResultRow }) {
   const status = snapshotStatus(row);
-  const variant = status === "collected" ? "success" : "outline";
+  const variants = {
+    collected: "success",
+    error: "error",
+    pending: "outline",
+    stopped: "secondary",
+  } as const;
 
-  return <Badge variant={variant}>{snapshotStatusLabel(row)}</Badge>;
+  return <Badge variant={variants[status]}>{snapshotStatusLabel(row)}</Badge>;
 }
 
-export function resultRowCountLabel(row: OsqueryReportSnapshot): string {
+export function resultRowCountLabel(row: ReportResultRow): string {
+  if (row.status !== "collected") return "-";
   if (row.returned_row_count === row.result_row_count) return String(row.result_row_count);
   return `${row.returned_row_count} of ${row.result_row_count}`;
 }
 
-export function serializeSnapshots(
-  rows: OsqueryReportSnapshot[],
-  metadataColumns: DataTableExportColumn<OsqueryReportSnapshot>[],
+export function serializeSnapshots<T extends Pick<ReportResultRow, "rows">>(
+  rows: T[],
+  metadataColumns: DataTableExportColumn<T>[],
 ): DataTableExportData {
   const columnNames = resultColumnNames(rows.flatMap((row) => row.rows));
   return {

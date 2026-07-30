@@ -1,5 +1,13 @@
-import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import type * as React from "react";
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  type Row,
+  type TableOptions,
+  useReactTable,
+} from "@tanstack/react-table";
+import * as React from "react";
 
 import { TableSurface } from "@components/data-table/table-surface";
 import {
@@ -17,6 +25,9 @@ interface DataTableStaticProps<TData> extends React.ComponentProps<"div"> {
   data: TData[];
   empty?: React.ReactNode;
   heading?: React.ReactNode;
+  getRowCanExpand?: TableOptions<TData>["getRowCanExpand"];
+  getRowId?: TableOptions<TData>["getRowId"];
+  renderSubRow?: (row: Row<TData>) => React.ReactNode;
 }
 
 // Presentational table for nested/local row sets (no pagination, no URL state).
@@ -27,10 +38,20 @@ export function DataTableStatic<TData>({
   data,
   empty,
   heading,
+  getRowCanExpand,
+  getRowId,
+  renderSubRow,
   className,
   ...props
 }: DataTableStaticProps<TData>) {
-  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand,
+    getRowId,
+  });
 
   return (
     <TableSurface
@@ -56,13 +77,25 @@ export function DataTableStatic<TData>({
         <TableBody>
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
+              <React.Fragment key={row.id}>
+                <TableRow className="group/row">
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {row.getCanExpand() && row.getIsExpanded() && renderSubRow ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={row.getVisibleCells().length}
+                      className="border-b bg-muted/20 p-0"
+                    >
+                      {renderSubRow(row)}
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </React.Fragment>
             ))
           ) : (
             <TableRow className="hover:bg-transparent">

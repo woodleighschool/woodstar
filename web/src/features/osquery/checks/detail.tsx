@@ -1,7 +1,7 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import type { ColumnDef, Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
@@ -10,7 +10,6 @@ import { DataTableSearchInput } from "@components/data-table/data-table-search-i
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
@@ -24,44 +23,24 @@ import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import {
-  CHECK_RESULT_STATUSES,
   CHECK_RESULT_STATUS_OPTIONS,
   parseCheckResultStatus,
 } from "@features/osquery/checks/model";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
-import type { OsqueryCheckHostStatus } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
 import { CheckDeleteDialog } from "./delete-dialog";
 import { listAllCheckResults, useCheck, useCheckResults } from "./queries";
+import {
+  checkResultFromStatus,
+  type CheckResultRow,
+  createCheckResultColumns,
+} from "./query-results";
 
-const resultColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
-  {
-    accessorKey: "host_name",
-    header: () => "Host",
-    cell: ({ row }) => (
-      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }} className="font-medium">
-        {row.original.host_name}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: () => "Status",
-    enableColumnFilter: true,
-    cell: ({ row }) => (
-      <EnumStatusIndicator value={row.original.status} metadata={CHECK_RESULT_STATUSES} />
-    ),
-  },
-  {
-    accessorKey: "updated_at",
-    header: () => "Last Evaluated",
-    cell: ({ row }) => formatRelative(row.original.updated_at),
-  },
-];
+const resultColumns = createCheckResultColumns({ timestampHeader: "Last Evaluated" });
 
-const resultExportColumns: DataTableExportOptions<OsqueryCheckHostStatus>["columns"] = [
+const resultExportColumns: DataTableExportOptions<CheckResultRow>["columns"] = [
   { header: "Host", value: (row) => row.host_name },
   { header: "Status", value: (row) => row.status },
   { header: "Last Evaluated", value: (row) => row.updated_at },
@@ -70,7 +49,7 @@ const resultExportColumns: DataTableExportOptions<OsqueryCheckHostStatus>["colum
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/");
 
-function CheckResultsToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
+function CheckResultsToolbar({ table }: { table: Table<CheckResultRow> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
@@ -105,7 +84,10 @@ export function CheckDetailPage() {
     sort: tableSearch.sort,
     status,
   });
-  const rows = results.data?.items ?? [];
+  const rows = useMemo(
+    () => results.data?.items.map(checkResultFromStatus) ?? [],
+    [results.data?.items],
+  );
   const totalCount = results.data?.count ?? 0;
   const pageCount = results.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -142,7 +124,7 @@ export function CheckDetailPage() {
     );
   }
 
-  const exportOptions: DataTableExportOptions<OsqueryCheckHostStatus> = {
+  const exportOptions: DataTableExportOptions<CheckResultRow> = {
     filename: `osquery-check-${id}-results`,
     columns: resultExportColumns,
     loadRows: () =>
@@ -150,7 +132,7 @@ export function CheckDetailPage() {
         q: tableSearch.q,
         sort: tableSearch.sort,
         status,
-      }),
+      }).then((result) => result.map(checkResultFromStatus)),
   };
   return (
     <PageShell>

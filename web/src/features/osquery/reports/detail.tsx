@@ -1,12 +1,11 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import { getExpandedRowModel, type ColumnDef, type Table } from "@tanstack/react-table";
+import { getExpandedRowModel, type Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
-import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { useDataTable } from "@components/data-table/use-data-table";
@@ -24,69 +23,30 @@ import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
-import type { OsqueryReportSnapshot } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval, formatRelative } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
 import { listAllReportSnapshots, useReport, useReportSnapshots } from "./queries";
 import {
+  createReportResultColumns,
   parseReportSnapshotStatus,
   REPORT_SNAPSHOT_STATUS_OPTIONS,
+  reportResultFromSnapshot,
+  type ReportResultRow,
   resultColumnNames,
-  resultRowCountLabel,
   serializeSnapshots,
   SnapshotResultRows,
   snapshotStatusLabel,
-  SnapshotStatusBadge,
 } from "./query-results";
 
-const EMPTY_REPORT_SNAPSHOTS: OsqueryReportSnapshot[] = [];
-
-const reportSnapshotColumns: ColumnDef<OsqueryReportSnapshot>[] = [
-  {
-    id: "expand",
-    header: () => <span className="sr-only">Expand</span>,
-    cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.host_name} />,
-    enableSorting: false,
-    size: 44,
-  },
-  {
-    id: "host_name",
-    accessorKey: "host_name",
-    header: () => "Host",
-    cell: ({ row }) => (
-      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
-        {row.original.host_name}
-      </Link>
-    ),
-  },
-  {
-    id: "status",
-    accessorKey: "status",
-    header: () => "Status",
-    enableColumnFilter: true,
-    cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
-  },
-  {
-    id: "collected_at",
-    accessorKey: "collected_at",
-    header: () => "Last Collected",
-    cell: ({ row }) =>
-      row.original.collected_at ? formatRelative(row.original.collected_at) : "-",
-  },
-  {
-    id: "result_row_count",
-    accessorKey: "result_row_count",
-    header: () => "Result Rows",
-    cell: ({ row }) => resultRowCountLabel(row.original),
-  },
-];
+const EMPTY_REPORT_SNAPSHOTS: ReportResultRow[] = [];
+const reportSnapshotColumns = createReportResultColumns({ timestamp: "collected" });
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/");
 
-function ReportResultsToolbar({ table }: { table: Table<OsqueryReportSnapshot> }) {
+function ReportResultsToolbar({ table }: { table: Table<ReportResultRow> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
@@ -121,7 +81,10 @@ export function ReportDetailPage() {
     sort: tableSearch.sort,
     status,
   });
-  const rows = snapshots.data?.items ?? EMPTY_REPORT_SNAPSHOTS;
+  const rows = useMemo(
+    () => snapshots.data?.items.map(reportResultFromSnapshot) ?? EMPTY_REPORT_SNAPSHOTS,
+    [snapshots.data?.items],
+  );
   const totalCount = snapshots.data?.count ?? 0;
   const pageCount = snapshots.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columnNames = useMemo(() => resultColumnNames(rows.flatMap((row) => row.rows)), [rows]);
@@ -131,7 +94,7 @@ export function ReportDetailPage() {
     columns: reportSnapshotColumns,
     pageCount,
     rowCount: totalCount,
-    getRowId: (row) => `${row.report_id}-${row.host_id}`,
+    getRowId: (row) => String(row.host_id),
     getRowCanExpand: (row) => row.original.rows.length > 0,
     getExpandedRowModel: getExpandedRowModel(),
     paginateExpandedRows: false,
@@ -162,12 +125,12 @@ export function ReportDetailPage() {
     );
   }
 
-  const exportMetadata: DataTableExportOptions<OsqueryReportSnapshot>["columns"] = [
+  const exportMetadata: DataTableExportOptions<ReportResultRow>["columns"] = [
     { header: "Host", value: (row) => row.host_name },
     { header: "Status", value: snapshotStatusLabel },
     { header: "Last Collected", value: (row) => row.collected_at },
   ];
-  const exportOptions: DataTableExportOptions<OsqueryReportSnapshot> = {
+  const exportOptions: DataTableExportOptions<ReportResultRow> = {
     filename: `osquery-report-${id}-results`,
     columns: exportMetadata,
     loadRows: () =>
@@ -175,7 +138,7 @@ export function ReportDetailPage() {
         q: tableSearch.q,
         sort: tableSearch.sort,
         status,
-      }),
+      }).then((result) => result.map(reportResultFromSnapshot)),
     serializeRows: (exportRows) => serializeSnapshots(exportRows, exportMetadata),
   };
   return (

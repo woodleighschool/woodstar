@@ -1,15 +1,11 @@
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Play, Square, X } from "lucide-react";
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import { AsyncButton } from "@components/async-button";
 import { ConfirmDialog } from "@components/confirm-dialog";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { encodeSort } from "@components/data-table/use-data-table-search";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { Button } from "@components/ui/button";
 import {
@@ -27,17 +23,24 @@ import {
 } from "@components/ui/combobox";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@components/ui/field";
 import { Spinner } from "@components/ui/spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { useHosts } from "@features/hosts/queries";
 import { useLabels } from "@features/labels/queries";
-import { CHECK_RESULT_STATUSES } from "@features/osquery/checks/model";
+import {
+  createCheckResultColumns,
+  type CheckResultRow,
+} from "@features/osquery/checks/query-results";
+import {
+  createReportResultColumns,
+  type ReportResultRow,
+  resultColumnNames,
+  SnapshotResultRows,
+} from "@features/osquery/reports/query-results";
 import type { Host, Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 
 import {
-  type LiveQueryResult,
-  type LiveQueryRow,
+  type LiveQuerySnapshot,
   type OsqueryLiveQueryCreateBody,
   type OsqueryLiveQueryTargetCountBody,
   type OsqueryLiveQueryTargetCountOutputBody,
@@ -49,57 +52,14 @@ import {
 import { ShowQueryButton } from "./query-actions";
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
-type ReportResultRow = Record<string, string>;
-
-function ReportHostCell({ row }: CellContext<ReportResultRow, unknown>) {
-  return (
-    <Link to="/hosts/$id" params={{ id: row.original.host_id }} className="whitespace-nowrap">
-      {row.original.host_name}
-    </Link>
-  );
-}
-
-function ReportValueCell({ row, column }: CellContext<ReportResultRow, unknown>) {
-  return <span className="whitespace-nowrap">{row.original[column.id] ?? "-"}</span>;
-}
-
-type CheckLiveRow = {
-  host_id: number;
-  host_name?: string;
-  response: "pass" | "fail";
-};
-
-const checkResultColumns: ColumnDef<CheckLiveRow>[] = [
-  {
-    accessorKey: "host_name",
-    header: "Host",
-    cell: ({ row }) => (
-      <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
-        {row.original.host_name}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "response",
-    header: "Result",
-    cell: ({ row }) => (
-      <EnumStatusIndicator value={row.original.response} metadata={CHECK_RESULT_STATUSES} />
-    ),
-  },
-];
-
-const errorResultColumns: ColumnDef<LiveQueryRow>[] = [
-  {
-    id: "host",
-    header: "Host",
-    cell: ({ row }) => row.original.host_name,
-  },
-  {
-    id: "error",
-    header: "Error",
-    cell: ({ row }) => row.original.error ?? row.original.status,
-  },
-];
+const liveReportResultColumns = createReportResultColumns({
+  timestamp: "reported",
+  includeError: true,
+});
+const liveCheckResultColumns = createCheckResultColumns({
+  timestampHeader: "Last Evaluated",
+  includeError: true,
+});
 
 export function LiveRunner({
   kind,
@@ -137,8 +97,8 @@ export function LiveRunner({
   const isRunning = stream.status === "running";
   const isStarting = create.isPending;
   const isStopping = stop.isPending;
-  const respondedCount = stream.results.filter(
-    (row) => row.host_id !== undefined && row.status !== "stopped",
+  const respondedCount = stream.snapshots.filter(
+    (snapshot) => snapshot.status === "collected" || snapshot.status === "error",
   ).length;
   const canRun =
     hasTargets &&
@@ -222,8 +182,9 @@ export function LiveRunner({
       ) : (
         <RunResults
           kind={kind}
-          rows={stream.results}
+          snapshots={stream.snapshots}
           status={stream.status}
+          error={stream.error}
           stopped={stopRequested && stream.status === "completed"}
           isStopping={isStopping}
           targetCount={runTargetCount}
@@ -258,8 +219,9 @@ function TargetSummary({
 }
 function RunResults({
   kind,
-  rows,
+  snapshots,
   status,
+  error,
   stopped,
   isStopping,
   targetCount,
@@ -269,8 +231,9 @@ function RunResults({
   onChangeTargets,
 }: {
   kind: LiveRunKind;
-  rows: LiveQueryRow[];
+  snapshots: LiveQuerySnapshot[];
   status: string;
+  error?: string;
   stopped: boolean;
   isStopping: boolean;
   targetCount: number;
@@ -298,6 +261,7 @@ function RunResults({
             {respondedCount} of {targetCount} online host
             {targetCount === 1 ? "" : "s"} responded.
           </p>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
@@ -333,9 +297,9 @@ function RunResults({
         onConfirm={() => void confirmStop()}
       />
       {kind === "report" ? (
-        <ReportRunResults rows={rows} running={isRunning} />
+        <ReportRunResults snapshots={snapshots} />
       ) : (
-        <CheckRunResults rows={rows} running={isRunning} />
+        <CheckRunResults snapshots={snapshots} />
       )}
     </div>
   );
@@ -347,53 +311,31 @@ function runHeading(status: string, stopped: boolean) {
   if (status === "error") return "Stream Interrupted";
   return "Starting";
 }
-function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boolean }) {
-  const resultRows = reportResultRows(rows);
-  const errorRows = liveErrorRows(rows);
+function ReportRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
+  const rows = useMemo(() => snapshots.map(reportResultFromSnapshot), [snapshots]);
+  const columnNames = useMemo(() => resultColumnNames(rows.flatMap((row) => row.rows)), [rows]);
   return (
-    <RunResultsTabs errorRows={errorRows}>
-      <ReportRowsTable rows={resultRows} running={running} />
-    </RunResultsTabs>
+    <DataTableStatic
+      columns={liveReportResultColumns}
+      data={rows}
+      getRowCanExpand={(row) => row.original.rows.length > 0}
+      getRowId={(row) => String(row.host_id)}
+      renderSubRow={(row) => (
+        <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
+      )}
+      empty={<RunEmptyState text="No targeted hosts" />}
+    />
   );
 }
-function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boolean }) {
-  const hostRows = checkResultRows(rows);
-  const errorRows = liveErrorRows(rows);
-  const passing = hostRows.filter((row) => row.response === "pass").length;
-  const failing = hostRows.filter((row) => row.response === "fail").length;
+function CheckRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
+  const rows = useMemo(() => snapshots.map(checkResultFromSnapshot), [snapshots]);
   return (
-    <RunResultsTabs errorRows={errorRows}>
-      <div className="grid gap-3">
-        {hostRows.length ? (
-          <p className="text-sm text-muted-foreground">
-            {passing} passing, {failing} failing.
-          </p>
-        ) : null}
-        <CheckRowsTable rows={hostRows} running={running} />
-      </div>
-    </RunResultsTabs>
-  );
-}
-function RunResultsTabs({
-  children,
-  errorRows,
-}: {
-  children: ReactNode;
-  errorRows: LiveQueryRow[];
-}) {
-  return (
-    <Tabs defaultValue="results">
-      <TabsList>
-        <TabsTrigger value="results">Results</TabsTrigger>
-        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
-          Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="results">{children}</TabsContent>
-      <TabsContent value="errors">
-        <ErrorRowsTable rows={errorRows} />
-      </TabsContent>
-    </Tabs>
+    <DataTableStatic
+      columns={liveCheckResultColumns}
+      data={rows}
+      getRowId={(row) => String(row.host_id)}
+      empty={<RunEmptyState text="No targeted hosts" />}
+    />
   );
 }
 function TargetPicker({
@@ -536,106 +478,40 @@ function HostCombobox({
     </Field>
   );
 }
-function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: boolean }) {
-  const resultColumns = reportColumns(rows);
-  const columns: ColumnDef<ReportResultRow>[] = [
-    {
-      accessorKey: "host_name",
-      header: "Host",
-      cell: ReportHostCell,
-    },
-    ...resultColumns.map<ColumnDef<ReportResultRow>>((name) => ({
-      id: name,
-      accessorFn: (row) => row[name] ?? "-",
-      header: name,
-      cell: ReportValueCell,
-    })),
-  ];
-  return (
-    <DataTableStatic
-      columns={columns}
-      data={rows}
-      empty={<RunEmptyState text={running ? "Waiting for results" : "No rows returned"} />}
-    />
-  );
-}
-function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: boolean }) {
-  return (
-    <DataTableStatic
-      columns={checkResultColumns}
-      data={rows}
-      empty={<RunEmptyState text={running ? "Waiting for hosts" : "No host results yet"} />}
-    />
-  );
-}
-function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
-  return (
-    <DataTableStatic
-      columns={errorResultColumns}
-      data={rows}
-      empty={<RunEmptyState text="No errors yet" />}
-    />
-  );
-}
 function RunEmptyState({ text }: { text: string }) {
   return <PanelEmptyState className="border-0">{text}</PanelEmptyState>;
 }
-function reportResultRows(rows: LiveQueryRow[]) {
-  return rows.flatMap((row) => {
-    if (row.status !== "success") return [];
-    return liveDataRows(row).map((data) => ({
-      host_id: String(row.host_id ?? ""),
-      host_name: row.host_name ?? "",
-      ...data,
-    }));
-  });
+
+function reportResultFromSnapshot(snapshot: LiveQuerySnapshot): ReportResultRow {
+  return {
+    host_id: snapshot.host_id,
+    host_name: snapshot.host_name,
+    status: snapshot.status,
+    rows: snapshot.rows,
+    result_row_count: snapshot.rows.length,
+    returned_row_count: snapshot.rows.length,
+    updated_at:
+      snapshot.status === "collected" || snapshot.status === "error"
+        ? snapshot.updated_at
+        : undefined,
+    error: snapshot.error,
+  };
 }
-function checkResultRows(rows: LiveQueryRow[]): CheckLiveRow[] {
-  return rows.flatMap((row) => {
-    if (row.status !== "success" || row.host_id === undefined) return [];
-    return [
-      {
-        host_id: row.host_id,
-        host_name: row.host_name,
-        response: liveDataRows(row).length > 0 ? "pass" : "fail",
-      },
-    ];
-  });
-}
-function liveErrorRows(rows: LiveQueryRow[]) {
-  return rows.filter((row) => row.status !== "success" && row.status !== "stopped");
-}
-function liveDataRows(row: LiveQueryResult): Array<Record<string, string>> {
-  if (Array.isArray(row.data)) {
-    return row.data.filter(isRecord).map(stringRecord);
-  }
-  if (isRecord(row.data)) {
-    return [stringRecord(row.data)];
-  }
-  return [];
-}
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function stringRecord(row: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [key, formatLiveValue(value)]),
-  );
-}
-function formatLiveValue(value: unknown) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint")
-    return String(value);
-  return "";
-}
-function reportColumns(rows: Array<Record<string, string>>) {
-  const seen = new Set<string>();
-  for (const row of rows) {
-    Object.keys(row).forEach((key) => {
-      if (key !== "host_id" && key !== "host_name") seen.add(key);
-    });
-  }
-  return [...seen].toSorted((a, b) => a.localeCompare(b));
+
+function checkResultFromSnapshot(snapshot: LiveQuerySnapshot): CheckResultRow {
+  return {
+    host_id: snapshot.host_id,
+    host_name: snapshot.host_name,
+    status:
+      snapshot.status === "collected"
+        ? snapshot.rows.length > 0
+          ? "pass"
+          : "fail"
+        : snapshot.status,
+    updated_at:
+      snapshot.status === "collected" || snapshot.status === "error"
+        ? snapshot.updated_at
+        : undefined,
+    error: snapshot.error,
+  };
 }
