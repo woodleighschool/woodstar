@@ -1,22 +1,24 @@
 package entra
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"sync"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	graphcore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	graphgroups "github.com/microsoftgraph/msgraph-sdk-go/groups"
+	graphmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
+	graphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
+
+const graphPageSize int32 = 999
+
+var graphScopes = []string{"https://graph.microsoft.com/.default"}
 
 // Config holds the credentials needed to call Microsoft Graph as an
 // application.
@@ -29,31 +31,34 @@ type Config struct {
 
 // Client fetches Entra users and groups from Microsoft Graph.
 type Client struct {
-	cfg   Config
-	creds clientcredentials.Config
-	http  *http.Client
-	mu    sync.Mutex
-	token *oauth2.Token
+	graph            *msgraphsdk.GraphServiceClient
+	transitiveGroups bool
 }
 
-// NewClient returns a Graph client that signs requests with an application token.
-func NewClient(cfg Config) *Client {
-	creds := clientcredentials.Config{
-		ClientID:     cfg.ClientID,
-		ClientSecret: cfg.ClientSecret,
-		TokenURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", cfg.TenantID),
-		Scopes:       []string{"https://graph.microsoft.com/.default"},
+// NewClient returns a Graph SDK client authenticated with an Entra application.
+func NewClient(cfg Config) (*Client, error) {
+	credential, err := azidentity.NewClientSecretCredential(
+		cfg.TenantID,
+		cfg.ClientID,
+		cfg.ClientSecret,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create Entra credential: %w", err)
 	}
-	return &Client{
-		cfg:   cfg,
-		creds: creds,
-		http:  http.DefaultClient,
+	graph, err := msgraphsdk.NewGraphServiceClientWithCredentials(credential, graphScopes)
+	if err != nil {
+		return nil, fmt.Errorf("create Microsoft Graph client: %w", err)
 	}
+	return newClient(graph, cfg.TransitiveGroups), nil
 }
 
-// Fetch builds a directory snapshot from Graph. It pages through /users and /groups,
-// then resolves each user's group membership (memberOf or
-// transitiveMemberOf per config) filtered to microsoft.graph.group.
+func newClient(graph *msgraphsdk.GraphServiceClient, transitiveGroups bool) *Client {
+	return &Client{graph: graph, transitiveGroups: transitiveGroups}
+}
+
+// Fetch builds a directory snapshot from Graph. It pages through users and
+// groups, then resolves each user's direct or transitive group membership.
 func (c *Client) Fetch(ctx context.Context) (directory.ProviderSnapshot, error) {
 	now := time.Now().UTC()
 
@@ -78,55 +83,89 @@ func (c *Client) Fetch(ctx context.Context) (directory.ProviderSnapshot, error) 
 }
 
 func (c *Client) fetchUsers(ctx context.Context) ([]directory.ProviderUser, error) {
-	endpoint := "https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$top=999"
-	var out []directory.ProviderUser
-	for endpoint != "" {
-		var page struct {
-			NextLink string      `json:"@odata.nextLink"`
-			Value    []graphUser `json:"value"`
-		}
-		if err := c.get(ctx, endpoint, &page); err != nil {
-			return nil, err
-		}
-		for _, u := range page.Value {
-			out = append(out, directory.ProviderUser{
-				ExternalID:        u.ID,
-				UserPrincipalName: u.UserPrincipalName,
-				Mail:              deref(u.Mail),
-				MailNickname:      deref(u.MailNickname),
-				DisplayName:       u.DisplayName,
-				GivenName:         deref(u.GivenName),
-				FamilyName:        deref(u.Surname),
-				Department:        deref(u.Department),
-				Enabled:           u.AccountEnabled == nil || *u.AccountEnabled,
-			})
-		}
-		endpoint = page.NextLink
+	page, err := c.graph.Users().Get(ctx, &graphusers.UsersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &graphusers.UsersRequestBuilderGetQueryParameters{
+			Select: []string{
+				"id",
+				"userPrincipalName",
+				"mail",
+				"mailNickname",
+				"displayName",
+				"givenName",
+				"surname",
+				"department",
+				"accountEnabled",
+			},
+			Top: int32Pointer(graphPageSize),
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+
+	iterator, err := graphcore.NewPageIterator[graphmodels.Userable](
+		page,
+		c.graph.GetAdapter(),
+		graphmodels.CreateUserCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []directory.ProviderUser
+	err = iterator.Iterate(ctx, func(user graphmodels.Userable) bool {
+		users = append(users, directory.ProviderUser{
+			ExternalID:        deref(user.GetId()),
+			UserPrincipalName: deref(user.GetUserPrincipalName()),
+			Mail:              deref(user.GetMail()),
+			MailNickname:      deref(user.GetMailNickname()),
+			DisplayName:       deref(user.GetDisplayName()),
+			GivenName:         deref(user.GetGivenName()),
+			FamilyName:        deref(user.GetSurname()),
+			Department:        deref(user.GetDepartment()),
+			Enabled:           enabled(user.GetAccountEnabled()),
+		})
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 func (c *Client) fetchGroups(ctx context.Context) ([]directory.ProviderGroup, error) {
-	endpoint := "https://graph.microsoft.com/v1.0/groups?$select=id,displayName,mailNickname&$top=999"
-	var out []directory.ProviderGroup
-	for endpoint != "" {
-		var page struct {
-			NextLink string       `json:"@odata.nextLink"`
-			Value    []graphGroup `json:"value"`
-		}
-		if err := c.get(ctx, endpoint, &page); err != nil {
-			return nil, err
-		}
-		for _, g := range page.Value {
-			out = append(out, directory.ProviderGroup{
-				ExternalID:   g.ID,
-				DisplayName:  g.DisplayName,
-				MailNickname: deref(g.MailNickname),
-			})
-		}
-		endpoint = page.NextLink
+	page, err := c.graph.Groups().Get(ctx, &graphgroups.GroupsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &graphgroups.GroupsRequestBuilderGetQueryParameters{
+			Select: []string{"id", "displayName", "mailNickname"},
+			Top:    int32Pointer(graphPageSize),
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+
+	iterator, err := graphcore.NewPageIterator[graphmodels.Groupable](
+		page,
+		c.graph.GetAdapter(),
+		graphmodels.CreateGroupCollectionResponseFromDiscriminatorValue,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []directory.ProviderGroup
+	err = iterator.Iterate(ctx, func(group graphmodels.Groupable) bool {
+		groups = append(groups, directory.ProviderGroup{
+			ExternalID:   deref(group.GetId()),
+			DisplayName:  deref(group.GetDisplayName()),
+			MailNickname: deref(group.GetMailNickname()),
+		})
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	return groups, nil
 }
 
 func (c *Client) fetchUsersGroupIDs(
@@ -137,235 +176,127 @@ func (c *Client) fetchUsersGroupIDs(
 	pending := make([]graphMembershipRequest, 0, len(users))
 	for _, user := range users {
 		out[user.ExternalID] = nil
-		pending = append(pending, graphMembershipRequest{
-			UserID: user.ExternalID,
-			URL:    c.userGroupMembershipURL(user.ExternalID),
-		})
+		pending = append(pending, graphMembershipRequest{UserID: user.ExternalID})
 	}
 	for len(pending) > 0 {
-		size := min(len(pending), graphBatchMaxRequests)
-		batch := pending[:size]
-		pending = pending[size:]
-
-		followups, err := c.applyMembershipBatch(ctx, batch, out)
+		followups, err := c.applyMembershipBatch(ctx, pending, out)
 		if err != nil {
 			return nil, err
 		}
-		pending = append(pending, followups...)
+		pending = followups
 	}
 	return out, nil
 }
 
-// applyMembershipBatch sends one batch, records each user's group IDs into out,
-// and returns follow-up requests for any paged responses.
+// applyMembershipBatch lets the Graph SDK split requests at Graph's batch
+// limit, records each user's group IDs, and returns any paged follow-ups.
 func (c *Client) applyMembershipBatch(
 	ctx context.Context,
-	batch []graphMembershipRequest,
+	requests []graphMembershipRequest,
 	out map[string][]string,
 ) ([]graphMembershipRequest, error) {
-	responses, err := c.fetchMembershipBatch(ctx, batch)
-	if err != nil {
-		return nil, err
+	adapter := c.graph.GetAdapter()
+	batch := graphcore.NewBatchRequestCollectionWithLimit(adapter, len(requests))
+	requestsByID := make(map[string]graphMembershipRequest, len(requests))
+
+	for _, request := range requests {
+		requestInfo, err := c.membershipRequestInfo(ctx, request)
+		if err != nil {
+			return nil, fmt.Errorf("build groups request for %s: %w", request.UserID, err)
+		}
+		item, err := batch.AddBatchRequestStep(*requestInfo)
+		if err != nil {
+			return nil, fmt.Errorf("batch groups request for %s: %w", request.UserID, err)
+		}
+		if item.GetId() == nil {
+			return nil, fmt.Errorf("batch groups request for %s: missing request ID", request.UserID)
+		}
+		requestsByID[*item.GetId()] = request
 	}
+
+	response, err := batch.Send(ctx, adapter)
+	if err != nil {
+		return nil, fmt.Errorf("fetch user groups: %w", err)
+	}
+
 	var followups []graphMembershipRequest
-	for _, request := range batch {
-		response, ok := responses[request.ID]
-		if !ok {
+	for requestID, request := range requestsByID {
+		if response.GetResponseById(requestID) == nil {
 			return nil, fmt.Errorf("graph batch missing response for %s", request.UserID)
 		}
-		next, err := parseMembershipResponse(request, response, out)
+		page, err := graphcore.GetBatchResponseById[graphmodels.GroupCollectionResponseable](
+			response,
+			requestID,
+			graphmodels.CreateGroupCollectionResponseFromDiscriminatorValue,
+		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
 		}
-		followups = append(followups, next...)
+		for _, group := range page.GetValue() {
+			out[request.UserID] = append(out[request.UserID], deref(group.GetId()))
+		}
+		if nextLink := deref(page.GetOdataNextLink()); nextLink != "" {
+			followups = append(followups, graphMembershipRequest{
+				UserID:   request.UserID,
+				NextLink: nextLink,
+			})
+		}
 	}
 	return followups, nil
 }
 
-// parseMembershipResponse validates one batch response, appends its group IDs
-// to out, and returns any follow-up request when the response is paged.
-func parseMembershipResponse(
+func (c *Client) membershipRequestInfo(
+	ctx context.Context,
 	request graphMembershipRequest,
-	response graphBatchResponse,
-	out map[string][]string,
-) ([]graphMembershipRequest, error) {
-	if response.Status >= 300 {
-		return nil, fmt.Errorf("fetch groups for %s: graph batch status %d", request.UserID, response.Status)
+) (*abstractions.RequestInformation, error) {
+	user := c.graph.Users().ByUserId(request.UserID)
+	if c.transitiveGroups {
+		builder := user.TransitiveMemberOf().GraphGroup()
+		if request.NextLink != "" {
+			return builder.WithUrl(request.NextLink).ToGetRequestInformation(ctx, nil)
+		}
+		return builder.ToGetRequestInformation(
+			ctx,
+			&graphusers.ItemTransitiveMemberOfGraphGroupRequestBuilderGetRequestConfiguration{
+				QueryParameters: &graphusers.ItemTransitiveMemberOfGraphGroupRequestBuilderGetQueryParameters{
+					Select: []string{"id"},
+					Top:    int32Pointer(graphPageSize),
+				},
+			},
+		)
 	}
-	var page graphGroupPage
-	if err := json.Unmarshal(response.Body, &page); err != nil {
-		return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
-	}
-	for _, group := range page.Value {
-		out[request.UserID] = append(out[request.UserID], group.ID)
-	}
-	if page.NextLink == "" {
-		return nil, nil
-	}
-	nextURL, err := graphBatchRelativeURL(page.NextLink)
-	if err != nil {
-		return nil, fmt.Errorf("fetch groups for %s: %w", request.UserID, err)
-	}
-	return []graphMembershipRequest{{UserID: request.UserID, URL: nextURL}}, nil
-}
 
-func (c *Client) userGroupMembershipURL(userID string) string {
-	relation := "memberOf"
-	if c.cfg.TransitiveGroups {
-		relation = "transitiveMemberOf"
+	builder := user.MemberOf().GraphGroup()
+	if request.NextLink != "" {
+		return builder.WithUrl(request.NextLink).ToGetRequestInformation(ctx, nil)
 	}
-	return fmt.Sprintf(
-		"/users/%s/%s/microsoft.graph.group?$select=id&$top=999",
-		url.PathEscape(userID), relation,
+	return builder.ToGetRequestInformation(
+		ctx,
+		&graphusers.ItemMemberOfGraphGroupRequestBuilderGetRequestConfiguration{
+			QueryParameters: &graphusers.ItemMemberOfGraphGroupRequestBuilderGetQueryParameters{
+				Select: []string{"id"},
+				Top:    int32Pointer(graphPageSize),
+			},
+		},
 	)
 }
 
-func (c *Client) fetchMembershipBatch(
-	ctx context.Context,
-	requests []graphMembershipRequest,
-) (map[string]graphBatchResponse, error) {
-	body := graphBatchRequestBody{Requests: make([]graphBatchRequest, len(requests))}
-	for i := range requests {
-		requests[i].ID = strconv.Itoa(i + 1)
-		body.Requests[i] = graphBatchRequest{
-			ID:     requests[i].ID,
-			Method: http.MethodGet,
-			URL:    requests[i].URL,
-		}
-	}
-	var batch graphBatchResponseBody
-	if err := c.post(ctx, "https://graph.microsoft.com/v1.0/$batch", body, &batch); err != nil {
-		return nil, err
-	}
-	out := make(map[string]graphBatchResponse, len(batch.Responses))
-	for _, response := range batch.Responses {
-		out[response.ID] = response
-	}
-	return out, nil
-}
-
-func graphBatchRelativeURL(endpoint string) (string, error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return "", err
-	}
-	if !parsed.IsAbs() {
-		if strings.HasPrefix(endpoint, "/") {
-			return endpoint, nil
-		}
-		return "/" + endpoint, nil
-	}
-	path := parsed.EscapedPath()
-	path = strings.TrimPrefix(path, "/v1.0")
-	path = strings.TrimPrefix(path, "/beta")
-	if path == "" {
-		path = "/"
-	}
-	if parsed.RawQuery != "" {
-		path += "?" + parsed.RawQuery
-	}
-	return path, nil
-}
-
-func (c *Client) get(ctx context.Context, endpoint string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	token, err := c.authToken(ctx)
-	if err != nil {
-		return err
-	}
-	token.SetAuthHeader(req)
-	res, err := c.http.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode >= 300 {
-		return fmt.Errorf("graph %s: %s", endpoint, res.Status)
-	}
-	return json.NewDecoder(res.Body).Decode(out)
-}
-
-func (c *Client) post(ctx context.Context, endpoint string, body any, out any) error {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(body); err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &buf)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	token, err := c.authToken(ctx)
-	if err != nil {
-		return err
-	}
-	token.SetAuthHeader(req)
-	res, err := c.http.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode >= 300 {
-		return fmt.Errorf("graph %s: %s", endpoint, res.Status)
-	}
-	return json.NewDecoder(res.Body).Decode(out)
-}
-
-func (c *Client) authToken(ctx context.Context) (*oauth2.Token, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.token.Valid() {
-		return c.token, nil
-	}
-	token, err := c.creds.TokenSource(ctx).Token()
-	if err != nil {
-		return nil, err
-	}
-	c.token = token
-	return token, nil
-}
-
-const graphBatchMaxRequests = 20
-
 type graphMembershipRequest struct {
-	ID     string
-	UserID string
-	URL    string
+	UserID   string
+	NextLink string
 }
 
-type graphBatchRequestBody struct {
-	Requests []graphBatchRequest `json:"requests"`
-}
-
-type graphBatchRequest struct {
-	ID     string `json:"id"`
-	Method string `json:"method"`
-	URL    string `json:"url"`
-}
-
-type graphBatchResponseBody struct {
-	Responses []graphBatchResponse `json:"responses"`
-}
-
-type graphBatchResponse struct {
-	ID     string          `json:"id"`
-	Status int32           `json:"status"`
-	Body   json.RawMessage `json:"body"`
-}
-
-type graphGroupPage struct {
-	NextLink string       `json:"@odata.nextLink"`
-	Value    []graphGroup `json:"value"`
-}
-
-func deref(s *string) string {
-	if s == nil {
+func deref(value *string) string {
+	if value == nil {
 		return ""
 	}
-	return *s
+	return *value
+}
+
+func enabled(value *bool) bool {
+	return value == nil || *value
+}
+
+func int32Pointer(value int32) *int32 {
+	return new(value)
 }

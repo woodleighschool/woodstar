@@ -353,10 +353,14 @@ func buildDependencies(
 			Santa: santaSync,
 		},
 	}
+	entraStarter, err := entraSyncStarter(cfg, directoryStore, logger)
+	if err != nil {
+		return nil, nil, err
+	}
 	starters := []starter{
 		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
 		santaCleanupStarter(cfg, eventStore, logger),
-		entraSyncStarter(cfg, directoryStore, logger),
+		entraStarter,
 	}
 
 	return deps, starters, nil
@@ -443,17 +447,20 @@ func entraSyncStarter(
 	cfg config.Config,
 	directoryStore *directory.Store,
 	logger *slog.Logger,
-) starter {
+) (starter, error) {
 	if !cfg.EntraEnabled() {
-		return nil
+		return nil, nil
 	}
 
-	client := entra.NewClient(entra.Config{
+	client, err := entra.NewClient(entra.Config{
 		TenantID:         cfg.EntraTenantID,
 		ClientID:         cfg.EntraClientID,
 		ClientSecret:     cfg.EntraClientSecret,
 		TransitiveGroups: cfg.EntraTransitiveGroups,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("configure Entra sync: %w", err)
+	}
 
 	service := entra.NewService(
 		directoryStore,
@@ -463,7 +470,7 @@ func entraSyncStarter(
 
 	return func(ctx context.Context) func() {
 		return service.StartScheduler(ctx, cfg.EntraSyncInterval)
-	}
+	}, nil
 }
 
 // A nil starter means the capability is disabled by configuration.

@@ -7,126 +7,260 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
-	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
+	"github.com/microsoft/kiota-abstractions-go/authentication"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-func TestClientTokenFetchUsesRequestContext(t *testing.T) {
-	tokenCalled := make(chan struct{})
-	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		close(tokenCalled)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"access_token":"token","token_type":"Bearer","expires_in":3600}`))
-	}))
-	defer tokenServer.Close()
-
-	client := &Client{
-		creds: clientcredentials.Config{
-			ClientID:     "client",
-			ClientSecret: "secret",
-			TokenURL:     tokenServer.URL,
-			Scopes:       []string{"https://graph.microsoft.com/.default"},
-		},
-		http: tokenServer.Client(),
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	var out struct{}
-	err := client.get(ctx, "https://graph.microsoft.com/v1.0/users", &out)
-	if err == nil {
-		t.Fatal("get returned nil error after token context cancellation")
-	}
-	if !errors.Is(err, context.Canceled) && !strings.Contains(err.Error(), "context canceled") {
-		t.Fatalf("get error = %v, want context cancellation", err)
-	}
-	select {
-	case <-tokenCalled:
-		t.Fatal("token endpoint was called after request context cancellation")
-	default:
-	}
-}
-
-func TestClientFetchBatchesUserGroupMembership(t *testing.T) {
-	var batchCalls int
-	var directMembershipCalls int
-	client := &Client{
-		http: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			switch {
-			case req.URL.Path == "/v1.0/users":
-				return jsonResponse(map[string]any{
-					"value": []map[string]any{
-						{"id": "u-1", "userPrincipalName": "one@example.com", "displayName": "One"},
-						{"id": "u-2", "userPrincipalName": "two@example.com", "displayName": "Two"},
-					},
-				}), nil
-			case req.URL.Path == "/v1.0/groups":
-				return jsonResponse(map[string]any{
-					"value": []map[string]any{
-						{"id": "g-1", "displayName": "Group 1"},
-						{"id": "g-2", "displayName": "Group 2"},
-					},
-				}), nil
-			case req.URL.Path == "/v1.0/$batch":
-				batchCalls++
-				var body graphBatchRequestBody
-				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-					t.Fatalf("decode batch request: %v", err)
-				}
-				if len(body.Requests) != 2 {
-					t.Fatalf("batch request count = %d, want 2", len(body.Requests))
-				}
-				return jsonResponse(map[string]any{
-					"responses": []map[string]any{
-						{
-							"id":     body.Requests[1].ID,
-							"status": http.StatusOK,
-							"body": map[string]any{
-								"value": []map[string]any{{"id": "g-2"}},
-							},
-						},
-						{
-							"id":     body.Requests[0].ID,
-							"status": http.StatusOK,
-							"body": map[string]any{
-								"value": []map[string]any{{"id": "g-1"}},
-							},
-						},
-					},
-				}), nil
-			case strings.Contains(req.URL.Path, "/memberOf/"):
-				directMembershipCalls++
-				return jsonResponse(map[string]any{"value": []map[string]any{}}), nil
-			default:
-				t.Fatalf("unexpected Graph request: %s", req.URL.String())
-				return nil, errors.New("unexpected Graph request")
-			}
-		})},
-		token: &oauth2.Token{AccessToken: "token", Expiry: time.Now().Add(time.Hour)},
-	}
+func TestClientFetchUsesGraphPagingAndBatchMembership(t *testing.T) {
+	const baseURL = "https://graph.test/v1.0"
+	transport := &graphFetchTransport{t: t, baseURL: baseURL}
+	httpClient := &http.Client{Transport: transport}
+	client := newTestClient(t, httpClient, baseURL, false)
 
 	snapshot, err := client.Fetch(context.Background())
 	if err != nil {
 		t.Fatalf("Fetch returned error: %v", err)
 	}
-	if batchCalls != 1 {
-		t.Fatalf("batch calls = %d, want 1", batchCalls)
+	if transport.batchCalls != 2 {
+		t.Fatalf("batch calls = %d, want 2 for membership pagination", transport.batchCalls)
 	}
-	if directMembershipCalls != 0 {
-		t.Fatalf("direct membership calls = %d, want 0", directMembershipCalls)
+
+	wantUsers := []directory.ProviderUser{
+		{
+			ExternalID:        "u-1",
+			UserPrincipalName: "one@example.com",
+			Mail:              "one@example.com",
+			MailNickname:      "one",
+			DisplayName:       "One",
+			GivenName:         "User",
+			FamilyName:        "One",
+			Department:        "IT",
+			Enabled:           true,
+			GroupExternalIDs:  []string{"g-1", "g-3"},
+		},
+		{
+			ExternalID:        "u-2",
+			UserPrincipalName: "two@example.com",
+			DisplayName:       "Two",
+			Enabled:           false,
+			GroupExternalIDs:  []string{"g-2"},
+		},
 	}
-	if got := snapshot.Users[0].GroupExternalIDs; len(got) != 1 || got[0] != "g-1" {
-		t.Fatalf("user 1 groups = %#v, want [g-1]", got)
+	if !reflect.DeepEqual(snapshot.Users, wantUsers) {
+		t.Fatalf("users = %#v, want %#v", snapshot.Users, wantUsers)
 	}
-	if got := snapshot.Users[1].GroupExternalIDs; len(got) != 1 || got[0] != "g-2" {
-		t.Fatalf("user 2 groups = %#v, want [g-2]", got)
+	wantGroups := []directory.ProviderGroup{
+		{ExternalID: "g-1", DisplayName: "Group 1", MailNickname: "group-1"},
+		{ExternalID: "g-2", DisplayName: "Group 2"},
+		{ExternalID: "g-3", DisplayName: "Group 3"},
 	}
+	if !reflect.DeepEqual(snapshot.Groups, wantGroups) {
+		t.Fatalf("groups = %#v, want %#v", snapshot.Groups, wantGroups)
+	}
+}
+
+type graphFetchTransport struct {
+	t          *testing.T
+	baseURL    string
+	batchCalls int
+}
+
+func (f *graphFetchTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	switch req.URL.Path {
+	case "/v1.0/users":
+		return f.users(req), nil
+	case "/v1.0/groups":
+		return f.groups(req), nil
+	case "/v1.0/$batch":
+		return f.batch(req), nil
+	default:
+		return nil, errors.New("unexpected Graph request: " + req.URL.String())
+	}
+}
+
+func (f *graphFetchTransport) users(req *http.Request) *http.Response {
+	if req.URL.Query().Get("$skiptoken") == "users-2" {
+		return jsonResponse(map[string]any{
+			"value": []map[string]any{{
+				"id":                "u-2",
+				"userPrincipalName": "two@example.com",
+				"displayName":       "Two",
+				"accountEnabled":    false,
+			}},
+		})
+	}
+	checkSelectedFields(f.t, req, []string{
+		"id",
+		"userPrincipalName",
+		"mail",
+		"mailNickname",
+		"displayName",
+		"givenName",
+		"surname",
+		"department",
+		"accountEnabled",
+	})
+	return jsonResponse(map[string]any{
+		"@odata.nextLink": f.baseURL + "/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$top=999&$skiptoken=users-2",
+		"value": []map[string]any{{
+			"id":                "u-1",
+			"userPrincipalName": "one@example.com",
+			"mail":              "one@example.com",
+			"mailNickname":      "one",
+			"displayName":       "One",
+			"givenName":         "User",
+			"surname":           "One",
+			"department":        "IT",
+		}},
+	})
+}
+
+func (f *graphFetchTransport) groups(req *http.Request) *http.Response {
+	if req.URL.Query().Get("$skiptoken") == "groups-2" {
+		return jsonResponse(map[string]any{
+			"value": []map[string]any{
+				{"id": "g-2", "displayName": "Group 2"},
+				{"id": "g-3", "displayName": "Group 3"},
+			},
+		})
+	}
+	checkSelectedFields(f.t, req, []string{"id", "displayName", "mailNickname"})
+	return jsonResponse(map[string]any{
+		"@odata.nextLink": f.baseURL + "/groups?$select=id,displayName,mailNickname&$top=999&$skiptoken=groups-2",
+		"value": []map[string]any{{
+			"id":           "g-1",
+			"displayName":  "Group 1",
+			"mailNickname": "group-1",
+		}},
+	})
+}
+
+func (f *graphFetchTransport) batch(req *http.Request) *http.Response {
+	f.batchCalls++
+	var body testBatchRequestBody
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		f.t.Fatalf("decode batch request: %v", err)
+	}
+	responses := make([]map[string]any, 0, len(body.Requests))
+	for _, request := range body.Requests {
+		requestURL, err := url.QueryUnescape(request.URL)
+		if err != nil {
+			f.t.Fatalf("decode batch URL %q: %v", request.URL, err)
+		}
+		responses = append([]map[string]any{{
+			"id":      request.ID,
+			"status":  http.StatusOK,
+			"headers": map[string]string{"Content-Type": "application/json"},
+			"body":    f.membershipResponse(requestURL),
+		}}, responses...)
+	}
+	return jsonResponse(map[string]any{"responses": responses})
+}
+
+func (f *graphFetchTransport) membershipResponse(requestURL string) map[string]any {
+	switch {
+	case strings.Contains(requestURL, "/users/u-1/memberOf/graph.group") &&
+		strings.Contains(requestURL, "$skiptoken=membership-2"):
+		return map[string]any{"value": []map[string]any{{"id": "g-3"}}}
+	case strings.Contains(requestURL, "/users/u-1/memberOf/graph.group"):
+		return map[string]any{
+			"@odata.nextLink": f.baseURL + "/users/u-1/memberOf/graph.group?$select=id&$top=999&$skiptoken=membership-2",
+			"value":           []map[string]any{{"id": "g-1"}},
+		}
+	case strings.Contains(requestURL, "/users/u-2/memberOf/graph.group"):
+		return map[string]any{"value": []map[string]any{{"id": "g-2"}}}
+	default:
+		f.t.Fatalf("unexpected membership request URL %q", requestURL)
+		return nil
+	}
+}
+
+func TestClientFetchUsesTransitiveGroupRelationship(t *testing.T) {
+	const baseURL = "https://graph.test/v1.0"
+	var membershipURL string
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1.0/users":
+			return jsonResponse(map[string]any{
+				"value": []map[string]any{{
+					"id":                "u-1",
+					"userPrincipalName": "one@example.com",
+					"displayName":       "One",
+				}},
+			}), nil
+		case "/v1.0/groups":
+			return jsonResponse(map[string]any{"value": []map[string]any{}}), nil
+		case "/v1.0/$batch":
+			var body testBatchRequestBody
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				t.Fatalf("decode batch request: %v", err)
+			}
+			if len(body.Requests) != 1 {
+				t.Fatalf("batch request count = %d, want 1", len(body.Requests))
+			}
+			membershipURL, _ = url.QueryUnescape(body.Requests[0].URL)
+			return jsonResponse(map[string]any{
+				"responses": []map[string]any{{
+					"id":      body.Requests[0].ID,
+					"status":  http.StatusOK,
+					"headers": map[string]string{"Content-Type": "application/json"},
+					"body":    map[string]any{"value": []map[string]any{}},
+				}},
+			}), nil
+		default:
+			return nil, errors.New("unexpected Graph request: " + req.URL.String())
+		}
+	})}
+	client := newTestClient(t, httpClient, baseURL, true)
+
+	if _, err := client.Fetch(context.Background()); err != nil {
+		t.Fatalf("Fetch returned error: %v", err)
+	}
+	if !strings.Contains(membershipURL, "/users/u-1/transitiveMemberOf/graph.group") {
+		t.Fatalf("membership URL = %q, want transitiveMemberOf group cast", membershipURL)
+	}
+}
+
+func newTestClient(
+	t *testing.T,
+	httpClient *http.Client,
+	baseURL string,
+	transitiveGroups bool,
+) *Client {
+	t.Helper()
+	adapter, err := msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+		&authentication.AnonymousAuthenticationProvider{},
+		nil,
+		nil,
+		httpClient,
+	)
+	if err != nil {
+		t.Fatalf("create Graph request adapter: %v", err)
+	}
+	adapter.SetBaseUrl(baseURL)
+	return newClient(msgraphsdk.NewGraphServiceClient(adapter), transitiveGroups)
+}
+
+func checkSelectedFields(t *testing.T, req *http.Request, want []string) {
+	t.Helper()
+	got := strings.Split(req.URL.Query().Get("$select"), ",")
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("$select = %#v, want %#v", got, want)
+	}
+}
+
+type testBatchRequestBody struct {
+	Requests []struct {
+		ID  string `json:"id"`
+		URL string `json:"url"`
+	} `json:"requests"`
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -141,9 +275,10 @@ func jsonResponse(body any) *http.Response {
 		panic(err)
 	}
 	return &http.Response{
-		StatusCode: http.StatusOK,
-		Status:     http.StatusText(http.StatusOK),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(&buf),
+		StatusCode:    http.StatusOK,
+		Status:        "200 OK",
+		Header:        http.Header{"Content-Type": []string{"application/json"}},
+		Body:          io.NopCloser(&buf),
+		ContentLength: int64(buf.Len()),
 	}
 }
