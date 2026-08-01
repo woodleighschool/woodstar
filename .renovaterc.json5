@@ -4,7 +4,7 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
-      description: "Skip expensive AWS SDK for Go v2 changelogs",
+      // Fetching AWS SDK changelogs cause some major renovate constipation.
       matchSourceUrls: ["https://github.com/aws/aws-sdk-go-v2{/**,}"],
       fetchChangeLogs: "off",
     },
@@ -13,13 +13,11 @@
       minimumReleaseAge: "12 hours",
     },
     {
-      description: "Automerge North Pole Security protobufs",
       matchManagers: ["gomod"],
       matchPackageNames: ["buf.build/gen/go/northpolesec/protos/protocolbuffers/go"],
       automerge: true,
     },
     {
-      description: "Keep Go toolchain pins together",
       matchManagers: ["dockerfile", "gomod", "mise"],
       matchDepNames: ["go", "golang"],
       matchFileNames: ["Dockerfile", "go.mod", ".mise/config.toml"],
@@ -27,7 +25,6 @@
       groupSlug: "go-toolchain",
     },
     {
-      description: "Keep Node toolchain pins together",
       matchManagers: ["dockerfile", "mise"],
       matchDepNames: ["node"],
       matchFileNames: ["Dockerfile", ".mise/config.toml"],
@@ -35,7 +32,6 @@
       groupSlug: "node-toolchain",
     },
     {
-      description: "Keep pnpm pins together",
       matchManagers: ["mise", "npm"],
       matchDepNames: ["pnpm"],
       matchFileNames: [".mise/config.toml", "docs/package.json", "web/package.json"],
@@ -43,12 +39,18 @@
       groupSlug: "pnpm",
     },
     {
-      description: "Keep React runtime packages together",
       matchManagers: ["npm"],
       matchPackageNames: ["react", "react-dom"],
       matchFileNames: ["docs/package.json", "web/package.json"],
       groupName: "React runtime",
       groupSlug: "react-runtime",
+    },
+    {
+      matchManagers: ["npm"],
+      matchPackageNames: ["docusaurus-plugin-openapi-docs", "docusaurus-theme-openapi-docs"],
+      matchFileNames: ["docs/package.json"],
+      groupName: "Docusaurus OpenAPI",
+      groupSlug: "docusaurus-openapi",
     },
   ],
 }
