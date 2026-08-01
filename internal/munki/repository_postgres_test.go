@@ -485,37 +485,66 @@ func TestRepositoryServiceScopesCatalogAndFilesByHost(t *testing.T) {
 	stores := newMunkiStores(db)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
-	firstHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "repository-first-host", Serial: "C02REPOSITORY1"},
-		OrbitNodeKey: "repository-first-orbit",
+	firstHostID, firstLabelID := createRepositoryScopeHost(t, ctx, hostStore, labelStore, "first", "1")
+	secondHostID, secondLabelID := createRepositoryScopeHost(t, ctx, hostStore, labelStore, "second", "2")
+	firstNames := createFirstRepositoryScope(t, ctx, stores, firstLabelID)
+	second := createSecondRepositoryScope(t, ctx, stores, secondLabelID)
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: stores.software,
+		Packages: stores.packages,
+		Objects:  stores.objects,
 	})
-	if err != nil {
-		t.Fatalf("enroll first host: %v", err)
-	}
-	secondHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "repository-second-host", Serial: "C02REPOSITORY2"},
-		OrbitNodeKey: "repository-second-orbit",
-	})
-	if err != nil {
-		t.Fatalf("enroll second host: %v", err)
-	}
-	firstLabel, err := labelStore.Create(ctx, labels.LabelMutation{
-		Name:                "Repository First Host",
-		LabelMembershipType: labels.LabelMembershipTypeManual,
-		HostIDs:             []int64{firstHost.ID},
-	})
-	if err != nil {
-		t.Fatalf("create first label: %v", err)
-	}
-	secondLabel, err := labelStore.Create(ctx, labels.LabelMutation{
-		Name:                "Repository Second Host",
-		LabelMembershipType: labels.LabelMembershipTypeManual,
-		HostIDs:             []int64{secondHost.ID},
-	})
-	if err != nil {
-		t.Fatalf("create second label: %v", err)
-	}
 
+	t.Run("first host excludes second host resources", func(t *testing.T) {
+		assertFirstRepositoryScope(t, ctx, service, firstHostID, firstNames, second)
+	})
+	t.Run("second host sees its own resources", func(t *testing.T) {
+		assertSecondRepositoryScope(t, ctx, service, secondHostID, second)
+	})
+}
+
+type repositoryScopePackage struct {
+	pkg       *packages.Package
+	installer *storage.Object
+	icon      *storage.Object
+}
+
+func createRepositoryScopeHost(
+	t *testing.T,
+	ctx context.Context,
+	hostStore *hosts.Store,
+	labelStore *labels.Store,
+	name, serialSuffix string,
+) (int64, int64) {
+	t.Helper()
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "repository-" + name + "-host",
+			Serial: "C02REPOSITORY" + serialSuffix,
+		},
+		OrbitNodeKey: "repository-" + name + "-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll %s host: %v", name, err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Repository " + name + " Host",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		HostIDs:             []int64{host.ID},
+	})
+	if err != nil {
+		t.Fatalf("create %s label: %v", name, err)
+	}
+	return host.ID, label.ID
+}
+
+func createFirstRepositoryScope(
+	t *testing.T,
+	ctx context.Context,
+	stores munkiStores,
+	labelID int64,
+) []string {
+	t.Helper()
 	dependencySoftware, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "RepositoryDependency"})
 	if err != nil {
 		t.Fatalf("create dependency software: %v", err)
@@ -545,87 +574,115 @@ func TestRepositoryServiceScopesCatalogAndFilesByHost(t *testing.T) {
 		t.Fatalf("create pinned software: %v", err)
 	}
 	pinned := createMunkiPackage(t, ctx, stores, pinnedSoftware.ID, pinnedSoftware.Name, "1.0")
-	secondIcon := createMunkiIconObject(t, ctx, stores, "RepositorySecond.png", "f")
-	secondSoftware, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
+	replaceTargets(t, ctx, stores, firstLatestSoftware, []munkisoftware.Include{
+		includeTarget(labelID, munkisoftware.ActionManagedInstalls),
+	})
+	replaceTargets(t, ctx, stores, pinnedSoftware, []munkisoftware.Include{
+		includeSpecificTarget(labelID, munkisoftware.ActionManagedInstalls, pinned.ID),
+	})
+	return []string{firstLatest.Software.Name, pinned.Software.Name, dependency.Software.Name}
+}
+
+func createSecondRepositoryScope(
+	t *testing.T,
+	ctx context.Context,
+	stores munkiStores,
+	labelID int64,
+) repositoryScopePackage {
+	t.Helper()
+	icon := createMunkiIconObject(t, ctx, stores, "RepositorySecond.png", "f")
+	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:         "RepositorySecond",
-		IconObjectID: &secondIcon.ID,
+		IconObjectID: &icon.ID,
 	})
 	if err != nil {
 		t.Fatalf("create second software: %v", err)
 	}
-	secondInstaller := createMunkiPackageObject(t, ctx, stores, "RepositorySecond.pkg", "a")
-	second, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
-		SoftwareID: secondSoftware.ID,
+	installer := createMunkiPackageObject(t, ctx, stores, "RepositorySecond.pkg", "a")
+	pkg, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: software.ID,
 		PackageMutation: packages.PackageMutation{
 			Version:           "2.0",
-			InstallerObjectID: &secondInstaller.ID,
+			InstallerObjectID: &installer.ID,
 		}},
 	)
 	if err != nil {
 		t.Fatalf("create second package: %v", err)
 	}
-	replaceTargets(t, ctx, stores, firstLatestSoftware, []munkisoftware.Include{
-		includeTarget(firstLabel.ID, munkisoftware.ActionManagedInstalls),
+	replaceTargets(t, ctx, stores, software, []munkisoftware.Include{
+		includeTarget(labelID, munkisoftware.ActionManagedInstalls),
 	})
-	replaceTargets(t, ctx, stores, pinnedSoftware, []munkisoftware.Include{
-		includeSpecificTarget(firstLabel.ID, munkisoftware.ActionManagedInstalls, pinned.ID),
-	})
-	replaceTargets(t, ctx, stores, secondSoftware, []munkisoftware.Include{
-		includeTarget(secondLabel.ID, munkisoftware.ActionManagedInstalls),
-	})
+	return repositoryScopePackage{pkg: pkg, installer: installer, icon: icon}
+}
 
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Software: stores.software,
-		Packages: stores.packages,
-		Objects:  stores.objects,
-	})
-	firstCatalog, err := service.Catalog(ctx, firstHost.ID, "woodstar")
-	if err != nil {
-		t.Fatalf("first host catalog: %v", err)
-	}
-	var firstItems []struct {
-		Name string `plist:"name"`
-	}
-	if _, err := plist.Unmarshal(firstCatalog, &firstItems); err != nil {
-		t.Fatalf("decode first catalog: %v", err)
-	}
-	firstNames := make([]string, 0, len(firstItems))
-	for _, item := range firstItems {
-		firstNames = append(firstNames, item.Name)
-	}
-	for _, name := range []string{firstLatest.Software.Name, pinned.Software.Name, dependency.Software.Name} {
-		if !slices.Contains(firstNames, name) {
-			t.Fatalf("first catalog names = %v, want %q", firstNames, name)
+func assertFirstRepositoryScope(
+	t *testing.T,
+	ctx context.Context,
+	service *munki.RepositoryService,
+	hostID int64,
+	wantNames []string,
+	other repositoryScopePackage,
+) {
+	t.Helper()
+	gotNames := repositoryCatalogNames(t, ctx, service, hostID)
+	for _, name := range wantNames {
+		if !slices.Contains(gotNames, name) {
+			t.Fatalf("first catalog names = %v, want %q", gotNames, name)
 		}
 	}
-	if slices.Contains(firstNames, second.Software.Name) {
-		t.Fatalf("first catalog names = %v, must exclude %q", firstNames, second.Software.Name)
+	if slices.Contains(gotNames, other.pkg.Software.Name) {
+		t.Fatalf("first catalog names = %v, must exclude %q", gotNames, other.pkg.Software.Name)
 	}
-	if _, err := service.ResolvePackageFile(ctx, firstHost.ID, packages.InstallerItemLocation(*second, *secondInstaller)); !errors.Is(err, munki.ErrNotFound) {
+	if _, err := service.ResolvePackageFile(ctx, hostID, packages.InstallerItemLocation(*other.pkg, *other.installer)); !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("first host second package error = %v, want ErrNotFound", err)
 	}
-	if _, err := service.ResolveIconFile(ctx, firstHost.ID, packages.IconName(*secondIcon)); !errors.Is(err, munki.ErrNotFound) {
+	if _, err := service.ResolveIconFile(ctx, hostID, packages.IconName(*other.icon)); !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("first host second icon error = %v, want ErrNotFound", err)
 	}
-	secondCatalog, err := service.Catalog(ctx, secondHost.ID, "woodstar")
-	if err != nil {
-		t.Fatalf("second host catalog: %v", err)
+}
+
+func assertSecondRepositoryScope(
+	t *testing.T,
+	ctx context.Context,
+	service *munki.RepositoryService,
+	hostID int64,
+	want repositoryScopePackage,
+) {
+	t.Helper()
+	names := repositoryCatalogNames(t, ctx, service, hostID)
+	if len(names) != 1 || names[0] != want.pkg.Software.Name {
+		t.Fatalf("second catalog = %v, want %q", names, want.pkg.Software.Name)
 	}
-	var secondItems []struct {
-		Name string `plist:"name"`
-	}
-	if _, err := plist.Unmarshal(secondCatalog, &secondItems); err != nil {
-		t.Fatalf("decode second catalog: %v", err)
-	}
-	if len(secondItems) != 1 || secondItems[0].Name != second.Software.Name {
-		t.Fatalf("second catalog = %+v, want %q", secondItems, second.Software.Name)
-	}
-	if _, err := service.ResolvePackageFile(ctx, secondHost.ID, packages.InstallerItemLocation(*second, *secondInstaller)); err != nil {
+	if _, err := service.ResolvePackageFile(ctx, hostID, packages.InstallerItemLocation(*want.pkg, *want.installer)); err != nil {
 		t.Fatalf("second host package: %v", err)
 	}
-	if _, err := service.ResolveIconFile(ctx, secondHost.ID, packages.IconName(*secondIcon)); err != nil {
+	if _, err := service.ResolveIconFile(ctx, hostID, packages.IconName(*want.icon)); err != nil {
 		t.Fatalf("second host icon: %v", err)
 	}
+}
+
+func repositoryCatalogNames(
+	t *testing.T,
+	ctx context.Context,
+	service *munki.RepositoryService,
+	hostID int64,
+) []string {
+	t.Helper()
+	catalog, err := service.Catalog(ctx, hostID, "woodstar")
+	if err != nil {
+		t.Fatalf("host %d catalog: %v", hostID, err)
+	}
+	var items []struct {
+		Name string `plist:"name"`
+	}
+	if _, err := plist.Unmarshal(catalog, &items); err != nil {
+		t.Fatalf("decode host %d catalog: %v", hostID, err)
+	}
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		names = append(names, item.Name)
+	}
+	return names
 }
 
 func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
