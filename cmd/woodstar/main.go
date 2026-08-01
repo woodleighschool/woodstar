@@ -261,7 +261,6 @@ func buildDependencies(
 	})
 
 	munkiRepository := munki.NewRepositoryService(munki.Dependencies{
-		Hosts:           hostStore,
 		Software:        munkiSoftwareStore,
 		Packages:        packageStore,
 		Objects:         objectStore,
@@ -345,6 +344,7 @@ func buildDependencies(
 			Orbit:     orbitAgent,
 			Osquery:   osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
+				Hosts:                hostStore,
 				Repository:           munkiRepository,
 				Distribution:         munkiDistribution,
 				DistributionProtocol: munkiDistributionProtocol,

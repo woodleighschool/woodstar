@@ -11,7 +11,6 @@ import (
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -46,7 +45,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	}}
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 
-	installer, err := service.ResolvePackageFile(context.Background(), "packages/10/installer/GoogleChrome.pkg")
+	installer, err := service.ResolvePackageFile(context.Background(), 1, "packages/10/installer/GoogleChrome.pkg")
 	if err != nil {
 		t.Fatalf("ResolvePackageFile allowed package: %v", err)
 	}
@@ -60,7 +59,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 		t.Fatalf("content type = %q, want application/octet-stream", installer.Object.ContentType)
 	}
 
-	_, err = service.ResolvePackageFile(context.Background(), "munki/packages/99/Blocked.pkg")
+	_, err = service.ResolvePackageFile(context.Background(), 1, "munki/packages/99/Blocked.pkg")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("blocked key error = %v, want ErrNotFound", err)
 	}
@@ -88,7 +87,7 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	}}
 	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
 
-	file, err := service.ResolveIconFile(context.Background(), "42-GoogleChrome.png")
+	file, err := service.ResolveIconFile(context.Background(), 1, "42-GoogleChrome.png")
 	if err != nil {
 		t.Fatalf("ResolveIconFile allowed icon: %v", err)
 	}
@@ -96,13 +95,13 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 		t.Fatalf("file = %+v, want canonical icon storage metadata", file)
 	}
 
-	_, err = service.ResolveIconFile(context.Background(), "42-Other.png")
+	_, err = service.ResolveIconFile(context.Background(), 1, "42-Other.png")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("mismatched icon error = %v, want ErrNotFound", err)
 	}
 }
 
-func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
+func TestResolveClientResourcesUsesResolvedHost(t *testing.T) {
 	availableAt := time.Now()
 	resource := &clientresources.ClientResources{
 		ID:              1,
@@ -116,26 +115,17 @@ func TestResolveClientResourcesAcceptsKnownHostAndSiteDefault(t *testing.T) {
 		AvailableAt: &availableAt,
 	}
 	service := munki.NewRepositoryService(munki.Dependencies{
-		Hosts: serviceHostStore{host: &hosts.Host{
-			ID:       1,
-			Hardware: hosts.HostHardware{Serial: "C02MUNKI"},
-		}},
 		ClientResources: serviceClientResourcesStore{resource: resource},
 		Objects:         serviceObjectStore{objects: map[int64]storage.Object{archive.ID: archive}},
 	})
 
-	for _, name := range []string{"C02MUNKI.zip", "site_default.zip"} {
-		file, err := service.ResolveClientResources(context.Background(), name)
+	for _, name := range []string{"C02MUNKI.zip", "site_default.zip", "nested/C02MUNKI.zip"} {
+		file, err := service.ResolveClientResources(context.Background(), 1, name)
 		if err != nil {
 			t.Fatalf("ResolveClientResources(%q): %v", name, err)
 		}
 		if file.Key() != "munki/clientresources/archives/9/site_default.zip" || file.ContentType != "application/zip" {
 			t.Fatalf("ResolveClientResources(%q) file = %+v", name, file)
-		}
-	}
-	for _, name := range []string{"C02OTHER.zip", "nested/C02MUNKI.zip", "not-a-zip"} {
-		if _, err := service.ResolveClientResources(context.Background(), name); !errors.Is(err, munki.ErrNotFound) {
-			t.Fatalf("ResolveClientResources(%q) error = %v, want ErrNotFound", name, err)
 		}
 	}
 }
@@ -146,6 +136,7 @@ func TestResolveClientResourcesMapsUnconfiguredToNotFound(t *testing.T) {
 	})
 	if _, err := service.ResolveClientResources(
 		context.Background(),
+		1,
 		"site_default.zip",
 	); !errors.Is(
 		err,
@@ -157,7 +148,6 @@ func TestResolveClientResourcesMapsUnconfiguredToNotFound(t *testing.T) {
 
 func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
-		Hosts: serviceHostStore{host: &hosts.Host{ID: 1, Hardware: hosts.HostHardware{Serial: "C02MUNKI"}}},
 		Software: servicePackageStore{packages: []munkisoftware.EffectivePackage{
 			{
 				Actions: []munkisoftware.Action{munkisoftware.ActionDefaultInstalls},
@@ -176,7 +166,7 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 		}},
 	})
 
-	body, err := service.Manifest(context.Background(), "C02MUNKI")
+	body, err := service.Manifest(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("Manifest: %v", err)
 	}
@@ -199,17 +189,17 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	}
 }
 
-func TestManifestRequiresClientIdentifierName(t *testing.T) {
+func TestManifestUsesResolvedHostID(t *testing.T) {
+	var gotHostID int64
 	service := munki.NewRepositoryService(munki.Dependencies{
-		Hosts:    serviceHostStore{host: &hosts.Host{ID: 1, Hardware: hosts.HostHardware{Serial: "C02MUNKI"}}},
-		Software: servicePackageStore{},
+		Software: servicePackageStore{requestedHostID: &gotHostID},
 	})
 
-	if _, err := service.Manifest(context.Background(), "C02OTHER"); !errors.Is(err, munki.ErrNotFound) {
-		t.Fatalf("Manifest wrong name error = %v, want ErrNotFound", err)
+	if _, err := service.Manifest(context.Background(), 42); err != nil {
+		t.Fatalf("Manifest: %v", err)
 	}
-	if _, err := service.Manifest(context.Background(), "C02MUNKI"); err != nil {
-		t.Fatalf("Manifest client name error = %v, want nil", err)
+	if gotHostID != 42 {
+		t.Fatalf("effective packages host ID = %d, want 42", gotHostID)
 	}
 }
 
@@ -219,10 +209,10 @@ func TestCatalogRequiresWoodstarName(t *testing.T) {
 		Objects:  serviceObjectStore{},
 	})
 
-	if _, err := service.Catalog(context.Background(), "testing"); !errors.Is(err, munki.ErrNotFound) {
+	if _, err := service.Catalog(context.Background(), 1, "testing"); !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("Catalog wrong name error = %v, want ErrNotFound", err)
 	}
-	if _, err := service.Catalog(context.Background(), "woodstar"); err != nil {
+	if _, err := service.Catalog(context.Background(), 1, "woodstar"); err != nil {
 		t.Fatalf("Catalog woodstar error = %v, want nil", err)
 	}
 }
@@ -250,7 +240,7 @@ func TestIconHashesIncludesAvailableRepositoryIcons(t *testing.T) {
 		},
 	})
 
-	body, err := service.IconHashes(context.Background())
+	body, err := service.IconHashes(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("IconHashes: %v", err)
 	}
@@ -303,25 +293,15 @@ type servicePackageStore struct {
 	packagesByID            map[int64]packages.Package
 	packagesByIconObjectID  map[int64][]packages.Package
 	listRepositoryErr       error
-}
-
-type serviceHostStore struct {
-	host *hosts.Host
-}
-
-func (s serviceHostStore) GetByHardwareSerial(_ context.Context, serial string) (*hosts.Host, error) {
-	if s.host == nil || s.host.Hardware.Serial != serial {
-		return nil, dbutil.ErrNotFound
-	}
-	return s.host, nil
+	requestedHostID         *int64
 }
 
 func (s servicePackageStore) EffectivePackagesForHost(
 	_ context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
-	if hostID != 1 {
-		return nil, nil
+	if s.requestedHostID != nil {
+		*s.requestedHostID = hostID
 	}
 	return s.packages, nil
 }

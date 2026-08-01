@@ -13,22 +13,31 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-const plistContentType = "application/x-plist"
+const (
+	plistContentType   = "application/x-plist"
+	serialNumberHeader = "X-Woodstar-Serial-Number"
+)
+
+type hostResolver interface {
+	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
+}
 
 // Repository loads raw Munki repository objects.
 type Repository interface {
-	Manifest(ctx context.Context, name string) ([]byte, error)
-	Catalog(ctx context.Context, name string) ([]byte, error)
-	IconHashes(ctx context.Context) ([]byte, error)
-	ResolvePackageFile(ctx context.Context, name string) (munki.PackageInstaller, error)
-	ResolveIconFile(ctx context.Context, name string) (storage.Object, error)
-	ResolveClientResources(ctx context.Context, name string) (storage.Object, error)
+	Manifest(context.Context, int64) ([]byte, error)
+	Catalog(context.Context, int64, string) ([]byte, error)
+	IconHashes(context.Context, int64) ([]byte, error)
+	ResolvePackageFile(context.Context, int64, string) (munki.PackageInstaller, error)
+	ResolveIconFile(context.Context, int64, string) (storage.Object, error)
+	ResolveClientResources(context.Context, int64, string) (storage.Object, error)
 }
 
 // Selector redirects a package download to a matching distribution point.
@@ -38,6 +47,7 @@ type Selector interface {
 
 type handler struct {
 	secretVerifier agentauth.SecretVerifier
+	hostResolver   hostResolver
 	repository     Repository
 	selector       Selector
 	delivery       storage.Deliverer
@@ -47,6 +57,7 @@ type handler struct {
 // Server owns Munki client repository routes.
 type Server struct {
 	secretVerifier agentauth.SecretVerifier
+	hostResolver   hostResolver
 	repository     Repository
 	selector       Selector
 	delivery       storage.Deliverer
@@ -56,6 +67,7 @@ type Server struct {
 // NewServer returns a Munki client repository protocol server.
 func NewServer(
 	secretVerifier agentauth.SecretVerifier,
+	hostResolver hostResolver,
 	repository Repository,
 	selector Selector,
 	delivery storage.Deliverer,
@@ -63,6 +75,7 @@ func NewServer(
 ) *Server {
 	return &Server{
 		secretVerifier: secretVerifier,
+		hostResolver:   hostResolver,
 		repository:     repository,
 		selector:       selector,
 		delivery:       delivery,
@@ -75,6 +88,7 @@ func NewServer(
 func (s *Server) RegisterRoutes(ordinary chi.Router, transfers chi.Router) {
 	h := handler{
 		secretVerifier: s.secretVerifier,
+		hostResolver:   s.hostResolver,
 		repository:     s.repository,
 		selector:       s.selector,
 		delivery:       s.delivery,
@@ -89,14 +103,14 @@ func (s *Server) RegisterRoutes(ordinary chi.Router, transfers chi.Router) {
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "manifest", func(ctx context.Context) ([]byte, error) {
-		return h.repository.Manifest(ctx, httpx.PathParam(r, "name"))
+	h.writePlist(w, r, "manifest", func(ctx context.Context, hostID int64) ([]byte, error) {
+		return h.repository.Manifest(ctx, hostID)
 	})
 }
 
 func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "catalog", func(ctx context.Context) ([]byte, error) {
-		return h.repository.Catalog(ctx, httpx.PathParam(r, "name"))
+	h.writePlist(w, r, "catalog", func(ctx context.Context, hostID int64) ([]byte, error) {
+		return h.repository.Catalog(ctx, hostID, httpx.PathParam(r, "name"))
 	})
 }
 
@@ -105,10 +119,11 @@ func (h handler) iconHashes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
-	if ok := h.authorizedRequest(w, r, "package"); !ok {
+	hostID, ok := h.authorizedHost(w, r, "package")
+	if !ok {
 		return
 	}
-	installer, err := h.repository.ResolvePackageFile(r.Context(), httpx.PathParam(r, "*"))
+	installer, err := h.repository.ResolvePackageFile(r.Context(), hostID, httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -128,10 +143,11 @@ func (h handler) packageFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
-	if ok := h.authorizedRequest(w, r, "icon"); !ok {
+	hostID, ok := h.authorizedHost(w, r, "icon")
+	if !ok {
 		return
 	}
-	file, err := h.repository.ResolveIconFile(r.Context(), httpx.PathParam(r, "*"))
+	file, err := h.repository.ResolveIconFile(r.Context(), hostID, httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -145,10 +161,11 @@ func (h handler) iconFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
-	if ok := h.authorizedRequest(w, r, "client resources"); !ok {
+	hostID, ok := h.authorizedHost(w, r, "client resources")
+	if !ok {
 		return
 	}
-	file, err := h.repository.ResolveClientResources(r.Context(), httpx.PathParam(r, "*"))
+	file, err := h.repository.ResolveClientResources(r.Context(), hostID, httpx.PathParam(r, "*"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -161,18 +178,28 @@ func (h handler) clientResources(w http.ResponseWriter, r *http.Request) {
 	h.deliver(w, r, file)
 }
 
-func (h handler) authorizedRequest(w http.ResponseWriter, r *http.Request, operation string) bool {
+func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operation string) (int64, bool) {
 	authorized, err := h.authorized(r)
 	if err != nil {
 		h.log(r, operation, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return false
+		return 0, false
 	}
 	if !authorized {
 		w.WriteHeader(http.StatusUnauthorized)
-		return false
+		return 0, false
 	}
-	return true
+	host, err := h.hostResolver.GetByHardwareSerial(r.Context(), strings.TrimSpace(r.Header.Get(serialNumberHeader)))
+	if errors.Is(err, dbutil.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return 0, false
+	}
+	if err != nil {
+		h.log(r, operation, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return 0, false
+	}
+	return host.ID, true
 }
 
 // redirectToDistributionPoint asks the selector for a matching distribution point.
@@ -200,12 +227,13 @@ func (h handler) writePlist(
 	w http.ResponseWriter,
 	r *http.Request,
 	operation string,
-	load func(context.Context) ([]byte, error),
+	load func(context.Context, int64) ([]byte, error),
 ) {
-	if ok := h.authorizedRequest(w, r, operation); !ok {
+	hostID, ok := h.authorizedHost(w, r, operation)
+	if !ok {
 		return
 	}
-	body, err := load(r.Context())
+	body, err := load(r.Context(), hostID)
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return

@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -21,10 +19,6 @@ const catalogName = "woodstar"
 
 // ErrNotFound reports that a requested Munki repository object does not exist.
 var ErrNotFound = errors.New("munki resource not found")
-
-type hostResolver interface {
-	GetByHardwareSerial(ctx context.Context, serial string) (*hosts.Host, error)
-}
 
 type effectivePackageResolver interface {
 	EffectivePackagesForHost(ctx context.Context, hostID int64) ([]munkisoftware.EffectivePackage, error)
@@ -52,7 +46,6 @@ type RepositoryService struct {
 
 // Dependencies are the collaborators the Munki repository renderer needs.
 type Dependencies struct {
-	Hosts           hostResolver
 	Software        effectivePackageResolver
 	Packages        packageResolver
 	Objects         objectResolver
@@ -64,23 +57,8 @@ func NewRepositoryService(deps Dependencies) *RepositoryService {
 	return &RepositoryService{deps: deps}
 }
 
-func (s *RepositoryService) resolveManifestHostID(ctx context.Context, serial string) (int64, error) {
-	host, err := s.deps.Hosts.GetByHardwareSerial(ctx, serial)
-	if errors.Is(err, dbutil.ErrNotFound) {
-		return 0, ErrNotFound
-	}
-	if err != nil {
-		return 0, err
-	}
-	return host.ID, nil
-}
-
-// Manifest returns the Munki manifest for the host serial in name.
-func (s *RepositoryService) Manifest(ctx context.Context, name string) ([]byte, error) {
-	hostID, err := s.resolveManifestHostID(ctx, name)
-	if err != nil {
-		return nil, err
-	}
+// Manifest returns the Munki manifest for hostID.
+func (s *RepositoryService) Manifest(ctx context.Context, hostID int64) ([]byte, error) {
 	pkgs, err := s.effectivePackages(ctx, hostID)
 	if err != nil {
 		return nil, err
@@ -100,8 +78,8 @@ func (s *RepositoryService) Manifest(ctx context.Context, name string) ([]byte, 
 	return encodePlist(manifest)
 }
 
-// Catalog returns a Munki catalog plist for name.
-func (s *RepositoryService) Catalog(ctx context.Context, name string) ([]byte, error) {
+// Catalog returns a Munki catalog plist for hostID and name.
+func (s *RepositoryService) Catalog(ctx context.Context, _ int64, name string) ([]byte, error) {
 	if name != catalogName {
 		return nil, ErrNotFound
 	}
@@ -116,8 +94,8 @@ func (s *RepositoryService) Catalog(ctx context.Context, name string) ([]byte, e
 	return encodePlist(items)
 }
 
-// IconHashes returns the available catalog icon hashes keyed by repository filename.
-func (s *RepositoryService) IconHashes(ctx context.Context) ([]byte, error) {
+// IconHashes returns the available catalog icon hashes for hostID keyed by repository filename.
+func (s *RepositoryService) IconHashes(ctx context.Context, _ int64) ([]byte, error) {
 	iconIDs, err := s.deps.Packages.ListRepositoryIconObjectIDs(ctx)
 	if err != nil {
 		return nil, err
@@ -153,6 +131,7 @@ type PackageInstaller struct {
 // a distribution grant; the key serves Woodstar-direct.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
+	_ int64,
 	key string,
 ) (PackageInstaller, error) {
 	if key == "" {
@@ -195,6 +174,7 @@ func (s *RepositoryService) ResolvePackageFile(
 // serving.
 func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
+	_ int64,
 	key string,
 ) (storage.Object, error) {
 	if key == "" {
@@ -222,18 +202,12 @@ func (s *RepositoryService) ResolveIconFile(
 	return obj, nil
 }
 
-// ResolveClientResources resolves the configured archive for Munki's host-specific
-// request or its site_default.zip fallback.
-func (s *RepositoryService) ResolveClientResources(ctx context.Context, name string) (storage.Object, error) {
-	if name != "site_default.zip" {
-		serial, ok := strings.CutSuffix(name, ".zip")
-		if !ok || serial == "" || strings.Contains(serial, "/") {
-			return storage.Object{}, ErrNotFound
-		}
-		if _, err := s.resolveManifestHostID(ctx, serial); err != nil {
-			return storage.Object{}, err
-		}
-	}
+// ResolveClientResources resolves the configured archive for hostID.
+func (s *RepositoryService) ResolveClientResources(
+	ctx context.Context,
+	_ int64,
+	_ string,
+) (storage.Object, error) {
 	const effectiveClientResourcesID int64 = 1
 	resource, err := s.deps.ClientResources.GetByID(ctx, effectiveClientResourcesID)
 	if errors.Is(err, dbutil.ErrNotFound) {
