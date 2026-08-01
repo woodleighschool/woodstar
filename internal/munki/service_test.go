@@ -132,6 +132,22 @@ func TestRepositoryProjectionIncludesReverseUpdatePackages(t *testing.T) {
 	}, []int64{40, 10})
 }
 
+func TestRepositoryProjectionExcludesReverseUpdatePinnedToAnotherPackage(t *testing.T) {
+	root := repositoryTestPackage(10, 1)
+	otherVersion := repositoryTestPackage(11, root.Software.ID)
+	update := repositoryTestPackage(40, 4)
+	update.UpdateFor = []packages.PackageReference{{
+		SoftwareID: root.Software.ID,
+		PackageID:  otherVersion.ID,
+	}}
+
+	assertRepositoryCatalogIDs(t, []munkisoftware.EffectivePackage{{Package: root}}, []packages.Package{
+		otherVersion,
+		update,
+		root,
+	}, []int64{10})
+}
+
 func TestRepositoryProjectionHonorsPinnedReferences(t *testing.T) {
 	root := repositoryTestPackage(10, 1)
 	root.Requires = []packages.PackageReference{{SoftwareID: 3, PackageID: 31}}

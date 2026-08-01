@@ -103,9 +103,8 @@ func referenceMatchesIncluded(
 	softwareIDs map[int64]struct{},
 ) bool {
 	if ref.PackageID > 0 {
-		if _, included := packageIDs[ref.PackageID]; included {
-			return true
-		}
+		_, included := packageIDs[ref.PackageID]
+		return included
 	}
 	_, included := softwareIDs[ref.SoftwareID]
 	return included
