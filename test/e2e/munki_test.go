@@ -15,6 +15,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -655,6 +658,39 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		len(manifest.ManagedInstalls) != 1 || manifest.ManagedInstalls[0] != softwareName {
 		t.Fatalf("manifest = %+v, want woodstar catalog and %s install", manifest, softwareName)
 	}
+	secondManifestRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+"/munki/manifests/"+secondSerial,
+		munkiSecret,
+		secondSerial,
+	)
+	secondManifestRequest.Header.Set("If-None-Match", manifestETag)
+	secondManifestResponse, err := munkiClient.Do(secondManifestRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host Munki manifest with first-host ETag: %v", err)
+	}
+	secondManifestBody := readAndClose(t, secondManifestResponse)
+	if secondManifestResponse.StatusCode != http.StatusOK || secondManifestResponse.Header.Get("ETag") == manifestETag {
+		t.Fatalf(
+			"second-host manifest status/etag = %d/%q, want 200 and an ETag distinct from %q",
+			secondManifestResponse.StatusCode,
+			secondManifestResponse.Header.Get("ETag"),
+			manifestETag,
+		)
+	}
+	var secondManifest struct {
+		Catalogs        []string `plist:"catalogs"`
+		ManagedInstalls []string `plist:"managed_installs"`
+	}
+	if _, err := plist.Unmarshal(secondManifestBody, &secondManifest); err != nil {
+		t.Fatalf("decode second-host Munki manifest plist: %v", err)
+	}
+	if len(secondManifest.Catalogs) != 1 || secondManifest.Catalogs[0] != "woodstar" ||
+		len(secondManifest.ManagedInstalls) != 1 || secondManifest.ManagedInstalls[0] != secondSoftwareName {
+		t.Fatalf("second-host manifest = %+v, want woodstar catalog and %s install", secondManifest, secondSoftwareName)
+	}
 	missingSerialRequest := newMunkiRequest(
 		t,
 		t.Context(),
@@ -833,6 +869,50 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		!bytes.Equal(got, firstIconBytes) {
 		t.Fatalf("first-host icon status/body = %d/%d, want 200/exact", firstIconResponse.StatusCode, len(got))
 	}
+	workerRoot := t.TempDir()
+	workerDataDir := filepath.Join(workerRoot, "mirror")
+	workerTLS := createTestTLS(t, workerRoot)
+	workerPort := allocatePort(t)
+	workerBaseURL := "https://localhost:" + strconv.Itoa(workerPort)
+	point := createMDPDistributionPoint(t, server, workerBaseURL)
+	if point.Key == "" {
+		t.Fatal("created distribution point did not reveal its worker key")
+	}
+	server.redact(point.Key)
+	workerLogPath := filepath.Join(workerRoot, "worker.log")
+	workerLog, err := os.OpenFile(workerLogPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // Test-owned temporary path.
+	if err != nil {
+		t.Fatalf("create MDP worker log: %v", err)
+	}
+	t.Cleanup(func() { _ = workerLog.Close() })
+	workerCommand := exec.Command(testBinary(t), "mdp") //nolint:gosec,noctx // E2E harness selects the binary; stopProcess owns shutdown and forced kill.
+	workerCommand.Env = append(
+		withoutWoodstarEnvironment(os.Environ()),
+		"WOODSTAR_MDP_SERVER_URL="+server.BaseURL,
+		"WOODSTAR_MDP_SERVER_CA_FILE="+server.CACertificatePath,
+		"WOODSTAR_MDP_KEY="+point.Key,
+		"WOODSTAR_MDP_DATA_DIR="+workerDataDir,
+		"WOODSTAR_MDP_LISTEN_ADDR=127.0.0.1:"+strconv.Itoa(workerPort),
+		"WOODSTAR_MDP_TLS_CERT_FILE="+workerTLS.certificatePath,
+		"WOODSTAR_MDP_TLS_KEY_FILE="+workerTLS.privateKeyPath,
+		"WOODSTAR_MDP_LOG_LEVEL=info",
+		"WOODSTAR_MDP_DOWNLOAD_CONCURRENCY=1",
+	)
+	workerCommand.Stdout = workerLog
+	workerCommand.Stderr = workerLog
+	workerProcess, err := startProcess(workerCommand)
+	if err != nil {
+		t.Fatalf("start MDP worker: %v", err)
+	}
+	t.Cleanup(func() {
+		stopProcess(t, "MDP worker", workerProcess)
+		if t.Failed() {
+			t.Logf("MDP worker logs (tail):\n%s", safeLogTail(workerLogPath, []string{point.Key}))
+		}
+	})
+	if _, err := waitForMDPCurrent(t.Context(), server, point.Id, pkg.Id, workerProcess); err != nil {
+		t.Fatalf("wait for MDP package mirror: %v\n%s", err, safeLogTail(workerLogPath, []string{point.Key}))
+	}
 	secondPackageForFirstHostRequest := newMunkiRequest(
 		t,
 		t.Context(),
@@ -849,6 +929,20 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if secondPackageForFirstHostResponse.StatusCode != http.StatusNotFound {
 		t.Fatalf("second-host package as first host status = %d, want 404", secondPackageForFirstHostResponse.StatusCode)
 	}
+	redirectRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		http.MethodGet,
+		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
+		munkiSecret,
+		serial,
+	)
+	redirectResponse, err := munkiClient.Do(redirectRequest)
+	if err != nil {
+		t.Fatalf("request first-host package through MDP: %v", err)
+	}
+	drainAndClose(t, redirectResponse)
+	requireMDPRedirect(t, redirectResponse, workerBaseURL, installerItemLocation)
 	secondIconForFirstHostRequest := newMunkiRequest(
 		t,
 		t.Context(),
@@ -902,9 +996,19 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if err != nil {
 		t.Fatalf("fetch second-host Munki package: %v", err)
 	}
-	if got := readAndClose(t, secondPackageResponse); secondPackageResponse.StatusCode != http.StatusOK ||
+	drainAndClose(t, secondPackageResponse)
+	secondRedirectURL := requireMDPRedirect(t, secondPackageResponse, workerBaseURL, secondInstallerItemLocation)
+	secondWorkerRequest, err := http.NewRequestWithContext(t.Context(), http.MethodGet, secondRedirectURL, nil)
+	if err != nil {
+		t.Fatalf("create second-host MDP package request: %v", redactedRequestError(err))
+	}
+	secondWorkerResponse, err := verifyingClient(t, workerTLS.caCertificate).Do(secondWorkerRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host package from MDP: %v", redactedRequestError(err))
+	}
+	if got := readAndClose(t, secondWorkerResponse); secondWorkerResponse.StatusCode != http.StatusOK ||
 		!bytes.Equal(got, secondInstallerBytes) {
-		t.Fatalf("second-host package status/body = %d/%d, want 200/exact", secondPackageResponse.StatusCode, len(got))
+		t.Fatalf("second-host MDP package status/body = %d/%d, want 200/exact", secondWorkerResponse.StatusCode, len(got))
 	}
 	secondIconRequest := newMunkiRequest(
 		t,
