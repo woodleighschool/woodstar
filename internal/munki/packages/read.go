@@ -3,8 +3,6 @@ package packages
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -63,22 +61,6 @@ ORDER BY lower(s.name), s.id, p.id`)
 	return s.attachRelations(ctx, packagesFromRows(records))
 }
 
-// ListRepositoryIconObjectIDs returns the distinct available icons referenced
-// by packages that may appear in the shared Munki catalog.
-func (s *Store) ListRepositoryIconObjectIDs(ctx context.Context) ([]int64, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-SELECT DISTINCT s.icon_object_id
-FROM munki_packages p
-JOIN munki_software s ON s.id = p.software_id
-JOIN storage_objects icon_obj ON icon_obj.id = s.icon_object_id
-WHERE icon_obj.available_at IS NOT NULL
-ORDER BY s.icon_object_id`)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowTo[int64])
-}
-
 // PackagesByID assembles the given packages with relations attached. The result
 // order is unspecified; callers index it by Package.ID.
 func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error) {
@@ -91,21 +73,6 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 		packageSelectSQL()+"\nWHERE p.id = ANY($1::bigint[])",
 		ids,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return s.attachRelations(ctx, packagesFromRows(records))
-}
-
-// RepositoryPackagesByIconObjectID returns packages that reference the given
-// software icon object.
-func (s *Store) RepositoryPackagesByIconObjectID(ctx context.Context, iconObjectID int64) ([]Package, error) {
-	if iconObjectID <= 0 {
-		return []Package{}, nil
-	}
-	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
-WHERE s.icon_object_id = $1
-ORDER BY lower(s.name), s.id, p.id`, iconObjectID)
 	if err != nil {
 		return nil, err
 	}

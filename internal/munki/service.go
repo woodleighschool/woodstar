@@ -26,9 +26,7 @@ type effectivePackageResolver interface {
 
 type packageResolver interface {
 	ListRepositoryPackages(ctx context.Context) ([]packages.Package, error)
-	ListRepositoryIconObjectIDs(ctx context.Context) ([]int64, error)
 	PackagesByID(ctx context.Context, packageIDs []int64) ([]packages.Package, error)
-	RepositoryPackagesByIconObjectID(ctx context.Context, iconObjectID int64) ([]packages.Package, error)
 }
 
 type objectResolver interface {
@@ -79,15 +77,15 @@ func (s *RepositoryService) Manifest(ctx context.Context, hostID int64) ([]byte,
 }
 
 // Catalog returns a Munki catalog plist for hostID and name.
-func (s *RepositoryService) Catalog(ctx context.Context, _ int64, name string) ([]byte, error) {
+func (s *RepositoryService) Catalog(ctx context.Context, hostID int64, name string) ([]byte, error) {
 	if name != catalogName {
 		return nil, ErrNotFound
 	}
-	pkgs, err := s.deps.Packages.ListRepositoryPackages(ctx)
+	projection, err := s.projection(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.catalogItems(ctx, pkgs)
+	items, err := s.catalogItems(ctx, projection.packages)
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +93,12 @@ func (s *RepositoryService) Catalog(ctx context.Context, _ int64, name string) (
 }
 
 // IconHashes returns the available catalog icon hashes for hostID keyed by repository filename.
-func (s *RepositoryService) IconHashes(ctx context.Context, _ int64) ([]byte, error) {
-	iconIDs, err := s.deps.Packages.ListRepositoryIconObjectIDs(ctx)
+func (s *RepositoryService) IconHashes(ctx context.Context, hostID int64) ([]byte, error) {
+	projection, err := s.projection(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
+	iconIDs := mapKeys(projection.iconObjectIDs)
 	if len(iconIDs) == 0 {
 		return encodePlist(map[string]string{})
 	}
@@ -131,7 +130,7 @@ type PackageInstaller struct {
 // a distribution grant; the key serves Woodstar-direct.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
-	_ int64,
+	hostID int64,
 	key string,
 ) (PackageInstaller, error) {
 	if key == "" {
@@ -139,6 +138,13 @@ func (s *RepositoryService) ResolvePackageFile(
 	}
 	packageID, ok := packages.ParseInstallerItemLocation(key)
 	if !ok {
+		return PackageInstaller{}, ErrNotFound
+	}
+	projection, err := s.projection(ctx, hostID)
+	if err != nil {
+		return PackageInstaller{}, err
+	}
+	if _, allowed := projection.packageIDs[packageID]; !allowed {
 		return PackageInstaller{}, ErrNotFound
 	}
 	pkgs, err := s.deps.Packages.PackagesByID(ctx, []int64{packageID})
@@ -174,7 +180,7 @@ func (s *RepositoryService) ResolvePackageFile(
 // serving.
 func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
-	_ int64,
+	hostID int64,
 	key string,
 ) (storage.Object, error) {
 	if key == "" {
@@ -184,11 +190,11 @@ func (s *RepositoryService) ResolveIconFile(
 	if !ok {
 		return storage.Object{}, ErrNotFound
 	}
-	pkgs, err := s.deps.Packages.RepositoryPackagesByIconObjectID(ctx, iconObjectID)
+	projection, err := s.projection(ctx, hostID)
 	if err != nil {
 		return storage.Object{}, err
 	}
-	if len(pkgs) == 0 {
+	if _, allowed := projection.iconObjectIDs[iconObjectID]; !allowed {
 		return storage.Object{}, ErrNotFound
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{iconObjectID})
@@ -232,6 +238,18 @@ func (s *RepositoryService) effectivePackages(
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
 	return s.deps.Software.EffectivePackagesForHost(ctx, hostID)
+}
+
+func (s *RepositoryService) projection(ctx context.Context, hostID int64) (repositoryProjection, error) {
+	effective, err := s.effectivePackages(ctx, hostID)
+	if err != nil {
+		return repositoryProjection{}, err
+	}
+	repository, err := s.deps.Packages.ListRepositoryPackages(ctx)
+	if err != nil {
+		return repositoryProjection{}, err
+	}
+	return buildRepositoryProjection(effective, repository), nil
 }
 
 func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectivePackage) {
@@ -321,6 +339,15 @@ func appendObjectID(ids []int64, id *int64) []int64 {
 		return ids
 	}
 	return append(ids, *id)
+}
+
+func mapKeys(values map[int64]struct{}) []int64 {
+	keys := make([]int64, 0, len(values))
+	for value := range values {
+		keys = append(keys, value)
+	}
+	slices.Sort(keys)
+	return keys
 }
 
 func appendUnique(values []string, value string) []string {

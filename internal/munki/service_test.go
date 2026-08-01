@@ -3,6 +3,7 @@ package munki_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -24,13 +25,17 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 	installerSHA := strings.Repeat("a", 64)
 	availableAt := time.Now()
 	store := servicePackageStore{
+		packages: []munkisoftware.EffectivePackage{{Package: packages.Package{ID: 10}}},
+		repositoryPackages: []packages.Package{{
+			ID:       10,
+			Software: packages.PackageSoftware{ID: 10, Name: "GoogleChrome"},
+		}},
 		packagesByID: map[int64]packages.Package{10: {
 			ID:                10,
 			Software:          packages.PackageSoftware{Name: "GoogleChrome"},
 			InstallerType:     packages.InstallerTypePkg,
 			InstallerObjectID: &installerID,
 		}},
-		listRepositoryErr: errors.New("full repository scan should not be used"),
 	}
 	objects := serviceObjectStore{objects: map[int64]storage.Object{
 		installerID: {
@@ -43,7 +48,7 @@ func TestResolvePackageFileUsesEmbeddedPackageID(t *testing.T) {
 			AvailableAt: &availableAt,
 		},
 	}}
-	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
+	service := munki.NewRepositoryService(munki.Dependencies{Software: store, Packages: store, Objects: objects})
 
 	installer, err := service.ResolvePackageFile(context.Background(), 1, "packages/10/installer/GoogleChrome.pkg")
 	if err != nil {
@@ -69,12 +74,12 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	iconID := int64(42)
 	availableAt := time.Now()
 	store := servicePackageStore{
-		packagesByIconObjectID: map[int64][]packages.Package{iconID: {{
+		packages: []munkisoftware.EffectivePackage{{Package: packages.Package{ID: 10}}},
+		repositoryPackages: []packages.Package{{
 			ID:            10,
 			Software:      packages.PackageSoftware{Name: "GoogleChrome", IconObjectID: &iconID},
 			InstallerType: packages.InstallerTypeNoPkg,
-		}}},
-		listRepositoryErr: errors.New("full repository scan should not be used"),
+		}},
 	}
 	objects := serviceObjectStore{objects: map[int64]storage.Object{
 		iconID: {
@@ -85,7 +90,7 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 			AvailableAt: &availableAt,
 		},
 	}}
-	service := munki.NewRepositoryService(munki.Dependencies{Packages: store, Objects: objects})
+	service := munki.NewRepositoryService(munki.Dependencies{Software: store, Packages: store, Objects: objects})
 
 	file, err := service.ResolveIconFile(context.Background(), 1, "42-GoogleChrome.png")
 	if err != nil {
@@ -98,6 +103,126 @@ func TestResolveIconFileUsesEmbeddedObjectID(t *testing.T) {
 	_, err = service.ResolveIconFile(context.Background(), 1, "42-Other.png")
 	if !errors.Is(err, munki.ErrNotFound) {
 		t.Fatalf("mismatched icon error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRepositoryProjectionExpandsRelationsTransitively(t *testing.T) {
+	root := repositoryTestPackage(10, 1)
+	root.Requires = []packages.PackageReference{{SoftwareID: 2}}
+	dependency := repositoryTestPackage(20, 2)
+	dependency.Requires = []packages.PackageReference{{SoftwareID: 3, PackageID: 31}}
+
+	assertRepositoryCatalogIDs(t, []munkisoftware.EffectivePackage{{Package: root}}, []packages.Package{
+		repositoryTestPackage(99, 9),
+		dependency,
+		repositoryTestPackage(31, 3),
+		root,
+	}, []int64{20, 31, 10})
+}
+
+func TestRepositoryProjectionIncludesReverseUpdatePackages(t *testing.T) {
+	root := repositoryTestPackage(10, 1)
+	update := repositoryTestPackage(40, 4)
+	update.UpdateFor = []packages.PackageReference{{SoftwareID: root.Software.ID}}
+
+	assertRepositoryCatalogIDs(t, []munkisoftware.EffectivePackage{{Package: root}}, []packages.Package{
+		repositoryTestPackage(99, 9),
+		update,
+		root,
+	}, []int64{40, 10})
+}
+
+func TestRepositoryProjectionHonorsPinnedReferences(t *testing.T) {
+	root := repositoryTestPackage(10, 1)
+	root.Requires = []packages.PackageReference{{SoftwareID: 3, PackageID: 31}}
+
+	assertRepositoryCatalogIDs(t, []munkisoftware.EffectivePackage{{Package: root}}, []packages.Package{
+		repositoryTestPackage(30, 3),
+		repositoryTestPackage(31, 3),
+		root,
+	}, []int64{31, 10})
+}
+
+func TestRepositoryProjectionTerminatesCyclesAndPreservesRepositoryOrder(t *testing.T) {
+	root := repositoryTestPackage(10, 1)
+	root.Requires = []packages.PackageReference{{SoftwareID: 2}}
+	dependency := repositoryTestPackage(20, 2)
+	dependency.Requires = []packages.PackageReference{{SoftwareID: 1, PackageID: root.ID}}
+
+	assertRepositoryCatalogIDs(t, []munkisoftware.EffectivePackage{{Package: root}}, []packages.Package{
+		dependency,
+		root,
+	}, []int64{20, 10})
+}
+
+func TestRepositoryResourceResolutionRejectsPackagesAndIconsOutsideProjection(t *testing.T) {
+	allowedIconID := int64(42)
+	blockedIconID := int64(43)
+	allowed := repositoryTestPackage(10, 1)
+	allowed.Software.IconObjectID = &allowedIconID
+	blocked := repositoryTestPackage(20, 2)
+	blocked.Software.IconObjectID = &blockedIconID
+	installerID := int64(44)
+	blocked.InstallerObjectID = &installerID
+
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: servicePackageStore{packages: []munkisoftware.EffectivePackage{{Package: allowed}}},
+		Packages: servicePackageStore{
+			repositoryPackages: []packages.Package{allowed, blocked},
+			packagesByID:       map[int64]packages.Package{blocked.ID: blocked},
+		},
+		Objects: serviceObjectStore{},
+	})
+
+	if _, err := service.ResolvePackageFile(context.Background(), 1, "packages/20/installer/blocked.pkg"); !errors.Is(err, munki.ErrNotFound) {
+		t.Fatalf("ResolvePackageFile outside projection error = %v, want ErrNotFound", err)
+	}
+	if _, err := service.ResolveIconFile(context.Background(), 1, "43-blocked.png"); !errors.Is(err, munki.ErrNotFound) {
+		t.Fatalf("ResolveIconFile outside projection error = %v, want ErrNotFound", err)
+	}
+}
+
+func repositoryTestPackage(id, softwareID int64) packages.Package {
+	return packages.Package{
+		ID:            id,
+		Software:      packages.PackageSoftware{ID: softwareID, Name: fmt.Sprintf("package-%d", id)},
+		Version:       "1.0",
+		InstallerType: packages.InstallerTypeNoPkg,
+	}
+}
+
+func assertRepositoryCatalogIDs(
+	t *testing.T,
+	effective []munkisoftware.EffectivePackage,
+	repository []packages.Package,
+	want []int64,
+) {
+	t.Helper()
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: servicePackageStore{packages: effective},
+		Packages: servicePackageStore{repositoryPackages: repository},
+		Objects:  serviceObjectStore{},
+	})
+	body, err := service.Catalog(context.Background(), 1, "woodstar")
+	if err != nil {
+		t.Fatalf("Catalog: %v", err)
+	}
+	var items []struct {
+		Name string `plist:"name"`
+	}
+	if _, err := plist.Unmarshal(body, &items); err != nil {
+		t.Fatalf("decode catalog: %v", err)
+	}
+	got := make([]int64, 0, len(items))
+	for _, item := range items {
+		var id int64
+		if _, err := fmt.Sscanf(item.Name, "package-%d", &id); err != nil {
+			t.Fatalf("catalog package name %q: %v", item.Name, err)
+		}
+		got = append(got, id)
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("catalog package IDs = %v, want %v", got, want)
 	}
 }
 
@@ -205,6 +330,7 @@ func TestManifestUsesResolvedHostID(t *testing.T) {
 
 func TestCatalogRequiresWoodstarName(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: servicePackageStore{},
 		Packages: servicePackageStore{},
 		Objects:  serviceObjectStore{},
 	})
@@ -223,10 +349,13 @@ func TestIconHashesIncludesAvailableRepositoryIcons(t *testing.T) {
 	hash := strings.Repeat("a", 64)
 	var requestedObjectIDs []int64
 	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: servicePackageStore{
-			repositoryIconObjectIDs: []int64{iconID},
-			listRepositoryErr:       errors.New("full repository scan should not be used"),
-		},
+		Software: servicePackageStore{packages: []munkisoftware.EffectivePackage{{
+			Package: packages.Package{ID: 10},
+		}}},
+		Packages: servicePackageStore{repositoryPackages: []packages.Package{{
+			ID:       10,
+			Software: packages.PackageSoftware{ID: 10, Name: "GoogleChrome", IconObjectID: &iconID},
+		}}},
 		Objects: serviceObjectStore{
 			objects: map[int64]storage.Object{
 				iconID: {
@@ -287,13 +416,11 @@ func (s serviceObjectStore) ListByIDs(_ context.Context, ids []int64) (map[int64
 }
 
 type servicePackageStore struct {
-	packages                []munkisoftware.EffectivePackage
-	repositoryPackages      []packages.Package
-	repositoryIconObjectIDs []int64
-	packagesByID            map[int64]packages.Package
-	packagesByIconObjectID  map[int64][]packages.Package
-	listRepositoryErr       error
-	requestedHostID         *int64
+	packages           []munkisoftware.EffectivePackage
+	repositoryPackages []packages.Package
+	packagesByID       map[int64]packages.Package
+	listRepositoryErr  error
+	requestedHostID    *int64
 }
 
 func (s servicePackageStore) EffectivePackagesForHost(
@@ -315,10 +442,6 @@ func (s servicePackageStore) ListRepositoryPackages(
 	return s.repositoryPackages, nil
 }
 
-func (s servicePackageStore) ListRepositoryIconObjectIDs(context.Context) ([]int64, error) {
-	return s.repositoryIconObjectIDs, nil
-}
-
 func (s servicePackageStore) PackagesByID(
 	_ context.Context,
 	ids []int64,
@@ -330,11 +453,4 @@ func (s servicePackageStore) PackagesByID(
 		}
 	}
 	return pkgs, nil
-}
-
-func (s servicePackageStore) RepositoryPackagesByIconObjectID(
-	_ context.Context,
-	iconObjectID int64,
-) ([]packages.Package, error) {
-	return s.packagesByIconObjectID[iconObjectID], nil
 }

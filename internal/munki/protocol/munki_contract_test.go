@@ -86,16 +86,18 @@ func testRouteSurface(surface string) func(http.Handler) http.Handler {
 }
 
 func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
-			{
-				Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector: munkisoftware.PackageSelector{
-					Strategy: munkisoftware.PackageLatest,
-				},
-				Package: staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+	resolver := staticPackageResolver{packages: []munkisoftware.EffectivePackage{
+		{
+			Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+			Selector: munkisoftware.PackageSelector{
+				Strategy: munkisoftware.PackageLatest,
 			},
-		}},
+			Package: staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+		},
+	}}
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: resolver,
+		Packages: resolver,
 	})
 
 	body, err := service.Catalog(context.Background(), 42, "woodstar")
@@ -711,23 +713,6 @@ func (r staticPackageResolver) ListRepositoryPackages(
 	return pkgs, nil
 }
 
-func (r staticPackageResolver) ListRepositoryIconObjectIDs(context.Context) ([]int64, error) {
-	ids := make([]int64, 0, len(r.packages))
-	seen := make(map[int64]struct{}, len(r.packages))
-	for _, pkg := range r.packages {
-		if pkg.Package.Software.IconObjectID == nil {
-			continue
-		}
-		id := *pkg.Package.Software.IconObjectID
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
 func (r staticPackageResolver) PackagesByID(
 	_ context.Context,
 	ids []int64,
@@ -739,19 +724,6 @@ func (r staticPackageResolver) PackagesByID(
 				pkgs = append(pkgs, pkg.Package)
 				break
 			}
-		}
-	}
-	return pkgs, nil
-}
-
-func (r staticPackageResolver) RepositoryPackagesByIconObjectID(
-	_ context.Context,
-	iconObjectID int64,
-) ([]packages.Package, error) {
-	pkgs := make([]packages.Package, 0, len(r.packages))
-	for _, pkg := range r.packages {
-		if pkg.Package.Software.IconObjectID != nil && *pkg.Package.Software.IconObjectID == iconObjectID {
-			pkgs = append(pkgs, pkg.Package)
 		}
 	}
 	return pkgs, nil
