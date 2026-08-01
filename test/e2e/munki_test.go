@@ -31,7 +31,10 @@ import (
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
-const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+const (
+	tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+	munkiSecret   = "munki-integration-secret-0123456789abcdef"
+)
 
 func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product lifecycle; splitting would hide the order being proved.
 	const (
@@ -39,7 +42,6 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		secondSerial       = "C02WOODSTARMUNKI2"
 		softwareName       = "WoodstarIntegrationApp"
 		secondSoftwareName = "WoodstarSecondIntegrationApp"
-		munkiSecret        = "munki-integration-secret-0123456789abcdef"
 	)
 
 	server := startTestServer(t)
@@ -627,9 +629,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	manifestRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+serial,
-		munkiSecret,
 		serial,
 	)
 	manifestResponse, err := munkiClient.Do(manifestRequest)
@@ -661,9 +661,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondManifestRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+secondSerial,
-		munkiSecret,
 		secondSerial,
 	)
 	secondManifestRequest.Header.Set("If-None-Match", manifestETag)
@@ -694,9 +692,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	missingSerialRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+serial,
-		munkiSecret,
 		serial,
 	)
 	missingSerialRequest.Header.Del("X-Woodstar-Serial-Number")
@@ -711,9 +707,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	unknownSerialRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+serial,
-		munkiSecret,
 		"C02WOODSTARUNKNOWN",
 	)
 	unknownSerialResponse, err := munkiClient.Do(unknownSerialRequest)
@@ -728,9 +722,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	cachedManifestRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+serial,
-		munkiSecret,
 		serial,
 	)
 	cachedManifestRequest.Header.Set("If-None-Match", manifestETag)
@@ -753,9 +745,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	catalogRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/catalogs/woodstar",
-		munkiSecret,
 		serial,
 	)
 	catalogResponse, err := munkiClient.Do(catalogRequest)
@@ -788,17 +778,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	packageRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
-		munkiSecret,
 		serial,
 	)
 	sessionOnlyPackageRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
-		munkiSecret,
 		serial,
 	)
 	sessionOnlyPackageRequest.Header.Del("Authorization")
@@ -833,9 +819,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	iconHashesRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/icons/_icon_hashes.plist",
-		munkiSecret,
 		serial,
 	)
 	iconHashesResponse, err := munkiClient.Do(iconHashesRequest)
@@ -856,9 +840,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	firstIconRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/icons/"+firstIconName,
-		munkiSecret,
 		serial,
 	)
 	firstIconResponse, err := munkiClient.Do(firstIconRequest)
@@ -916,9 +898,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondPackageForFirstHostRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
-		munkiSecret,
 		serial,
 	)
 	secondPackageForFirstHostResponse, err := munkiClient.Do(secondPackageForFirstHostRequest)
@@ -932,9 +912,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	redirectRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
-		munkiSecret,
 		serial,
 	)
 	redirectResponse, err := munkiClient.Do(redirectRequest)
@@ -946,9 +924,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondIconForFirstHostRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/icons/"+secondIconName,
-		munkiSecret,
 		serial,
 	)
 	secondIconForFirstHostResponse, err := munkiClient.Do(secondIconForFirstHostRequest)
@@ -962,9 +938,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondCatalogRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/catalogs/woodstar",
-		munkiSecret,
 		secondSerial,
 	)
 	secondCatalogResponse, err := munkiClient.Do(secondCatalogRequest)
@@ -987,9 +961,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondPackageRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
-		munkiSecret,
 		secondSerial,
 	)
 	secondPackageResponse, err := munkiClient.Do(secondPackageRequest)
@@ -1013,9 +985,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondIconRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/icons/"+secondIconName,
-		munkiSecret,
 		secondSerial,
 	)
 	secondIconResponse, err := munkiClient.Do(secondIconRequest)
@@ -1030,9 +1000,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	resourcesRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		munkiSecret,
 		serial,
 	)
 	resourcesResponse, err := munkiClient.Do(resourcesRequest)
@@ -1178,9 +1146,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	uploadedResourcesRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		munkiSecret,
 		serial,
 	)
 	uploadedResourcesResponse, err := munkiClient.Do(uploadedResourcesRequest)
@@ -1262,9 +1228,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	undeployedRequest := newMunkiRequest(
 		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		munkiSecret,
 		serial,
 	)
 	undeployedResponse, err := munkiClient.Do(undeployedRequest)
@@ -1280,17 +1244,15 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 func newMunkiRequest(
 	t *testing.T,
 	ctx context.Context,
-	method string,
 	url string,
-	secret string,
 	serial string,
 ) *http.Request {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		t.Fatalf("create Munki request: %v", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+secret)
+	req.Header.Set("Authorization", "Bearer "+munkiSecret)
 	req.Header.Set("X-Woodstar-Serial-Number", serial)
 	return req
 }
