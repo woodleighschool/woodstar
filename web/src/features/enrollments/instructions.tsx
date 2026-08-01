@@ -110,7 +110,7 @@ function MunkiDeploymentInstructions({ serverURL }: { serverURL?: string }) {
 
       <DeploymentArtifact
         title="Munki Profile"
-        description="Replace the bearer secret before deployment. The profile uses the MDM-expanded serial as Munki's client identifier."
+        description="Replace the bearer secret before deployment. The serial header binds every repository request to its enrolled host."
         value={munkiProfileTemplate(serverURL)}
         extensions={xmlExtensions}
         multiline
@@ -289,9 +289,11 @@ function munkiProfileTemplate(serverURLValue: string | undefined) {
     payloads: [
       {
         SoftwareRepoURL: woodstarURL(serverURLValue, "/munki"),
-        ClientIdentifier: SERIAL_PLACEHOLDER,
         FollowHTTPRedirects: "https",
-        AdditionalHttpHeaders: [`Authorization: Bearer ${SECRET_PLACEHOLDER}`],
+        AdditionalHttpHeaders: [
+          `Authorization: Bearer ${SECRET_PLACEHOLDER}`,
+          `X-Woodstar-Serial-Number: ${SERIAL_PLACEHOLDER}`,
+        ],
         ...payloadMeta({
           id: `${PREFIX}.munki.managedinstalls`,
           type: "ManagedInstalls",
