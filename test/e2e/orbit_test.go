@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/json"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
@@ -179,6 +182,25 @@ func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; spl
 		host.Agents.Osquery.Version != "5.23.1" {
 		t.Fatalf("Orbit fixture host = %+v, want combined Orbit and osquery observation", host)
 	}
+	orbitBeforeReenroll := requireHeartbeat(t, host.Heartbeats, "orbit")
+	const distinctiveOsqueryIP = "203.0.113.42"
+	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
+	if err != nil {
+		t.Fatalf("connect to isolated Woodstar database: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
+		defer cancel()
+		if closeErr := database.Close(ctx); closeErr != nil {
+			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
+		}
+	})
+	if _, err := database.Exec(t.Context(), `
+UPDATE host_heartbeats
+SET last_seen_at = now() - interval '10 minutes', remote_ip = $1
+WHERE host_id = $2 AND source = 'osquery'`, distinctiveOsqueryIP, host.Id); err != nil {
+		t.Fatalf("prepare stale osquery heartbeat: %v", err)
+	}
 
 	var reenrolled orbitFixtureEnrollResponse
 	client.postFixture("enroll.json", "/api/fleet/orbit/enroll", fixtureValues, http.StatusOK, &reenrolled)
@@ -195,12 +217,16 @@ func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; spl
 	combinedHost := requireOnlyOrbitFixtureHost(t, server)
 	orbitHeartbeat := requireHeartbeat(t, combinedHost.Heartbeats, "orbit")
 	osqueryHeartbeat := requireHeartbeat(t, combinedHost.Heartbeats, "osquery")
-	if len(combinedHost.Heartbeats) != 2 || !orbitHeartbeat.LastSeenAt.After(osqueryHeartbeat.LastSeenAt) ||
+	if len(combinedHost.Heartbeats) != 2 || !orbitHeartbeat.LastSeenAt.After(orbitBeforeReenroll.LastSeenAt) ||
+		!orbitHeartbeat.LastSeenAt.After(osqueryHeartbeat.LastSeenAt) ||
+		!osqueryHeartbeat.LastSeenAt.Before(time.Now().Add(-5*time.Minute)) ||
 		combinedHost.LastContact == nil || !combinedHost.LastContact.Equal(orbitHeartbeat.LastSeenAt) ||
-		combinedHost.Status != "online" || osqueryHeartbeat.RemoteIp == nil || combinedHost.PublicIp == nil ||
-		*combinedHost.PublicIp != *osqueryHeartbeat.RemoteIp {
+		combinedHost.Status != "offline" || orbitHeartbeat.RemoteIp == nil ||
+		*orbitHeartbeat.RemoteIp == distinctiveOsqueryIP || osqueryHeartbeat.RemoteIp == nil ||
+		*osqueryHeartbeat.RemoteIp != distinctiveOsqueryIP || combinedHost.PublicIp == nil ||
+		*combinedHost.PublicIp != distinctiveOsqueryIP {
 		t.Fatalf(
-			"combined host = %+v, Orbit heartbeat = %+v, osquery heartbeat = %+v, want newest Orbit contact with osquery-derived status and public IP",
+			"combined host = %+v, Orbit heartbeat = %+v, osquery heartbeat = %+v, want newest Orbit contact with stale osquery-derived offline status and public IP",
 			combinedHost,
 			orbitHeartbeat,
 			osqueryHeartbeat,
